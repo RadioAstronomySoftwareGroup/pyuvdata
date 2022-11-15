@@ -1461,10 +1461,7 @@ class UVH5(UVData):
             self._write_header(header)
 
             # initialize the data groups on disk
-            if self.future_array_shapes:
-                data_size = (self.Nblts, self.Nfreqs, self.Npols)
-            else:
-                data_size = (self.Nblts, 1, self.Nfreqs, self.Npols)
+            data_size = (self.Nblts, self.Nfreqs, self.Npols)
             dgrp = f.create_group("Data")
             if data_write_dtype is None:
                 # we don't know what kind of data we'll get--default to double-precision
@@ -1849,16 +1846,9 @@ class UVH5(UVData):
                     indices = (blt_inds, freq_inds, pol_inds)
                     _write_complex_astype(data_array, visdata_dset, indices)
                 else:
-                    if self.future_array_shapes:
-                        visdata_dset[blt_inds, freq_inds, pol_inds] = data_array
-                    else:
-                        visdata_dset[blt_inds, :, freq_inds, pol_inds] = data_array
-                if self.future_array_shapes:
-                    flags_dset[blt_inds, freq_inds, pol_inds] = flag_array
-                    nsamples_dset[blt_inds, freq_inds, pol_inds] = nsample_array
-                else:
-                    flags_dset[blt_inds, :, freq_inds, pol_inds] = flag_array
-                    nsamples_dset[blt_inds, :, freq_inds, pol_inds] = nsample_array
+                    visdata_dset[blt_inds, freq_inds, pol_inds] = data_array
+                flags_dset[blt_inds, freq_inds, pol_inds] = flag_array
+                nsamples_dset[blt_inds, freq_inds, pol_inds] = nsample_array
             elif n_reg_spaced == 1:
                 # figure out which axis is regularly spaced
                 if blt_reg_spaced:
@@ -1866,119 +1856,55 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_inds, freq_idx, pol_idx)
-                                if self.future_array_shapes:
-                                    _write_complex_astype(
-                                        data_array[:, ifreq, ipol],
-                                        visdata_dset,
-                                        indices,
-                                    )
-                                else:
-                                    _write_complex_astype(
-                                        data_array[:, :, ifreq, ipol],
-                                        visdata_dset,
-                                        indices,
-                                    )
+                                _write_complex_astype(
+                                    data_array[:, ifreq, ipol], visdata_dset, indices
+                                )
                             else:
-                                if self.future_array_shapes:
-                                    visdata_dset[
-                                        blt_inds, freq_idx, pol_idx
-                                    ] = data_array[:, ifreq, ipol]
-                                else:
-                                    visdata_dset[
-                                        blt_inds, :, freq_idx, pol_idx
-                                    ] = data_array[:, :, ifreq, ipol]
-                            if self.future_array_shapes:
-                                flags_dset[blt_inds, freq_idx, pol_idx] = flag_array[
+                                visdata_dset[blt_inds, freq_idx, pol_idx] = data_array[
                                     :, ifreq, ipol
                                 ]
-                                nsamples_dset[
-                                    blt_inds, freq_idx, pol_idx
-                                ] = nsample_array[:, ifreq, ipol]
-                            else:
-                                flags_dset[blt_inds, :, freq_idx, pol_idx] = flag_array[
-                                    :, :, ifreq, ipol
-                                ]
-                                nsamples_dset[
-                                    blt_inds, :, freq_idx, pol_idx
-                                ] = nsample_array[:, :, ifreq, ipol]
+                            flags_dset[blt_inds, freq_idx, pol_idx] = flag_array[
+                                :, ifreq, ipol
+                            ]
+                            nsamples_dset[blt_inds, freq_idx, pol_idx] = nsample_array[
+                                :, ifreq, ipol
+                            ]
                 elif freq_reg_spaced:
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_inds, pol_idx)
-                                if self.future_array_shapes:
-                                    _write_complex_astype(
-                                        data_array[iblt, :, ipol], visdata_dset, indices
-                                    )
-                                else:
-                                    _write_complex_astype(
-                                        data_array[iblt, :, :, ipol],
-                                        visdata_dset,
-                                        indices,
-                                    )
+                                _write_complex_astype(
+                                    data_array[iblt, :, ipol], visdata_dset, indices
+                                )
                             else:
-                                if self.future_array_shapes:
-                                    visdata_dset[
-                                        blt_idx, freq_inds, pol_idx
-                                    ] = data_array[iblt, :, ipol]
-                                else:
-                                    visdata_dset[
-                                        blt_idx, :, freq_inds, pol_idx
-                                    ] = data_array[iblt, :, :, ipol]
-                            if self.future_array_shapes:
-                                flags_dset[blt_idx, freq_inds, pol_idx] = flag_array[
+                                visdata_dset[blt_idx, freq_inds, pol_idx] = data_array[
                                     iblt, :, ipol
                                 ]
-                                nsamples_dset[
-                                    blt_idx, freq_inds, pol_idx
-                                ] = nsample_array[iblt, :, ipol]
-                            else:
-                                flags_dset[blt_idx, :, freq_inds, pol_idx] = flag_array[
-                                    iblt, :, :, ipol
-                                ]
-                                nsamples_dset[
-                                    blt_idx, :, freq_inds, pol_idx
-                                ] = nsample_array[iblt, :, :, ipol]
+                            flags_dset[blt_idx, freq_inds, pol_idx] = flag_array[
+                                iblt, :, ipol
+                            ]
+                            nsamples_dset[blt_idx, freq_inds, pol_idx] = nsample_array[
+                                iblt, :, ipol
+                            ]
                 else:  # pol_reg_spaced
                     for iblt, blt_idx in enumerate(blt_inds):
                         for ifreq, freq_idx in enumerate(freq_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_idx, pol_inds)
-                                if self.future_array_shapes:
-                                    _write_complex_astype(
-                                        data_array[iblt, ifreq, :],
-                                        visdata_dset,
-                                        indices,
-                                    )
-                                else:
-                                    _write_complex_astype(
-                                        data_array[iblt, :, ifreq, :],
-                                        visdata_dset,
-                                        indices,
-                                    )
+                                _write_complex_astype(
+                                    data_array[iblt, ifreq, :], visdata_dset, indices
+                                )
                             else:
-                                if self.future_array_shapes:
-                                    visdata_dset[
-                                        blt_idx, freq_idx, pol_inds
-                                    ] = data_array[iblt, ifreq, :]
-                                else:
-                                    visdata_dset[
-                                        blt_idx, :, freq_idx, pol_inds
-                                    ] = data_array[iblt, :, ifreq, :]
-                            if self.future_array_shapes:
-                                flags_dset[blt_idx, freq_idx, pol_inds] = flag_array[
+                                visdata_dset[blt_idx, freq_idx, pol_inds] = data_array[
                                     iblt, ifreq, :
                                 ]
-                                nsamples_dset[
-                                    blt_idx, freq_idx, pol_inds
-                                ] = nsample_array[iblt, ifreq, :]
-                            else:
-                                flags_dset[blt_idx, :, freq_idx, pol_inds] = flag_array[
-                                    iblt, :, ifreq, :
-                                ]
-                                nsamples_dset[
-                                    blt_idx, :, freq_idx, pol_inds
-                                ] = nsample_array[iblt, :, ifreq, :]
+                            flags_dset[blt_idx, freq_idx, pol_inds] = flag_array[
+                                iblt, ifreq, :
+                            ]
+                            nsamples_dset[blt_idx, freq_idx, pol_inds] = nsample_array[
+                                iblt, ifreq, :
+                            ]
             else:
                 # all axes irregularly spaced
                 # perform a triple loop -- probably very slow!
@@ -1987,41 +1913,19 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_idx, pol_idx)
-                                if self.future_array_shapes:
-                                    _write_complex_astype(
-                                        data_array[iblt, ifreq, ipol],
-                                        visdata_dset,
-                                        indices,
-                                    )
-                                else:
-                                    _write_complex_astype(
-                                        data_array[iblt, :, ifreq, ipol],
-                                        visdata_dset,
-                                        indices,
-                                    )
+                                _write_complex_astype(
+                                    data_array[iblt, ifreq, ipol], visdata_dset, indices
+                                )
                             else:
-                                if self.future_array_shapes:
-                                    visdata_dset[
-                                        blt_idx, freq_idx, pol_idx
-                                    ] = data_array[iblt, ifreq, ipol]
-                                else:
-                                    visdata_dset[
-                                        blt_idx, :, freq_idx, pol_idx
-                                    ] = data_array[iblt, :, ifreq, ipol]
-                            if self.future_array_shapes:
-                                flags_dset[blt_idx, freq_idx, pol_idx] = flag_array[
+                                visdata_dset[blt_idx, freq_idx, pol_idx] = data_array[
                                     iblt, ifreq, ipol
                                 ]
-                                nsamples_dset[
-                                    blt_idx, freq_idx, pol_idx
-                                ] = nsample_array[iblt, ifreq, ipol]
-                            else:
-                                flags_dset[blt_idx, :, freq_idx, pol_idx] = flag_array[
-                                    iblt, :, ifreq, ipol
-                                ]
-                                nsamples_dset[
-                                    blt_idx, :, freq_idx, pol_idx
-                                ] = nsample_array[iblt, :, ifreq, ipol]
+                            flags_dset[blt_idx, freq_idx, pol_idx] = flag_array[
+                                iblt, ifreq, ipol
+                            ]
+                            nsamples_dset[blt_idx, freq_idx, pol_idx] = nsample_array[
+                                iblt, ifreq, ipol
+                            ]
 
             # append to history if desired
             if add_to_history is not None:
