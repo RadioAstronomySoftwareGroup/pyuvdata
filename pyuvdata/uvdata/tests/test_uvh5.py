@@ -3363,6 +3363,69 @@ def test_old_phase_center_catalog_format(sma_mir, tmp_path):
     assert uvd == sma_mir
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The entry name")
+@pytest.mark.filterwarnings("ignore:The provided name")
+def test_old_phase_attributes_header(casa_uvfits, tmp_path):
+    testfile = os.path.join(tmp_path, "outtest_old_phase_attrs.uvh5")
+
+    casa_uvfits.phase(
+        lon=casa_uvfits.phase_center_catalog[0]["cat_lon"],
+        lat=casa_uvfits.phase_center_catalog[0]["cat_lat"],
+        phase_frame="icrs",
+        cat_type="sidereal",
+        cat_name=casa_uvfits.phase_center_catalog[0]["cat_name"],
+    )
+    old_phase_compatible, _ = casa_uvfits._old_phase_attributes_compatible()
+    assert old_phase_compatible
+
+    casa_uvfits.write_uvh5(testfile)
+
+    phase_dict = list(casa_uvfits.phase_center_catalog.values())[0]
+    with h5py.File(testfile, "r+") as h5f:
+        del h5f["/Header/phase_center_catalog"]
+        del h5f["/Header/phase_center_app_ra"]
+        del h5f["/Header/phase_center_app_dec"]
+        del h5f["/Header/phase_center_frame_pa"]
+        header = h5f["/Header"]
+        header["phase_type"] = np.bytes_("phased")
+        header["object_name"] = phase_dict["cat_name"]
+        header["phase_center_ra"] = phase_dict["cat_lon"]
+        header["phase_center_dec"] = phase_dict["cat_lat"]
+        header["phase_center_frame"] = np.bytes_(phase_dict["cat_frame"])
+        header["phase_center_epoch"] = phase_dict["cat_epoch"]
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Telescope EVLA is not in known_telescopes.",
+            "This data appears to have been phased-up using the old `phase` method, "
+            "which is incompatible with the current set of methods. Please run the "
+            "`fix_phase` method (or set `fix_old_proj=True` when loading the dataset) "
+            "to address this issue.",
+        ],
+    ):
+        uvd = UVData.from_file(testfile, fix_old_proj=False)
+    uvd.history = casa_uvfits.history
+    assert uvd == casa_uvfits
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Telescope EVLA is not in known_telescopes.",
+            "Fixing phases using antenna positions.",
+        ],
+    ):
+        uvd2 = UVData.from_file(testfile)
+
+    with uvtest.check_warnings(
+        UserWarning, match="Fixing phases using antenna positions."
+    ):
+        casa_uvfits.fix_phase(use_ant_pos=True)
+    uvd2.history = casa_uvfits.history
+    assert uvd2 == casa_uvfits
+
+
 def test_none_extra_keywords(uv_uvh5, tmp_path):
     """Test that we can round-trip None values in extra_keywords"""
     test_uvh5 = UVData()

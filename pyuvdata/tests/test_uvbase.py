@@ -194,6 +194,7 @@ def test_inequality_different_extras():
         required=False,
     )
     assert test_obj != test_obj2
+    assert not (test_obj == test_obj2)
 
 
 def test_inequality():
