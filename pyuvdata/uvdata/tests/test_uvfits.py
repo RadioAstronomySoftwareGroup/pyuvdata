@@ -200,6 +200,105 @@ def test_source_group_params(casa_uvfits, tmp_path):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:The entry name")
+@pytest.mark.filterwarnings("ignore:The provided name")
+@pytest.mark.parametrize("frame", [["icrs"], ["fk5"], ["fk4"], ["fk5", "icrs"]])
+def test_read_write_multi_source(casa_uvfits, tmp_path, frame):
+    uv_in = casa_uvfits
+
+    # generate a multi source object by phasing it in multiple directions
+    init_ra = uv_in.phase_center_catalog[0]["cat_lon"]
+    init_dec = uv_in.phase_center_catalog[0]["cat_lat"]
+    init_frame = uv_in.phase_center_catalog[0]["cat_frame"]
+    init_epoch = uv_in.phase_center_catalog[0]["cat_epoch"]
+    init_name = uv_in.phase_center_catalog[0]["cat_name"]
+
+    frame_list = [init_frame] + frame
+    nphase = len(frame_list)
+    for frame_ind, frame_use in enumerate(frame_list):
+        phase_mask = np.full(uv_in.Nblts, False)
+        mask_start = frame_ind * uv_in.Nblts // nphase
+        if frame_ind == nphase - 1:
+            mask_end = uv_in.Nblts
+        else:
+            mask_end = (frame_ind + 1) * uv_in.Nblts // nphase
+        phase_mask[mask_start:mask_end] = True
+        if frame_use == "icrs":
+            epoch = None
+        elif frame_use == "fk5":
+            if frame_ind == 0:
+                epoch = init_epoch
+            else:
+                epoch = init_epoch + 5
+        elif frame_use == "fk4":
+            epoch = 1950
+        if frame_ind == 0:
+            cat_name = init_name
+        else:
+            cat_name = "test_" + str(frame_ind)
+        uv_in.phase(
+            ra=init_ra + 0.05 * (frame_ind + 1),
+            dec=init_dec + 0.05 * (frame_ind + 1),
+            phase_frame=frame_use,
+            epoch=epoch,
+            cat_name=cat_name,
+            cat_type="sidereal",
+            select_mask=phase_mask,
+        )
+    assert uv_in.Nphase == nphase
+
+    write_file = os.path.join(tmp_path, "outtest_multisource.uvfits")
+    uv_in.write_uvfits(write_file)
+    uv_out = UVData.from_file(write_file)
+
+    if frame == "fk5":
+        # objects should just be equal because all the phase centers had the same frames
+        uv_out._consolidate_phase_center_catalogs(
+            reference_catalog=uv_in.phase_center_catalog
+        )
+        assert uv_in == uv_out
+
+    # Now rephase to the same places as the initial object was phased to. Note that if
+    # frame == ["fk5"] this should not change anything (but it does!)
+    for frame_ind, frame_use in enumerate(frame_list):
+        phase_mask = np.full(uv_in.Nblts, False)
+        mask_start = frame_ind * uv_in.Nblts // nphase
+        if frame_ind == nphase - 1:
+            mask_end = uv_in.Nblts
+        else:
+            mask_end = (frame_ind + 1) * uv_in.Nblts // nphase
+        phase_mask[mask_start:mask_end] = True
+        if frame_use == "icrs":
+            epoch = None
+        elif frame_use == "fk5":
+            if frame_ind == 0:
+                epoch = init_epoch
+            else:
+                epoch = init_epoch + 5
+        elif frame_use == "fk4":
+            epoch = 1950
+        if frame_ind == 0:
+            cat_name = init_name
+        else:
+            cat_name = "test_" + str(frame_ind)
+        uv_out.phase(
+            ra=init_ra + 0.05 * (frame_ind + 1),
+            dec=init_dec + 0.05 * (frame_ind + 1),
+            phase_frame=frame_use,
+            epoch=epoch,
+            cat_name=cat_name,
+            cat_type="sidereal",
+            select_mask=phase_mask,
+        )
+
+    uv_out._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
+    print(np.max(np.abs(uv_in.data_array - uv_out.data_array)))
+
+    assert uv_in == uv_out
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")

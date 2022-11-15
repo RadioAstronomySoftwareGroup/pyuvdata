@@ -1287,16 +1287,17 @@ class UVFITS(UVData):
             if unique_frames.size == 1:
                 hdu.header["RADESYS"] = unique_frames[0]
             else:
-                most_common_frames = frame_count[frame_count == np.max(frame_count)]
+                most_common_frames = unique_frames[frame_count == np.max(frame_count)]
                 if most_common_frames.size == 1:
                     hdu.header["RADESYS"] = most_common_frames[0]
                 else:
-                    preferred_frames = ["fk5", "icrs"] + most_common_frames
+                    preferred_frames = ["fk5", "icrs"] + most_common_frames.tolist()
                     # this is guaranteed to find a match because most_common_frames are
                     # in the list, but it puts more preferred frames first
                     for frame in preferred_frames:
                         if frame in most_common_frames:
                             hdu.header["RADESYS"] = frame
+                            break
 
         if self.x_orientation is not None:
             hdu.header["XORIENT"] = self.x_orientation
@@ -1520,72 +1521,71 @@ class UVFITS(UVData):
             rest_freq[idx][:] = np.mean(self.freq_array)
             pm_ra[idx] = 0.0
             pm_dec[idx] = 0.0
-            if phase_dict["cat_type"] == "sidereal":
-                # So here's the deal -- we need all the objects to be in the same
-                # coordinate frame, although nothing in phase_center_catalog forces
-                # objects to share the same frame. So we want to make sure that
-                # everything lines up with the coordinate frame listed.
-                ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
-                    phase_dict["cat_lon"],
-                    phase_dict["cat_lat"],
-                    phase_dict["cat_frame"],
-                    hdu.header["RADESYS"],
-                    in_coord_epoch=phase_dict.get("cat_epoch"),
-                    out_coord_epoch=phase_dict.get("cat_epoch"),
-                    time_array=np.mean(self.time_array),
-                )
+            # So here's the deal -- we need all the objects to be in the same
+            # coordinate frame, although nothing in phase_center_catalog forces
+            # objects to share the same frame. So we want to make sure that
+            # everything lines up with the coordinate frame listed.
+            ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
+                phase_dict["cat_lon"],
+                phase_dict["cat_lat"],
+                phase_dict["cat_frame"],
+                hdu.header["RADESYS"],
+                in_coord_epoch=phase_dict.get("cat_epoch"),
+                out_coord_epoch=phase_dict.get("cat_epoch"),
+                time_array=np.mean(self.time_array),
+            )
 
-                epo_arr[idx] = (
-                    phase_dict["cat_epoch"]
-                    if "cat_epoch" in (phase_dict.keys())
-                    else 2000.0
-                )
+            epo_arr[idx] = (
+                phase_dict["cat_epoch"]
+                if "cat_epoch" in (phase_dict.keys())
+                else 2000.0
+            )
 
-                app_ra[idx] = np.median(
-                    self.phase_center_app_ra[self.phase_center_id_array == cat_id]
-                )
+            app_ra[idx] = np.median(
+                self.phase_center_app_ra[self.phase_center_id_array == cat_id]
+            )
 
-                app_dec[idx] = np.median(
-                    self.phase_center_app_dec[self.phase_center_id_array == cat_id]
-                )
+            app_dec[idx] = np.median(
+                self.phase_center_app_dec[self.phase_center_id_array == cat_id]
+            )
 
-            ra_arr *= 180.0 / np.pi
-            dec_arr *= 180.0 / np.pi
-            app_ra *= 180.0 / np.pi
-            app_dec *= 180.0 / np.pi
+        ra_arr *= 180.0 / np.pi
+        dec_arr *= 180.0 / np.pi
+        app_ra *= 180.0 / np.pi
+        app_dec *= 180.0 / np.pi
 
-            col_list = [
-                fits.Column(name="ID. NO.", format="1J", array=sou_ids),
-                fits.Column(name="SOURCE", format="20A", array=name_arr),
-                fits.Column(name="QUAL", format="1J", array=int_zeros),
-                fits.Column(name="CALCODE", format="4A", array=cal_code),
-                fits.Column(name="IFLUX", format=fmt_e, unit="JY", array=zero_arr),
-                fits.Column(name="QFLUX", format=fmt_e, unit="JY", array=zero_arr),
-                fits.Column(name="UFLUX", format=fmt_e, unit="JY", array=zero_arr),
-                fits.Column(name="VFLUX", format=fmt_e, unit="JY", array=zero_arr),
-                fits.Column(name="FREQOFF", format=fmt_d, unit="HZ", array=zero_arr),
-                fits.Column(name="BANDWIDTH", format="1D", unit="HZ", array=flt_zeros),
-                fits.Column(name="RAEPO", format="1D", unit="DEGREES", array=ra_arr),
-                fits.Column(name="DECEPO", format="1D", unit="DEGREES", array=dec_arr),
-                fits.Column(name="EPOCH", format="1D", unit="YEARS", array=epo_arr),
-                fits.Column(name="RAAPP", format="1D", unit="DEGREES", array=app_ra),
-                fits.Column(name="DECAPP", format="1D", unit="DEGREES", array=app_dec),
-                fits.Column(name="LSRVEL", format=fmt_d, unit="M/SEC", array=zero_arr),
-                fits.Column(name="RESTFREQ", format=fmt_d, unit="HZ", array=rest_freq),
-                fits.Column(name="PMRA", format="1D", unit="DEG/DAY", array=pm_ra),
-                fits.Column(name="PMDEC", format="1D", unit="DEG/DAY", array=pm_dec),
-            ]
+        col_list = [
+            fits.Column(name="ID. NO.", format="1J", array=sou_ids),
+            fits.Column(name="SOURCE", format="20A", array=name_arr),
+            fits.Column(name="QUAL", format="1J", array=int_zeros),
+            fits.Column(name="CALCODE", format="4A", array=cal_code),
+            fits.Column(name="IFLUX", format=fmt_e, unit="JY", array=zero_arr),
+            fits.Column(name="QFLUX", format=fmt_e, unit="JY", array=zero_arr),
+            fits.Column(name="UFLUX", format=fmt_e, unit="JY", array=zero_arr),
+            fits.Column(name="VFLUX", format=fmt_e, unit="JY", array=zero_arr),
+            fits.Column(name="FREQOFF", format=fmt_d, unit="HZ", array=zero_arr),
+            fits.Column(name="BANDWIDTH", format="1D", unit="HZ", array=flt_zeros),
+            fits.Column(name="RAEPO", format="1D", unit="DEGREES", array=ra_arr),
+            fits.Column(name="DECEPO", format="1D", unit="DEGREES", array=dec_arr),
+            fits.Column(name="EPOCH", format="1D", unit="YEARS", array=epo_arr),
+            fits.Column(name="RAAPP", format="1D", unit="DEGREES", array=app_ra),
+            fits.Column(name="DECAPP", format="1D", unit="DEGREES", array=app_dec),
+            fits.Column(name="LSRVEL", format=fmt_d, unit="M/SEC", array=zero_arr),
+            fits.Column(name="RESTFREQ", format=fmt_d, unit="HZ", array=rest_freq),
+            fits.Column(name="PMRA", format="1D", unit="DEG/DAY", array=pm_ra),
+            fits.Column(name="PMDEC", format="1D", unit="DEG/DAY", array=pm_dec),
+        ]
 
-            su_hdu = fits.BinTableHDU.from_columns(fits.ColDefs(col_list))
-            su_hdu.header["EXTNAME"] = "AIPS SU"
-            su_hdu.header["NO_IF"] = self.Nspws
-            su_hdu.header["FREQID"] = 1
-            su_hdu.header["VELDEF"] = "RADIO"
-            # TODO: Eventually we want to not have this hardcoded, but pyuvdata at
-            # present does not carry around any velocity information. As per usual,
-            # I (Karto) am tipping my hand on what I might be working on next...
-            su_hdu.header["VELTYP"] = "LSR"
-            fits_tables.append(su_hdu)
+        su_hdu = fits.BinTableHDU.from_columns(fits.ColDefs(col_list))
+        su_hdu.header["EXTNAME"] = "AIPS SU"
+        su_hdu.header["NO_IF"] = self.Nspws
+        su_hdu.header["FREQID"] = 1
+        su_hdu.header["VELDEF"] = "RADIO"
+        # TODO: Eventually we want to not have this hardcoded, but pyuvdata at
+        # present does not carry around any velocity information. As per usual,
+        # I (Karto) am tipping my hand on what I might be working on next...
+        su_hdu.header["VELTYP"] = "LSR"
+        fits_tables.append(su_hdu)
 
         # write the file
         hdulist = fits.HDUList(hdus=fits_tables)
