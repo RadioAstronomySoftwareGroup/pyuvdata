@@ -24,6 +24,41 @@ casa_tutorial_uvfits = os.path.join(
 paper_uvfits = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
 
 
+def _fix_uvfits_multi_group_params(vis_hdu):
+    par_names = vis_hdu.data.parnames
+    group_parameter_list = []
+
+    multi_params = {}
+    for name in par_names:
+        wh_name = np.nonzero(np.asarray(par_names) == name)[0]
+        if len(wh_name) > 1:
+            assert len(wh_name) == 2
+            multi_params[name] = {"ind": 0}
+
+    for index, name in enumerate(par_names):
+        par_value = vis_hdu.data.par(name)
+
+        if name in multi_params.keys():
+            # these params need to be split in 2 parts to get high enough accuracy
+            # (e.g. time and lst arrays)
+            if multi_params[name]["ind"] == 0:
+                multi_params[name]["arr1"] = np.float32(par_value)
+                multi_params[name]["arr2"] = np.float32(
+                    par_value - np.float64(multi_params[name]["arr1"])
+                )
+                par_value = multi_params[name]["arr1"]
+                multi_params[name]["ind"] += 1
+            else:
+                par_value = multi_params[name]["arr2"]
+
+        # need to account for PSCAL and PZERO values
+        group_parameter_list.append(
+            par_value / np.float64(vis_hdu.header["PSCAL" + str(index + 1)])
+            - vis_hdu.header["PZERO" + str(index + 1)]
+        )
+    return group_parameter_list
+
+
 @pytest.fixture(scope="session")
 def uvfits_nospw_main():
     uv_in = UVData()
@@ -137,39 +172,9 @@ def test_source_group_params(casa_uvfits, tmp_path):
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
-
         par_names = vis_hdu.data.parnames
-        group_parameter_list = []
 
-        time_ind = 0
-        lst_ind = 0
-        for index, name in enumerate(par_names):
-            par_value = vis_hdu.data.par(name)
-            # time_array and lst_array need to be split in 2 parts to get high enough
-            # accuracy
-            if name.lower() == "date":
-                if time_ind == 0:
-                    # first time entry, par_value has full time value
-                    # (astropy adds the 2 values)
-                    time_array1 = np.float32(par_value)
-                    time_array2 = np.float32(par_value - np.float64(time_array1))
-                    par_value = time_array1
-                    time_ind = 1
-                else:
-                    par_value = time_array2
-            elif name.lower() == "lst":
-                if lst_ind == 0:
-                    # first lst entry, par_value has full lst value
-                    # (astropy adds the 2 values)
-                    lst_array_1 = np.float32(par_value)
-                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
-                    par_value = lst_array_1
-                    lst_ind = 1
-                else:
-                    par_value = lst_array_2
-
-            # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         par_names.append("SOURCE")
         source_array = np.ones_like(vis_hdu.data.par("BASELINE"))
@@ -200,10 +205,12 @@ def test_source_group_params(casa_uvfits, tmp_path):
     assert uv_in == uv_out
 
 
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The entry name")
 @pytest.mark.filterwarnings("ignore:The provided name")
 @pytest.mark.parametrize("frame", [["icrs"], ["fk5"], ["fk4"], ["fk5", "icrs"]])
-def test_read_write_multi_source(casa_uvfits, tmp_path, frame):
+@pytest.mark.parametrize("high_precision", [True, False])
+def test_read_write_multi_source(casa_uvfits, tmp_path, frame, high_precision):
     uv_in = casa_uvfits
 
     # generate a multi source object by phasing it in multiple directions
@@ -247,6 +254,11 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame):
         )
     assert uv_in.Nphase == nphase
 
+    if high_precision:
+        # Increase the precision of the data_array because the uvw_array precision is
+        # tied to the data_array precision
+        uv_in.data_array = uv_in.data_array.astype(np.complex128)
+
     write_file = os.path.join(tmp_path, "outtest_multisource.uvfits")
     uv_in.write_uvfits(write_file)
     uv_out = UVData.from_file(write_file)
@@ -258,8 +270,14 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame):
         )
         assert uv_in == uv_out
 
+    if not high_precision:
+        # replace the uvw_array because of loss of precision roundtripping through
+        # uvfits
+        uv_out.uvw_array = uv_in.uvw_array
+
     # Now rephase to the same places as the initial object was phased to. Note that if
-    # frame == ["fk5"] this should not change anything (but it does!)
+    # frame == ["fk5"] this should not change anything (but it does if uvws lose
+    # precision and they aren't fixed before here)
     for frame_ind, frame_use in enumerate(frame_list):
         phase_mask = np.full(uv_in.Nblts, False)
         mask_start = frame_ind * uv_in.Nblts // nphase
@@ -294,7 +312,6 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame):
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog
     )
-    print(np.max(np.abs(uv_in.data_array - uv_out.data_array)))
 
     assert uv_in == uv_out
 
@@ -316,40 +333,9 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
-
         par_names = vis_hdu.data.parnames
-        group_parameter_list = []
 
-        time_ind = 0
-        lst_ind = 0
-        for index, name in enumerate(par_names):
-            par_value = vis_hdu.data.par(name)
-            # lst_array needs to be split in 2 parts to get high enough accuracy
-            # time_array and lst_array need to be split in 2 parts to get high enough
-            # accuracy
-            if name.lower() == "date":
-                if time_ind == 0:
-                    # first time entry, par_value has full time value
-                    # (astropy adds the 2 values)
-                    time_array1 = np.float32(par_value)
-                    time_array2 = np.float32(par_value - np.float64(time_array1))
-                    par_value = time_array1
-                    time_ind = 1
-                else:
-                    par_value = time_array2
-            elif name.lower() == "lst":
-                if lst_ind == 0:
-                    # first lst entry, par_value has full lst value
-                    # (astropy adds the 2 values)
-                    lst_array_1 = np.float32(par_value)
-                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
-                    par_value = lst_array_1
-                    lst_ind = 1
-                else:
-                    par_value = lst_array_2
-
-            # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         vis_hdu = fits.GroupData(
             raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
@@ -388,37 +374,7 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         raw_data_array = vis_hdu.data.data
 
         par_names = vis_hdu.data.parnames
-        group_parameter_list = []
-
-        time_ind = 0
-        lst_ind = 0
-        for index, name in enumerate(par_names):
-            par_value = vis_hdu.data.par(name)
-            # time_array and lst_array need to be split in 2 parts to get high enough
-            # accuracy
-            if name.lower() == "date":
-                if time_ind == 0:
-                    # first time entry, par_value has full time value
-                    # (astropy adds the 2 values)
-                    time_array1 = np.float32(par_value)
-                    time_array2 = np.float32(par_value - np.float64(time_array1))
-                    par_value = time_array1
-                    time_ind = 1
-                else:
-                    par_value = time_array2
-            elif name.lower() == "lst":
-                if lst_ind == 0:
-                    # first lst entry, par_value has full lst value
-                    # (astropy adds the 2 values)
-                    lst_array_1 = np.float32(par_value)
-                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
-                    par_value = lst_array_1
-                    lst_ind = 1
-                else:
-                    par_value = lst_array_2
-
-            # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         par_names.append("SOURCE")
         source_array = np.ones_like(vis_hdu.data.par("BASELINE"))
@@ -553,42 +509,14 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
-
         par_names = vis_hdu.data.parnames
-        group_parameter_list = []
 
-        time_ind = 0
-        lst_ind = 0
-        for index, name in enumerate(par_names):
-            par_value = vis_hdu.data.par(name)
-            # time_array and lst_array need to be split in 2 parts to get high enough
-            # accuracy
-            if name.lower() == "date":
-                if time_ind == 0:
-                    # first time entry, par_value has full time value
-                    # (astropy adds the 2 values)
-                    time_array1 = np.float32(par_value)
-                    time_array2 = np.float32(par_value - np.float64(time_array1))
-                    par_value = time_array1
-                    time_ind = 1
-                else:
-                    par_value = time_array2
-            elif name.lower() == "lst":
-                if lst_ind == 0:
-                    # first lst entry, par_value has full lst value
-                    # (astropy adds the 2 values)
-                    lst_array_1 = np.float32(par_value)
-                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
-                    par_value = lst_array_1
-                    lst_ind = 1
-                else:
-                    par_value = lst_array_2
-
-            # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         for name in ["UU", "VV", "WW"]:
-            par_names[par_names.index(name)] = name + uvw_suffix
+            name_locs = np.nonzero(np.array(par_names) == name)[0]
+            for index in name_locs:
+                par_names[index] = name + uvw_suffix
         vis_hdu = fits.GroupData(
             raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
         )
@@ -638,42 +566,14 @@ def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
-
         par_names = vis_hdu.data.parnames
-        group_parameter_list = []
 
-        time_ind = 0
-        lst_ind = 0
-        for index, name in enumerate(par_names):
-            par_value = vis_hdu.data.par(name)
-            # time_array and lst_array need to be split in 2 parts to get high enough
-            # accuracy
-            if name.lower() == "date":
-                if time_ind == 0:
-                    # first time entry, par_value has full time value
-                    # (astropy adds the 2 values)
-                    time_array1 = np.float32(par_value)
-                    time_array2 = np.float32(par_value - np.float64(time_array1))
-                    par_value = time_array1
-                    time_ind = 1
-                else:
-                    par_value = time_array2
-            elif name.lower() == "lst":
-                if lst_ind == 0:
-                    # first lst entry, par_value has full lst value
-                    # (astropy adds the 2 values)
-                    lst_array_1 = np.float32(par_value)
-                    lst_array_2 = np.float32(par_value - np.float64(lst_array_1))
-                    par_value = lst_array_1
-                    lst_ind = 1
-                else:
-                    par_value = lst_array_2
-
-            # need to account for PZERO values
-            group_parameter_list.append(par_value - vis_hdr["PZERO" + str(index + 1)])
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         for ind, name in enumerate(["UU", "VV", "WW"]):
-            par_names[par_names.index(name)] = name + uvw_suffix[ind]
+            name_locs = np.nonzero(np.array(par_names) == name)[0]
+            for index in name_locs:
+                par_names[index] = name + uvw_suffix[ind]
         vis_hdu = fits.GroupData(
             raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
         )
@@ -882,12 +782,15 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
+        par_names = vis_hdu.data.parnames
 
-        par_names = np.array(vis_hdu.data.parnames)
-        pars_use = np.where(par_names != "INTTIM")[0]
-        par_names = par_names[pars_use].tolist()
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
-        group_parameter_list = [vis_hdu.data.par(name) for name in par_names]
+        inttime_ind = np.nonzero(np.asarray(par_names) == "INTTIM")[0]
+        assert inttime_ind.size == 1
+        inttime_ind = inttime_ind[0]
+        del par_names[inttime_ind]
+        del group_parameter_list[inttime_ind]
 
         vis_hdu = fits.GroupData(
             raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
@@ -1184,7 +1087,7 @@ def test_select_read_nospw_pol(casa_uvfits, tmp_path):
 
         par_names = vis_hdu.data.parnames
 
-        group_parameter_list = [vis_hdu.data.par(ind) for ind in range(len(par_names))]
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
 
         vis_hdu = fits.GroupData(
             raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32

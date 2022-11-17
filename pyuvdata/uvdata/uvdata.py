@@ -144,7 +144,8 @@ class UVData(UVBase):
             "uvw_array",
             description=desc,
             form=("Nblts", 3),
-            expected_type=float,
+            expected_type=np.float64,
+            strict_type_check=True,
             acceptable_range=(0, 1e8),
             tols=1e-3,
         )
@@ -156,7 +157,8 @@ class UVData(UVBase):
             "time_array",
             description=desc,
             form=("Nblts",),
-            expected_type=float,
+            expected_type=np.float64,
+            strict_type_check=True,
             tols=1e-3 / (60.0 * 60.0 * 24.0),
         )  # 1 ms in days
 
@@ -168,7 +170,8 @@ class UVData(UVBase):
             "lst_array",
             description=desc,
             form=("Nblts",),
-            expected_type=float,
+            expected_type=np.float64,
+            strict_type_check=True,
             tols=radian_tol,
         )
 

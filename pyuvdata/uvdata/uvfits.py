@@ -154,6 +154,8 @@ class UVFITS(UVData):
         # read baseline vectors in units of seconds, return in meters
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
+        # uvfits files often have uvws in single precision rather than double precision.
+        # setting the dtype below enforces double precision
         self.uvw_array = (-1) * (
             np.array(
                 np.stack(
@@ -162,7 +164,8 @@ class UVFITS(UVData):
                         vis_hdu.data.par(uvw_names[1]),
                         vis_hdu.data.par(uvw_names[2]),
                     )
-                )
+                ),
+                dtype=self._uvw_array.expected_type,
             )
             * const.c.to("m/s").value
         ).T
@@ -1091,20 +1094,26 @@ class UVFITS(UVData):
         uvfits_array_data = np.concatenate(
             [data_array.real, data_array.imag, weights_array], axis=6
         )
-
-        # FITS uvw direction convention is opposite ours and Miriad's.
-        # So conjugate the visibilities and flip the uvws:
+        # convert to seconds units
         uvw_array_sec = -1 * self.uvw_array / const.c.to("m/s").value
+
+        if self.data_array.dtype == "complex128":
+            write_precision = 64
+        else:
+            write_precision = 32
 
         # uvfits convention is that there are two float32 time_arrays and the
         # float64 sum of them + relevant PZERO = actual JD
         # a common practice is to set the PZERO to the JD at midnight of the first time
         jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
-        time_array1 = np.float32(self.time_array - jd_midnight)
-        time_array2 = np.float32(
-            self.time_array - jd_midnight - np.float64(time_array1)
-        )
+        if write_precision == 32:
+            time_array1 = np.float32(self.time_array - jd_midnight)
+            time_array2 = np.float32(
+                self.time_array - jd_midnight - np.float64(time_array1)
+            )
 
+        else:
+            time_array1 = self.time_array - jd_midnight
         int_time_array = self.integration_time
 
         baselines_use = self.antnums_to_baseline(
@@ -1120,10 +1129,8 @@ class UVFITS(UVData):
             "VV      ": uvw_array_sec[:, 1],
             "WW      ": uvw_array_sec[:, 2],
             "DATE    ": time_array1,
-            "DATE2   ": time_array2,
             "BASELINE": baselines_use,
             "SOURCE  ": None,
-            "FREQSEL ": np.ones_like(self.time_array, dtype=np.float32),
             "ANTENNA1": self.ant_1_array,
             "ANTENNA2": self.ant_2_array,
             "SUBARRAY": np.ones_like(self.ant_1_array),
@@ -1138,10 +1145,8 @@ class UVFITS(UVData):
             "VV      ": 1.0,
             "WW      ": 1.0,
             "DATE    ": 1.0,
-            "DATE2   ": 1.0,
             "BASELINE": 1.0,
             "SOURCE  ": 1.0,
-            "FREQSEL ": 1.0,
             "ANTENNA1": 1.0,
             "ANTENNA2": 1.0,
             "SUBARRAY": 1.0,
@@ -1152,10 +1157,8 @@ class UVFITS(UVData):
             "VV      ": 0.0,
             "WW      ": 0.0,
             "DATE    ": jd_midnight,
-            "DATE2   ": 0.0,
             "BASELINE": 0.0,
             "SOURCE  ": 0.0,
-            "FREQSEL ": 0.0,
             "ANTENNA1": 0.0,
             "ANTENNA2": 0.0,
             "SUBARRAY": 0.0,
@@ -1168,15 +1171,26 @@ class UVFITS(UVData):
             # need to store it in 2 parts to get enough accuracy
             # angles in uvfits files are stored in degrees, so first convert to degrees
             lst_array_deg = np.rad2deg(self.lst_array)
-            lst_array_1 = np.float32(lst_array_deg)
-            lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
+            if write_precision == 32:
+                lst_array_1 = np.float32(lst_array_deg)
+                lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
+            else:
+                lst_array_1 = lst_array_deg
             group_parameter_dict["LST     "] = lst_array_1
             pscal_dict["LST     "] = 1.0
             pzero_dict["LST     "] = 0.0
+            if write_precision == 32:
+                pscal_dict["LST2    "] = 1.0
+                pzero_dict["LST2    "] = 0.0
 
         # list contains arrays of [u,v,w,date,baseline];
         # each array has shape (Nblts)
-        parnames_use = ["UU      ", "VV      ", "WW      ", "DATE    ", "DATE2   "]
+        parnames_use = ["UU      ", "VV      ", "WW      ", "DATE    "]
+        if write_precision == 32:
+            group_parameter_dict["DATE2   "] = time_array2
+            pscal_dict["DATE2   "] = 1.0
+            pzero_dict["DATE2   "] = 0.0
+            parnames_use.append("DATE2   ")
         if np.max(self.ant_1_array) < 255 and np.max(self.ant_2_array) < 255:
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
@@ -1199,18 +1213,23 @@ class UVFITS(UVData):
             group_parameter_dict[parname] for parname in parnames_use
         ]
 
-        if write_lst:
-            # add second LST array part
-            parnames_use.append("LST     ")
-            group_parameter_list.append(lst_array_2)
+        if write_precision == 32:
+            # add second date part
+            parnames_write = copy.deepcopy(parnames_use)
+            parnames_write[parnames_write.index("DATE2   ")] = "DATE    "
+            if write_lst:
+                # add second LST array part
+                parnames_use.append("LST2    ")
+                parnames_write.append("LST     ")
+                group_parameter_list.append(lst_array_2)
+        else:
+            parnames_write = copy.deepcopy(parnames_use)
 
-        parnames_use_datefix = copy.deepcopy(parnames_use)
-        parnames_use_datefix[parnames_use_datefix.index("DATE2   ")] = "DATE    "
         hdu = fits.GroupData(
             uvfits_array_data,
-            parnames=parnames_use_datefix,
+            parnames=parnames_write,
             pardata=group_parameter_list,
-            bitpix=-32,
+            bitpix=(-1 * write_precision),
         )
         hdu = fits.GroupsHDU(hdu)
 

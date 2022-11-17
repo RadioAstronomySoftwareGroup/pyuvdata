@@ -313,39 +313,7 @@ class UVParameter(object):
                         )
                     return False
 
-                # check to see if strict types are used
-                if self.strict_type:
-                    # types must match
-                    if other.strict_type:
-                        # both strict, expected_type must match
-                        if self.expected_type != other.expected_type:
-                            if not silent:
-                                print(
-                                    f"{self.name} parameter has incompatible types. "
-                                    f"Left is {self.expected_type}, right is "
-                                    f"{other.expected_type}"
-                                )
-                            return False
-                    elif not isinstance(self.value.item(0), other.expected_type):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter has incompatible dtypes. Left "
-                                f"requires {self.expected_type}, right is "
-                                f"{other.value.dtype}"
-                            )
-                        return False
-                elif other.strict_type:
-                    # types must match in the other direction
-                    if not isinstance(other.value.item(0), self.expected_type):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter has incompatible dtypes. Left "
-                                f"is {self.value.dtype}, right requires "
-                                f"{other.expected_type}"
-                            )
-                        return False
-
-                elif isinstance(self.value, units.Quantity):
+                if isinstance(self.value, units.Quantity):
                     if not self.value.unit.is_equivalent(other.value.unit):
                         if not silent:
                             print(
@@ -370,19 +338,51 @@ class UVParameter(object):
                                 "values are not close"
                             )
                         return False
-                elif not np.allclose(
-                    self.value,
-                    other.value,
-                    rtol=self.tols[0],
-                    atol=self.tols[1],
-                    equal_nan=True,
-                ):
-                    if not silent:
-                        print(
-                            f"{self.name} parameter value is array, values are not "
-                            "close"
-                        )
-                    return False
+                else:
+                    # check to see if strict types are used
+                    if self.strict_type:
+                        # types must match
+                        if other.strict_type:
+                            # both strict, expected_type must match
+                            if self.expected_type != other.expected_type:
+                                if not silent:
+                                    print(
+                                        f"{self.name} parameter has incompatible "
+                                        f"types. Left is {self.expected_type}, right "
+                                        f"is {other.expected_type}"
+                                    )
+                                return False
+                        elif not isinstance(self.value.item(0), other.expected_type):
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter has incompatible dtypes. "
+                                    f"Left requires {self.expected_type}, right is "
+                                    f"{other.value.dtype}"
+                                )
+                            return False
+                    elif other.strict_type:
+                        # types must match in the other direction
+                        if not isinstance(other.value.item(0), self.expected_type):
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter has incompatible dtypes. "
+                                    f"Left is {self.value.dtype}, right requires "
+                                    f"{other.expected_type}"
+                                )
+                            return False
+                    if not np.allclose(
+                        self.value,
+                        other.value,
+                        rtol=self.tols[0],
+                        atol=self.tols[1],
+                        equal_nan=True,
+                    ):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is array, values are not "
+                                "close"
+                            )
+                        return False
             else:
                 # check to see if strict types are used
                 if self.strict_type:
