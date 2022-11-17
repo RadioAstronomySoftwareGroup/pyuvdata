@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- A bug in `UVData.read_uvh5` where `multi_phase_center` was being used to imply the
+existence of the `phase_center_catalog` header item, rather than checking for the
+presence of that item. This conflicted with the uvh5 memo.
+
 ## [2.2.10] - 2022-10-20
 
 ### Added
