@@ -666,7 +666,9 @@ class UVBase(object):
                             check_vals = list(param.value)
                         else:
                             # numpy array
-                            check_vals = [param.value.item(0)]
+                            # the code below ensures that the check value is the type
+                            # given by the dtype
+                            check_vals = [param.value.dtype.type(param.value.item(0))]
 
                     for val in check_vals:
                         if not isinstance(val, param.expected_type):
