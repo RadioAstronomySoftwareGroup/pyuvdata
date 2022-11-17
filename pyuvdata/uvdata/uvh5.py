@@ -287,14 +287,13 @@ class UVH5(UVData):
             self.flex_spw_id_array = header["flex_spw_id_array"][:]
         if "flex_spw_polarization_array" in header:
             self.flex_spw_polarization_array = header["flex_spw_polarization_array"][:]
-        if "multi_phase_center" in header:
-            if bool(header["multi_phase_center"][()]):
-                self._set_phased()
-                self._set_multi_phase_center(preserve_phase_center_info=False)
 
         # Here is where we start handing phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
-        if self.multi_phase_center:
+        if "phase_center_catalog" in header:
+            self._set_phased()
+            self._set_multi_phase_center(preserve_phase_center_info=False)
+
             self.Nphase = int(header["Nphase"][()])
             self.phase_center_id_array = header["phase_center_id_array"][:]
 
@@ -1133,7 +1132,6 @@ class UVH5(UVData):
         header["ant_2_array"] = self.ant_2_array
         header["antenna_positions"] = self.antenna_positions
         header["flex_spw"] = self.flex_spw
-        header["multi_phase_center"] = self.multi_phase_center
         # handle antenna_names; works for lists or arrays
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
