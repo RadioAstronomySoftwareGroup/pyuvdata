@@ -1546,8 +1546,8 @@ class UVData(UVBase):
             integers, assumed to be the catalog ID number(s).
         force_merge : bool
             Normally, the method will throw an error if the phase center properties
-            differ for `catname1` and `catname2`. This can be overriden by setting this
-            to True. Default is False.
+            differ for the catalogs listed in catalog_identifier. This can be overriden
+            by setting this to True. Default is False.
         ignore_name : bool
             When comparing phase centers, all attributes are normally checked. However,
             if set to True, the catalog name ("cat_name") will be ignored when
@@ -2161,7 +2161,7 @@ class UVData(UVBase):
                     ret_val = "phased"
             elif __name == "phase_center_ra":
                 warn_str += (
-                    " The phase_center_dec is now represented as the 'cat_lon' in the "
+                    " The phase_center_ra is now represented as the 'cat_lon' in the "
                     "phase_center_catalog."
                 )
                 ret_val = phase_dict["cat_lon"]
@@ -2194,7 +2194,7 @@ class UVData(UVBase):
                 "`print_phase_center_info` method. The older attributes will be "
                 "removed in version 3.0"
             )
-            warnings.warn(warn_str)
+            warnings.warn(warn_str, DeprecationWarning)
             return ret_val
 
         return super().__getattribute__(__name)
@@ -5331,10 +5331,7 @@ class UVData(UVBase):
             raise ValueError("Data are already unprojected.")
 
         if phase_frame is None:
-            if phase_dict["cat_frame"] is not None:
-                phase_frame = phase_dict["cat_frame"]
-            else:
-                phase_frame = "icrs"
+            phase_frame = phase_dict["cat_frame"]
 
         icrs_coord = SkyCoord(
             ra=phase_dict["cat_lon"],
@@ -5818,7 +5815,7 @@ class UVData(UVBase):
             if lat is None:
                 if dec is None:
                     raise ValueError(
-                        "lon parameter must be set if cat_type is not 'unprojected'"
+                        "lat parameter must be set if cat_type is not 'unprojected'"
                     )
                 else:
                     lat = dec
