@@ -632,16 +632,37 @@ class Mir(UVData):
             source_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
             source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
-            self._add_phase_center(
-                mir_data.codes_data["source"][sou_id],
-                cat_type="sidereal",
-                cat_lon=source_ra,
-                cat_lat=source_dec,
-                cat_epoch=source_epoch,
-                cat_frame="fk5",
-                info_source="file",
-                cat_id=int(sou_id),
-            )
+            if source_epoch != 2000.0:
+                time_arr = Time(
+                    mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
+                ).utc.jd
+                icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
+                    mir_data.in_data["ara"][source_mask],
+                    mir_data.in_data["adec"][source_mask],
+                    time_arr,
+                    self.telescope_location_lat_lon_alt,
+                )
+                self._add_phase_center(
+                    mir_data.codes_data["source"][sou_id],
+                    cat_type="ephem",
+                    cat_lon=icrs_ra,
+                    cat_lat=icrs_dec,
+                    cat_frame="icrs",
+                    cat_times=time_arr,
+                    info_source="file",
+                    cat_id=int(sou_id),
+                )
+            else:
+                self._add_phase_center(
+                    mir_data.codes_data["source"][sou_id],
+                    cat_type="sidereal",
+                    cat_lon=source_ra,
+                    cat_lat=source_dec,
+                    cat_epoch=source_epoch,
+                    cat_frame="fk5",
+                    info_source="file",
+                    cat_id=int(sou_id),
+                )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
