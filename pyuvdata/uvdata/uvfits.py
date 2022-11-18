@@ -822,6 +822,10 @@ class UVFITS(UVData):
                     if phase_center_frame is not None:
                         sou_frame = phase_center_frame
                     else:
+                        # Note that this can result in different frames for different
+                        # phase centers, which we disallow on write. Only get here if
+                        # the RADESYS header parameter is not in file
+                        # (we always write it)
                         if sou_epoch == 1950.0:
                             sou_frame = "fk4"
                         else:

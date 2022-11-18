@@ -59,6 +59,47 @@ def _fix_uvfits_multi_group_params(vis_hdu):
     return group_parameter_list
 
 
+def _make_multi_phase_center(uvobj, init_phase_dict, frame_list):
+
+    init_ra = init_phase_dict["cat_lon"]
+    init_dec = init_phase_dict["cat_lat"]
+    init_epoch = init_phase_dict["cat_epoch"]
+    init_name = init_phase_dict["cat_name"]
+
+    nphase = len(frame_list)
+    for frame_ind, frame_use in enumerate(frame_list):
+        phase_mask = np.full(uvobj.Nblts, False)
+        mask_start = frame_ind * uvobj.Nblts // nphase
+        if frame_ind == nphase - 1:
+            mask_end = uvobj.Nblts
+        else:
+            mask_end = (frame_ind + 1) * uvobj.Nblts // nphase
+        phase_mask[mask_start:mask_end] = True
+        if frame_use == "icrs":
+            epoch = None
+        elif frame_use == "fk5":
+            if frame_ind == 0:
+                epoch = init_epoch
+            else:
+                epoch = init_epoch + 5
+        elif frame_use == "fk4":
+            epoch = 1950
+        if frame_ind == 0:
+            cat_name = init_name
+        else:
+            cat_name = "test_" + str(frame_ind)
+        uvobj.phase(
+            ra=init_ra + 0.05 * (frame_ind + 1),
+            dec=init_dec + 0.05 * (frame_ind + 1),
+            phase_frame=frame_use,
+            epoch=epoch,
+            cat_name=cat_name,
+            cat_type="sidereal",
+            select_mask=phase_mask,
+        )
+    assert uvobj.Nphase == nphase
+
+
 @pytest.fixture(scope="session")
 def uvfits_nospw_main():
     uv_in = UVData()
@@ -214,45 +255,11 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame, high_precision):
     uv_in = casa_uvfits
 
     # generate a multi source object by phasing it in multiple directions
-    init_ra = uv_in.phase_center_catalog[0]["cat_lon"]
-    init_dec = uv_in.phase_center_catalog[0]["cat_lat"]
-    init_frame = uv_in.phase_center_catalog[0]["cat_frame"]
-    init_epoch = uv_in.phase_center_catalog[0]["cat_epoch"]
-    init_name = uv_in.phase_center_catalog[0]["cat_name"]
-
+    init_phase_dict = uv_in.phase_center_catalog[0]
+    init_frame = init_phase_dict["cat_frame"]
     frame_list = [init_frame] + frame
-    nphase = len(frame_list)
-    for frame_ind, frame_use in enumerate(frame_list):
-        phase_mask = np.full(uv_in.Nblts, False)
-        mask_start = frame_ind * uv_in.Nblts // nphase
-        if frame_ind == nphase - 1:
-            mask_end = uv_in.Nblts
-        else:
-            mask_end = (frame_ind + 1) * uv_in.Nblts // nphase
-        phase_mask[mask_start:mask_end] = True
-        if frame_use == "icrs":
-            epoch = None
-        elif frame_use == "fk5":
-            if frame_ind == 0:
-                epoch = init_epoch
-            else:
-                epoch = init_epoch + 5
-        elif frame_use == "fk4":
-            epoch = 1950
-        if frame_ind == 0:
-            cat_name = init_name
-        else:
-            cat_name = "test_" + str(frame_ind)
-        uv_in.phase(
-            ra=init_ra + 0.05 * (frame_ind + 1),
-            dec=init_dec + 0.05 * (frame_ind + 1),
-            phase_frame=frame_use,
-            epoch=epoch,
-            cat_name=cat_name,
-            cat_type="sidereal",
-            select_mask=phase_mask,
-        )
-    assert uv_in.Nphase == nphase
+
+    _make_multi_phase_center(uv_in, init_phase_dict, frame_list)
 
     if high_precision:
         # Increase the precision of the data_array because the uvw_array precision is
@@ -278,36 +285,7 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame, high_precision):
     # Now rephase to the same places as the initial object was phased to. Note that if
     # frame == ["fk5"] this should not change anything (but it does if uvws lose
     # precision and they aren't fixed before here)
-    for frame_ind, frame_use in enumerate(frame_list):
-        phase_mask = np.full(uv_in.Nblts, False)
-        mask_start = frame_ind * uv_in.Nblts // nphase
-        if frame_ind == nphase - 1:
-            mask_end = uv_in.Nblts
-        else:
-            mask_end = (frame_ind + 1) * uv_in.Nblts // nphase
-        phase_mask[mask_start:mask_end] = True
-        if frame_use == "icrs":
-            epoch = None
-        elif frame_use == "fk5":
-            if frame_ind == 0:
-                epoch = init_epoch
-            else:
-                epoch = init_epoch + 5
-        elif frame_use == "fk4":
-            epoch = 1950
-        if frame_ind == 0:
-            cat_name = init_name
-        else:
-            cat_name = "test_" + str(frame_ind)
-        uv_out.phase(
-            ra=init_ra + 0.05 * (frame_ind + 1),
-            dec=init_dec + 0.05 * (frame_ind + 1),
-            phase_frame=frame_use,
-            epoch=epoch,
-            cat_name=cat_name,
-            cat_type="sidereal",
-            select_mask=phase_mask,
-        )
+    _make_multi_phase_center(uv_out, init_phase_dict, frame_list)
 
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog
@@ -356,6 +334,69 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
     uv_out = UVData()
     uv_out.read(write_file2)
     assert uv_out.phase_center_catalog[0]["cat_frame"] == frame
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The entry name")
+@pytest.mark.filterwarnings("ignore:The provided name")
+@pytest.mark.parametrize("frame_list", [["fk5", "fk5"], ["fk4", "fk4"], ["fk4", "fk5"]])
+def test_multi_source_frame_defaults(casa_uvfits, tmp_path, frame_list):
+    # make a file with a single source to test that it works
+    uv_in = casa_uvfits
+    write_file = os.path.join(tmp_path, "outtest_casa.uvfits")
+    write_file2 = os.path.join(tmp_path, "outtest_casa2.uvfits")
+
+    init_phase_dict = uv_in.phase_center_catalog[0]
+    _make_multi_phase_center(uv_in, init_phase_dict, frame_list)
+    uv_in._clear_unused_phase_centers()
+
+    in_frame_list = []
+    for phase_dict in uv_in.phase_center_catalog.values():
+        in_frame_list.append(phase_dict["cat_frame"])
+    assert in_frame_list == frame_list
+
+    uv_in.write_uvfits(write_file)
+
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        vis_hdr = vis_hdu.header.copy()
+        raw_data_array = vis_hdu.data.data
+        par_names = vis_hdu.data.parnames
+
+        group_parameter_list = _fix_uvfits_multi_group_params(vis_hdu)
+
+        vis_hdu = fits.GroupData(
+            raw_data_array, parnames=par_names, pardata=group_parameter_list, bitpix=-32
+        )
+        vis_hdu = fits.GroupsHDU(vis_hdu)
+        vis_hdu.header = vis_hdr
+        del vis_hdu.header["RADESYS"]
+
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        su_hdu = hdu_list[hdunames["AIPS SU"]]
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, su_hdu])
+        hdulist.writeto(write_file2, overwrite=True)
+        hdulist.close()
+
+    uv_out = UVData()
+    uv_out.read(write_file2)
+
+    out_frame_list = []
+    for phase_dict in uv_out.phase_center_catalog.values():
+        out_frame_list.append(phase_dict["cat_frame"])
+    assert out_frame_list == frame_list
+
+    if frame_list[0] == frame_list[1]:
+        # don't check this for different frames because we cannot write different frames
+        # so they won't actually match
+        uv_out._consolidate_phase_center_catalogs(
+            reference_catalog=uv_in.phase_center_catalog
+        )
+
+        assert uv_out == uv_in
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1664,3 +1705,52 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
         ValueError, match="The data are not all phased to a sidereal source"
     ):
         hera_uvh5.write_uvfits(tmp_path)
+
+
+@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
+@pytest.mark.parametrize("use_ant_pos", [True, False])
+def test_fix_phase(hera_uvh5, tmpdir, use_ant_pos):
+    """
+    Test the phase fixing method fix_phase
+    """
+    # Make some copies of the data
+    uv_in = hera_uvh5
+    uv_in.extra_keywords = {}
+
+    # These values could be anything -- we're just picking something that we know should
+    # be visible from the telescope at the time of obs (ignoring horizon limits).
+    phase_ra = uv_in.lst_array[-1]
+    phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The `use_old_proj` option is deprecated and will be removed",
+    ):
+        uv_in.phase(
+            phase_ra,
+            phase_dec,
+            use_old_proj=True,
+            use_ant_pos=use_ant_pos,
+            cat_name="foo",
+        )
+
+    write_file = tmpdir + "oldphase_test.uvfits"
+
+    uv_in.write_uvfits(write_file)
+    if use_ant_pos:
+        warn_msg = "Fixing phases using antenna positions."
+    else:
+        warn_msg = "Attempting to fix residual phasing errors from the old `phase`"
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        uv_fixed = UVData.from_file(
+            write_file, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
+        )
+
+    with uvtest.check_warnings(UserWarning, warn_msg):
+        uv_in.fix_phase(use_ant_pos=use_ant_pos)
+
+    uv_fixed._consolidate_phase_center_catalogs(
+        reference_catalog=uv_in.phase_center_catalog
+    )
+
+    assert uv_fixed.__eq__(uv_in, check_extra=False)
