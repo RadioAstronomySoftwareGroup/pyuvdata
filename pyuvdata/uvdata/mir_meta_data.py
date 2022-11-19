@@ -534,6 +534,11 @@ class MirMetaData(object):
         if filepath is not None:
             self.read(filepath)
 
+    @property
+    def _size(self):
+        """Return length of full data array."""
+        return 0 if self._data is None else self._data.size
+
     def __iter__(self):
         """
         Iterate over MirMetaData attributes.
@@ -549,14 +554,14 @@ class MirMetaData(object):
 
     def __len__(self):
         """
-        Calculate the number entries in the data table.
+        Calculate the number of unmasked entries in the data table.
 
         Returns
         -------
         len : int
             Number of unique entries contained within the meta data.
         """
-        return self._data.size
+        return np.sum(self._mask)
 
     def __eq__(self, other, verbose=False, ignore_params=None, use_mask=False):
         """
@@ -1025,7 +1030,7 @@ class MirMetaData(object):
         # At this point, we expect to hand back a boolean mask, so either instantiate
         # it or make a copy of the supplied mask argument.
         mask = (
-            self._mask.copy() if use_mask else np.full(len(self), bool(and_where_args))
+            self._mask.copy() if use_mask else np.full(self._size, bool(and_where_args))
         )
 
         # To reach this point, we must have supplied an argument to where. Use that
@@ -1332,7 +1337,7 @@ class MirMetaData(object):
             Array of boolean values, with length equal to that of the object itself.
         """
         idx_arr = self._index_query(False, where, and_where_args, header_key, index)
-        new_mask = np.zeros(len(self), dtype=bool)
+        new_mask = np.zeros(self._size, dtype=bool)
 
         new_mask[idx_arr] = True
         return new_mask
@@ -1575,7 +1580,7 @@ class MirMetaData(object):
             return {}
 
         idx_start = np.max(other._data[other._header_key]) + 1
-        idx_stop = idx_start + len(self)
+        idx_stop = idx_start + self._size
 
         index_dict = {
             self._header_key: dict(
@@ -2044,7 +2049,7 @@ class MirMetaData(object):
                 os.path.join(filepath, self._filetype), dtype=self._binary_dtype
             ).astype(self.dtype)
 
-        self._mask = np.ones(len(self), dtype=bool)
+        self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
@@ -2457,7 +2462,7 @@ class MirAntposData(MirMetaData):
             [temp_list[1::4], temp_list[2::4], temp_list[3::4]], dtype=np.float64
         ).T
 
-        self._mask = np.ones(len(self), dtype=bool)
+        self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
 
     def _writefile(self, filepath, append_data, datamask=...):
@@ -3047,5 +3052,5 @@ class MirAcData(MirMetaData):
         # Copy the corrchunk values to iband, since they should be the same here.
         ac_data["iband"] = ac_data["corrchunk"]
         self._data = ac_data
-        self._mask = np.ones(len(self), dtype=bool)
+        self._mask = np.ones(self._size, dtype=bool)
         self._old_fmt_int_dict = int_dict

@@ -605,15 +605,15 @@ def test_bad_sphid(mir_data):
 
 def test_bad_pol_code(mir_data):
     """
-    Test that an extra (unused) pol coode doesn't produce an error. Note that we want
+    Test that an extra (unused) pol code doesn't produce an error. Note that we want
     this check because the "Unknown" pol code is something present in some data sets.
     """
     mir_obj = Mir()
     mir_data.codes_data._data = np.resize(
-        mir_data.codes_data._data, len(mir_data.codes_data) + 1
+        mir_data.codes_data._data, mir_data.codes_data._size + 1
     )
     mir_data.codes_data._data[-1] = ("pol", -999, "Unknown", 0)
-    mir_data.codes_data._mask = np.ones(len(mir_data.codes_data), dtype=bool)
+    mir_data.codes_data._mask = np.ones(mir_data.codes_data._size, dtype=bool)
 
     mir_obj._init_from_mir_parser(mir_data)
 
