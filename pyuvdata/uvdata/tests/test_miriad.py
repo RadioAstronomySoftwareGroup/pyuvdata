@@ -124,6 +124,23 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     uvfits_uv.write_miriad(writefile, clobber=True)
     miriad_uv.read(writefile)
 
+    # check that setting projected also works
+    miriad_uv2 = UVData.from_file(writefile, projected=True)
+    assert miriad_uv2 == miriad_uv
+
+    # check that setting projected also works
+    with uvtest.check_warnings(
+        [DeprecationWarning, UserWarning, UserWarning],
+        match=[
+            "The phase_type parameter is deprecated, use the projected parameter "
+            "instead.",
+            "The uvw_array does not match the expected values given the antenna",
+            "Telescope EVLA is not",
+        ],
+    ):
+        miriad_uv2 = UVData.from_file(writefile, phase_type="phased")
+    assert miriad_uv2 == miriad_uv
+
     # make sure filename is what we expect
     assert uvfits_uv.filename[0] == "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
     assert miriad_uv.filename[0] == "outtest_miriad.uv"
@@ -724,6 +741,18 @@ def test_singletimeselect_unprojected(uv_in_paper):
     uv_out.read(testfile, projected=False)
     assert uv_in == uv_out
 
+    # also check that setting phase_type works
+    with uvtest.check_warnings(
+        [DeprecationWarning, UserWarning],
+        match=[
+            "The phase_type parameter is deprecated, use the projected parameter "
+            "instead.",
+            "The uvw_array does not match the expected values given the antenna",
+        ],
+    ):
+        uv_out.read(testfile, phase_type="drift")
+        assert uv_in == uv_out
+
     # check again with more than one time but only 1 unflagged time
     time_gt0_array = np.where(uv_in_copy.time_array > uv_in_copy.time_array[0])[0]
     uv_in_copy.flag_array[time_gt0_array, :, :, :] = True
@@ -742,9 +771,22 @@ def test_singletimeselect_unprojected(uv_in_paper):
 
     assert uv_in_copy == uv_out
 
-    # check that setting projected works
-    uv_out.read(testfile, projected=False)
-    assert uv_in_copy == uv_out
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_loop_multi_phase(tmp_path, paper_miriad):
+    uv_in = paper_miriad
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
+
+    mask = np.full(uv_in.Nblts, False)
+    mask[: uv_in.Nblts // 2] = True
+    uv_in.phase(ra=0, dec=0, phase_frame="fk5", select_mask=mask, cat_name="foo")
+
+    uv_in.write_miriad(testfile, clobber=True)
+
+    uv2 = UVData.from_file(testfile)
+
+    uv2._consolidate_phase_center_catalogs(other=uv_in)
+    assert uv2 == uv_in
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
