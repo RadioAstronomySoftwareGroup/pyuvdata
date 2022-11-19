@@ -1615,10 +1615,10 @@ class MirParser(object):
         sel_mask = np.isin(self.ac_data._data["iband"], unique_bands)
 
         self.ac_data._data = self.ac_data._data[sel_mask]
-        self.ac_data._mask = np.ones(len(self.ac_data), dtype=bool)
+        self.ac_data._mask = np.ones(self.ac_data._size, dtype=bool)
 
         # Set up the header index for the object, and then construct the header key dict
-        self.ac_data._data["achid"] = np.arange(1, len(self.ac_data) + 1)
+        self.ac_data._data["achid"] = np.arange(1, self.ac_data._size + 1)
         self.ac_data._set_header_key_index_dict()
 
         # Now that we've got vitals, we want to import in metadata from some of the
