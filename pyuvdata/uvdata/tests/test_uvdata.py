@@ -7809,9 +7809,27 @@ def test_upsample_in_time_drift(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_upsample_in_time_drift_no_phasing(hera_uvh5):
+@pytest.mark.parametrize("driftscan", [True, False])
+@pytest.mark.parametrize("partial_phase", [True, False])
+def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
     """Test the upsample_in_time method on drift mode data without phasing"""
     uv_object = hera_uvh5
+
+    if driftscan:
+        uv_object.phase(
+            lon=0,
+            lat=np.pi / 2,
+            phase_frame="altaz",
+            cat_type="driftscan",
+            cat_name="foo",
+        )
+
+    if partial_phase:
+        mask = np.full(uv_object.Nblts, False)
+        mask[: uv_object.Nblts // 2] = True
+        uv_object.phase(
+            ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="bar"
+        )
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline")
@@ -8443,9 +8461,27 @@ def test_downsample_in_time_drift(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_downsample_in_time_drift_no_phasing(hera_uvh5):
+@pytest.mark.parametrize("driftscan", [True, False])
+@pytest.mark.parametrize("partial_phase", [True, False])
+def test_downsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
     """Test the downsample_in_time method on drift mode data without phasing"""
     uv_object = hera_uvh5
+
+    if driftscan:
+        uv_object.phase(
+            lon=0,
+            lat=np.pi / 2,
+            phase_frame="altaz",
+            cat_type="driftscan",
+            cat_name="foo",
+        )
+
+    if partial_phase:
+        mask = np.full(uv_object.Nblts, False)
+        mask[uv_object.Nblts // 2 :] = True
+        uv_object.phase(
+            ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="bar"
+        )
 
     # reorder to make sure we get the right value later
     uv_object.reorder_blts(order="baseline", minor_order="time")
@@ -8585,6 +8621,21 @@ def test_downsample_in_time_errors(hera_uvh5):
         ValueError, match="Increasing the integration time by more than"
     ):
         uv_object.downsample_in_time(min_int_time=max_integration_time)
+
+    # raise an error if phase centers change within an downsampling window
+    uv_object2 = uv_object.copy()
+    uv_object2.reorder_blts(order="time")
+    mask = np.full(uv_object2.Nblts, False)
+    mask[: uv_object2.Nblts // 3] = True
+    uv_object2.phase(ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="foo")
+    with pytest.raises(
+        ValueError,
+        match="Multiple phase centers included in a downsampling window. Use `phase` "
+        "to phase to a single phase center or decrease the `min_int_time` or "
+        "`n_times_to_avg` parameter to avoid multiple phase centers being included in "
+        "a downsampling window.",
+    ):
+        uv_object2.downsample_in_time(n_times_to_avg=2)
 
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
@@ -9010,7 +9061,8 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("driftscan", [True, False])
-def test_resample_in_time(bda_test_file, future_shapes, driftscan):
+@pytest.mark.parametrize("partial_phase", [True, False])
+def test_resample_in_time(bda_test_file, future_shapes, driftscan, partial_phase):
     """Test the resample_in_time method"""
     # Note this file has slight variations in the delta t between integrations
     # that causes our gap test to issue a warning, but the variations are small
@@ -9027,6 +9079,13 @@ def test_resample_in_time(bda_test_file, future_shapes, driftscan):
             phase_frame="altaz",
             cat_type="driftscan",
             cat_name="zenith",
+        )
+
+    if partial_phase:
+        mask = np.full(uv_object.Nblts, False)
+        mask[: uv_object.Nblts // 2] = True
+        uv_object.phase(
+            ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="foo"
         )
 
     # save some initial info
@@ -12315,15 +12374,21 @@ def test_normalize_by_autos_flag_noautos(hera_uvh5):
     assert np.all(hera_uvh5.flag_array[cross_mask])
 
 
-@pytest.mark.filterwarnings("ignore:The default behavior is to rephase data from the")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes")
-def test_split_write_comb_read(tmp_path):
+@pytest.mark.parametrize("multi_phase", [True, False])
+def test_split_write_comb_read(tmp_path, multi_phase):
     """Pulled from a failed tutorial example."""
     uvd = UVData()
     filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
 
     uvd.read(filename)
+
+    if multi_phase:
+        mask = np.full(uvd.Nblts, False)
+        mask[: uvd.Nblts // 2] = True
+        uvd.phase(ra=0, dec=0, phase_frame="fk5", select_mask=mask, cat_name="foo")
+
     uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
     uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
     uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
@@ -12335,4 +12400,25 @@ def test_split_write_comb_read(tmp_path):
         os.path.join(tmp_path, f)
         for f in ["select1.uvfits", "select2.uvfits", "select3.uvfits"]
     ]
-    uvd.read(filenames)
+    uvd2 = UVData()
+
+    warn_type = [DeprecationWarning] + [UserWarning] * 12
+    msg = (
+        ["The default behavior is to rephase data from the files"]
+        + ["Telescope EVLA is not in known_telescopes."] * 3
+        + ["The uvw_array does not match the expected values given the antenna"] * 9
+    )
+    if multi_phase:
+        warn_type.append(UserWarning)
+        msg.append(
+            "Allow_rephase is True but `phase_center_radec` is not set and "
+            "the first file has multiple phase centers, so no rephasing "
+            "will be done."
+        )
+    with uvtest.check_warnings(warn_type, match=msg):
+        uvd2.read(filenames)
+
+    uvd2._consolidate_phase_center_catalogs(other=uvd)
+
+    uvd2.history = uvd.history
+    assert uvd2 == uvd

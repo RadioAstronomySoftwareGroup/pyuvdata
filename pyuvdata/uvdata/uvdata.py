@@ -2044,24 +2044,6 @@ class UVData(UVBase):
                     cat_id=cat_id,
                 )
 
-    def _set_drift(self):
-        # This is an internal method so could just be deleted.
-        # TODO decide whether we should give a deprecation period or just remove it.
-        warnings.warn(
-            "The `_set_drift` method is deprecated and will be removed in pyuvdata "
-            "v2.4. It has no effect"
-        )
-        pass
-
-    def _set_phased(self):
-        # This is an internal method so could just be deleted.
-        # TODO decide whether we should give a deprecation period or just remove it.
-        warnings.warn(
-            "The `_set_phased` method is deprecated and will be removed in pyuvdata "
-            "v2.4. It has no effect"
-        )
-        pass
-
     @property
     def _data_params(self):
         """List of strings giving the data-like parameters."""
@@ -9502,11 +9484,13 @@ class UVData(UVBase):
                 if initial_nphase_ids > 1:
                     initial_ids = initial_ids[inds_to_keep]
                     initial_ids = np.concatenate((initial_ids, temp_initial_ids))
-                for cat_id, cat_dict in initial_phase_catalog.items:
+                for cat_id, cat_dict in initial_phase_catalog.items():
                     if cat_dict["cat_type"] != "driftscan":
                         continue
                     if initial_nphase_ids > 1:
                         select_mask = initial_ids == cat_id
+                        if not np.any(select_mask):
+                            select_mask = None
                     else:
                         select_mask = None
                     self.phase(
@@ -9514,7 +9498,7 @@ class UVData(UVBase):
                         cat_dict["cat_lat"],
                         cat_name=cat_dict["cat_name"],
                         cat_type=cat_dict["cat_type"],
-                        phase_frame=cat_dict["phase_frame"],
+                        phase_frame=cat_dict["cat_frame"],
                         epoch=cat_dict["cat_epoch"],
                         select_mask=select_mask,
                     )
@@ -9750,7 +9734,6 @@ class UVData(UVBase):
             initial_phase_catalog = self.phase_center_catalog.copy()
             initial_ids = self.phase_center_id_array
         phased = False
-        rephasing_allowed = True
         if initial_unprojected or initial_driftscan:
             if allow_drift:
                 print(
@@ -9859,18 +9842,12 @@ class UVData(UVBase):
                     if initial_nphase_ids > 1:
                         if initial_unprojected:
                             unique_unprojected = np.unique(
-                                initial_unprojected[averaging_idx]
+                                unprojected_blts[averaging_idx]
                             )
-                            if unique_unprojected.size > 1:
-                                rephasing_allowed = False
-                            else:
-                                temp_unprojected_blts[temp_idx] = unique_unprojected[0]
+                            temp_unprojected_blts[temp_idx] = unique_unprojected[0]
                         if initial_driftscan:
                             unique_initial_ids = np.unique(initial_ids[averaging_idx])
-                            if unique_initial_ids.size > 1:
-                                rephasing_allowed = False
-                            else:
-                                temp_initial_ids[temp_idx] = unique_initial_ids[0]
+                            temp_initial_ids[temp_idx] = unique_initial_ids[0]
                     # take potential non-uniformity of integration_time into account
                     temp_time[temp_idx] = np.sum(
                         self.time_array[averaging_idx]
@@ -9985,43 +9962,36 @@ class UVData(UVBase):
         )
 
         if phased:
-            if rephasing_allowed:
-                print("Undoing phasing.")
-                if initial_unprojected:
+            print("Undoing phasing.")
+            if initial_unprojected:
+                if initial_nphase_ids > 1:
+                    select_mask = unprojected_blts[inds_to_keep]
+                    select_mask = np.concatenate((select_mask, temp_unprojected_blts))
+                else:
+                    select_mask = None
+                self.unproject_phase(select_mask=select_mask)
+            if initial_driftscan:
+                if initial_nphase_ids > 1:
+                    initial_ids = initial_ids[inds_to_keep]
+                    initial_ids = np.concatenate((initial_ids, temp_initial_ids))
+                for cat_id, cat_dict in initial_phase_catalog.items():
+                    if cat_dict["cat_type"] != "driftscan":
+                        continue
                     if initial_nphase_ids > 1:
-                        select_mask = unprojected_blts[inds_to_keep]
-                        select_mask = np.concatenate(
-                            (select_mask, temp_unprojected_blts)
-                        )
+                        select_mask = initial_ids == cat_id
+                        if not np.any(select_mask):
+                            select_mask = None
                     else:
                         select_mask = None
-                    self.unproject_phase(select_mask=select_mask)
-                if initial_driftscan:
-                    if initial_nphase_ids > 1:
-                        initial_ids = initial_ids[inds_to_keep]
-                        initial_ids = np.concatenate((initial_ids, temp_initial_ids))
-                    for cat_id, cat_dict in initial_phase_catalog.items:
-                        if cat_dict["cat_type"] != "driftscan":
-                            continue
-                        if initial_nphase_ids > 1:
-                            select_mask = initial_ids == cat_id
-                        else:
-                            select_mask = None
-                        self.phase(
-                            cat_dict["cat_lon"],
-                            cat_dict["cat_lat"],
-                            cat_name=cat_dict["cat_name"],
-                            cat_type=cat_dict["cat_type"],
-                            phase_frame=cat_dict["phase_frame"],
-                            epoch=cat_dict["cat_epoch"],
-                            select_mask=select_mask,
-                        )
-            else:
-                warnings.warn(
-                    "Phasing cannot be undone because there were multiple initial "
-                    "phase centers and more than one initial phase center was "
-                    "combined within a downsampling window."
-                )
+                    self.phase(
+                        cat_dict["cat_lon"],
+                        cat_dict["cat_lat"],
+                        cat_name=cat_dict["cat_name"],
+                        cat_type=cat_dict["cat_type"],
+                        phase_frame=cat_dict["cat_frame"],
+                        epoch=cat_dict["cat_epoch"],
+                        select_mask=select_mask,
+                    )
 
         # reorganize along blt axis
         self.reorder_blts(order=blt_order, minor_order=minor_order)
