@@ -146,8 +146,12 @@ def test_integer_inequality():
 
 def test_dict_equality():
     """Test equality for dict values."""
-    param1 = uvp.UVParameter(name="p1", value={"v1": 1, "n1": None})
-    param2 = uvp.UVParameter(name="p2", value={"v1": 1, "n1": None})
+    param1 = uvp.UVParameter(
+        name="p1", value={"v1": 1, "n1": None, "s1": "foo", "arr1": [3, 4, 5]}
+    )
+    param2 = uvp.UVParameter(
+        name="p2", value={"v1": 1, "n1": None, "s1": "foo", "arr1": [3, 4, 5]}
+    )
     assert param1 == param2
 
 
@@ -169,6 +173,16 @@ def test_dict_inequality_none():
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "s1": "test", "n1": 2})
+    assert param1 != param4
+
+
+def test_dict_inequality_arr():
+    """Test equality error for string dict values."""
+    param1 = uvp.UVParameter(name="p1", value={"v1": 1, "arr1": [3, 4, 5]})
+    param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4]})
+    assert param1 != param4
+
+    param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4, 6]})
     assert param1 != param4
 
 

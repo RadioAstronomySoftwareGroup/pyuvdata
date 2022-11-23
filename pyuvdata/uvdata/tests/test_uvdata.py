@@ -10573,9 +10573,24 @@ def test_look_in_catalog_phase_dict(sma_mir):
         ["test", "sidereal", {"pm_ra": 0}, "Must supply values for either both or"],
         ["test", "sidereal", {"pm_dec": 0}, "Must supply values for either both or"],
         ["test", "sidereal", {"times": 0}, "cat_times cannot be used for non-ephem"],
-        ["test", "sidereal", {}, "cat_lon cannot be None for sidereal phase centers."],
-        ["test", "sidereal", {"lon": 0}, "cat_lat cannot be None for sidereal"],
-        ["test", "sidereal", {"lon": 0, "lat": 0}, "cat_frame cannot be None"],
+        [
+            "test",
+            "sidereal",
+            {},
+            "cat_lon cannot be None for sidereal or ephem phase centers.",
+        ],
+        [
+            "test",
+            "sidereal",
+            {"lon": 0},
+            "cat_lat cannot be None for sidereal or ephem phase centers.",
+        ],
+        [
+            "test",
+            "sidereal",
+            {"lon": 0, "lat": 0},
+            "cat_frame cannot be None for sidereal or ephem phase centers.",
+        ],
         ["unprojected", "unprojected", {"id": 1}, "Provided cat_id belongs to another"],
     ),
 )

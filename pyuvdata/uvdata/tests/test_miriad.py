@@ -735,6 +735,7 @@ def test_singletimeselect_unprojected(uv_in_paper):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
     # check that setting projected works
@@ -769,23 +770,174 @@ def test_singletimeselect_unprojected(uv_in_paper):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in_copy.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in_copy)
     assert uv_in_copy == uv_out
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_loop_multi_phase(tmp_path, paper_miriad):
+@pytest.mark.filterwarnings("ignore:The provided name zenith is already used")
+@pytest.mark.parametrize("frame", ["fk5", "fk4"])
+def test_loop_multi_phase(tmp_path, paper_miriad, frame):
+    uv_in = paper_miriad
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
+    testfile2 = os.path.join(tmp_path, "outtest_miriad2.uv")
+
+    mask = np.full(uv_in.Nblts, False)
+    mask[: uv_in.Nblts // 2] = True
+    if frame == "fk5":
+        epoch = 2000
+    elif frame == "fk4":
+        epoch = 1950
+    uv_in.phase(
+        ra=0, dec=0, phase_frame=frame, select_mask=mask, cat_name="foo", epoch=epoch
+    )
+
+    uv_in.write_miriad(testfile, clobber=True)
+    uv2 = UVData.from_file(testfile)
+
+    uv2._consolidate_phase_center_catalogs(other=uv_in)
+    assert uv2 == uv_in
+
+    # remove phsframe to test frame setting based on epoch
+    aipy_uv = aipy_extracts.UV(testfile)
+    # make new file
+    aipy_uv2 = aipy_extracts.UV(testfile2, status="new")
+    # initialize headers from old file
+    aipy_uv2.init_from_uv(aipy_uv, exclude=["phsframe"])
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+
+    uv3 = UVData.from_file(testfile2)
+
+    # without the "phsframe" variable, the unprojected phase center gets interpreted as
+    # an ephem type phase center.
+    zen_id, _ = uv3._look_in_catalog(cat_name="zenith")
+    new_id = uv3._add_phase_center(cat_name="zenith", cat_type="unprojected")
+    uv3.phase_center_id_array[np.nonzero(uv3.phase_center_id_array == zen_id)] = new_id
+    uv3._clear_unused_phase_centers()
+    uv3._consolidate_phase_center_catalogs(other=uv_in)
+
+    assert uv3 == uv_in
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_multi_phase_error(tmp_path, paper_miriad):
     uv_in = paper_miriad
     testfile = os.path.join(tmp_path, "outtest_miriad.uv")
 
     mask = np.full(uv_in.Nblts, False)
     mask[: uv_in.Nblts // 2] = True
-    uv_in.phase(ra=0, dec=0, phase_frame="fk5", select_mask=mask, cat_name="foo")
+    uv_in.phase(
+        ra=0, dec=0, phase_frame="fk5", select_mask=mask, cat_name="foo", epoch=200
+    )
 
     uv_in.write_miriad(testfile, clobber=True)
+    with pytest.raises(
+        ValueError, match="projected is False but there are multiple sources."
+    ):
+        UVData.from_file(testfile, projected=False)
 
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.parametrize("cut_ephem_pts", [True, False])
+def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts):
+    pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+
+    from requests import RequestException
+
+    uv_in = casa_uvfits
+    # Need to spread out the times to get ra/dec changes that are different at
+    # miriad's precision
+    unique_times = np.unique(uv_in.time_array)
+    for t_ind, ut in enumerate(unique_times):
+        time_mask = np.nonzero(uv_in.time_array == ut)[0]
+        uv_in.time_array[time_mask] += t_ind * 0.01
+    uv_in.set_lsts_from_time_array()
+
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
+
+    # Handle this part with care, since we don't want the test to fail if we are unable
+    # to reach the JPL-Horizons service.
+    try:
+        uv_in.phase(ra=0, dec=0, epoch="J2000", lookup_name="Mars", cat_name="Mars")
+    except (SSLError, RequestException) as err:
+        pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
+
+    if cut_ephem_pts:
+        uv_in.phase_center_catalog[1]["cat_times"] = uv_in.phase_center_catalog[1][
+            "cat_times"
+        ][0]
+        uv_in.phase_center_catalog[1]["cat_lon"] = uv_in.phase_center_catalog[1][
+            "cat_lon"
+        ][0]
+        uv_in.phase_center_catalog[1]["cat_lat"] = uv_in.phase_center_catalog[1][
+            "cat_lat"
+        ][0]
+        uv_in.phase_center_catalog[1]["cat_vrad"] = uv_in.phase_center_catalog[1][
+            "cat_vrad"
+        ][0]
+        uv_in.phase_center_catalog[1]["cat_dist"] = uv_in.phase_center_catalog[1][
+            "cat_dist"
+        ][0]
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Some visibility times did not match ephem times so the ra and dec "
+        "values for those visibilities were interpolated or set to the closest time "
+        "if they would have required extrapolation.",
+    ):
+        uv_in.write_miriad(testfile, clobber=True)
     uv2 = UVData.from_file(testfile)
 
-    uv2._consolidate_phase_center_catalogs(other=uv_in)
+    uv2._update_phase_center_id(0, 1)
+    uv2.phase_center_catalog[1]["info_source"] = uv_in.phase_center_catalog[1][
+        "info_source"
+    ]
+
+    uv_in.print_phase_center_info()
+    print("")
+    uv2.print_phase_center_info()
+
+    if cut_ephem_pts:
+        # Only one ephem points results in only one ra/dec, so it is interpretted as
+        # a sidereal rather than ephem phase center
+        assert uv2.phase_center_catalog[1]["cat_type"] == "sidereal"
+        assert (
+            uv2.phase_center_catalog[1]["cat_lon"]
+            == uv_in.phase_center_catalog[1]["cat_lon"]
+        )
+        assert (
+            uv2.phase_center_catalog[1]["cat_lat"]
+            == uv_in.phase_center_catalog[1]["cat_lat"]
+        )
+
+        # just replace the phase_center_catalog before testing for equality
+        uv2.phase_center_catalog = uv_in.phase_center_catalog
+    else:
+        # the number of catalog times is changed
+        # adjust phase center catalogs to make them equal
+        assert uv2._phase_center_catalog != uv_in._phase_center_catalog
+        uv2.phase_center_catalog[1]["cat_times"] = uv_in.phase_center_catalog[1][
+            "cat_times"
+        ]
+        uv2.phase_center_catalog[1]["cat_lon"] = uv_in.phase_center_catalog[1][
+            "cat_lon"
+        ]
+        uv2.phase_center_catalog[1]["cat_lat"] = uv_in.phase_center_catalog[1][
+            "cat_lat"
+        ]
+        uv2.phase_center_catalog[1]["cat_vrad"] = uv_in.phase_center_catalog[1][
+            "cat_vrad"
+        ]
+        uv2.phase_center_catalog[1]["cat_dist"] = uv_in.phase_center_catalog[1][
+            "cat_dist"
+        ]
+        assert uv2._phase_center_catalog == uv_in._phase_center_catalog
+
     assert uv2 == uv_in
 
 
@@ -820,7 +972,7 @@ def test_driftscan(tmp_path, paper_miriad):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_poltoind(uv_in_paper):
-    miriad_uv, uv_out, testfile = uv_in_paper
+    miriad_uv, _, _ = uv_in_paper
 
     pol_arr = miriad_uv.polarization_array
 
@@ -927,6 +1079,7 @@ def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
@@ -945,6 +1098,7 @@ def test_roundtrip_optional_params(uv_in_paper, tmp_path):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
@@ -953,6 +1107,7 @@ def test_roundtrip_optional_params(uv_in_paper, tmp_path):
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile)
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
@@ -1006,6 +1161,7 @@ def test_read_write_read_miriad(uv_in_paper):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
     # check that we can read & write phased data
@@ -1014,9 +1170,7 @@ def test_read_write_read_miriad(uv_in_paper):
     uv_in2.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
 
-    uv_out._consolidate_phase_center_catalogs(
-        reference_catalog=uv_in2.phase_center_catalog
-    )
+    uv_out._consolidate_phase_center_catalogs(other=uv_in2)
     assert uv_in2 == uv_out
     del uv_in2
 
@@ -1029,6 +1183,7 @@ def test_read_write_read_miriad(uv_in_paper):
     uv_in.x_orientation = "east"
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
@@ -1047,6 +1202,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
     # check that antenna diameters get written if not exactly float
@@ -1055,6 +1211,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
     )
     uv_in.write_miriad(write_file, clobber=True)
     uv_out.read(write_file)
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
     # check warning when antenna diameters vary
@@ -1073,6 +1230,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
     uv_out.read(write_file)
     assert uv_out.antenna_diameters is None
     uv_out.antenna_diameters = uv_in.antenna_diameters
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
@@ -1094,12 +1252,13 @@ def test_miriad_write_read_diameters(tmp_path):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_and_aipy_reads(uv_in_paper):
-    uv_in, uv_out, write_file = uv_in_paper
+    uv_in, _, write_file = uv_in_paper
     # check that variables 'ischan' and 'nschan' were written to new file
     # need to use aipy, since pyuvdata is not currently capturing these variables
     uv_aipy = aipy_extracts.UV(write_file)
@@ -1144,6 +1303,7 @@ def test_miriad_integration_time_precision(uv_in_paper):
     assert new_uv.filename == ["outtest_miriad.uv"]
     uv_in.filename = new_uv.filename
 
+    new_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == new_uv
 
 
@@ -1181,6 +1341,7 @@ def test_read_write_read_miriad_partial_bls(uv_in_paper, select_kwargs, tmp_path
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
 
@@ -1204,6 +1365,7 @@ def test_read_write_read_miriad_partial_antenna_nums(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
 
@@ -1241,6 +1403,7 @@ def test_read_write_read_miriad_partial_times(uv_in_paper, select_kwargs, tmp_pa
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
 
@@ -1263,6 +1426,7 @@ def test_read_write_read_miriad_partial_pols(uv_in_paper, pols, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
 
@@ -1283,6 +1447,7 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
     uv_in.read(write_file, ant_str="cross")
@@ -1294,6 +1459,7 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
     uv_in.read(write_file, ant_str="all")
@@ -1303,6 +1469,7 @@ def test_read_write_read_miriad_partial_ant_str(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    uv_in._consolidate_phase_center_catalogs(other=full)
     assert uv_in == full
 
 
@@ -1445,6 +1612,7 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == exp_uv
 
     uv_in = UVData()
@@ -1469,6 +1637,7 @@ def test_read_write_read_miriad_partial_with_warnings(uv_in_paper, tmp_path):
     assert exp_uv.filename == ["zen.2456865.60537.xy.uvcRREAA"]
     uv_in.filename = exp_uv.filename
 
+    exp_uv._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in != exp_uv
 
 
@@ -1517,6 +1686,7 @@ def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
     uv_in2.filename = uv_in.filename
     uv_in2._filename.form = (1,)
 
+    uv_in2._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_in2
 
 
@@ -1571,6 +1741,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in_copy.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in_copy)
     assert uv_in_copy == uv_out
 
     uv_in_copy = uv_in.copy()
@@ -1593,6 +1764,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in_copy.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in_copy)
     assert uv_in_copy == uv_out
 
     uv_in.antenna_positions = None
@@ -1617,6 +1789,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     assert uv_out.filename == ["outtest_miriad.uv"]
     uv_in.filename = uv_out.filename
 
+    uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
 
@@ -1717,8 +1890,6 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format
     """
-    from pyuvdata.uvdata import aipy_extracts
-
     # test read-in
     fname = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA")
     uvd = UVData()

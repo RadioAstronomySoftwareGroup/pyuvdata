@@ -12,6 +12,7 @@ of metadata.
 
 """
 import builtins
+import warnings
 
 import astropy.units as units
 import numpy as np
@@ -79,8 +80,10 @@ def _param_dict_equal(this_dict, other_dict):
         # but cases differ.
         # so only look for exact equality
         # then default to the long test below.
-        if this_dict == other_dict:
-            return True, ""
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "elementwise comparison failed")
+            if this_dict == other_dict:
+                return True, ""
     except (ValueError, TypeError):
         pass
         # this dict may contain arrays or Nones
@@ -120,21 +123,36 @@ def _param_dict_equal(this_dict, other_dict):
                     message_str = f", key {key} is not equal"
                     return False, message_str
 
-            try:
-                if np.allclose(this_lower[key], other_lower[key]):
+            if isinstance(this_lower[key], (list, np.ndarray, tuple)) and isinstance(
+                other_lower[key], (list, np.ndarray, tuple)
+            ):
+                this_array = np.asarray(this_lower[key])
+                other_array = np.asarray(other_lower[key])
+                if this_array.shape != other_array.shape:
+                    message_str = f", key {key} is not equal"
+                    return False, message_str
+                if np.allclose(this_array, other_array):
                     continue
                 else:
                     message_str = f", key {key} is not equal"
                     return False, message_str
-            except (TypeError):
-                # this isn't a type that can be
-                # handled by np.isclose,
-                # test for equality
-                if this_lower[key] == other_lower[key]:
-                    continue
-                else:
-                    message_str = f", key {key} is not equal"
-                    return False, message_str
+            else:
+                # this isn't a list, array or tuple
+                try:
+                    if np.isclose(this_lower[key], other_lower[key]):
+                        continue
+                    else:
+                        message_str = f", key {key} is not equal"
+                        return False, message_str
+                except TypeError:
+                    # this isn't a type that can be
+                    # handled by np.isclose,
+                    # test for equality
+                    if this_lower[key] == other_lower[key]:
+                        continue
+                    else:
+                        message_str = f", key {key} is not equal"
+                        return False, message_str
 
     return True, ""
 

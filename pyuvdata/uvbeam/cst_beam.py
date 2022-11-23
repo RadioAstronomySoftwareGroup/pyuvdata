@@ -259,9 +259,12 @@ class CSTBeam(UVBeam):
         if self.beam_type == "power":
             # type depends on whether cross pols are present
             # (if so, complex, else float)
+            if complex in self._data_array.expected_type:
+                dtype_use = np.complex128
+            else:
+                dtype_use = np.float64
             self.data_array = np.zeros(
-                self._data_array.expected_shape(self),
-                dtype=self._data_array.expected_type,
+                self._data_array.expected_shape(self), dtype=dtype_use
             )
         else:
             self.data_array = np.zeros(

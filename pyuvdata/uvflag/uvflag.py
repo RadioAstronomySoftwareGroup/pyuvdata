@@ -731,7 +731,7 @@ class UVFlag(UVBase):
             self._polarization_array.expected_type = str
             self._polarization_array.acceptable_vals = None
         else:
-            self._polarization_array.expected_type = int
+            self._polarization_array.expected_type = uvp._get_generic_type(int)
             self._polarization_array.acceptable_vals = list(np.arange(-8, 0)) + list(
                 np.arange(1, 5)
             )

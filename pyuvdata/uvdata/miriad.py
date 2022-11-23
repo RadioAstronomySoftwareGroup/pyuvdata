@@ -1502,7 +1502,11 @@ class Miriad(UVData):
             for name in sou_dict.keys():
                 select_mask = sou_id_list == sou_dict[name]
 
-                if not uvutils._test_array_constant(
+                # test for varying epochs. Unprojected phase centers have nans here
+                # which do not test as matching, so also test for all nans
+                if not np.all(
+                    np.isnan(epoch_list[select_mask])
+                ) and not uvutils._test_array_constant(
                     epoch_list[select_mask], tols=(1e-05, 1e-08)
                 ):
                     # This is unusual but allowed within Miriad.
@@ -1524,6 +1528,7 @@ class Miriad(UVData):
                     if cat_frame == "unprojected":
                         cat_type = "unprojected"
                         cat_frame = None
+                        epoch_val = None
                 else:
                     if epoch_val < 1984.0:
                         cat_frame = "fk4"
@@ -1537,8 +1542,9 @@ class Miriad(UVData):
                 this_single_dec = uvutils._test_array_constant(
                     dec_list[select_mask], tols=radian_tols
                 )
-
-                if not this_single_ra or not this_single_dec:
+                if not cat_type == "unprojected" and (
+                    not this_single_ra or not this_single_dec
+                ):
                     cat_type = "ephem"
 
                     lon_use = ra_list[select_mask]
@@ -2046,8 +2052,10 @@ class Miriad(UVData):
                     }
         if any_ephem:
             ephem_interp = False
-            ra_interp = {}
-            dec_interp = {}
+            ra_interp_func = {}
+            dec_interp_func = {}
+            ra_use = {}
+            dec_use = {}
             for cat_id in self.phase_center_catalog.keys():
                 if self.phase_center_catalog[cat_id]["cat_type"] != "ephem":
                     continue
@@ -2062,21 +2070,21 @@ class Miriad(UVData):
                     self.phase_center_catalog[cat_id]["cat_times"], return_index=True
                 )
                 # generate interp functions in case they're needed
-                ra_interp[cat_id] = scipy.interpolate.interp1d(
+                ra_interp_func[cat_id] = scipy.interpolate.interp1d(
                     unique_times,
                     self.phase_center_catalog[cat_id]["cat_lon"][unique_inds],
                     kind=interp_kind,
                 )
-                dec_interp[cat_id] = scipy.interpolate.interp1d(
+                dec_interp_func[cat_id] = scipy.interpolate.interp1d(
                     unique_times,
                     self.phase_center_catalog[cat_id]["cat_lat"][unique_inds],
                     kind=interp_kind,
                 )
         for viscnt in range(self.data_array.shape[0]):
             uvw = (self.uvw_array[viscnt] / c_ns).astype(np.double)
-            t = miriad_time_array[viscnt]
-            i = self.ant_1_array[viscnt]
-            j = self.ant_2_array[viscnt]
+            this_t = miriad_time_array[viscnt]
+            this_i = self.ant_1_array[viscnt]
+            this_j = self.ant_2_array[viscnt]
 
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
             uv["inttime"] = self.integration_time[viscnt].astype(np.double)
@@ -2087,6 +2095,7 @@ class Miriad(UVData):
             if cat_type == "unprojected":
                 uv["ra"] = self.phase_center_app_ra[viscnt]
                 uv["dec"] = self.phase_center_app_dec[viscnt]
+                uv["phsframe"] = "unprojected"
             elif cat_type == "sidereal":
                 uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"]
                 uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"]
@@ -2094,6 +2103,7 @@ class Miriad(UVData):
                 uv["phsframe"] = self.phase_center_catalog[cat_id]["cat_frame"]
             elif cat_type == "ephem":
                 if self.phase_center_catalog[cat_id]["cat_times"].size == 1:
+                    ephem_interp = True
                     # if there's only one time, just use the values
                     uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"]
                     uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"]
@@ -2101,31 +2111,50 @@ class Miriad(UVData):
                     # there are multiple times. find closest time. Use the
                     # integration center time NOT the miriad time
                     t_use = self.time_array[viscnt]
-                    t_diffs = np.abs(
-                        self.phase_center_catalog[cat_id]["cat_times"] - t_use
-                    )
-                    t_min_loc = np.argmin(t_diffs)
-                    tols = self._time_array.tols
-                    if np.isclose(0, t_diffs[t_min_loc], rtol=tols[0], atol=tols[1]):
-                        uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"][
-                            t_min_loc
-                        ]
-                        uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"][
-                            t_min_loc
-                        ]
+
+                    if cat_id in ra_use and t_use in ra_use[cat_id]:
+                        # already calculated the ra/dec to use for this cat_id & time
+                        uv["ra"] = ra_use[cat_id][t_use]
+                        uv["dec"] = dec_use[cat_id][t_use]
                     else:
-                        ephem_interp = True
-                        try:
-                            uv["ra"] = ra_interp[cat_id](t)
-                            uv["dec"] = dec_interp[cat_id](t)
-                        except ValueError:
-                            # If t_use would require extrapolation, use the closest time
-                            uv["ra"] = self.phase_center_catalog[cat_id]["cat_lon"][
-                                t_min_loc
-                            ]
-                            uv["dec"] = self.phase_center_catalog[cat_id]["cat_lat"][
-                                t_min_loc
-                            ]
+                        if cat_id not in ra_use:
+                            ra_use[cat_id] = {}
+                            dec_use[cat_id] = {}
+                        t_diffs = np.abs(
+                            self.phase_center_catalog[cat_id]["cat_times"] - t_use
+                        )
+                        t_min_loc = np.argmin(t_diffs)
+                        tols = self._time_array.tols
+                        if np.isclose(
+                            0, t_diffs[t_min_loc], rtol=tols[0], atol=tols[1]
+                        ):
+                            ra_use[cat_id][t_use] = self.phase_center_catalog[cat_id][
+                                "cat_lon"
+                            ][t_min_loc]
+                            dec_use[cat_id][t_use] = self.phase_center_catalog[cat_id][
+                                "cat_lat"
+                            ][t_min_loc]
+
+                            uv["ra"] = ra_use[cat_id][t_use]
+                            uv["dec"] = dec_use[cat_id][t_use]
+                        else:
+                            ephem_interp = True
+                            try:
+                                ra_use[cat_id][t_use] = ra_interp_func[cat_id](t_use)
+                                dec_use[cat_id][t_use] = dec_interp_func[cat_id](t_use)
+                                uv["ra"] = ra_use[cat_id][t_use]
+                                uv["dec"] = dec_use[cat_id][t_use]
+                            except ValueError:
+                                # If t_use would require extrapolation, use the closest
+                                # time
+                                ra_use[cat_id][t_use] = self.phase_center_catalog[
+                                    cat_id
+                                ]["cat_lon"][t_min_loc]
+                                dec_use[cat_id][t_use] = self.phase_center_catalog[
+                                    cat_id
+                                ]["cat_lat"][t_min_loc]
+                                uv["ra"] = ra_use[cat_id][t_use]
+                                uv["dec"] = dec_use[cat_id][t_use]
                 uv["epoch"] = self.phase_center_catalog[cat_id]["cat_epoch"]
                 uv["phsframe"] = self.phase_center_catalog[cat_id]["cat_frame"]
             else:
@@ -2137,13 +2166,6 @@ class Miriad(UVData):
                 uv["dec"] = driftscan_coords[cat_id]["coord"][t_ind].dec.rad
                 uv["epoch"] = driftscan_coords[cat_id]["coord"].equinox.jyear
                 uv["phsframe"] = driftscan_coords[cat_id]["coord"].frame.name
-
-            if any_ephem and ephem_interp:
-                warnings.warn(
-                    "Some visibility times did not match ephem times so the ra and dec "
-                    "values for those visibilities were interpolated or set to the "
-                    "closest time if they would have required extrapolation."
-                )
 
             uv["obspa"] = self.phase_center_frame_pa[viscnt]
             uv["obsra"] = self.phase_center_app_ra[viscnt]
@@ -2166,13 +2188,20 @@ class Miriad(UVData):
                     flags = self.flag_array[viscnt, 0, :, polcnt]
                 # Using an assert here because it should be guaranteed by an earlier
                 # method call.
-                assert j >= i, (
+                assert this_j >= this_i, (
                     "Miriad requires ant1<ant2 which should be "
                     "guaranteed by prior conjugate_bls call"
                 )
-                preamble = (uvw, t, (i, j))
+                preamble = (uvw, this_t, (this_i, this_j))
 
                 uv.write(preamble, data, flags)
+
+        if any_ephem and ephem_interp:
+            warnings.warn(
+                "Some visibility times did not match ephem times so the ra and dec "
+                "values for those visibilities were interpolated or set to the "
+                "closest time if they would have required extrapolation."
+            )
 
         # close out now that we're done
         uv.close()
