@@ -1096,13 +1096,19 @@ class UVData(UVBase):
             raise ValueError("cat_times cannot be used for non-ephem phase centers.")
 
         if (cat_lon is None) and (cat_type in ["sidereal", "ephem"]):
-            raise ValueError("cat_lon cannot be None for sidereal phase centers.")
+            raise ValueError(
+                "cat_lon cannot be None for sidereal or ephem phase centers."
+            )
 
         if (cat_lat is None) and (cat_type in ["sidereal", "ephem"]):
-            raise ValueError("cat_lat cannot be None for sidereal phase centers.")
+            raise ValueError(
+                "cat_lat cannot be None for sidereal or ephem phase centers."
+            )
 
         if (cat_frame is None) and (cat_type in ["sidereal", "ephem"]):
-            raise ValueError("cat_frame cannot be None for sidereal phase centers.")
+            raise ValueError(
+                "cat_frame cannot be None for sidereal or ephem phase centers."
+            )
         elif (cat_frame != "altaz") and (cat_type in ["driftscan", "unprojected"]):
             raise ValueError(
                 "cat_frame must be either None or 'altaz' when the cat type "

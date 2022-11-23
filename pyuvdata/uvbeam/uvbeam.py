@@ -843,7 +843,7 @@ class UVBeam(UVBase):
         self._feed_array.required = True
         self._Npols.required = False
         self._polarization_array.required = False
-        self._data_array.expected_type = complex
+        self._data_array.expected_type = uvp._get_generic_type(complex)
         # call set_cs_params to fix data_array form
         self._set_cs_params()
 
@@ -859,10 +859,10 @@ class UVBeam(UVBase):
         self._polarization_array.required = True
 
         # If cross pols are included, the power beam is complex. Otherwise it's real
-        self._data_array.expected_type = float
+        self._data_array.expected_type = uvp._get_generic_type(float)
         for pol in self.polarization_array:
             if pol in [-3, -4, -7, -8]:
-                self._data_array.expected_type = complex
+                self._data_array.expected_type = uvp._get_generic_type(complex)
 
         # call set_cs_params to fix data_array form
         self._set_cs_params()
