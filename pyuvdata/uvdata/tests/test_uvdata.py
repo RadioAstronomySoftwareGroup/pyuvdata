@@ -1166,6 +1166,20 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
             "Visibilities are already phased; set allow_rephase to True",
         ),
         (
+            "phase",
+            {
+                "lon": 0,
+                "lat": 0,
+                "epoch": "J2000",
+                "cat_type": "driftscan",
+                "allow_rephase": True,
+                "cat_name": "bar",
+                "use_old_proj": True,
+            },
+            "Old phasing only supports sidereal catalog types, "
+            "please change the cat_type or use_old_proj=False.",
+        ),
+        (
             "phase_to_time",
             {"time": 0, "allow_rephase": False, "use_old_proj": True},
             "Visibilities are already phased; set allow_rephase to True",
@@ -11303,6 +11317,20 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
     # the other attributes of the two objects.
     uv_in_bad.data_array = uv_in.data_array
     assert uv_in == uv_in_bad
+
+
+def test_fix_phase_error(hera_uvh5):
+    uv_in = hera_uvh5
+    uv_in.phase(
+        lon=0, lat=np.pi / 2, cat_type="driftscan", phase_frame="altaz", cat_name="foo"
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Objects with driftscan phase centers were not phased with the old "
+        "method, so no fixing is required.",
+    ):
+        uv_in.fix_phase()
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])
