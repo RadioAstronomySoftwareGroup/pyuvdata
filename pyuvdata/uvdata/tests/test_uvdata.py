@@ -10320,7 +10320,11 @@ def test_print_object_dms(sma_mir):
 
 
 @pytest.mark.filterwarnings("ignore:The provided name")
-def test_print_object_full(sma_mir):
+@pytest.mark.parametrize(
+    ["frame", "epoch"],
+    [["fk5", 2000.0], ["fk5", "J2000.0"], ["fk4", "B1950.0"], ["fk4", 1950.0]],
+)
+def test_print_object_full(sma_mir, frame, epoch):
     """
     Test that print object w/ all optional paramters prints as expected.
     """
@@ -10334,11 +10338,23 @@ def test_print_object_full(sma_mir):
         cat_vrad=0.0,
         cat_pm_ra=0.0,
         cat_pm_dec=0.0,
-        cat_frame="fk5",
-        cat_epoch=2000.0,
+        cat_frame=frame,
+        cat_epoch=epoch,
         cat_id=list(sma_mir.phase_center_catalog)[0],
         force_update=True,
     )
+    frame_str = str(frame)
+    if frame == "fk5":
+        if isinstance(epoch, str):
+            epoch_str = epoch
+        else:
+            epoch_str = "J" + str(epoch)
+    elif frame == "fk4":
+        if isinstance(epoch, str):
+            epoch_str = epoch
+        else:
+            epoch_str = "B" + str(epoch)
+    print(epoch_str)
     check_str = (
         "   ID     Cat Entry          Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame    Epoch   PM-Ra  PM-Dec     Dist   V_rad \n"
@@ -10347,7 +10363,8 @@ def test_print_object_full(sma_mir):
         "-----------------------------------------------"
         "----------------------------------------------------------------\n"
         "    1          3c84      sidereal   20:10:49.01"
-        "  -57:17:44.81    fk5  J2000.0       0       0  0.0e+00       0 \n"
+        f"  -57:17:44.81    {frame_str:5s}{epoch_str:7s}       0       0  0.0e+00"
+        "       0 \n"
     )
     table_str = sma_mir.print_phase_center_info(print_table=False, return_str=True)
     assert table_str == check_str
@@ -10727,6 +10744,7 @@ def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):
         [[-1], ValueError, "No entry with the ID -1 found in the catalog"],
         [[1, None, None, "hi"], TypeError, "Value provided to new_id must be an int"],
         [[1, None, None, 2], ValueError, "The ID 2 is already in the catalog"],
+        [[35.5], TypeError, "catalog_identifier must be a string or an integer."],
     ),
 )
 def test_split_phase_center_bad_args(carma_miriad, args, err_type, msg):
@@ -10755,6 +10773,12 @@ def test_split_phase_center_err_multiname(carma_miriad):
         ["dummy1", ValueError, "No entry by the name dummy1 in"],
         [[0, 1, 2], ValueError, "Attributes of phase centers differ"],
         [[-1, -2], ValueError, "No entry with the ID -1 in the catalog."],
+        [
+            [0, 1.5],
+            TypeError,
+            "catalog_identifier must be a string, an integer or a list of strings or "
+            "integers.",
+        ],
     ),
 )
 def test_merge_phase_centers_bad_args(carma_miriad, cat_iden, err_type, msg):
