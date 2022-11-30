@@ -1415,11 +1415,14 @@ class MS(UVData):
         ref_name = None
         try:
             ref_name = reverse_dict[
-                (str(frame_name), None if (epoch_val is None) else float(epoch_val))
+                (str(frame_name), 2000.0 if (epoch_val is None) else float(epoch_val))
             ]
         except KeyError as err:
+            epoch_msg = (
+                "no epoch" if epoch_val is None else f"epoch {format(epoch_val,'g')}"
+            )
             message = (
-                f"Frame {frame_name} (epoch {format(epoch_val,'g')}) does not have a "
+                f"Frame {frame_name} ({epoch_msg}) does not have a "
                 "corresponding match to supported frames in the MS file format."
             )
             if raise_error:
