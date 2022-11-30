@@ -637,9 +637,9 @@ class Mir(UVData):
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd
                 icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
+                    time_arr,
                     mir_data.in_data["ara"][source_mask],
                     mir_data.in_data["adec"][source_mask],
-                    time_arr,
                     self.telescope_location_lat_lon_alt,
                 )
                 self._add_phase_center(
