@@ -1604,7 +1604,6 @@ class UVFlag(UVBase):
                 f"on uv is {uv.freq_array}"
             )
 
-        # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
             "telescope_name",
             "telescope_location",
@@ -1629,24 +1628,23 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    # TODO: should this become an error in the future? If so, this
-                    # should be a deprecation warning.
                     warnings.warn(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
-                        f"uv is {uv.channel_width}"
+                        f"uv is {uv.channel_width}. This will become an error in "
+                        "version 2.4.",
+                        DeprecationWarning,
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    # TODO: should this become an error in the future? If so, this
-                    # should be a deprecation warning.
                     warnings.warn(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}"
+                        f"{uv_param.value}. This will become an error in version 2.4.",
+                        DeprecationWarning,
                     )
 
         # Deal with polarization
@@ -1893,7 +1891,6 @@ class UVFlag(UVBase):
                 f"on uv is {uv.freq_array}"
             )
 
-        # TODO: should Nants_telescope and Nspws be in this list?
         warn_compatibility_params = [
             "telescope_name",
             "telescope_location",
@@ -1917,24 +1914,23 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    # TODO: should this become an error in the future? If so, this
-                    # should be a deprecation warning.
                     warnings.warn(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
-                        f"uv is {uv.channel_width}"
+                        f"uv is {uv.channel_width}. This will become an error in "
+                        "version 2.4.",
+                        DeprecationWarning,
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    # TODO: should this become an error in the future? If so, this
-                    # should be a deprecation warning.
                     warnings.warn(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}"
+                        f"{uv_param.value}. This will become an error in version 2.4.",
+                        DeprecationWarning,
                     )
 
         # Deal with polarization
@@ -2251,9 +2247,51 @@ class UVFlag(UVBase):
                 "pol": [2, 3, 4],
                 "jones": [2, 3, 4],
             }
+        if axis not in axis_nums.keys():
+            raise ValueError(f"Axis not recognized, must be one of {axis_nums.keys()}")
+
         ax = axis_nums[axis][type_nums[self.type]]
 
-        # TODO: need to add a bunch of compatibility checking!
+        warn_compatibility_params = [
+            "future_array_shapes",
+            "telescope_name",
+            "telescope_location",
+            "antenna_names",
+            "antenna_numbers",
+            "antenna_positions",
+        ]
+
+        if axis != "frequency":
+            warn_compatibility_params.extend(
+                ["freq_array", "channel_width", "spw_array"]
+            )
+            if self.Nspws > 1:
+                warn_compatibility_params.append("flex_spw_id_array")
+        if axis not in ["polarization", "pol", "jones"]:
+            warn_compatibility_params.extend(["polarization_array"])
+        if axis != "time":
+            warn_compatibility_params.extend(["time_array", "lst_array"])
+        if axis != "antenna" and self.type == "antenna":
+            warn_compatibility_params.extend(["ant_array"])
+        if axis != "baseline" and self.type == "baseline":
+            warn_compatibility_params.extend(
+                ["baseline_array", "ant_1_array", "ant_2_array"]
+            )
+
+        nants_telescope_unmatched = []
+        for param in warn_compatibility_params:
+            # compare the UVParameter objects to properly handle tolerances
+            this_param = getattr(self, "_" + param)
+            other_param = getattr(other, "_" + param)
+            if this_param.value is not None and this_param != other_param:
+                warnings.warn(
+                    f"{param} is not the same the two objects. The value on this "
+                    f"object is {this_param.value}; the value on the other object is "
+                    f"{other_param.value}. This will become an error in version 2.4.",
+                    DeprecationWarning,
+                )
+                if param in ["antenna_numbers", "antenna_names", "antenna_positions"]:
+                    nants_telescope_unmatched.append(param)
 
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -2318,7 +2356,22 @@ class UVFlag(UVBase):
             )
             this.Npols = len(this.polarization_array)
 
-        if axis in ["baseline", "antenna", "time"]:
+        if len(nants_telescope_unmatched) > 0 and (
+            axis in ["baseline", "antenna"]
+            or (axis == "time" and self.type == "baseline", "antenna")
+        ):
+            # this handles the case where antenna_numbers/names/positions do not match
+            # but we added objects across related axes. The following code ensures we
+            # at least have all the unique values so that the check doesn't error
+            warnings.warn(
+                f"Parameters {nants_telescope_unmatched} are different on the two "
+                "objects but are related to the axis they are being combined along. "
+                "We will keep the unique antenna_numbers, but if there are different "
+                "names or positions for those numbers on the two objects we will keep "
+                "the values from the first object. This will become an error in "
+                "version 2.4",
+                DeprecationWarning,
+            )
             this.antenna_numbers = np.concatenate(
                 (this.antenna_numbers, other.antenna_numbers)
             )

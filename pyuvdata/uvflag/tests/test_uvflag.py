@@ -1261,7 +1261,19 @@ def test_read_write_extra_keywords(uvdata_obj, test_outfile):
 def test_init_list(uvdata_obj):
     uv = uvdata_obj
     uv.time_array -= 1
-    uvf = UVFlag([uv, test_f_file])
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=[
+            "telescope_location is not the same the two objects",
+            "antenna_names is not the same the two objects",
+            "antenna_numbers is not the same the two objects",
+            "antenna_positions is not the same the two objects",
+            "Parameters ['antenna_names', 'antenna_numbers', 'antenna_positions'] are "
+            "different on the two objects but are related to the axis they are being "
+            "combined along",
+        ],
+    ):
+        uvf = UVFlag([uv, test_f_file])
     uvf1 = UVFlag(uv)
     uvf2 = UVFlag(test_f_file)
     assert np.array_equal(
@@ -1293,7 +1305,19 @@ def test_read_list(uvdata_obj, test_outfile):
     uv.time_array -= 1
     uvf = UVFlag(uv)
     uvf.write(test_outfile, clobber=True)
-    uvf.read([test_outfile, test_f_file])
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=[
+            "telescope_location is not the same the two objects",
+            "antenna_names is not the same the two objects",
+            "antenna_numbers is not the same the two objects",
+            "antenna_positions is not the same the two objects",
+            "Parameters ['antenna_names', 'antenna_numbers', 'antenna_positions'] are "
+            "different on the two objects but are related to the axis they are being "
+            "combined along",
+        ],
+    ):
+        uvf.read([test_outfile, test_f_file])
     assert uvf.filename == sorted(
         os.path.basename(file) for file in [test_outfile, test_f_file]
     )
@@ -1548,7 +1572,17 @@ def test_add_antenna():
     uv2.ant_array += 100  # Arbitrary
     uv2.antenna_numbers += 100
     uv2.antenna_names = np.array([name + "_new" for name in uv2.antenna_names])
-    uv3 = uv1.__add__(uv2, axis="antenna")
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=[
+            "antenna_names is not the same the two objects",
+            "antenna_numbers is not the same the two objects",
+            "Parameters ['antenna_names', 'antenna_numbers'] are "
+            "different on the two objects but are related to the axis they are being "
+            "combined along",
+        ],
+    ):
+        uv3 = uv1.__add__(uv2, axis="antenna")
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
         np.concatenate((uv1.metric_array, uv2.metric_array), axis=0), uv3.metric_array
@@ -1709,6 +1743,8 @@ def test_add_errors(uvdata_obj):
         uv1.__add__(uv3)
 
     # Invalid axes
+    with pytest.raises(ValueError, match="Axis not recognized, must be one of"):
+        uv1.__add__(uv1, axis="foo")
     with pytest.raises(ValueError, match="concatenated along antenna axis."):
         uv1.__add__(uv1, axis="antenna")
 
@@ -2140,7 +2176,7 @@ def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
         polarizations=uvf.polarization_array[0], frequencies=np.squeeze(uv.freq_array)
     )
     with uvtest.check_warnings(
-        UserWarning,
+        DeprecationWarning,
         match=[
             "telescope_location is not the same this object and on uv. The value on",
             "antenna_names is not the same this object and on uv. The value on",
@@ -2251,7 +2287,7 @@ def test_to_baseline_errors(uvdata_obj):
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
     with uvtest.check_warnings(
-        UserWarning,
+        DeprecationWarning,
         match=[
             "telescope_location is not the same this object and on uv. The value on",
             "antenna_names is not the same this object and on uv. The value on",
@@ -2267,7 +2303,7 @@ def test_to_baseline_errors(uvdata_obj):
     uvf.__iadd__(uvf2, axis="polarization")
 
     with uvtest.check_warnings(
-        UserWarning,
+        DeprecationWarning,
         match=[
             "telescope_location is not the same this object and on uv. The value on",
             "antenna_names is not the same this object and on uv. The value on",
@@ -2506,7 +2542,7 @@ def test_to_antenna_errors(uvdata_obj):
     uvf2 = uvf.copy()
     uvf.polarization_array[0] = -4
     with uvtest.check_warnings(
-        UserWarning,
+        DeprecationWarning,
         match=[
             "antenna_names is not the same this object and on uv. The value on",
             "antenna_numbers is not the same this object and on uv. The value on",
@@ -2521,7 +2557,7 @@ def test_to_antenna_errors(uvdata_obj):
 
     uvf.__iadd__(uvf2, axis="polarization")
     with uvtest.check_warnings(
-        UserWarning,
+        DeprecationWarning,
         match=[
             "antenna_names is not the same this object and on uv. The value on",
             "antenna_numbers is not the same this object and on uv. The value on",
