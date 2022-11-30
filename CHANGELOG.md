@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [2.2.10] - 2022-11-30
+## [2.2.11] - 2022-11-30
+
+### Added
+- A frame attribute to the telescope_location parameters on UVData, UVCal and UVFlag
+objects to support observatories on the moon (or anywhere not on earth).
 
 ### Fixed
 - A bug in `UVData.read_uvh5` where `multi_phase_center` was being used to imply the
