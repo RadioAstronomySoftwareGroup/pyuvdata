@@ -644,11 +644,10 @@ class Mir(UVData):
                 )
                 self._add_phase_center(
                     mir_data.codes_data["source"][sou_id],
-                    cat_type="ephem",
+                    cat_type="sidereal",
                     cat_lon=icrs_ra,
                     cat_lat=icrs_dec,
                     cat_frame="icrs",
-                    cat_times=time_arr,
                     info_source="file",
                     cat_id=int(sou_id),
                 )
