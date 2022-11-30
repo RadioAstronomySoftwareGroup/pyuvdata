@@ -1414,7 +1414,9 @@ class MS(UVData):
 
         ref_name = None
         try:
-            ref_name = reverse_dict[(str(frame_name), float(epoch_val))]
+            ref_name = reverse_dict[
+                (str(frame_name), None if (epoch_val is None) else float(epoch_val))
+            ]
         except KeyError as err:
             message = (
                 f"Frame {frame_name} (epoch {format(epoch_val,'g')}) does not have a "
