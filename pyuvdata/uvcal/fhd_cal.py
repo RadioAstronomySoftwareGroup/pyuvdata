@@ -144,9 +144,10 @@ class FHDCal(UVCal):
             obs_tile_names = [
                 ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            obs_tile_names = [
-                "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
-            ]
+            if self.telescope_name.lower() == "mwa":
+                obs_tile_names = [
+                    "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
+                ]
 
             layout_param_dict = get_fhd_layout_info(
                 layout_file,
@@ -173,7 +174,10 @@ class FHDCal(UVCal):
                     setattr(self, key, value)
 
         else:
-            warnings.warn("No layout file, antenna_postions will not be defined.")
+            warnings.warn(
+                "No layout file, antenna_postions will not be defined "
+                "and antenna_names might be incorrect."
+            )
 
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
             self.antenna_names = [
@@ -240,12 +244,9 @@ class FHDCal(UVCal):
             # FHD only has the diagonal elements (jxx, jyy), so limit to 2
             self.Njones = int(np.min([n_pols, 2]))
 
-            # Note that FHD antenna arrays are 1-indexed so we subtract 1
-            # to get 0-indexed arrays
-            ant_1_array = bl_info["TILE_A"][0] - 1
-            ant_2_array = bl_info["TILE_B"][0] - 1
-
-            self.Nants_data = int(np.union1d(ant_1_array, ant_2_array).size)
+            # for calibration FHD includes all antennas in the antenna table,
+            # regardless of whether or not they have data
+            self.Nants_data = len(self.antenna_names)
 
             # get details from settings file
             keywords = [
@@ -418,7 +419,11 @@ class FHDCal(UVCal):
         else:
             self.jones_array = np.array([-5, -6])
 
-        self.ant_array = np.arange(self.Nants_data)
+        # for calibration FHD creates gain array of shape (Nfreqs, Nants_telescope)
+        # rather than (Nfreqs, Nants_data). This means the antenna array will
+        # contain all antennas in the antenna table instead of only those
+        # which had data in the original uvfits file
+        self.ant_array = self.antenna_numbers
 
         self.extra_keywords["autoscal".upper()] = (
             "[" + ", ".join(str(d) for d in auto_scale) + "]"
