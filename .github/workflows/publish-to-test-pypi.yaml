@@ -3,63 +3,80 @@ name: Publish Python distributions to PyPI and TestPyPI
 on: [push, pull_request]
 
 jobs:
-  build-n-publish:
-    name: Build and publish to PyPI and TestPyPI
+  build_wheels:
+    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat:
+          - [ubuntu-20.04, manylinux_x86_64]
+          - [macos-10.15, macosx_*]
+          - [windows-2019, win_amd64]
+          - [windows-2019, win32]
+        python: ["cp38", "cp39", "cp310"]
+
+    steps:
+      - uses: actions/checkout@main
+        with:
+          fetch-depth: 0
+          ref: 'v2.2.11' # remove this after a successful upload!
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.11.2
+        env:
+          CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+          CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
+          CIBW_TEST_COMMAND: "python -m pytest {package}/tests"
+          CIBW_TEST_SKIP: "*-win32"
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.python }}-${{ startsWith(matrix.buildplat[1], 'macosx') && 'macosx' || matrix.buildplat[1] }}
+          path: ./wheelhouse/*.whl
+
+  make_sdist:
+    name: Make SDist
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        # Adding -l {0} helps ensure conda can be found properly.
-        shell: bash -l {0}
-    env:
-      ENV_NAME: pyuvdata_publish
-      PYTHON: 3.8
     steps:
       - uses: actions/checkout@main
         with:
           fetch-depth: 0
 
-      - name: Setup Minimamba
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Build SDist
+        run: pipx run build --sdist
+
+      - uses: actions/upload-artifact@v3
         with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          use-mamba: true
-          python-version: ${{ env.PYTHON }}
-          environment-file: ci/${{ env.ENV_NAME }}.yml
-          activate-environment: ${{ env.ENV_NAME }}
+          name: sdist
+          path: dist/*.tar.gz
 
-      - name: Conda Info
+
+  upload_all:
+    needs: [build_wheels, make_sdist]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          path: dist
+      - name: Move folders around
+        working-directory: dist
         run: |
-          conda info -a
-          conda list
-          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-          if [[ $PYVER != ${{ env.PYTHON }} ]]; then
-            exit 1;
-          fi
-
-      - name: Create environment variable
-        if: startsWith(github.ref, 'refs/tags/') != true
-        run: |
-          wget https://gist.github.com/plaplant/0902f09e59166bac742bbd554f3cd2f9/raw/make_dev_version.sh
-          version=$(bash make_dev_version.sh)
-          echo "SETUPTOOLS_SCM_PRETEND_VERSION=$version" >> $GITHUB_ENV
-
-      - name: Check environment variable
-        run: echo $SETUPTOOLS_SCM_PRETEND_VERSION
-
-      - name: Build a binary wheel and a source tarball
-        run: |
-          python -m build
-
-      - name: Publish to Test PyPI
+          for dir in `ls .`; do
+            cd $dir
+            mv * ..
+            cd ..
+            rmdir $dir
+          done
+      - name: Upload to test PyPI
         if: startsWith(github.event.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
 
-      - name: Publish to PyPI
+      - name: Upload to PyPI
         if: startsWith(github.event.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.pypi_password }}
