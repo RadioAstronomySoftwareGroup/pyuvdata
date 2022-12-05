@@ -27,7 +27,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
           CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
-          CIBW_TEST_COMMAND: "python -m pytest {package}/tests"
+          CIBW_TEST_COMMAND: "python -m pytest {package}"
           CIBW_TEST_SKIP: "*-win32"
 
       - uses: actions/upload-artifact@v3
