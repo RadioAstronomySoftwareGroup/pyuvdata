@@ -73,6 +73,7 @@ class CSTBeam(UVBeam):
         run_check_acceptability=True,
         check_auto_power=True,
         fix_auto_power=True,
+        swap_thetaphi_conventions=False,
     ):
         """
         Read in data from a cst file.
@@ -135,7 +136,9 @@ class CSTBeam(UVBeam):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-
+        swap_thetaphi_conventions : bool
+            Whether to swap the standard assumed convention on theta/phi. By default,
+            phi is assumed to be synonymous with azimuth, and theta with zenith angle.
         """
         # update filename attribute
         basename = os.path.basename(filename)
@@ -218,27 +221,42 @@ class CSTBeam(UVBeam):
             column_names.append("".join(column_name.lower().split(" ")))
             units.append(unit.lower().strip())
 
+        if swap_thetaphi_conventions:
+            column_names = [
+                cn.replace("theta", "phi").replace("phi", "theta")
+                for cn in column_names
+            ]
+
         data = np.loadtxt(filename, skiprows=2)
 
-        theta_col = np.where(np.array(column_names) == "theta")[0][0]
-        phi_col = np.where(np.array(column_names) == "phi")[0][0]
+        theta_col = column_names.index("theta")
+        phi_col = column_names.index("phi")
 
+        theta_data = data[:, theta_col]
+        phi_data = data[:, phi_col]
         if "deg" in units[theta_col]:
-            theta_data = np.radians(data[:, theta_col])
-        else:
-            theta_data = data[:, theta_col]
+            theta_data = np.radians(theta_data)
         if "deg" in units[phi_col]:
-            phi_data = np.radians(data[:, phi_col])
-        else:
-            phi_data = data[:, phi_col]
+            phi_data = np.radians(phi_data)
 
+        if theta_data.max() - theta_data.min() > np.pi * 1.00001:
+            raise ValueError(
+                "It seems that the input file uses a swapped convention for theta/phi. "
+                "Try setting 'swap_thetaphi_conventions' to True."
+            )
+
+        phi_data %= (
+            2 * np.pi
+        )  # this begs the question of how the branch cut is defined...
         theta_axis = np.sort(np.unique(theta_data))
         phi_axis = np.sort(np.unique(phi_data))
         if not theta_axis.size * phi_axis.size == theta_data.size:
             raise ValueError("Data does not appear to be on a grid")
 
-        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
-        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
+        fast_moving = "phi" if phi_data[1] > phi_data[0] else "theta"
+        order = "F" if fast_moving == "theta" else "C"
+        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order=order)
+        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order=order)
 
         if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
             raise ValueError(
