@@ -842,7 +842,8 @@ def test_miriad_multi_phase_error(tmp_path, paper_miriad):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.parametrize("cut_ephem_pts", [True, False])
-def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts):
+@pytest.mark.parametrize("extrapolate", [True, False])
+def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
     pytest.importorskip("astroquery")
 
     from ssl import SSLError
@@ -866,6 +867,10 @@ def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts):
         uv_in.phase(ra=0, dec=0, epoch="J2000", lookup_name="Mars", cat_name="Mars")
     except (SSLError, RequestException) as err:
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
+
+    if extrapolate:
+        # change cat_times to force extrapolation
+        uv_in.phase_center_catalog[1]["cat_times"] += 0.5
 
     if cut_ephem_pts:
         uv_in.phase_center_catalog[1]["cat_times"] = uv_in.phase_center_catalog[1][

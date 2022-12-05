@@ -2140,10 +2140,12 @@ class Miriad(UVData):
                         else:
                             ephem_interp = True
                             try:
-                                ra_use[cat_id][t_use] = ra_interp_func[cat_id](t_use)
-                                dec_use[cat_id][t_use] = dec_interp_func[cat_id](t_use)
-                                uv["ra"] = ra_use[cat_id][t_use]
-                                uv["dec"] = dec_use[cat_id][t_use]
+                                ra_use[cat_id][t_use] = np.asarray(
+                                    [ra_interp_func[cat_id](t_use)]
+                                )
+                                dec_use[cat_id][t_use] = np.asarray(
+                                    [dec_interp_func[cat_id](t_use)]
+                                )
                             except ValueError:
                                 # If t_use would require extrapolation, use the closest
                                 # time
@@ -2153,8 +2155,8 @@ class Miriad(UVData):
                                 dec_use[cat_id][t_use] = self.phase_center_catalog[
                                     cat_id
                                 ]["cat_lat"][t_min_loc]
-                                uv["ra"] = ra_use[cat_id][t_use]
-                                uv["dec"] = dec_use[cat_id][t_use]
+                            uv["ra"] = ra_use[cat_id][t_use]
+                            uv["dec"] = dec_use[cat_id][t_use]
                 uv["epoch"] = self.phase_center_catalog[cat_id]["cat_epoch"]
                 uv["phsframe"] = self.phase_center_catalog[cat_id]["cat_frame"]
             else:
