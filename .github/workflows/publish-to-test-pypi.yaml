@@ -29,6 +29,7 @@ jobs:
           CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
           CIBW_TEST_COMMAND: "python -m pytest {package}"
           CIBW_TEST_SKIP: "*-win32"
+          CIBW_BUILD_FRONTEND: build
 
       - uses: actions/upload-artifact@v3
         with:
