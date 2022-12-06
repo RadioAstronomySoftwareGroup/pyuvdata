@@ -223,7 +223,7 @@ class CSTBeam(UVBeam):
 
         if swap_thetaphi_conventions:
             column_names = [
-                cn.replace("theta", "phi").replace("phi", "theta")
+                cn.replace("theta", "TMP").replace("phi", "theta").replace("TMP", "phi")
                 for cn in column_names
             ]
 
