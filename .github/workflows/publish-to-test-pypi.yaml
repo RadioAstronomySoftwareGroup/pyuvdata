@@ -4,7 +4,7 @@ on: [push, pull_request]
 
 jobs:
   build_wheels:
-    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+    name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} arch ${{ matrix.buildplat[2] }}
     runs-on: ${{ matrix.buildplat[0] }}
     strategy:
       fail-fast: false
@@ -15,11 +15,6 @@ jobs:
           - [macos-12, macosx, arm64]
           - [windows-2019, win, AMD64]
         python: ["cp38", "cp39", "cp310"]
-        exclude:
-          - buildplat: [macos-12, macosx, arm64]
-            python: ["cp39"]
-          - buildplat: [macos-12, macosx, arm64]
-            python: ["cp310"]
     steps:
       - uses: actions/checkout@main
         with:
@@ -33,7 +28,7 @@ jobs:
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
           CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
-          CIBW_TEST_SKIP: "*-win32"
+          CIBW_TEST_SKIP: "*-macosx_arm64"
 
       - uses: actions/upload-artifact@v3
         with:
