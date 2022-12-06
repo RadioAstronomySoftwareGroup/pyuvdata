@@ -89,7 +89,7 @@ cdef extern from "hio.h":
   int mroundup(int a, int b)
 
 cdef extern from "maxdimc.h":
-  cpdef int _MAXCHAN "MAXCHAN"
+  cdef int _MAXCHAN "MAXCHAN"
 
 MAXCHAN = _MAXCHAN
 
@@ -325,11 +325,11 @@ cpdef tuple hread(int item_hdl, int offset, str type) except +:
     raise ValueError(f"unknown item type: {type[0]}")
 
 cdef class UV:
-  cpdef int tno
-  cpdef long decimate
-  cpdef long decphase
-  cpdef long intcnt
-  cpdef double curtime
+  cdef int tno
+  cdef long decimate
+  cdef long decphase
+  cdef long intcnt
+  cdef double curtime
 
   def __init__(self, str filename, str status, str corrmode):
     self.tno = -1
