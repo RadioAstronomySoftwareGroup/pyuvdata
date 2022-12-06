@@ -69,14 +69,14 @@ jobs:
             rmdir $dir
           done
       - name: Upload to test PyPI
-        if: startsWith(github.event.ref, 'refs/tags')
+        # if: startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
 
       - name: Upload to PyPI
-        if: startsWith(github.event.ref, 'refs/tags')
+        # if: startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.pypi_password }}
