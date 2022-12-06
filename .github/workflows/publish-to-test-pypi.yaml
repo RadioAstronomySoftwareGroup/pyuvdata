@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         buildplat:
-          - [ubuntu-20.04, manylinux_x86_64]
+          - [ubuntu-20.04, manylinux*]
           - [macos-10.15, macosx_*]
           - [windows-2019, win_amd64]
           - [windows-2019, win32]
@@ -26,10 +26,10 @@ jobs:
         uses: pypa/cibuildwheel@v2.11.2
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}
+          CIBW_SKIP: "*-musllinux_*"
           CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
-          CIBW_TEST_COMMAND: "python -m pytest {package}"
+          CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
           CIBW_TEST_SKIP: "*-win32"
-          CIBW_BUILD_FRONTEND: build
 
       - uses: actions/upload-artifact@v3
         with:
