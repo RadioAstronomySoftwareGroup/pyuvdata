@@ -2,6 +2,10 @@ name: Publish Python distributions to PyPI and TestPyPI
 
 on: [push, pull_request]
 
+# fake version number just to get push to pypi working
+env:
+  SETUPTOOLS_SCM_PRETEND_VERSION: "2.2.11"
+
 jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
