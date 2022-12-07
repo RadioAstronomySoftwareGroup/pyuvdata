@@ -2,10 +2,6 @@ name: Publish Python distributions to PyPI and TestPyPI
 
 on: [push, pull_request]
 
-# fake version number just to get push to pypi working
-env:
-  SETUPTOOLS_SCM_PRETEND_VERSION: "2.2.11"
-
 jobs:
   build_wheels:
     name: Build wheel for ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
@@ -23,7 +19,6 @@ jobs:
       - uses: actions/checkout@main
         with:
           fetch-depth: 0
-          ref: 'v2.2.11' # remove this after a successful upload!
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.11.2
@@ -55,7 +50,6 @@ jobs:
           name: sdist
           path: dist/*.tar.gz
 
-
   upload_all:
     needs: [build_wheels, make_sdist]
     runs-on: ubuntu-latest
@@ -80,7 +74,7 @@ jobs:
           repository_url: https://test.pypi.org/legacy/
 
       - name: Upload to PyPI
-        # if: startsWith(github.event.ref, 'refs/tags')
+        if: startsWith(github.event.ref, 'refs/tags')
         uses: pypa/gh-action-pypi-publish@v1.5.0
         with:
           password: ${{ secrets.pypi_password }}
