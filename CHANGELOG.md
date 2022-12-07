@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.2.12] - 2022-12-07
+
+### Changed
+- Updated how wheels for PyPI are built.
+
 ## [2.2.11] - 2022-11-30
 
 ### Added
