@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer flag manipulation."""
+import copy
 import os
 import pathlib
 import threading
@@ -72,7 +73,7 @@ def lst_from_uv(uv):
         )
 
     uv.set_lsts_from_time_array()
-    return uv.lst_array
+    return copy.deepcopy(uv.lst_array)
 
 
 def flags2waterfall(uv, flag_array=None, keep_pol=False):
@@ -259,7 +260,7 @@ class UVFlag(UVBase):
             description="Number of spectral windows "
             "(ie non-contiguous spectral chunks).",
             expected_type=int,
-            required=False,
+            required=False,  # will be required starting in version 2.4
         )
         self._Nfreqs = uvp.UVParameter(
             "Nfreqs", description="Number of frequency channels", expected_type=int
@@ -861,6 +862,7 @@ class UVFlag(UVBase):
         self._Nants_data.required = True
         self._Nbls.required = False
         self._Nblts.required = False
+        self._Nspws.required = True  # this should be removed in version 2.4
 
         if self.future_array_shapes:
             self._metric_array.form = ("Nants_data", "Nfreqs", "Ntimes", "Npols")
@@ -886,6 +888,7 @@ class UVFlag(UVBase):
         self._Nants_data.required = True
         self._Nbls.required = True
         self._Nblts.required = True
+        self._Nspws.required = True  # this should be removed in version 2.4
 
         if self.time_array is not None:
             self.Nblts = len(self.time_array)
@@ -915,6 +918,7 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nblts.required = False
+        self._Nspws.required = False  # this should be removed in version 2.4
 
         self._metric_array.form = ("Ntimes", "Nfreqs", "Npols")
         self._flag_array.form = ("Ntimes", "Nfreqs", "Npols")
@@ -963,6 +967,7 @@ class UVFlag(UVBase):
             "telescope_location",
             "channel_width",
             "spw_array",
+            "Nspws",
             "antenna_names",
             "antenna_numbers",
             "antenna_positions",
@@ -1613,7 +1618,7 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
         ]
-        if self.Nspws > 1:
+        if self.Nspws is not None and self.Nspws > 1:
             warn_compatibility_params.append("flex_spw_id_array")
 
         for param in warn_compatibility_params:
@@ -1792,6 +1797,12 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self.freq_array = np.atleast_2d(self.freq_array)
 
+        if self.Nspws is None:
+            self.Nspws = uv.Nspws
+            self.spw_array = uv.spw_array
+            if self.Nspws > 1:
+                self.flex_spw_id_array = uv.flex_spw_id_array
+
         self.baseline_array = uv.baseline_array
         self.Nbls = np.unique(self.baseline_array).size
         self.ant_1_array = uv.ant_1_array
@@ -1900,7 +1911,7 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
         ]
-        if self.Nspws > 1:
+        if self.Nspws is not None and self.Nspws > 1:
             warn_compatibility_params.append("flex_spw_id_array")
         for param in warn_compatibility_params:
             if (
@@ -1996,9 +2007,7 @@ class UVFlag(UVBase):
         self.ant_array = uv.ant_array
         self.Nants_data = len(uv.ant_array)
         # Check the frequency array for Nspws, otherwise broadcast to 1,Nfreqs
-        if self.future_array_shapes:
-            self.freq_array = self.freq_array
-        else:
+        if not self.future_array_shapes:
             self.freq_array = np.atleast_2d(self.freq_array)
 
         if self.telescope_name is None and self.telescope_location is None:
@@ -2015,7 +2024,11 @@ class UVFlag(UVBase):
             self.antenna_positions = uv.antenna_positions
             self.Nants_telescope = uv.Nants_telescope
 
-        self.Nspws = self.spw_array.size
+        if self.Nspws is None:
+            self.Nspws = uv.Nspws
+            self.spw_array = uv.spw_array
+            if self.Nspws > 1:
+                self.flex_spw_id_array = uv.flex_spw_id_array
 
         self._set_type_antenna()
         self.history += 'Broadcast to type "antenna". '
@@ -2253,7 +2266,6 @@ class UVFlag(UVBase):
         ax = axis_nums[axis][type_nums[self.type]]
 
         warn_compatibility_params = [
-            "future_array_shapes",
             "telescope_name",
             "telescope_location",
             "antenna_names",
@@ -2339,9 +2351,19 @@ class UVFlag(UVBase):
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array], axis=-1
             )
-            this.channel_width = np.concatenate(
-                [this.channel_width, other.channel_width]
-            )
+            if this.channel_width is not None and other.channel_width is not None:
+                this.channel_width = np.concatenate(
+                    [this.channel_width, other.channel_width]
+                )
+            elif this.channel_width is not None or other.channel_width is not None:
+                warnings.warn(
+                    "channel_width is None on one object and an array on the other. "
+                    "It will be set to None on the combined object. This will become "
+                    "an error in version 2.4",
+                    DeprecationWarning,
+                )
+                this.channel_width = None
+
             this.Nfreqs = np.unique(this.freq_array.flatten()).size
         elif axis in ["polarization", "pol", "jones"]:
             if this.pol_collapsed:
@@ -3805,25 +3827,25 @@ class UVFlag(UVBase):
             self._set_future_array_shapes()
 
         self.Nfreqs = indata.Nfreqs
-        self.polarization_array = indata.polarization_array
+        self.polarization_array = copy.deepcopy(indata.polarization_array)
         self.Npols = indata.Npols
         self.Nants_telescope = indata.Nants_telescope
         self.Ntimes = indata.Ntimes
 
         if indata.future_array_shapes or indata.flex_spw:
-            self.channel_width = indata.channel_width
+            self.channel_width = copy.deepcopy(indata.channel_width)
         else:
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
         self.telescope_name = indata.telescope_name
         self.telescope_location = indata.telescope_location
-        self.antenna_names = indata.antenna_names
-        self.antenna_numbers = indata.antenna_numbers
-        self.antenna_positions = indata.antenna_positions
+        self.antenna_names = copy.deepcopy(indata.antenna_names)
+        self.antenna_numbers = copy.deepcopy(indata.antenna_numbers)
+        self.antenna_positions = copy.deepcopy(indata.antenna_positions)
         self.Nspws = indata.Nspws
-        self.spw_array = indata.spw_array
+        self.spw_array = copy.deepcopy(indata.spw_array)
         if indata.flex_spw_id_array is not None:
-            self.flex_spw_id_array = indata.flex_spw_id_array
+            self.flex_spw_id_array = copy.deepcopy(indata.flex_spw_id_array)
 
         if waterfall:
             self._set_type_waterfall()
@@ -3835,7 +3857,7 @@ class UVFlag(UVBase):
 
             self.time_array, ri = np.unique(indata.time_array, return_index=True)
             if indata.future_array_shapes:
-                self.freq_array = indata.freq_array
+                self.freq_array = copy.deepcopy(indata.freq_array)
             else:
                 self.freq_array = indata.freq_array[0, :]
             self.lst_array = indata.lst_array[ri]
@@ -3861,19 +3883,19 @@ class UVFlag(UVBase):
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.baseline_array = indata.baseline_array
+            self.baseline_array = copy.deepcopy(indata.baseline_array)
             self.Nbls = indata.Nbls
             self.Nblts = indata.Nblts
-            self.ant_1_array = indata.ant_1_array
-            self.ant_2_array = indata.ant_2_array
+            self.ant_1_array = copy.deepcopy(indata.ant_1_array)
+            self.ant_2_array = copy.deepcopy(indata.ant_2_array)
             self.Nants_data = indata.Nants_data
 
-            self.time_array = indata.time_array
-            self.lst_array = indata.lst_array
+            self.time_array = copy.deepcopy(indata.time_array)
+            self.lst_array = copy.deepcopy(indata.lst_array)
 
             if self.future_array_shapes == indata.future_array_shapes:
                 # match on future shape
-                self.freq_array = indata.freq_array
+                self.freq_array = copy.deepcopy(indata.freq_array)
             elif indata.future_array_shapes:
                 # input is future shaped, self is not
                 self.freq_array = indata.freq_array[np.newaxis, :]
@@ -3883,7 +3905,7 @@ class UVFlag(UVBase):
 
             if copy_flags:
                 if self.future_array_shapes == indata.future_array_shapes:
-                    self.flag_array = indata.flag_array
+                    self.flag_array = copy.deepcopy(indata.flag_array)
                 elif indata.future_array_shapes:
                     self.flag_array = indata.flag_array[:, np.newaxis, :, :]
                 else:
@@ -3916,7 +3938,7 @@ class UVFlag(UVBase):
             self.weights_array = np.ones(self.metric_array.shape)
 
         if indata.extra_keywords is not None:
-            self.extra_keywords = indata.extra_keywords
+            self.extra_keywords = copy.deepcopy(indata.extra_keywords)
 
         if history not in self.history:
             self.history += history
@@ -3995,27 +4017,27 @@ class UVFlag(UVBase):
             self._set_future_array_shapes()
 
         self.Nfreqs = indata.Nfreqs
-        self.polarization_array = indata.jones_array
+        self.polarization_array = copy.deepcopy(indata.jones_array)
         self.Npols = indata.Njones
         self.Nants_telescope = indata.Nants_telescope
         self.Ntimes = indata.Ntimes
-        self.time_array = indata.time_array
-        self.lst_array = indata.lst_array
+        self.time_array = copy.deepcopy(indata.time_array)
+        self.lst_array = copy.deepcopy(indata.lst_array)
 
         if indata.future_array_shapes or indata.flex_spw:
-            self.channel_width = indata.channel_width
+            self.channel_width = copy.deepcopy(indata.channel_width)
         else:
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
         self.telescope_name = indata.telescope_name
         self.telescope_location = indata.telescope_location
-        self.antenna_names = indata.antenna_names
-        self.antenna_numbers = indata.antenna_numbers
-        self.antenna_positions = indata.antenna_positions
+        self.antenna_names = copy.deepcopy(indata.antenna_names)
+        self.antenna_numbers = copy.deepcopy(indata.antenna_numbers)
+        self.antenna_positions = copy.deepcopy(indata.antenna_positions)
         self.Nspws = indata.Nspws
-        self.spw_array = indata.spw_array
+        self.spw_array = copy.deepcopy(indata.spw_array)
         if indata.flex_spw_id_array is not None:
-            self.flex_spw_id_array = indata.flex_spw_id_array
+            self.flex_spw_id_array = copy.deepcopy(indata.flex_spw_id_array)
 
         if waterfall:
             self._set_type_waterfall()
@@ -4026,7 +4048,7 @@ class UVFlag(UVBase):
                 self.history += self.pyuvdata_version_str
 
             if indata.future_array_shapes:
-                self.freq_array = indata.freq_array
+                self.freq_array = copy.deepcopy(indata.freq_array)
             else:
                 self.freq_array = indata.freq_array[0, :]
             if copy_flags:
@@ -4051,12 +4073,12 @@ class UVFlag(UVBase):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            self.ant_array = indata.ant_array
+            self.ant_array = copy.deepcopy(indata.ant_array)
             self.Nants_data = len(self.ant_array)
 
             if self.future_array_shapes == indata.future_array_shapes:
                 # match on future shape
-                self.freq_array = indata.freq_array
+                self.freq_array = copy.deepcopy(indata.freq_array)
             elif indata.future_array_shapes:
                 # input is future shaped, self is not
                 self.freq_array = indata.freq_array[np.newaxis, :]
@@ -4066,7 +4088,7 @@ class UVFlag(UVBase):
 
             if copy_flags:
                 if self.future_array_shapes == indata.future_array_shapes:
-                    self.flag_array = indata.flag_array
+                    self.flag_array = copy.deepcopy(indata.flag_array)
                 elif indata.future_array_shapes:
                     self.flag_array = indata.flag_array[:, np.newaxis, :, :]
                 else:

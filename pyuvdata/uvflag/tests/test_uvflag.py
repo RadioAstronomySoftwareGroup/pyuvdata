@@ -1600,11 +1600,36 @@ def test_add_antenna():
     assert "Data combined along antenna axis. " in uv3.history
 
 
-def test_add_frequency():
+@pytest.mark.parametrize("no_cw1", [True, False])
+@pytest.mark.parametrize("no_cw2", [True, False])
+def test_add_frequency(no_cw1, no_cw2):
     uv1 = UVFlag(test_f_file)
     uv2 = copy.deepcopy(uv1)
+    if no_cw1:
+        uv1.channel_width = None
+    if no_cw2:
+        uv2.channel_width = None
     uv2.freq_array += 1e4  # Arbitrary
-    uv3 = uv1.__add__(uv2, axis="frequency")
+    if no_cw1 != no_cw2:
+        warn_type = DeprecationWarning
+        warn_msg = [
+            "channel_width is None on one object and an array on the other. "
+            "It will be set to None on the combined object. This will become "
+            "an error in version 2.4",
+            "The channel_width is not set. It will be a required parameter starting in "
+            "pyuvdata version 2.4",
+        ]
+    elif no_cw1 or no_cw2:
+        warn_type = DeprecationWarning
+        warn_msg = [
+            "The channel_width is not set. It will be a required parameter starting in "
+            "pyuvdata version 2.4"
+        ]
+    else:
+        warn_type = None
+        warn_msg = ""
+    with uvtest.check_warnings(warn_type, match=warn_msg):
+        uv3 = uv1.__add__(uv2, axis="frequency")
     assert np.array_equal(
         np.concatenate((uv1.freq_array, uv2.freq_array), axis=-1), uv3.freq_array
     )
@@ -2066,6 +2091,19 @@ def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
     uvf.flag_array[1, 15, 0] = True  # Flag time1, chan15
+
+    if not uvd_future_shapes and not uvf_future_shapes:
+        # remove spw_array and Nspws to test getting them from uvdata
+        uvf.spw_array = None
+        uvf.Nspws = None
+
+        # make uvdata multi spw
+        uv.spw_array = np.array([0, 1])
+        uv.Nspws = 2
+        uv.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
+        uv.flex_spw_id_array[uv.Nfreqs // 2 :] = 1
+        uv.check()
+
     uvf.to_baseline(uv)
     assert uvf.type == "baseline"
     assert np.all(uvf.baseline_array == uv.baseline_array)
@@ -2406,6 +2444,19 @@ def test_to_antenna_flags(uvf_future_shapes, uvc_future_shapes):
     uvf.to_flag()
     uvf.flag_array[0, 10, 0] = True  # Flag time0, chan10
     uvf.flag_array[1, 15, 0] = True  # Flag time1, chan15
+
+    if not uvc_future_shapes and not uvf_future_shapes:
+        # remove spw_array and Nspws to test getting them from uvcal
+        uvf.spw_array = None
+        uvf.Nspws = None
+
+        # make uvdata multi spw
+        uvc.spw_array = np.array([0, 1])
+        uvc.Nspws = 2
+        uvc.flex_spw_id_array = np.zeros(uvc.Nfreqs, dtype=int)
+        uvc.flex_spw_id_array[uvc.Nfreqs // 2 :] = 1
+        uvc.check()
+
     uvf.to_antenna(uvc)
     assert uvf.type == "antenna"
     assert np.all(uvf.ant_array == uvc.ant_array)
