@@ -16,7 +16,7 @@ from astropy.time import Time
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-from .uvdata import UVData
+from .uvdata import UVData, reporting_request
 
 __all__ = ["Miriad"]
 
@@ -1432,11 +1432,13 @@ class Miriad(UVData):
                         if np.any(arr != arr[0]):
                             raise ValueError(
                                 "%s values are different by polarization." % name
+                                + reporting_request
                             )
                     else:
                         if np.any(np.diff(item[blt_index, good_pol])):
                             raise ValueError(
                                 "%s values are different by polarization." % name
+                                + reporting_request
                             )
                 for item, target in zip(check_list, assign_list):
                     target[blt_index] = item[blt_index, good_pol[0]]
@@ -1512,7 +1514,7 @@ class Miriad(UVData):
                     # This is unusual but allowed within Miriad.
                     warnings.warn(
                         "Epoch values are varying within a single source. "
-                        "Setting the epoch to the median."
+                        "Setting the epoch to the median." + reporting_request
                     )
                 epoch_val = np.median(epoch_list[select_mask])
                 cat_type = None
@@ -1565,6 +1567,7 @@ class Miriad(UVData):
                                 raise ValueError(
                                     f"Source {name} has different RA values for "
                                     "different baselines at the same time."
+                                    + reporting_request
                                 )
                             if not uvutils._test_array_constant(
                                 lat_use[inverse == t_ind], tols=radian_tols
@@ -1572,6 +1575,7 @@ class Miriad(UVData):
                                 raise ValueError(
                                     f"Source {name} has different RA values for "
                                     "different baselines at the same time."
+                                    + reporting_request
                                 )
                         times_use = unique_times
                         lon_use = lon_use[unique_inds]

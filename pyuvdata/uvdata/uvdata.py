@@ -29,6 +29,11 @@ logger = logging.getLogger(__name__)
 
 radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
+reporting_request = (
+    " Please report this in our issue log, we have not been able to find a file with "
+    "this feature, we would like to investigate this more."
+)
+
 
 class UVData(UVBase):
     """

@@ -14,7 +14,7 @@ import numpy as np
 from astropy.time import Time
 
 from .. import utils as uvutils
-from .uvdata import UVData
+from .uvdata import UVData, reporting_request
 
 __all__ = ["MS"]
 
@@ -2168,6 +2168,8 @@ class MS(UVData):
         try:
             tb_source = tables.table(filepath + "/SOURCE", ack=False)
         except RuntimeError:
+            # TODO figure out why this can happen...
+            warnings.warn(reporting_request)
             pass
         else:
             for idx in range(tb_source.nrows()):
@@ -2195,7 +2197,7 @@ class MS(UVData):
                                 "metadata for the same integration. Be aware that "
                                 "UVData objects do not allow for this, and thus will "
                                 "default to using the metadata from the last row read "
-                                "from the SOURCE table."
+                                "from the SOURCE table." + reporting_request
                             )
                         _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
                         _ = tb_sou_dict[sou_id]["cat_ra"].pop(idx)
