@@ -133,7 +133,26 @@ def test_read_lwa(tmp_path):
 
     with tarfile.open(testfile) as tf:
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
-        tf.extractall(path=tmp_path)
+        def is_within_directory(directory, target):
+            
+            abs_directory = os.path.abspath(directory)
+            abs_target = os.path.abspath(target)
+        
+            prefix = os.path.commonprefix([abs_directory, abs_target])
+            
+            return prefix == abs_directory
+        
+        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+        
+            for member in tar.getmembers():
+                member_path = os.path.join(path, member.name)
+                if not is_within_directory(path, member_path):
+                    raise Exception("Attempted Path Traversal in Tar File")
+        
+            tar.extractall(path, members, numeric_owner=numeric_owner) 
+            
+        
+        safe_extract(tf, path=tmp_path)
 
     uvobj.read(new_filename, file_type="ms")
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
@@ -178,7 +197,26 @@ def test_extra_pol_setup(tmp_path):
 
     with tarfile.open(testfile) as tf:
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
-        tf.extractall(path=tmp_path)
+        def is_within_directory(directory, target):
+            
+            abs_directory = os.path.abspath(directory)
+            abs_target = os.path.abspath(target)
+        
+            prefix = os.path.commonprefix([abs_directory, abs_target])
+            
+            return prefix == abs_directory
+        
+        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+        
+            for member in tar.getmembers():
+                member_path = os.path.join(path, member.name)
+                if not is_within_directory(path, member_path):
+                    raise Exception("Attempted Path Traversal in Tar File")
+        
+            tar.extractall(path, members, numeric_owner=numeric_owner) 
+            
+        
+        safe_extract(tf, path=tmp_path)
 
     uvobj.read(new_filename, file_type="ms")
 
