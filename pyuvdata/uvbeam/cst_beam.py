@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 
 from .. import utils as uvutils
-from .uvbeam import UVBeam
+from .uvbeam import UVBeam, _future_array_shapes_warning
 
 __all__ = ["CSTBeam"]
 
@@ -366,6 +366,8 @@ class CSTBeam(UVBeam):
 
         if use_future_array_shapes:
             self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

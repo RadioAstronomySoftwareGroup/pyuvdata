@@ -16,10 +16,10 @@ cst_folder = "NicCSTbeams"
 cst_files = [os.path.join(DATA_PATH, cst_folder, f) for f in filenames]
 
 # define some values for optional params here so same across efield & power beams
-receiver_temperature_array = np.random.normal(50.0, 5, size=(1, 2))
-loss_array = np.random.normal(50.0, 5, size=(1, 2))
-mismatch_array = np.random.normal(0.0, 1.0, size=(1, 2))
-s_parameters = np.random.normal(0.0, 0.3, size=(4, 1, 2))
+receiver_temperature_array = np.random.normal(50.0, 5, size=2)
+loss_array = np.random.normal(50.0, 5, size=2)
+mismatch_array = np.random.normal(0.0, 1.0, size=2)
+s_parameters = np.random.normal(0.0, 0.3, size=(4, 2))
 
 
 def make_cst_beam(beam_type):
@@ -49,6 +49,7 @@ def make_cst_beam(beam_type):
             "\nOnly 2 files included to keep test data volume low."
         ),
         extra_keywords=extra_keywords,
+        use_future_array_shapes=True,
     )
 
     # add optional parameters for testing purposes
@@ -306,19 +307,12 @@ def phased_array_beam_2freq(cst_efield_2freq):
     beam.antenna_type = "phased_array"
     beam.Nelements = 4
     beam.coupling_matrix = np.zeros(
-        (
-            beam.Nelements,
-            beam.Nelements,
-            beam.Nfeeds,
-            beam.Nfeeds,
-            beam.Nspws,
-            beam.Nfreqs,
-        ),
+        (beam.Nelements, beam.Nelements, beam.Nfeeds, beam.Nfeeds, beam.Nfreqs),
         dtype=complex,
     )
     for element in range(beam.Nelements):
         beam.coupling_matrix[element, element] = np.ones(
-            (beam.Nfeeds, beam.Nfeeds, beam.Nspws, beam.Nfreqs)
+            (beam.Nfeeds, beam.Nfeeds, beam.Nfreqs)
         )
     beam.delay_array = np.zeros(beam.Nelements, dtype=float)
     beam.gain_array = np.ones(beam.Nelements, dtype=float)

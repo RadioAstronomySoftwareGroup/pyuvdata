@@ -15,6 +15,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
@@ -35,6 +36,7 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
     beam_in = cst_efield_1freq_cut_healpix_main.copy()
     beam_in.efield_to_power()
     beam = beam_in.copy()
+
     yield beam
     del beam
 
@@ -43,7 +45,7 @@ def cst_power_1freq_cut_healpix(cst_efield_1freq_cut_healpix_main):
 def hera_beam_casa():
     beam_in = UVBeam()
     casa_file = os.path.join(DATA_PATH, "HERABEAM.FITS")
-    beam_in.read_beamfits(casa_file, run_check=False)
+    beam_in.read_beamfits(casa_file, run_check=False, use_future_array_shapes=True)
 
     # fill in missing parameters
     beam_in.data_normalization = "peak"
@@ -86,33 +88,26 @@ def twofreq_healpix(cst_efield_2freq_cut_healpix, tmp_path_factory):
     yield testfile
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
-def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_read_cst_write_read_fits_efield(cst_efield_1freq, future_shapes, tmp_path):
     beam_in = cst_efield_1freq.copy()
+
+    if not future_shapes:
+        beam_in.use_current_array_shapes()
+
     assert beam_in.filename == ["HERA_NicCST_150MHz.txt"]
 
     beam_out = UVBeam()
 
-    # add optional parameters for testing purposes
-    beam_in.extra_keywords = {"KEY1": "test_keyword"}
-    beam_in.x_orientation = "east"
-    beam_in.reference_impedance = 340.0
-    beam_in.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
-    beam_in.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
-    )
     beam_in.freq_interp_kind = "linear"
 
     write_file = str(tmp_path / "outtest_beam.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
-    beam_out.read_beamfits(write_file)
+    beam_out.read_beamfits(write_file, use_future_array_shapes=future_shapes)
 
     assert beam_in == beam_out
 
@@ -125,25 +120,10 @@ def test_read_cst_write_read_fits_power(cst_power_1freq, tmp_path):
     beam_in = cst_power_1freq
     beam_out = UVBeam()
 
-    # add optional parameters for testing purposes
-    beam_in.extra_keywords = {"KEY1": "test_keyword"}
-    beam_in.x_orientation = "east"
-    beam_in.reference_impedance = 340.0
-    beam_in.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
-    beam_in.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
-    )
-
     write_file = str(tmp_path / "outtest_beam.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
-    beam_out.read_beamfits(write_file)
+    beam_out.read_beamfits(write_file, use_future_array_shapes=True)
     assert beam_in == beam_out
 
     return
@@ -173,7 +153,7 @@ def test_read_cst_write_read_fits_intensity(cst_power_1freq, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    beam_out.read_beamfits(write_file2)
+    beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
     assert beam_in == beam_out
 
     return
@@ -203,7 +183,7 @@ def test_read_cst_write_read_fits_no_coordsys(cst_power_1freq, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    beam_out.read_beamfits(write_file2)
+    beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
     assert beam_in == beam_out
 
     return
@@ -235,7 +215,7 @@ def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    beam_out.read_beamfits(write_file2)
+    beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
     assert beam_in == beam_out
 
     return
@@ -248,40 +228,31 @@ def test_writeread_healpix(cst_efield_1freq_cut_healpix, tmp_path):
     write_file = str(tmp_path / "outtest_beam_hpx.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)
-    beam_out.read_beamfits(write_file)
+    beam_out.read_beamfits(write_file, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
     return
 
 
-def test_writeread_healpix_power(cst_power_1freq_cut_healpix, tmp_path):
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
+@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+def test_writeread_healpix_power(cst_power_1freq_cut_healpix, tmp_path, future_shapes):
     # redo for power beam
     beam_in = cst_power_1freq_cut_healpix
+    if not future_shapes:
+        beam_in.use_current_array_shapes()
+
     beam_out = UVBeam()
 
     write_file = str(tmp_path / "outtest_beam_hpx.fits")
-
-    # add optional parameters for testing purposes
-    beam_in.extra_keywords = {"KEY1": "test_keyword"}
-    beam_in.x_orientation = "east"
-    beam_in.reference_impedance = 340.0
-    beam_in.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.loss_array = np.random.normal(50.0, 5, size=(beam_in.Nspws, beam_in.Nfreqs))
-    beam_in.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_in.Nspws, beam_in.Nfreqs)
-    )
-    beam_in.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
-    )
 
     # check that data_array is complex
     assert np.iscomplexobj(np.real_if_close(beam_in.data_array, tol=10))
 
     beam_in.write_beamfits(write_file, clobber=True)
-    beam_out.read_beamfits(write_file)
+    beam_out.read_beamfits(write_file, use_future_array_shapes=future_shapes)
 
     assert beam_in == beam_out
 
@@ -291,6 +262,10 @@ def test_writeread_healpix_power(cst_power_1freq_cut_healpix, tmp_path):
 def test_writeread_healpix_no_corrdsys(cst_power_1freq_cut_healpix, tmp_path):
     beam_in = cst_power_1freq_cut_healpix
     beam_out = UVBeam()
+
+    # for some unknown reason, sometimes beam_in does not have future shapes.
+    # ensure it does (it's a no op if it already has future shapes)
+    beam_in.use_future_array_shapes()
 
     write_file = str(tmp_path / "outtest_beam.fits")
     write_file2 = str(tmp_path / "outtest_beam2.fits")
@@ -311,7 +286,7 @@ def test_writeread_healpix_no_corrdsys(cst_power_1freq_cut_healpix, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    beam_out.read_beamfits(write_file2)
+    beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
     assert beam_in == beam_out
 
     return
@@ -440,7 +415,7 @@ def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, err, error_m
         hdulist.close()
 
     with pytest.raises(err, match=error_msg):
-        beam_out.read_beamfits(write_file2)
+        beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -510,7 +485,7 @@ def test_basisvec_hdu_errors(cst_efield_1freq, tmp_path, header_dict, error_msg)
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        beam_out.read_beamfits(write_file2)
+        beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -562,7 +537,7 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path, header_dict, err
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        beam_out.read_beamfits(write_file2)
+        beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -621,7 +596,7 @@ def test_healpix_basisvec_hdu_errors(
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        beam_out.read_beamfits(write_file2)
+        beam_out.read_beamfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -650,7 +625,7 @@ def test_casa_beam(tmp_path, hera_beam_casa):
     assert expected_extra_keywords.sort() == list(beam_in.extra_keywords.keys()).sort()
 
     beam_in.write_beamfits(write_file, clobber=True)
-    beam_out.read_beamfits(write_file)
+    beam_out.read_beamfits(write_file, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
@@ -721,7 +696,7 @@ def test_extra_keywords_boolean(tmp_path, hera_beam_casa):
     beam_in.extra_keywords["bool"] = True
     beam_in.extra_keywords["bool2"] = False
     beam_in.write_beamfits(testfile, clobber=True)
-    beam_out.read_beamfits(testfile, run_check=False)
+    beam_out.read_beamfits(testfile, run_check=False, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
@@ -737,7 +712,7 @@ def test_extra_keywords_int(tmp_path, hera_beam_casa):
     beam_in.extra_keywords["int1"] = np.int64(5)
     beam_in.extra_keywords["int2"] = 7
     beam_in.write_beamfits(testfile, clobber=True)
-    beam_out.read_beamfits(testfile, run_check=False)
+    beam_out.read_beamfits(testfile, run_check=False, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
@@ -753,7 +728,7 @@ def test_extra_keywords_float(tmp_path, hera_beam_casa):
     beam_in.extra_keywords["float1"] = np.int64(5.3)
     beam_in.extra_keywords["float2"] = 6.9
     beam_in.write_beamfits(testfile, clobber=True)
-    beam_out.read_beamfits(testfile, run_check=False)
+    beam_out.read_beamfits(testfile, run_check=False, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
@@ -769,7 +744,7 @@ def test_extra_keywords_complex(tmp_path, hera_beam_casa):
     beam_in.extra_keywords["complex1"] = np.complex64(5.3 + 1.2j)
     beam_in.extra_keywords["complex2"] = 6.9 + 4.6j
     beam_in.write_beamfits(testfile, clobber=True)
-    beam_out.read_beamfits(testfile, run_check=False)
+    beam_out.read_beamfits(testfile, run_check=False, use_future_array_shapes=True)
 
     assert beam_in == beam_out
 
@@ -782,23 +757,6 @@ def test_multi_files(cst_efield_2freq, tmp_path):
     """
     beam_full = cst_efield_2freq
 
-    # add optional parameters for testing purposes
-    beam_full.extra_keywords = {"KEY1": "test_keyword"}
-    beam_full.x_orientation = "east"
-    beam_full.reference_impedance = 340.0
-    beam_full.receiver_temperature_array = np.random.normal(
-        50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs)
-    )
-    beam_full.loss_array = np.random.normal(
-        50.0, 5, size=(beam_full.Nspws, beam_full.Nfreqs)
-    )
-    beam_full.mismatch_array = np.random.normal(
-        0.0, 1.0, size=(beam_full.Nspws, beam_full.Nfreqs)
-    )
-    beam_full.s_parameters = np.random.normal(
-        0.0, 0.3, size=(4, beam_full.Nspws, beam_full.Nfreqs)
-    )
-
     testfile1 = str(tmp_path / "outtest_beam1.fits")
     testfile2 = str(tmp_path / "outtest_beam2.fits")
 
@@ -806,7 +764,7 @@ def test_multi_files(cst_efield_2freq, tmp_path):
     beam2 = beam_full.select(freq_chans=1, inplace=False)
     beam1.write_beamfits(testfile1, clobber=True)
     beam2.write_beamfits(testfile2, clobber=True)
-    beam1.read_beamfits([testfile1, testfile2])
+    beam1.read_beamfits([testfile1, testfile2], use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         beam_full.history + "  Downselected "
@@ -825,10 +783,10 @@ def test_partial_read_freq(request, beamfile):
     beamfile = request.getfixturevalue(beamfile)
 
     beam2 = UVBeam()
-    beam2.read(beamfile, freq_range=(145e6, 155e6))
+    beam2.read(beamfile, freq_range=(145e6, 155e6), use_future_array_shapes=True)
 
-    assert beam2.freq_array.shape == (1, 1)
-    assert beam2.freq_array[0, 0] == 150e6
+    assert beam2.freq_array.shape == (1,)
+    assert beam2.freq_array[0] == 150e6
 
 
 @pytest.mark.parametrize("nfiles", [1, 2])
@@ -841,9 +799,13 @@ def test_partial_read_azza(twofreq, twosinglefreq, nfiles, select_param):
         az_range = None
         za_range = (0, 90)
     if nfiles == 1:
-        beam2 = UVBeam.from_file(twofreq, az_range=az_range, za_range=za_range)
+        file_use = twofreq
     else:
-        beam2 = UVBeam.from_file(twosinglefreq, az_range=az_range, za_range=za_range)
+        file_use = twosinglefreq
+
+    beam2 = UVBeam.from_file(
+        file_use, az_range=az_range, za_range=za_range, use_future_array_shapes=True
+    )
 
     if select_param == "az":
         assert beam2.axis1_array.shape == (181,)
@@ -858,4 +820,4 @@ def test_azza_range_onhealpix(twofreq_healpix):
     with pytest.raises(
         ValueError, match="az_range and za_range are not supported for healpix beams"
     ):
-        beam2.read(twofreq_healpix, az_range=(0, 90))
+        beam2.read(twofreq_healpix, az_range=(0, 90), use_future_array_shapes=True)

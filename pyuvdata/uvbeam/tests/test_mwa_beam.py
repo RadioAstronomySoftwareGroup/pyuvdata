@@ -11,6 +11,7 @@ import pyuvdata.utils as uvutils
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
+from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
@@ -18,7 +19,7 @@ filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 @pytest.fixture(scope="module")
 def mwa_beam_1ppd_main():
     beam = UVBeam()
-    beam.read_mwa_beam(filename, pixels_per_deg=1)
+    beam.read_mwa_beam(filename, pixels_per_deg=1, use_future_array_shapes=True)
 
     yield beam
     del beam
@@ -32,17 +33,24 @@ def mwa_beam_1ppd(mwa_beam_1ppd_main):
     del beam
 
 
-def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_read_write_mwa(mwa_beam_1ppd, tmp_path, future_shapes):
     """Basic read/write test."""
     beam1 = mwa_beam_1ppd
     beam2 = UVBeam()
 
-    beam1.read_mwa_beam(filename, pixels_per_deg=1)
+    beam1.read_mwa_beam(
+        filename, pixels_per_deg=1, use_future_array_shapes=future_shapes
+    )
     assert beam1.filename == ["mwa_full_EE_test.h5"]
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "efield"
-    assert beam1.data_array.shape == (2, 1, 2, 3, 91, 360)
+    if future_shapes:
+        assert beam1.data_array.shape == (2, 2, 3, 91, 360)
+    else:
+        assert beam1.data_array.shape == (2, 1, 2, 3, 91, 360)
 
     # this is entirely empirical, just to prevent unexpected changes.
     # The actual values have been validated through external tests against
@@ -56,7 +64,7 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     outfile_name = str(tmp_path / "mwa_beam_out.fits")
     beam1.write_beamfits(outfile_name, clobber=True)
 
-    beam2.read_beamfits(outfile_name)
+    beam2.read_beamfits(outfile_name, use_future_array_shapes=future_shapes)
 
     assert beam1 == beam2
 
@@ -66,10 +74,20 @@ def test_freq_range(mwa_beam_1ppd):
     beam2 = UVBeam()
 
     # include all
-    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 200e6])
+    beam2.read_mwa_beam(
+        filename,
+        pixels_per_deg=1,
+        freq_range=[100e6, 200e6],
+        use_future_array_shapes=True,
+    )
     assert beam1 == beam2
 
-    beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 150e6])
+    beam2.read_mwa_beam(
+        filename,
+        pixels_per_deg=1,
+        freq_range=[100e6, 150e6],
+        use_future_array_shapes=True,
+    )
     beam1.select(freq_chans=[0, 1])
     assert beam1.history != beam2.history
     beam1.history = beam2.history
@@ -78,13 +96,25 @@ def test_freq_range(mwa_beam_1ppd):
     with uvtest.check_warnings(
         UserWarning, match="Only one available frequency in freq_range"
     ):
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 130e6])
+        beam1.read_mwa_beam(
+            filename,
+            pixels_per_deg=1,
+            freq_range=[100e6, 130e6],
+            use_future_array_shapes=True,
+        )
 
     with pytest.raises(ValueError, match="No frequencies available in freq_range"):
-        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6, 110e6])
+        beam2.read_mwa_beam(
+            filename,
+            pixels_per_deg=1,
+            freq_range=[100e6, 110e6],
+            use_future_array_shapes=True,
+        )
 
     with pytest.raises(ValueError, match="freq_range must have 2 elements."):
-        beam2.read_mwa_beam(filename, pixels_per_deg=1, freq_range=[100e6])
+        beam2.read_mwa_beam(
+            filename, pixels_per_deg=1, freq_range=[100e6], use_future_array_shapes=True
+        )
 
 
 def test_p1sin_array():
@@ -110,7 +140,9 @@ def test_bad_amps():
 
     amps = np.ones([2, 8])
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, amplitudes=amps)
+        beam1.read_mwa_beam(
+            filename, pixels_per_deg=1, amplitudes=amps, use_future_array_shapes=True
+        )
     assert str(cm.value).startswith("amplitudes must be shape")
 
 
@@ -119,18 +151,24 @@ def test_bad_delays():
 
     delays = np.zeros([2, 8], dtype="int")
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(
+            filename, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
+        )
     assert str(cm.value).startswith("delays must be shape")
 
     delays = np.zeros((2, 16), dtype="int")
     delays = delays + 64
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(
+            filename, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
+        )
     assert str(cm.value).startswith("There are delays greater than 32")
 
     delays = np.zeros((2, 16), dtype="float")
     with pytest.raises(ValueError) as cm:
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(
+            filename, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
+        )
     assert str(cm.value).startswith("Delays must be integers.")
 
 
@@ -141,7 +179,9 @@ def test_dead_dipoles():
     delays[:, 0] = 32
 
     with uvtest.check_warnings(UserWarning, "There are some terminated dipoles"):
-        beam1.read_mwa_beam(filename, pixels_per_deg=1, delays=delays)
+        beam1.read_mwa_beam(
+            filename, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
+        )
 
     delay_str = (
         "[[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "

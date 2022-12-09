@@ -11,6 +11,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvbeam.cst_beam import CSTBeam
+from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
@@ -103,7 +104,10 @@ def test_frequencyparse_decimal_non_mhz():
     assert parsed_freqs == [120.87e3, 120.87e9, 120.87]
 
 
-def test_read_yaml(cst_efield_2freq_mod):
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_read_yaml(cst_efield_2freq_mod, future_shapes):
     pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -116,9 +120,13 @@ def test_read_yaml(cst_efield_2freq_mod):
     }
 
     beam1 = cst_efield_2freq_mod
+    if not future_shapes:
+        beam1.use_current_array_shapes()
     assert beam1.filename == ["HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
 
-    beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
+    beam2.read_cst_beam(
+        cst_yaml_file, beam_type="efield", use_future_array_shapes=future_shapes
+    )
     assert beam2.filename == sorted(
         [
             os.path.basename(cst_yaml_file),
@@ -164,7 +172,9 @@ def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
 
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
+    beam2.read_cst_beam(
+        test_yaml_file, beam_type="efield", use_future_array_shapes=True
+    )
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
@@ -194,7 +204,12 @@ def test_read_yaml_override(cst_efield_2freq_mod):
             "the value in the settings yaml file."
         ),
     ):
-        beam2.read_cst_beam(cst_yaml_file, beam_type="efield", telescope_name="test"),
+        beam2.read_cst_beam(
+            cst_yaml_file,
+            beam_type="efield",
+            telescope_name="test",
+            use_future_array_shapes=True,
+        ),
 
     assert beam1 == beam2
 
@@ -210,14 +225,24 @@ def test_read_yaml_freq_select(cst_efield_1freq_mod):
 
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(cst_yaml_file, beam_type="efield", frequency_select=[150e6])
+    beam2.read_cst_beam(
+        cst_yaml_file,
+        beam_type="efield",
+        frequency_select=[150e6],
+        use_future_array_shapes=True,
+    )
 
     assert beam1 == beam2
 
     # test error with using frequency_select where no such frequency
     freq = 180e6
     with pytest.raises(ValueError, match=f"frequency {freq} not in frequency list"):
-        beam2.read_cst_beam(cst_yaml_file, beam_type="power", frequency_select=[freq])
+        beam2.read_cst_beam(
+            cst_yaml_file,
+            beam_type="power",
+            frequency_select=[freq],
+            use_future_array_shapes=True,
+        )
 
 
 def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
@@ -246,7 +271,9 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
 
     beam1 = cst_efield_2freq_mod
 
-    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
+    beam2.read_cst_beam(
+        test_yaml_file, beam_type="efield", use_future_array_shapes=True
+    )
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
@@ -255,7 +282,12 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
     # also test with frequency_select
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
+    beam2.read_cst_beam(
+        test_yaml_file,
+        beam_type="efield",
+        frequency_select=[150e6],
+        use_future_array_shapes=True,
+    )
     assert beam1 == beam2
 
     os.remove(test_yaml_file)
@@ -311,13 +343,21 @@ def test_read_yaml_multi_pol(tmp_path):
             history="Derived from https://github.com/Nicolas-Fagnoni/Simulations."
             "\nOnly 2 files included to keep test data volume low.",
             extra_keywords=extra_keywords,
+            use_future_array_shapes=True,
         )
 
-    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
+    beam2.read_cst_beam(
+        test_yaml_file, beam_type="efield", use_future_array_shapes=True
+    )
     assert beam1 == beam2
 
     # also test with frequency_select
-    beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
+    beam2.read_cst_beam(
+        test_yaml_file,
+        beam_type="efield",
+        frequency_select=[150e6],
+        use_future_array_shapes=True,
+    )
     assert beam2.feed_array.tolist() == ["x", "y"]
     assert beam1 == beam2
 
@@ -346,7 +386,9 @@ def test_read_yaml_errors(tmp_path):
             "not present."
         ),
     ):
-        beam1.read_cst_beam(test_yaml_file, beam_type="power")
+        beam1.read_cst_beam(
+            test_yaml_file, beam_type="power", use_future_array_shapes=True
+        )
 
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
@@ -357,7 +399,9 @@ def test_read_yaml_errors(tmp_path):
 
     beam1 = UVBeam()
     with pytest.raises(ValueError, match=("filenames in yaml file must be a list.")):
-        beam1.read_cst_beam(test_yaml_file, beam_type="power")
+        beam1.read_cst_beam(
+            test_yaml_file, beam_type="power", use_future_array_shapes=True
+        )
 
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
@@ -368,7 +412,9 @@ def test_read_yaml_errors(tmp_path):
 
     beam1 = UVBeam()
     with pytest.raises(ValueError, match=("frequencies in yaml file must be a list.")):
-        beam1.read_cst_beam(test_yaml_file, beam_type="power")
+        beam1.read_cst_beam(
+            test_yaml_file, beam_type="power", use_future_array_shapes=True
+        )
 
     os.remove(test_yaml_file)
 
@@ -380,12 +426,12 @@ def test_read_power(cst_power_2freq):
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "power"
-    assert beam1.data_array.shape == (1, 1, 2, 2, 181, 360)
+    assert beam1.data_array.shape == (1, 2, 2, 181, 360)
     assert np.max(beam1.data_array) == 8275.5409
 
     assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, np.where(beam1.axis1_array == 0)[0]],
-        beam1.data_array[:, :, 1, :, :, np.where(beam1.axis1_array == np.pi / 2.0)[0]],
+        beam1.data_array[:, 0, :, :, np.where(beam1.axis1_array == 0)[0]],
+        beam1.data_array[:, 1, :, :, np.where(beam1.axis1_array == np.pi / 2.0)[0]],
     )
 
     # test passing in other polarization
@@ -399,14 +445,13 @@ def test_read_power(cst_power_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        use_future_array_shapes=True,
     )
 
     assert np.allclose(beam1.freq_array, beam2.freq_array)
 
     assert np.allclose(beam2.polarization_array, np.array([-6, -5]))
-    assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]
-    )
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
 
 
 def test_read_power_single_freq(cst_power_1freq):
@@ -418,7 +463,7 @@ def test_read_power_single_freq(cst_power_1freq):
     assert beam1.freq_array == [150e6]
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "power"
-    assert beam1.data_array.shape == (1, 1, 2, 1, 181, 360)
+    assert beam1.data_array.shape == (1, 2, 1, 181, 360)
 
     # test single frequency and not rotating the polarization
     with uvtest.check_warnings(
@@ -433,14 +478,15 @@ def test_read_power_single_freq(cst_power_1freq):
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
+            use_future_array_shapes=True,
         )
 
     assert beam2.freq_array == [150e6]
     assert beam2.pixel_coordinate_system == "az_za"
     assert beam2.beam_type == "power"
     assert beam2.polarization_array == np.array([-5])
-    assert beam2.data_array.shape == (1, 1, 1, 1, 181, 360)
-    assert np.allclose(beam1.data_array[:, :, 0, :, :, :], beam2.data_array)
+    assert beam2.data_array.shape == (1, 1, 1, 181, 360)
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array)
 
 
 def test_read_power_multi_pol():
@@ -458,11 +504,10 @@ def test_read_power_multi_pol():
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        use_future_array_shapes=True,
     )
-    assert beam1.data_array.shape == (1, 1, 2, 1, 181, 360)
-    assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, :], beam1.data_array[:, :, 1, :, :, :]
-    )
+    assert beam1.data_array.shape == (1, 2, 1, 181, 360)
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
 
     # test reading in cross polarization files
     beam2.read_cst_beam(
@@ -475,151 +520,83 @@ def test_read_power_multi_pol():
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        use_future_array_shapes=True,
     )
     assert np.allclose(beam2.polarization_array, np.array([-7, -8]))
-    assert beam2.data_array.shape == (1, 1, 2, 1, 181, 360)
-    assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]
-    )
+    assert beam2.data_array.shape == (1, 2, 1, 181, 360)
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
 
 
-def test_read_errors():
+@pytest.mark.parametrize(
+    ["files", "kwargs", "err_msg"],
+    [
+        [
+            cst_files,
+            {"beam_type": "power", "frequency": [150e6, 123e6, 100e6]},
+            "If frequency and filename are both lists they need to be the same length",
+        ],
+        [
+            cst_files[0],
+            {"beam_type": "power", "frequency": [150e6, 123e6]},
+            "Too many frequencies specified",
+        ],
+        [
+            [cst_files[0], cst_files[0], cst_files[0]],
+            {"beam_type": "power", "feed_pol": ["x", "y"]},
+            "If feed_pol and filename are both lists they need to be the same length",
+        ],
+        [
+            [[cst_files[0]], [cst_files[1]]],
+            {"beam_type": "power", "frequency": [150e6, 123e6], "feed_pol": ["x"]},
+            "filename can not be a nested list",
+        ],
+        [
+            np.array([[cst_files[0]], [cst_files[1]]]),
+            {"beam_type": "power", "frequency": [150e6, 123e6], "feed_pol": ["x"]},
+            "filename can not be a multi-dimensional array",
+        ],
+        [
+            cst_files,
+            {"beam_type": "power", "frequency": [[150e6], [123e6]]},
+            "frequency can not be a nested list",
+        ],
+        [
+            cst_files,
+            {"beam_type": "power", "frequency": np.array([[150e6], [123e6]])},
+            "frequency can not be a multi-dimensional array",
+        ],
+        [
+            cst_files,
+            {"beam_type": "power", "frequency": 150e6, "feed_pol": [["x"], ["y"]]},
+            "feed_pol can not be a nested list",
+        ],
+        [
+            cst_files,
+            {
+                "beam_type": "power",
+                "frequency": 150e6,
+                "feed_pol": np.array([["x"], ["y"]]),
+            },
+            "feed_pol can not be a multi-dimensional array",
+        ],
+    ],
+)
+def test_read_errors(files, kwargs, err_msg):
     # test errors
     beam1 = UVBeam()
 
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files,
-        beam_type="power",
-        frequency=[150e6, 123e6, 100e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
+    kwargs.update(
+        {
+            "telescope_name": "TEST",
+            "feed_name": "bob",
+            "feed_version": "0.1",
+            "model_name": "E-field pattern - Rigging height 4.9m",
+            "model_version": "1.0",
+        }
     )
 
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files[0],
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        [cst_files[0], cst_files[0], cst_files[0]],
-        beam_type="power",
-        feed_pol=["x", "y"],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files[0],
-        beam_type="power",
-        feed_pol=["x", "y"],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        [[cst_files[0]], [cst_files[1]]],
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        feed_pol=["x"],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        np.array([[cst_files[0]], [cst_files[1]]]),
-        beam_type="power",
-        frequency=[150e6, 123e6],
-        feed_pol=["x"],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files,
-        beam_type="power",
-        frequency=[[150e6], [123e6]],
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files,
-        beam_type="power",
-        frequency=np.array([[150e6], [123e6]]),
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files,
-        beam_type="power",
-        feed_pol=[["x"], ["y"]],
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
-
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        cst_files,
-        beam_type="power",
-        feed_pol=np.array([["x"], ["y"]]),
-        frequency=150e6,
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(ValueError, match=err_msg):
+        beam1.read_cst_beam(files, **kwargs, use_future_array_shapes=True)
 
 
 def test_read_efield(cst_efield_2freq):
@@ -628,7 +605,7 @@ def test_read_efield(cst_efield_2freq):
 
     assert beam1.pixel_coordinate_system == "az_za"
     assert beam1.beam_type == "efield"
-    assert beam1.data_array.shape == (2, 1, 2, 2, 181, 360)
+    assert beam1.data_array.shape == (2, 2, 2, 181, 360)
     assert np.max(np.abs(beam1.data_array)) == 90.97
 
     # test passing in other polarization
@@ -642,13 +619,12 @@ def test_read_efield(cst_efield_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        use_future_array_shapes=True,
     )
     assert beam2.feed_array[0] == "y"
     assert beam2.feed_array[1] == "x"
-    assert beam1.data_array.shape == (2, 1, 2, 2, 181, 360)
-    assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, :], beam2.data_array[:, :, 0, :, :, :]
-    )
+    assert beam1.data_array.shape == (2, 2, 2, 181, 360)
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
 
     # test single frequency and not rotating the polarization
     with uvtest.check_warnings(
@@ -663,16 +639,15 @@ def test_read_efield(cst_efield_2freq):
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
+            use_future_array_shapes=True,
         )
 
     assert beam2.pixel_coordinate_system == "az_za"
     assert beam2.beam_type == "efield"
     assert beam2.feed_array == np.array(["x"])
-    assert beam2.data_array.shape == (2, 1, 1, 1, 181, 360)
+    assert beam2.data_array.shape == (2, 1, 1, 181, 360)
 
-    assert np.allclose(
-        beam1.data_array[:, :, 0, 1, :, :], beam2.data_array[:, :, 0, 0, :, :]
-    )
+    assert np.allclose(beam1.data_array[:, 0, 1, :, :], beam2.data_array[:, 0, 0, :, :])
 
     # test reading in multiple polarization files
     beam1.read_cst_beam(
@@ -685,11 +660,10 @@ def test_read_efield(cst_efield_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
+        use_future_array_shapes=True,
     )
-    assert beam1.data_array.shape == (2, 1, 2, 1, 181, 360)
-    assert np.allclose(
-        beam1.data_array[:, :, 0, :, :, :], beam1.data_array[:, :, 1, :, :, :]
-    )
+    assert beam1.data_array.shape == (2, 2, 1, 181, 360)
+    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
 
 
 def test_no_deg_units(tmp_path):
@@ -746,19 +720,18 @@ def test_no_deg_units(tmp_path):
     )
     # this errors because the phi 2pi rotation doesn't work
     # (because they are degrees but the code thinks they're radians)
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="efield",
-        frequency=np.array([150e6]),
-        feed_pol="y",
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(ValueError, match="Rotating by pi/2 failed"):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="efield",
+            frequency=np.array([150e6]),
+            feed_pol="y",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
     theta_col = np.where(np.array(column_names_simple) == "theta")[0][0]
     phi_col = np.where(np.array(column_names_simple) == "phi")[0][0]
@@ -778,19 +751,20 @@ def test_no_deg_units(tmp_path):
         comments="",
     )
     # this errors because theta isn't regularly gridded (too few sig figs)
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="efield",
-        frequency=np.array([150e6]),
-        feed_pol="y",
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(
+        ValueError, match="Data does not appear to be regularly gridded in zenith angle"
+    ):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="efield",
+            frequency=np.array([150e6]),
+            feed_pol="y",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
     # use more decimal places for theta so that it is regularly gridded
     new_format = [
@@ -807,19 +781,21 @@ def test_no_deg_units(tmp_path):
         testfile, data, fmt=new_format, header=new_header + "\n" + line2, comments=""
     )
     # this errors because phi isn't regularly gridded (too few sig figs)
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="efield",
-        frequency=np.array([150e6]),
-        feed_pol="y",
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+        match="Data does not appear to be regularly gridded in azimuth angle",
+    ):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="efield",
+            frequency=np.array([150e6]),
+            feed_pol="y",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
     # use more decimal places so that it is regularly gridded and matches data
     new_format = [
@@ -847,6 +823,7 @@ def test_no_deg_units(tmp_path):
             feed_version="0.1",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
+            use_future_array_shapes=True,
         )
 
     with uvtest.check_warnings(
@@ -860,6 +837,7 @@ def test_no_deg_units(tmp_path):
             feed_version="0.1",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
+            use_future_array_shapes=True,
         )
 
     assert beam1 == beam2
@@ -871,19 +849,19 @@ def test_no_deg_units(tmp_path):
         testfile, data, fmt=new_format, header=new_header + "\n" + line2, comments=""
     )
     # this errors because theta & phi aren't on a strict grid
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="efield",
-        frequency=np.array([150e6]),
-        feed_pol="y",
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(ValueError, match="Data does not appear to be on a grid"):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="efield",
+            frequency=np.array([150e6]),
+            feed_pol="y",
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+            use_future_array_shapes=True,
+        )
 
 
 def test_wrong_column_names(tmp_path):
@@ -949,18 +927,17 @@ def test_wrong_column_names(tmp_path):
         comments="",
     )
     # this errors because there's no recognized power column
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="power",
-        frequency=np.array([150e6]),
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(ValueError, match="No power column found in file:"):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="power",
+            frequency=np.array([150e6]),
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
     extra_power_header = ""
     for col in extra_power_column_headers:
@@ -973,18 +950,19 @@ def test_wrong_column_names(tmp_path):
         comments="",
     )
     # this errors because there's multiple recognized power columns
-    pytest.raises(
-        ValueError,
-        beam1.read_cst_beam,
-        testfile,
-        beam_type="power",
-        frequency=np.array([150e6]),
-        telescope_name="TEST",
-        feed_name="bob",
-        feed_version="0.1",
-        model_name="E-field pattern - Rigging height 4.9m",
-        model_version="1.0",
-    )
+    with pytest.raises(
+        ValueError, match="Multiple possible power columns found in file:"
+    ):
+        beam1.read_cst_beam(
+            testfile,
+            beam_type="power",
+            frequency=np.array([150e6]),
+            telescope_name="TEST",
+            feed_name="bob",
+            feed_version="0.1",
+            model_name="E-field pattern - Rigging height 4.9m",
+            model_version="1.0",
+        )
 
 
 def test_hera_yaml():
@@ -992,7 +970,12 @@ def test_hera_yaml():
     beam1 = UVBeam()
     beam2 = UVBeam()
 
-    beam1.read_cst_beam(cst_yaml_vivaldi, beam_type="efield", frequency_select=[150e6])
+    beam1.read_cst_beam(
+        cst_yaml_vivaldi,
+        beam_type="efield",
+        frequency_select=[150e6],
+        use_future_array_shapes=True,
+    )
 
     assert beam1.reference_impedance == 100
     extra_keywords = {
@@ -1003,7 +986,12 @@ def test_hera_yaml():
     }
     assert beam1.extra_keywords == extra_keywords
 
-    beam2.read_cst_beam(cst_yaml_vivaldi, beam_type="power", frequency_select=[150e6])
+    beam2.read_cst_beam(
+        cst_yaml_vivaldi,
+        beam_type="power",
+        frequency_select=[150e6],
+        use_future_array_shapes=True,
+    )
 
     beam1.efield_to_power(calc_cross_pols=False)
 
