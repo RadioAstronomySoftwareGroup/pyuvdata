@@ -19,6 +19,15 @@ from ..uvbase import UVBase
 
 __all__ = ["UVBeam"]
 
+_future_array_shapes_warning = (
+    "The shapes of several attributes will be changing in the future to remove the "
+    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
+    "method to convert to the future array shapes now or set the parameter of the same "
+    "name on this method to both convert to the future array shapes and silence this "
+    "warning. See the UVBeam tutorial on ReadTheDocs for more details about these "
+    "shape changes."
+)
+
 
 class UVBeam(UVBase):
     """
@@ -696,7 +705,7 @@ class UVBeam(UVBase):
 
         """
         if self.future_array_shapes:
-            raise ValueError("This object already has the future array shapes.")
+            return
         self._set_future_array_shapes()
         self.data_array = self.data_array[:, 0]
         if self.coupling_matrix is not None:
@@ -729,8 +738,14 @@ class UVBeam(UVBase):
             but were required in the past.
 
         """
+        warnings.warn(
+            "This method will be removed in version 3.0 when the current array shapes "
+            "are no longer supported.",
+            DeprecationWarning,
+        )
+
         if not self.future_array_shapes:
-            raise ValueError("This object already has the current array shapes.")
+            return
 
         self._data_array.form = ("Naxes_vec", 1, "Nfeeds", "Nfreqs", "Naxes2", "Naxes1")
         self.data_array = self.data_array[:, np.newaxis]
@@ -4210,7 +4225,7 @@ class UVBeam(UVBase):
 
         if isinstance(feed_pol, np.ndarray):
             if len(feed_pol.shape) > 1:
-                raise ValueError("frequency can not be a multi-dimensional array")
+                raise ValueError("feed_pol can not be a multi-dimensional array")
             feed_pol = feed_pol.tolist()
         if isinstance(feed_pol, (list, tuple)):
             if len(feed_pol) == 1:

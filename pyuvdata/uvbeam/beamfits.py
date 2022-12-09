@@ -10,7 +10,7 @@ import numpy as np
 from astropy.io import fits
 
 from .. import utils as uvutils
-from .uvbeam import UVBeam
+from .uvbeam import UVBeam, _future_array_shapes_warning
 
 __all__ = ["BeamFITS"]
 
@@ -541,6 +541,8 @@ class BeamFITS(UVBeam):
 
         if use_future_array_shapes:
             self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(
@@ -777,7 +779,7 @@ class BeamFITS(UVBeam):
                 '"efield" or "power".'.format(type=self.beam_type)
             )
         if self.future_array_shapes:
-            primary_data = primary_data[:, np.newaxis]
+            primary_data = primary_data[:, :, np.newaxis]
 
         primary_header["CRPIX" + str(ax_nums["feed_pol"])] = 1
 
