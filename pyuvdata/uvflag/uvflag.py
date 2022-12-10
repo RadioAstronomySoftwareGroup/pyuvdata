@@ -22,6 +22,15 @@ from ..uvdata import UVData
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
 
 
+_future_array_shapes_warning = (
+    "The shapes of several attributes will be changing in the future to remove the "
+    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
+    "method to convert to the future array shapes now or set the parameter of the same "
+    "name on this method to both convert to the future array shapes and silence this "
+    "warning."
+)
+
+
 def and_rows_cols(waterfall):
     """Perform logical and over rows and cols of a waterfall.
 
@@ -812,6 +821,12 @@ class UVFlag(UVBase):
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
         """
+        warnings.warn(
+            "This method will be removed in version 3.0 when the current array shapes "
+            "are no longer supported.",
+            DeprecationWarning,
+        )
+
         if not self.future_array_shapes:
             return
 
@@ -3388,10 +3403,14 @@ class UVFlag(UVBase):
         # make sure we have an empty object.
         self.__init__()
         if isinstance(filename, (tuple, list)):
-            self.read(filename[0])
+            self.read(filename[0], use_future_array_shapes=use_future_array_shapes)
             if len(filename) > 1:
                 for f in filename[1:]:
-                    f2 = UVFlag(f, history=history)
+                    f2 = UVFlag(
+                        f,
+                        history=history,
+                        use_future_array_shapes=use_future_array_shapes,
+                    )
                     self += f2
                 del f2
 
@@ -3466,6 +3485,7 @@ class UVFlag(UVBase):
                     self.weights_array = dgrp["weights_array"][()]
                     if "weights_square_array" in dgrp:
                         self.weights_square_array = dgrp["weights_square_array"][()]
+
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
                     if self.type != "waterfall":
@@ -3478,6 +3498,8 @@ class UVFlag(UVBase):
                 # promote 1D to (1, Nfreqs)
                 if self.type != "waterfall" and not self.future_array_shapes:
                     self.freq_array = np.atleast_2d(self.freq_array)
+                elif self.freq_array.ndim > 1:
+                    self.freq_array = np.squeeze(self.freq_array)
 
                 if "Nfreqs" in header.keys():
                     self.Nfreqs = int(header["Nfreqs"][()])
@@ -3693,7 +3715,16 @@ class UVFlag(UVBase):
                 if use_future_array_shapes:
                     self.use_future_array_shapes()
                 else:
-                    self.use_current_array_shapes()
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore",
+                            message="This method will be removed in version 3.0 when "
+                            "the current array shapes are no longer supported.",
+                        )
+                        self.use_current_array_shapes()
+
+            if not use_future_array_shapes:
+                warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
             if run_check:
                 self.check(
@@ -4015,6 +4046,9 @@ class UVFlag(UVBase):
 
         self.clear_unused_attributes()
 
+        if not use_future_array_shapes:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
+
         if run_check:
             self.check(
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
@@ -4210,6 +4244,9 @@ class UVFlag(UVBase):
         self.label += label
 
         self.clear_unused_attributes()
+
+        if not use_future_array_shapes:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(
