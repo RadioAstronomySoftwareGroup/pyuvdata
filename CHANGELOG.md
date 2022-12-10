@@ -45,6 +45,8 @@ types.
 - Severe performance hit when calling `polnum2str` and its variants for many baselines.
 
 ### Deprecated
+- Reading files into objects without setting `use_future_array_shapes` now results in
+deprecation warnings.
 - The utility functions `phase_uvw` and `unphase_uvw` associated with the deprecated
 old phasing method.
 - The `flex_spw_id_array` will be required on all UVData and UVFlag and all
