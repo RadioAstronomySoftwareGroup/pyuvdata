@@ -2168,8 +2168,9 @@ class MS(UVData):
         try:
             tb_source = tables.table(filepath + "/SOURCE", ack=False)
         except RuntimeError:
-            # TODO figure out why this can happen...
-            warnings.warn(reporting_request)
+            # The SOURCE table is optional, so if not found a RuntimeError will be
+            # thrown, and we should forgo trying to associate SOURCE table entries with
+            # the FIELD table.
             pass
         else:
             for idx in range(tb_source.nrows()):
