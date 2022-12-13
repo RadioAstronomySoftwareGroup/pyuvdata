@@ -916,3 +916,18 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
         reference_catalog=uv_obj.phase_center_catalog
     )
     assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures)
+
+
+def test_no_source(sma_mir, tmp_path):
+    uv = UVData()
+    uv2 = UVData()
+    filename = os.path.join(tmp_path, "no_source.ms")
+
+    sma_mir.write_ms(filename)
+
+    uv.read(filename)
+
+    shutil.rmtree(os.path.join(filename, "SOURCE"))
+    uv2.read(filename)
+
+    assert uv == uv2
