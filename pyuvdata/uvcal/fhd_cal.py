@@ -180,6 +180,7 @@ class FHDCal(UVCal):
             )
 
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+            # FHD stores antenna numbers, not names, in the "TILE_NAMES" field
             self.antenna_names = [
                 ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
             ]

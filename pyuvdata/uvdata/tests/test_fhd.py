@@ -64,7 +64,9 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     """
     fhd_uv = fhd_data
     uvfits_uv = UVData()
-
+    print(fhd_uv.Nfreqs)
+    print(fhd_uv.Ntimes)
+    print(fhd_uv.Nants_data)
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
@@ -583,10 +585,9 @@ def test_single_time():
     test reading in a file with a single time.
     """
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
-
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "Telescope gaussian is not in known_telescopes."
+        UserWarning, "tile_names from obs structure does not match",
     ):
         fhd_uv.read(single_time_filelist, use_future_array_shapes=True)
 
@@ -597,13 +598,12 @@ def test_conjugation():
     """test uvfits vs fhd conjugation"""
     uvfits_file = os.path.join(DATA_PATH, "ref_1.1_uniform.uvfits")
     fhd_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
-
     uvfits_uv = UVData()
     uvfits_uv.read(uvfits_file, use_future_array_shapes=True)
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "Telescope gaussian is not in known_telescopes."
+        UserWarning, "Telescope gaussian is not in known_telescopes.",
     ):
         fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
 
