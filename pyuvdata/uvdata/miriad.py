@@ -1481,10 +1481,21 @@ class Miriad(UVData):
             else:
                 # Finally check for the presence of an epoch variable, which isn't
                 # really a good option, but at least it prevents crashes.
+                warn_msg = (
+                    "It is not clear from the file if the data are projected or not. "
+                    "Since the 'epoch' variable is "
+                )
                 if "epoch" in uv.vartable.keys():
                     projected = True
+                    warn_msg += "present it will be labeled as projected. "
                 else:
                     projected = False
+                    warn_msg += "not present it will be labeled as unprojected. "
+                warn_msg += (
+                    "If that is incorrect you can use the 'projected' parameter on "
+                    "this method to set it properly."
+                )
+                warnings.warn(warn_msg)
 
         if record_app:
             self.phase_center_app_ra = app_ra_list
@@ -1522,9 +1533,11 @@ class Miriad(UVData):
                     unique_phase_frames = np.unique(phase_frame_list[select_mask])
                     # "phsframe" is not a standard Miriad keyword, it is only present
                     # in files written by pyuvdata, so this should not happen
-                    assert (
-                        unique_phase_frames.size == 1
-                    ), "This is a bug, please make an issue in our issue log"
+                    assert_err_msg = (
+                        "This is a bug, please make an issue in our issue log at "
+                        "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+                    )
+                    assert unique_phase_frames.size == 1, assert_err_msg
                     cat_frame = unique_phase_frames[0]
 
                     if cat_frame == "unprojected":

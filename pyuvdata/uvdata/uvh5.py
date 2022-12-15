@@ -294,13 +294,10 @@ class UVH5(UVData):
             self.flex_spw_id_array = header["flex_spw_id_array"][:]
         if "flex_spw_polarization_array" in header:
             self.flex_spw_polarization_array = header["flex_spw_polarization_array"][:]
-        read_phase_center_catalog = False
-        if "phase_center_catalog" in header:
-            read_phase_center_catalog = True
 
         # Here is where we start handing phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
-        if read_phase_center_catalog:
+        if "phase_center_catalog" in header:
             self.Nphase = int(header["Nphase"][()])
             self.phase_center_id_array = header["phase_center_id_array"][:]
 
@@ -1091,9 +1088,11 @@ class UVH5(UVData):
         None
         """
         # write out UVH5 version information
-        assert (
-            self.future_array_shapes
-        ), "This is a bug, please report it in our issue log."
+        assert_err_msg = (
+            "This is a bug, please make an issue in our issue log at "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
+        )
+        assert self.future_array_shapes, assert_err_msg
         header["version"] = np.string_("1.1")
 
         # write out telescope and source information

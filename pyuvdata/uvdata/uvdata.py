@@ -27,6 +27,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# standard angle tolerance: 1 mas in radians.
 radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
 
 reporting_request = (
@@ -53,7 +54,6 @@ class UVData(UVBase):
         """Create a new UVData object."""
         # add the UVParameters to the class
 
-        # standard angle tolerance: 1 mas in radians.
         self._Ntimes = uvp.UVParameter(
             "Ntimes", description="Number of times.", expected_type=int
         )
@@ -419,8 +419,8 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Declination of phase center in the topocentric frame of the observatory, "
-            "units radians. Shape (Nblts,), type = float."
+            "Apparent Declination of phase center in the topocentric frame of the "
+            "observatory, units radians. Shape (Nblts,), type = float."
         )
         self._phase_center_app_dec = uvp.AngleParameter(
             "phase_center_app_dec",
@@ -2023,6 +2023,8 @@ class UVData(UVBase):
                 phase_dict=reference_catalog[cat_id], ignore_name=ignore_name
             )
             if match_id is not None and match_diffs == 0:
+                # If match_diffs is 0 then all the keys in the phase center catalog
+                # match, so this is functionally the same source
                 self._update_phase_center_id(match_id, new_id=cat_id)
                 if ignore_name:
                     # Make the names match if names were ignored in matching
