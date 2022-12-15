@@ -92,6 +92,7 @@ def test_read_write_read_atca(tmp_path, future_shapes):
             "Telescope ATCA is not in known_telescopes.",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "It is not clear from the file if the data are projected or not.",
         ],
     ):
         uv_in.read(atca_file)
@@ -441,6 +442,7 @@ def test_wronglatlon():
             "1.0 deg",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "It is not clear from the file if the data are projected or not.",
         ],
     ):
         uv_in.read(latfile)
@@ -453,6 +455,7 @@ def test_wronglatlon():
             "1.0 deg",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "It is not clear from the file if the data are projected or not.",
         ],
     ):
         uv_in.read(lonfile)
@@ -464,6 +467,7 @@ def test_wronglatlon():
             "values do not match",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "It is not clear from the file if the data are projected or not.",
         ],
     ):
         uv_in.read(latlonfile, correct_lat_lon=False)
@@ -478,6 +482,7 @@ def test_wronglatlon():
             "values, so telescope_position will be set using the mean of the "
             "antenna altitudes",
             "Telescope foo is not in known_telescopes.",
+            "It is not clear from the file if the data are projected or not.",
         ],
     ):
         uv_in.read(telescopefile, run_check=False)
@@ -1241,6 +1246,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:It is not clear from the file if the data are")
 def test_miriad_write_read_diameters(tmp_path):
     uv_in = UVData()
     uv_out = UVData()
@@ -1891,6 +1897,7 @@ def test_antpos_units(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:It is not clear from the file if the data are")
 def test_readmiriad_write_miriad_check_time_format(tmp_path):
     """
     test time_array is converted properly from Miriad format
