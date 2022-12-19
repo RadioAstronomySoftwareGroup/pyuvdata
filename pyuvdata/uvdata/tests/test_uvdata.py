@@ -11111,41 +11111,6 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
     assert str(cm.value).startswith(msg)
 
 
-# TODO should this be removed? select_mask wasn't used in phase_dict_helper so I
-# removed it. But I don't really understand what this test is doing so not sure if it
-# should just be removed too.
-@pytest.mark.parametrize("sel_mask", [None, np.array([True])])
-def test_phase_dict_helper_sidereal_no_lookup(sma_mir, dummy_phase_dict, sel_mask):
-    """
-    Verify that _phase_dict_helper will accept name collisions where all of the data
-    phased to that named phase center is being selected (note that select_mask=None
-    selects all of the data in the UVData object).
-    """
-    # Try looking up a name, where the properties are different but where we've selected
-    # all of the data (via None for the select mask)
-    with uvtest.check_warnings(UserWarning, "The entry name 3c84 is not unique"):
-        phase_dict = sma_mir._phase_dict_helper(
-            dummy_phase_dict["cat_lon"],
-            dummy_phase_dict["cat_lat"],
-            dummy_phase_dict["cat_epoch"],
-            dummy_phase_dict["cat_frame"],
-            dummy_phase_dict["cat_times"],
-            dummy_phase_dict["cat_type"],
-            dummy_phase_dict["cat_pm_ra"],
-            dummy_phase_dict["cat_pm_dec"],
-            dummy_phase_dict["cat_dist"],
-            dummy_phase_dict["cat_vrad"],
-            "3c84",
-            False,  # Do lookup source!
-            None,  # Don't supply a time_array
-        )
-
-    assert phase_dict["cat_name"] == "3c84"
-    phase_dict["cat_name"] = "z1"
-    phase_dict["cat_id"] = None
-    assert phase_dict == dummy_phase_dict
-
-
 def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
     """
     Check that we can use the lookup option to find a sidereal source properties in
