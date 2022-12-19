@@ -1104,10 +1104,7 @@ class UVFlag(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
         unique_lst_array = uvutils.get_lst_for_time(
-            unique_times,
-            latitude,
-            longitude,
-            altitude,
+            unique_times, latitude, longitude, altitude
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
@@ -3863,8 +3860,7 @@ class UVFlag(UVBase):
             else:
                 if self.mode == "flag":
                     self.flag_array = np.zeros(
-                        (self.Ntimes, self.Nfreqs, self.Npols),
-                        np.bool_,
+                        (self.Ntimes, self.Nfreqs, self.Npols), np.bool_
                     )
                 elif self.mode == "metric":
                     self.metric_array = np.zeros((self.Ntimes, self.Nfreqs, self.Npols))
@@ -4054,8 +4050,7 @@ class UVFlag(UVBase):
             else:
                 if self.mode == "flag":
                     self.flag_array = np.zeros(
-                        (self.Ntimes, self.Nfreqs, self.Npols),
-                        np.bool_,
+                        (self.Ntimes, self.Nfreqs, self.Npols), np.bool_
                     )
                 elif self.mode == "metric":
                     self.metric_array = np.zeros((self.Ntimes, self.Nfreqs, self.Npols))
