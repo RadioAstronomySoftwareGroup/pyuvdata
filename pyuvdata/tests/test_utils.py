@@ -1990,6 +1990,7 @@ def test_lst_for_time_float_vs_array(astrometry_args):
     assert np.all(lst_array == check_lst)
 
 
+@pytest.mark.filterwarnings("ignore:The get_frame_attr_names")
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_lst_for_time_moon(astrometry_args):
     """Test the get_lst_for_time function with MCMF frame"""
