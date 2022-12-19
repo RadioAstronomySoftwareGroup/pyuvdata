@@ -5236,12 +5236,8 @@ class UVData(UVBase):
         """
         if not use_old_proj:
 
-            # TODO: this comment doesn't make sense to me. It's actually selection
-            #   *projected* blts not *unprojected* blts...
-            # Check and see if we have any unprojected objects, in which case
-            # their w-values should be zeroed out.
-
             # select_mask_use is length Nblts, True means should be unprojected
+            # only select blts that are actually phased.
             if select_mask is not None:
                 if len(select_mask) != self.Nblts:
                     raise IndexError("Selection mask must be of length Nblts.")
@@ -9276,9 +9272,6 @@ class UVData(UVBase):
 
         return
 
-    # TODO: discuss the `allow_drift` keyword here and in related methods.
-    # My interpretation was that it really applied to either unprojected or driftscan
-    # phased data. But I'm not sure I'm right.
     def upsample_in_time(
         self,
         max_int_time,
