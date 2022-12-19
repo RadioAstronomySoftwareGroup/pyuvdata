@@ -1690,10 +1690,10 @@ def test_file_with_bad_extra_words():
         "Altitude is not present in Miriad file, "
         "using known location values for PAPER.",
         "Mean of empty slice.",
-        "invalid value encountered in double_scalars",
+        "invalid value encountered",
         "npols=4 but found 1 pols in data file",
         "Mean of empty slice.",
-        "invalid value encountered in double_scalars",
+        "invalid value encountered",
         "antenna number 0 has visibilities associated with it, but it has a "
         "position of (0,0,0)",
         "antenna number 26 has visibilities associated with it, "
