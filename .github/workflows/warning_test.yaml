@@ -1,0 +1,51 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  warning_test:
+    env:
+      ENV_NAME: pyuvdata_tests
+      PYTHON: 3.8
+    name: Warning Test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # Adding -l {0} helps ensure conda can be found properly.
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@master
+        with:
+          fetch-depth: 0
+
+      - name: Setup Minimamba
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          python-version: ${{ env.PYTHON }}
+          environment-file: ci/${{ env.ENV_NAME }}.yaml
+          activate-environment: ${{ env.ENV_NAME }}
+
+      - name: Conda Info
+        run: |
+          conda info -a
+          conda list
+          PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+          if [[ $PYVER != ${{ env.PYTHON }} ]]; then
+            exit 1;
+          fi
+
+      - name: Install
+        run: |
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
+
+      - name: Run Tests
+        run: |
+          python -m pytest -W error --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+
+      - uses: codecov/codecov-action@v2.0.2
+        if: success()
+        with:
+          token: ${{secrets.CODECOV_TOKEN}} #required
+          file: ./coverage.xml #optional
