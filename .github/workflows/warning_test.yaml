@@ -10,7 +10,7 @@ jobs:
   warning_test:
     env:
       ENV_NAME: pyuvdata_tests
-      PYTHON: 3.8
+      PYTHON: 3.9
     name: Warning Test
     runs-on: ubuntu-latest
     defaults:
@@ -44,6 +44,7 @@ jobs:
       - name: Install
         run: |
           CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
+          python setup.py build_ext --inplace
 
       - name: Run Tests
         run: |
