@@ -1,6 +1,10 @@
 name: Publish Python distributions to PyPI and TestPyPI
 
-on: [push, pull_request]
+on:
+  release:
+    types: [published]
+  pull_request:
+    branch: main
 
 jobs:
   build_wheels:
