@@ -44,11 +44,13 @@ jobs:
       - name: Install
         run: |
           CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
-          python setup.py build_ext --inplace
 
       - name: Run Tests
         run: |
-          python -m pytest -W error --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml --junitxml=test-reports/xunit.xml
+          mkdir -p empty
+          cd empty
+          pytest -W error --pyargs pyuvdata -n auto --dist=loadfile --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
+          cd ..
 
       - uses: codecov/codecov-action@v2.0.2
         if: success()
