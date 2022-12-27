@@ -261,3 +261,7 @@ pyuvdata is maintained by the RASG Managers, which currently include:
 Please use the channels discussed in the [guide on contributing](.github/CONTRIBUTING.md)
 for code-related discussions. You can contact us privately if needed at
 [rasgmanagers@gmail.com](mailto:rasgmanagers@gmail.com).
+
+# Acknowledgments
+
+Support for pyuvdata was provided by NSF awards #1835421 and #1835120.
