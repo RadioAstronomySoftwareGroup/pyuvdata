@@ -24,6 +24,7 @@ from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.tests.test_fhd import testfiles as fhd_files
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
+from pyuvdata.uvdata.uvdata import old_phase_attrs
 
 
 @pytest.fixture(scope="function")
@@ -12454,3 +12455,148 @@ def test_split_write_comb_read(tmp_path, multi_phase):
 
     uvd2.history = uvd.history
     assert uvd2 == uvd
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("set_obj_name", [True, False])
+@pytest.mark.parametrize("projected", [True, False])
+def test_init_like_hera_cal(hera_uvh5, tmp_path, set_obj_name, projected):
+    """Pulled from an error in hera_cal."""
+
+    params = [
+        "Nants_data",
+        "Nants_telescope",
+        "Nbls",
+        "Nblts",
+        "Nfreqs",
+        "Npols",
+        "Nspws",
+        "Ntimes",
+        "ant_1_array",
+        "ant_2_array",
+        "antenna_names",
+        "antenna_numbers",
+        "baseline_array",
+        "channel_width",
+        "data_array",
+        "flag_array",
+        "freq_array",
+        "history",
+        "x_orientation",
+        "instrument",
+        "integration_time",
+        "lst_array",
+        "nsample_array",
+        "object_name",
+        "phase_type",
+        "polarization_array",
+        "spw_array",
+        "telescope_location",
+        "telescope_name",
+        "time_array",
+        "uvw_array",
+        "vis_units",
+        "antenna_positions",
+    ]
+
+    param_dict = {}
+    for par in params:
+        if par in ["phase_type", "object_name"]:
+            continue
+        param_dict[par] = getattr(hera_uvh5, par)
+
+    if projected:
+        param_dict["phase_type"] = "phased"
+    else:
+        param_dict["phase_type"] = "drift"
+    if set_obj_name:
+        param_dict["object_name"] = hera_uvh5.phase_center_catalog[0]["cat_name"]
+
+    uvd = UVData()
+    # set parameters in uvd
+    for par in params:
+        if par not in param_dict.keys():
+            continue
+        if par in old_phase_attrs:
+            warn_type = DeprecationWarning
+            msg = "The older phase attributes, including"
+        else:
+            warn_type = None
+            msg = ""
+        with uvtest.check_warnings(warn_type, match=msg):
+            uvd.__setattr__(par, param_dict[par])
+
+    assert uvd.phase_center_catalog is None
+
+    if projected:
+        with uvtest.check_warnings(
+            DeprecationWarning, match=["The older phase attributes, including"] * 4
+        ):
+            uvd.phase_center_ra = 0.0
+            uvd.phase_center_dec = 0.0
+            uvd.phase_center_epoch = 2000.0
+            uvd.phase_center_frame = "icrs"
+
+        hera_uvh5.phase_center_catalog[0]["cat_type"] = "sidereal"
+        hera_uvh5.phase_center_catalog[0]["cat_lon"] = 0.0
+        hera_uvh5.phase_center_catalog[0]["cat_lat"] = 0.0
+        hera_uvh5.phase_center_catalog[0]["cat_frame"] = "icrs"
+        hera_uvh5.phase_center_catalog[0]["cat_epoch"] = 2000.0
+        hera_uvh5._set_app_coords_helper()
+        warn_type = [DeprecationWarning, UserWarning]
+        msg = [
+            "The phase_center_catalog was not set and a complete set of old phase "
+            "attributes (phase_type, phase_center_ra, phase_center_dec, "
+            "phase_center_frame, phase_center_epoch, object_name)",
+            "The uvw_array does not match the expected values",
+        ]
+
+    else:
+        warn_type = [DeprecationWarning]
+        msg = (
+            "The phase_center_catalog was not set and a complete set of old phase "
+            "attributes (phase_type"
+        )
+
+    if projected and not set_obj_name:
+        with pytest.raises(
+            ValueError,
+            match=re.escape(
+                "The phase_center_catalog was not set and some old phase attributes "
+                "(phase_type, phase_center_ra, phase_center_dec, phase_center_frame, "
+                "phase_center_epoch) were detected, but not enough to define the phase "
+                "status of the object, so they could not be converted "
+            ),
+        ):
+            uvd.check()
+        return
+
+    with uvtest.check_warnings(warn_type, match=msg):
+        uvd.check()
+
+    if projected:
+        assert uvd.phase_center_catalog[0]["cat_type"] == "sidereal"
+    elif not set_obj_name:
+        assert uvd.phase_center_catalog[0]["cat_name"] == "unprojected"
+        uvd.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[0][
+            "cat_name"
+        ]
+
+    # check that setting an old phase attribute when the phase_center_catalog is
+    # already set will issue the correct warning (and do nothing)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="phase_center_catalog is already set, so object_name, which is an "
+        "old phase attribute, cannot be set.",
+    ):
+        uvd.object_name = "foo"
+
+    uvd.antenna_diameters = hera_uvh5.antenna_diameters
+    uvd.extra_keywords = hera_uvh5.extra_keywords
+    assert uvd == hera_uvh5
+
+    testfile = os.path.join(tmp_path, "outtest.uvh5")
+    uvd.write_uvh5(testfile)
+
+    uvd2 = UVData.from_file(testfile)
+    assert uvd2 == hera_uvh5
