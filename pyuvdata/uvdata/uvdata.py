@@ -35,6 +35,66 @@ reporting_request = (
     "this feature, we would like to investigate this more."
 )
 
+old_phase_attrs = [
+    "phase_type",
+    "phase_center_ra",
+    "phase_center_dec",
+    "phase_center_frame",
+    "phase_center_epoch",
+    "object_name",
+]
+
+
+def _warn_old_phase_attr(__name):
+    warn_str = (
+        "The older phase attributes, including "
+        + ", ".join(old_phase_attrs)
+        + ", are deprecated in favor of representing phasing using the "
+        "phase_center_catalog."
+    )
+
+    if __name == "phase_type":
+        warn_str += (
+            " The phase_type is now represented as the 'cat_type' in the "
+            "phase_center_catalog (the old 'drift' type corresponds to the "
+            "new 'unprojected' type, the old 'phased' type corresponds to the "
+            "new 'sidereal' type, and there is also now support for an 'ephem' "
+            "type to support moving objects and a new 'driftscan' type which "
+            "can point at any alt/az (not just zenith) and which always has "
+            "w-projection applied)."
+        )
+    elif __name == "phase_center_ra":
+        warn_str += (
+            " The phase_center_ra is now represented as the 'cat_lon' in the "
+            "phase_center_catalog."
+        )
+    elif __name == "phase_center_dec":
+        warn_str += (
+            " The phase_center_dec is now represented as the 'cat_lat' in the "
+            "phase_center_catalog."
+        )
+    elif __name == "phase_center_frame":
+        warn_str += (
+            " The phase_center_frame is now represented as the 'cat_frame' in "
+            "the phase_center_catalog."
+        )
+    elif __name == "phase_center_epoch":
+        warn_str += (
+            " The phase_center_epoch is now represented as the 'cat_epoch' in "
+            "the phase_center_catalog."
+        )
+    elif __name == "object_name":
+        warn_str += (
+            " The object_name is now represented as the 'cat_name' in "
+            "the phase_center_catalog."
+        )
+    warn_str += (
+        " To see a nice representation of the phase_center_catalog, use the "
+        "`print_phase_center_info` method. The older attributes will be "
+        "removed in version 3.0"
+    )
+    warnings.warn(warn_str, DeprecationWarning)
+
 
 class UVData(UVBase):
     """
@@ -2097,6 +2157,9 @@ class UVData(UVBase):
             Reason it is not compatible. None if compatible is True.
 
         """
+        if self.phase_center_catalog is None:
+            return True, None
+
         if self.Nphase > 1:
             return False, "multiple phase centers"
         phase_dict = list(self.phase_center_catalog.values())[0]
@@ -2112,14 +2175,6 @@ class UVData(UVBase):
 
     def __getattribute__(self, __name):
         """Issue deprecation warnings for old phasing attributes."""
-        old_phase_attrs = [
-            "phase_type",
-            "phase_center_ra",
-            "phase_center_dec",
-            "phase_center_frame",
-            "phase_center_epoch",
-            "object_name",
-        ]
         if __name in old_phase_attrs:
             compatible, reason = self._old_phase_attributes_compatible()
             if not compatible:
@@ -2131,68 +2186,46 @@ class UVData(UVBase):
                     + reason
                     + "."
                 )
+            _warn_old_phase_attr(__name)
 
-            warn_str = (
-                "The older phase attributes, including "
-                + ", ".join(old_phase_attrs)
-                + ", are deprecated in favor of representing phasing using the "
-                "phase_center_catalog."
-            )
-            phase_dict = list(self.phase_center_catalog.values())[0]
-
-            if __name == "phase_type":
-                warn_str += (
-                    " The phase_type is now represented as the 'cat_type' in the "
-                    "phase_center_catalog (the old 'drift' type corresponds to the "
-                    "new 'unprojected' type, the old 'phased' type corresponds to the "
-                    "new 'sidereal' type, and there is also now support for an 'ephem' "
-                    "type to support moving objects and a new 'driftscan' type which "
-                    "can point at any alt/az (not just zenith) and which always has "
-                    "w-projection applied)."
-                )
-                if phase_dict["cat_type"] == "unprojected":
-                    ret_val = "drift"
-                else:
-                    ret_val = "phased"
-            elif __name == "phase_center_ra":
-                warn_str += (
-                    " The phase_center_ra is now represented as the 'cat_lon' in the "
-                    "phase_center_catalog."
-                )
-                ret_val = phase_dict["cat_lon"]
-            elif __name == "phase_center_dec":
-                warn_str += (
-                    " The phase_center_dec is now represented as the 'cat_lat' in the "
-                    "phase_center_catalog."
-                )
-                ret_val = phase_dict["cat_lat"]
-            elif __name == "phase_center_frame":
-                warn_str += (
-                    " The phase_center_frame is now represented as the 'cat_frame' in "
-                    "the phase_center_catalog."
-                )
-                ret_val = phase_dict["cat_frame"]
-            elif __name == "phase_center_epoch":
-                warn_str += (
-                    " The phase_center_epoch is now represented as the 'cat_epoch' in "
-                    "the phase_center_catalog."
-                )
-                ret_val = phase_dict["cat_epoch"]
-            elif __name == "object_name":
-                warn_str += (
-                    " The object_name is now represented as the 'cat_name' in "
-                    "the phase_center_catalog."
-                )
-                ret_val = phase_dict["cat_name"]
-            warn_str += (
-                " To see a nice representation of the phase_center_catalog, use the "
-                "`print_phase_center_info` method. The older attributes will be "
-                "removed in version 3.0"
-            )
-            warnings.warn(warn_str, DeprecationWarning)
-            return ret_val
+            if self.phase_center_catalog is not None:
+                phase_dict = list(self.phase_center_catalog.values())[0]
+                if __name == "phase_type":
+                    if phase_dict["cat_type"] == "unprojected":
+                        ret_val = "drift"
+                    else:
+                        ret_val = "phased"
+                elif __name == "phase_center_ra":
+                    ret_val = phase_dict["cat_lon"]
+                elif __name == "phase_center_dec":
+                    ret_val = phase_dict["cat_lat"]
+                elif __name == "phase_center_frame":
+                    ret_val = phase_dict["cat_frame"]
+                elif __name == "phase_center_epoch":
+                    ret_val = phase_dict["cat_epoch"]
+                elif __name == "object_name":
+                    ret_val = phase_dict["cat_name"]
+                return ret_val
 
         return super().__getattribute__(__name)
+
+    def __setattr__(self, __name, __value) -> None:
+        """Issue deprecation warnings for old phasing attributes."""
+        if __name in old_phase_attrs:
+            if (
+                self.phase_center_catalog is not None
+                and len(self.phase_center_catalog) > 0
+            ):
+                warnings.warn(
+                    f"phase_center_catalog is already set, so {__name}, which is an "
+                    "old phase attribute, cannot be set.",
+                    DeprecationWarning,
+                )
+                return
+
+            _warn_old_phase_attr(__name)
+
+        return super().__setattr__(__name, __value)
 
     def _set_future_array_shapes(self):
         """
@@ -3086,6 +3119,79 @@ class UVData(UVBase):
             values (if run_check_acceptability is True)
 
         """
+        if self.phase_center_catalog is None or len(self.phase_center_catalog) == 0:
+            # first handle any old phase parameters that have been added to the object
+            old_phase_attrs = [
+                "phase_type",
+                "phase_center_ra",
+                "phase_center_dec",
+                "phase_center_frame",
+                "phase_center_epoch",
+                "object_name",
+            ]
+            old_phase_info = {}
+            for attr in old_phase_attrs:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", "The older phase attributes, including"
+                    )
+                    if hasattr(self, attr):
+                        old_phase_info[attr] = getattr(self, attr)
+            if len(old_phase_info) > 0:
+                converted = False
+                if "phase_type" in old_phase_info.keys():
+                    if old_phase_info["phase_type"] != "phased":
+                        if "object_name" in old_phase_info.keys():
+                            cat_name = old_phase_info["object_name"]
+                        else:
+                            cat_name = "unprojected"
+                        cat_id = self._add_phase_center(
+                            cat_name=cat_name, cat_type="unprojected"
+                        )
+                        converted = True
+                    else:
+                        if (
+                            "phase_center_ra" in old_phase_info.keys()
+                            and "phase_center_dec" in old_phase_info.keys()
+                            and "phase_center_frame" in old_phase_info.keys()
+                            and "phase_center_epoch" in old_phase_info.keys()
+                            and "object_name" in old_phase_info.keys()
+                        ):
+                            cat_id = self._add_phase_center(
+                                cat_name=old_phase_info["object_name"],
+                                cat_type="sidereal",
+                                cat_lon=old_phase_info["phase_center_ra"],
+                                cat_lat=old_phase_info["phase_center_dec"],
+                                cat_frame=old_phase_info["phase_center_frame"],
+                                cat_epoch=old_phase_info["phase_center_epoch"],
+                            )
+                            converted = True
+
+                if converted:
+                    warnings.warn(
+                        "The phase_center_catalog was not set and a complete set of "
+                        f"old phase attributes ({', '.join(old_phase_info.keys())}) "
+                        "were detected so the old phase attributes were converted into "
+                        "the phase_center_catalog. "
+                        f"The older attributes including {', '.join(old_phase_attrs)} "
+                        "will be removed in version 3.0",
+                        DeprecationWarning,
+                    )
+                    self.phase_center_id_array = np.full(self.Nblts, cat_id, dtype=int)
+                    self._set_app_coords_helper()
+                    for attr in old_phase_attrs:
+                        if attr in old_phase_info.keys():
+                            delattr(self, attr)
+                else:
+                    raise ValueError(
+                        "The phase_center_catalog was not set and some old phase "
+                        f"attributes ({', '.join(old_phase_info.keys())}) were "
+                        "detected, but not enough to define the phase status of the "
+                        "object, so they could not be converted into the "
+                        "phase_center_catalog. You can use `_add_phase_center_catalog` "
+                        "to set the phase_center_catalog."
+                    )
+
         # first run the basic check from UVBase
 
         logger.debug("Doing UVBase check...")
