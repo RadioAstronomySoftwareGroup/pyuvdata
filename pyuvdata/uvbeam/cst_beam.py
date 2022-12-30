@@ -5,6 +5,7 @@
 import os
 import re
 import warnings
+from typing import Callable
 
 import numpy as np
 
@@ -73,7 +74,7 @@ class CSTBeam(UVBeam):
         run_check_acceptability=True,
         check_auto_power=True,
         fix_auto_power=True,
-        swap_thetaphi_conventions=False,
+        thetaphi_to_azza_fnc: Callable | None = None,
     ):
         """
         Read in data from a cst file.
@@ -136,9 +137,11 @@ class CSTBeam(UVBeam):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-        swap_thetaphi_conventions : bool
-            Whether to swap the standard assumed convention on theta/phi. By default,
-            phi is assumed to be synonymous with azimuth, and theta with zenith angle.
+        thetaphi_to_azza_fnc : callable
+            Since CST can output theta/phi coordinates in a number of conventions, you
+            can provide a function to convert from the input theta/phi to azimuth/
+            zenith-angle, as required by UVBeam. The signature of the function should
+            be ``az, za = fnc(theta, phi)``.
         """
         # update filename attribute
         basename = os.path.basename(filename)
@@ -221,12 +224,6 @@ class CSTBeam(UVBeam):
             column_names.append("".join(column_name.lower().split(" ")))
             units.append(unit.lower().strip())
 
-        if swap_thetaphi_conventions:
-            column_names = [
-                cn.replace("theta", "TMP").replace("phi", "theta").replace("TMP", "phi")
-                for cn in column_names
-            ]
-
         data = np.loadtxt(filename, skiprows=2)
 
         theta_col = column_names.index("theta")
@@ -239,24 +236,35 @@ class CSTBeam(UVBeam):
         if "deg" in units[phi_col]:
             phi_data = np.radians(phi_data)
 
-        if theta_data.max() - theta_data.min() > np.pi * 1.00001:
+        if thetaphi_to_azza_fnc is not None:
+            phi_data, theta_data = thetaphi_to_azza_fnc(theta_data, phi_data)
+
+        if theta_data.max() > np.pi * 1.00001 or theta_data.min() < 0:
             raise ValueError(
-                "It seems that the input file uses a swapped convention for theta/phi. "
-                "Try setting 'swap_thetaphi_conventions' to True."
+                "The zenith-angle is outside (0, pi): "
+                f"{theta_data.min(), theta_data.max()}. "
+                "Check your thetaphi_to_azza_fnc."
             )
 
-        phi_data %= (
-            2 * np.pi
-        )  # this begs the question of how the branch cut is defined...
+        if phi_data.max() > phi_data.min() + 2 * np.pi:
+            raise ValueError(
+                "The azimuthal angle is outside (0, 2*pi): "
+                f"{phi_data.min(), phi_data.max()}. "
+                "Check your thetaphi_to_azza_fnc."
+            )
+
+        phi_data %= 2 * np.pi
+
         theta_axis = np.sort(np.unique(theta_data))
         phi_axis = np.sort(np.unique(phi_data))
         if not theta_axis.size * phi_axis.size == theta_data.size:
             raise ValueError("Data does not appear to be on a grid")
 
-        fast_moving = "phi" if phi_data[1] > phi_data[0] else "theta"
-        order = "F" if fast_moving == "theta" else "C"
-        theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order=order)
-        phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order=order)
+        # Get the order of the data in which phi increases on the inner loop and theta
+        # on the outer.
+        sort_idx = np.lexsort((phi_data, theta_data))
+        theta_data = theta_data[sort_idx].reshape((theta_axis.size, phi_axis.size))
+        phi_data = phi_data[sort_idx].reshape((theta_axis.size, phi_axis.size))
 
         if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
             raise ValueError(
@@ -321,7 +329,7 @@ class CSTBeam(UVBeam):
                 )
             data_col = data_col[0]
             power_beam1 = (
-                data[:, data_col].reshape((theta_axis.size, phi_axis.size), order="F")
+                data[:, data_col][sort_idx].reshape((theta_axis.size, phi_axis.size))
                 ** 2.0
             )
 
@@ -343,11 +351,11 @@ class CSTBeam(UVBeam):
             phi_mag_col = np.where(np.array(column_names) == "abs(phi)")[0][0]
             phi_phase_col = np.where(np.array(column_names) == "phase(phi)")[0][0]
 
-            theta_mag = data[:, theta_mag_col].reshape(
-                (theta_axis.size, phi_axis.size), order="F"
+            theta_mag = data[:, theta_mag_col][sort_idx].reshape(
+                (theta_axis.size, phi_axis.size)
             )
-            phi_mag = data[:, phi_mag_col].reshape(
-                (theta_axis.size, phi_axis.size), order="F"
+            phi_mag = data[:, phi_mag_col][sort_idx].reshape(
+                (theta_axis.size, phi_axis.size)
             )
             if "deg" in units[theta_phase_col]:
                 theta_phase = np.radians(data[:, theta_phase_col])
@@ -357,10 +365,10 @@ class CSTBeam(UVBeam):
                 phi_phase = np.radians(data[:, phi_phase_col])
             else:
                 phi_phase = data[:, phi_phase_col]
-            theta_phase = theta_phase.reshape(
-                (theta_axis.size, phi_axis.size), order="F"
+            theta_phase = theta_phase[sort_idx].reshape(
+                (theta_axis.size, phi_axis.size)
             )
-            phi_phase = phi_phase.reshape((theta_axis.size, phi_axis.size), order="F")
+            phi_phase = phi_phase[sort_idx].reshape((theta_axis.size, phi_axis.size))
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)

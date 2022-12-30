@@ -49,6 +49,13 @@ def cst_efield_2freq_mod(cst_efield_2freq_main):
     del beam
 
 
+def test_swapped_cst_beam():
+    beam = UVBeam()
+    beam.read_cst_beam(
+        os.path.join(DATA_PATH, cst_folder, "CST_f50_Eloy.txt"),
+    )
+
+
 def test_basic_frequencyparse():
     beam1 = CSTBeam()
 

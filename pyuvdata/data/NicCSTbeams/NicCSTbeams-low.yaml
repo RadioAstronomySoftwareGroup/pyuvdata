@@ -1,0 +1,18 @@
+telescope_name: HERA
+feed_name: Vivaldi
+feed_version: '1.0'
+model_name: Mecha design - dish - cables - soil
+model_version: '1.0'
+history: |
+  Run by Eloy in 2022, based on the same input CST model as Nic Fagnoni's Vivaldi model.
+frequencies: [50e6]
+filenames: ['CST_f50_Eloy.txt']
+# feed_pol specifies which feed polarization is simulated in these files.
+# Can be a list of the same length as filenames
+feed_pol: x
+x_orientation: east
+sim_beam_type: E-farfield
+layout: 1 antenna
+port_num: 1
+ref_imp: 100
+swap_thetaphi_conventions: true

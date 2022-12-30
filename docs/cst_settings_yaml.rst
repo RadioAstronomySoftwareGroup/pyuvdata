@@ -68,3 +68,4 @@ lines of history information there.):
     layout: 1 antenna
     port_num: 1
     ref_imp: 100
+    swap_thetaphi_conventions: false

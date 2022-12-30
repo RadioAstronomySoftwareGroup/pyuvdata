@@ -6,6 +6,7 @@
 import copy
 import os
 import warnings
+from typing import Callable
 
 import numpy as np
 from astropy import units
@@ -3870,7 +3871,7 @@ class UVBeam(UVBase):
         run_check_acceptability=True,
         check_auto_power=True,
         fix_auto_power=True,
-        swap_thetaphi_conventions: bool = False,
+        thetaphi_to_azza_fnc: Callable | None = None,
     ):
         """
         Read in data from a cst file.
@@ -3962,7 +3963,9 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-
+        swap_thetaphi_conventions : bool
+            Whether to swap the standard assumed convention on theta/phi. By default,
+            phi is assumed to be synonymous with azimuth, and theta with zenith angle.
         """
         from . import cst_beam
 
@@ -3994,11 +3997,12 @@ class UVBeam(UVBase):
                 "model_name": model_name,
                 "model_version": model_version,
                 "history": history,
+                "thetaphi_to_azza_fnc": thetaphi_to_azza_fnc,
             }
             if "ref_imp" in settings_dict:
                 overriding_keywords["reference_impedance"] = reference_impedance
             if "x_orientation" in settings_dict:
-                overriding_keywords["x_orientation"] = reference_impedance
+                overriding_keywords["x_orientation"] = x_orientation
             for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn(
@@ -4026,6 +4030,8 @@ class UVBeam(UVBase):
                 reference_impedance = float(settings_dict["ref_imp"])
             if x_orientation is None and "x_orientation" in settings_dict:
                 x_orientation = settings_dict["x_orientation"]
+            if thetaphi_to_azza_fnc is None:
+                thetaphi_to_azza_fnc = settings_dict.get("thetaphi_to_azza_fnc", None)
 
             if extra_keywords is None:
                 extra_keywords = {}
@@ -4170,7 +4176,7 @@ class UVBeam(UVBase):
                 run_check_acceptability=run_check_acceptability,
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
-                swap_thetaphi_conventions=swap_thetaphi_conventions,
+                thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
             )
             for file_i, f in enumerate(cst_filename[1:]):
                 if isinstance(f, (list, tuple)):
@@ -4208,7 +4214,7 @@ class UVBeam(UVBase):
                     run_check_acceptability=run_check_acceptability,
                     check_auto_power=check_auto_power,
                     fix_auto_power=fix_auto_power,
-                    swap_thetaphi_conventions=swap_thetaphi_conventions,
+                    thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
                 )
                 self += beam2
             if len(cst_filename) > 1:
@@ -4242,7 +4248,7 @@ class UVBeam(UVBase):
                 run_check_acceptability=run_check_acceptability,
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
-                swap_thetaphi_conventions=swap_thetaphi_conventions,
+                thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
             )
             self._convert_from_filetype(cst_beam_obj)
             del cst_beam_obj
@@ -4355,6 +4361,7 @@ class UVBeam(UVBase):
         reference_impedance=None,
         extra_keywords=None,
         frequency_select=None,
+        thetaphi_to_azza_fnc: Callable | None = None,
         # mwa beam settings
         delays=None,
         amplitudes=None,
@@ -4567,6 +4574,7 @@ class UVBeam(UVBase):
                 run_check_acceptability=run_check_acceptability,
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
+                thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
             )
         else:
             if multi:
@@ -4599,6 +4607,7 @@ class UVBeam(UVBase):
                             reference_impedance=reference_impedance,
                             extra_keywords=extra_keywords,
                             frequency_select=frequency_select,
+                            thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
                             # mwa_beam parameters
                             delays=delays,
                             amplitudes=amplitudes,
@@ -4647,6 +4656,7 @@ class UVBeam(UVBase):
                                 reference_impedance=reference_impedance,
                                 extra_keywords=extra_keywords,
                                 frequency_select=frequency_select,
+                                thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
                                 # mwa_beam parameters
                                 delays=delays,
                                 amplitudes=amplitudes,
@@ -4739,6 +4749,7 @@ class UVBeam(UVBase):
         reference_impedance=None,
         extra_keywords=None,
         frequency_select=None,
+        thetaphi_to_azza_fnc: Callable | None = None,
         # mwa beam settings
         delays=None,
         amplitudes=None,
@@ -4910,6 +4921,7 @@ class UVBeam(UVBase):
             reference_impedance=reference_impedance,
             extra_keywords=extra_keywords,
             frequency_select=frequency_select,
+            thetaphi_to_azza_fnc=thetaphi_to_azza_fnc,
             # mwa beam settings
             delays=delays,
             amplitudes=amplitudes,
