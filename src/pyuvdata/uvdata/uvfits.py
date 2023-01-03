@@ -1009,8 +1009,12 @@ class UVFITS(UVData):
                 self.time_array - jd_midnight - time_array1.astype(np.float64)
             ).astype(np.float32)
 
+            uvw_array1 = np.float32(uvw_array_sec)
+            uvw_array2 = np.float32(uvw_array_sec - np.float64(uvw_array1))
         else:
             time_array1 = self.time_array - jd_midnight
+            uvw_array1 = uvw_array_sec
+
         int_time_array = self.integration_time
 
         # If using MIRIAD convention, we need 1-indexed data
@@ -1104,6 +1108,12 @@ class UVFITS(UVData):
             pscal_dict["DATE2   "] = 1.0
             pzero_dict["DATE2   "] = 0.0
             parnames_use.append("DATE2   ")
+            for ind, name in enumerate(["UU", "VV", "WW"]):
+                keyname = name + "2     "
+                group_parameter_dict[keyname] = uvw_array2[:, ind]
+                pscal_dict[keyname] = 1.0
+                pzero_dict[keyname] = 0.0
+                parnames_use.append(keyname)
 
         if use_miriad_convention or (
             np.max(ant1_array_use) < 255 and np.max(ant2_array_use) < 255
@@ -1134,6 +1144,9 @@ class UVFITS(UVData):
             # add second date part
             parnames_write = copy.deepcopy(parnames_use)
             parnames_write[parnames_write.index("DATE2   ")] = "DATE    "
+            parnames_write[parnames_write.index("UU2     ")] = "UU      "
+            parnames_write[parnames_write.index("VV2     ")] = "VV      "
+            parnames_write[parnames_write.index("WW2     ")] = "WW      "
             if write_lst:
                 # add second LST array part
                 parnames_use.append("LST2    ")
