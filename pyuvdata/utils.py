@@ -3443,11 +3443,12 @@ def calc_app_coords(
         Times for which the apparent coordinates were calculated, in UTC JD. If more
         than a single element, must be the same shape as lon_coord and lat_coord if
         both of those are arrays (instead of single floats).
-    telescope_loc : array-like of floats or EarthLocation
+    telescope_loc : array-like of floats or EarthLocation or MoonLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
-        of the array. Can either be provided as an astropy EarthLocation, or a tuple
-        of shape (3,) containung (in order) the latitude, longitude, and altitude,
-        in units of radians, radians, and meters, respectively.
+        of the array. Can either be provided as an astropy EarthLocation, a lunarsky
+        Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
+        longitude, and altitude for a position on Earth in units of radians, radians,
+        and meters, respectively.
     coord_frame : string
         The requested reference frame for the output coordinates, can be any frame
         that is presently supported by astropy. Default is ICRS.
@@ -3483,7 +3484,9 @@ def calc_app_coords(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians.
     """
-    if isinstance(telescope_loc, EarthLocation):
+    if isinstance(telescope_loc, EarthLocation) or (
+        hasmoon and isinstance(telescope_loc, MoonLocation)
+    ):
         site_loc = telescope_loc
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -3514,6 +3517,7 @@ def calc_app_coords(
                 site_loc.lat.deg,
                 site_loc.lon.deg,
                 site_loc.height.to_value("m"),
+                frame=site_loc.frame,
             )
         else:
             unique_lst = lst_array[unique_mask]
