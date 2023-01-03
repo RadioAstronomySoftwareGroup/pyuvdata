@@ -2076,6 +2076,7 @@ class UVBeam(UVBase):
         self,
         az_array=None,
         za_array=None,
+        interpolation_function=None,
         az_za_grid=False,
         healpix_nside=None,
         healpix_inds=None,
@@ -2095,6 +2096,16 @@ class UVBeam(UVBase):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
 
+        Either the interpolation_function parameter must be set or the
+        `interpolation_function` attribute on the object must be set to indicate what
+        function to use for the interpolation.
+        Currently supported interpolation functions include:
+
+        - "az_za_simple": Uses scipy RectBivariate spline interpolation, can only be
+          used on objects with an "az_za" pixel_coordinate_system.
+        - "healpix_simple": Uses HEALPix nearest-neighbor bilinear interpolation, can
+          only be used on objects with a "healpix" pixel_coordinate_system.
+
         Parameters
         ----------
         az_array : array_like of floats, optional
@@ -2105,6 +2116,11 @@ class UVBeam(UVBase):
             Zenith values to interpolate to in radians, either specifying the
             zenith positions for every interpolation point or specifying the
             zenith vector for a meshgrid if az_za_grid is True.
+        interpolation_function : str, optional
+            Specify the interpolation function to use, as an alternative to setting the
+            interpolation_function attribute on the object. Currently supported options
+            are: "az_za_simple" for objects with the "az_za" pixel_coordinate_system
+            and "healpix_simple" for objects with the "healpix" pixel_coordinate_system.
         az_za_grid : bool
             Option to treat the `az_array` and `za_array` as the input vectors
             for points on a mesh grid.
@@ -2178,8 +2194,22 @@ class UVBeam(UVBase):
             future_array_shapes is True.
 
         """
-        if self.interpolation_function is None:
-            raise ValueError("interpolation_function must be set on object first")
+        if interpolation_function is None and self.interpolation_function is None:
+            raise ValueError(
+                "Either the interpolation_function parameter must be passed or the "
+                "interpolation_function attribute must be set on object before calling "
+                "this method."
+            )
+        elif (
+            interpolation_function is not None
+            and self.interpolation_function is not None
+        ):
+            if interpolation_function != self.interpolation_function:
+                warnings.warn(
+                    "The interpolation_function parameter was set but it does not "
+                    "match the interpolation_function attribute on the object. Using "
+                    "the one passed to this method."
+                )
         if self.freq_interp_kind is None:
             raise ValueError("freq_interp_kind must be set on object first")
 
@@ -2241,9 +2271,14 @@ class UVBeam(UVBase):
             za_array_use = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
             az_array_use = hpx_lon.radian
 
-        interp_func = self.interpolation_function_dict[self.interpolation_function][
-            "func"
-        ]
+        if interpolation_function is not None:
+            interp_func = self.interpolation_function_dict[interpolation_function][
+                "func"
+            ]
+        else:
+            interp_func = self.interpolation_function_dict[self.interpolation_function][
+                "func"
+            ]
 
         extra_keyword_dict = {}
         if interp_func == "_interp_az_za_rect_spline":
