@@ -19,6 +19,11 @@ they are converted between types using UVData and UVCalobjects.
 to set several of these new parameters.
 
 ### Fixed
+- Fixed a bug where objects created from scratch with the old phase attributes weren't
+properly getting converted to the new `phase_center_catalog` representation. That
+conversion now happens in the check so will happen before any `write`. There could still
+be errors if some methods are called before a check is done (or if the check is turned
+off).
 - Fix a bug in how `frame_pa` was calculated in `phase` and `_set_app_coords_helper` for
 multi_phase_center objects (it was using the old `phase_center_frame` attribute).
 - Fix a bug where trying to select lsts or lst_ranges on read didn't work for some file
