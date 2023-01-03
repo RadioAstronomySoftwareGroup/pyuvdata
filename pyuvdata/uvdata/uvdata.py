@@ -10858,9 +10858,16 @@ class UVData(UVBase):
         else:
             raise ValueError("filetype must be uvfits, mir, miriad, ms, fhd, or uvh5")
 
-        for p in self:
-            param = getattr(self, p)
-            setattr(other_obj, p, param)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", "The older phase attributes, including")
+            for par in self:
+                param = getattr(self, par)
+                setattr(other_obj, par, param)
+            if self.phase_center_catalog is None or len(self.phase_center_catalog) == 0:
+                for attr in old_phase_attrs:
+                    if hasattr(self, attr):
+                        attr_val = getattr(self, attr)
+                        setattr(other_obj, attr, attr_val)
         return other_obj
 
     def read_fhd(

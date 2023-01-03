@@ -12460,7 +12460,10 @@ def test_split_write_comb_read(tmp_path, multi_phase):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("set_obj_name", [True, False])
 @pytest.mark.parametrize("projected", [True, False])
-def test_init_like_hera_cal(hera_uvh5, tmp_path, set_obj_name, projected):
+@pytest.mark.parametrize("check_before_write", [True, False])
+def test_init_like_hera_cal(
+    hera_uvh5, tmp_path, set_obj_name, projected, check_before_write
+):
     """Pulled from an error in hera_cal."""
 
     params = [
@@ -12571,32 +12574,48 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, set_obj_name, projected):
             uvd.check()
         return
 
-    with uvtest.check_warnings(warn_type, match=msg):
-        uvd.check()
-
-    if projected:
-        assert uvd.phase_center_catalog[0]["cat_type"] == "sidereal"
-    elif not set_obj_name:
-        assert uvd.phase_center_catalog[0]["cat_name"] == "unprojected"
-        uvd.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[0][
-            "cat_name"
-        ]
-
-    # check that setting an old phase attribute when the phase_center_catalog is
-    # already set will issue the correct warning (and do nothing)
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="phase_center_catalog is already set, so object_name, which is an "
-        "old phase attribute, cannot be set.",
-    ):
-        uvd.object_name = "foo"
-
     uvd.antenna_diameters = hera_uvh5.antenna_diameters
     uvd.extra_keywords = hera_uvh5.extra_keywords
-    assert uvd == hera_uvh5
+
+    if check_before_write:
+        with uvtest.check_warnings(warn_type, match=msg):
+            uvd.check()
+
+        if projected:
+            assert uvd.phase_center_catalog[0]["cat_type"] == "sidereal"
+        elif not set_obj_name:
+            assert uvd.phase_center_catalog[0]["cat_name"] == "unprojected"
+            uvd.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[0][
+                "cat_name"
+            ]
+
+        # check that setting an old phase attribute when the phase_center_catalog is
+        # already set will issue the correct warning (and do nothing)
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match="phase_center_catalog is already set, so object_name, which is an "
+            "old phase attribute, cannot be set.",
+        ):
+            uvd.object_name = "foo"
+
+        assert uvd == hera_uvh5
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
-    uvd.write_uvh5(testfile)
+    if check_before_write:
+        uvd.write_uvh5(testfile)
+    else:
+        with uvtest.check_warnings(warn_type, match=msg):
+            uvd.write_uvh5(testfile)
 
     uvd2 = UVData.from_file(testfile)
+
+    if not check_before_write:
+        if projected:
+            assert uvd2.phase_center_catalog[0]["cat_type"] == "sidereal"
+        elif not set_obj_name:
+            assert uvd2.phase_center_catalog[0]["cat_name"] == "unprojected"
+            uvd2.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[
+                0
+            ]["cat_name"]
+
     assert uvd2 == hera_uvh5
