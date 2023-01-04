@@ -2233,10 +2233,12 @@ class UVBeam(UVBase):
                     "interpolation_function not recognized, must be one of "
                     f"{allowed_interp_funcs}"
                 )
+            interp_func_name = interpolation_function
             interp_func = self.interpolation_function_dict[interpolation_function][
                 "func"
             ]
         else:
+            interp_func_name = self.interpolation_function
             interp_func = self.interpolation_function_dict[self.interpolation_function][
                 "func"
             ]
@@ -2410,8 +2412,7 @@ class UVBeam(UVBase):
                 new_uvb.ordering = "ring"
 
             history_update_string += (
-                " using pyuvdata with interpolation_function = "
-                + new_uvb.interpolation_function
+                " using pyuvdata with interpolation_function = " + interp_func_name
             )
             if freq_array is not None:
                 history_update_string += (
@@ -2437,6 +2438,7 @@ class UVBeam(UVBase):
     def to_healpix(
         self,
         nside=None,
+        interpolation_function=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2445,8 +2447,15 @@ class UVBeam(UVBase):
         """
         Convert beam to the healpix coordinate system.
 
-        The interpolation is done using the interpolation method specified in
-        self.interpolation_function.
+        Either the interpolation_function parameter must be set or the
+        `interpolation_function` attribute on the object must be set to indicate what
+        function to use for the interpolation.
+        Currently supported interpolation functions include:
+
+        - "az_za_simple": Uses scipy RectBivariate spline interpolation, can only be
+          used on objects with an "az_za" pixel_coordinate_system.
+        - "healpix_simple": Uses HEALPix nearest-neighbor bilinear interpolation, can
+          only be used on objects with a "healpix" pixel_coordinate_system.
 
         Note that this interpolation isn't perfect. Interpolating an Efield beam
         and then converting to power gives a different result than converting
@@ -2458,6 +2467,11 @@ class UVBeam(UVBase):
             The nside to use for the Healpix map. If not specified, use
             the nside that gives the closest resolution that is higher than the
             input resolution.
+        interpolation_function : str, optional
+            Specify the interpolation function to use, as an alternative to setting the
+            interpolation_function attribute on the object. Currently supported options
+            are: "az_za_simple" for objects with the "az_za" pixel_coordinate_system
+            and "healpix_simple" for objects with the "healpix" pixel_coordinate_system.
         run_check : bool
             Option to check for the existence and proper shapes of required
             parameters after converting to healpix.
@@ -2515,6 +2529,7 @@ class UVBeam(UVBase):
             healpix_nside=nside,
             healpix_inds=pixels,
             new_object=True,
+            interpolation_function=interpolation_function,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
