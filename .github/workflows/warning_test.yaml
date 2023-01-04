@@ -43,7 +43,7 @@ jobs:
 
       - name: Install
         run: |
-          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .
 
       - name: Run Tests
         run: |
