@@ -335,13 +335,18 @@ class CSTBeam(UVBeam):
                                         new_data[i, icol] = az
                                     else:
                                         new_data[i, icol] = data[idx, icol]
+                        else:
+                            raise err
 
                 i += 1
 
         delta_phi = phi_axis[1] - phi_axis[0]
-        theta_data = new_data[:, theta_col].reshape((theta_axis.size, phi_axis.size))
-        phi_data = new_data[:, phi_col].reshape((theta_axis.size, phi_axis.size))
-        data = new_data
+        data = new_data.reshape((theta_axis.size, phi_axis.size, -1)).transpose(
+            (2, 0, 1)
+        )
+
+        theta_data = data[theta_col]
+        phi_data = data[phi_col]
 
         self.axis1_array = phi_axis
         self.Naxes1 = self.axis1_array.size
@@ -380,10 +385,7 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type == "power":
-            power_beam1 = (
-                data[:, data_col][sort_idx].reshape((theta_axis.size, phi_axis.size))
-                ** 2.0
-            )
+            power_beam1 = data[data_col] ** 2.0
 
             self.data_array[0, 0, 0, 0, :, :] = power_beam1
 
@@ -403,24 +405,10 @@ class CSTBeam(UVBeam):
             phi_mag_col = np.where(np.array(column_names) == "abs(phi)")[0][0]
             phi_phase_col = np.where(np.array(column_names) == "phase(phi)")[0][0]
 
-            theta_mag = data[:, theta_mag_col][sort_idx].reshape(
-                (theta_axis.size, phi_axis.size)
-            )
-            phi_mag = data[:, phi_mag_col][sort_idx].reshape(
-                (theta_axis.size, phi_axis.size)
-            )
-            if "deg" in units[theta_phase_col]:
-                theta_phase = np.radians(data[:, theta_phase_col])
-            else:
-                theta_phase = data[:, theta_phase_col]
-            if "deg" in units[phi_phase_col]:
-                phi_phase = np.radians(data[:, phi_phase_col])
-            else:
-                phi_phase = data[:, phi_phase_col]
-            theta_phase = theta_phase[sort_idx].reshape(
-                (theta_axis.size, phi_axis.size)
-            )
-            phi_phase = phi_phase[sort_idx].reshape((theta_axis.size, phi_axis.size))
+            theta_mag = data[theta_mag_col]
+            phi_mag = data[phi_mag_col]
+            theta_phase = data[theta_phase_col]
+            phi_phase = data[phi_phase_col]
 
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
