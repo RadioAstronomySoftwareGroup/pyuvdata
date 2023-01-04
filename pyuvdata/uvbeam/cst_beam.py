@@ -141,7 +141,7 @@ class CSTBeam(UVBeam):
             Since CST can output theta/phi coordinates in a number of conventions, you
             can provide a function to convert from the input theta/phi to azimuth/
             zenith-angle, as required by UVBeam. The signature of the function should
-            be ``az, za = fnc(theta, phi)``.
+            be ``az, za = fnc(theta, phi)``. Theta and Phi will be in radians.
         """
         # update filename attribute
         basename = os.path.basename(filename)
