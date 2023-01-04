@@ -229,12 +229,12 @@ class CSTBeam(UVBeam):
         theta_col = column_names.index("theta")
         phi_col = column_names.index("phi")
 
+        for icol, un in enumerate(units):
+            if "deg" in un:
+                data[:, icol] = np.radians(data[:, icol])
+
         theta_data = data[:, theta_col]
         phi_data = data[:, phi_col]
-        if "deg" in units[theta_col]:
-            theta_data = np.radians(theta_data)
-        if "deg" in units[phi_col]:
-            phi_data = np.radians(phi_data)
 
         if thetaphi_to_azza_fnc is not None:
             phi_data, theta_data = thetaphi_to_azza_fnc(theta_data, phi_data)
@@ -257,25 +257,91 @@ class CSTBeam(UVBeam):
 
         theta_axis = np.sort(np.unique(theta_data))
         phi_axis = np.sort(np.unique(phi_data))
-        if not theta_axis.size * phi_axis.size == theta_data.size:
-            raise ValueError("Data does not appear to be on a grid")
 
         # Get the order of the data in which phi increases on the inner loop and theta
         # on the outer.
         sort_idx = np.lexsort((phi_data, theta_data))
-        theta_data = theta_data[sort_idx].reshape((theta_axis.size, phi_axis.size))
-        phi_data = phi_data[sort_idx].reshape((theta_axis.size, phi_axis.size))
+        theta_data = theta_data[sort_idx]
+        phi_data = phi_data[sort_idx]
+        data = data[sort_idx]
+        data[:, theta_col] = theta_data
+        data[:, phi_col] = phi_data
 
-        if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
-            raise ValueError(
-                "Data does not appear to be regularly gridded in zenith angle"
-            )
+        if self.beam_type == "power":
+            data_col_enum = ["abs(e)", "abs(v)"]
+            data_col = []
+            for name in data_col_enum:
+                this_col = np.where(np.array(column_names) == name)[0]
+                if this_col.size > 0:
+                    data_col = data_col + this_col.tolist()
+            if len(data_col) == 0:
+                raise ValueError(f"No power column found in file: {filename}")
+            elif len(data_col) > 1:
+                raise ValueError(
+                    f"Multiple possible power columns found in file: {filename}"
+                )
+            data_col = data_col[0]
 
-        if not uvutils._test_array_constant_spacing(phi_axis, self._axis1_array.tols):
-            raise ValueError(
-                "Data does not appear to be regularly gridded in azimuth angle"
-            )
+        tupled = list(zip(theta_data, phi_data))
+        n = len(tupled)
+        new_data = np.zeros((len(theta_axis) * len(phi_axis), data.shape[1]))
+        i = 0
+        idx = -1
+        for za in theta_axis:
+            for az in phi_axis:
+                if (idx + 1) < n and (za, az) == tupled[idx + 1]:
+                    # best case scenario is everything is in grid already.
+                    # For most beams, the large majority of iterations will hit this.
+                    idx = idx + 1
+                    new_data[i] = data[idx]
+                else:
+                    try:
+                        # Find the index of these coordinates
+                        # There may be multiple indices with the same coords, because
+                        # of poles -- here we just take the first one.
+                        idx = tupled.index((za, az))
+                        new_data[i] = data[idx]
+                        if np.isclose(new_data[i, theta_col], -np.pi):
+                            print(data[idx], za, az)
+                    except ValueError as err:
+                        # These co-ordinates do not exist.
+                        if za == 0 or za == np.pi:
+                            # Maybe we're at a pole, in which case we can potentially
+                            # deduce the data from other coordinates at the pole.
+                            if beam_type == "power":
+                                # We only care about abs() columns
+                                zero_idx = np.where(theta_data == 0)[0][0]
+                                new_data[i, data_col] = data[zero_idx, data_col]
+                            else:
+                                # We care about all the columns.
+                                idx = np.where(
+                                    np.isclose(theta_data, za)
+                                    & np.isclose(phi_data, (az + np.pi) % (2 * np.pi))
+                                )[0]
+                                if len(idx) == 0:
+                                    raise ValueError(
+                                        f"No coordinate data for za={za} with az={az}"
+                                    ) from err
+                                idx = idx[0]
+
+                                for icol, name in enumerate(column_names):
+                                    if "phase" in name:  # flip the phase.
+                                        new_data[i, icol] = (
+                                            data[idx, icol] + np.pi
+                                        ) % (2 * np.pi)
+                                    elif name == "theta":
+                                        new_data[i, icol] = za
+                                    elif name == "phi":
+                                        new_data[i, icol] = az
+                                    else:
+                                        new_data[i, icol] = data[idx, icol]
+
+                i += 1
+
         delta_phi = phi_axis[1] - phi_axis[0]
+        theta_data = new_data[:, theta_col].reshape((theta_axis.size, phi_axis.size))
+        phi_data = new_data[:, phi_col].reshape((theta_axis.size, phi_axis.size))
+        data = new_data
 
         self.axis1_array = phi_axis
         self.Naxes1 = self.axis1_array.size
@@ -314,20 +380,6 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type == "power":
-
-            data_col_enum = ["abs(e)", "abs(v)"]
-            data_col = []
-            for name in data_col_enum:
-                this_col = np.where(np.array(column_names) == name)[0]
-                if this_col.size > 0:
-                    data_col = data_col + this_col.tolist()
-            if len(data_col) == 0:
-                raise ValueError("No power column found in file: {}".format(filename))
-            elif len(data_col) > 1:
-                raise ValueError(
-                    "Multiple possible power columns found in file: {}".format(filename)
-                )
-            data_col = data_col[0]
             power_beam1 = (
                 data[:, data_col][sort_idx].reshape((theta_axis.size, phi_axis.size))
                 ** 2.0
