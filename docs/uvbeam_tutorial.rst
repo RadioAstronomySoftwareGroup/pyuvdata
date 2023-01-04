@@ -256,7 +256,9 @@ e) Writing a HEALPix beam FITS file
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read(settings_file, beam_type='power')
 
-  >>> # have to specify which interpolation function to use
+  >>> # have to specify which interpolation function to use. Either do this by setting
+  >>> # the interpolation_function attribute on the object or by passing it into the
+  >>> # `to_healpix` method.
   >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
@@ -403,15 +405,15 @@ extra interpolation errors.
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read(settings_file, beam_type='power')
 
-  >>> # have to specify which interpolation function to use
-  >>> beam.interpolation_function = 'az_za_simple'
-
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
-  >>> hpx_beam = beam.to_healpix(inplace=False)
+  >>> # have to specify which interpolation function to use. Either do this by setting
+  >>> # the interpolation_function attribute on the object or by passing it into the
+  >>> # `to_healpix` method.
+  >>> hpx_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
   >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
   >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
@@ -457,7 +459,6 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read(settings_file, beam_type='efield')
-  >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
@@ -494,7 +495,6 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read(settings_file, beam_type='efield')
-  >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -502,7 +502,10 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
-  >>> pstokes_beam = beam.to_healpix(inplace=False)
+  >>> # have to specify which interpolation function to use. Either do this by setting
+  >>> # the interpolation_function attribute on the object or by passing it into the
+  >>> # `to_healpix` method.
+  >>> pstokes_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
 
