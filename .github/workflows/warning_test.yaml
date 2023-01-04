@@ -9,7 +9,7 @@ concurrency:
 jobs:
   warning_test:
     env:
-      ENV_NAME: pyuvdata_tests
+      ENV_NAME: pyuvdata_warning_test
       PYTHON: 3.9
     name: Warning Test
     runs-on: ubuntu-latest
@@ -47,10 +47,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          mkdir -p empty
-          cd empty
-          pytest -W error --pyargs pyuvdata -n auto --dist=loadfile --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
-          cd ..
+          pytest -W error --pyargs pyuvdata --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
 
       - uses: codecov/codecov-action@v2.0.2
         if: success()
