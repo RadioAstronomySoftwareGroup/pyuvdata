@@ -47,7 +47,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -W error --pyargs pyuvdata --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
+          pytest -W error --pyargs pyuvdata --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
 
       - uses: codecov/codecov-action@v2.0.2
         if: success()
