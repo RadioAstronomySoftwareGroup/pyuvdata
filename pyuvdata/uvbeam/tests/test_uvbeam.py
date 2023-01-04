@@ -933,15 +933,20 @@ def test_spatial_interpolation_samepoints(
 
     # test error if no interpolation function is set
     with pytest.raises(
-        ValueError, match="interpolation_function must be set on object first"
+        ValueError,
+        match="Either the interpolation_function parameter must be passed or the "
+        "interpolation_function attribute must be set on object before calling "
+        "this method.",
     ):
         uvbeam.interp(
             az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
         )
 
-    uvbeam.interpolation_function = "az_za_simple"
     interp_data_array, interp_basis_vector = uvbeam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        freq_array=freq_orig_vals,
+        interpolation_function="az_za_simple",
     )
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
@@ -951,6 +956,25 @@ def test_spatial_interpolation_samepoints(
             uvbeam.basis_vector_array.shape, order="F"
         )
         assert np.allclose(uvbeam.basis_vector_array, interp_basis_vector)
+
+    # test warning if interpolation_function is set differently on object and in
+    # function call and error if not set to known function
+    uvbeam.interpolation_function = "az_za_simple"
+    with pytest.raises(
+        ValueError, match="interpolation_function not recognized, must be one of "
+    ):
+        with uvtest.check_warnings(
+            UserWarning,
+            match="The interpolation_function parameter was set but it does not "
+            "match the interpolation_function attribute on the object. Using "
+            "the one passed to this method.",
+        ):
+            interp_data_array, interp_basis_vector = uvbeam.interp(
+                az_array=az_orig_vals,
+                za_array=za_orig_vals,
+                freq_array=freq_orig_vals,
+                interpolation_function="foo",
+            )
 
     # test that new object from interpolation is identical
     optional_freq_params = [

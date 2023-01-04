@@ -2226,6 +2226,21 @@ class UVBeam(UVBase):
                     "for frequency only interpolation."
                 )
 
+        if interpolation_function is not None:
+            allowed_interp_funcs = list(self.interpolation_function_dict.keys())
+            if interpolation_function not in allowed_interp_funcs:
+                raise ValueError(
+                    "interpolation_function not recognized, must be one of "
+                    f"{allowed_interp_funcs}"
+                )
+            interp_func = self.interpolation_function_dict[interpolation_function][
+                "func"
+            ]
+        else:
+            interp_func = self.interpolation_function_dict[self.interpolation_function][
+                "func"
+            ]
+
         kind_use = self.freq_interp_kind
         if freq_array is not None:
             # get frequency distances
@@ -2270,15 +2285,6 @@ class UVBeam(UVBase):
 
             za_array_use = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
             az_array_use = hpx_lon.radian
-
-        if interpolation_function is not None:
-            interp_func = self.interpolation_function_dict[interpolation_function][
-                "func"
-            ]
-        else:
-            interp_func = self.interpolation_function_dict[self.interpolation_function][
-                "func"
-            ]
 
         extra_keyword_dict = {}
         if interp_func == "_interp_az_za_rect_spline":
