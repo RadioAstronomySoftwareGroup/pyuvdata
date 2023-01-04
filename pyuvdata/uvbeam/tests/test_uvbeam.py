@@ -1638,9 +1638,10 @@ def test_to_healpix_efield(
     # convert to power and then interpolate to compare.
     # Don't use power read from file because it has rounding errors that will
     # dominate this comparison
-    efield_beam.interpolation_function = "az_za_simple"
     sq_then_interp = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
-    sq_then_interp.to_healpix(nside=interp_then_sq.nside)
+    sq_then_interp.to_healpix(
+        nside=interp_then_sq.nside, interpolation_function="az_za_simple"
+    )
 
     # square then interpolate is different from interpolate then square at a
     # higher level than normally allowed in the equality.
@@ -1676,6 +1677,8 @@ def test_to_healpix_efield(
     # now change history on one so we can compare the rest of the object
     sq_then_interp.history = efield_beam.history + interp_history_add + sq_history_add
 
+    # set interpolation function for equality
+    sq_then_interp.interpolation_function = "az_za_simple"
     assert sq_then_interp == interp_then_sq
 
 
