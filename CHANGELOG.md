@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new `interpolation_function` parameter to `UVBeam.interp` and `UVBeam.to_healpix`
+to allow the function name to be passed into the methods rather than having to be set
+on the object first.
 - Support for selecting on phase center IDs, including on read.
 - Several new attributes to UVFlag: `telescope_name`, `telescope_location`,
 `antenna_names`, `antenna_numbers`, `antenna_positions`, `channel_width`, `spw_array`,
