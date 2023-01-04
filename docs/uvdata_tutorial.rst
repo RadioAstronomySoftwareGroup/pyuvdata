@@ -483,55 +483,20 @@ UVData: Phasing
 ---------------
 Phasing/unphasing data
 
-a) Data with a single phase center.
+a) Data with a multiple phase centers enabled.
 ************************************************************
 .. code-block:: python
 
   >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
   >>> from astropy.time import Time
-  >>> uvd = UVData()
-  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd.read(miriad_file)
-  >>> print(uvd.phase_type)
-  drift
-
-  >>> # Phase the data to the zenith at first time step. Can either be specified
-  >>> # as a astropy Time object or as a float which is taken to be in JD.
-  >>> uvd.phase_to_time(Time(uvd.time_array[0], format='jd'))
-  >>> print(uvd.phase_type)
-  phased
-
-  >>> # Undo phasing
-  >>> uvd.unphase_to_drift()
-  >>> print(uvd.phase_type)
-  drift
-
-  >>> # Phase the data to the zenith at first time step using float JD.
-  >>> uvd.phase_to_time(uvd.time_array[0])
-  >>> print(uvd.phase_type)
-  phased
-
-  >>> # Rephase to another phase center (unphases and rephases under the hood)
-  >>> # Phase to a specific ra/dec/epoch (in radians)
-  >>> uvd.phase(5.23368, 0.710940, epoch="J2000")
-
-b) Data with a multiple phase centers enabled.
-************************************************************
-.. code-block:: python
-
-  >>> import os
+  >>> from numpy import pi
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> from numpy import pi
   >>> uvd = UVData()
   >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> # By setting `make_multi_phase=True`, we force the object returned to be
-  >>> # multi-phase-ctr capable, which comes with a few advanced features
-  >>> uvd.read(uvh5_file, make_multi_phase=True)
+  >>> uvd.read(uvh5_file)
 
-  >>> # For a multi phase center dataset, we can get information on the sources in the
+  >>> # We can get information on the sources in the
   >>> # data set by using the `print_phase_center_info` command.
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
@@ -540,7 +505,7 @@ b) Data with a multiple phase centers enabled.
       0        zenith   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
-  >>> # With multi-phase-ctr data sets, one needs to supply a name for each phase
+  >>> # When phasing, the user needs to supply a name for each phase
   >>> # center, though it does not need to be unique. We are specifying that the type
   >>> # here is "sidereal", which means that the position is represented by a fixed set
   >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
@@ -552,7 +517,18 @@ b) Data with a multiple phase centers enabled.
       1       target1      sidereal   19:59:28.27  +40:44:01.90   icrs  J2000.0
 
 
-  >>> # And with multi-phase-ctr data sets, you can also use "ephem" objects, which
+  >>> # You can use the `phase_to_time` method to phase to zenith at a particular time.
+  >>> # The time can be passed as an astropy Time object or as a float which will be
+  >>> # interpreted as a JD
+  >>> uvd.phase_to_time(Time(uvd.time_array[0], format='jd'))
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
+      #          Name                       hours           deg
+  ------------------------------------------------------------------------------
+      0  zenith_at_jd2458661.234803      sidereal   13:20:57.92  -30:37:09.44   icrs  J2000.0
+
+
+  >>> # You can also now phase to "ephem" objects, which
   >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
   >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
   >>> uvd.phase(0, 0, epoch="J2000", cat_name="Sun", lookup_name=True)
@@ -560,7 +536,7 @@ b) Data with a multiple phase centers enabled.
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
   ---------------------------------------------------------------------------------------------------------------------
-      0           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+      1           Sun         ephem    6:19:28.68  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
 
   >>> # Finally, we can use a selection mask to only phase part of the data at a time,
@@ -579,8 +555,8 @@ b) Data with a multiple phase centers enabled.
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                          deg           deg                  Start-MJD    End-MJD       pc    km/s
   ----------------------------------------------------------------------------------------------------------------------
-      0           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
-      1        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
+      0        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
+      1           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
 
 
 UVData: Averaging and Resampling
@@ -1262,7 +1238,7 @@ and combined with the previous file(s).
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd.read(filenames)
+  >>> uvd.read(filenames, allow_rephase=False)
 
 e) Fast concatenation
 *********************
@@ -1306,7 +1282,7 @@ stored in the uvh5 format.
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd.read(filenames, axis='freq')
+  >>> uvd.read(filenames, axis='freq', allow_rephase=False)
 
 
 UVData: Summing and differencing visibilities
@@ -1797,7 +1773,7 @@ the baseline array.
 
   >>> # This file contains a HERA19 layout.
   >>> uvd.read(os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'))
-  >>> uvd.unphase_to_drift(use_ant_pos=True)
+  >>> uvd.unproject_phase(use_ant_pos=True)
   >>> tol = 0.05  # Tolerance in meters
 
   >>> # Returned values: list of redundant groups, corresponding mean baseline vectors, baseline lengths. No conjugates included, so conjugates is None.

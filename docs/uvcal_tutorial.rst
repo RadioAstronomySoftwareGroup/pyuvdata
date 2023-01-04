@@ -138,9 +138,12 @@ b) FHD cal to cal fits
   >>> obs_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav')
   >>> cal_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_cal.sav')
   >>> settings_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt')
+  >>> layout_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav')
 
   >>> fhd_cal = UVCal()
-  >>> fhd_cal.read_fhd_cal(cal_testfile, obs_testfile, settings_file=settings_testfile)
+  >>> fhd_cal.read_fhd_cal(
+  ...   cal_testfile, obs_testfile, settings_file=settings_testfile, layout_file=layout_testfile
+  ... )
   >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
 
 
@@ -475,7 +478,14 @@ each file will be read in succession and added to the previous.
   >>> settings_testfiles = [os.path.join(DATA_PATH, f) for f
   ...                       in ['fhd_cal_data/1061316296_settings.txt',
   ...                           'fhd_cal_data/set2/1061316296_settings.txt']]
-  >>> fhd_cal.read_fhd_cal(cal_testfiles, obs_testfiles, settings_file=settings_testfiles)
+  >>> layout_testfiles = [
+  ...   os.path.join(DATA_PATH, f) for f in [
+  ...     'fhd_cal_data/1061316296_layout.sav', 'fhd_cal_data/1061316296_layout.sav'
+  ...   ]
+  ... ]
+  >>> fhd_cal.read_fhd_cal(
+  ...   cal_testfiles, obs_testfiles, settings_file=settings_testfiles, layout_file=layout_testfiles
+  ... )
   diffuse_model parameter value is a string, values are different
 
 UVCal: Sorting data along various axes
@@ -635,7 +645,10 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
   delay
 
   >>> # But we can convert it to a 'gain' type calibration.
-  >>> cal.convert_to_gain()
+  >>> channel_width = 1e8 # 1 MHz
+  >>> n_freqs = (cal.freq_range[1] - cal.freq_range[0]) / channel_width
+  >>> freq_array = np.arange(n_freqs) * channel_width + cal.freq_range[0]
+  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width)
   >>> print(cal.cal_type)
   gain
 
@@ -643,22 +656,22 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
   >>> # than the default negative value:
   >>> cal = UVCal()
   >>> cal.read_calfits(filename)
-  >>> cal = cal.convert_to_gain(delay_convention='plus')
+  >>> cal = cal.convert_to_gain(delay_convention='plus', freq_array=freq_array, channel_width=channel_width)
 
   >>> # Convert to gain *without* running the default check that internal arrays are
   >>> # of compatible shapes:
   >>> cal = UVCal()
   >>> cal.read_calfits(filename)
-  >>> cal.convert_to_gain(run_check=False)
+  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check=False)
 
   >>> # Convert to gain *without* running the default check that optional parameters
   >>> # are properly shaped and typed:
   >>> cal = UVCal()
   >>> cal.read_calfits(filename)
-  >>> cal.convert_to_gain(check_extra=False)
+  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, check_extra=False)
 
   >>> # Convert to gain *without* running the default checks on the reasonableness
   >>> # of the resulting calibration's parameters.
   >>> cal = UVCal()
   >>> cal.read_calfits(filename)
-  >>> cal.convert_to_gain(run_check_acceptability=False)
+  >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check_acceptability=False)
