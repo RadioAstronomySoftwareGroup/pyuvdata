@@ -142,6 +142,7 @@ class CSTBeam(UVBeam):
             can provide a function to convert from the input theta/phi to azimuth/
             zenith-angle, as required by UVBeam. The signature of the function should
             be ``az, za = fnc(theta, phi)``. Theta and Phi will be in radians.
+
         """
         # update filename attribute
         basename = os.path.basename(filename)
@@ -297,17 +298,33 @@ class CSTBeam(UVBeam):
                 else:
                     try:
                         # Find the index of these coordinates
-                        # There may be multiple indices with the same coords, because
-                        # of poles -- here we just take the first one.
+                        # There may be multiple indices with the same az/za coords,
+                        # because of poles -- here we just take the first one.
+                        # NOTE: this is specifically *az/za* coordinates -- so even
+                        # though (az, 0) is the same *location* for all values of az,
+                        # it is represented by different coordinates, and we therefore
+                        # will take each of them, not just the first (this is important
+                        # because the phase
+                        # differs for different azimuth values at zenith). Conversely,
+                        # for an input coordinate system that represents some location
+                        # more than once (which is bound to happen for any particular
+                        # choice of regular grid in spherical coordinates), we need only
+                        # use one of the coordinates (the others will by necessity
+                        # contain the same information).
                         idx = tupled.index((za, az))
                         new_data[i] = data[idx]
-                        if np.isclose(new_data[i, theta_col], -np.pi):
-                            print(data[idx], za, az)
                     except ValueError as err:
                         # These co-ordinates do not exist.
+
+                        # However, if the az/za coordinates don't exist and we're at a
+                        # pole, we can potentially deduce the data from other
+                        # coordinates at the pole. In general, the beam at (az, 0) is
+                        # the conjugate of the beam at (az + pi, 0). That is, when
+                        # tracing a meridian through the pole, the amplitude is
+                        # perfectly smooth (so all az at the zenith have the same
+                        # amplitude), but the phase "flips" right at the pole as you
+                        # pass through.
                         if za == 0 or za == np.pi:
-                            # Maybe we're at a pole, in which case we can potentially
-                            # deduce the data from other coordinates at the pole.
                             if beam_type == "power":
                                 # We only care about abs() columns
                                 zero_idx = np.where(theta_data == 0)[0][0]
