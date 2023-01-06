@@ -21,6 +21,10 @@ to set several of these new parameters.
 multi_phase_center objects (it was using the old `phase_center_frame` attribute).
 - Fix a bug where trying to select lsts or lst_ranges on read didn't work for some file
 types.
+- Bugs in `UVBeam.read_cst_beam()` related to non-standard CST output text files.
+  Fix adds new parameter `thetaphi_to_azza_fnc` that allows the user to input a function
+  converting theta/phi in the CST file to az/za values for pyuvbeam. It also adds code
+  to re-order the input coordinates to be regular in az/za.
 
 ### Deprecated
 - Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,

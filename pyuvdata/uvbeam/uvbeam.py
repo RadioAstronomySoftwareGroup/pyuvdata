@@ -3963,9 +3963,11 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-        swap_thetaphi_conventions : bool
-            Whether to swap the standard assumed convention on theta/phi. By default,
-            phi is assumed to be synonymous with azimuth, and theta with zenith angle.
+        thetaphi_to_azza_fnc : callable
+            Since CST can output theta/phi coordinates in a number of conventions, you
+            can provide a function to convert from the input theta/phi to azimuth/
+            zenith-angle, as required by UVBeam. The signature of the function should
+            be ``az, za = fnc(theta, phi)``. Theta and Phi will be in radians.
         """
         from . import cst_beam
 
@@ -4517,6 +4519,11 @@ class UVBeam(UVBase):
             coordinates. Default is to read in all za. Restricting the za reduces peak
             memory. Only used for beamfits files that have their coordinates
             in az/za grid.
+        thetaphi_to_azza_fnc : callable
+            Since CST can output theta/phi coordinates in a number of conventions, you
+            can provide a function to convert from the input theta/phi to azimuth/
+            zenith-angle, as required by UVBeam. The signature of the function should
+            be ``az, za = fnc(theta, phi)``. Theta and Phi will be in radians.
 
         Raises
         ------
@@ -4894,6 +4901,11 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
+        thetaphi_to_azza_fnc : callable
+            Since CST can output theta/phi coordinates in a number of conventions, you
+            can provide a function to convert from the input theta/phi to azimuth/
+            zenith-angle, as required by UVBeam. The signature of the function should
+            be ``az, za = fnc(theta, phi)``. Theta and Phi will be in radians.
 
         Raises
         ------

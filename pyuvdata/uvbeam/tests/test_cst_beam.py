@@ -51,9 +51,25 @@ def cst_efield_2freq_mod(cst_efield_2freq_main):
 
 def test_swapped_cst_beam():
     beam = UVBeam()
+
+    def convert_azza(theta, phi):
+        az = np.where(theta < 0, phi + np.pi, phi)
+        za = np.abs(theta)
+        az %= 2 * np.pi
+        return az, za
+
     beam.read_cst_beam(
         os.path.join(DATA_PATH, cst_folder, "CST_f50_Eloy.txt"),
+        thetaphi_to_azza_fnc=convert_azza,
     )
+
+    beam.efield_to_power(inplace=True)
+
+    # ensure all the zenith points are equal in magnitude
+    assert np.allclose(np.diff(beam.data_array[0, 0, 0, 0]), 0.0)
+
+    # ensure all the anti-zenith points are equal in magnitude
+    assert np.allclose(np.diff(beam.data_array[0, 0, 0, -1]), 0.0)
 
 
 def test_basic_frequencyparse():
