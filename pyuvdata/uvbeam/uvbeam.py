@@ -2521,7 +2521,6 @@ class UVBeam(UVBase):
 
         """
         if self.pixel_coordinate_system == "healpix":
-            # TODO: should this just error or just be a no-op (as implemented below)?
             if inplace:
                 return
             else:
