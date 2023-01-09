@@ -120,7 +120,6 @@ def cst_efield_2freq_cut_healpix_main(cst_efield_2freq_cut_main):
     """Make session level cut down HEALPix 2-freq efield beam."""
     pytest.importorskip("astropy_healpix")
     beam = cst_efield_2freq_cut_main.copy()
-    beam.interpolation_function = "az_za_simple"
     beam.to_healpix()
 
     yield beam
@@ -231,7 +230,6 @@ def cst_power_2freq_cut_healpix_main(cst_power_2freq_cut_main):
     """Make session level HEALPix cut down 2-freq power beam."""
     pytest.importorskip("astropy_healpix")
     beam = cst_power_2freq_cut_main.copy()
-    beam.interpolation_function = "az_za_simple"
     beam.to_healpix()
 
     yield beam

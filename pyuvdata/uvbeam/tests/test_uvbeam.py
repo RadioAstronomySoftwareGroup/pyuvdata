@@ -7,6 +7,7 @@
 """
 import copy
 import os
+import re
 import warnings
 from collections import namedtuple
 
@@ -79,7 +80,6 @@ def uvbeam_data():
         "element_location_array",
         "delay_array",
         "x_orientation",
-        "interpolation_function",
         "freq_interp_kind",
         "gain_array",
         "coupling_matrix",
@@ -456,7 +456,6 @@ def test_efield_to_pstokes(
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
 
     # interpolate after converting to pstokes
-    pstokes_beam.interpolation_function = "az_za_simple"
     pstokes_beam.efield_to_pstokes()
     pstokes_beam.to_healpix()
 
@@ -554,7 +553,6 @@ def test_efield_to_power_nonorthogonal(cst_efield_2freq_cut):
 
     if healpix_installed:
         # check that this raises an error if trying to convert to HEALPix:
-        efield_beam2.interpolation_function = "az_za_simple"
         with pytest.raises(
             NotImplementedError,
             match="interpolation for input basis vectors that are not aligned to the "
@@ -677,8 +675,6 @@ def test_freq_interpolation(
 
     if future_shapes:
         beam.use_future_array_shapes()
-
-    beam.interpolation_function = "az_za_simple"
 
     # test frequency interpolation returns data arrays for small and large tolerances
     freq_orig_vals = np.array([123e6, 150e6])
@@ -854,7 +850,6 @@ def test_freq_interpolation(
         beam_singlef.interp(freq_array=np.array([150e6]))
 
     # assert freq_interp_kind ValueError
-    beam.interpolation_function = "az_za_simple"
     beam.freq_interp_kind = None
     with pytest.raises(
         ValueError, match="freq_interp_kind must be set on object first"
@@ -874,8 +869,6 @@ def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
 
     if future_shapes:
         power_beam.use_future_array_shapes()
-
-    power_beam.interpolation_function = "az_za_simple"
 
     # make a new object with more frequencies
     freqs = np.linspace(123e6, 150e6, 4)
@@ -931,23 +924,20 @@ def test_spatial_interpolation_samepoints(
     za_orig_vals = za_orig_vals.ravel(order="C")
     freq_orig_vals = np.array([123e6, 150e6])
 
-    # test error if no interpolation function is set
-    with pytest.raises(
-        ValueError,
-        match="Either the interpolation_function parameter must be passed or the "
-        "interpolation_function attribute must be set on object before calling "
-        "this method.",
-    ):
-        uvbeam.interp(
-            az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
-        )
-
+    # test defaulting works if no interpolation function is set
     interp_data_array, interp_basis_vector = uvbeam.interp(
+        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+    )
+
+    interp_data_array2, interp_basis_vector2 = uvbeam.interp(
         az_array=az_orig_vals,
         za_array=za_orig_vals,
         freq_array=freq_orig_vals,
         interpolation_function="az_za_simple",
     )
+    assert np.allclose(interp_data_array, interp_data_array2)
+    if beam_type == "efield":
+        assert np.allclose(interp_basis_vector, interp_basis_vector2)
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
     assert np.allclose(uvbeam.data_array, interp_data_array)
@@ -957,9 +947,24 @@ def test_spatial_interpolation_samepoints(
         )
         assert np.allclose(uvbeam.basis_vector_array, interp_basis_vector)
 
+    # test error if invalid interpolation_function is set on the object
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "interpolation_function must be one of ['az_za_simple', 'healpix_simple']"
+        ),
+    ):
+        uvbeam.interpolation_function = "foo"
+
     # test warning if interpolation_function is set differently on object and in
     # function call and error if not set to known function
-    uvbeam.interpolation_function = "az_za_simple"
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The interpolation_function attribute on UVBeam objects is "
+        "deprecated and support for it will be removed in version 2.4. Instead, pass "
+        "the desired function to the `interp` or `to_healpix` methods. ",
+    ):
+        uvbeam.interpolation_function = "az_za_simple"
     with pytest.raises(
         ValueError, match="interpolation_function not recognized, must be one of "
     ):
@@ -1054,7 +1059,6 @@ def test_spatial_interpolation_everyother(
 
     if future_shapes:
         uvbeam.use_future_array_shapes()
-    uvbeam.interpolation_function = "az_za_simple"
 
     axis1_inds = np.arange(0, uvbeam.Naxes1, 2)
     axis2_inds = np.arange(0, uvbeam.Naxes2, 2)
@@ -1159,7 +1163,6 @@ def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_
         uvbeam = cst_power_2freq_cut
     else:
         uvbeam = cst_efield_2freq_cut
-    uvbeam.interpolation_function = "az_za_simple"
 
     # limit phi range
     axis1_inds = np.arange(0, np.ceil(uvbeam.Naxes1 / 2), dtype=int)
@@ -1187,7 +1190,6 @@ def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_
 
 def test_spatial_interpolation_errors(cst_power_2freq_cut):
     uvbeam = cst_power_2freq_cut
-    uvbeam.interpolation_function = "az_za_simple"
 
     az_interp_vals = np.array(
         np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
@@ -1245,8 +1247,7 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
     else:
         beam = cst_efield_2freq
 
-    beam.interpolation_function = "az_za_simple"
-    interp_data_array, interp_basis_vector = beam.interp(
+    interp_data_array, _ = beam.interp(
         az_array=np.deg2rad(
             np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()
         ),
@@ -1280,8 +1281,6 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
 def test_interp_healpix_nside(cst_efield_2freq, cst_efield_2freq_cut_healpix):
     efield_beam = cst_efield_2freq
 
-    efield_beam.interpolation_function = "az_za_simple"
-
     # check nside calculation
     min_res = np.min(
         np.array(
@@ -1305,8 +1304,6 @@ def test_interp_healpix_errors(cst_efield_2freq_cut, cst_efield_2freq_cut_healpi
     efield_beam = cst_efield_2freq_cut
 
     new_efield_beam = cst_efield_2freq_cut_healpix
-
-    new_efield_beam.interpolation_function = "healpix_simple"
 
     # check error with cut sky
     with pytest.raises(
@@ -1334,8 +1331,6 @@ def test_healpix_interpolation(
     if future_shapes:
         efield_beam.use_future_array_shapes()
 
-    efield_beam.interpolation_function = "az_za_simple"
-
     # select every fourth point to make it smaller
     axis1_inds = np.arange(0, efield_beam.Naxes1, 4)
     axis2_inds = np.arange(0, efield_beam.Naxes2, 4)
@@ -1344,7 +1339,6 @@ def test_healpix_interpolation(
     hpx_efield_beam = efield_beam.to_healpix(inplace=False)
 
     # check that interpolating to existing points gives the same answer
-    hpx_efield_beam.interpolation_function = "healpix_simple"
     hp_obj = HEALPix(nside=hpx_efield_beam.nside)
     hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(hpx_efield_beam.pixel_array)
     za_orig_vals = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
@@ -1413,7 +1407,6 @@ def test_healpix_interpolation(
     new_reg_beam._data_array.tols = tols
     assert new_reg_beam.history != efield_beam.history
     new_reg_beam.history = efield_beam.history
-    new_reg_beam.interpolation_function = "az_za_simple"
     assert new_reg_beam == efield_beam
 
     # test no inputs equals same answer
@@ -1536,11 +1529,6 @@ def test_healpix_interpolation(
     ):
         power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
 
-    # healpix coord exception
-    power_beam.pixel_coordinate_system = "foo"
-    with pytest.raises(ValueError, match='pixel_coordinate_system must be "healpix"'):
-        power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
-
 
 @pytest.mark.parametrize(
     "start, stop",
@@ -1616,9 +1604,12 @@ def test_to_healpix_power(
     assert power_beam_healpix.Npixels <= n_max_pix
 
     # Test error if not az_za
-    power_beam.interpolation_function = "az_za_simple"
     power_beam.pixel_coordinate_system = "sin_zenith"
-    with pytest.raises(ValueError, match='pixel_coordinate_system must be "az_za"'):
+    with pytest.raises(
+        ValueError,
+        match="There is no default interpolation function for objects with "
+        "pixel_coordinate_system: sin_zenith",
+    ):
         power_beam.to_healpix()
 
 
@@ -1678,8 +1669,19 @@ def test_to_healpix_efield(
     sq_then_interp.history = efield_beam.history + interp_history_add + sq_history_add
 
     # set interpolation function for equality
-    sq_then_interp.interpolation_function = "az_za_simple"
     assert sq_then_interp == interp_then_sq
+
+
+@pytest.mark.parametrize("inplace", [True, False])
+def test_to_healpix_no_op(cst_power_2freq_cut_healpix, inplace):
+    uvbeam = cst_power_2freq_cut_healpix
+    if inplace:
+        uvbeam2 = uvbeam.copy()
+        uvbeam2.to_healpix(inplace=True)
+    else:
+        uvbeam2 = uvbeam.to_healpix(inplace=False)
+
+    assert uvbeam == uvbeam2
 
 
 @pytest.mark.parametrize("future_shapes", [True, False])

@@ -82,7 +82,6 @@ def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     beam_in.s_parameters = np.random.normal(
         0.0, 0.3, size=(4, beam_in.Nspws, beam_in.Nfreqs)
     )
-    beam_in.interpolation_function = "az_za_simple"
     beam_in.freq_interp_kind = "linear"
 
     write_file = str(tmp_path / "outtest_beam.fits")
