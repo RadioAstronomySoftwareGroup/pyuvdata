@@ -5,8 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - A new `interpolation_function` parameter to `UVBeam.interp` and `UVBeam.to_healpix`
-to allow the function name to be passed into the methods rather than having to be set
-on the object first.
+to allow the function name to be passed into the methods, with sensible defaulting.
 - Support for selecting on phase center IDs, including on read.
 - Several new attributes to UVFlag: `telescope_name`, `telescope_location`,
 `antenna_names`, `antenna_numbers`, `antenna_positions`, `channel_width`, `spw_array`,
@@ -26,6 +25,7 @@ multi_phase_center objects (it was using the old `phase_center_frame` attribute)
 types.
 
 ### Deprecated
+- Deprecated the `interpolation_function` attribute on UVBeams.
 - Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
 `phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor
 of the `phase_center_catalog`. The older phase attributes will be removed in version 3.0.
