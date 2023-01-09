@@ -242,14 +242,14 @@ class CSTBeam(UVBeam):
 
         if theta_data.max() > np.pi * 1.00001 or theta_data.min() < 0:
             raise ValueError(
-                "The zenith-angle is outside (0, pi): "
+                "Some zenith-angles are outside (0, pi). Range = "
                 f"{theta_data.min(), theta_data.max()}. "
                 "Check your thetaphi_to_azza_fnc."
             )
 
         if phi_data.max() > phi_data.min() + 2 * np.pi:
             raise ValueError(
-                "The azimuthal angle is outside (0, 2*pi): "
+                "The azimuthal angle has a range greater than 2pi: "
                 f"{phi_data.min(), phi_data.max()}. "
                 "Check your thetaphi_to_azza_fnc."
             )
