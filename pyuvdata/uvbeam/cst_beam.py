@@ -2,6 +2,8 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading beam CST files."""
+from __future__ import annotations
+
 import os
 import re
 import warnings
