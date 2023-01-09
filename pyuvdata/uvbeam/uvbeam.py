@@ -1657,7 +1657,10 @@ class UVBeam(UVBase):
 
         """
         if self.pixel_coordinate_system != "az_za":
-            raise ValueError('pixel_coordinate_system must be "az_za"')
+            raise ValueError(
+                "pixel_coordinate_system must be 'az_za' to use this interpolation "
+                "function"
+            )
 
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
@@ -1946,7 +1949,10 @@ class UVBeam(UVBase):
             ) from e
 
         if self.pixel_coordinate_system != "healpix":
-            raise ValueError('pixel_coordinate_system must be "healpix"')
+            raise ValueError(
+                "pixel_coordinate_system must be 'healpix' to use this interpolation "
+                "function"
+            )
 
         if not self.Npixels == 12 * self.nside**2:
             raise ValueError(

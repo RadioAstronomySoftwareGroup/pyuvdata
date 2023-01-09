@@ -956,6 +956,21 @@ def test_spatial_interpolation_samepoints(
     ):
         uvbeam.interpolation_function = "foo"
 
+    # test error with using an incompatible interpolation function
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "pixel_coordinate_system must be 'healpix' to use this interpolation "
+            "function"
+        ),
+    ):
+        interp_data_array, interp_basis_vector = uvbeam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            interpolation_function="healpix_simple",
+        )
+
     # test warning if interpolation_function is set differently on object and in
     # function call and error if not set to known function
     with uvtest.check_warnings(
@@ -1354,6 +1369,21 @@ def test_healpix_interpolation(
     data_array_compare = hpx_efield_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
     assert np.allclose(data_array_compare, interp_data_array)
+
+    # test error with using an incompatible interpolation function
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "pixel_coordinate_system must be 'az_za' to use this interpolation "
+            "function"
+        ),
+    ):
+        interp_data_array, _ = hpx_efield_beam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            interpolation_function="az_za_simple",
+        )
 
     # test that interp to every other point returns an object that matches a select
     pixel_inds = np.arange(0, hpx_efield_beam.Npixels, 2)
