@@ -1939,6 +1939,12 @@ class UVBeam(UVBase):
             future_array_shapes is True.
 
         """
+        if self.pixel_coordinate_system != "healpix":
+            raise ValueError(
+                "pixel_coordinate_system must be 'healpix' to use this interpolation "
+                "function"
+            )
+
         try:
             from astropy_healpix import HEALPix
         except ImportError as e:  # pragma: no cover
@@ -1947,12 +1953,6 @@ class UVBeam(UVBase):
                 "required for healpix functionality. "
                 "Install 'astropy-healpix' using conda or pip."
             ) from e
-
-        if self.pixel_coordinate_system != "healpix":
-            raise ValueError(
-                "pixel_coordinate_system must be 'healpix' to use this interpolation "
-                "function"
-            )
 
         if not self.Npixels == 12 * self.nside**2:
             raise ValueError(
