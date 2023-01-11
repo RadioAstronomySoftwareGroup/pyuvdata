@@ -246,6 +246,8 @@ files and az/za grid.
 
 e) Writing a HEALPix beam FITS file
 ***********************************
+See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_healpix` method.
+
 .. code-block:: python
 
   >>> import os
@@ -255,11 +257,6 @@ e) Writing a HEALPix beam FITS file
   >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam.read(settings_file, beam_type='power')
-
-  >>> # have to specify which interpolation function to use. Either do this by setting
-  >>> # the interpolation_function attribute on the object or by passing it into the
-  >>> # `to_healpix` method.
-  >>> beam.interpolation_function = 'az_za_simple'
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -385,6 +382,8 @@ or "ee).
   ['xx']
 
 
+.. _uvbeam_to_healpix:
+
 UVBeam: Interpolating to HEALPix
 --------------------------------
 Note that interpolating from one gridding format to another incurs interpolation
@@ -410,9 +409,7 @@ extra interpolation errors.
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
-  >>> # have to specify which interpolation function to use. Either do this by setting
-  >>> # the interpolation_function attribute on the object or by passing it into the
-  >>> # `to_healpix` method.
+  >>> # Optionally specify which interpolation function to use.
   >>> hpx_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
   >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
@@ -502,10 +499,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
-  >>> # have to specify which interpolation function to use. Either do this by setting
-  >>> # the interpolation_function attribute on the object or by passing it into the
-  >>> # `to_healpix` method.
-  >>> pstokes_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
+  >>> pstokes_beam = beam.to_healpix(inplace=False)
   >>> pstokes_beam.efield_to_pstokes()
   >>> pstokes_beam.peak_normalize()
 
