@@ -1,0 +1,308 @@
+##MAIN	##		
+Calling program	RUN_H4C_VIVALDIBEAM_VERSIONS 	
+Machine	herapost002	
+User	dstorer	
+Date	Wed Jan 11 13:55:45 2023	
+##COMMAND_LINE	##	
+##OBS	##	
+CODE_VERSION	v3.5-1502-gc379fc3e  	
+INSTRUMENT	hera  	
+OBSNAME	old_mini  	
+DIMENSION	 1024.00  	
+ELEMENTS	 1024.00  	
+NBASELINES	 15  	
+DFT_THRESHOLD	 2.47366e-05  	
+DOUBLE_PRECISION	 0  	
+KPIX	 1.27324  	
+DEGPIX	 0.0439453  	
+OBSAZ	 90.0812  	
+OBSALT	 89.7058  	
+OBSRA	 11.1337  	
+OBSDEC	 -30.8350  	
+ZENRA	 10.7910  	
+ZENDEC	 -30.8352  	
+OBSX	 512.000  	
+OBSY	 512.000  	
+ZENX	 505.304  	
+ZENY	 511.986  	
+PHASERA	 11.1337  	
+PHASEDEC	 -30.8350  	
+ORIG_PHASERA	 11.1337  	
+ORIG_PHASEDEC	 -30.8350  	
+N_POL	 2  	
+N_TILE	 104  	
+N_TILE_FLAG	 99  	
+N_FREQ	 10  	
+N_FREQ_FLAG	 0  	
+N_TIME	 2  	
+N_TIME_FLAG	 0.00000  	
+N_VIS	 200  	
+N_VIS_IN	 300  	
+N_VIS_RAW	 300  	
+NF_VIS	 0   0   0   0   0   0   0   0   0   0  	
+PRIMARY_BEAM_AREA	Pointer array (4 elements)	
+PRIMARY_BEAM_SQ_AREA	Pointer array (4 elements)	
+POL_NAMES	XX  YY  XY  YX  I  Q  U  V  	
+JD0	 2459122.4  	
+MAX_BASELINE	 63.690496  	
+MIN_BASELINE	 7.9071061  	
+DELAYS	Null pointer	
+LON	 21.4283  	
+LAT	 -30.7215  	
+ALT	 1051.69  	
+FREQ_CENTER	 1.62888e+08  	
+FREQ_RES	 122070.  	
+TIME_RES	 9.66368  	
+ASTR	Structure (20 tags)	
+  NAXIS	 1024.00   1024.00  	
+  CD	 1.00000   0.00000   0.00000   1.00000  	
+  CDELT	 0.0439453   0.0439453  	
+  CRPIX	 513.000   513.000  	
+  CRVAL	 11.133690   -30.835018  	
+  CTYPE	RA---SIN  DEC--SIN  	
+  LONGPOLE	 180.00000  	
+  LATPOLE	 0.0000000  	
+  PV2	 -0.0051360746   -1.0783342e-05  	
+  PV1	 0.0000000   0.0000000   90.000000   180.00000   0.0000000  	
+  AXES	 1   2  	
+  REVERSE	  	
+  COORD_SYS	C  	
+  PROJECTION	SIN  	
+  KNOWN	  	
+  RADECSYS	FK5  	
+  EQUINOX	 2000.0000  	
+  DATEOBS	2020-09-29T22:41:53.27  	
+  MJDOBS	 59121.946  	
+  X0Y0	 0.0000000   0.0000000  	
+ALPHA	 -0.800000  	
+RESIDUAL	 0  	
+VIS_NOISE	Pointer	
+  ->	 0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000   0.0000000  	
+BASELINE_INFO	Pointer	
+  ->	Structure (12 tags)	
+    TILE_A	 60   60   60   60   60   69   69   74   74   74   75   75   75   75   8   60   60   60   60   60   69   69   74   74   74   75   75   75   75   8  	
+    TILE_B	 60   69   74   75   8   69   8   69   74   8   69   74   75   8   8   60   69   74   75   8   69   8   69   74   8   69   74   75   8   8  	
+    BIN_OFFSET	 0   15  	
+    JDATE	 2459122.4   2459122.4  	
+    FREQ	 1.6227722e+08   1.6239929e+08   1.6252136e+08   1.6264343e+08   1.6276550e+08   1.6288757e+08   1.6300964e+08   1.6313171e+08   1.6325378e+08   1.6337585e+08  	
+    FBIN_I	 0   1   2   3   4   5   6   7   8   9  	
+    FREQ_USE	 1   1   1   1   1   1   1   1   1   1  	
+    TILE_USE	 0   0   0   0   0   0   0   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   1   0   0   0   0   0   0   0   0   1   0   0   0   0   1   1   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0   0  	
+    TIME_USE	 1   1  	
+    TILE_NAMES	 131   136   111   130   143   124   67   144   51   83   84   99   128   129   89   181   74   145   162   182   177   163   59   183   90   178   164   184   91   165   92   166   179   180   185   46   82   186   47   187   60   117   45   110   94   76   95   93   156   108   109   146   157   158   159   188   122   1   2   12   13   14   15   3   24   25   26   27   37   38   39   40   52   53   54   68   69   85   86   87   88   125   167   142   112   113   121   123   66   137   138   139   141   100   101   102   103   104   105   106   118   119   120   161  	
+    TILE_HEIGHT	 0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000   0.00000  	
+    TILE_FLAG	Pointer array (4 elements)	
+META_DATA	Null pointer	
+META_HDR	Null pointer	
+DEGRID_SPECTRAL_TERMS	 0  	
+GRID_SPECTRAL_TERMS	 0  	
+GRID_INFO	Null pointer	
+HEALPIX	Structure (4 tags)	
+  NSIDE	 0  	
+  IND_LIST	UNSPECIFIED  	
+  N_PIX	 0  	
+  N_ZERO	 -1  	
+##LAYOUT	##	
+ARRAY_CENTER	 5109325.9   2005235.1   -3239928.4  	
+COORDINATE_FRAME	ITRF   	
+GST0	 -1  	
+EARTH_DEGPD	 360.985  	
+REF_DATE	  	
+TIME_SYSTEM	UTC   	
+DUT1	 0.00000  	
+DIFF_UTC	 0  	
+NLEAP_SEC	 37.0000  	
+POL_TYPE	X-Y LIN   	
+N_POL_CAL_PARAMS	 0  	
+N_ANTENNA	 104  	
+ANTENNA_NAMES	HH130  HH135  HH110  HH129  HH142  HH123  HH66  HH143  HH50  HH82  HH83  HH98  HH127  HH128  HH88  HH180  HH73  HH144  HH161  HH181  HH176  HH162  HH58  HH182  HH89  HH177  HH163  HH183  HH90  HH164  HH91  HH165  HH178  HH179  HH184  HH45  HH81  HH185  HH46  HH186  HH59  HH116  HH44  HH109  HH93  HH75  HH94  HH92  HH155  HH107  HH108  HH145  HH156  HH157  HH158  HH187  HH121  HH0  HH1  HH11  HH12  HH13  HH14  HH2  HH23  HH24  HH25  HH26  HH36  HH37  HH38  HH39  HH51  HH52  HH53  HH67  HH68  HH84  HH85  HH86  HH87  HH124  HH166  HH141  HH111  HH112  HH120  HH122  HH65  HH136  HH137  HH138  HH140  HH99  HH100  HH101  HH102  HH103  HH104  HH105  HH117  HH118  HH119  HH160  	
+ANTENNA_NUMBERS	 131   136   111   130   143   124   67   144   51   83   84   99   128   129   89   181   74   145   162   182   177   163   59   183   90   178   164   184   91   165   92   166   179   180   185   46   82   186   47   187   60   117   45   110   94   76   95   93   156   108   109   146   157   158   159   188   122   1   2   12   13   14   15   3   24   25   26   27   37   38   39   40   52   53   54   68   69   85   86   87   88   125   167   142   112   113   121   123   66   137   138   139   141   100   101   102   103   104   105   106   118   119   120   161  	
+ANTENNA_COORDS	Double array (3 x 104 elements)	
+MOUNT_TYPE	 0  	
+AXIS_OFFSET	 0.00000  	
+POLA	X  	
+POLA_ORIENTATION	 90.0000  	
+POLA_CAL_PARAMS	 0.00000  	
+POLB	Y  	
+POLB_ORIENTATION	 0.00000  	
+POLB_CAL_PARAMS	 0.00000  	
+##ANTENNA	##	
+N_POL	 2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2   2  	
+ANTENNA_TYPE	hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  hera  	
+NAMES	Long Integer array (5 x 104 elements)	
+MODEL_VERSION	 4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4   4  	
+FREQ	Float array (10 x 104 elements)	
+NFREQ_BIN	 10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10   10  	
+N_ANT_ELEMENTS	 1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1   1  	
+JONES	Pointer array (2 x 2 x 10 x 104 elements)	
+COUPLING	Pointer array (2 x 10 x 104 elements)	
+GAIN	Pointer array (2 x 104 elements)	
+COORDS	Pointer array (3 x 104 elements)	
+DELAYS	Pointer array (104 elements)	
+SIZE_METERS	 10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000   10.0000  	
+HEIGHT	 1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000   1.50000  	
+RESPONSE	Pointer array (2 x 10 x 104 elements)	
+GROUP_ID	Long Integer array (2 x 104 elements)	
+PIX_WINDOW	Pointer array (104 elements)	
+PIX_USE	Pointer array (104 elements)	
+PSF_IMAGE_DIM	 2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00   2240.00  	
+PSF_SCALE	 3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714   3.65714  	
+##PSF	##	
+BEAM_PTR	Pointer	
+  ->	Pointer array (2 x 10 x 15 elements)	
+XVALS	Pointer array (64 x 64 elements)	
+YVALS	Pointer array (64 x 64 elements)	
+PNORM	 1.00000   1.00000  	
+FNORM	 1.00000   1.00000   1.00000   1.00000   1.00000   1.00000   1.00000   1.00000   1.00000   1.00000  	
+ID	Long Integer array (2 x 10 x 15 elements)	
+FBIN_I	 0   1   2   3   4   5   6   7   8   9  	
+RESOLUTION	 64  	
+DIM	 28  	
+COMPLEX_FLAG	 1  	
+N_POL	 2  	
+N_FREQ	 10  	
+FREQ	 1.62277e+08   1.62399e+08   1.62521e+08   1.62643e+08   1.62766e+08   1.62888e+08   1.63010e+08   1.63132e+08   1.63254e+08   1.63376e+08  	
+INTERPOLATE_KERNEL	 0  	
+BEAM_MASK_THRESHOLD	 100.000  	
+IMAGE_INFO	Pointer	
+  ->	Structure (5 tags)	
+    IMAGE_POWER_BEAM_ARR	Null pointer	
+    RA_ARR	Double array (2240 x 2240 elements)	
+    DEC_ARR	Double array (2240 x 2240 elements)	
+    PSF_IMAGE_RESOLUTION	 10.0000  	
+    PSF_IMAGE_DIM	 2240.00  	
+BEAM_GAUSSIAN_PARAMS	 0  	
+PIX_HORIZON	 280.000  	
+##CAL	##	
+N_POL	 2  	
+N_FREQ	 10  	
+N_TILE	 104  	
+N_TIME	 2  	
+UU	 -0.0000000   4.9331810e-08   -2.3448901e-08   -7.2173520e-08   -1.9246282e-07   -0.0000000   -2.4179462e-07   7.2780736e-08   -0.0000000   -1.6901393e-07   1.2150532e-07   4.8724630e-08   -0.0000000   -1.2028930e-07   -0.0000000   -0.0000000   4.9302326e-08   -2.3493850e-08   -7.2218690e-08   -1.9258329e-07   -0.0000000   -2.4188560e-07   7.2796190e-08   -0.0000000   -1.6908942e-07   1.2152101e-07   4.8724839e-08   -0.0000000   -1.2036459e-07   -0.0000000  	
+VV	 -0.0000000   -8.4046796e-08   -1.2679473e-07   -1.2714861e-07   -3.3901850e-07   -0.0000000   -2.5497170e-07   4.2747878e-08   -0.0000000   -2.1222377e-07   4.3101881e-08   3.5389039e-10   -0.0000000   -2.1186987e-07   -0.0000000   -0.0000000   -8.4064560e-08   -1.2678633e-07   -1.2712265e-07   -3.3894918e-07   -0.0000000   -2.5488461e-07   4.2721666e-08   -0.0000000   -2.1216292e-07   4.3058094e-08   3.3631642e-10   -0.0000000   -2.1182653e-07   -0.0000000  	
+AUTO_INITIALIZE	 1  	
+MAX_ITER	 1000  	
+PHASE_ITER	 4  	
+TILE_A	 60   60   60   60   60   69   69   74   74   74   75   75   75   75   8   60   60   60   60   60   69   69   74   74   74   75   75   75   75   8  	
+TILE_B	 60   69   74   75   8   69   8   69   74   8   69   74   75   8   8   60   69   74   75   8   69   8   69   74   8   69   74   75   8   8  	
+TILE_NAMES	 131   136   111   130   143   124   67   144   51   83   84   99   128   129   89   181   74   145   162   182   177   163   59   183   90   178   164   184   91   165   92   166   179   180   185   46   82   186   47   187   60   117   45   110   94   76   95   93   156   108   109   146   157   158   159   188   122   1   2   12   13   14   15   3   24   25   26   27   37   38   39   40   52   53   54   68   69   85   86   87   88   125   167   142   112   113   121   123   66   137   138   139   141   100   101   102   103   104   105   106   118   119   120   161  	
+BIN_OFFSET	 0   15  	
+FREQ	 1.6227722e+08   1.6239929e+08   1.6252136e+08   1.6264343e+08   1.6276550e+08   1.6288757e+08   1.6300964e+08   1.6313171e+08   1.6325378e+08   1.6337585e+08  	
+GAIN	Pointer array (2 elements)	
+ADAPTIVE_GAIN	 0  	
+BASE_GAIN	 0.750000  	
+GAIN_RESIDUAL	Pointer array (2 elements)	
+AUTO_SCALE	 0.00000   0.00000  	
+AUTO_PARAMS	Pointer array (2 elements)	
+CROSS_PHASE	 0.00000  	
+STOKES_MIX_PHASE	 0.00000  	
+MIN_CAL_BASELINE	 25.000000  	
+MAX_CAL_BASELINE	 63.690496  	
+N_VIS_CAL	 80  	
+TIME_AVG	 0  	
+MIN_SOLNS	 5  	
+REF_ANTENNA	 1  	
+REF_ANTENNA_NAME	 136  	
+CONV_THRESH	 1.00000e-07  	
+CONVERGENCE	Pointer array (2 elements)	
+N_CONVERGED	 0   0  	
+CONV_ITER	Pointer array (2 elements)	
+POLYFIT	 0  	
+AMP_DEGREE	 2  	
+PHASE_DEGREE	 1  	
+AMP_PARAMS	Pointer array (2 x 104 elements)	
+PHASE_PARAMS	Pointer array (2 x 104 elements)	
+MEAN_GAIN	 0.00000   0.00000  	
+MEAN_GAIN_RESIDUAL	 0.00000   0.00000  	
+MEAN_GAIN_RESTRICT	 0.00000   0.00000  	
+STDDEV_GAIN_RESIDUAL	 0.00000   0.00000  	
+BANDPASS	 0  	
+MODE_FIT	 0.00000  	
+MODE_PARAMS	Pointer array (2 x 104 elements)	
+CAL_ORIGIN	old_mini  	
+SKYMODEL	Structure (8 tags)	
+  INCLUDE_CALIBRATION	 1  	
+  N_SOURCES	 7517  	
+  SOURCE_LIST	Structure (14 tags)	
+    ID	Long Integer array (7517 elements)	
+    X	Float array (7517 elements)	
+    Y	Float array (7517 elements)	
+    RA	Float array (7517 elements)	
+    DEC	Float array (7517 elements)	
+    STON	Float array (7517 elements)	
+    FREQ	Float array (7517 elements)	
+    ALPHA	Float array (7517 elements)	
+    GAIN	Float array (7517 elements)	
+    FLAG	Integer array (7517 elements)	
+    EXTEND	Pointer array (7517 elements)	
+    FLUX	Structure (8 tags)	
+      XX	Float array (7517 elements)	
+      YY	Float array (7517 elements)	
+      XY	Complex array (7517 elements)	
+      YX	Complex array (7517 elements)	
+      I	Float array (7517 elements)	
+      Q	Float array (7517 elements)	
+      U	Float array (7517 elements)	
+      V	Float array (7517 elements)	
+    SHAPE	Structure (3 tags)	
+      X	Float array (7517 elements)	
+      Y	Float array (7517 elements)	
+      ANGLE	Float array (7517 elements)	
+    BEAM	Structure (8 tags)	
+      XX	Float array (7517 elements)	
+      YY	Float array (7517 elements)	
+      XY	Complex array (7517 elements)	
+      YX	Complex array (7517 elements)	
+      I	Float array (7517 elements)	
+      Q	Float array (7517 elements)	
+      U	Float array (7517 elements)	
+      V	Float array (7517 elements)	
+  CATALOG_NAME	GLEAM_v2_plus_rlb2019  	
+  GALAXY_MODEL	 0  	
+  GALAXY_SPECTRAL_INDEX	 NaN  	
+  DIFFUSE_MODEL	  	
+  DIFFUSE_SPECTRAL_INDEX	 NaN  	
+##SKYMODEL	##	
+INCLUDE_CALIBRATION	 1  	
+N_SOURCES	 7517  	
+SOURCE_LIST	Structure (14 tags)	
+  ID	Long Integer array (7517 elements)	
+  X	Float array (7517 elements)	
+  Y	Float array (7517 elements)	
+  RA	Float array (7517 elements)	
+  DEC	Float array (7517 elements)	
+  STON	Float array (7517 elements)	
+  FREQ	Float array (7517 elements)	
+  ALPHA	Float array (7517 elements)	
+  GAIN	Float array (7517 elements)	
+  FLAG	Integer array (7517 elements)	
+  EXTEND	Pointer array (7517 elements)	
+  FLUX	Structure (8 tags)	
+    XX	Float array (7517 elements)	
+    YY	Float array (7517 elements)	
+    XY	Complex array (7517 elements)	
+    YX	Complex array (7517 elements)	
+    I	Float array (7517 elements)	
+    Q	Float array (7517 elements)	
+    U	Float array (7517 elements)	
+    V	Float array (7517 elements)	
+  SHAPE	Structure (3 tags)	
+    X	Float array (7517 elements)	
+    Y	Float array (7517 elements)	
+    ANGLE	Float array (7517 elements)	
+  BEAM	Structure (8 tags)	
+    XX	Float array (7517 elements)	
+    YY	Float array (7517 elements)	
+    XY	Complex array (7517 elements)	
+    YX	Complex array (7517 elements)	
+    I	Float array (7517 elements)	
+    Q	Float array (7517 elements)	
+    U	Float array (7517 elements)	
+    V	Float array (7517 elements)	
+CATALOG_NAME	GLEAM_v2_plus_rlb2019  	
+GALAXY_MODEL	 0  	
+GALAXY_SPECTRAL_INDEX	 NaN  	
+DIFFUSE_MODEL	  	
+DIFFUSE_SPECTRAL_INDEX	 NaN  	
+##FHD	##	
+##END	##	
