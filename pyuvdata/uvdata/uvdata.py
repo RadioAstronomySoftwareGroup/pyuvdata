@@ -3065,59 +3065,11 @@ class UVData(UVBase):
             # Finally, plug the modified values back into data_array
             self.data_array[auto_screen] = auto_data
 
-    def check(
-        self,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_freq_spacing=False,
-        strict_uvw_antpos_check=False,
-        allow_flip_conj=False,
-        check_autos=False,
-        fix_autos=False,
-    ):
+    def _convert_old_phase_attributes(self):
         """
-        Add some extra checks on top of checks on UVBase class.
+        Convert old phase attributes set on object to the phase_center_catalog.
 
-        Check that required parameters exist. Check that parameters have
-        appropriate shapes and optionally that the values are acceptable.
-
-        Parameters
-        ----------
-        check_extra : bool
-            If true, check all parameters, otherwise only check required parameters.
-        run_check_acceptability : bool
-            Option to check if values in parameters are acceptable.
-        check_freq_spacing :  bool
-            Option to check if frequencies are evenly spaced and the spacing is
-            equal to their channel_width. This is not required for UVData
-            objects in general but is required to write to uvfits and miriad files.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        allow_flip_conj : bool
-            If set to True, and the UVW coordinates do not match antenna positions,
-            check and see if flipping the conjugation of the baselines (i.e, multiplying
-            the UVWs by -1) resolves  the apparent discrepancy -- and if it does, fix
-            the apparent conjugation error in `uvw_array` and `data_array`. Default is
-            False.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is False.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-
-        Returns
-        -------
-        bool
-            True if check passes
-
-        Raises
-        ------
-        ValueError
-            if parameter shapes or types are wrong or do not have acceptable
-            values (if run_check_acceptability is True)
-
+        This method can be removed in version 3.0.
         """
         if self.phase_center_catalog is None or len(self.phase_center_catalog) == 0:
             # first handle any old phase parameters that have been added to the object
@@ -3191,6 +3143,64 @@ class UVData(UVBase):
                         "phase_center_catalog. You can use `_add_phase_center_catalog` "
                         "to set the phase_center_catalog."
                     )
+
+    def check(
+        self,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_freq_spacing=False,
+        strict_uvw_antpos_check=False,
+        allow_flip_conj=False,
+        check_autos=False,
+        fix_autos=False,
+    ):
+        """
+        Add some extra checks on top of checks on UVBase class.
+
+        Check that required parameters exist. Check that parameters have
+        appropriate shapes and optionally that the values are acceptable.
+
+        Parameters
+        ----------
+        check_extra : bool
+            If true, check all parameters, otherwise only check required parameters.
+        run_check_acceptability : bool
+            Option to check if values in parameters are acceptable.
+        check_freq_spacing :  bool
+            Option to check if frequencies are evenly spaced and the spacing is
+            equal to their channel_width. This is not required for UVData
+            objects in general but is required to write to uvfits and miriad files.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
+        allow_flip_conj : bool
+            If set to True, and the UVW coordinates do not match antenna positions,
+            check and see if flipping the conjugation of the baselines (i.e, multiplying
+            the UVWs by -1) resolves  the apparent discrepancy -- and if it does, fix
+            the apparent conjugation error in `uvw_array` and `data_array`. Default is
+            False.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is False.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
+
+        Returns
+        -------
+        bool
+            True if check passes
+
+        Raises
+        ------
+        ValueError
+            if parameter shapes or types are wrong or do not have acceptable
+            values (if run_check_acceptability is True)
+
+        """
+        # first check for any old phase attributes set on the object and move the info
+        # into the phase_center_catalog.
+        self._convert_old_phase_attributes()
 
         # first run the basic check from UVBase
 
