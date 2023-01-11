@@ -483,8 +483,6 @@ UVData: Phasing
 ---------------
 Phasing/unphasing data
 
-a) Data with a multiple phase centers enabled.
-************************************************************
 .. code-block:: python
 
   >>> import os
@@ -496,8 +494,8 @@ a) Data with a multiple phase centers enabled.
   >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
   >>> uvd.read(uvh5_file)
 
-  >>> # We can get information on the sources in the
-  >>> # data set by using the `print_phase_center_info` command.
+  >>> # We can get information on the sources in the data set by using the
+  >>> # `print_phase_center_info` command. This object is initially unprojected (unphased)
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
       #          Name                          deg           deg
@@ -544,9 +542,10 @@ a) Data with a multiple phase centers enabled.
   >>> select_mask = uvd.time_array == uvd.time_array[0]
 
   >>> # Let's use this to create a 'driftscan' target, which is phased to a particular
-  >>> # azimuth and elevation (note this is different than `phase_type="drift"`, which
-  >>> # does NOT produced phased data). Note that we need to supply `phase_frame` as
-  >>> # "altaz", since driftscans are always in that frame.
+  >>> # azimuth and elevation (note this is different than "unprojected" data -- which
+  >>> # used to be designated with phase_type="drift" -- in that it is still phased and
+  >>> # can be to any azimuth and elevation, not just zenith). Note that we need to
+  >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
   >>> uvd.phase(0, pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
 
   >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
@@ -557,6 +556,16 @@ a) Data with a multiple phase centers enabled.
   ----------------------------------------------------------------------------------------------------------------------
       0        zenith     driftscan     0:00:00.00  +90:00:00.00  altaz  J2000.0
       1           Sun         ephem    94:52:10.21  +23:21:44.63   icrs  J2000.0   58660.25   58661.00  1.0e+00  0.2157
+
+  >>> # We can unproject (unphase) data using the `unproject_phase` method
+  >>> uvd.unproject_phase()
+
+  >>> # Now when using `print_phase_center_info`, we'll see that all the data are unprojected
+  >>> uvd.print_phase_center_info()
+     ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame
+      #          Name                          deg           deg
+  ----------------------------------------------------------------------
+      2   unprojected   unprojected     0:00:00.00  +90:00:00.00  altaz
 
 
 UVData: Averaging and Resampling

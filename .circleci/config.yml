@@ -114,7 +114,7 @@ jobs:
           command: |
             source ./ci/_activate_current_env.sh
             cd docs
-            python -m pytest -n 2 --doctest-glob="*.rst" -W default
+            python -m pytest -n 2 --doctest-glob="*.rst" -W "error::DeprecationWarning"
             cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}

@@ -469,19 +469,21 @@ each file will be read in succession and added to the previous.
 
   >>> # For FHD cal datasets pass lists for each file type
   >>> fhd_cal = UVCal()
-  >>> obs_testfiles = [os.path.join(DATA_PATH, f) for f
-  ...                  in ['fhd_cal_data/1061316296_obs.sav',
-  ...                      'fhd_cal_data/set2/1061316296_obs.sav']]
-  >>> cal_testfiles = [os.path.join(DATA_PATH, f) for f
-  ...                  in ['fhd_cal_data/1061316296_cal.sav',
-  ...                      'fhd_cal_data/set2/1061316296_cal.sav']]
-  >>> settings_testfiles = [os.path.join(DATA_PATH, f) for f
-  ...                       in ['fhd_cal_data/1061316296_settings.txt',
-  ...                           'fhd_cal_data/set2/1061316296_settings.txt']]
+  >>> obs_testfiles = [
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_obs.sav'),
+  ... ]
+  >>> cal_testfiles = [
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_cal.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_cal.sav'),
+  ... ]
+  >>> settings_testfiles = [
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_settings.txt'),
+  ... ]
   >>> layout_testfiles = [
-  ...   os.path.join(DATA_PATH, f) for f in [
-  ...     'fhd_cal_data/1061316296_layout.sav', 'fhd_cal_data/1061316296_layout.sav'
-  ...   ]
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
   ... ]
   >>> fhd_cal.read_fhd_cal(
   ...   cal_testfiles, obs_testfiles, settings_file=settings_testfiles, layout_file=layout_testfiles
