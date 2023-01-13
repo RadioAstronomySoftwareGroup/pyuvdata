@@ -3105,13 +3105,15 @@ class UVData(UVBase):
         if self.Nbls != len(np.unique(self.baseline_array)):
             raise ValueError(
                 "Nbls must be equal to the number of unique "
-                "baselines in the data_array"
+                f"baselines in the data_array. Got {self.Nbls}, not"
+                f"{len(np.unique(self.baseline_array))}"
             )
 
         if self.Ntimes != len(np.unique(self.time_array)):
             raise ValueError(
                 "Ntimes must be equal to the number of unique "
-                "times in the time_array"
+                f"times in the time_array. Got {self.Ntimes}, not "
+                f"{len(np.unique(self.time_array))}."
             )
 
         if self.flex_spw:
@@ -3136,6 +3138,7 @@ class UVData(UVBase):
             if self.Npols != 1:
                 raise ValueError(
                     "Npols must be equal to 1 if flex_spw_polarization_array is set."
+                    f"Got {self.Npols}"
                 )
             if np.any(self.polarization_array != 0):
                 raise ValueError(
@@ -3181,7 +3184,6 @@ class UVData(UVBase):
             # check that the uvws make sense given the antenna positions
             # make a metadata only copy of this object to properly calculate uvws
             temp_obj = self.copy(metadata_only=True)
-            logger.info("Temp Obj")
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
