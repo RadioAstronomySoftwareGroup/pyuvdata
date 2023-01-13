@@ -49,8 +49,9 @@ def cst_efield_2freq_mod(cst_efield_2freq_main):
     del beam
 
 
-def test_swapped_cst_beam():
+def test_swapped_cst_beam(cst_efield_2freq_main):
     beam = UVBeam()
+    uvb2 = cst_efield_2freq_main
 
     def convert_azza(theta, phi):
         az = np.where(theta < 0, phi + np.pi, phi)
@@ -61,6 +62,18 @@ def test_swapped_cst_beam():
     beam.read_cst_beam(
         os.path.join(DATA_PATH, cst_folder, "CST_f50_Eloy.txt"),
         thetaphi_to_azza_fnc=convert_azza,
+        beam_type="efield",
+        use_future_array_shapes=True,
+        feed_pol="x",
+        rotate_pol=True,
+        frequency=[50],
+        telescope_name=uvb2.telescope_name,
+        feed_name=uvb2.feed_name,
+        feed_version=uvb2.feed_version,
+        model_name=uvb2.model_name,
+        model_version=uvb2.model_version,
+        history="Computed in CST by Eloy in 2022",
+        x_orientation=uvb2.x_orientation,
     )
 
     beam.efield_to_power(inplace=True)
