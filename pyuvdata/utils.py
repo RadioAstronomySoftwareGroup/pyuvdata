@@ -8,6 +8,7 @@ import re
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
+from functools import lru_cache
 
 import erfa
 import numpy as np
@@ -859,6 +860,7 @@ def _x_orientation_rep_dict(x_orientation):
         raise ValueError("x_orientation not recognized.")
 
 
+@lru_cache
 def polstr2num(pol, x_orientation=None):
     """
     Convert polarization str to number according to AIPS Memo 117.
@@ -916,6 +918,7 @@ def polstr2num(pol, x_orientation=None):
     return out
 
 
+@lru_cache
 def polnum2str(num, x_orientation=None):
     """
     Convert polarization number to str according to AIPS Memo 117.
@@ -969,6 +972,7 @@ def polnum2str(num, x_orientation=None):
     return out
 
 
+@lru_cache
 def jstr2num(jstr, x_orientation=None):
     """
     Convert jones polarization str to number according to calfits memo.
@@ -1021,6 +1025,7 @@ def jstr2num(jstr, x_orientation=None):
     return out
 
 
+@lru_cache
 def jnum2str(jnum, x_orientation=None):
     """
     Convert jones polarization number to str according to calfits memo.
@@ -1072,6 +1077,7 @@ def jnum2str(jnum, x_orientation=None):
     return out
 
 
+@lru_cache
 def parse_polstr(polstr, x_orientation=None):
     """
     Parse a polarization string and return pyuvdata standard polarization string.
@@ -1109,6 +1115,7 @@ def parse_polstr(polstr, x_orientation=None):
     )
 
 
+@lru_cache
 def parse_jpolstr(jpolstr, x_orientation=None):
     """
     Parse a Jones polarization string and return pyuvdata standard jones string.
