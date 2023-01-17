@@ -593,6 +593,9 @@ class UVFITS(UVData):
                 self.freq_array.shape = (1,) + self.freq_array.shape
                 self.channel_width = vis_hdr.pop("CDELT4")
 
+                # future proof: always set the flex_spw_id_array
+                self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
             # other info -- not required but frequently used
             self.telescope_name = vis_hdr.pop("TELESCOP", None)

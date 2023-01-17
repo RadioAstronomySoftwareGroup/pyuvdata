@@ -181,6 +181,9 @@ class Miriad(UVData):
         # Do the units and potential sign conversion for channel_width
         self.channel_width = np.abs(self.channel_width * 1e9)  # change from GHz to Hz
 
+        # Future proof: always set the flex_spw_id_array.
+        self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+
         # Deal with the spectral axis now
         if self.Nspws > 1:
             self._set_flex_spw()

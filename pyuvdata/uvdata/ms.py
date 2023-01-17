@@ -2055,11 +2055,11 @@ class MS(UVData):
             self.freq_array[sel_mask] = data_desc_dict[key]["CHAN_FREQ"]
             self.channel_width[sel_mask] = data_desc_dict[key]["CHAN_WIDTH"]
 
+        # Future proof: always set the flex_spw_id_array.
         if (np.unique(self.channel_width).size == 1) and (len(spw_list) == 1):
             # If we don't _need_ the flex_spw setup, then the default is not
             # to use it.
             self.channel_width = float(self.channel_width[0])
-            self.flex_spw_id_array = None
         else:
             self._set_flex_spw()
 

@@ -3686,11 +3686,22 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     assert uv1 == uv_full
 
     # Add frequencies - out of order
+    # also remove flex_spw_id_array from one to check handling
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
-    uv2 += uv1
+    uv1.flex_spw_id_array = None
+    with uvtest.check_warnings(
+        [DeprecationWarning] + [UserWarning] * 4,
+        match=[
+            "flex_spw_id_array is not set. It will be required starting in version 3.0",
+            "One object has the flex_spw_id_array set and one does not. Combined "
+            "object will have it set.",
+        ]
+        + ["The uvw_array does not match the expected values"] * 3,
+    ):
+        uv2 += uv1
     uv2.history = uv_full.history
     assert uv2 == uv_full
 
@@ -4021,7 +4032,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_add_drift(casa_uvfits):
+def test_add_unprojected(casa_uvfits):
     uv_full = casa_uvfits
     uv_full.unproject_phase()
 
@@ -4246,15 +4257,6 @@ def test_add_drift(casa_uvfits):
         "follows." + uv2.history,
         uv_new.history,
     )
-
-
-def test_flex_spw_freq_avg(sma_mir):
-    """
-    Test that freq averaging works correctly when called on a flex_spw data set
-    (currently not implented).
-    """
-    with pytest.raises(NotImplementedError, match="Frequency averaging not"):
-        sma_mir.frequency_average(2)
 
 
 def test_check_flex_spw_contiguous(sma_mir, casa_uvfits):
@@ -4715,20 +4717,27 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     assert uv1 == uv_full
 
     # Add frequencies - out of order
+    # also remove flex_spw_id_array from one to check handling
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv3 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 20))
     uv2.select(freq_chans=np.arange(20, 40))
     uv3.select(freq_chans=np.arange(40, 64))
+    uv1.flex_spw_id_array = None
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning] * 6 + [DeprecationWarning],
         [
             "The uvw_array does not match the expected values given the antenna "
             "positions."
         ]
         * 4
-        + ["Combined frequencies are not evenly spaced"],
+        + [
+            "Combined frequencies are not evenly spaced",
+            "Some objects have the flex_spw_id_array set and some do not. Combined "
+            "object will have it set.",
+            "flex_spw_id_array is not set. It will be required starting in version 3.0",
+        ],
     ):
         uv2.fast_concat([uv1, uv3], "freq", inplace=True)
 
@@ -5075,6 +5084,18 @@ def test_fast_concat_errors(casa_uvfits):
     with pytest.raises(
         ValueError,
         match="All objects must have the same `future_array_shapes` parameter.",
+    ):
+        uv1.fast_concat(uv2, "freq", inplace=True)
+
+    uv1.use_future_array_shapes()
+    uv1._set_flex_spw()
+    uv1.flex_spw_id_array = np.full(uv1.Nfreqs, uv1.spw_array[0], dtype=int)
+
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "All objects must have the same `flex_spw` value (True or False)."
+        ),
     ):
         uv1.fast_concat(uv2, "freq", inplace=True)
 
@@ -9773,6 +9794,63 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert uvobj.nsample_array.dtype.type is np.float16
 
 
+def test_frequency_average_flex_spw(sma_mir, casa_uvfits):
+    """
+    Test that freq averaging works correctly when called on a flex_spw data set
+    (currently not implented).
+    """
+    with pytest.raises(
+        NotImplementedError,
+        match=re.escape(
+            "Frequency averaging not (yet) available for multiple spectral windows"
+        ),
+    ):
+        sma_mir.frequency_average(2)
+
+    # also test errors with varying freq spacing but with one spw
+    uvd = casa_uvfits.copy()
+    uvd.use_future_array_shapes()
+    uvd.freq_array[-1] += uvd.channel_width[0]
+    with pytest.raises(
+        NotImplementedError,
+        match=re.escape(
+            "Frequency averaging not (yet) available for unevenly spaced "
+            "frequencies or varying channel widths."
+        ),
+    ):
+        uvd.frequency_average(2)
+
+    # also test errors with varying channel widths but with one spw
+    uvd = casa_uvfits.copy()
+    uvd.use_future_array_shapes()
+    uvd.channel_width[-1] *= 2
+    with pytest.raises(
+        NotImplementedError,
+        match=re.escape(
+            "Frequency averaging not (yet) available for unevenly spaced "
+            "frequencies or varying channel widths."
+        ),
+    ):
+        uvd.frequency_average(2)
+
+    # test warning with freq spacing not equal to channel width
+    uvd = casa_uvfits.copy()
+    uvd.channel_width *= 0.5
+    with uvtest.check_warnings(
+        UserWarning,
+        match=re.escape(
+            "The frequency spacing is even but not equal to the channel width, so "
+            "after averaging the channel_width will also not match the frequency "
+            "spacing."
+        ),
+    ):
+        uvd.frequency_average(2)
+
+    spacing_error, chanwidth_error = uvd._check_freq_spacing(raise_errors=False)
+    assert not spacing_error
+    assert chanwidth_error
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -12093,7 +12171,6 @@ def test_remove_flex_pol_no_op(uv_phase_comp):
 
     # also remove flex_spw
     uvd2.flex_spw = False
-    uvd2.flex_spw_id_array = None
     uvd2._flex_spw_id_array.required = False
     uvd2.channel_width = uvd2.channel_width[0]
     uvd2._channel_width.form = ()
@@ -12233,7 +12310,6 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
 
     if not multispw:
         uvd2.flex_spw = False
-        uvd2.flex_spw_id_array = None
         uvd2._flex_spw_id_array.required = False
         if not future_shapes:
             uvd2.channel_width = uvd2.channel_width[0]
@@ -12533,20 +12609,22 @@ def test_init_like_hera_cal(
         hera_uvh5.phase_center_catalog[0]["cat_frame"] = "icrs"
         hera_uvh5.phase_center_catalog[0]["cat_epoch"] = 2000.0
         hera_uvh5._set_app_coords_helper()
-        warn_type = [DeprecationWarning, UserWarning]
+        warn_type = [DeprecationWarning, DeprecationWarning, UserWarning]
         msg = [
             "The phase_center_catalog was not set and a complete set of old phase "
             "attributes (phase_type, phase_center_ra, phase_center_dec, "
             "phase_center_frame, phase_center_epoch, object_name)",
+            "flex_spw_id_array is not set. It will be required starting in version 3.0",
             "The uvw_array does not match the expected values",
         ]
 
     else:
         warn_type = [DeprecationWarning]
-        msg = (
+        msg = [
             "The phase_center_catalog was not set and a complete set of old phase "
-            "attributes (phase_type"
-        )
+            "attributes (phase_type",
+            "flex_spw_id_array is not set. It will be required starting in version 3.0",
+        ]
 
     if projected and not set_obj_name:
         with pytest.raises(
@@ -12585,6 +12663,7 @@ def test_init_like_hera_cal(
         ):
             uvd.object_name = "foo"
 
+        uvd.flex_spw_id_array = hera_uvh5.flex_spw_id_array
         assert uvd == hera_uvh5
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
