@@ -30,7 +30,7 @@ off).
 multi_phase_center objects (it was using the old `phase_center_frame` attribute).
 - Fix a bug where trying to select lsts or lst_ranges on read didn't work for some file
 types.
-
+- Severe performance hit when calling `polnum2str` and its variants for many baselines.
 ### Deprecated
 - Deprecated the `interpolation_function` attribute on UVBeams.
 - Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
