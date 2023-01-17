@@ -1626,6 +1626,8 @@ class MWACorrFITS(UVData):
         file_mask = np.isin(ordered_file_nums, included_file_nums)
         # get included file numbers in coarse band order
         file_nums = ordered_file_nums[file_mask]
+        self.Nfreqs = len(included_file_nums) * num_fine_chans
+
         # check that coarse channels are contiguous.
         spw_inds = np.nonzero(file_mask)[0]
         if np.any(np.diff(spw_inds) > 1):
@@ -1635,13 +1637,15 @@ class MWACorrFITS(UVData):
             self.Nspws = len(spw_inds)
             self.spw_array = coarse_chans[spw_inds]
             self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
+        else:
+            # future proof: always set the fles_spw_id_array
+            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         # warn user if not all coarse channels are included
         if len(included_file_nums) != len(coarse_chans):
             warnings.warn("some coarse channel files were not submitted")
 
         # build frequency array
-        self.Nfreqs = len(included_file_nums) * num_fine_chans
         self.freq_array = np.zeros(self.Nfreqs)
         self.channel_width = np.full(self.Nfreqs, channel_width)
         # Use the center frequency of the first fine channel of the center coarse

@@ -509,6 +509,10 @@ class FHD(UVData):
         self.Nfreqs = int(obs["N_FREQ"][0])
         self.Nspws = 1
         self.spw_array = np.array([0])
+
+        # Future proof: set the flex_spw_id_array.
+        self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+
         self.vis_units = "Jy"
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time

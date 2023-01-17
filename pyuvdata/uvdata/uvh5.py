@@ -439,6 +439,9 @@ class UVH5(UVData):
         # get frequency information
         self.freq_array = header["freq_array"][:]
         self.spw_array = header["spw_array"][:]
+        # future proof: always set the flex_spw_id_array
+        if self.flex_spw_id_array is None and not self.flex_spw:
+            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         if self.freq_array.ndim == 1:
             arr_shape_msg = (

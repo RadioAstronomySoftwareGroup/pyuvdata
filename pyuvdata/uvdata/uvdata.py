@@ -300,13 +300,14 @@ class UVData(UVBase):
             '"Stokes", but this is inaccurate as visibilities cannot be in '
             "true Stokes polarizations for physical antennas. We adopt the "
             "term pseudo-Stokes to refer to linear combinations of instrumental "
-            "visibility polarizations (e.g. pI = xx + yy)."
+            "visibility polarizations (e.g. pI = xx + yy). A value of 0 is only "
+            "allowed if flex_spw_polarization_array is True."
         )
         self._polarization_array = uvp.UVParameter(
             "polarization_array",
             description=desc,
             expected_type=int,
-            acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
+            acceptable_vals=list(np.arange(-8, 5)),
             form=("Npols",),
         )
 
@@ -388,9 +389,10 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Required if flex_spw = True. Maps individual channels along the "
-            "frequency axis to individual spectral windows, as listed in the "
-            "spw_array. Shape (Nfreqs), type = int."
+            "Required if flex_spw = True and will always be required starting in "
+            "version 3.0. Maps individual channels along the frequency axis to "
+            "individual spectral windows, as listed in the spw_array. Shape (Nfreqs), "
+            "type = int."
         )
         self._flex_spw_id_array = uvp.UVParameter(
             "flex_spw_id_array",
@@ -739,10 +741,6 @@ class UVData(UVBase):
         # Mark once-optional arrays as now required
         self.flex_spw = True
         self._flex_spw_id_array.required = True
-
-        # If setting flex_spw, then we can set values in polarization_array to 0
-        # provided that we set flex_spw_polarization_array
-        self._polarization_array.acceptable_vals = list(np.arange(-8, 5))
 
         # Now make sure that chan_width is set to be an array
         self._channel_width.form = ("Nfreqs",)
@@ -3206,6 +3204,19 @@ class UVData(UVBase):
         # into the phase_center_catalog.
         self._convert_old_phase_attributes()
 
+        if self.flex_spw_id_array is None:
+            warnings.warn(
+                "flex_spw_id_array is not set. It will be required starting in version "
+                "3.0",
+                DeprecationWarning,
+            )
+        else:
+            # Check that all values in flex_spw_id_array are entries in the spw_array
+            if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
+                raise ValueError(
+                    "All values in the flex_spw_id_array must exist in the spw_array."
+                )
+
         # first run the basic check from UVBase
 
         logger.debug("Doing UVBase check...")
@@ -3235,13 +3246,6 @@ class UVData(UVBase):
                 f"times in the time_array. Got {self.Ntimes}, not "
                 f"{len(np.unique(self.time_array))}."
             )
-
-        if self.flex_spw:
-            # Check that all values in flex_spw_id_array are entries in the spw_array
-            if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
-                raise ValueError(
-                    "All values in the flex_spw_id_array must exist in the spw_array."
-                )
 
         for val in np.unique(self.phase_center_id_array):
             if val not in self.phase_center_catalog.keys():
@@ -5094,9 +5098,9 @@ class UVData(UVBase):
                 self.data_array = self.data_array[:, :, index_array, :]
                 self.flag_array = self.flag_array[:, :, index_array, :]
                 self.nsample_array = self.nsample_array[:, :, index_array, :]
-        if self.flex_spw:
+        if self.flex_spw_id_array is not None:
             self.flex_spw_id_array = self.flex_spw_id_array[index_array]
-            self.channel_width = self.channel_width[index_array]
+
             # Reorder the spw-axis items based on their first appearance in the data
             unique_index = np.sort(
                 np.unique(self.flex_spw_id_array, return_index=True)[1]
@@ -5110,7 +5114,8 @@ class UVData(UVBase):
                     spw_sort_inds
                 ]
             self.spw_array = new_spw_array
-        elif self.future_array_shapes:
+
+        if self.flex_spw or self.future_array_shapes:
             self.channel_width = self.channel_width[index_array]
 
         if self.eq_coeffs is not None:
@@ -6933,6 +6938,14 @@ class UVData(UVBase):
                 "value (True or False) for both objects."
             )
 
+        this_has_spw_id = this.flex_spw_id_array is not None
+        other_has_spw_id = other.flex_spw_id_array is not None
+        if this_has_spw_id != other_has_spw_id:
+            warnings.warn(
+                "One object has the flex_spw_id_array set and one does not. Combined "
+                "object will have it set."
+            )
+
         # check that both objects have the same array shapes
         if this.future_array_shapes != other.future_array_shapes:
             raise ValueError(
@@ -7385,10 +7398,7 @@ class UVData(UVBase):
                     this.flex_spw_polarization_array = np.array(
                         [this_flexpol_dict[key] for key in this.spw_array]
                     )
-
-            # If we have a flex/multi-spw data set, need to sort out the order of the
-            # individual windows first.
-            if this.flex_spw:
+                # Need to sort out the order of the individual windows first.
                 f_order = np.concatenate(
                     [
                         np.where(this.flex_spw_id_array == idx)[0]
@@ -7412,6 +7422,11 @@ class UVData(UVBase):
                         subsort_order = f_order[select_mask]
                         f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
             else:
+                if this_has_spw_id or other_has_spw_id:
+                    this.flex_spw_id_array = np.full(
+                        this.freq_array.size, this.spw_array[0], dtype=int
+                    )
+
                 if this.future_array_shapes:
                     f_order = np.argsort(this.freq_array)
                 else:
@@ -7858,6 +7873,24 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
+        # Check to make sure that both objects are consistent w/ use of flex_spw
+        for obj in other:
+            if this.flex_spw != obj.flex_spw:
+                raise ValueError(
+                    "All objects must have the same `flex_spw` value (True or False)."
+                )
+
+        this_has_spw_id = this.flex_spw_id_array is not None
+        other_has_spw_id = np.array(
+            [obj.flex_spw_id_array is not None for obj in other]
+        )
+
+        if not np.all(other_has_spw_id == this_has_spw_id):
+            warnings.warn(
+                "Some objects have the flex_spw_id_array set and some do not. Combined "
+                "object will have it set."
+            )
+
         # check that all objects have the same array shapes
         for obj in other:
             if this.future_array_shapes != obj.future_array_shapes:
@@ -7993,6 +8026,10 @@ class UVData(UVBase):
                 this.spw_array = this.flex_spw_id_array[unique_index]
 
                 this.Nspws = len(this.spw_array)
+            elif this_has_spw_id or np.any(other_has_spw_id):
+                this.flex_spw_id_array = np.full(
+                    this.Nfreqs, this.spw_array[0], dtype=int
+                )
 
             spacing_error, chanwidth_error = this._check_freq_spacing(
                 raise_errors=False
@@ -8936,7 +8973,7 @@ class UVData(UVBase):
 
             if len(frequencies) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                if self.flex_spw:
+                if self.flex_spw_id_array is not None:
                     freq_ind_separation = freq_ind_separation[
                         np.diff(self.flex_spw_id_array[freq_inds]) == 0
                     ]
@@ -9128,7 +9165,7 @@ class UVData(UVBase):
             elif key == "Nfreqs":
                 # Process post freq-specific selection actions
                 self.Nfreqs = len(ind_arr)
-                if self.flex_spw:
+                if self.flex_spw_id_array is not None:
                     # If we are dropping channels, then evaluate the spw axis
                     ind_dict["Nspws"] = np.where(
                         np.isin(self.spw_array, self.flex_spw_id_array)
@@ -10262,11 +10299,23 @@ class UVData(UVBase):
             samples out of the average, except when all contributors are
             flagged.
         """
-        if self.flex_spw:
+        if self.Nspws > 1:
             raise NotImplementedError(
-                "Frequency averaging not (yet) available for flexible spectral windows"
+                "Frequency averaging not (yet) available for multiple spectral windows"
             )
-        self._check_freq_spacing()
+
+        spacing_error, chanwidth_error = self._check_freq_spacing(raise_errors=False)
+        if spacing_error:
+            raise NotImplementedError(
+                "Frequency averaging not (yet) available for unevenly spaced "
+                "frequencies or varying channel widths."
+            )
+        elif chanwidth_error:
+            warnings.warn(
+                "The frequency spacing is even but not equal to the channel width, so "
+                "after averaging the channel_width will also not match the frequency "
+                "spacing."
+            )
 
         n_final_chan = int(np.floor(self.Nfreqs / n_chan_to_avg))
         nfreq_mod_navg = self.Nfreqs % n_chan_to_avg
@@ -10294,6 +10343,10 @@ class UVData(UVBase):
             ).mean(axis=2)
             self.channel_width = self.channel_width * n_chan_to_avg
         self.Nfreqs = n_final_chan
+        if self.flex_spw_id_array is not None:
+            self.flex_spw_id_array = self.flex_spw_id_array.reshape(
+                (n_final_chan, n_chan_to_avg)
+            ).mean(axis=1)
 
         if self.eq_coeffs is not None:
             eq_coeff_diff = np.diff(self.eq_coeffs, axis=1)
