@@ -8,7 +8,7 @@ import re
 import warnings
 from collections.abc import Iterable
 from copy import deepcopy
-from functools import lru_cache
+from functools import lru_cache, wraps
 
 import erfa
 import numpy as np
@@ -860,8 +860,28 @@ def _x_orientation_rep_dict(x_orientation):
         raise ValueError("x_orientation not recognized.")
 
 
-@lru_cache
-def polstr2num(pol, x_orientation=None):
+def np_cache(function):
+    function = lru_cache(function)
+
+    @wraps(function)
+    def wrapper(pol, x_orientation=None):
+        try:
+            return function(pol, x_orientation=x_orientation)
+        except TypeError:
+            if isinstance(pol, Iterable):
+                # Assume the reason that we got a type error is that pol was an array.
+                pol = tuple(pol)
+            return function(pol, x_orientation=x_orientation)
+
+    # copy lru_cache attributes over too
+    wrapper.cache_info = function.cache_info
+    wrapper.cache_clear = function.cache_clear
+
+    return wrapper
+
+
+@np_cache
+def polstr2num(pol: str | Iterable[str], x_orientation: str | None = None):
     """
     Convert polarization str to number according to AIPS Memo 117.
 
@@ -918,7 +938,7 @@ def polstr2num(pol, x_orientation=None):
     return out
 
 
-@lru_cache
+@np_cache
 def polnum2str(num, x_orientation=None):
     """
     Convert polarization number to str according to AIPS Memo 117.
@@ -972,7 +992,7 @@ def polnum2str(num, x_orientation=None):
     return out
 
 
-@lru_cache
+@np_cache
 def jstr2num(jstr, x_orientation=None):
     """
     Convert jones polarization str to number according to calfits memo.
@@ -1025,7 +1045,7 @@ def jstr2num(jstr, x_orientation=None):
     return out
 
 
-@lru_cache
+@np_cache
 def jnum2str(jnum, x_orientation=None):
     """
     Convert jones polarization number to str according to calfits memo.
@@ -1077,7 +1097,7 @@ def jnum2str(jnum, x_orientation=None):
     return out
 
 
-@lru_cache
+@np_cache
 def parse_polstr(polstr, x_orientation=None):
     """
     Parse a polarization string and return pyuvdata standard polarization string.
@@ -1115,7 +1135,7 @@ def parse_polstr(polstr, x_orientation=None):
     )
 
 
-@lru_cache
+@np_cache
 def parse_jpolstr(jpolstr, x_orientation=None):
     """
     Parse a Jones polarization string and return pyuvdata standard jones string.
