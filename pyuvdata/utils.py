@@ -3,6 +3,8 @@
 # Licensed under the 2-clause BSD License
 
 """Commonly used utility functions."""
+from __future__ import annotations
+
 import copy
 import re
 import warnings
