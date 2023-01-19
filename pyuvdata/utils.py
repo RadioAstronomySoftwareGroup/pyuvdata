@@ -9,6 +9,7 @@ import warnings
 from collections.abc import Iterable
 from copy import deepcopy
 from functools import lru_cache, wraps
+from typing import Iterable as IterableType
 
 import erfa
 import numpy as np
@@ -881,7 +882,7 @@ def np_cache(function):
 
 
 @np_cache
-def polstr2num(pol: str | Iterable[str], x_orientation: str | None = None):
+def polstr2num(pol: str | IterableType[str], x_orientation: str | None = None):
     """
     Convert polarization str to number according to AIPS Memo 117.
 
