@@ -149,6 +149,7 @@ def wideband_gain(gain_data):
 
     gain_obj.channel_width = None
     gain_obj.freq_array = None
+    gain_obj.flex_spw_id_array = None
     gain_obj.Nfreqs = 1
 
     gain_obj.check(check_freq_spacing=True)
@@ -574,6 +575,15 @@ def test_flexible_spw(gain_data):
     # check that this check passes on non-flex_spw objects
     calobj._check_flex_spw_contiguous()
 
+    # check warning if flex_spw_id_array is not set
+    calobj.flex_spw_id_array = None
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="flex_spw_id_array is not set. It will be required starting in version "
+        "3.0 for non-wide-band objects",
+    ):
+        calobj.check()
+
     # first just make one spw and check that object still passes check
     calobj._set_flex_spw()
     calobj.channel_width = (
@@ -584,13 +594,26 @@ def test_flexible_spw(gain_data):
 
     # now make two
     calobj.Nspws = 2
+    calobj.spw_array = np.array([1, 2])
+
+    calobj.flex_spw_id_array = np.concatenate(
+        (
+            np.ones(calobj.Nfreqs // 2, dtype=int),
+            np.full(calobj.Nfreqs // 2, 5, dtype=int),
+        )
+    )
+    with pytest.raises(
+        ValueError,
+        match="All values in the flex_spw_id_array must exist in the spw_array.",
+    ):
+        calobj.check()
+
     calobj.flex_spw_id_array = np.concatenate(
         (
             np.ones(calobj.Nfreqs // 2, dtype=int),
             np.full(calobj.Nfreqs // 2, 2, dtype=int),
         )
     )
-    calobj.spw_array = np.array([1, 2])
     calobj.check()
 
     calobj._check_flex_spw_contiguous()
@@ -1162,7 +1185,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 
     calobj2.flex_spw = False
     calobj2._flex_spw_id_array.required = False
-    calobj2.flex_spw_id_array = None
+    calobj2.flex_spw_id_array = np.zeros(calobj2.Nfreqs, dtype=int)
     calobj2.spw_array = np.array([0])
     if not future_shapes:
         calobj2._channel_width.form = ()
@@ -2060,7 +2083,9 @@ def test_add_frequencies(future_shapes, gain_data):
     assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
+    # also check for missing flex_spw_id_array in one object
     calobj.select(frequencies=freqs1)
+    calobj.flex_spw_id_array = None
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     if future_shapes:
@@ -2068,7 +2093,16 @@ def test_add_frequencies(future_shapes, gain_data):
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
-    calobj += calobj2
+    with uvtest.check_warnings(
+        [DeprecationWarning, UserWarning],
+        match=[
+            "flex_spw_id_array is not set. It will be required starting in version 3.0 "
+            "for non-wide-band objects",
+            "One object has the flex_spw_id_array set and one does not. Combined "
+            "object will have it set.",
+        ],
+    ):
+        calobj += calobj2
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2077,6 +2111,7 @@ def test_add_frequencies(future_shapes, gain_data):
     )
 
     # test for when total_quality_array is present in second file but not first
+    calobj = calobj_full.copy()
     calobj.select(frequencies=freqs1)
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
@@ -2990,6 +3025,8 @@ def test_init_from_uvdata(
 
     if uvdata_future_shapes:
         uvd.use_future_array_shapes()
+    else:
+        uvd.flex_spw_id_array = None
 
     if flex_spw:
         uvd._set_flex_spw()
@@ -3082,7 +3119,10 @@ def test_init_from_uvdata_setfreqs(
         # test passing a list instead of a single value
         channel_width = np.full(freqs_use.size, channel_width).tolist()
     else:
-        flex_spw_id_array = None
+        if uvdata_future_shapes:
+            flex_spw_id_array = np.zeros(5, dtype=int)
+        else:
+            flex_spw_id_array = None
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
@@ -3523,6 +3563,7 @@ def test_init_from_uvdata_delay(
     uvc2 = uvc.copy(metadata_only=True)
     uvc2._set_delay()
     uvc2.Nfreqs = 1
+    uvc2.flex_spw_id_array = None
     uvc2.freq_array = None
     uvc2.channel_width = None
     uvc2.freq_range = [np.min(uvc.freq_array), np.max(uvc.freq_array)]
@@ -3638,6 +3679,7 @@ def test_init_from_uvdata_wideband(
     uvc2._set_wide_band()
     uvc2.freq_range = np.asarray([[np.min(uvc.freq_array), np.max(uvc.freq_array)]])
     uvc2.Nfreqs = 1
+    uvc2.flex_spw_id_array = None
     uvc2.freq_array = None
     uvc2.channel_width = None
 

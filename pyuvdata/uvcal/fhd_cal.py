@@ -101,6 +101,8 @@ class FHDCal(UVCal):
         self.freq_array[0, :] = bl_info["FREQ"][0]
         self.channel_width = float(obs_data["FREQ_RES"][0])
 
+        self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+
         # FHD only calculates one calibration over all the times.
         # obs_data.n_time /cal_data.n_times gives the number of times that goes into
         # that one calibration, UVCal.Ntimes gives the number of separate calibrations
