@@ -662,6 +662,10 @@ class CALFITS(UVCal):
                 self.Nfreqs = hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
                 self.freq_array.shape = (1,) + self.freq_array.shape
+
+                self.flex_spw_id_array = np.full(
+                    self.Nfreqs, self.spw_array[0], dtype=int
+                )
             if self.cal_type == "delay":
                 self._set_delay()
 
