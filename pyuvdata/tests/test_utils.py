@@ -3652,7 +3652,7 @@ def test_uvcalibrate_wideband_gain(uvcalibrate_data):
 
     uvc.use_future_array_shapes()
     uvc._set_wide_band()
-
+    uvc.flex_spw_id_array = None
     uvc.spw_array = np.array([1, 2, 3])
     uvc.Nspws = 3
     uvc.gain_array = uvc.gain_array[:, 0:3, :, :]

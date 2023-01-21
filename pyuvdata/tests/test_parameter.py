@@ -25,26 +25,27 @@ def test_class_inequality():
     """Test equality error for different uvparameter classes."""
     param1 = uvp.UVParameter(name="p1", value=1)
     param2 = uvp.AngleParameter(name="p2", value=1)
-    assert param1 != param2
+    # use `__ne__` rather than `!=` throughout so we can cover print lines
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_value_class_inequality():
     """Test equality error for different uvparameter classes."""
     param1 = uvp.UVParameter(name="p1", value=3)
     param2 = uvp.UVParameter(name="p2", value=np.array([3, 4, 5]))
-    assert param1 != param2
-    assert param2 != param1
+    assert param1.__ne__(param2, silent=False)
+    assert param2.__ne__(param1, silent=False)
     param3 = uvp.UVParameter(name="p2", value="Alice")
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
 
 
 def test_array_inequality():
     """Test equality error for different array values."""
     param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, 3]))
     param2 = uvp.UVParameter(name="p2", value=np.array([0, 2, 4]))
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
     param3 = uvp.UVParameter(name="p3", value=np.array([0, 1]))
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
 
 
 def test_array_equality_nans():
@@ -106,7 +107,7 @@ def test_quantity_inequality(vals, p2_atol):
         name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
     )
     param2 = uvp.UVParameter(name="p2", value=vals, tols=p2_atol)
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_quantity_equality_nans():
@@ -120,14 +121,14 @@ def test_string_inequality():
     """Test equality error for different string values."""
     param1 = uvp.UVParameter(name="p1", value="Alice")
     param2 = uvp.UVParameter(name="p2", value="Bob")
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_string_list_inequality():
     """Test equality error for different string values."""
     param1 = uvp.UVParameter(name="p1", value=["Alice", "Eve"])
     param2 = uvp.UVParameter(name="p2", value=["Bob", "Eve"])
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_string_equality():
@@ -141,7 +142,7 @@ def test_integer_inequality():
     """Test equality error for different non-array, non-string values."""
     param1 = uvp.UVParameter(name="p1", value=1)
     param2 = uvp.UVParameter(name="p2", value=2)
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_dict_equality():
@@ -159,38 +160,38 @@ def test_dict_inequality_int():
     """Test equality error for integer dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param2 = uvp.UVParameter(name="p2", value={"v1": 2, "s1": "test", "n1": None})
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_dict_inequality_str():
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "s1": "foo", "n1": None})
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
 
 def test_dict_inequality_none():
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "s1": "test", "n1": 2})
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
 
 def test_dict_inequality_arr():
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "arr1": [3, 4, 5]})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4]})
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4, 6]})
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
 
 def test_dict_inequality_keys():
     """Test equality error for different keys."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param3 = uvp.UVParameter(name="p3", value={"v3": 1, "s1": "test", "n1": None})
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
 
 
 def test_nested_dict_equality():
@@ -212,21 +213,21 @@ def test_nested_dict_inequality():
     param3 = uvp.UVParameter(
         name="p3", value={"d1": {"v1": 2, "s1": "test"}, "d2": {"v1": 1, "s1": "test"}}
     )
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
 
 
 def test_equality_check_fail():
     """Test equality error for non string, dict or array values."""
     param1 = uvp.UVParameter(name="p1", value=uvp.UVParameter(name="p1", value="Alice"))
     param2 = uvp.UVParameter(name="p2", value=uvp.UVParameter(name="p1", value="Bob"))
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_notclose():
     """Test equality error for values not with tols."""
     param1 = uvp.UVParameter(name="p1", value=1.0)
     param2 = uvp.UVParameter(name="p2", value=1.001)
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_close():
@@ -400,7 +401,7 @@ def test_skycoord_param_inequality(sky_in, change):
         sky2 = Longitude(5.0, unit="hourangle")
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
 
-    assert param1 != param2
+    assert param1.__ne__(param2, silent=False)
 
 
 def test_non_builtin_expected_type():
@@ -455,7 +456,7 @@ def test_strict_expected_type_equality():
     param3 = uvp.UVParameter(
         "_test3", value=3.0, expected_type=float, strict_type_check=True
     )
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
     assert param3 != param1
     assert param2 == param3
 
@@ -466,7 +467,7 @@ def test_strict_expected_type_equality():
         expected_type=np.float32,
         strict_type_check=True,
     )
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
     # make sure it passes when both are strict and equivalent
     param5 = uvp.UVParameter(
@@ -510,7 +511,7 @@ def test_strict_expected_type_equality_arrays():
         expected_type=float,
         strict_type_check=True,
     )
-    assert param1 != param3
+    assert param1.__ne__(param3, silent=False)
     assert param3 != param1
     assert param2 == param3
 
@@ -521,7 +522,7 @@ def test_strict_expected_type_equality_arrays():
         expected_type=np.float32,
         strict_type_check=True,
     )
-    assert param1 != param4
+    assert param1.__ne__(param4, silent=False)
 
     # make sure it passes when both are strict and equivalent
     param5 = uvp.UVParameter(
@@ -539,15 +540,15 @@ def test_strict_expected_type_equality_arrays():
         expected_type=int,
         strict_type_check=False,
     )
-    assert param1 != param6
-    assert param6 != param1
+    assert param1.__ne__(param6, silent=False)
+    assert param6.__ne__(param1, silent=False)
 
 
 def test_scalar_array_parameter_mismatch():
     param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
     param2 = uvp.UVParameter("_test2", value=np.asarray([3.0]), expected_type=float)
-    assert param1 != param2
-    assert param2 != param1
+    assert param1.__ne__(param2, silent=False)
+    assert param2.__ne__(param1, silent=False)
 
     return
 
@@ -555,8 +556,8 @@ def test_scalar_array_parameter_mismatch():
 def test_value_none_parameter_mismatch():
     param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
     param2 = uvp.UVParameter("_test2", value=None)
-    assert param1 != param2
-    assert param2 != param1
+    assert param1.__ne__(param2, silent=False)
+    assert param2.__ne__(param1, silent=False)
 
     return
 

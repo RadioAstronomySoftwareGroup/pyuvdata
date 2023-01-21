@@ -302,7 +302,7 @@ class UVParameter(object):
             When set to False (default), descriptive text is printed out when parameters
             do not match. If set to True, this text is not printed.
         """
-        if isinstance(other, self.__class__):
+        if isinstance(other, self.__class__) and isinstance(self, other.__class__):
             if self.value is None:
                 if other.value is not None:
                     if not silent:
@@ -519,7 +519,7 @@ class UVParameter(object):
             When set to False (default), descriptive text is printed out when parameters
             do not match. If set to True, this text is not printed.
         """
-        return not self.__eq__(other)
+        return not self.__eq__(other, silent=silent)
 
     def apply_spoof(self):
         """Set value to spoof_val for non-required UVParameters."""
@@ -1030,38 +1030,42 @@ class SkyCoordParameter(UVParameter):
             tols=(0, radian_tol),
         )
 
-    def __eq__(self, other):
+    def __eq__(self, other, silent=False):
         if not issubclass(self.value.__class__, SkyCoord) or not issubclass(
             other.value.__class__, SkyCoord
         ):
-            return super(SkyCoordParameter, self).__eq__(other)
+            return super(SkyCoordParameter, self).__eq__(other, silent=silent)
 
         if self.value.shape != other.value.shape:
-            print(f"{self.name} parameter shapes are different")
+            if not silent:
+                print(f"{self.name} parameter shapes are different")
             return False
 
         this_frame = self.value.frame.name
         other_frame = other.value.frame.name
         if this_frame != other_frame:
-            print(
-                f"{self.name} parameter has different frames, {this_frame} vs "
-                f"{other_frame}."
-            )
+            if not silent:
+                print(
+                    f"{self.name} parameter has different frames, {this_frame} vs "
+                    f"{other_frame}."
+                )
             return False
 
         this_rep_type = self.value.representation_type
         other_rep_type = other.value.representation_type
         if this_rep_type != other_rep_type:
-            print(
-                f"{self.name} parameter has different representation_types, "
-                f"{this_rep_type} vs {other_rep_type}."
-            )
+            if not silent:
+                print(
+                    f"{self.name} parameter has different representation_types, "
+                    f"{this_rep_type} vs {other_rep_type}."
+                )
             return False
 
         # finally calculate on sky separations
         sky_separation = self.value.separation(other.value).rad
         if np.any(sky_separation > self.tols[1]):
-            print(f"{self.name} parameter is not close. ")
+            if not silent:
+                print(f"{self.name} parameter is not close. ")
             return False
 
         return True
