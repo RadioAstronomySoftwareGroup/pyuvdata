@@ -23,6 +23,9 @@ to set several of these new parameters.
 deprecation warnings.
 
 ### Fixed
+- Fixed some bugs in UVData, UVFlag and UVCal `__add__` and `select` methods for objects
+with only one spectral window and `flex_spw_id_array` defined. Also fixed some handling
+in those methods on UVFlag for objects with multiple spectral windows.
 - Fix a bug when reading FHD files into UVData objects when the layout file was not
 passed but the antenna_positions are in the known telescopes.
 - Fixed a bug where the beamfits partial read parameters were not available in the
@@ -39,6 +42,8 @@ types.
 - Severe performance hit when calling `polnum2str` and its variants for many baselines.
 
 ### Deprecated
+- The `flex_spw_id_array` will be required on all UVData and UVFlag and all
+non-wide-band UVCal objects in version 3.0.
 - Deprecated the `interpolation_function` attribute on UVBeams.
 - Deprecated the older phase attributes (`phase_type`, `phase_center_ra`,
 `phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor

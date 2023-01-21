@@ -488,7 +488,6 @@ each file will be read in succession and added to the previous.
   >>> fhd_cal.read_fhd_cal(
   ...   cal_testfiles, obs_testfiles, settings_file=settings_testfiles, layout_file=layout_testfiles
   ... )
-  diffuse_model parameter value is a string, values are different
 
 UVCal: Sorting data along various axes
 ---------------------------------------
