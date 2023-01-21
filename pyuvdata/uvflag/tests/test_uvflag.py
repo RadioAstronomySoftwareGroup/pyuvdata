@@ -236,12 +236,17 @@ def test_check_warnings_new_params(uvf_from_data, param):
     uvf = uvf_from_data
 
     setattr(uvf, param, None)
+    msg = [
+        f"The {param} is not set. It will be a required "
+        "parameter starting in pyuvdata version 2.4"
+    ]
+    if param == "spw_array":
+        uvf.flex_spw_id_array = None
+        msg.append(
+            "flex_spw_id_array is not set. It will be required starting in version 3.0"
+        )
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=f"The {param} is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.4",
-    ):
+    with uvtest.check_warnings(DeprecationWarning, match=msg):
         uvf.check()
 
 
@@ -285,6 +290,7 @@ def test_check_flex_spw_id_array(uvf_from_data):
     uvf = uvf_from_data
     uvf.spw_array = np.arange(3)
     uvf.Nspws = 3
+    uvf.flex_spw_id_array = None
 
     with pytest.raises(
         ValueError, match="Required UVParameter _flex_spw_id_array has not been set."
@@ -687,12 +693,37 @@ def test_init_invalid_input():
 def test_from_uvcal_error(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match="from_uvcal can only initialize a UVFlag object from an input "
+        "UVCal object or a subclass of a UVCal object.",
+    ):
         uvf.from_uvcal(uv)
-    assert str(cm.value).startswith("from_uvcal can only initialize a UVFlag object")
+
+    delay_object = UVCal()
+    delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
+    delay_object.read_calfits(delayfile)
+
+    # convert delay object to future array shapes, drop freq_array, set Nfreqs=1
+    with uvtest.check_warnings(
+        UserWarning, match="When converting a delay-style cal to future array shapes"
+    ):
+        delay_object.use_future_array_shapes()
+
+    delay_object.freq_array = None
+    delay_object.channel_width = None
+    delay_object.Nfreqs = 1
+    delay_object.check()
+
+    with pytest.raises(
+        ValueError,
+        match="from_uvcal can only initialize a UVFlag object from a non-wide-band "
+        "UVCal object.",
+    ):
+        uvf.from_uvcal(delay_object)
 
 
-def test_from_udata_error():
+def test_from_uvdata_error():
     uv = UVCal()
     uv.read_calfits(test_c_file)
     uvf = UVFlag()
@@ -1605,12 +1636,16 @@ def test_add_frequency(no_cw1, no_cw2):
     uv2 = uv1.copy()
     if no_cw1:
         uv1.channel_width = None
+        uv1.flex_spw_id_array = None
     if no_cw2:
         uv2.channel_width = None
+        uv2.flex_spw_id_array = None
     uv2.freq_array += 1e4  # Arbitrary
     if no_cw1 != no_cw2:
-        warn_type = DeprecationWarning
+        warn_type = [UserWarning, DeprecationWarning, DeprecationWarning]
         warn_msg = [
+            "One object has the flex_spw_id_array set and one does not. Combined "
+            "object will have it set.",
             "channel_width is None on one object and an array on the other. "
             "It will be set to None on the combined object. This will become "
             "an error in version 2.4",
@@ -1621,7 +1656,8 @@ def test_add_frequency(no_cw1, no_cw2):
         warn_type = DeprecationWarning
         warn_msg = [
             "The channel_width is not set. It will be a required parameter starting in "
-            "pyuvdata version 2.4"
+            "pyuvdata version 2.4",
+            "flex_spw_id_array is not set. It will be required starting in version 3.0",
         ]
     else:
         warn_type = None
@@ -1647,6 +1683,51 @@ def test_add_frequency(no_cw1, no_cw2):
     assert uv3.mode == "metric"
     assert np.array_equal(uv1.polarization_array, uv3.polarization_array)
     assert "Data combined along frequency axis. " in uv3.history
+
+
+@pytest.mark.parametrize("split_spw", [True, False])
+def test_add_frequency_multi_spw(split_spw):
+    uv1 = UVFlag(test_f_file)
+
+    # add spectral windows to test handling
+    uv1.Nspws = 2
+    uv1.spw_array = np.array([0, 1])
+    uv1.flex_spw_id_array = np.zeros(uv1.Nfreqs, dtype=int)
+    uv1.flex_spw_id_array[uv1.Nfreqs // 2 :] = 1
+    uv1.check()
+
+    uv2 = uv1.copy()
+    uv_full = uv1.copy()
+
+    if split_spw:
+        uv1.select(freq_chans=np.arange(uv1.Nfreqs // 3))
+        uv2.select(freq_chans=np.arange(uv2.Nfreqs // 3, uv2.Nfreqs))
+    else:
+        uv1.select(freq_chans=np.arange(uv1.Nfreqs // 2))
+        uv1.flex_spw_id_array = None
+        assert uv1.Nspws == 1
+        assert uv1.Nfreqs == uv_full.Nfreqs // 2
+        uv2.select(freq_chans=np.arange(uv2.Nfreqs // 2, uv2.Nfreqs))
+        uv2.flex_spw_id_array = None
+        assert uv2.Nspws == 1
+        assert uv2.Nfreqs == uv_full.Nfreqs // 2
+
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match=[
+                "flex_spw_id_array is not set. It will be required starting in "
+                "version 3.0"
+            ]
+            * 2,
+        ):
+            uv1.check()
+            uv2.check()
+
+    uv3 = uv1.__add__(uv2, axis="frequency")
+    assert uv3.history != uv_full.history
+    uv3.history = uv_full.history
+
+    assert uv3 == uv_full
 
 
 def test_add_frequency_with_weights_square():

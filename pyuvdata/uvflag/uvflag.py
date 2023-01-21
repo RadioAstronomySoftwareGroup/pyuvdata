@@ -442,7 +442,8 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "Required if Nspws > 1. Maps individual channels along the "
+            "Required if Nspws > 1 and will always be required starting in "
+            "version 3.0. Maps individual channels along the "
             "frequency axis to individual spectral windows, as listed in the "
             "spw_array. Shape (Nfreqs), type = int."
         )
@@ -953,6 +954,8 @@ class UVFlag(UVBase):
         # set the flex_spw_id_array to required if Nspws > 1
         if self.Nspws is not None and self.Nspws > 1:
             self._flex_spw_id_array.required = True
+        else:
+            self._flex_spw_id_array.required = False
 
         # Issue a deprecation warnings for parameters that are not set but will be
         # required in v2.4
@@ -1016,7 +1019,13 @@ class UVFlag(UVBase):
                         "All antennas in ant_array must be in antenna_numbers."
                     )
 
-        if self.flex_spw_id_array is not None:
+        if self.flex_spw_id_array is None:
+            warnings.warn(
+                "flex_spw_id_array is not set. It will be required starting in version "
+                "3.0",
+                DeprecationWarning,
+            )
+        else:
             # Check that all values in flex_spw_id_array are entries in the spw_array
             if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
                 raise ValueError(
@@ -1038,7 +1047,7 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
             "Nspws",
-            "flex_spw_id_array",
+            "flex_spw_id_array",  # TODO remove this from this list in version 3.0
             "antenna_names",
             "antenna_numbers",
             "antenna_positions",
@@ -1610,6 +1619,7 @@ class UVFlag(UVBase):
             "spw_array",
         ]
         if self.Nspws is not None and self.Nspws > 1:
+            # TODO: make this always be in the compatibility list in version 3.0
             warn_compatibility_params.append("flex_spw_id_array")
 
         for param in warn_compatibility_params:
@@ -1791,7 +1801,7 @@ class UVFlag(UVBase):
         if self.Nspws is None:
             self.Nspws = uv.Nspws
             self.spw_array = uv.spw_array
-            if self.Nspws > 1:
+            if uv.flex_spw_id_array is not None:
                 self.flex_spw_id_array = uv.flex_spw_id_array
 
         self.baseline_array = uv.baseline_array
@@ -1903,6 +1913,7 @@ class UVFlag(UVBase):
             "spw_array",
         ]
         if self.Nspws is not None and self.Nspws > 1:
+            # TODO: make this always be in the compatibility list in version 3.0
             warn_compatibility_params.append("flex_spw_id_array")
         for param in warn_compatibility_params:
             if (
@@ -2018,7 +2029,7 @@ class UVFlag(UVBase):
         if self.Nspws is None:
             self.Nspws = uv.Nspws
             self.spw_array = uv.spw_array
-            if self.Nspws > 1:
+            if uv.flex_spw_id_array is not None:
                 self.flex_spw_id_array = uv.flex_spw_id_array
 
         self._set_type_antenna()
@@ -2223,6 +2234,14 @@ class UVFlag(UVBase):
                 "methods to convert them."
             )
 
+        this_has_spw_id = this.flex_spw_id_array is not None
+        other_has_spw_id = other.flex_spw_id_array is not None
+        if this_has_spw_id != other_has_spw_id:
+            warnings.warn(
+                "One object has the flex_spw_id_array set and one does not. Combined "
+                "object will have it set."
+            )
+
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
@@ -2268,7 +2287,8 @@ class UVFlag(UVBase):
             warn_compatibility_params.extend(
                 ["freq_array", "channel_width", "spw_array"]
             )
-            if self.Nspws > 1:
+            if self.flex_spw_id_array is not None:
+                # TODO: make this always be in the compatibility list in version 3.0
                 warn_compatibility_params.append("flex_spw_id_array")
         if axis not in ["polarization", "pol", "jones"]:
             warn_compatibility_params.extend(["polarization_array"])
@@ -2355,7 +2375,36 @@ class UVFlag(UVBase):
                 )
                 this.channel_width = None
 
+            # handle multiple spws
+            if this.Nspws > 1 or other.Nspws > 1 or this._spw_array != other._spw_array:
+                if this.flex_spw_id_array is None:
+                    this.flex_spw_id_array = np.full(
+                        this.Nfreqs, this.spw_array[0], dtype=int
+                    )
+                if other.flex_spw_id_array is None:
+                    other.flex_spw_id_array = np.full(
+                        other.Nfreqs, other.spw_array[0], dtype=int
+                    )
+
+                this.flex_spw_id_array = np.concatenate(
+                    [this.flex_spw_id_array, other.flex_spw_id_array]
+                )
+                this.spw_array = np.concatenate([this.spw_array, other.spw_array])
+                # We want to preserve per-spw information based on first appearance
+                # in the concatenated array.
+                unique_index = np.sort(
+                    np.unique(this.flex_spw_id_array, return_index=True)[1]
+                )
+                this.spw_array = this.flex_spw_id_array[unique_index]
+                this.Nspws = len(this.spw_array)
+            else:
+                if this_has_spw_id or other_has_spw_id:
+                    this.flex_spw_id_array = np.full(
+                        this.freq_array.size, this.spw_array[0], dtype=int
+                    )
+
             this.Nfreqs = np.unique(this.freq_array.flatten()).size
+
         elif axis in ["polarization", "pol", "jones"]:
             if this.pol_collapsed:
                 raise NotImplementedError(
@@ -3046,7 +3095,16 @@ class UVFlag(UVBase):
                 self.freq_array = self.freq_array[:, freq_inds]
             else:
                 self.freq_array = self.freq_array[freq_inds]
-            self.channel_width = self.channel_width[freq_inds]
+            if self.channel_width is not None:
+                self.channel_width = self.channel_width[freq_inds]
+            if self.flex_spw_id_array is not None:
+                self.flex_spw_id_array = self.flex_spw_id_array[freq_inds]
+
+            if self.Nspws > 1:
+                self.spw_array = self.spw_array[
+                    np.where(np.isin(self.spw_array, self.flex_spw_id_array))[0]
+                ]
+                self.Nspws = self.spw_array.size
 
         if pol_inds is not None:
             self.Npols = len(pol_inds)
@@ -3444,6 +3502,11 @@ class UVFlag(UVBase):
 
                 if "flex_spw_id_array" in header.keys():
                     self.flex_spw_id_array = header["flex_spw_id_array"][()]
+                elif self.Nspws == 1:
+                    # set it by default
+                    self.flex_spw_id_array = np.full(
+                        self.Nfreqs, self.spw_array[0], dtype=int
+                    )
 
                 if "telescope_name" in header.keys():
                     self.telescope_name = header["telescope_name"][()].decode("utf8")
@@ -3989,6 +4052,12 @@ class UVFlag(UVBase):
             raise ValueError(
                 "from_uvcal can only initialize a UVFlag object from an input "
                 "UVCal object or a subclass of a UVCal object."
+            )
+
+        if indata.wide_band:
+            raise ValueError(
+                "from_uvcal can only initialize a UVFlag object from a non-wide-band "
+                "UVCal object."
             )
 
         if mode.lower() == "metric":
