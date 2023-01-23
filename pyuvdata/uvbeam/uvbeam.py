@@ -1473,7 +1473,9 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def _interp_freq(self, freq_array, kind="linear", tol=1.0):
+    def _interp_freq(
+        self, freq_array, kind="linear", tol=1.0, allow_extrap: bool = False
+    ):
         """
         Interpolate function along frequency axis.
 
@@ -1484,6 +1486,8 @@ class UVBeam(UVBase):
         kind : str
             Interpolation method to use frequency.
             See scipy.interpolate.interp1d for details.
+        allow_extrap : bool
+            Whether to allow extrapolation outside of defined frequency range.
 
         Returns
         -------
@@ -1541,9 +1545,10 @@ class UVBeam(UVBase):
             if self.Nfreqs == 1:
                 raise ValueError("Only one frequency in UVBeam so cannot interpolate.")
 
-            if np.min(freq_array) < np.min(self.freq_array) or np.max(
-                freq_array
-            ) > np.max(self.freq_array):
+            if not allow_extrap and (
+                np.min(freq_array) < np.min(self.freq_array)
+                or np.max(freq_array) > np.max(self.freq_array)
+            ):
                 raise ValueError(
                     "at least one interpolation frequency is outside of "
                     "the UVBeam freq_array range."
@@ -1607,6 +1612,7 @@ class UVBeam(UVBase):
         reuse_spline=False,
         spline_opts=None,
         check_azza_domain: bool = True,
+        allow_extrap: bool = False,
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1634,6 +1640,9 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
+        allow_extrap : bool
+            Whether to allow extrapolation in frequency. If False, raises an error if
+            any requested frequency is outside the range of the intrinsic data array.
 
         Returns
         -------
@@ -1665,7 +1674,10 @@ class UVBeam(UVBase):
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
             interp_arrays = self._interp_freq(
-                freq_array, kind=freq_interp_kind, tol=freq_interp_tol
+                freq_array,
+                kind=freq_interp_kind,
+                tol=freq_interp_tol,
+                allow_extrap=allow_extrap,
             )
             if self.antenna_type == "phased_array":
                 (
@@ -2117,6 +2129,7 @@ class UVBeam(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         check_azza_domain: bool = True,
+        allow_extrap: bool = False,
     ):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
@@ -2193,6 +2206,9 @@ class UVBeam(UVBase):
             intrinsic data array. Checking them can be quite computationally expensive.
             Conversely, if the passed az/za are outside of the domain, they will be
             silently extrapolated and the behavior is not well-defined.
+        allow_extrap : bool
+            Whether to allow extrapolation. If False, an error will be raised if the
+            requested frequencies are outside of the range of the intrinsic data array.
 
         Returns
         -------
@@ -2341,6 +2357,7 @@ class UVBeam(UVBase):
             freq_array,
             freq_interp_kind=kind_use,
             polarizations=polarizations,
+            allow_extrap=allow_extrap,
             **extra_keyword_dict,
         )
 
