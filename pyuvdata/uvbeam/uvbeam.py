@@ -1562,20 +1562,21 @@ class UVBeam(UVBase):
                     return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
 
             interp_arrays = []
+            kw = {"kind": kind, "fill_value": "extrapolate" if allow_extrap else 0}
             for data, ax in zip(
                 [self.data_array, self.bandpass_array], [data_axis, bandpass_axis]
             ):
                 if np.iscomplexobj(data):
                     # interpolate real and imaginary parts separately
                     real_lut = interpolate.interp1d(
-                        beam_freqs, data.real, kind=kind, axis=ax
+                        beam_freqs, data.real, axis=ax, **kw
                     )
                     imag_lut = interpolate.interp1d(
-                        beam_freqs, data.imag, kind=kind, axis=ax
+                        beam_freqs, data.imag, axis=ax, **kw
                     )
                     lut = get_lambda(real_lut, imag_lut)
                 else:
-                    lut = interpolate.interp1d(beam_freqs, data, kind=kind, axis=ax)
+                    lut = interpolate.interp1d(beam_freqs, data, axis=ax, **kw)
                     lut = get_lambda(lut)
 
                 interp_arrays.append(lut(freq_array))
