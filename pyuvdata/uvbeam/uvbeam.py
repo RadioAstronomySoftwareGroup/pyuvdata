@@ -6,6 +6,7 @@
 import copy
 import os
 import warnings
+from typing import Literal
 
 import numpy as np
 from astropy import units
@@ -1474,7 +1475,12 @@ class UVBeam(UVBase):
             return beam_object
 
     def _interp_freq(
-        self, freq_array, kind="linear", tol=1.0, allow_extrap: bool = False
+        self,
+        freq_array,
+        kind="linear",
+        tol=1.0,
+        allow_extrap: bool = False,
+        complex_basis: Literal["reim", "magphase"] = "reim",
     ):
         """
         Interpolate function along frequency axis.
@@ -1488,6 +1494,10 @@ class UVBeam(UVBase):
             See scipy.interpolate.interp1d for details.
         allow_extrap : bool
             Whether to allow extrapolation outside of defined frequency range.
+        complex_basis : str
+            Specifies which complex basis to do the interpolation in. If 'reim',
+            interpolate real/imaginary parts separately. If `magphase` interpolate the
+            magnitude and phase separately.
 
         Returns
         -------
@@ -1505,6 +1515,7 @@ class UVBeam(UVBase):
             shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
             (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
             future_array_shapes is True.
+
 
         """
         assert isinstance(freq_array, np.ndarray)
@@ -1559,7 +1570,12 @@ class UVBeam(UVBase):
                 if imag_lut is None:
                     return lambda freqs: real_lut(freqs)
                 else:
-                    return lambda freqs: (real_lut(freqs) + 1j * imag_lut(freqs))
+                    if complex_basis == "reim":
+                        return lambda freqs: real_lut(freqs) + 1j * imag_lut(freqs)
+                    elif complex_basis == "magphase":
+                        return lambda freqs: np.abs(real_lut(freqs)) * np.exp(
+                            1j * imag_lut(freqs)
+                        )
 
             interp_arrays = []
             kw = {"kind": kind, "fill_value": "extrapolate" if allow_extrap else 0}
@@ -1567,14 +1583,26 @@ class UVBeam(UVBase):
                 [self.data_array, self.bandpass_array], [data_axis, bandpass_axis]
             ):
                 if np.iscomplexobj(data):
-                    # interpolate real and imaginary parts separately
-                    real_lut = interpolate.interp1d(
-                        beam_freqs, data.real, axis=ax, **kw
-                    )
-                    imag_lut = interpolate.interp1d(
-                        beam_freqs, data.imag, axis=ax, **kw
-                    )
-                    lut = get_lambda(real_lut, imag_lut)
+                    if complex_basis == "magphase":
+                        # interpolate magnitude and phase separately
+                        mag_lut = interpolate.interp1d(
+                            beam_freqs, np.abs(data), axis=ax, **kw
+                        )
+                        phase_lut = interpolate.interp1d(
+                            beam_freqs, np.angle(data), axis=ax, **kw
+                        )
+                        lut = get_lambda(mag_lut, phase_lut)
+                    elif complex_basis == "reim":
+                        # interpolate real and imaginary parts separately
+                        real_lut = interpolate.interp1d(
+                            beam_freqs, data.real, axis=ax, **kw
+                        )
+                        imag_lut = interpolate.interp1d(
+                            beam_freqs, data.imag, axis=ax, **kw
+                        )
+                        lut = get_lambda(real_lut, imag_lut)
+                    else:
+                        raise ValueError("complex_basis must be 'magphase' or 'reim'")
                 else:
                     lut = interpolate.interp1d(beam_freqs, data, axis=ax, **kw)
                     lut = get_lambda(lut)
@@ -1583,13 +1611,22 @@ class UVBeam(UVBase):
 
             if self.antenna_type == "phased_array":
                 # interpolate real and imaginary parts separately
-                real_lut = interpolate.interp1d(
-                    beam_freqs, self.coupling_matrix.real, kind=kind, axis=-1
-                )
-                imag_lut = interpolate.interp1d(
-                    beam_freqs, self.coupling_matrix.imag, kind=kind, axis=-1
-                )
-                lut = get_lambda(real_lut, imag_lut)
+                if complex_basis == "magphase":
+                    mag_lut = interpolate.interp1d(
+                        beam_freqs, np.abs(self.coupling_matrix), kind=kind, axis=-1
+                    )
+                    phase_lut = interpolate.interp1d(
+                        beam_freqs, np.angle(self.coupling_matrix), kind=kind, axis=-1
+                    )
+                    lut = get_lambda(mag_lut, phase_lut)
+                elif complex_basis == "reim":
+                    real_lut = interpolate.interp1d(
+                        beam_freqs, self.coupling_matrix.real, kind=kind, axis=-1
+                    )
+                    imag_lut = interpolate.interp1d(
+                        beam_freqs, self.coupling_matrix.imag, kind=kind, axis=-1
+                    )
+                    lut = get_lambda(real_lut, imag_lut)
 
                 interp_arrays.append(lut(freq_array))
 
@@ -1614,6 +1651,7 @@ class UVBeam(UVBase):
         spline_opts=None,
         check_azza_domain: bool = True,
         allow_extrap: bool = False,
+        freq_interp_complex_basis: Literal["reim", "magphase"] = "reim",
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1644,6 +1682,11 @@ class UVBeam(UVBase):
         allow_extrap : bool
             Whether to allow extrapolation in frequency. If False, raises an error if
             any requested frequency is outside the range of the intrinsic data array.
+        freq_interp_complex_basis : str
+            Basis to use for complex interpolation. Either 'reim' or 'magphase'.
+            'reim' uses the real and imaginary parts of the complex values.
+            'magphase' uses the magnitude and phase of the complex values.
+            Default is 'reim'.
 
         Returns
         -------
@@ -1679,6 +1722,7 @@ class UVBeam(UVBase):
                 kind=freq_interp_kind,
                 tol=freq_interp_tol,
                 allow_extrap=allow_extrap,
+                complex_basis=freq_interp_complex_basis,
             )
             if self.antenna_type == "phased_array":
                 (
@@ -2131,6 +2175,7 @@ class UVBeam(UVBase):
         run_check_acceptability=True,
         check_azza_domain: bool = True,
         allow_extrap: bool = False,
+        freq_interp_complex_basis: Literal["reim", "magphase"] = "reim",
     ):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
@@ -2210,6 +2255,11 @@ class UVBeam(UVBase):
         allow_extrap : bool
             Whether to allow extrapolation. If False, an error will be raised if the
             requested frequencies are outside of the range of the intrinsic data array.
+        freq_interp_complex_basis : str
+            How to interpolate complex-valued frequency-dependent data. Options are:
+            - 'reim': interpolate the real and imaginary parts separately.
+            - 'magphase': interpolate the magnitude and phase separately.
+            Default is 'reim'.
 
         Returns
         -------
@@ -2359,6 +2409,7 @@ class UVBeam(UVBase):
             freq_interp_kind=kind_use,
             polarizations=polarizations,
             allow_extrap=allow_extrap,
+            freq_interp_complex_basis=freq_interp_complex_basis,
             **extra_keyword_dict,
         )
 
