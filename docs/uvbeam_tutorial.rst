@@ -119,7 +119,6 @@ a) Reading a CST power beam file
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
-  >>> beam = UVBeam()
 
   # you can pass several filenames and the objects from each file will be
   # combined across the appropriate axis -- in this case frequency
@@ -132,12 +131,13 @@ a) Reading a CST power beam file
   # You should also specify the polarization that the file represents and you can
   # set rotate_pol to generate the other polarization by rotating by 90 degrees.
   # The feed_pol defaults to 'x' and rotate_pol defaults to True.
-  >>> beam.read(
+  >>> beam = UVBeam.from_file(
   ...   filenames, beam_type='power', frequency=[150e6, 123e6],
   ...   feed_pol='x', rotate_pol=True, telescope_name='HERA',
   ...   feed_name='PAPER_dipole', feed_version='0.1',
   ...   model_name='E-field pattern - Rigging height 4.9m',
-  ...   model_version='1.0'
+  ...   model_version='1.0',
+  ...   use_future_array_shapes=True,
   ... )
   >>> print(beam.beam_type)
   power
@@ -149,7 +149,7 @@ a) Reading a CST power beam file
   >>> # You can also use a yaml settings file.
   >>> # Note that using a yaml file requires that pyyaml is installed.
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -163,7 +163,7 @@ a) Reading a CST power beam file
   >>> print(beam.Nfreqs)
   2
   >>> print(beam.data_array.shape)
-  (1, 1, 2, 2, 181, 360)
+  (1, 2, 2, 181, 360)
 
   >>> # plot zenith angle cut through beam
   >>> plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0]) # doctest: +SKIP
@@ -180,16 +180,15 @@ b) Reading a CST E-field beam file
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> beam = UVBeam()
 
   >>> # the same interface as for power beams, just specify beam_type = 'efield'
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='efield')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
   >>> print(beam.beam_type)
   efield
 
   >>> # UVBeam also has a `from_file` class method we can call directly.
-  >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield")
+  >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield", use_future_array_shapes=True)
   >>> beam == beam3
   True
 
@@ -213,16 +212,17 @@ c) Reading in the MWA full embedded element beam
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
 
   >>> mwa_beam_file = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
-  >>> beam.read(mwa_beam_file)
+  >>> beam = UVBeam.from_file(mwa_beam_file, use_future_array_shapes=True)
   >>> print(beam.beam_type)
   efield
 
   >>> delays = np.zeros((2, 16), dtype='int')
   >>> delays[:, 0] = 32
-  >>> beam.read(mwa_beam_file, pixels_per_deg=1, delays=delays)
+  >>> beam = UVBeam.from_file(
+  ...    mwa_beam_file, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
+  ... )
 
 
 d) Writing a regularly gridded beam FITS file
@@ -238,9 +238,15 @@ files and az/za grid.
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power', freq_range=(1e8, 1.5e8), za_range=(0, 90.0))
+  >>> beam = UVBeam()
+  >>> beam.read(
+  ...    settings_file,
+  ...    beam_type='power',
+  ...    freq_range=(1e8, 1.5e8),
+  ...    za_range=(0, 90.0),
+  ...    use_future_array_shapes=True,
+  ... )
   >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
@@ -254,9 +260,8 @@ See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_h
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -284,9 +289,8 @@ a) Selecting a range of Zenith Angles
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
   >>> # plot zenith angle cut through beams
@@ -316,9 +320,8 @@ or "ee).
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> import pyuvdata.utils as uvutils
-  >>> uvb = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> uvb.read(settings_file, beam_type='efield')
+  >>> uvb = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
 
   >>> # The feeds names can be found in the feed_array
   >>> print(uvb.feed_array)
@@ -400,9 +403,8 @@ extra interpolation errors.
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='power')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
@@ -428,9 +430,8 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='efield')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   >>> # plot zenith angle cut through the beams
@@ -453,9 +454,8 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> from pyuvdata import utils as uvutils
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='efield')
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
@@ -489,9 +489,10 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> beam = UVBeam()
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam.read(settings_file, beam_type='efield')
+  >>> beam = UVBeam.from_file(
+  ...    settings_file, beam_type='efield', use_future_array_shapes=True
+  ... )
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -514,7 +515,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> pU_area1, pU_area2 = round(pU_area[0].real, 5), round(pU_area[1].real, 5)
   >>> pV_area1, pV_area2 = round(pV_area[0].real, 5), round(pV_area[1].real, 5)
 
-  >>> print (f'Beam area at {freqs[0][0]*1e-6} MHz for pseudo-stokes\nI: {pI_area1}\nQ: {pQ_area1}\nU: {pU_area1}\nV: {pV_area1}')
+  >>> print (f'Beam area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_area1}\nQ: {pQ_area1}\nU: {pU_area1}\nV: {pV_area1}')
   Beam area at 123.0 MHz for pseudo-stokes
   I: 0.04674
   Q: 0.02904
@@ -522,7 +523,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   V: 0.0464
 
 
-  >>> print (f'Beam area at {freqs[0][1]*1e-6} MHz for pseudo-stokes\nI: {pI_area2}\nQ: {pQ_area2}\nU: {pU_area2}\nV: {pV_area2}')
+  >>> print (f'Beam area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_area2}\nQ: {pQ_area2}\nU: {pU_area2}\nV: {pV_area2}')
   Beam area at 150.0 MHz for pseudo-stokes
   I: 0.03237
   Q: 0.01995
@@ -541,7 +542,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> pU_sq_area1, pU_sq_area2 = round(pU_sq_area[0].real, 5), round(pU_sq_area[1].real, 5)
   >>> pV_sq_area1, pV_sq_area2 = round(pV_sq_area[0].real, 5), round(pV_sq_area[1].real, 5)
 
-  >>> print (f'Beam squared area at {freqs[0][0]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area1}\nQ: {pQ_sq_area1}\nU: {pU_sq_area1}\nV: {pV_sq_area1}')
+  >>> print (f'Beam squared area at {freqs[0]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area1}\nQ: {pQ_sq_area1}\nU: {pU_sq_area1}\nV: {pV_sq_area1}')
   Beam squared area at 123.0 MHz for pseudo-stokes
   I: 0.02474
   Q: 0.01186
@@ -549,7 +550,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   V: 0.0246
 
 
-  >>> print (f'Beam squared area at {freqs[0][1]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area2}\nQ: {pQ_sq_area2}\nU: {pU_sq_area2}\nV: {pV_sq_area2}')
+  >>> print (f'Beam squared area at {freqs[1]*1e-6} MHz for pseudo-stokes\nI: {pI_sq_area2}\nQ: {pQ_sq_area2}\nU: {pU_sq_area2}\nV: {pV_sq_area2}')
   Beam squared area at 150.0 MHz for pseudo-stokes
   I: 0.01696
   Q: 0.00798

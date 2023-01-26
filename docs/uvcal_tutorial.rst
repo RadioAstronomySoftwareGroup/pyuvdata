@@ -98,7 +98,7 @@ a) Reading a cal fits gain calibration file.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # Cal type:
   >>> print(cal.cal_type)
@@ -118,7 +118,7 @@ a) Reading a cal fits gain calibration file.
 
   >>> # Shape of the gain_array
   >>> print(cal.gain_array.shape)
-  (19, 1, 10, 5, 1)
+  (19, 10, 5, 1)
 
   >>> # plot abs of all gains for first time and first jones component.
   >>> for ant in range(cal.Nants_data): # doctest: +SKIP
@@ -142,7 +142,11 @@ b) FHD cal to cal fits
 
   >>> fhd_cal = UVCal()
   >>> fhd_cal.read_fhd_cal(
-  ...   cal_testfile, obs_testfile, settings_file=settings_testfile, layout_file=layout_testfile
+  ...    cal_testfile,
+  ...    obs_testfile,
+  ...    settings_file=settings_testfile,
+  ...    layout_file=layout_testfile,
+  ...    use_future_array_shapes=True,
   ... )
   >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
 
@@ -162,7 +166,7 @@ data-like arrays as well, filled with zeros.
   >>> from pyuvdata import UVData, UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
-  >>> uvd = UVData.from_file(uvd_file, file_type="uvh5")
+  >>> uvd = UVData.from_file(uvd_file, file_type="uvh5", use_future_array_shapes=True)
   >>> uvc = UVCal.initialize_from_uvdata(uvd, "multiply", "redundant")
   >>> print(uvc.ant_array)
   [ 0  1 11 12 13 23 24 25]
@@ -187,7 +191,7 @@ a) Data for a single antenna and instrumental polarization
   >>> from pyuvdata.data import DATA_PATH
   >>> UVC = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
-  >>> UVC.read_calfits(filename)
+  >>> UVC.read_calfits(filename, use_future_array_shapes=True)
   >>> gain = UVC.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
 
   >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
@@ -214,10 +218,16 @@ a) Calibration of UVData by UVCal
   >>> import os
   >>> from pyuvdata import UVData, UVCal, utils
   >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-  >>> uvd.read(os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"), file_type="uvh5")
+  >>> uvd = UVData.from_file(
+  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
+  ...    file_type="uvh5",
+  ...    use_future_array_shapes=True
+  ... )
   >>> uvc = UVCal()
-  >>> uvc.read_calfits(os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"))
+  >>> uvc.read_calfits(
+  ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
+  ...    use_future_array_shapes=True
+  ... )
   >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
   >>> # fix the antenna names in the uvcal object to match the uvdata object
   >>> uvc.antenna_names = np.array(
@@ -245,7 +255,7 @@ a) Select antennas to keep on UVCal object using the antenna number.
   >>> import numpy as np
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(cal.ant_array)
@@ -266,14 +276,14 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # print all the antenna names with data in the original file
   >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
   ['ant0', 'ant1', 'ant11', 'ant12', 'ant13', 'ant23', 'ant24', 'ant25']
 
   >>> # print the first 10 frequencies in the original file
-  >>> print(cal.freq_array[0, 0:10])
+  >>> print(cal.freq_array[0:10])
   [1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08 1.062500e+08
    1.078125e+08 1.093750e+08 1.109375e+08 1.125000e+08 1.140625e+08]
   >>> cal.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
@@ -284,7 +294,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
 
   >>> # print all the frequencies after the select
   >>> print(cal.freq_array)
-  [[1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08]]
+  [1.000000e+08 1.015625e+08 1.031250e+08 1.046875e+08]
 
 d) Select times
 ***************
@@ -296,7 +306,7 @@ d) Select times
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # print all the times in the original file
   >>> print(cal.time_array)
@@ -326,7 +336,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> import pyuvdata.utils as uvutils
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # Jones component numbers can be found in the jones_array
   >>> print(cal.jones_array)
@@ -385,7 +395,7 @@ a) Add frequencies.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename)
+  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
 
   >>> # Downselect frequencies to recombine
@@ -405,7 +415,7 @@ b) Add times.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename)
+  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
 
   >>> # Downselect times to recombine
@@ -429,14 +439,14 @@ directly without creating a third uvcal object.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename)
+  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
   >>> times = np.unique(cal1.time_array)
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
   >>> cal1.__add__(cal2, inplace=True)
 
-  >>> cal1.read_calfits(filename)
+  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
@@ -456,7 +466,7 @@ each file will be read in succession and added to the previous.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
   >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
   >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
@@ -465,7 +475,7 @@ each file will be read in succession and added to the previous.
   >>> cal3.write_calfits(os.path.join('.', 'tutorial3.fits'))
   >>> filenames = [os.path.join('.', f) for f
   ...              in ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']]
-  >>> cal.read_calfits(filenames)
+  >>> cal.read_calfits(filenames, use_future_array_shapes=True)
 
   >>> # For FHD cal datasets pass lists for each file type
   >>> fhd_cal = UVCal()
@@ -486,7 +496,11 @@ each file will be read in succession and added to the previous.
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
   ... ]
   >>> fhd_cal.read_fhd_cal(
-  ...   cal_testfiles, obs_testfiles, settings_file=settings_testfiles, layout_file=layout_testfiles
+  ...    cal_testfiles,
+  ...    obs_testfiles,
+  ...    settings_file=settings_testfiles,
+  ...    layout_file=layout_testfiles,
+  ...    use_future_array_shapes=True,
   ... )
 
 UVCal: Sorting data along various axes
@@ -508,7 +522,7 @@ specified by passing an index array.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> # Default is to order by antenna number
   >>> cal.reorder_antennas()
   >>> print(np.min(np.diff(cal.ant_array)) >= 0)
@@ -536,7 +550,7 @@ channels.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> # First create a multi-spectral window UVCal object:
   >>> cal._set_flex_spw()
   >>> cal.channel_width = np.zeros(cal.Nfreqs, dtype=np.float64) + cal.channel_width
@@ -545,7 +559,7 @@ channels.
   >>> cal.spw_array = np.array([1, 2])
   >>> spw2_inds = np.nonzero(cal.flex_spw_id_array == 2)[0]
   >>> spw2_chan_width = cal.channel_width[0] * 2
-  >>> cal.freq_array[0, spw2_inds] = cal.freq_array[0, spw2_inds[0]] + spw2_chan_width * np.arange(spw2_inds.size)
+  >>> cal.freq_array[spw2_inds] = cal.freq_array[spw2_inds[0]] + spw2_chan_width * np.arange(spw2_inds.size)
   >>> cal.channel_width[spw2_inds] = spw2_chan_width
 
   >>> # Sort by spectral window number and by frequency within the spectral window
@@ -555,7 +569,7 @@ channels.
   >>> print(cal.spw_array)
   [1 2]
 
-  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
+  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
   True
 
   >>> # Prepend a ``-`` to the sort string to sort in descending order.
@@ -565,17 +579,17 @@ channels.
   >>> print(cal.spw_array)
   [2 1]
 
-  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
+  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) >= 0)
   True
 
   >>> # Use the ``select_spw`` keyword to sort only one spectral window.
   >>> # Now the frequencies in spectral window 1 are in descending order but the frequencies
   >>> # in spectral window 2 are in ascending order
   >>> cal.reorder_freqs(select_spw=1, channel_order="-freq")
-  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 1)])) <= 0)
+  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 1)])) <= 0)
   True
 
-  >>> print(np.min(np.diff(cal.freq_array[0, np.nonzero(cal.flex_spw_id_array == 2)])) >= 0)
+  >>> print(np.min(np.diff(cal.freq_array[np.nonzero(cal.flex_spw_id_array == 2)])) >= 0)
   True
 
 c) Sorting along the time axis
@@ -593,7 +607,7 @@ array for the time axis.
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
 
   >>> # Default is to order by ascending time
   >>> cal.reorder_times()
@@ -619,7 +633,7 @@ by the Jones component number or name, or by an explicit index ordering set by t
   >>> from pyuvdata.data import DATA_PATH
   >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> # Default is to order by Jones component name
   >>> cal.reorder_jones()
   >>> print(cal.jones_array)
@@ -641,14 +655,15 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
 
   >>> # This file has a cal_type of 'delay'.
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> print(cal.cal_type)
   delay
 
   >>> # But we can convert it to a 'gain' type calibration.
   >>> channel_width = 1e8 # 1 MHz
-  >>> n_freqs = (cal.freq_range[1] - cal.freq_range[0]) / channel_width
+  >>> n_freqs = (cal.freq_range[0, 1] - cal.freq_range[0, 0]) / channel_width
   >>> freq_array = np.arange(n_freqs) * channel_width + cal.freq_range[0]
+  >>> channel_width = np.full(freq_array.size, channel_width, dtype=float) # 1 MHz
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width)
   >>> print(cal.cal_type)
   gain
@@ -656,23 +671,23 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
   >>> # If we want the calibration to use a positive value in its exponent, rather
   >>> # than the default negative value:
   >>> cal = UVCal()
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> cal = cal.convert_to_gain(delay_convention='plus', freq_array=freq_array, channel_width=channel_width)
 
   >>> # Convert to gain *without* running the default check that internal arrays are
   >>> # of compatible shapes:
   >>> cal = UVCal()
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check=False)
 
   >>> # Convert to gain *without* running the default check that optional parameters
   >>> # are properly shaped and typed:
   >>> cal = UVCal()
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, check_extra=False)
 
   >>> # Convert to gain *without* running the default checks on the reasonableness
   >>> # of the resulting calibration's parameters.
   >>> cal = UVCal()
-  >>> cal.read_calfits(filename)
+  >>> cal.read_calfits(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check_acceptability=False)
