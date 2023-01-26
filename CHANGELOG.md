@@ -19,6 +19,8 @@ they are converted between types using UVData and UVCalobjects.
 to set several of these new parameters.
 
 ### Fixed
+- Fixed a bug where the beamfits partial read parameters were not available in the
+`UVBeam.from_file` class method and were not passed properly when reading multiple files.
 - Fixed a bug where objects created from scratch with the old phase attributes weren't
 properly getting converted to the new `phase_center_catalog` representation. That
 conversion now happens in the check so will happen before any `write`. There could still

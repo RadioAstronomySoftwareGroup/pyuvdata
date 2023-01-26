@@ -61,6 +61,31 @@ def hera_beam_casa():
     del beam_in
 
 
+@pytest.fixture(scope="module")
+def twofreq(cst_efield_2freq_main, tmp_path_factory):
+    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq.fits")
+    cst_efield_2freq_main.write_beamfits(testfile)
+    yield testfile
+
+
+@pytest.fixture(scope="module")
+def twosinglefreq(cst_efield_2freq_main, tmp_path_factory):
+    beam1 = cst_efield_2freq_main.select(freq_chans=[0], inplace=False)
+    beam2 = cst_efield_2freq_main.select(freq_chans=[1], inplace=False)
+    testfile1 = str(tmp_path_factory.mktemp("beams") / "firstfreq.fits")
+    testfile2 = str(tmp_path_factory.mktemp("beams") / "firstfreq.fits")
+    beam1.write_beamfits(testfile1)
+    beam2.write_beamfits(testfile2)
+    yield testfile1, testfile2
+
+
+@pytest.fixture(scope="function")
+def twofreq_healpix(cst_efield_2freq_cut_healpix, tmp_path_factory):
+    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq_healpix.fits")
+    cst_efield_2freq_cut_healpix.write_beamfits(testfile)
+    yield testfile
+
+
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
 def test_read_cst_write_read_fits_efield(cst_efield_1freq, tmp_path):
     beam_in = cst_efield_1freq.copy()
@@ -795,20 +820,6 @@ def test_multi_files(cst_efield_2freq, tmp_path):
     assert beam1 == beam_full
 
 
-@pytest.fixture(scope="module")
-def twofreq(cst_efield_2freq_main, tmp_path_factory):
-    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq.fits")
-    cst_efield_2freq_main.write_beamfits(testfile)
-    return testfile
-
-
-@pytest.fixture(scope="function")
-def twofreq_healpix(cst_efield_2freq_cut_healpix, tmp_path_factory):
-    testfile = str(tmp_path_factory.mktemp("beams") / "twofreq_healpix.fits")
-    cst_efield_2freq_cut_healpix.write_beamfits(testfile)
-    return testfile
-
-
 @pytest.mark.parametrize("beamfile", ["twofreq", "twofreq_healpix"])
 def test_partial_read_freq(request, beamfile):
     beamfile = request.getfixturevalue(beamfile)
@@ -820,20 +831,26 @@ def test_partial_read_freq(request, beamfile):
     assert beam2.freq_array[0, 0] == 150e6
 
 
-def test_partial_read_az(twofreq):
-    beam2 = UVBeam()
-    beam2.read(twofreq, az_range=(0, 180))
+@pytest.mark.parametrize("nfiles", [1, 2])
+@pytest.mark.parametrize("select_param", ["az", "za"])
+def test_partial_read_azza(twofreq, twosinglefreq, nfiles, select_param):
+    if select_param == "az":
+        az_range = (0, 180)
+        za_range = None
+    else:
+        az_range = None
+        za_range = (0, 90)
+    if nfiles == 1:
+        beam2 = UVBeam.from_file(twofreq, az_range=az_range, za_range=za_range)
+    else:
+        beam2 = UVBeam.from_file(twosinglefreq, az_range=az_range, za_range=za_range)
 
-    assert beam2.axis1_array.shape == (181,)
-    assert np.all(beam2.axis1_array <= np.pi)
-
-
-def test_partial_read_za(twofreq):
-    beam2 = UVBeam()
-    beam2.read(twofreq, za_range=(0, 90))
-
-    assert beam2.axis2_array.shape == (91,)
-    assert np.all(beam2.axis2_array <= np.pi / 2)
+    if select_param == "az":
+        assert beam2.axis1_array.shape == (181,)
+        assert np.all(beam2.axis1_array <= np.pi)
+    else:
+        assert beam2.axis2_array.shape == (91,)
+        assert np.all(beam2.axis2_array <= np.pi / 2)
 
 
 def test_azza_range_onhealpix(twofreq_healpix):

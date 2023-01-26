@@ -4436,10 +4436,18 @@ class UVBeam(UVBase):
         file_type=None,
         skip_bad_files=False,
         use_future_array_shapes=False,
-        # beamfits settings
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
+        # beamfits parameters
         az_range=None,
         za_range=None,
-        # cst beam settings
+        # beamfits & mwa parameters
+        freq_range=None,
+        # cst parameters
         beam_type="power",
         feed_pol=None,
         rotate_pol=None,
@@ -4454,17 +4462,10 @@ class UVBeam(UVBase):
         reference_impedance=None,
         extra_keywords=None,
         frequency_select=None,
-        # mwa beam settings
+        # mwa parameters
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
-        freq_range=None,
-        # generic checks
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
     ):
         """
         Read a generic file into a UVBeam object.
@@ -4509,9 +4510,59 @@ class UVBeam(UVBase):
             (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
             Note that if a list of datasets is passed, the file type is
             determined from the first dataset.
+        skip_bad_files : bool
+            Option when reading multiple files to catch read errors such that
+            the read continues even if one or more files are corrupted. Files
+            that produce errors will be printed. Default is False (files will
+            not be skipped).
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+
+        Checking
+        --------
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
+
+        Beamfits
+        --------
+        az_range : tuple of float in deg
+            The azimuth range to read in, if the beam is specified in az/za coordinates.
+            Default is to read in all azimuths. Restricting the azimuth reduces peak
+            memory usage. Only used for beamfits files that have their coordinates
+            in az/za grid.
+        za_range : tuple of float in deg
+            The zenith angle range to read in, if the beam is specified in za/za
+            coordinates. Default is to read in all za. Restricting the za reduces peak
+            memory. Only used for beamfits files that have their coordinates
+            in az/za grid.
+
+        Beamfits & MWA
+        --------------
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
+            type files. For beamfits, this will cause a *partial read* (i.e. reduce
+            peak memory usage).
+
+        CST
+        ---
         beam_type : str
             What beam_type to read in ('power' or 'efield').
             Only applies to cst file types.
@@ -4565,6 +4616,9 @@ class UVBeam(UVBase):
             Only used if the file is a yaml file. Indicates which frequencies
             to include (only read in files for those frequencies)
             Only applies to cst file types.
+
+        MWA
+        ---
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
             Only applies to mwa_beam type files.
@@ -4576,39 +4630,6 @@ class UVBeam(UVBase):
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
             Only applies to mwa_beam type files.
-        freq_range : array_like of float
-            Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
-            type files. For beamfits, this will cause a *partial read* (i.e. reduce
-            peak memory usage).
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        check_auto_power : bool
-            For power beams, check whether the auto polarization beams have non-zero
-            imaginary values in the data_array (which should not mathematically exist).
-        fix_auto_power : bool
-            For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
-        az_range : tuple of float in deg
-            The azimuth range to read in, if the beam is specified in az/za coordinates.
-            Default is to read in all azimuths. Restricting the azimuth reduces peak
-            memory usage. Only used for beamfits files that have their coordinates
-            in az/za grid.
-        za_range : tuple of float in deg
-            The zenith angle range to read in, if the beam is specified in za/za
-            coordinates. Default is to read in all za. Restricting the za reduces peak
-            memory. Only used for beamfits files that have their coordinates
-            in az/za grid.
 
         Raises
         ------
@@ -4681,7 +4702,18 @@ class UVBeam(UVBase):
                             file_type=file_type,
                             skip_bad_files=skip_bad_files,
                             use_future_array_shapes=use_future_array_shapes,
-                            # cst beam parameters
+                            # checking parameters
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                            check_auto_power=check_auto_power,
+                            fix_auto_power=fix_auto_power,
+                            # beamfits parameters
+                            az_range=az_range,
+                            za_range=za_range,
+                            # beamfits & mwa parameters
+                            freq_range=freq_range,
+                            # cst parameters
                             # leave these in case we restructure the multi
                             # reading later
                             beam_type=beam_type,
@@ -4698,17 +4730,10 @@ class UVBeam(UVBase):
                             reference_impedance=reference_impedance,
                             extra_keywords=extra_keywords,
                             frequency_select=frequency_select,
-                            # mwa_beam parameters
+                            # mwa parameters
                             delays=delays,
                             amplitudes=amplitudes,
                             pixels_per_deg=pixels_per_deg,
-                            freq_range=freq_range,
-                            # standard checking
-                            run_check=run_check,
-                            check_extra=check_extra,
-                            run_check_acceptability=run_check_acceptability,
-                            check_auto_power=check_auto_power,
-                            fix_auto_power=fix_auto_power,
                         )
                         unread = False
                     except ValueError as err:
@@ -4729,7 +4754,18 @@ class UVBeam(UVBase):
                                 file_type=file_type,
                                 skip_bad_files=skip_bad_files,
                                 use_future_array_shapes=use_future_array_shapes,
-                                # cst beam parameters
+                                # checking parameters
+                                run_check=run_check,
+                                check_extra=check_extra,
+                                run_check_acceptability=run_check_acceptability,
+                                check_auto_power=check_auto_power,
+                                fix_auto_power=fix_auto_power,
+                                # beamfits parameters
+                                az_range=az_range,
+                                za_range=za_range,
+                                # beamfits & mwa parameters
+                                freq_range=freq_range,
+                                # cst parameters
                                 # leave these in case we restructure the multi
                                 # reading later
                                 beam_type=beam_type,
@@ -4746,17 +4782,10 @@ class UVBeam(UVBase):
                                 reference_impedance=reference_impedance,
                                 extra_keywords=extra_keywords,
                                 frequency_select=frequency_select,
-                                # mwa_beam parameters
+                                # mwa parameters
                                 delays=delays,
                                 amplitudes=amplitudes,
                                 pixels_per_deg=pixels_per_deg,
-                                freq_range=freq_range,
-                                # standard checking
-                                run_check=run_check,
-                                check_extra=check_extra,
-                                run_check_acceptability=run_check_acceptability,
-                                check_auto_power=check_auto_power,
-                                fix_auto_power=fix_auto_power,
                             )
                             beam_list.append(beam2)
                         except ValueError as err:
@@ -4823,7 +4852,18 @@ class UVBeam(UVBase):
         file_type=None,
         skip_bad_files=False,
         use_future_array_shapes=False,
-        # cst beam settings
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
+        # beamfits parameters
+        az_range=None,
+        za_range=None,
+        # beamfits & mwa parameters
+        freq_range=None,
+        # cst parameters
         beam_type="power",
         feed_pol=None,
         rotate_pol=None,
@@ -4838,17 +4878,10 @@ class UVBeam(UVBase):
         reference_impedance=None,
         extra_keywords=None,
         frequency_select=None,
-        # mwa beam settings
+        # mwa parameters
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
-        freq_range=None,
-        # generic checks
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
     ):
         """
         Initialize a new UVBeam object by reading the input file(s).
@@ -4893,9 +4926,59 @@ class UVBeam(UVBase):
             (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
             Note that if a list of datasets is passed, the file type is
             determined from the first dataset.
+        skip_bad_files : bool
+            Option when reading multiple files to catch read errors such that
+            the read continues even if one or more files are corrupted. Files
+            that produce errors will be printed. Default is False (files will
+            not be skipped).
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+
+        Checking
+        --------
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
+
+        Beamfits
+        --------
+        az_range : tuple of float in deg
+            The azimuth range to read in, if the beam is specified in az/za coordinates.
+            Default is to read in all azimuths. Restricting the azimuth reduces peak
+            memory usage. Only used for beamfits files that have their coordinates
+            in az/za grid.
+        za_range : tuple of float in deg
+            The zenith angle range to read in, if the beam is specified in za/za
+            coordinates. Default is to read in all za. Restricting the za reduces peak
+            memory. Only used for beamfits files that have their coordinates
+            in az/za grid.
+
+        Beamfits & MWA
+        --------------
+        freq_range : array_like of float
+            Range of frequencies to include in Hz, defaults to all available
+            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
+            type files. For beamfits, this will cause a *partial read* (i.e. reduce
+            peak memory usage).
+
+        CST
+        ---
         beam_type : str
             What beam_type to read in ('power' or 'efield').
             Only applies to cst file types.
@@ -4949,6 +5032,9 @@ class UVBeam(UVBase):
             Only used if the file is a yaml file. Indicates which frequencies
             to include (only read in files for those frequencies)
             Only applies to cst file types.
+
+        MWA
+        ---
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
             Only applies to mwa_beam type files.
@@ -4960,28 +5046,6 @@ class UVBeam(UVBase):
         pixels_per_deg : float
             Number of theta/phi pixels per degree. Sets the resolution of the beam.
             Only applies to mwa_beam type files.
-        freq_range : array_like of float
-            Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2.
-            Only applies to mwa_beam type files.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        check_auto_power : bool
-            For power beams, check whether the auto polarization beams have non-zero
-            imaginary values in the data_array (which should not mathematically exist).
-        fix_auto_power : bool
-            For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
 
         Raises
         ------
@@ -4994,7 +5058,16 @@ class UVBeam(UVBase):
             file_type=file_type,
             skip_bad_files=skip_bad_files,
             use_future_array_shapes=use_future_array_shapes,
-            # cst beam settings
+            # checking parameters
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            check_auto_power=check_auto_power,
+            fix_auto_power=fix_auto_power,
+            # beamfits parameters
+            az_range=az_range,
+            za_range=za_range,
+            # cst parameters
             beam_type=beam_type,
             feed_pol=feed_pol,
             rotate_pol=rotate_pol,
@@ -5009,17 +5082,11 @@ class UVBeam(UVBase):
             reference_impedance=reference_impedance,
             extra_keywords=extra_keywords,
             frequency_select=frequency_select,
-            # mwa beam settings
+            # mwa parameters
             delays=delays,
             amplitudes=amplitudes,
             pixels_per_deg=pixels_per_deg,
             freq_range=freq_range,
-            # generic checks
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            check_auto_power=check_auto_power,
-            fix_auto_power=fix_auto_power,
         )
         return uvbeam
 
