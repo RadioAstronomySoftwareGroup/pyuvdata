@@ -19,6 +19,8 @@ they are converted between types using UVData and UVCalobjects.
 to set several of these new parameters.
 
 ### Fixed
+- Fix a bug when reading FHD files into UVData objects when the layout file was not
+passed but the antenna_positions are in the known telescopes.
 - Fixed a bug where the beamfits partial read parameters were not available in the
 `UVBeam.from_file` class method and were not passed properly when reading multiple files.
 - Fixed a bug where objects created from scratch with the old phase attributes weren't
