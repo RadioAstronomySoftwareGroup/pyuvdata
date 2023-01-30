@@ -602,3 +602,56 @@ def test_conjugation():
 
     assert uvfits_uv._uvw_array == fhd_uv._uvw_array
     assert uvfits_uv._data_array == fhd_uv._data_array
+
+
+def test_read_old_hera_files():
+    testdir = os.path.join(DATA_PATH, "hera_fhd_vis_data/")
+    testfile_prefix = "old_mini_"
+    testfiles = []
+    testfiles_no_layout = []
+    for suffix in testfile_suffix:
+        testfiles.append(testdir + testfile_prefix + suffix)
+        if "layout" in suffix:
+            continue
+        testfiles_no_layout.append(testdir + testfile_prefix + suffix)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "No layout file included in file list, antenna_postions will not be "
+            "defined (unless they are defined in the known telescopes).",
+            "Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
+            "antenna_positions are not set or being overwritten. Using known values "
+            "for HERA.",
+            "The uvw_array does not match the expected values given the antenna",
+        ],
+    ):
+        hera_fhd_no_layout = UVData.from_file(testfiles_no_layout)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="antenna_diameters are not set or being overwritten. Using known values "
+        "for HERA.",
+    ):
+        hera_fhd = UVData.from_file(testfiles, run_check=False)
+
+    orig_tele_location = hera_fhd.telescope_location
+    with uvtest.check_warnings(
+        UserWarning,
+        match="Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
+        "antenna_positions, telescope_location, telescope_name are not set or being "
+        "overwritten. Using known values for HERA.",
+    ):
+        hera_fhd.set_telescope_params(overwrite=True)
+    # reset telescope_location & name to match the original
+    hera_fhd.telescope_location = orig_tele_location
+    hera_fhd.telescope_name = "hera"
+
+    # set optional parameters that are only filled with a layout file
+    hera_fhd_no_layout.dut1 = hera_fhd.dut1
+    hera_fhd_no_layout.earth_omega = hera_fhd.earth_omega
+    hera_fhd_no_layout.gst0 = hera_fhd.gst0
+    hera_fhd_no_layout.timesys = hera_fhd.timesys
+    hera_fhd_no_layout.extra_keywords = hera_fhd.extra_keywords
+
+    assert hera_fhd_no_layout == hera_fhd
