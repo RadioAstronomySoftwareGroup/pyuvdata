@@ -309,18 +309,39 @@ def test_location_set_lat_lon_alt_degrees_none():
 def test_location_acceptable_none():
     param1 = uvp.LocationParameter(name="p2", value=1, acceptable_range=None)
 
-    assert param1.check_acceptability()
+    assert param1.check_acceptability()[0]
 
     # For undefined frame, acceptable_range should default to None
     param1 = uvp.LocationParameter(name="p2", value=1, frame="undef")
     assert param1.acceptable_range is None
-    assert param1.check_acceptability()
+    assert param1.check_acceptability()[0]
 
 
 def test_location_mcmf_acceptability():
-    loc = np.array([171720.0, 0.0, 0.0])
+    loc = np.array([1717200.0, 0.0, 0.0])
     param1 = uvp.LocationParameter(name="p2", value=loc, frame="mcmf")
-    assert param1.check_acceptability()
+    assert param1.acceptable_range == (1717100.0, 1757100.0)
+    assert param1.check_acceptability()[0]
+
+    # test that the acceptable range is changed when the frame is changed
+    param1.frame = "itrs"
+    assert param1.acceptable_range == (6.35e6, 6.39e6)
+    assert not param1.check_acceptability()[0]
+
+    param1.frame = "foo"
+    assert param1.acceptable_range is None
+    assert param1.check_acceptability()[0]
+
+    param1.frame = "mcmf"
+    assert param1.acceptable_range == (1717100.0, 1757100.0)
+    assert param1.check_acceptability()[0]
+
+    # check that if you set the acceptable range on init that it is used
+    param1 = uvp.LocationParameter(
+        name="p2", value=loc, acceptable_range=(1717100.0, 1717150.0), frame="mcmf"
+    )
+    assert param1.acceptable_range == (1717100.0, 1717150.0)
+    assert not param1.check_acceptability()[0]
 
 
 @pytest.mark.parametrize(
