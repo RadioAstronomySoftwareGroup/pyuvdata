@@ -26,6 +26,7 @@ from . import _utils
 
 try:
     from lunarsky import MoonLocation
+    from lunarsky import SkyCoord as LunarSkyCoord
     from lunarsky import Time as LTime
 
     LUNAR_RADIUS = MoonLocation._lunar_radius
@@ -2445,7 +2446,7 @@ def transform_icrs_to_app(
     pm_dec=None,
     vrad=None,
     dist=None,
-    astrometry_library="erfa",
+    astrometry_library=None,
 ):
     """
     Transform a set of coordinates in ICRS to topocentric/apparent coordinates.
@@ -2479,7 +2480,7 @@ def transform_icrs_to_app(
     telescope_loc : array-like of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
-        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
     epoch : int or float or str or Time object
         Epoch of the coordinate data supplied, only used when supplying proper motion
@@ -2510,7 +2511,9 @@ def transform_icrs_to_app(
     astrometry_library : str
         Library used for running the coordinate conversions. Allowed options are
         'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas library),
-        and 'astropy' (which uses the astropy utilities). Default is erfa.
+        and 'astropy' (which uses the astropy utilities). Default is erfa unless
+        the telescope_location is a MoonLocation object, in which case the default is
+        astropy.
 
     Returns
     -------
@@ -2520,6 +2523,12 @@ def transform_icrs_to_app(
         Apparent declination coordinates, in units of radians, of shape (Ntimes,).
     """
     # Make sure that the library requested is actually permitted
+    if astrometry_library is None:
+        if hasmoon and isinstance(telescope_loc, MoonLocation):
+            astrometry_library = "astropy"
+        else:
+            astrometry_library = "erfa"
+
     if astrometry_library not in ["erfa", "novas", "astropy"]:
         raise ValueError(
             "Requested coordinate transformation library is not supported, please "
@@ -2550,13 +2559,25 @@ def transform_icrs_to_app(
             if ra_coord.shape != item.shape:
                 raise ValueError("%s must be the same shape as ra and dec." % name)
 
-    if isinstance(telescope_loc, EarthLocation):
+    if isinstance(telescope_loc, EarthLocation) or (
+        hasmoon and isinstance(telescope_loc, MoonLocation)
+    ):
         site_loc = telescope_loc
     else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
+        )
+
+    if (
+        hasmoon
+        and isinstance(site_loc, MoonLocation)
+        and astrometry_library != "astropy"
+    ):
+        raise NotImplementedError(
+            "MoonLocation telescopes are only supported with the 'astropy' astrometry "
+            "library"
         )
 
     # Useful for both astropy and novas methods, the latter of which gives easy
@@ -2643,23 +2664,46 @@ def transform_icrs_to_app(
             if v_coord is not None:
                 v_coord = v_coord.repeat(ra_coord.size)
 
-        sky_coord = SkyCoord(
-            ra=ra_coord,
-            dec=dec_coord,
-            distance=d_coord,
-            radial_velocity=v_coord,
-            frame="icrs",
-        )
-
-        azel_data = sky_coord.transform_to(
-            SkyCoord(
-                np.zeros_like(time_obj_array) * units.rad,
-                np.zeros_like(time_obj_array) * units.rad,
-                location=site_loc,
-                obstime=time_obj_array,
-                frame="altaz",
+        if isinstance(site_loc, EarthLocation):
+            sky_coord = SkyCoord(
+                ra=ra_coord,
+                dec=dec_coord,
+                distance=d_coord,
+                radial_velocity=v_coord,
+                frame="icrs",
             )
-        )
+
+            azel_data = sky_coord.transform_to(
+                SkyCoord(
+                    np.zeros_like(time_obj_array) * units.rad,
+                    np.zeros_like(time_obj_array) * units.rad,
+                    location=site_loc,
+                    obstime=time_obj_array,
+                    frame="altaz",
+                )
+            )
+        else:
+            sky_coord = LunarSkyCoord(
+                ra=ra_coord,
+                dec=dec_coord,
+                distance=d_coord,
+                radial_velocity=v_coord,
+                frame="icrs",
+            )
+
+            # This filter can be removed when lunarsky is updated to not trigger this
+            # astropy deprecation warning.
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message="The get_frame_attr_names")
+                azel_data = sky_coord.transform_to(
+                    LunarSkyCoord(
+                        np.zeros_like(time_obj_array) * units.rad,
+                        np.zeros_like(time_obj_array) * units.rad,
+                        location=site_loc,
+                        obstime=time_obj_array,
+                        frame="lunartopo",
+                    )
+                )
 
         app_ha, app_dec = erfa.ae2hd(
             azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad
@@ -2781,7 +2825,7 @@ def transform_icrs_to_app(
 
 
 def transform_app_to_icrs(
-    time_array, app_ra, app_dec, telescope_loc, astrometry_library="erfa"
+    time_array, app_ra, app_dec, telescope_loc, astrometry_library=None
 ):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
@@ -2808,8 +2852,13 @@ def transform_app_to_icrs(
     telescope_loc : tuple of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
-        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
+    astrometry_library : str
+        Library used for running the coordinate conversions. Allowed options are
+        'erfa' (which uses the pyERFA), and 'astropy' (which uses the astropy
+        utilities). Default is erfa unless the telescope_location is a MoonLocation
+        object, in which case the default is astropy.
 
     Returns
     -------
@@ -2821,6 +2870,12 @@ def transform_app_to_icrs(
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
     # Make sure that the library requested is actually permitted
+    if astrometry_library is None:
+        if hasmoon and isinstance(telescope_loc, MoonLocation):
+            astrometry_library = "astropy"
+        else:
+            astrometry_library = "erfa"
+
     if astrometry_library not in ["erfa", "astropy"]:
         raise ValueError(
             "Requested coordinate transformation library is not supported, please "
@@ -2836,13 +2891,25 @@ def transform_app_to_icrs(
     if ra_coord.shape != dec_coord.shape:
         raise ValueError("app_ra and app_dec must be the same shape.")
 
-    if isinstance(telescope_loc, EarthLocation):
+    if isinstance(telescope_loc, EarthLocation) or (
+        hasmoon and isinstance(telescope_loc, MoonLocation)
+    ):
         site_loc = telescope_loc
     else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
+        )
+
+    if (
+        hasmoon
+        and isinstance(site_loc, MoonLocation)
+        and astrometry_library != "astropy"
+    ):
+        raise NotImplementedError(
+            "MoonLocation telescopes are only supported with the 'astropy' astrometry "
+            "library"
         )
 
     assert time_array.size > 0
@@ -2873,15 +2940,28 @@ def transform_app_to_icrs(
             site_loc.lat.rad,
         )
 
-        sky_coord = SkyCoord(
-            az_coord * units.rad,
-            el_coord * units.rad,
-            frame="altaz",
-            location=site_loc,
-            obstime=time_obj_array,
-        )
+        if isinstance(site_loc, EarthLocation):
+            sky_coord = SkyCoord(
+                az_coord * units.rad,
+                el_coord * units.rad,
+                frame="altaz",
+                location=site_loc,
+                obstime=time_obj_array,
+            )
+        else:
+            sky_coord = LunarSkyCoord(
+                az_coord * units.rad,
+                el_coord * units.rad,
+                frame="lunartopo",
+                location=site_loc,
+                obstime=time_obj_array,
+            )
 
-        coord_data = sky_coord.transform_to("icrs")
+        # This filter can be removed when lunarsky is updated to not trigger this
+        # astropy deprecation warning.
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="The get_frame_attr_names")
+            coord_data = sky_coord.transform_to("icrs")
         icrs_ra = coord_data.ra.rad
         icrs_dec = coord_data.dec.rad
     elif astrometry_library == "erfa":
@@ -3136,6 +3216,10 @@ def lookup_jplhorizons(
             "lat": telescope_loc.lat.deg,
             "elevation": telescope_loc.height.to_value(unit=units.km),
         }
+    elif hasmoon and isinstance(telescope_loc, MoonLocation):
+        raise NotImplementedError(
+            "Cannot lookup JPL positions for telescopes with a MoonLocation"
+        )
     elif telescope_loc is None:
         # Setting to None will report the geocentric position
         site_loc = None
@@ -3495,6 +3579,11 @@ def calc_app_coords(
             height=telescope_loc[2],
         )
 
+    if isinstance(site_loc, EarthLocation):
+        frame = "itrs"
+    else:
+        frame = "mcmf"
+
     # Time objects and unique don't seem to play well together, so we break apart
     # their handling here
     if isinstance(time_array, Time):
@@ -3517,7 +3606,7 @@ def calc_app_coords(
                 site_loc.lat.deg,
                 site_loc.lon.deg,
                 site_loc.height.to_value("m"),
-                frame=site_loc.frame,
+                frame=frame,
             )
         else:
             unique_lst = lst_array[unique_mask]
@@ -3625,7 +3714,7 @@ def calc_sidereal_coords(
     telescope_loc : tuple of floats or EarthLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
-        of shape (3,) containung (in order) the latitude, longitude, and altitude,
+        of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
     coord_frame : string
         The requested reference frame for the output coordinates, can be any frame
@@ -3678,7 +3767,7 @@ def calc_sidereal_coords(
 
 
 def get_lst_for_time(
-    jd_array, latitude, longitude, altitude, astrometry_library="erfa", frame="itrs"
+    jd_array, latitude, longitude, altitude, astrometry_library=None, frame="itrs"
 ):
     """
     Get the local apparent sidereal time for a set of jd times at an earth location.
@@ -3705,11 +3794,12 @@ def get_lst_for_time(
     astrometry_library : str
         Library used for running the LST calculations. Allowed options are 'erfa'
         (which uses the pyERFA), 'novas' (which uses the python-novas library),
-        and 'astropy' (which uses the astropy utilities). Default is erfa.
+        and 'astropy' (which uses the astropy utilities). Default is erfa unless
+        the telescope_location is a MoonLocation object, in which case the default is
+        astropy.
     frame : str
         Reference frame for latitude/longitude/altitude.
-        Options are ITRS (default) or MCMF.
-        If MCMF, the 'astrometry_library' keyword will default to astropy.
+        Options are itrs (default) or mcmf.
 
     Returns
     -------
@@ -3717,6 +3807,18 @@ def get_lst_for_time(
         LASTs in radians corresponding to the jd_array.
 
     """
+    if astrometry_library is None:
+        if frame == "itrs":
+            astrometry_library = "erfa"
+        else:
+            astrometry_library = "astropy"
+
+    if astrometry_library not in ["erfa", "astropy", "novas"]:
+        raise ValueError(
+            "Requested coordinate transformation library is not supported, please "
+            "select either 'erfa' or 'astropy' for astrometry_library."
+        )
+
     if isinstance(jd_array, np.ndarray):
         lst_array = np.zeros_like(jd_array)
     else:
@@ -3734,8 +3836,10 @@ def get_lst_for_time(
             Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude
         )
         if not astrometry_library == "astropy":
-            warnings.warn("Defaulting to `astrometry_library=astropy` for MCMF frame.")
-        astrometry_library = "astropy"
+            raise NotImplementedError(
+                "The MCMF frame is only supported with the 'astropy' astrometry "
+                "library"
+            )
     else:
         TimeClass = Time  # astropy.time.Time
         loc = (Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude)

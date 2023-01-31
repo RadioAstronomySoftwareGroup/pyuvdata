@@ -56,12 +56,12 @@ def astrometry_args():
         "dist": 73.31,
         "library": "erfa",
     }
-
     default_args["lst_array"] = uvutils.get_lst_for_time(
         default_args["time_array"],
         default_args["telescope_loc"][0] * (180.0 / np.pi),
         default_args["telescope_loc"][1] * (180.0 / np.pi),
         default_args["telescope_loc"][2],
+        frame="itrs",
     )
 
     default_args["drift_coord"] = SkyCoord(
@@ -69,6 +69,24 @@ def astrometry_args():
         [default_args["telescope_loc"][0]] * len(default_args["lst_array"]),
         unit="rad",
     )
+
+    if hasmoon:
+        default_args["moon_telescope_loc"] = MoonLocation.from_selenodetic(
+            0.6875, 24.433, 0
+        )
+        default_args["moon_lst_array"] = uvutils.get_lst_for_time(
+            default_args["time_array"],
+            default_args["moon_telescope_loc"].lat.deg,
+            default_args["moon_telescope_loc"].lon.deg,
+            default_args["moon_telescope_loc"].height.to("m").value,
+            frame="mcmf",
+        )
+        default_args["moon_drift_coord"] = SkyCoord(
+            default_args["moon_lst_array"],
+            [default_args["moon_telescope_loc"].lat.rad]
+            * len(default_args["moon_lst_array"]),
+            unit="rad",
+        )
 
     default_args["icrs_coord"] = SkyCoord(
         default_args["icrs_ra"], default_args["icrs_dec"], unit="rad"
@@ -94,6 +112,21 @@ def astrometry_args():
     default_args["app_coord"] = SkyCoord(
         default_args["app_ra"], default_args["app_dec"], unit="rad"
     )
+
+    if hasmoon:
+        (
+            default_args["moon_app_ra"],
+            default_args["moon_app_dec"],
+        ) = uvutils.transform_icrs_to_app(
+            default_args["time_array"],
+            default_args["icrs_ra"],
+            default_args["icrs_dec"],
+            default_args["moon_telescope_loc"],
+        )
+
+        default_args["moon_app_coord"] = SkyCoord(
+            default_args["moon_app_ra"], default_args["moon_app_dec"], unit="rad"
+        )
 
     yield default_args
 
@@ -494,10 +527,10 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     )
 
 
-_frames = ["itrs", "mcmf"] if hasmoon else ["itrs"]
+telescope_frame = ["itrs", "mcmf"] if hasmoon else ["itrs"]
 
 
-@pytest.mark.parametrize("frame", _frames)
+@pytest.mark.parametrize("frame", telescope_frame)
 def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
     """Test ECEF_from_ENU values."""
     (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
@@ -1189,18 +1222,36 @@ def test_transform_sidereal_coords_arg_errs():
 
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
 @pytest.mark.parametrize(
-    "arg_dict,msg",
-    (
+    ["arg_dict", "err_type", "msg"],
+    [
         [
             {"force_lookup": True, "time_array": np.arange(100000)},
+            ValueError,
             "Requesting too many individual ephem points from JPL-Horizons.",
         ],
-        [{"force_lookup": False, "high_cadence": True}, "Too many ephem points"],
-        [{"time_array": np.arange(10)}, "No current support for JPL ephems outside"],
-        [{"targ_name": "whoami"}, "Target ID is not recognized in either the small"],
-    ),
+        [
+            {"force_lookup": False, "high_cadence": True},
+            ValueError,
+            "Too many ephem points",
+        ],
+        [
+            {"time_array": np.arange(10)},
+            ValueError,
+            "No current support for JPL ephems outside",
+        ],
+        [
+            {"targ_name": "whoami"},
+            ValueError,
+            "Target ID is not recognized in either the small",
+        ],
+        [
+            {"telescope_loc": MoonLocation.from_selenodetic(0.6875, 24.433, 0)},
+            NotImplementedError,
+            "Cannot lookup JPL positions for telescopes with a MoonLocation",
+        ],
+    ],
 )
-def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
+def test_lookup_jplhorizons_arg_errs(arg_dict, err_type, msg):
     """
     Check for argument errors with lookup_jplhorizons.
     """
@@ -1236,7 +1287,7 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
         pytest.skip("SSL/Connection error w/ JPL Horizons")
 
-    assert issubclass(cm.type, ValueError)
+    assert issubclass(cm.type, err_type)
     assert str(cm.value).startswith(msg)
 
 
@@ -1338,43 +1389,78 @@ def test_transform_fk5_fk4_icrs_loop(astrometry_args):
     assert np.all(check_coord.separation(astrometry_args["icrs_coord"]).uarcsec < 0.1)
 
 
-def test_roundtrip_icrs(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+@pytest.mark.parametrize("in_lib", ["erfa", "astropy"])
+@pytest.mark.parametrize("out_lib", ["erfa", "astropy"])
+def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
     """
     Performs a roundtrip test to verify that one can transform between
     ICRS <-> topocentric to the precision limit, without running into
     issues.
     """
-    in_lib_list = ["erfa", "erfa", "astropy", "astropy"]
-    out_lib_list = ["erfa", "astropy", "erfa", "astropy"]
+    if telescope_frame == "itrs":
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        telescope_loc = astrometry_args["moon_telescope_loc"]
 
-    for in_lib, out_lib in zip(in_lib_list, out_lib_list):
-        app_ra, app_dec = uvutils.transform_icrs_to_app(
-            astrometry_args["time_array"],
-            astrometry_args["icrs_ra"],
-            astrometry_args["icrs_dec"],
-            astrometry_args["telescope_loc"],
-            epoch=astrometry_args["epoch"],
-            astrometry_library=in_lib,
-        )
+    if telescope_frame == "mcmf" and in_lib != "astropy":
+        with pytest.raises(
+            NotImplementedError,
+            match="MoonLocation telescopes are only supported with the 'astropy' "
+            "astrometry library",
+        ):
+            app_ra, app_dec = uvutils.transform_icrs_to_app(
+                astrometry_args["time_array"],
+                astrometry_args["icrs_ra"],
+                astrometry_args["icrs_dec"],
+                telescope_loc,
+                epoch=astrometry_args["epoch"],
+                astrometry_library=in_lib,
+            )
+        return
 
-        check_ra, check_dec = uvutils.transform_app_to_icrs(
-            astrometry_args["time_array"],
-            app_ra,
-            app_dec,
-            astrometry_args["telescope_loc"],
-            astrometry_library=out_lib,
+    app_ra, app_dec = uvutils.transform_icrs_to_app(
+        astrometry_args["time_array"],
+        astrometry_args["icrs_ra"],
+        astrometry_args["icrs_dec"],
+        telescope_loc,
+        epoch=astrometry_args["epoch"],
+        astrometry_library=in_lib,
+    )
+
+    if telescope_frame == "mcmf" and out_lib != "astropy":
+        with pytest.raises(
+            NotImplementedError,
+            match="MoonLocation telescopes are only supported with the 'astropy' "
+            "astrometry library",
+        ):
+            check_ra, check_dec = uvutils.transform_app_to_icrs(
+                astrometry_args["time_array"],
+                app_ra,
+                app_dec,
+                telescope_loc,
+                astrometry_library=out_lib,
+            )
+        return
+    check_ra, check_dec = uvutils.transform_app_to_icrs(
+        astrometry_args["time_array"],
+        app_ra,
+        app_dec,
+        telescope_loc,
+        astrometry_library=out_lib,
+    )
+
+    check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
+    # Verify that everything agrees to better than µas-level accuracy if the
+    # libraries are the same, otherwise to 100 µas if cross-comparing libraries
+    if in_lib == out_lib:
+        assert np.all(
+            astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 1.0
         )
-        check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
-        # Verify that everything agrees to better than µas-level accuracy if the
-        # libraries are the same, otherwise to 100 µas if cross-comparing libraries
-        if in_lib == out_lib:
-            assert np.all(
-                astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 1.0
-            )
-        else:
-            assert np.all(
-                astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 100.0
-            )
+    else:
+        assert np.all(
+            astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 100.0
+        )
 
 
 def test_calc_parallactic_angle():
@@ -1551,27 +1637,37 @@ def test_ephem_interp_multi_point():
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-def test_calc_app_sidereal(astrometry_args, frame):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_sidereal(astrometry_args, frame, telescope_frame):
     """
     Tests that we can calculate app coords for sidereal objects
     """
     # First step is to check and make sure we can do sidereal coords. This is the most
     # basic thing to check, so this really _should work.
+    if telescope_frame == "itrs":
+        app_coord_name = "app_coord"
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        app_coord_name = "moon_app_coord"
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     check_ra, check_dec = uvutils.calc_app_coords(
         astrometry_args["fk5_ra"] if (frame == "fk5") else astrometry_args["icrs_ra"],
         astrometry_args["fk5_dec"] if (frame == "fk5") else astrometry_args["icrs_dec"],
         coord_type="sidereal",
-        telescope_loc=astrometry_args["telescope_loc"],
+        telescope_loc=telescope_loc,
         time_array=astrometry_args["time_array"],
         coord_frame=frame,
         coord_epoch=astrometry_args["epoch"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(astrometry_args["app_coord"].separation(check_coord).uarcsec < 1.0)
+
+    assert np.all(astrometry_args[app_coord_name].separation(check_coord).uarcsec < 1.0)
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-def test_calc_app_ephem(astrometry_args, frame):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
     """
     Tests that we can calculate app coords for ephem objects
     """
@@ -1579,6 +1675,13 @@ def test_calc_app_ephem(astrometry_args, frame):
     # point ephem, so its not testing any of the fancy interpolation, but we have other
     # tests for poking at that. The two tests here are to check bot the ICRS and FK5
     # paths through the ephem.
+    if telescope_frame == "itrs":
+        app_coord_name = "app_coord"
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        app_coord_name = "moon_app_coord"
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     if frame == "fk5":
         ephem_ra = astrometry_args["fk5_ra"]
         ephem_dec = astrometry_args["fk5_dec"]
@@ -1592,39 +1695,57 @@ def test_calc_app_ephem(astrometry_args, frame):
         ephem_dec,
         coord_times=ephem_times,
         coord_type="ephem",
-        telescope_loc=astrometry_args["telescope_loc"],
+        telescope_loc=telescope_loc,
         time_array=astrometry_args["time_array"],
         coord_epoch=astrometry_args["epoch"],
         coord_frame=frame,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(astrometry_args["app_coord"].separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args[app_coord_name].separation(check_coord).uarcsec < 1.0)
 
 
-def test_calc_app_driftscan(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_driftscan(astrometry_args, telescope_frame):
     """
     Tests that we can calculate app coords for driftscan objects
     """
     # Now on to the driftscan, which takes in arguments in terms of az and el (and
     # the values we've given below should also be for zenith)
+    if telescope_frame == "itrs":
+        coord_name = "drift_coord"
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        coord_name = "moon_drift_coord"
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     check_ra, check_dec = uvutils.calc_app_coords(
         0.0,
         np.pi / 2.0,
         coord_type="driftscan",
-        telescope_loc=astrometry_args["telescope_loc"],
+        telescope_loc=telescope_loc,
         time_array=astrometry_args["time_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args[coord_name].separation(check_coord).uarcsec < 1.0)
 
 
-def test_calc_app_unprojected(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_unprojected(astrometry_args, telescope_frame):
     """
     Tests that we can calculate app coords for unphased objects
     """
     # Finally, check unprojected, which is forced to point toward zenith (unlike
     # driftscan, which is allowed to point at any az/el position)
     # use "unphased" to check for deprecation warning
+    if telescope_frame == "itrs":
+        coord_name = "drift_coord"
+        telescope_loc = astrometry_args["telescope_loc"]
+        lst_array = astrometry_args["lst_array"]
+    else:
+        coord_name = "moon_drift_coord"
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+        lst_array = astrometry_args["moon_lst_array"]
+
     with uvtest.check_warnings(
         DeprecationWarning,
         match="The 'unphased' catalog type has been renamed to 'unprojected'. Using "
@@ -1634,23 +1755,29 @@ def test_calc_app_unprojected(astrometry_args):
             None,
             None,
             coord_type="unphased",
-            telescope_loc=astrometry_args["telescope_loc"],
+            telescope_loc=telescope_loc,
             time_array=astrometry_args["time_array"],
-            lst_array=astrometry_args["lst_array"],
+            lst_array=lst_array,
         )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
-    assert np.all(astrometry_args["drift_coord"].separation(check_coord).uarcsec < 1.0)
+    assert np.all(astrometry_args[coord_name].separation(check_coord).uarcsec < 1.0)
 
 
-def test_calc_app_fk5_roundtrip(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
     # Do a round-trip with the two top-level functions and make sure they agree to
     # better than 1 µas, first in FK5
+    if telescope_frame == "itrs":
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
         coord_type="sidereal",
-        telescope_loc=astrometry_args["telescope_loc"],
+        telescope_loc=telescope_loc,
         time_array=astrometry_args["time_array"],
         coord_frame="fk5",
         coord_epoch="J2000.0",
@@ -1660,7 +1787,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args):
         astrometry_args["time_array"],
         app_ra,
         app_dec,
-        astrometry_args["telescope_loc"],
+        telescope_loc,
         "fk5",
         coord_epoch=2000.0,
     )
@@ -1668,13 +1795,19 @@ def test_calc_app_fk5_roundtrip(astrometry_args):
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
 
-def test_calc_app_fk4_roundtrip(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
     # Finally, check and make sure that FK4 performs similarly
+    if telescope_frame == "itrs":
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     app_ra, app_dec = uvutils.calc_app_coords(
         0.0,
         0.0,
         coord_type="sidereal",
-        telescope_loc=astrometry_args["telescope_loc"],
+        telescope_loc=telescope_loc,
         time_array=astrometry_args["time_array"],
         coord_frame="fk4",
         coord_epoch=1950.0,
@@ -1684,7 +1817,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args):
         astrometry_args["time_array"],
         app_ra,
         app_dec,
-        astrometry_args["telescope_loc"],
+        telescope_loc,
         "fk4",
         coord_epoch=1950.0,
     )
@@ -1824,21 +1957,31 @@ def test_sidereal_reptime(astrometry_args):
     assert np.all(gcrs_dec == check_dec)
 
 
-def test_transform_icrs_to_app_time_obj(astrometry_args):
+@pytest.mark.parametrize("telescope_frame", telescope_frame)
+def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
     """
     Test that we recover identical values when using a Time objects instead of a floats
     for the various time-related arguments in transform_icrs_to_app.
     """
+    if telescope_frame == "itrs":
+        app_ra_name = "app_ra"
+        app_dec_name = "app_dec"
+        telescope_loc = astrometry_args["telescope_loc"]
+    else:
+        app_ra_name = "moon_app_ra"
+        app_dec_name = "moon_app_dec"
+        telescope_loc = astrometry_args["moon_telescope_loc"]
+
     check_ra, check_dec = uvutils.transform_icrs_to_app(
         Time(astrometry_args["time_array"], format="jd"),
         astrometry_args["icrs_ra"],
         astrometry_args["icrs_dec"],
-        astrometry_args["telescope_loc"],
+        telescope_loc,
         epoch=Time(astrometry_args["epoch"], format="jyear"),
     )
 
-    assert np.all(check_ra == astrometry_args["app_ra"])
-    assert np.all(check_dec == astrometry_args["app_dec"])
+    assert np.all(check_ra == astrometry_args[app_ra_name])
+    assert np.all(check_dec == astrometry_args[app_dec_name])
 
 
 def test_transform_app_to_icrs_objs(astrometry_args):
@@ -1962,6 +2105,21 @@ def test_lst_for_time_float_vs_array(astrometry_args):
     assert np.all(lst_array == check_lst)
 
 
+def test_get_lst_for_time_errors(astrometry_args):
+    with pytest.raises(
+        ValueError,
+        match="Requested coordinate transformation library is not supported, please "
+        "select either 'erfa' or 'astropy' for astrometry_library.",
+    ):
+        uvutils.get_lst_for_time(
+            np.array(astrometry_args["time_array"][0]),
+            astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+            astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+            astrometry_args["telescope_loc"][2],
+            astrometry_library="foo",
+        )
+
+
 @pytest.mark.filterwarnings("ignore:The get_frame_attr_names")
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_lst_for_time_moon(astrometry_args):
@@ -1969,10 +2127,24 @@ def test_lst_for_time_moon(astrometry_args):
     from lunarsky import SkyCoord as LSkyCoord
 
     lat, lon, alt = (0.6875, 24.433, 0)  # Degrees
-    with pytest.warns(UserWarning, match="Defaulting to `astrometry_library=astropy`"):
+
+    # check error if try to use the wrong astrometry library
+    with pytest.raises(
+        NotImplementedError,
+        match="The MCMF frame is only supported with the 'astropy' astrometry library",
+    ):
         lst_array = uvutils.get_lst_for_time(
-            astrometry_args["time_array"], lat, lon, alt, frame="mcmf"
+            astrometry_args["time_array"],
+            lat,
+            lon,
+            alt,
+            frame="mcmf",
+            astrometry_library="novas",
         )
+
+    lst_array = uvutils.get_lst_for_time(
+        astrometry_args["time_array"], lat, lon, alt, frame="mcmf"
+    )
 
     # Verify that lsts are close to local zenith RA
     loc = MoonLocation.from_selenodetic(lon, lat, alt)
