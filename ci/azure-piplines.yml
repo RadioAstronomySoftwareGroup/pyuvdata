@@ -106,7 +106,8 @@ jobs:
   - bash: |
       micromamba info
       # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyradiosky/ci/${ENV_NAME}.yml -yq
+      # note different spelling of yaml extension
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyradiosky/ci/${ENV_NAME}.yaml -yq
     displayName: configure conda environment
 
   - bash: |
@@ -149,7 +150,8 @@ jobs:
   - bash: |
       micromamba info
       # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyuvsim/ci/${ENV_NAME}.yml -yq
+      # note different spelling of yaml extension
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyuvsim/ci/${ENV_NAME}.yaml -yq
     displayName: configure conda environment
 
   - bash: |
