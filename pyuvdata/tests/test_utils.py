@@ -1222,36 +1222,18 @@ def test_transform_sidereal_coords_arg_errs():
 
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
 @pytest.mark.parametrize(
-    ["arg_dict", "err_type", "msg"],
+    ["arg_dict", "msg"],
     [
         [
             {"force_lookup": True, "time_array": np.arange(100000)},
-            ValueError,
             "Requesting too many individual ephem points from JPL-Horizons.",
         ],
-        [
-            {"force_lookup": False, "high_cadence": True},
-            ValueError,
-            "Too many ephem points",
-        ],
-        [
-            {"time_array": np.arange(10)},
-            ValueError,
-            "No current support for JPL ephems outside",
-        ],
-        [
-            {"targ_name": "whoami"},
-            ValueError,
-            "Target ID is not recognized in either the small",
-        ],
-        [
-            {"telescope_loc": MoonLocation.from_selenodetic(0.6875, 24.433, 0)},
-            NotImplementedError,
-            "Cannot lookup JPL positions for telescopes with a MoonLocation",
-        ],
+        [{"force_lookup": False, "high_cadence": True}, "Too many ephem points"],
+        [{"time_array": np.arange(10)}, "No current support for JPL ephems outside"],
+        [{"targ_name": "whoami"}, "Target ID is not recognized in either the small"],
     ],
 )
-def test_lookup_jplhorizons_arg_errs(arg_dict, err_type, msg):
+def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
     """
     Check for argument errors with lookup_jplhorizons.
     """
@@ -1287,8 +1269,48 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, err_type, msg):
     if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
         pytest.skip("SSL/Connection error w/ JPL Horizons")
 
-    assert issubclass(cm.type, err_type)
+    assert issubclass(cm.type, ValueError)
     assert str(cm.value).startswith(msg)
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_lookup_jplhorizons_moon_err():
+    """
+    Check for argument errors with lookup_jplhorizons.
+    """
+    # Don't do this test if we don't have astroquery loaded
+    pytest.importorskip("astroquery")
+
+    from ssl import SSLError
+
+    from requests import RequestException
+
+    default_args = {
+        "targ_name": "Mars",
+        "time_array": np.array([0.0, 1000.0]) + 2456789.0,
+        "telescope_loc": MoonLocation.from_selenodetic(0.6875, 24.433, 0),
+        "high_cadence": False,
+        "force_lookup": None,
+    }
+
+    # We have to handle this piece a bit carefully, since some queries fail due to
+    # intermittent failures connecting to the JPL-Horizons service.
+    with pytest.raises(Exception) as cm:
+        uvutils.lookup_jplhorizons(
+            default_args["targ_name"],
+            default_args["time_array"],
+            telescope_loc=default_args["telescope_loc"],
+            high_cadence=default_args["high_cadence"],
+            force_indv_lookup=default_args["force_lookup"],
+        )
+
+    if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
+        pytest.skip("SSL/Connection error w/ JPL Horizons")
+
+    assert issubclass(cm.type, NotImplementedError)
+    assert str(cm.value).startswith(
+        "Cannot lookup JPL positions for telescopes with a MoonLocation"
+    )
 
 
 @pytest.mark.parametrize(
