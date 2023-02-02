@@ -598,6 +598,15 @@ class FastUVH5Meta:
                 vis_units = "uncalib"
         return vis_units
 
+    def to_uvdata(self, check_lsts: bool = False) -> UVData:
+        """Convert the file to a UVData object.
+
+        The object will be metadata-only.
+        """
+        uvd = UVH5()
+        uvd.read(self, read_data=False, run_check_acceptability=check_lsts)
+        return uvd
+
 
 class UVH5(UVData):
     """
@@ -609,9 +618,12 @@ class UVH5(UVData):
     """
 
     def _read_header_with_fast_meta(
-        self, filename: str | Path, run_check_acceptability: bool = True
+        self, filename: str | Path | FastUVH5Meta, run_check_acceptability: bool = True
     ):
-        obj = FastUVH5Meta(filename)
+        if not isinstance(filename, FastUVH5Meta):
+            obj = FastUVH5Meta(filename)
+        else:
+            obj = filename
 
         # Required parameters
         for attr in [
@@ -728,7 +740,11 @@ class UVH5(UVData):
             self._set_future_array_shapes()
 
     def _read_header(
-        self, header, filename, run_check_acceptability=True, background_lsts=True
+        self,
+        header,
+        filename: str | Path | FastUVH5Meta,
+        run_check_acceptability=True,
+        background_lsts=True,
     ):
         """
         Read header information from a UVH5 file.
@@ -1253,6 +1269,12 @@ class UVH5(UVData):
             exclude all data or if keywords are set to the wrong type.
 
         """
+        if isinstance(filename, FastUVH5Meta):
+            meta = filename
+            filename = meta.path
+        else:
+            meta = FastUVH5Meta(filename)
+
         if not os.path.exists(filename):
             raise IOError(filename + " not found")
 
@@ -1267,7 +1289,7 @@ class UVH5(UVData):
             header = f["/Header"]
             self._read_header(
                 header,
-                filename,
+                meta,
                 run_check_acceptability=run_check_acceptability,
                 background_lsts=background_lsts,
             )
