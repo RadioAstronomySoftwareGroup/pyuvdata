@@ -392,7 +392,11 @@ class UVBase(object):
             yield a
 
     def __eq__(
-        self, other, check_extra=True, allowed_failures=("filename",), silent=False
+        self,
+        other,
+        check_extra=True,
+        allowed_failures=("filename", "blt_order"),
+        silent=False,
     ):
         """
         Test if classes match and parameters are equal.
@@ -408,7 +412,9 @@ class UVBase(object):
             List or tuple of parameter names that are allowed to fail while
             still passing an overall equality check. These should only include
             optional parameters. By default, the `filename` parameter will be
-            ignored.
+            ignored. 'blt_order' is also ignored, because currently it is ascertained
+            directly, if not provided, by UVH5 files, but not by other file types.
+            In any case, if it was to fail, other parameters would fail as well.
         silent : bool
             Option to turn off printing explanations of why equality fails. Useful to
             prevent __ne__ from printing lots of messages.

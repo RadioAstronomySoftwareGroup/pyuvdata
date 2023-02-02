@@ -213,13 +213,26 @@ class FastUVH5Meta:
     However, the memory can be released simply by deleting the attribute (it can be
     accessed again, and the data will be re-read).
 
+    Parameters
+    ----------
+    filename : str or Path
+        The filename to read from.
+    blts_are_rectangular : bool
+        Whether the baseline-time axis is rectangular. This can be determined,
+        but it is much faster if known a-priori to set it here. Default is to
+        auto-determine.
+    blt_order : tuple of str
+        The order of the baseline-time axis. This can be determined, or read
+        directly from file, however since it has been optional in the past, many
+        existing files do not contain it in the metadata.
+        Some reading operations are significantly faster if this is known, so providing
+        it here can provide a speedup. Default is to auto-determine.
+
     Notes
     -----
     To check if a particular attribute is available, use ``hasattr(obj, attr)``.
     Many attributes will not show up dynamically in an interpreter, because they are
     gotten dynamically from the file.
-
-
     """
 
     _string_attrs = (
@@ -257,16 +270,21 @@ class FastUVH5Meta:
     )
     _bool_attrs = ("flex_spw",)
 
-    def __init__(self, path: str | Path, time_first: bool | None = None):
+    def __init__(
+        self,
+        path: str | Path,
+        blts_are_rectangular: bool = None,
+        blt_order: tuple[str] | None = None,
+    ):
         self.path = Path(path)
 
-        if self.Nblts % self.Ntimes:
-            self._rectangular_blts = False
-        else:
-            self._rectangular_blts = True
-            self.Nbls = self.Nblts // self.Ntimes
+        # This ensures that BOTH blts_are_rectangular and time_first are set when
+        # a user wants the "time_first" capability.
+        if blt_order not in (("time", "baseline"), ("baseline", "time")):
+            blts_are_rectangular = False
 
-        self.__time_first = time_first
+        self.__blt_order = blt_order
+        self.__blts_are_rectangular = blts_are_rectangular
 
     @contextmanager
     def header(self):
@@ -315,12 +333,147 @@ class FastUVH5Meta:
     @cached_property
     def blt_order(self) -> tuple[str]:
         """Tuple defining order of blts axis."""
+        if self.__blt_order is not None:
+            return self.__blt_order
+
         with self.header() as h:
             if "blt_order" in h:
                 blt_order_str = bytes(h["blt_order"][()]).decode("utf8")
                 return tuple(blt_order_str.split(", "))
             else:
-                raise AttributeError("blt_order not found in file.")
+                return self._get_blt_order()
+
+    def _get_blt_order(self) -> tuple[str]:
+        """Get the blt order from analysing metadata."""
+        times = self.time_array
+        ant1 = self.ant_1_array
+        ant2 = self.ant_2_array
+        bls = self.baseline_array
+
+        time_bl = True
+        time_a = True
+        time_b = True
+        bl_time = True
+        a_time = True
+        b_time = True
+        bl_order = True
+        a_order = True
+        b_order = True
+        time_order = True
+
+        for i, (t, a, b, bl) in enumerate(
+            zip(times[1:], ant1[1:], ant2[1:], bls[1:]), start=1
+        ):
+            if t < times[i - 1]:
+                time_bl = False
+                time_a = False
+                time_b = False
+                time_order = False
+
+                if bl == bls[i - 1]:
+                    bl_time = False
+                if a == ant1[i - 1]:
+                    a_time = False
+                if b == ant2[i - 1]:
+                    b_time = False
+
+            elif t == times[i - 1]:
+                if bl < bls[i - 1]:
+                    time_bl = False
+                if a < ant1[i - 1]:
+                    time_a = False
+                if b < ant2[i - 1]:
+                    time_b = False
+
+            if bl < bls[i - 1]:
+                bl_time = False
+                bl_order = False
+            if a < ant1[i - 1]:
+                a_time = False
+                a_order = False
+            if b < ant2[i - 1]:
+                b_time = False
+                b_order = False
+
+            if not any(
+                (
+                    time_bl,
+                    time_a,
+                    time_b,
+                    time_bl,
+                    bl_time,
+                    a_time,
+                    b_time,
+                    bl_order,
+                    a_order,
+                    b_order,
+                    time_order,
+                )
+            ):
+                break
+
+        if (
+            (time_bl and bl_time)
+            or (time_a and a_time)
+            or (time_b and b_time)
+            or (time_order and a_order)
+            or (time_order and b_order)
+            or (a_order and b_order)
+            or (time_order and bl_order)
+        ):
+            raise ValueError(
+                "Something went horribly wrong when trying to determine the order of "
+                "the blts axis."
+                "Please raise an issue on github, as this is not meant to happen."
+            )
+
+        if time_bl:
+            return ("time", "baseline")
+        if bl_time:
+            return ("baseline", "time")
+        if time_a:
+            return ("time", "ant1")
+        if a_time:
+            return ("ant1", "time")
+        if time_b:
+            return ("time", "ant2")
+        if b_time:
+            return ("ant2", "time")
+        if bl_order:
+            return ("baseline",)
+        if a_order:
+            return ("ant1",)
+        if b_order:
+            return ("ant2",)
+        if time_order:
+            return ("time",)
+
+        return None
+
+    @cached_property
+    def blts_are_rectangular(self) -> bool:
+        """Whether blts axis is rectangular.
+
+        That is, this is true if the blts can be reshaped to ``(Ntimes, Nbls)`` OR
+        ``(Nbls, Ntimes)``. This requires each baseline to have the same number of times
+        associated, AND the blt ordering to either be (time, baseline) or
+        (baseline,time).
+        """
+        if self.__blts_are_rectangular is not None:
+            return self.__blts_are_rectangular
+
+        return self.Nblts == self.Ntimes * self.Nbls and self.blt_order in (
+            ("time", "baseline"),
+            ("baseline", "time"),
+        )
+
+    @cached_property
+    def _time_first(self) -> bool:
+        """Whether times move first in the blt axis."""
+        if self.__time_first is not None:
+            return self.__time_first
+
+        return self.blts_are_rectangular and self.blt_order[1] == "time"
 
     @cached_property
     def phase_center_catalog(self) -> dict | None:
@@ -382,24 +535,10 @@ class FastUVH5Meta:
             return None
 
     @cached_property
-    def _time_first(self) -> bool:
-        """Whether times move first in the blt axis."""
-        if self.__time_first is not None:
-            return self.__time_first
-
-        with self.header() as h:
-            if h["time_array"].size > 1:
-                t = h["time_array"][:2]
-                return t[1] != t[0]
-            else:
-                # There's only one blt in the file, so it doesn't matter.
-                return True
-
-    @cached_property
     def times(self) -> np.ndarray:
         """The unique times in the file."""
         with self.header() as h:
-            if self._rectangular_blts:
+            if self.blts_are_rectangular:
                 if self._time_first:
                     return h["time_array"][: self.Ntimes]
                 else:
@@ -412,7 +551,7 @@ class FastUVH5Meta:
         """The unique LSTs in the file."""
         with self.header() as h:
             if "lst_array" in h:
-                if self._rectangular_blts:
+                if self.blts_are_rectangular:
                     if self._time_first:
                         return h["lst_array"][: self.Ntimes]
                     else:
@@ -485,7 +624,7 @@ class FastUVH5Meta:
     def unique_ant_1_array(self) -> np.ndarray:
         """The unique antenna 1 indices in the file."""
         with self.header() as h:
-            if self._rectangular_blts:
+            if self.blts_are_rectangular:
                 if self._time_first:
                     return h["ant_1_array"][:: self.Ntimes]
                 else:
@@ -497,7 +636,7 @@ class FastUVH5Meta:
     def unique_ant_2_array(self) -> np.ndarray:
         """The unique antenna 2 indices in the file."""
         with self.header() as h:
-            if self._rectangular_blts:
+            if self.blts_are_rectangular:
                 if self._time_first:
                     return h["ant_2_array"][:: self.Ntimes]
                 else:
@@ -618,10 +757,16 @@ class UVH5(UVData):
     """
 
     def _read_header_with_fast_meta(
-        self, filename: str | Path | FastUVH5Meta, run_check_acceptability: bool = True
+        self,
+        filename: str | Path | FastUVH5Meta,
+        run_check_acceptability: bool = True,
+        blts_are_rectangular: bool | None = None,
+        blt_order: tuple[str] | None = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
-            obj = FastUVH5Meta(filename)
+            obj = FastUVH5Meta(
+                filename, blts_are_rectangular=blts_are_rectangular, blt_order=blt_order
+            )
         else:
             obj = filename
 
@@ -637,6 +782,7 @@ class UVH5(UVData):
             "Nspws",
             "Ntimes",
             "Nblts",
+            "Nbls",
             "Nants_data",
             "Nants_telescope",
             "antenna_names",
@@ -1271,7 +1417,7 @@ class UVH5(UVData):
         """
         if isinstance(filename, FastUVH5Meta):
             meta = filename
-            filename = meta.path
+            filename = str(meta.path)
         else:
             meta = FastUVH5Meta(filename)
 
