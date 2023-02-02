@@ -3,17 +3,23 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing UVH5 files."""
+from __future__ import annotations
+
 import json
 import os
 import warnings
+from contextlib import contextmanager
+from functools import cached_property
+from pathlib import Path
+from typing import Any
 
 import h5py
 import numpy as np
 
 from .. import utils as uvutils
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData, radian_tol, _future_array_shapes_warning
 
-__all__ = ["UVH5"]
+__all__ = ["UVH5", "FastUVH5Meta"]
 
 
 # define HDF5 type for interpreting HERA correlator outputs (integers) as
@@ -189,6 +195,410 @@ def _get_compression(compression):
     return compression_use, compression_opts
 
 
+class FastUVH5Meta:
+    """
+    A fast read-only interface to UVH5 file metadata that makes some assumptions.
+
+    This class is just a really thin wrapper over a UVH5 file that makes it easier
+    to read in parts of the metadata at a time. This makes it much faster to perform
+    small tasks where simple metadata is required, rather than reading in the whole
+    header.
+
+    All metadata is available as attributes, through ``__getattr__`` magic. Thus,
+    accessing eg. ``obj.freq_array`` will go and get the frequencies directly from the
+    file, and store them in memory. However, some attributes are made faster than the
+    default, by assumptions on the data shape -- in particular, times and baselines.
+
+    Anything that is read in is stored in memory so the second access is much faster.
+    However, the memory can be released simply by deleting the attribute (it can be
+    accessed again, and the data will be re-read).
+
+    Notes
+    -----
+    To check if a particular attribute is available, use ``hasattr(obj, attr)``.
+    Many attributes will not show up dynamically in an interpreter, because they are
+    gotten dynamically from the file.
+
+
+    """
+
+    _string_attrs = (
+        "history",
+        "instrument",
+        "object_name",
+        "x_orientation",
+        "telescope_name",
+        "rdate",
+        "timesys",
+        "eq_coeffs_convention",
+        "phase_type",
+        "phase_center_frame",
+    )
+
+    _defaults = {"x_orientation": None, "flex_spw": False}
+
+    _int_attrs = (
+        "Nblts",
+        "Ntimes",
+        "Npols",
+        "Nspws",
+        "Nfreqs",
+        "uvplane_reference_time",
+        "Nphase",
+        "Nants_data",
+        "Nants_telescope",
+    )
+    _float_attrs = (
+        "dut1",
+        "earth_omega",
+        "gst0",
+        "phase_center_ra" "phase_center_dec",
+        "phase_center_epoch",
+    )
+    _bool_attrs = ("flex_spw",)
+
+    def __init__(self, path: str | Path, time_first: bool | None = None):
+        self.path = Path(path)
+
+        if self.Nblts % self.Ntimes:
+            self._rectangular_blts = False
+        else:
+            self._rectangular_blts = True
+            self.Nbls = self.Nblts // self.Ntimes
+
+        self.__time_first = time_first
+
+    @contextmanager
+    def header(self):
+        """Open the header group of the file.
+
+        Use like::
+
+            with obj.header() as h:
+                print(h['Nblts'][()])
+        """
+        with h5py.File(self.path, "r") as fl:
+            yield fl["Header"]
+
+    @contextmanager
+    def datagrp(self):
+        """Open the data group of the file.
+
+        Use like::
+
+            with obj.datagrp() as d:
+                print(d['visdata'][()])
+        """
+        with h5py.File(self.path, "r") as fl:
+            yield fl["/Data"]
+
+    def __getattr__(self, name: str) -> Any:
+        """Get attribute directly from header group."""
+        with self.header() as h:
+            if name not in h:
+                if name not in self._defaults:
+                    raise AttributeError(f"{name} not found in {self.path}")
+                else:
+                    return self._defaults[name]
+
+            x = h[name][()]
+            if name in self._string_attrs:
+                x = bytes(x).decode("utf8")
+            elif name in self._int_attrs:
+                x = int(x)
+            elif name in self._float_attrs:
+                x = float(x)
+
+            self.__dict__[name] = x
+            return x
+
+    @cached_property
+    def blt_order(self) -> tuple[str]:
+        """Tuple defining order of blts axis."""
+        with self.header() as h:
+            if "blt_order" in h:
+                blt_order_str = bytes(h["blt_order"][()]).decode("utf8")
+                return tuple(blt_order_str.split(", "))
+            else:
+                raise AttributeError("blt_order not found in file.")
+
+    @cached_property
+    def phase_center_catalog(self) -> dict | None:
+        """Dictionary of phase centers."""
+        with self.header() as header:
+            if "phase_center_catalog" not in header:
+                return None
+            phase_center_catalog = {}
+            key_list = list(header["phase_center_catalog"].keys())
+            if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
+                # This is the new, correct way
+                for pc, pc_dict in header["phase_center_catalog"].items():
+                    pc_id = int(pc)
+                    phase_center_catalog[pc_id] = {}
+                    for key, dset in pc_dict.items():
+                        if issubclass(dset.dtype.type, np.bytes_):
+                            phase_center_catalog[pc_id][key] = bytes(dset[()]).decode(
+                                "utf8"
+                            )
+                        elif dset.shape is None:
+                            phase_center_catalog[pc_id][key] = None
+                        else:
+                            phase_center_catalog[pc_id][key] = dset[()]
+            else:
+                # This is the old way this was written
+                for key in header["phase_center_catalog"].keys():
+                    pc_dict = json.loads(
+                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
+                    )
+                    pc_dict["cat_name"] = key
+                    pc_id = pc_dict.pop("cat_id")
+                    phase_center_catalog[pc_id] = pc_dict
+
+            return phase_center_catalog
+
+    @cached_property
+    def phase_type(self) -> str:
+        """The phase type of the data."""
+        with self.header() as h:
+            if "phase_type" not in h:
+                return "drift"
+
+            phs = bytes(h["phase_type"][()]).decode("utf8")
+            if phs in ("drift", "phased"):
+                return phs
+            warnings.warn(
+                "Unknown phase types are no longer supported, marking this "
+                "object as unprojected (unphased) by default."
+            )
+            return "drift"
+
+    @cached_property
+    def phase_center_id_array(self):
+        """Array of phase center IDs."""
+        if self.phase_center_catalog:
+            with self.header() as h:
+                return h["phase_center_id_array"][:]
+        else:
+            return None
+
+    @cached_property
+    def _time_first(self) -> bool:
+        """Whether times move first in the blt axis."""
+        if self.__time_first is not None:
+            return self.__time_first
+
+        with self.header() as h:
+            if h["time_array"].size > 1:
+                t = h["time_array"][:2]
+                return t[1] != t[0]
+            else:
+                # There's only one blt in the file, so it doesn't matter.
+                return True
+
+    @cached_property
+    def times(self) -> np.ndarray:
+        """The unique times in the file."""
+        with self.header() as h:
+            if self._rectangular_blts:
+                if self._time_first:
+                    return h["time_array"][: self.Ntimes]
+                else:
+                    return h["time_array"][:: self.Nbls]
+            else:
+                return np.unique(self.time_array)
+
+    @cached_property
+    def lsts(self) -> np.ndarray:
+        """The unique LSTs in the file."""
+        with self.header() as h:
+            if "lst_array" in h:
+                if self._rectangular_blts:
+                    if self._time_first:
+                        return h["lst_array"][: self.Ntimes]
+                    else:
+                        return h["lst_array"][:: self.Nbls]
+                else:
+                    return np.unique(self.lst_array)
+
+        # If lst_array not there, compute ourselves.
+        return uvutils.get_lst_for_time(
+            self.times, *self.telescope_location_lat_lon_alt_degrees
+        )
+
+    @cached_property
+    def lst_array(self) -> np.ndarray:
+        """The LSTs corresponding to each baseline-time."""
+        with self.header() as h:
+            if "lst_array" in h:
+                return h["lst_array"][:]
+            else:
+                return uvutils.get_lst_for_time(
+                    self.time_array, *self.telescope_location_lat_lon_alt_degrees
+                )
+
+    @cached_property
+    def channel_width(self) -> float:
+        """The width of each frequency channel in Hz."""
+        # Pull in the channel_width parameter as either an array or as a single float,
+        # depending on whether or not the data is stored with a flexible spw.
+        with self.header() as h:
+            if self.flex_spw or np.asarray(h["channel_width"]).ndim == 1:
+                return h["channel_width"][:]
+            else:
+                return float(h["channel_width"][()])
+
+    @cached_property
+    def extra_keywords(self) -> dict:
+        """The extra_keywords from the file."""
+        with self.header() as header:
+            if "extra_keywords" not in header:
+                raise AttributeError("No extra_keywords in this file.")
+
+            extra_keywords = {}
+            for key in header["extra_keywords"].keys():
+                if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+                    extra_keywords[key] = bytes(
+                        header["extra_keywords"][key][()]
+                    ).decode("utf8")
+                else:
+                    # special handling for empty datasets == python `None` type
+                    if header["extra_keywords"][key].shape is None:
+                        extra_keywords[key] = None
+                    else:
+                        extra_keywords[key] = header["extra_keywords"][key][()]
+            return extra_keywords
+
+    def check_lsts_against_times(self):
+        """Check that LSTs consistent with the time_array and telescope location."""
+        lsts = uvutils.get_lst_for_time(
+            self.times, *self.telescope_location_lat_lon_alt_degrees
+        )
+
+        if not np.all(np.isclose(self.lsts, lsts, rtol=0, atol=radian_tol)):
+            warnings.warn(
+                f"LST values stored in {self.path} are not self-consistent "
+                "with time_array and telescope location. Consider "
+                "recomputing with utils.get_lst_for_time."
+            )
+
+    @cached_property
+    def unique_ant_1_array(self) -> np.ndarray:
+        """The unique antenna 1 indices in the file."""
+        with self.header() as h:
+            if self._rectangular_blts:
+                if self._time_first:
+                    return h["ant_1_array"][:: self.Ntimes]
+                else:
+                    return h["ant_1_array"][: self.Nbls]
+            else:
+                return np.unique(self.ant_1_array)
+
+    @cached_property
+    def unique_ant_2_array(self) -> np.ndarray:
+        """The unique antenna 2 indices in the file."""
+        with self.header() as h:
+            if self._rectangular_blts:
+                if self._time_first:
+                    return h["ant_2_array"][:: self.Ntimes]
+                else:
+                    return h["ant_2_array"][: self.Nbls]
+            else:
+                return np.unique(self.ant_2_array)
+
+    @cached_property
+    def baseline_array(self) -> np.ndarray:
+        """The baselines in the file, as unique integers."""
+        return uvutils.antnums_to_baseline(
+            self.ant_1_array, self.ant_2_array, self.Nants_telescope
+        )
+
+    @cached_property
+    def unique_baseline_array(self) -> np.ndarray:
+        """The unique baselines in the file, as unique integers."""
+        return uvutils.antnums_to_baseline(
+            self.unique_ant_1_array, self.unique_ant_2_array, self.Nants_telescope
+        )
+
+    @cached_property
+    def antenna_names(self) -> list[str]:
+        """The antenna names in the file."""
+        with self.header() as h:
+            return [bytes(name).decode("utf8") for name in h["antenna_names"][:]]
+
+    @cached_property
+    def antpairs(self) -> list[tuple[int, int]]:
+        """Get the unique antenna pairs in the file."""
+        return list(zip(self.unique_ant_1_array, self.unique_ant_2_array))
+
+    def has_key(self, key: tuple[int, int] | tuple[int, int, str]) -> bool:
+        """Check if the file has a given antpair or antpair-pol key."""
+        if len(key) == 2 and key in self.antpairs or (key[1], key[0]) in self.antpairs:
+            return True
+        elif len(key) == 3 and (
+            (key[:2] in self.antpairs and key[2] in self.pols)
+            or ((key[1], key[0]) in self.antpairs and key[2][::-1] in self.pols)
+        ):
+            return True
+        else:
+            return False
+
+    @cached_property
+    def freqs(self) -> np.ndarray:
+        """The frequencies in the file, in Hz.
+
+        Always a 1D array.
+        """
+        fq = self.freq_array
+
+        if fq.ndim == 2:
+            return fq[0]
+        else:
+            return fq
+
+    @cached_property
+    def pols(self) -> list[str]:
+        """The polarizations in the file, as standardized strings, eg. 'xx' or 'ee'."""
+        return [
+            uvutils.polnum2str(p, x_orientation=self.x_orientation)
+            for p in self.polarization_array
+        ]
+
+    @cached_property
+    def antpos_enu(self) -> np.ndarray:
+        """The antenna positions in ENU coordinates, in meters."""
+        XYZ = uvutils.XYZ_from_LatLonAlt(
+            self.latitude * np.pi / 180, self.longitude * np.pi / 180, self.altitude
+        )
+        return uvutils.ENU_from_ECEF(
+            self.antenna_positions + XYZ,
+            self.latitude * np.pi / 180,
+            self.longitude,
+            self.altitude,
+        )
+
+    @property
+    def telescope_location_lat_lon_alt_degrees(self) -> tuple[float, float, float]:
+        """The telescope location in latitude, longitude, and altitude, in degrees."""
+        return self.latitude, self.longitude, self.altitude
+
+    @cached_property
+    def vis_units(self) -> str:
+        """The visibility units in the file, as a string."""
+        # check for vis_units
+        with self.header() as header:
+            if "vis_units" in header:
+                vis_units = bytes(header["vis_units"][()]).decode("utf8")
+                # Added here because older files allowed for both upper and lowercase
+                # formats, although since the attribute is case sensitive, we want to
+                # correct for this here.
+                if vis_units == "UNCALIB":
+                    vis_units = "uncalib"
+            else:
+                # default to uncalibrated data
+                vis_units = "uncalib"
+        return vis_units
+
+
 class UVH5(UVData):
     """
     A class for UVH5 file objects.
@@ -197,6 +607,128 @@ class UVH5(UVData):
     writing UVH5 files. This class should not be interacted with directly,
     instead use the read_uvh5 and write_uvh5 methods on the UVData class.
     """
+
+    def _read_header_with_fast_meta(
+        self, filename: str | Path, run_check_acceptability: bool = True
+    ):
+        obj = FastUVH5Meta(filename)
+
+        # Required parameters
+        for attr in [
+            "telescope_location_lat_lon_alt_degrees",
+            "instrument",
+            "telescope_name",
+            "history",
+            "vis_units",
+            "Nfreqs",
+            "Npols",
+            "Nspws",
+            "Ntimes",
+            "Nblts",
+            "Nants_data",
+            "Nants_telescope",
+            "antenna_names",
+            "antenna_numbers",
+            "antenna_positions",
+            "ant_1_array",
+            "ant_2_array",
+            "phase_center_id_array",
+            "Nbls",
+            "baseline_array",
+            "time_array",
+            "integration_time",
+            "lst_array",
+            "freq_array",
+            "spw_array",
+            "channel_width",
+            "polarization_array",
+            "uvw_array",
+            "channel_width",
+            "phase_center_catalog",
+        ]:
+            try:
+                setattr(self, attr, getattr(obj, attr))
+            except AttributeError as e:
+                raise KeyError(str(e)) from e
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        # Optional parameters
+        for attr in [
+            "dut1",
+            "earth_omega",
+            "gst0",
+            "rdate",
+            "timesys",
+            "x_orientation",
+            "blt_order",
+            "antenna_diameters",
+            "uvplane_reference_time",
+            "eq_coeffs",
+            "eq_coeffs_convention",
+            "flex_spw_id_array",
+            "flex_spw_polarization_array",
+            "phase_center_app_ra",
+            "phase_center_app_dec",
+            "phase_center_frame_pa",
+            "extra_keywords",
+        ]:
+            if hasattr(obj, attr):
+                setattr(self, attr, getattr(obj, attr))
+
+        if self.blt_order == ("bda",):
+            self._blt_order.form = (1,)
+
+        # We've added a few new keywords that did not exist before, so check to see if
+        # any of them are in the header, and if not, mark the data set as being
+        # "regular" (e.g., not a flexible spectral window setup, single source only).
+        if obj.flex_spw:
+            self._set_flex_spw()
+
+        # Here is where we start handling phase center information.  If we have a
+        # multi phase center dataset, we need to get different header items
+        if self.phase_center_catalog is not None:
+            self.Nphase = obj.Nphase
+        else:
+            cat_name = getattr(obj, "object_name", None)
+
+            if obj.phase_type == "drift":
+                if cat_name is None:
+                    print("HERE")
+                    cat_name = "unprojected"
+
+                cat_id = self._add_phase_center(cat_name, cat_type="unprojected")
+            else:
+                cat_id = self._add_phase_center(
+                    cat_name,
+                    cat_type="sidereal",
+                    cat_lon=obj.phase_center_ra,
+                    cat_lat=obj.phase_center_dec,
+                    cat_frame=obj.phase_center_frame,
+                    cat_epoch=obj.phase_center_epoch,
+                )
+            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
+            print("ON READ: ", self.phase_center_catalog)
+        # set telescope params
+        try:
+            self.set_telescope_params()
+        except ValueError as ve:
+            warnings.warn(str(ve))
+
+        if run_check_acceptability:
+            obj.check_lsts_against_times()
+
+        if self.freq_array.ndim == 1:
+            arr_shape_msg = (
+                "The size of arrays in this file are not internally consistent, "
+                "which should not happen. Please file an issue in our GitHub issue "
+                "log so that we can fix it."
+            )
+            assert (
+                np.asarray(self.channel_width).size == self.freq_array.size
+            ), arr_shape_msg
+            self._set_future_array_shapes()
 
     def _read_header(
         self, header, filename, run_check_acceptability=True, background_lsts=True
@@ -222,268 +754,9 @@ class UVH5(UVData):
         -------
         None
         """
-        # get telescope information
-        latitude = header["latitude"][()]
-        longitude = header["longitude"][()]
-        altitude = header["altitude"][()]
-        self.telescope_location_lat_lon_alt_degrees = (latitude, longitude, altitude)
-        self.instrument = bytes(header["instrument"][()]).decode("utf8")
-        self.telescope_name = bytes(header["telescope_name"][()]).decode("utf8")
-
-        # set history appropriately
-        self.history = bytes(header["history"][()]).decode("utf8")
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        # check for vis_units
-        if "vis_units" in header:
-            self.vis_units = bytes(header["vis_units"][()]).decode("utf8")
-            # Added here because older files allowed for both upper and lowercase
-            # formats, although since the attribute is case sensitive, we want to
-            # correct for this here.
-            if self.vis_units == "UNCALIB":
-                self.vis_units = "uncalib"
-        else:
-            # default to uncalibrated data
-            self.vis_units = "uncalib"
-
-        # check for optional values
-        if "dut1" in header:
-            self.dut1 = float(header["dut1"][()])
-        if "earth_omega" in header:
-            self.earth_omega = float(header["earth_omega"][()])
-        if "gst0" in header:
-            self.gst0 = float(header["gst0"][()])
-        if "rdate" in header:
-            self.rdate = bytes(header["rdate"][()]).decode("utf8")
-        if "timesys" in header:
-            self.timesys = bytes(header["timesys"][()]).decode("utf8")
-        if "x_orientation" in header:
-            self.x_orientation = bytes(header["x_orientation"][()]).decode("utf8")
-        if "blt_order" in header:
-            blt_order_str = bytes(header["blt_order"][()]).decode("utf8")
-            self.blt_order = tuple(blt_order_str.split(", "))
-            if self.blt_order == ("bda",):
-                self._blt_order.form = (1,)
-
-        if "antenna_diameters" in header:
-            self.antenna_diameters = header["antenna_diameters"][()]
-        if "uvplane_reference_time" in header:
-            self.uvplane_reference_time = int(header["uvplane_reference_time"][()])
-        if "eq_coeffs" in header:
-            self.eq_coeffs = header["eq_coeffs"][()]
-        if "eq_coeffs_convention" in header:
-            self.eq_coeffs_convention = bytes(
-                header["eq_coeffs_convention"][()]
-            ).decode("utf8")
-
-        # get data shapes
-        self.Nfreqs = int(header["Nfreqs"][()])
-        self.Npols = int(header["Npols"][()])
-        self.Ntimes = int(header["Ntimes"][()])
-        self.Nblts = int(header["Nblts"][()])
-        self.Nspws = int(header["Nspws"][()])
-
-        # We've added a few new keywords that did not exist before, so check to see if
-        # any of them are in the header, and if not, mark the data set as being
-        # "regular" (e.g., not a flexible spectral window setup, single source only).
-        if "flex_spw" in header:
-            if bool(header["flex_spw"][()]):
-                self._set_flex_spw()
-        if "flex_spw_id_array" in header:
-            self.flex_spw_id_array = header["flex_spw_id_array"][:]
-        if "flex_spw_polarization_array" in header:
-            self.flex_spw_polarization_array = header["flex_spw_polarization_array"][:]
-
-        # Here is where we start handing phase center information.  If we have a
-        # multi phase center dataset, we need to get different header items
-        if "phase_center_catalog" in header:
-            self.Nphase = int(header["Nphase"][()])
-            self.phase_center_id_array = header["phase_center_id_array"][:]
-
-            # Here is where we collect the other source/phasing info
-            self.phase_center_catalog = {}
-            key_list = list(header["phase_center_catalog"].keys())
-            if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
-                # This is the new, correct way
-                for pc, pc_dict in header["phase_center_catalog"].items():
-                    pc_id = int(pc)
-                    self.phase_center_catalog[pc_id] = {}
-                    for key, dset in pc_dict.items():
-                        if issubclass(dset.dtype.type, np.bytes_):
-                            self.phase_center_catalog[pc_id][key] = bytes(
-                                dset[()]
-                            ).decode("utf8")
-                        elif dset.shape is None:
-                            self.phase_center_catalog[pc_id][key] = None
-                        else:
-                            self.phase_center_catalog[pc_id][key] = dset[()]
-            else:
-                # This is the old way this was written
-                for key in header["phase_center_catalog"].keys():
-                    pc_dict = json.loads(
-                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
-                    )
-                    pc_dict["cat_name"] = key
-                    pc_id = pc_dict.pop("cat_id")
-                    self.phase_center_catalog[pc_id] = pc_dict
-        else:
-            # check for older phasing information
-            phase_type = bytes(header["phase_type"][()]).decode("utf8")
-            if "object_name" in header:
-                cat_name = bytes(header["object_name"][()]).decode("utf8")
-            else:
-                cat_name = None
-            if "phase_center_ra" in header:
-                phase_center_ra = float(header["phase_center_ra"][()])
-            if "phase_center_dec" in header:
-                phase_center_dec = float(header["phase_center_dec"][()])
-            if "phase_center_frame" in header:
-                phase_center_frame = bytes(header["phase_center_frame"][()]).decode(
-                    "utf8"
-                )
-            if "phase_center_epoch" in header:
-                phase_center_epoch = float(header["phase_center_epoch"][()])
-
-            if phase_type not in ["phased", "drift"]:
-                warnings.warn(
-                    "Unknown phase types are no longer supported, marking this "
-                    "object as unprojected (unphased) by default."
-                )
-                phase_type = "drift"
-
-            if phase_type == "drift":
-                if cat_name is None:
-                    cat_name = "unprojected"
-                cat_id = self._add_phase_center(cat_name, cat_type="unprojected")
-            else:
-                cat_id = self._add_phase_center(
-                    cat_name,
-                    cat_type="sidereal",
-                    cat_lon=phase_center_ra,
-                    cat_lat=phase_center_dec,
-                    cat_frame=phase_center_frame,
-                    cat_epoch=phase_center_epoch,
-                )
-            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
-
-        if "phase_center_app_ra" in header and "phase_center_app_dec" in header:
-            self.phase_center_app_ra = header["phase_center_app_ra"][:]
-            self.phase_center_app_dec = header["phase_center_app_dec"][:]
-        if "phase_center_frame_pa" in header:
-            self.phase_center_frame_pa = header["phase_center_frame_pa"][:]
-
-        # get antenna arrays
-        # cast to native python int type
-        self.Nants_data = int(header["Nants_data"][()])
-        self.Nants_telescope = int(header["Nants_telescope"][()])
-        self.ant_1_array = header["ant_1_array"][:]
-        self.ant_2_array = header["ant_2_array"][:]
-        self.antenna_names = [
-            bytes(n).decode("utf8") for n in header["antenna_names"][:]
-        ]
-        self.antenna_numbers = header["antenna_numbers"][:]
-        self.antenna_positions = header["antenna_positions"][:]
-
-        # set telescope params
-        try:
-            self.set_telescope_params()
-        except ValueError as ve:
-            warnings.warn(str(ve))
-
-        # get baseline array
-        self.baseline_array = self.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array
+        self._read_header_with_fast_meta(
+            filename, run_check_acceptability=run_check_acceptability
         )
-        self.Nbls = len(np.unique(self.baseline_array))
-
-        # get uvw array
-        self.uvw_array = header["uvw_array"][:, :]
-
-        # get time information
-        self.time_array = header["time_array"][:]
-        integration_time = header["integration_time"]
-        self.integration_time = integration_time[:]
-        proc = None
-        if "lst_array" in header:
-            self.lst_array = header["lst_array"][:]
-            # check that lst_array in file is self-consistent
-            if run_check_acceptability:
-                (
-                    latitude,
-                    longitude,
-                    altitude,
-                ) = self.telescope_location_lat_lon_alt_degrees
-
-                lst_array = uvutils.get_lst_for_time(
-                    self.time_array, latitude, longitude, altitude
-                )
-
-                if not np.all(
-                    np.isclose(
-                        self.lst_array,
-                        lst_array,
-                        rtol=self._lst_array.tols[0],
-                        atol=self._lst_array.tols[1],
-                    )
-                ):
-                    warnings.warn(
-                        "LST values stored in {file} are not self-consistent "
-                        "with time_array and telescope location. Consider "
-                        "recomputing with utils.get_lst_for_time.".format(file=filename)
-                    )
-        else:
-            # compute lst_array from time_array and telescope location
-            proc = self.set_lsts_from_time_array(background=background_lsts)
-
-        # get frequency information
-        self.freq_array = header["freq_array"][:]
-        self.spw_array = header["spw_array"][:]
-        # future proof: always set the flex_spw_id_array
-        if self.flex_spw_id_array is None and not self.flex_spw:
-            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
-
-        if self.freq_array.ndim == 1:
-            arr_shape_msg = (
-                "The size of arrays in this file are not internally consistent, "
-                "which should not happen. Please file an issue in our GitHub issue "
-                "log so that we can fix it."
-            )
-            assert (
-                np.asarray(header["channel_width"]).size == self.freq_array.size
-            ), arr_shape_msg
-            self._set_future_array_shapes()
-
-        # Pull in the channel_width parameter as either an array or as a single float,
-        # depending on whether or not the data is stored with a flexible spw.
-        if self.flex_spw or np.asarray(header["channel_width"]).ndim == 1:
-            self.channel_width = header["channel_width"][:]
-        else:
-            self.channel_width = float(header["channel_width"][()])
-
-        # get polarization information
-        self.polarization_array = header["polarization_array"][:]
-
-        # get extra_keywords
-        if "extra_keywords" in header:
-            self.extra_keywords = {}
-            for key in header["extra_keywords"].keys():
-                if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                    self.extra_keywords[key] = bytes(
-                        header["extra_keywords"][key][()]
-                    ).decode("utf8")
-                else:
-                    # special handling for empty datasets == python `None` type
-                    if header["extra_keywords"][key].shape is None:
-                        self.extra_keywords[key] = None
-                    else:
-                        self.extra_keywords[key] = header["extra_keywords"][key][()]
-
-        if proc is not None:
-            # if lsts are in the background wait for them to return
-            proc.join()
-
-        return
 
     def _get_data(
         self,
