@@ -695,9 +695,7 @@ class UVH5(UVData):
 
             if obj.phase_type == "drift":
                 if cat_name is None:
-                    print("HERE")
                     cat_name = "unprojected"
-
                 cat_id = self._add_phase_center(cat_name, cat_type="unprojected")
             else:
                 cat_id = self._add_phase_center(
@@ -709,7 +707,6 @@ class UVH5(UVData):
                     cat_epoch=obj.phase_center_epoch,
                 )
             self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
-            print("ON READ: ", self.phase_center_catalog)
         # set telescope params
         try:
             self.set_telescope_params()
