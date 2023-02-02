@@ -4,3 +4,4 @@
 
 """Init file for UVData."""
 from .uvdata import *  # noqa
+from .uvh5 import FastUVH5Meta  # noqa

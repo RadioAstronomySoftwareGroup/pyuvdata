@@ -1285,7 +1285,6 @@ class UVData(UVBase):
         else:
             if cat_id is None:
                 cat_id = 0
-
         # If source is unique, begin creating a dictionary for it
         phase_dict = {
             "cat_name": cat_name,
@@ -1306,7 +1305,9 @@ class UVData(UVBase):
             self.phase_center_catalog[cat_id] = phase_dict
         else:
             self.phase_center_catalog = {cat_id: phase_dict}
+
         self.Nphase = len(self.phase_center_catalog)
+
         return cat_id
 
     def _remove_phase_center(self, defunct_id):
