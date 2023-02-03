@@ -131,10 +131,11 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
 
     # check that setting projected also works
     with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning, UserWarning],
+        [DeprecationWarning, UserWarning, UserWarning, UserWarning],
         match=[
             "The phase_type parameter is deprecated, use the projected parameter "
             "instead.",
+            "The uvw_array does not match the expected values given the antenna",
             "The uvw_array does not match the expected values given the antenna",
             "Telescope EVLA is not",
         ],

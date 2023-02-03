@@ -243,7 +243,7 @@ def paper_uvh5_main():
 def paper_uvh5(paper_uvh5_main):
     # read in test file for the resampling in time functions
     uv_object = paper_uvh5_main.copy()
-
+    uv_object.determine_blt_order()
     yield uv_object
 
     # cleanup
@@ -5116,14 +5116,14 @@ def test_key2inds(casa_uvfits, tuplify):
     ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind1)
     assert ind2 is None
-    assert np.array_equal([0], indp[0])
+    assert indp[0] == slice(0, 1, 1)
 
     # Combo with pol as string
     key = (ant1, ant2, uvutils.polnum2str(pol))
     if tuplify:
         key = (key,)
     ind1, ind2, indp = uv._key2inds(key)
-    assert np.array_equal([0], indp[0])
+    assert indp[0] == slice(0, 1, 1)
 
     # Check conjugation
     key = (ant2, ant1, pol)
@@ -5132,7 +5132,7 @@ def test_key2inds(casa_uvfits, tuplify):
     ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind2)
     assert ind1 is None
-    assert np.array_equal([0], indp[1])
+    assert indp[1] == slice(0, 1, 1)
 
     # Conjugation with pol as string
     key = (ant2, ant1, uvutils.polnum2str(pol))
@@ -5141,7 +5141,7 @@ def test_key2inds(casa_uvfits, tuplify):
     ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind2)
     assert ind1 is None
-    assert np.array_equal([0], indp[1])
+    assert indp[1] == slice(0, 1, 1)
     assert indp[0] is None
 
     # Antpair only
@@ -5169,7 +5169,7 @@ def test_key2inds(casa_uvfits, tuplify):
     ind1, ind2, indp = uv._key2inds(key)
     assert ind1 == slice(None)
     assert ind2 is None
-    assert np.array_equal(np.array([0]), indp[0])
+    assert indp[0] == slice(0, 1, 1)
 
     # Pol string only
     key = "LL"
@@ -5178,7 +5178,7 @@ def test_key2inds(casa_uvfits, tuplify):
     ind1, ind2, indp = uv._key2inds(key)
     assert ind1 == slice(None)
     assert ind2 is None
-    assert np.array_equal(np.array([1]), indp[0])
+    assert indp[0] == slice(1, 2, 1)
 
     # Test invalid keys
     with pytest.raises(KeyError, match="Polarization I not found in data."):
@@ -5192,13 +5192,15 @@ def test_key2inds(casa_uvfits, tuplify):
     with pytest.raises(KeyError, match=r"Antenna pair \(1, 1\) not found in data"):
         uv._key2inds((1, 1, "rr"))  # ant pair not in data
     with pytest.raises(KeyError, match="Polarization xx not found in data."):
+        print(uvutils.polnum2str(uv.polarization_array))
+
         uv._key2inds((1, 2, "xx"))  # pol not in data
 
     # Test autos are handled correctly
     uv.ant_2_array[0] = uv.ant_1_array[0]
     ind1, ind2, indp = uv._key2inds((ant1, ant1, pol))
-    assert np.array_equal(ind1, [0])
-    assert np.array_equal(ind2, [])
+    assert ind1 == slice(0, 1, 1)
+    assert ind2 is None
 
 
 def test_key2inds_conj_all_pols(casa_uvfits):
@@ -5323,7 +5325,7 @@ def test_smart_slicing_err(casa_uvfits):
 
 REG_IND = slice(0, 90, 10)
 SINGLE_IND = [45]
-REG_POL = slice(0, 1)
+REG_POL = slice(0, 2)
 IRREG_IND = [0, 4, 5]
 IRREG_POL = [0, 1, 3]
 
@@ -5361,33 +5363,55 @@ def test_smart_slicing(
     if ind1 is None:
         polind = (None, indp)
         ind = ind2
+        # Get actual arrays of integers for indexing
+        bltinds = np.arange(uv.Nblts)[ind]
+        polidx = np.arange(uv.Npols)[indp]
+
     elif ind2 is None:
         polind = (indp, None)
         ind = ind1
+        # Get actual arrays of integers for indexing
+        bltinds = np.arange(uv.Nblts)[ind]
+        polidx = np.arange(uv.Npols)[indp]
+
     else:
         polind = (indp, indp)
 
-    # Get actual arrays of integers for indexing
-    bltinds = np.arange(uv.Nblts)[ind]
-    polidx = np.arange(uv.Npols)[indp]
-
     copy_made = force_copy or not all(
-        isinstance(ind1, slice), isinstance(ind2, slice), isinstance(indp, slice)
+        (
+            isinstance(ind1, slice) or ind1 is None,
+            isinstance(ind2, slice) or ind2 is None,
+            isinstance(indp, slice),
+        )
     )
 
     d = uv._smart_slicing(
         uv.data_array, ind1, ind2, polind, force_copy=force_copy, squeeze=squeeze
     )
-    dcheck = uv.data_array[ind]
-    dcheck = np.squeeze(dcheck[..., indp])
-    assert np.all(d == dcheck)
-    if copy_made:
-        assert d.flags.writeable
+    if ind1 is None:
+        dcheck = np.conj(uv.data_array[ind])
+    elif ind2 is None:
+        dcheck = uv.data_array[ind]
     else:
-        assert not d.flags.writeable
+        dcheck = np.append(uv.data_array[ind1], np.conj(uv.data_array[ind2]), axis=0)
+
+    dcheck = dcheck[..., indp]
+    # if squeeze == "default" and ind1 != SINGLE_IND:
+    dcheck = np.squeeze(dcheck)
+
+    assert np.all(d == dcheck)  # don't care about shape.
 
     # Ensure a view/copy was returned
-    if ind2 is None:  # Note conjugation test ensures the result is a copy, not a view.
+    if ind1 in (
+        REG_IND,
+        IRREG_IND,
+    ):  # Note conjugation test ensures the result is a copy, not a view.
+
+        if force_copy:
+            assert d.flags.writeable
+        else:
+            assert not d.flags.writeable
+
         if future_shapes:
             uv.data_array[bltinds[1], 0, polidx[0]] = 5.43
             if copy_made:
@@ -5417,7 +5441,10 @@ def test_get_data(casa_uvfits, kind):
     ant2 = uv.ant_2_array[0]
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = np.squeeze(thing[bltind, :, :, 0])
+    if kind in ["time", "lst"]:
+        dcheck = thing[bltind]
+    else:
+        dcheck = np.squeeze(thing[bltind, :, :, 0])
 
     d = fnc(ant1, ant2, pol)
     assert np.all(dcheck == d)
@@ -5442,12 +5469,20 @@ def test_get_data(casa_uvfits, kind):
     assert np.all(d == np.conj(d1))
 
     # Antpair only
-    dcheck = np.squeeze(thing[bltind, :, :, :])
+    if kind in ["time", "lst"]:
+        dcheck = thing[bltind]
+    else:
+        dcheck = np.squeeze(thing[bltind, :, :, :])
+
     d = fnc(ant1, ant2)
     assert np.all(dcheck == d)
 
     # Pol number only
-    dcheck = np.squeeze(thing[:, :, :, 0])
+    if kind in ["time", "lst"]:
+        dcheck = thing
+    else:
+        dcheck = np.squeeze(thing[..., 0])
+
     d = fnc(pol)
     assert np.all(dcheck == d)
 
@@ -7270,7 +7305,7 @@ def test_upsample_in_time_with_flags(hera_uvh5):
 
     # add flags and upsample again
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object.flag_array[inds01.start or 0, 0, 0, 0] = True
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
 
     # data and nsamples should be changed as normal, but flagged
@@ -7401,7 +7436,7 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(hera_uvh5):
 
     # add flags and upsample again
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object.flag_array[inds01, 0, 0, 0][0] = True
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
     uv_object.upsample_in_time(
         max_integration_time, blt_order="baseline", summing_correlator_mode=True
@@ -7679,7 +7714,7 @@ def test_downsample_in_time_partial_flags(hera_uvh5):
     # just be the unflagged value and nsample should be half the unflagged one
     # and the output should not be flagged.
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object.flag_array[inds01, 0, 0, 0][0] = True
     uv_object2 = uv_object.copy()
 
     uv_object.downsample_in_time(
@@ -7735,9 +7770,9 @@ def test_downsample_in_time_totally_flagged(hera_uvh5, future_shapes):
     # should be flagged
     inds01 = uv_object.antpair2ind(0, 1)
     if future_shapes:
-        uv_object.flag_array[inds01[:2], 0, 0] = True
+        uv_object.flag_array[inds01, 0, 0][:2] = True
     else:
-        uv_object.flag_array[inds01[:2], 0, 0, 0] = True
+        uv_object.flag_array[inds01, 0, 0, 0][:2] = True
     uv_object2 = uv_object.copy()
 
     uv_object.downsample_in_time(
@@ -7928,7 +7963,7 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5):
     # just be the unflagged value and nsample should be half the unflagged one
     # and the output should not be flagged.
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object.flag_array[inds01, 0, 0, 0][0] = True
     uv_object.downsample_in_time(
         min_int_time=min_integration_time,
         blt_order="baseline",
@@ -7974,7 +8009,7 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5):
     # data and nsample should have the same results as no flags but the output
     # should be flagged
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[:2], 0, 0, 0] = True
+    uv_object.flag_array[inds01, 0, 0, 0][:2] = True
     uv_object.downsample_in_time(
         min_int_time=min_integration_time,
         blt_order="baseline",
@@ -8289,7 +8324,7 @@ def test_downsample_in_time_nsample_precision(hera_uvh5):
     # just be the unflagged value and nsample should be half the unflagged one
     # and the output should not be flagged.
     inds01 = uv_object.antpair2ind(0, 1)
-    uv_object.flag_array[inds01[0], 0, 0, 0] = True
+    uv_object.flag_array[inds01, 0, 0, 0][0] = True
     uv_object2 = uv_object.copy()
 
     # change precision of nsample array
@@ -8397,9 +8432,9 @@ def test_downsample_in_time_errors(hera_uvh5):
 
     # make a gap in the times to check a warning about that
     inds01 = uv_object.antpair2ind(0, 1)
-    initial_int_time = uv_object.integration_time[inds01[0]]
+    initial_int_time = uv_object.integration_time[inds01][0]
     # time array is in jd, integration time is in sec
-    uv_object.time_array[inds01[-1]] += initial_int_time / (24 * 3600)
+    uv_object.time_array[inds01][-1] += initial_int_time / (24 * 3600)
     uv_object.Ntimes += 1
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     times_01 = uv_object.get_times(0, 1)
@@ -8486,11 +8521,11 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     # test handling (& warnings) with varying integration time in a baseline
     # First, change both integration time & time array to match
     inds01 = uv_object.antpair2ind(0, 1)
-    initial_int_time = uv_object.integration_time[inds01[0]]
+    initial_int_time = uv_object.integration_time[inds01][0]
     # time array is in jd, integration time is in sec
-    uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
-    uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
-    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    uv_object.time_array[inds01][-2] += (initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-1] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.integration_time[inds01][-2:] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     # check that there are no warnings about inconsistencies between
@@ -8543,17 +8578,17 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
     # (so 12 normal length, 2 double length)
     # change integration time & time array to match
     inds01 = uv_object.antpair2ind(0, 1)
-    initial_int_time = uv_object.integration_time[inds01[0]]
+    initial_int_time = uv_object.integration_time[inds01][0]
     # time array is in jd, integration time is in sec
-    uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
-    uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
-    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    uv_object.time_array[inds01][-2] += (initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-1] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.integration_time[inds01][-2:] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
 
     # add a flag on last time
-    uv_object.flag_array[inds01[-1], :, :, :] = True
+    uv_object.flag_array[inds01][-1] = True
     # add a flag on thrid to last time
-    uv_object.flag_array[inds01[-3], :, :, :] = True
+    uv_object.flag_array[inds01][-3] = True
 
     uv_object2 = uv_object.copy()
 
@@ -8589,8 +8624,8 @@ def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
 
     # Next, change just integration time, so time array doesn't match
     inds01 = uv_object.antpair2ind(0, 1)
-    initial_int_time = uv_object.integration_time[inds01[0]]
-    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    initial_int_time = uv_object.integration_time[inds01][0]
+    uv_object.integration_time[inds01][-2:] += initial_int_time
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     with uvtest.check_warnings(
         UserWarning, "The time difference between integrations is different than"
@@ -8937,15 +8972,8 @@ def test_resample_in_time_only_upsample(bda_test_file):
     # again, with only_upsample set
     uv_object.resample_in_time(8, only_upsample=True, allow_drift=True)
     # Should have all greater than or equal to the target integration time
-    assert np.all(
-        np.logical_or(
-            np.logical_or(
-                np.isclose(uv_object.integration_time, 2.0),
-                np.isclose(uv_object.integration_time, 4.0),
-            ),
-            np.isclose(uv_object.integration_time, 8.0),
-        )
-    )
+    tint = uv_object.integration_time
+    assert np.all(np.isclose(tint, 2.0) | np.isclose(tint, 4.0) | np.isclose(tint, 8.0))
 
     # 2s integration time
     out_data_1_136 = uv_object.get_data((1, 136))
@@ -8955,7 +8983,6 @@ def test_resample_in_time_only_upsample(bda_test_file):
     out_data_1_138 = uv_object.get_data((1, 138))
     # 16s integration time
     out_data_136_137 = uv_object.get_data((136, 137))
-
     # check array sizes make sense
     assert out_data_1_136.size == init_data_1_136.size
     assert out_data_1_137.size == init_data_1_137.size

@@ -41,6 +41,7 @@ def casa_uvfits_main():
 def casa_uvfits(casa_uvfits_main):
     """Make function level CASA tutorial uvfits object."""
     casa_uvfits = casa_uvfits_main.copy()
+    casa_uvfits.determine_blt_order()
     yield casa_uvfits
 
     # clean up when done

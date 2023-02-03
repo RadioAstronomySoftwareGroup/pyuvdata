@@ -245,11 +245,11 @@ class UVData(UVBase):
         def clear_antpair2ind_cache(self):
             """Clear the antpair2ind cache."""
             self.__antpair2ind_cache = {}
-            self.__key2inds_cache = {}
+            self.__key2ind_cache = {}
 
         def clear_key2ind_cache(self):
             """Clear the antpair2ind cache."""
-            self.__key2inds_cache = {}
+            self.__key2ind_cache = {}
 
         desc = (
             "Array of numbers for the first antenna, which is matched to that in "
@@ -2442,6 +2442,8 @@ class UVData(UVBase):
             baseline_array=self.baseline_array,
             ant_1_array=self.ant_1_array,
             ant_2_array=self.ant_2_array,
+            n_bls=self.Nbls,
+            n_times=self.Ntimes,
         )
         self.blt_order = order
         return order
@@ -3707,7 +3709,9 @@ class UVData(UVBase):
         """
         orig_key = key
 
-        key = tuple(uvutils._get_iterable(key))
+        key = uvutils._get_iterable(key)
+        if not isinstance(key, str):
+            key = tuple(key)
 
         if key in self.__key2ind_cache:
             return self.__key2ind_cache[key]
@@ -3729,7 +3733,7 @@ class UVData(UVBase):
             key = key[0]  # For simplicity
             if isinstance(key, Iterable):
                 # Nested tuple. Call function again.
-                blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
+                return self._key2inds(key)
             elif key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
                 pol_ind1 = np.where(self.polarization_array == key)[0]
@@ -3746,18 +3750,22 @@ class UVData(UVBase):
                 # Larger number, assume it is a baseline number
                 key = self.baseline_to_antnums(key)  # turns it into a len-2 key.
 
-        if len(key) >= 2:
+        if isinstance(key, tuple) and len(key) >= 2:
             # Key is an antenna pair
             blt_ind1 = self.antpair2ind(key[0], key[1])
             if key[0] == key[1]:  # catch autos
-                blt_ind2 = blt_ind1
+                blt_ind2 = None
             else:
                 blt_ind2 = self.antpair2ind(key[1], key[0])
 
             if blt_ind1 is None and blt_ind2 is None:
-                raise KeyError(f"Antenna pair {key[:2]} not found in data")
+                if isinstance(orig_key, int):
+                    raise KeyError(f"Baseline {orig_key} not found in data")
+                else:
+                    raise KeyError(f"Antenna pair {key[:2]} not found in data")
 
             if len(key) == 3:
+                orig_pol = key[2]
                 if isinstance(key[2], str):
                     pol = uvutils.polstr2num(key[2], x_orientation=self.x_orientation)
                 else:
@@ -3770,6 +3778,8 @@ class UVData(UVBase):
                     pol_ind1 = slice(None)
                 else:
                     pol_ind1 = np.where(self.polarization_array == pol)[0]
+                    if pol_ind1.size == 0:
+                        pol_ind1 = None
 
             if blt_ind2 is None:
                 pol_ind2 = None
@@ -3787,27 +3797,31 @@ class UVData(UVBase):
                             pol_ind2 = None
                             blt_ind2 = None
                 else:
-                    pol_ind1 = np.where(
+                    pol_ind2 = np.where(
                         self.polarization_array == uvutils.conj_pol(pol)
                     )[0]
+                    if pol_ind2.size == 0:
+                        pol_ind2 = None
 
             pol_ind = (pol_ind1, pol_ind2)
             if (blt_ind1 is None or pol_ind1 is None) and (
                 blt_ind2 is None or pol_ind2 is None
             ):
-                raise KeyError(f"Polarization {pol} not found in data.")
+                raise KeyError(f"Polarization {orig_pol} not found in data.")
 
         # Convert to slices if possible
         def slicify(ind):
-            if (
-                ind is not None
-                and not isinstance(ind, slice)
-                and len(set(np.ediff1d(ind))) <= 1
-            ):
+            if ind is None or isinstance(ind, slice):
+                return ind
+            if len(ind) == 0:
+                return None
+
+            if len(set(np.ediff1d(ind))) <= 1:
                 return slice(
                     ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1
                 )
             else:
+                # can't slicify
                 return ind
 
         blt_ind1 = slicify(blt_ind1)
@@ -3867,8 +3881,9 @@ class UVData(UVBase):
                 out = np.conj(out)
         else:
             # both conjugated and unconjugated baselines
-            out = (data[ind1], np.conj(data[ind2]))
-            out = np.append(out[..., indp[0]], out[..., indp[1]], axis=0)
+            out = np.append(
+                data[ind1][..., indp[0]], np.conj(data[ind2][..., indp[1]]), axis=0
+            )
 
         if squeeze == "full":
             out = np.squeeze(out)
@@ -4192,6 +4207,10 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
+        if inds1 is None:
+            inds1 = slice(0, 0)
+        if inds2 is None:
+            inds2 = slice(0, 0)
         return np.append(self.time_array[inds1], self.time_array[inds2])
 
     def get_lsts(self, key1, key2=None, key3=None):
@@ -4233,6 +4252,10 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
+        if inds1 is None:
+            inds1 = slice(0, 0)
+        if inds2 is None:
+            inds2 = slice(0, 0)
         return np.append(self.lst_array[inds1], self.lst_array[inds2])
 
     def get_ENU_antpos(self, center=False, pick_data_ants=False):
@@ -4334,10 +4357,12 @@ class UVData(UVBase):
                 "conjugate data and keys appropriately and try again"
             )
 
+        nbltinds = len(np.arange(self.Nblts)[ind1])
+        npolinds = len(np.arange(self.Npols)[indp[0]])
         if self.future_array_shapes:
-            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+            expected_shape = (nbltinds, self.Nfreqs, npolinds)
         else:
-            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+            expected_shape = (nbltinds, 1, self.Nfreqs, npolinds)
         if dshape != expected_shape:
             raise ValueError(
                 "the input array is not compatible with the shape of the destination. "
@@ -9077,6 +9102,7 @@ class UVData(UVBase):
                         # If we're working with an ndarray, use take to slice along
                         # the axis that we want to grab from.
                         attr.value = attr.value.take(ind_arr, axis=sel_axis)
+                        attr.setter(self)
                     elif isinstance(attr.value, list):
                         # If this is a list, it _should_ always have 1-dimension.
                         assert sel_axis == 0, (
@@ -9085,6 +9111,7 @@ class UVData(UVBase):
                             "issue in our GitHub issue log so that we can fix it."
                         )
                         attr.value = [attr.value[idx] for idx in ind_arr]
+                        attr.setter(self)
 
             if key == "Nblts":
                 # Process post blt-specific selection actions, including counting
