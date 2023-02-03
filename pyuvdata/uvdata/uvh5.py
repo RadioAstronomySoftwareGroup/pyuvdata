@@ -11,7 +11,7 @@ import warnings
 from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import h5py
 import numpy as np
@@ -217,16 +217,14 @@ class FastUVH5Meta:
     ----------
     filename : str or Path
         The filename to read from.
-    blts_are_rectangular : bool
-        Whether the baseline-time axis is rectangular. This can be determined,
-        but it is much faster if known a-priori to set it here. Default is to
-        auto-determine.
     blt_order : tuple of str
         The order of the baseline-time axis. This can be determined, or read
         directly from file, however since it has been optional in the past, many
         existing files do not contain it in the metadata.
         Some reading operations are significantly faster if this is known, so providing
-        it here can provide a speedup. Default is to auto-determine.
+        it here can provide a speedup. Default is to try and read it from file,
+        and if not there, just leave it as None. Set to "determine" to auto-detect
+        the blt_order from the metadata.
 
     Notes
     -----
@@ -273,18 +271,11 @@ class FastUVH5Meta:
     def __init__(
         self,
         path: str | Path,
-        blts_are_rectangular: bool = None,
-        blt_order: tuple[str] | None = None,
+        blt_order: Literal["determine"] | tuple[str] | None = None,
     ):
         self.path = Path(path)
 
-        # This ensures that BOTH blts_are_rectangular and time_first are set when
-        # a user wants the "time_first" capability.
-        if blt_order not in (("time", "baseline"), ("baseline", "time")):
-            blts_are_rectangular = False
-
         self.__blt_order = blt_order
-        self.__blts_are_rectangular = blts_are_rectangular
 
     @contextmanager
     def header(self):
@@ -333,7 +324,7 @@ class FastUVH5Meta:
     @cached_property
     def blt_order(self) -> tuple[str]:
         """Tuple defining order of blts axis."""
-        if self.__blt_order is not None:
+        if self.__blt_order not in (None, "determine"):
             return self.__blt_order
 
         with self.header() as h:
@@ -341,114 +332,24 @@ class FastUVH5Meta:
                 blt_order_str = bytes(h["blt_order"][()]).decode("utf8")
                 return tuple(blt_order_str.split(", "))
             else:
-                return self._get_blt_order()
+                if self.__blt_order == "determine":
+                    return self.get_blt_order()
+                else:
+                    return None
 
-    def _get_blt_order(self) -> tuple[str]:
+    def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
-        times = self.time_array
-        ant1 = self.ant_1_array
-        ant2 = self.ant_2_array
-        bls = self.baseline_array
+        if self.blt_order is not None:
+            return self.blt_order
 
-        time_bl = True
-        time_a = True
-        time_b = True
-        bl_time = True
-        a_time = True
-        b_time = True
-        bl_order = True
-        a_order = True
-        b_order = True
-        time_order = True
-
-        for i, (t, a, b, bl) in enumerate(
-            zip(times[1:], ant1[1:], ant2[1:], bls[1:]), start=1
-        ):
-            if t < times[i - 1]:
-                time_bl = False
-                time_a = False
-                time_b = False
-                time_order = False
-
-                if bl == bls[i - 1]:
-                    bl_time = False
-                if a == ant1[i - 1]:
-                    a_time = False
-                if b == ant2[i - 1]:
-                    b_time = False
-
-            elif t == times[i - 1]:
-                if bl < bls[i - 1]:
-                    time_bl = False
-                if a < ant1[i - 1]:
-                    time_a = False
-                if b < ant2[i - 1]:
-                    time_b = False
-
-            if bl < bls[i - 1]:
-                bl_time = False
-                bl_order = False
-            if a < ant1[i - 1]:
-                a_time = False
-                a_order = False
-            if b < ant2[i - 1]:
-                b_time = False
-                b_order = False
-
-            if not any(
-                (
-                    time_bl,
-                    time_a,
-                    time_b,
-                    time_bl,
-                    bl_time,
-                    a_time,
-                    b_time,
-                    bl_order,
-                    a_order,
-                    b_order,
-                    time_order,
-                )
-            ):
-                break
-
-        if (
-            (time_bl and bl_time)
-            or (time_a and a_time)
-            or (time_b and b_time)
-            or (time_order and a_order)
-            or (time_order and b_order)
-            or (a_order and b_order)
-            or (time_order and bl_order)
-        ):
-            raise ValueError(
-                "Something went horribly wrong when trying to determine the order of "
-                "the blts axis."
-                "Please raise an issue on github, as this is not meant to happen."
-            )
-
-        if time_bl:
-            return ("time", "baseline")
-        if bl_time:
-            return ("baseline", "time")
-        if time_a:
-            return ("time", "ant1")
-        if a_time:
-            return ("ant1", "time")
-        if time_b:
-            return ("time", "ant2")
-        if b_time:
-            return ("ant2", "time")
-        if bl_order:
-            return ("baseline",)
-        if a_order:
-            return ("ant1",)
-        if b_order:
-            return ("ant2",)
-        if time_order:
-            return ("time",)
-
-        return None
+        return uvutils.determine_blt_order(
+            time_array=self.time_array,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            baseline_array=self.baseline_array,
+            Nbls=self.Nbls,
+            Ntimes=self.Ntimes,
+        )
 
     @cached_property
     def blts_are_rectangular(self) -> bool:
@@ -459,9 +360,6 @@ class FastUVH5Meta:
         associated, AND the blt ordering to either be (time, baseline) or
         (baseline,time).
         """
-        if self.__blts_are_rectangular is not None:
-            return self.__blts_are_rectangular
-
         return self.Nblts == self.Ntimes * self.Nbls and self.blt_order in (
             ("time", "baseline"),
             ("baseline", "time"),
@@ -470,9 +368,6 @@ class FastUVH5Meta:
     @cached_property
     def _time_first(self) -> bool:
         """Whether times move first in the blt axis."""
-        if self.__time_first is not None:
-            return self.__time_first
-
         return self.blts_are_rectangular and self.blt_order[1] == "time"
 
     @cached_property
@@ -760,13 +655,10 @@ class UVH5(UVData):
         self,
         filename: str | Path | FastUVH5Meta,
         run_check_acceptability: bool = True,
-        blts_are_rectangular: bool | None = None,
-        blt_order: tuple[str] | None = None,
+        blt_order: tuple[str] | None | Literal["determine"] = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
-            obj = FastUVH5Meta(
-                filename, blts_are_rectangular=blts_are_rectangular, blt_order=blt_order
-            )
+            obj = FastUVH5Meta(filename, blt_order=blt_order)
         else:
             obj = filename
 
@@ -835,8 +727,8 @@ class UVH5(UVData):
             if hasattr(obj, attr):
                 setattr(self, attr, getattr(obj, attr))
 
-        if self.blt_order == ("bda",):
-            self._blt_order.form = (1,)
+        if self.blt_order is not None:
+            self._blt_order.form = (len(self.blt_order),)
 
         # We've added a few new keywords that did not exist before, so check to see if
         # any of them are in the header, and if not, mark the data set as being
