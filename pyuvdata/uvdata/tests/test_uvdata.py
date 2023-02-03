@@ -456,7 +456,11 @@ def test_unexpected_parameters(uvdata_props):
     expected_parameters = (
         uvdata_props.required_parameters + uvdata_props.extra_parameters
     )
-    attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] == "_"]
+    attributes = [
+        i
+        for i in uvdata_props.uv_object.__dict__.keys()
+        if (i[0] == "_" and not i.startswith("_UVData__"))
+    ]
     for a in attributes:
         assert a in expected_parameters, (
             "unexpected parameter " + a + " found in UVData"
@@ -5095,7 +5099,8 @@ def test_fast_concat_errors(casa_uvfits):
         uv1.fast_concat(cal, "freq", inplace=True)
 
 
-def test_key2inds(casa_uvfits):
+@pytest.mark.parametrize("tuplify", [False, True])
+def test_key2inds(casa_uvfits, tuplify):
     # Test function to interpret key as antpair, pol
     uv = casa_uvfits
 
@@ -5104,72 +5109,75 @@ def test_key2inds(casa_uvfits):
     ant2 = uv.ant_2_array[0]
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    ind1, ind2, indp = uv._key2inds((ant1, ant2, pol))
+
+    key = (ant1, ant2, pol)
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal([0], indp[0])
-    # Any of these inputs can also be a tuple of a tuple, so need to be checked twice.
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, pol),))
-    assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
+    assert ind2 is None
     assert np.array_equal([0], indp[0])
 
     # Combo with pol as string
-    ind1, ind2, indp = uv._key2inds((ant1, ant2, uvutils.polnum2str(pol)))
-    assert np.array_equal([0], indp[0])
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2, uvutils.polnum2str(pol)),))
+    key = (ant1, ant2, uvutils.polnum2str(pol))
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal([0], indp[0])
 
     # Check conjugation
-    ind1, ind2, indp = uv._key2inds((ant2, ant1, pol))
+    key = (ant2, ant1, pol)
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind2)
-    assert np.array_equal(np.array([]), ind1)
+    assert ind1 is None
     assert np.array_equal([0], indp[1])
+
     # Conjugation with pol as string
-    ind1, ind2, indp = uv._key2inds((ant2, ant1, uvutils.polnum2str(pol)))
+    key = (ant2, ant1, uvutils.polnum2str(pol))
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind2)
-    assert np.array_equal(np.array([]), ind1)
+    assert ind1 is None
     assert np.array_equal([0], indp[1])
-    assert np.array_equal([], indp[0])
+    assert indp[0] is None
 
     # Antpair only
-    ind1, ind2, indp = uv._key2inds((ant1, ant2))
+    key = (ant1, ant2)
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.arange(uv.Npols), indp[0])
-    ind1, ind2, indp = uv._key2inds(((ant1, ant2)))
-    assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.arange(uv.Npols), indp[0])
+    assert ind2 is None
+    assert indp[0] == slice(None)
 
     # Baseline number only
-    ind1, ind2, indp = uv._key2inds(uv.antnums_to_baseline(ant1, ant2))
+    key = uv.antnums_to_baseline(ant1, ant2)
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
     assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.arange(uv.Npols), indp[0])
-    ind1, ind2, indp = uv._key2inds((uv.antnums_to_baseline(ant1, ant2),))
-    assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.arange(uv.Npols), indp[0])
+    assert ind2 is None
+    assert indp[0] == slice(None)
 
     # Pol number only
-    ind1, ind2, indp = uv._key2inds(pol)
-    assert np.array_equal(np.arange(uv.Nblts), ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.array([0]), indp[0])
-    ind1, ind2, indp = uv._key2inds((pol))
-    assert np.array_equal(np.arange(uv.Nblts), ind1)
-    assert np.array_equal(np.array([]), ind2)
+    key = pol
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
+    assert ind1 == slice(None)
+    assert ind2 is None
     assert np.array_equal(np.array([0]), indp[0])
 
     # Pol string only
-    ind1, ind2, indp = uv._key2inds("LL")
-    assert np.array_equal(np.arange(uv.Nblts), ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.array([1]), indp[0])
-    ind1, ind2, indp = uv._key2inds(("LL"))
-    assert np.array_equal(np.arange(uv.Nblts), ind1)
-    assert np.array_equal(np.array([]), ind2)
+    key = "LL"
+    if tuplify:
+        key = (key,)
+    ind1, ind2, indp = uv._key2inds(key)
+    assert ind1 == slice(None)
+    assert ind2 is None
     assert np.array_equal(np.array([1]), indp[0])
 
     # Test invalid keys
@@ -5204,8 +5212,8 @@ def test_key2inds_conj_all_pols(casa_uvfits):
     # Pols in data are 'rr', 'll', 'rl', 'lr'
     # So conjugated order should be [0, 1, 3, 2]
     assert np.array_equal(bltind, ind2)
-    assert np.array_equal(np.array([]), ind1)
-    assert np.array_equal(np.array([]), indp[0])
+    assert ind1 is None
+    assert indp[0] is None
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
@@ -5223,9 +5231,9 @@ def test_key2inds_conj_all_pols_fringe(casa_uvfits):
     ind1, ind2, indp = uv._key2inds((ant1, ant2))
 
     assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.array([0]), indp[0])
-    assert np.array_equal(np.array([]), indp[1])
+    assert ind2 is None
+    assert indp[0] == slice(None)
+    assert indp[1] is None
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5244,9 +5252,9 @@ def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
     ind1, ind2, indp = uv._key2inds(bl)
 
     assert np.array_equal(bltind, ind1)
-    assert np.array_equal(np.array([]), ind2)
-    assert np.array_equal(np.array([0]), indp[0])
-    assert np.array_equal(np.array([]), indp[1])
+    assert ind2 is None
+    assert indp[0] == slice(None)
+    assert indp[1] is None
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5275,8 +5283,8 @@ def test_key2inds_conj_all_pols_bls(casa_uvfits):
     # Pols in data are 'rr', 'll', 'rl', 'lr'
     # So conjugated order should be [0, 1, 3, 2]
     assert np.array_equal(bltind, ind2)
-    assert np.array_equal(np.array([]), ind1)
-    assert np.array_equal(np.array([]), indp[0])
+    assert ind1 is None
+    assert indp[0] is None
     assert np.array_equal([0, 1, 3, 2], indp[1])
 
 
@@ -5305,339 +5313,142 @@ def test_smart_slicing_err(casa_uvfits):
         'or "full" are allowed.',
     ):
         casa_uvfits._smart_slicing(
-            casa_uvfits.data_array, [0, 4, 5], [], ([0, 1], []), squeeze="notasqueeze"
+            casa_uvfits.data_array,
+            [0, 4, 5],
+            None,
+            ([0, 1], None),
+            squeeze="notasqueeze",
         )
+
+
+REG_IND = slice(0, 90, 10)
+SINGLE_IND = [45]
+REG_POL = slice(0, 1)
+IRREG_IND = [0, 4, 5]
+IRREG_POL = [0, 1, 3]
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_smart_slicing(casa_uvfits, future_shapes):
+@pytest.mark.parametrize(
+    "ind1, ind2, indp, squeeze, force_copy",
+    [
+        (REG_IND, None, REG_POL, "default", False),  # ind1 reg, ind2 empty, pol reg
+        (REG_IND, None, REG_POL, "default", True),
+        (REG_IND, None, IRREG_POL, "default", False),
+        (IRREG_IND, None, REG_POL, "default", False),
+        (IRREG_IND, None, IRREG_POL, "default", False),
+        (None, REG_IND, REG_POL, "default", False),
+        (None, REG_IND, IRREG_POL, "default", False),
+        (None, IRREG_IND, REG_POL, "default", False),
+        (slice(20), slice(20, 30), REG_POL, "default", False),
+        (slice(20), slice(20, 30), IRREG_POL, "default", False),
+        (SINGLE_IND, None, REG_POL, "default", False),
+        (None, SINGLE_IND, REG_POL, "default", False),
+        (SINGLE_IND, None, REG_POL, "full", False),
+    ],
+)
+def test_smart_slicing(
+    casa_uvfits, future_shapes, ind1, ind2, indp, squeeze, force_copy
+):
     # Test function to slice data
     uv = casa_uvfits
 
     if future_shapes:
         uv.use_future_array_shapes()
 
-    # ind1 reg, ind2 empty, pol reg
-    ind1 = 10 * np.arange(9)
-    ind2 = []
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
+    if ind1 is None:
+        polind = (None, indp)
+        ind = ind2
+    elif ind2 is None:
+        polind = (indp, None)
+        ind = ind1
     else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
+        polind = (indp, indp)
+
+    # Get actual arrays of integers for indexing
+    bltinds = np.arange(uv.Nblts)[ind]
+    polidx = np.arange(uv.Npols)[indp]
+
+    copy_made = force_copy or not all(
+        isinstance(ind1, slice), isinstance(ind2, slice), isinstance(indp, slice)
+    )
+
+    d = uv._smart_slicing(
+        uv.data_array, ind1, ind2, polind, force_copy=force_copy, squeeze=squeeze
+    )
+    dcheck = uv.data_array[ind]
+    dcheck = np.squeeze(dcheck[..., indp])
     assert np.all(d == dcheck)
-    assert not d.flags.writeable
-    # Ensure a view was returned
-    if future_shapes:
-        uv.data_array[ind1[1], 0, indp[0]] = 5.43
-        assert d[1, 0, 0] == uv.data_array[ind1[1], 0, indp[0]]
+    if copy_made:
+        assert d.flags.writeable
     else:
-        uv.data_array[ind1[1], 0, 0, indp[0]] = 5.43
-        assert d[1, 0, 0] == uv.data_array[ind1[1], 0, 0, indp[0]]
+        assert not d.flags.writeable
 
-    # force copy
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []), force_copy=True)
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-    assert d.flags.writeable
-    # Ensure a copy was returned
-    if future_shapes:
-        uv.data_array[ind1[1], 0, indp[0]] = 4.3
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, indp[0]]
-    else:
-        uv.data_array[ind1[1], 0, 0, indp[0]] = 4.3
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, 0, indp[0]]
-
-    # ind1 reg, ind2 empty, pol not reg
-    ind1 = 10 * np.arange(9)
-    ind2 = []
-    indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-    assert not d.flags.writeable
-    # Ensure a copy was returned
-    if future_shapes:
-        uv.data_array[ind1[1], 0, indp[0]] = 1.2
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, indp[0]]
-    else:
-        uv.data_array[ind1[1], 0, 0, indp[0]] = 1.2
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, 0, indp[0]]
-
-    # ind1 not reg, ind2 empty, pol reg
-    ind1 = [0, 4, 5]
-    ind2 = []
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-    assert not d.flags.writeable
-    # Ensure a copy was returned
-    if future_shapes:
-        uv.data_array[ind1[1], 0, indp[0]] = 8.2
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, indp[0]]
-    else:
-        uv.data_array[ind1[1], 0, 0, indp[0]] = 8.2
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, 0, indp[0]]
-
-    # ind1 not reg, ind2 empty, pol not reg
-    ind1 = [0, 4, 5]
-    ind2 = []
-    indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-    assert not d.flags.writeable
-    # Ensure a copy was returned
-    if future_shapes:
-        uv.data_array[ind1[1], 0, indp[0]] = 3.4
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, indp[0]]
-    else:
-        uv.data_array[ind1[1], 0, 0, indp[0]] = 3.4
-        assert d[1, 0, 0] != uv.data_array[ind1[1], 0, 0, indp[0]]
-
-    # ind1 empty, ind2 reg, pol reg
-    # Note conjugation test ensures the result is a copy, not a view.
-    ind1 = []
-    ind2 = 10 * np.arange(9)
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
-    dcheck = uv.data_array[ind2]
-    if future_shapes:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, indp]))
-    else:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
-    assert np.all(d == dcheck)
-
-    # ind1 empty, ind2 reg, pol not reg
-    ind1 = []
-    ind2 = 10 * np.arange(9)
-    indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
-    dcheck = uv.data_array[ind2]
-    if future_shapes:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, indp]))
-    else:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
-    assert np.all(d == dcheck)
-
-    # ind1 empty, ind2 not reg, pol reg
-    ind1 = []
-    ind2 = [1, 4, 5, 10]
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
-    dcheck = uv.data_array[ind2]
-    if future_shapes:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, indp]))
-    else:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
-    assert np.all(d == dcheck)
-
-    # ind1 empty, ind2 not reg, pol not reg
-    ind1 = []
-    ind2 = [1, 4, 5, 10]
-    indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
-    dcheck = uv.data_array[ind2]
-    if future_shapes:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, indp]))
-    else:
-        dcheck = np.squeeze(np.conj(dcheck[:, :, :, indp]))
-    assert np.all(d == dcheck)
-
-    # ind1, ind2 not empty, pol reg
-    ind1 = np.arange(20)
-    ind2 = np.arange(30, 40)
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, indp))
-    dcheck = np.append(uv.data_array[ind1], np.conj(uv.data_array[ind2]), axis=0)
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-
-    # ind1, ind2 not empty, pol not reg
-    ind1 = np.arange(20)
-    ind2 = np.arange(30, 40)
-    indp = [0, 1, 3]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, indp))
-    dcheck = np.append(uv.data_array[ind1], np.conj(uv.data_array[ind2]), axis=0)
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-
-    # test single element
-    ind1 = [45]
-    ind2 = []
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []))
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
-
-    # test single element
-    ind1 = []
-    ind2 = [45]
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, ([], indp))
-    assert np.all(d == np.conj(dcheck))
-
-    # Full squeeze
-    ind1 = [45]
-    ind2 = []
-    indp = [0, 1]
-    d = uv._smart_slicing(uv.data_array, ind1, ind2, (indp, []), squeeze="full")
-    dcheck = uv.data_array[ind1]
-    if future_shapes:
-        dcheck = np.squeeze(dcheck[:, :, indp])
-    else:
-        dcheck = np.squeeze(dcheck[:, :, :, indp])
-    assert np.all(d == dcheck)
+    # Ensure a view/copy was returned
+    if ind2 is None:  # Note conjugation test ensures the result is a copy, not a view.
+        if future_shapes:
+            uv.data_array[bltinds[1], 0, polidx[0]] = 5.43
+            if copy_made:
+                assert d[1, 0, 0] != uv.data_array[bltinds[1], 0, polidx[0]]
+            else:
+                assert d[1, 0, 0] == uv.data_array[bltinds[1], 0, polidx[0]]
+        else:
+            uv.data_array[bltinds[1], 0, 0, polidx[0]] = 5.43
+            if copy_made:
+                assert d[1, 0, 0] != uv.data_array[bltinds[1], 0, 0, polidx[0]]
+            else:
+                assert d[1, 0, 0] == uv.data_array[bltinds[1], 0, 0, polidx[0]]
 
 
-def test_get_data(casa_uvfits):
+@pytest.mark.parametrize("kind", ["data", "flags", "nsamples", "times", "lsts"])
+def test_get_data(casa_uvfits, kind):
     # Test get_data function for easy access to data
     uv = casa_uvfits
 
+    fnc = getattr(uv, "get_" + kind)
+    if kind.endswith("s"):
+        kind = kind[:-1]
+    thing = getattr(uv, kind + "_array")
+
     # Get an antpair/pol combo
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
     pol = uv.polarization_array[0]
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = np.squeeze(uv.data_array[bltind, :, :, 0])
-    d = uv.get_data(ant1, ant2, pol)
+    dcheck = np.squeeze(thing[bltind, :, :, 0])
+
+    d = fnc(ant1, ant2, pol)
     assert np.all(dcheck == d)
 
-    d = uv.get_data(ant1, ant2, uvutils.polnum2str(pol))
+    d = fnc(ant1, ant2, uvutils.polnum2str(pol))
     assert np.all(dcheck == d)
 
-    d = uv.get_data((ant1, ant2, pol))
+    d = fnc((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
-        uv.get_data((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
+        fnc((ant1, ant2, pol), (ant1, ant2, pol))
 
     # Check conjugation
-    d = uv.get_data(ant2, ant1, pol)
+    d = fnc(ant2, ant1, pol)
     assert np.all(dcheck == np.conj(d))
+    assert d.dtype == dcheck.dtype
 
     # Check cross pol conjugation
-    d = uv.get_data(ant2, ant1, uv.polarization_array[2])
-    d1 = uv.get_data(ant1, ant2, uv.polarization_array[3])
+    d = fnc(ant2, ant1, uv.polarization_array[2])
+    d1 = fnc(ant1, ant2, uv.polarization_array[3])
     assert np.all(d == np.conj(d1))
 
     # Antpair only
-    dcheck = np.squeeze(uv.data_array[bltind, :, :, :])
-    d = uv.get_data(ant1, ant2)
+    dcheck = np.squeeze(thing[bltind, :, :, :])
+    d = fnc(ant1, ant2)
     assert np.all(dcheck == d)
 
     # Pol number only
-    dcheck = np.squeeze(uv.data_array[:, :, :, 0])
-    d = uv.get_data(pol)
-    assert np.all(dcheck == d)
-
-
-def test_get_flags(casa_uvfits):
-    # Test function for easy access to flags
-    uv = casa_uvfits
-
-    # Get an antpair/pol combo
-    ant1 = uv.ant_1_array[0]
-    ant2 = uv.ant_2_array[0]
-    pol = uv.polarization_array[0]
-    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = np.squeeze(uv.flag_array[bltind, :, :, 0])
-    d = uv.get_flags(ant1, ant2, pol)
-    assert np.all(dcheck == d)
-
-    d = uv.get_flags(ant1, ant2, uvutils.polnum2str(pol))
-    assert np.all(dcheck == d)
-
-    d = uv.get_flags((ant1, ant2, pol))
-    assert np.all(dcheck == d)
-
-    with pytest.raises(ValueError) as cm:
-        uv.get_flags((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
-
-    # Check conjugation
-    d = uv.get_flags(ant2, ant1, pol)
-    assert np.all(dcheck == d)
-    assert d.dtype == np.bool_
-
-    # Antpair only
-    dcheck = np.squeeze(uv.flag_array[bltind, :, :, :])
-    d = uv.get_flags(ant1, ant2)
-    assert np.all(dcheck == d)
-
-    # Pol number only
-    dcheck = np.squeeze(uv.flag_array[:, :, :, 0])
-    d = uv.get_flags(pol)
-    assert np.all(dcheck == d)
-
-
-def test_get_nsamples(casa_uvfits):
-    # Test function for easy access to nsample array
-    uv = casa_uvfits
-
-    # Get an antpair/pol combo
-    ant1 = uv.ant_1_array[0]
-    ant2 = uv.ant_2_array[0]
-    pol = uv.polarization_array[0]
-    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = np.squeeze(uv.nsample_array[bltind, :, :, 0])
-    d = uv.get_nsamples(ant1, ant2, pol)
-    assert np.all(dcheck == d)
-
-    d = uv.get_nsamples(ant1, ant2, uvutils.polnum2str(pol))
-    assert np.all(dcheck == d)
-
-    d = uv.get_nsamples((ant1, ant2, pol))
-    assert np.all(dcheck == d)
-
-    with pytest.raises(ValueError) as cm:
-        uv.get_nsamples((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
-
-    # Check conjugation
-    d = uv.get_nsamples(ant2, ant1, pol)
-    assert np.all(dcheck == d)
-
-    # Antpair only
-    dcheck = np.squeeze(uv.nsample_array[bltind, :, :, :])
-    d = uv.get_nsamples(ant1, ant2)
-    assert np.all(dcheck == d)
-
-    # Pol number only
-    dcheck = np.squeeze(uv.nsample_array[:, :, :, 0])
-    d = uv.get_nsamples(pol)
+    dcheck = np.squeeze(thing[:, :, :, 0])
+    d = fnc(pol)
     assert np.all(dcheck == d)
 
 
@@ -5648,21 +5459,7 @@ def test_antpair2ind(paper_uvh5):
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
-    # fmt: off
-    np.testing.assert_array_equal(
-        inds,
-        np.array(
-            [
-                1, 22, 43, 64, 85, 106, 127, 148, 169,
-                190, 211, 232, 253, 274, 295, 316, 337,
-                358, 379
-            ]
-        )
-    )
-    # fmt: on
-    assert np.issubdtype(inds.dtype, np.integer)
-
-    return
+    assert inds == slice(1, None, 21)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5671,10 +5468,13 @@ def test_antpair2ind_conj(paper_uvh5):
     uv = paper_uvh5
     inds = uv.antpair2ind(0, 1, ordered=False)
     inds2 = uv.antpair2ind((1, 0), ordered=False)
-    np.testing.assert_array_equal(inds, inds2)
-    assert np.issubdtype(inds2.dtype, np.integer)
+    assert inds == inds2
 
-    return
+
+#    np.testing.assert_array_equal(inds, inds2)
+#    assert np.issubdtype(inds2.dtype, np.integer)
+
+#    return
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5685,14 +5485,11 @@ def test_antpair2ind_ordered(paper_uvh5):
 
     # make sure conjugated baseline returns nothing
     inds2 = uv.antpair2ind(1, 0, ordered=True)
-    assert inds2.size == 0
+    assert inds2 is None
 
     # now use baseline actually in data
     inds2 = uv.antpair2ind(0, 1, ordered=True)
-    np.testing.assert_array_equal(inds, inds2)
-    assert np.issubdtype(inds2.dtype, np.integer)
-
-    return
+    assert inds == inds2
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5702,11 +5499,7 @@ def test_antpair2ind_autos(paper_uvh5):
 
     inds = uv.antpair2ind(0, 0, ordered=True)
     inds2 = uv.antpair2ind(0, 0, ordered=False)
-    np.testing.assert_array_equal(inds, inds2)
-    assert np.issubdtype(inds.dtype, np.integer)
-    assert np.issubdtype(inds2.dtype, np.integer)
-
-    return
+    assert inds == inds2
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5720,78 +5513,6 @@ def test_antpair2ind_exceptions(paper_uvh5):
         uv.antpair2ind("bar", "foo")
     with pytest.raises(ValueError, match="ordered must be a boolean"):
         uv.antpair2ind(0, 1, "foo")
-
-    return
-
-
-def test_get_times(casa_uvfits):
-    # Test function for easy access to times, to work in conjunction with get_data
-    uv = casa_uvfits
-    # Get an antpair/pol combo (pol shouldn't actually effect result)
-    ant1 = uv.ant_1_array[0]
-    ant2 = uv.ant_2_array[0]
-    pol = uv.polarization_array[0]
-    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = uv.time_array[bltind]
-    d = uv.get_times(ant1, ant2, pol)
-    assert np.all(dcheck == d)
-
-    d = uv.get_times(ant1, ant2, uvutils.polnum2str(pol))
-    assert np.all(dcheck == d)
-
-    d = uv.get_times((ant1, ant2, pol))
-    assert np.all(dcheck == d)
-
-    with pytest.raises(ValueError) as cm:
-        uv.get_times((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
-
-    # Check conjugation
-    d = uv.get_times(ant2, ant1, pol)
-    assert np.all(dcheck == d)
-
-    # Antpair only
-    d = uv.get_times(ant1, ant2)
-    assert np.all(dcheck == d)
-
-    # Pol number only
-    d = uv.get_times(pol)
-    assert np.all(d == uv.time_array)
-
-
-def test_get_lsts(casa_uvfits):
-    # Test function for easy access to LSTs, to work in conjunction with get_data
-    uv = casa_uvfits
-    # Get an antpair/pol combo (pol shouldn't actually effect result)
-    ant1 = uv.ant_1_array[0]
-    ant2 = uv.ant_2_array[0]
-    pol = uv.polarization_array[0]
-    bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
-    dcheck = uv.lst_array[bltind]
-    d = uv.get_lsts(ant1, ant2, pol)
-    assert np.all(dcheck == d)
-
-    d = uv.get_lsts(ant1, ant2, uvutils.polnum2str(pol))
-    assert np.all(dcheck == d)
-
-    d = uv.get_lsts((ant1, ant2, pol))
-    assert np.all(dcheck == d)
-
-    with pytest.raises(ValueError) as cm:
-        uv.get_lsts((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
-
-    # Check conjugation
-    d = uv.get_lsts(ant2, ant1, pol)
-    assert np.all(dcheck == d)
-
-    # Antpair only
-    d = uv.get_lsts(ant1, ant2)
-    assert np.all(dcheck == d)
-
-    # Pol number only
-    d = uv.get_lsts(pol)
-    assert np.all(d == uv.lst_array)
 
 
 def test_antpairpol_iter(casa_uvfits):

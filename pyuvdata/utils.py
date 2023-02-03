@@ -5382,3 +5382,117 @@ def _index_dset(dset, indices, input_array=None):
         return arr
     else:
         return
+
+
+def determine_blt_ordering(
+    time_array: np.ndarray,
+    ant_1_array: np.ndarray,
+    ant_2_array: np.ndarray,
+    baseline_array: np.ndarray,
+    n_bls: int,
+    n_times: int,
+) -> tuple[str] | None:
+    """Get the blt order from analysing metadata."""
+    if n_bls == 1 and n_times == 1:
+        return ("baseline", "time")  # without loss of generality.
+
+    time_bl = True
+    time_a = True
+    time_b = True
+    bl_time = True
+    a_time = True
+    b_time = True
+    bl_order = True
+    a_order = True
+    b_order = True
+    time_order = True
+
+    for i, (t, a, b, bl) in enumerate(
+        zip(time_array[1:], ant_1_array[1:], ant_2_array[1:], baseline_array[1:]),
+        start=1,
+    ):
+        if t < time_array[i - 1]:
+            time_bl = False
+            time_a = False
+            time_b = False
+            time_order = False
+
+            if bl == baseline_array[i - 1]:
+                bl_time = False
+            if a == ant_1_array[i - 1]:
+                a_time = False
+            if b == ant_2_array[i - 1]:
+                b_time = False
+
+        elif t == time_array[i - 1]:
+            if bl < baseline_array[i - 1]:
+                time_bl = False
+            if a < ant_1_array[i - 1]:
+                time_a = False
+            if b < ant_2_array[i - 1]:
+                time_b = False
+
+        if bl < baseline_array[i - 1]:
+            bl_time = False
+            bl_order = False
+        if a < ant_1_array[i - 1]:
+            a_time = False
+            a_order = False
+        if b < ant_2_array[i - 1]:
+            b_time = False
+            b_order = False
+
+        if not any(
+            (
+                time_bl,
+                time_a,
+                time_b,
+                time_bl,
+                bl_time,
+                a_time,
+                b_time,
+                bl_order,
+                a_order,
+                b_order,
+                time_order,
+            )
+        ):
+            break
+
+    if (n_bls > 1 and n_times > 1) and (
+        (time_bl and bl_time)
+        or (time_a and a_time)
+        or (time_b and b_time)
+        or (time_order and a_order)
+        or (time_order and b_order)
+        or (a_order and b_order)
+        or (time_order and bl_order)
+    ):
+        raise ValueError(
+            "Something went horribly wrong when trying to determine the order of "
+            "the blts axis."
+            "Please raise an issue on github, as this is not meant to happen."
+        )
+
+    if time_bl:
+        return ("time", "baseline")
+    if bl_time:
+        return ("baseline", "time")
+    if time_a:
+        return ("time", "ant1")
+    if a_time:
+        return ("ant1", "time")
+    if time_b:
+        return ("time", "ant2")
+    if b_time:
+        return ("ant2", "time")
+    if bl_order:
+        return ("baseline",)
+    if a_order:
+        return ("ant1",)
+    if b_order:
+        return ("ant2",)
+    if time_order:
+        return ("time",)
+
+    return None

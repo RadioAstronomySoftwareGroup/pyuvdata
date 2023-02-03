@@ -1054,6 +1054,7 @@ class UVH5(UVData):
 
         # check if object has all required UVParameters set
         if run_check:
+            print(self.blt_order)
             self.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
