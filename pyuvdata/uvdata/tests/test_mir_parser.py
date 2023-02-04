@@ -1252,13 +1252,13 @@ def test_add_overwrite(mir_data, muck_attr):
         ]:
             for field in getattr(mir_data, item).dtype.names:
                 if field not in prot_fields:
-                    getattr(mir_data, item)[field] = -1
+                    getattr(mir_data, item)[field] = 255
     elif muck_attr == "codes":
         mir_data.codes_data.set_value("code", "1", where=("v_name", "eq", "filever"))
     else:
         for field in getattr(mir_data, muck_attr).dtype.names:
             if field not in prot_fields:
-                getattr(mir_data, muck_attr)[field] = -1
+                getattr(mir_data, muck_attr)[field] = 255
 
     # After mucking, verify that at least something looks different
     assert mir_data != mir_copy
