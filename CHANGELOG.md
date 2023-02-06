@@ -18,6 +18,10 @@ they are converted between types using UVData and UVCalobjects.
 - The `UVFlag.set_telescope_params` method, similar to the ones on UVData and UVCal,
 to set several of these new parameters.
 
+### Changed
+- Increase the minimum compatible version for lunarsky to 0.2.1 to fix astropy
+deprecation warnings.
+
 ### Fixed
 - Fix a bug when reading FHD files into UVData objects when the layout file was not
 passed but the antenna_positions are in the known telescopes.

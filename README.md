@@ -153,7 +153,7 @@ Optional:
 * astropy-healpix >= 0.6 (for working with beams in HEALPix formats)
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
 * hdf5plugin >= 3.1.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
-* lunarsky >=0.1.2 (for working with simulated datasets for lunar telescopes)
+* lunarsky >=0.2.1 (for working with simulated datasets for lunar telescopes)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * python-casacore >= 3.3.1 (for working with CASA measurement sets)
 * pyyaml >= 5.1 (for working with settings files for CST beam files)

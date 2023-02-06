@@ -2691,19 +2691,15 @@ def transform_icrs_to_app(
                 frame="icrs",
             )
 
-            # This filter can be removed when lunarsky is updated to not trigger this
-            # astropy deprecation warning.
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", message="The get_frame_attr_names")
-                azel_data = sky_coord.transform_to(
-                    LunarSkyCoord(
-                        np.zeros_like(time_obj_array) * units.rad,
-                        np.zeros_like(time_obj_array) * units.rad,
-                        location=site_loc,
-                        obstime=time_obj_array,
-                        frame="lunartopo",
-                    )
+            azel_data = sky_coord.transform_to(
+                LunarSkyCoord(
+                    np.zeros_like(time_obj_array) * units.rad,
+                    np.zeros_like(time_obj_array) * units.rad,
+                    location=site_loc,
+                    obstime=time_obj_array,
+                    frame="lunartopo",
                 )
+            )
 
         app_ha, app_dec = erfa.ae2hd(
             azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad
@@ -2957,11 +2953,7 @@ def transform_app_to_icrs(
                 obstime=time_obj_array,
             )
 
-        # This filter can be removed when lunarsky is updated to not trigger this
-        # astropy deprecation warning.
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", message="The get_frame_attr_names")
-            coord_data = sky_coord.transform_to("icrs")
+        coord_data = sky_coord.transform_to("icrs")
         icrs_ra = coord_data.ra.rad
         icrs_dec = coord_data.dec.rad
     elif astrometry_library == "erfa":
