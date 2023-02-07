@@ -984,7 +984,6 @@ def test_read_write_loop_missing_telescope_info(
             uv.set_telescope_params(overwrite=True)
     elif uv_mod == "remove_extra_metadata":
         if uvf_type == "antenna":
-
             ant_inds_keep = np.nonzero(np.isin(uv.antenna_numbers, uv.ant_array))[0]
             uv.antenna_names = uv.antenna_names[ant_inds_keep]
             uv.antenna_numbers = uv.antenna_numbers[ant_inds_keep]
@@ -3013,7 +3012,6 @@ def test_super(uvdata_obj):
             label="",
             test_property="prop",
         ):
-
             super(TestClass, self).__init__(
                 indata,
                 mode=mode,
@@ -3070,7 +3068,6 @@ def test_flags2waterfall(uvdata_obj):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_flags2waterfall_errors(uvdata_obj):
-
     # First argument must be UVData or UVCal object
     with pytest.raises(ValueError) as cm:
         flags2waterfall(5)

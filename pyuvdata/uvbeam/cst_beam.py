@@ -288,7 +288,6 @@ class CSTBeam(UVBeam):
 
         # get beam
         if self.beam_type == "power":
-
             data_col_enum = ["abs(e)", "abs(v)"]
             data_col = []
             for name in data_col_enum:

@@ -52,7 +52,6 @@ history = " ".join(sys.argv)
 
 # iterate over files
 for filename in args.files:
-
     # check output
     if args.output_filename is None:
         splitext = os.path.splitext(filename)[1]

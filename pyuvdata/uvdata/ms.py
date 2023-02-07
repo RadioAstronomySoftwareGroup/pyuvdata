@@ -803,7 +803,6 @@ class MS(UVData):
             pol_table.putcell("NUM_CORR", 0, self.Npols)
         else:
             for idx, spw_pol in enumerate(np.unique(self.flex_spw_polarization_array)):
-
                 pol_str = uvutils.polnum2str([spw_pol])
                 feed_pols = {
                     feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
@@ -969,7 +968,6 @@ class MS(UVData):
                     continue
 
                 if ms_header_line_no is not None and ms_end_line_no is None:
-
                     # this is part of the MS history block. Parse it.
                     line_parts = line.split(";")
 

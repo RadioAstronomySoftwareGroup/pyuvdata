@@ -114,7 +114,7 @@ def test_properties():
         this_param = getattr(telescope_obj, v)
         try:
             assert rand_num == this_param.value
-        except (AssertionError):
+        except AssertionError:
             print("setting {prop_name} to a random number failed".format(prop_name=k))
             raise
 

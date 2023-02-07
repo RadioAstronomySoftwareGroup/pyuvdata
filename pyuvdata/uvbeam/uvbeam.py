@@ -4695,7 +4695,6 @@ class UVBeam(UVBase):
                 unread = True
 
                 while unread and file_num < len(filename):
-
                     try:
                         self.read(
                             filename[file_num],
@@ -4831,7 +4830,6 @@ class UVBeam(UVBase):
                         fix_auto_power=fix_auto_power,
                     )
                 elif file_type == "beamfits":
-
                     self.read_beamfits(
                         filename,
                         use_future_array_shapes=use_future_array_shapes,

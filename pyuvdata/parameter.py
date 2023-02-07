@@ -454,7 +454,7 @@ class UVParameter(object):
                                     "not close"
                                 )
                             return False
-                    except (TypeError):
+                    except TypeError:
                         if isinstance(self.value, dict):
                             message_str = f"{self.name} parameter is a dict"
                             dict_equal, dict_message_str = _param_dict_equal(

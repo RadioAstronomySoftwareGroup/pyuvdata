@@ -1911,7 +1911,6 @@ def test_mir_remember_me_ac_data(mir_data):
 
     # ac_read only exists if has_auto=True
     if mir_data.ac_data is not None:
-
         assert np.all(mir_data.ac_data["inhid"] == 1)
 
         assert np.all(mir_data.ac_data["achid"] == np.arange(1, 17))

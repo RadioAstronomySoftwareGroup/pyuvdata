@@ -141,6 +141,7 @@ class UVBase(object):
             getter method to use for the property definition.
 
         """
+
         # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
@@ -163,6 +164,7 @@ class UVBase(object):
             setter method to use for the property definition.
 
         """
+
         # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
@@ -187,6 +189,7 @@ class UVBase(object):
             getter method to use for the property definition.
 
         """
+
         # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
@@ -210,6 +213,7 @@ class UVBase(object):
             setter method to use for the property definition.
 
         """
+
         # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
@@ -234,6 +238,7 @@ class UVBase(object):
             getter method to use for the property definition.
 
         """
+
         # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
@@ -257,6 +262,7 @@ class UVBase(object):
             setter method to use for the property definition.
 
         """
+
         # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
@@ -281,6 +287,7 @@ class UVBase(object):
             getter method to use for the property definition.
 
         """
+
         # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
@@ -304,6 +311,7 @@ class UVBase(object):
             setter method to use for the property definition.
 
         """
+
         # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)

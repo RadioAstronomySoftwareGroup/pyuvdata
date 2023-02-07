@@ -146,7 +146,6 @@ def test_read_lwa(tmp_path):
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
 
         def is_within_directory(directory, target):
-
             abs_directory = os.path.abspath(directory)
             abs_target = os.path.abspath(target)
 
@@ -155,7 +154,6 @@ def test_read_lwa(tmp_path):
             return prefix == abs_directory
 
         def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
             for member in tar.getmembers():
                 member_path = os.path.join(path, member.name)
                 if not is_within_directory(path, member_path):
@@ -210,7 +208,6 @@ def test_extra_pol_setup(tmp_path):
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
 
         def is_within_directory(directory, target):
-
             abs_directory = os.path.abspath(directory)
             abs_target = os.path.abspath(target)
 
@@ -219,7 +216,6 @@ def test_extra_pol_setup(tmp_path):
             return prefix == abs_directory
 
         def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
             for member in tar.getmembers():
                 member_path = os.path.join(path, member.name)
                 if not is_within_directory(path, member_path):

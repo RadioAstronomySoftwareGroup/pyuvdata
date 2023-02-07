@@ -761,7 +761,6 @@ class UVData(UVBase):
             When True, will redefine existing scan numbers. Default is False.
         """
         if self.scan_number_array is None or override:
-
             slice_list = []
             # This loops over phase centers, finds contiguous integrations with
             # ndimage.label, and then finds the slices to return those contiguous
@@ -5353,7 +5352,6 @@ class UVData(UVBase):
             If the object is alread unprojected.
         """
         if not use_old_proj:
-
             # select_mask_use is length Nblts, True means should be unprojected
             # only select blts that are actually phased.
             if select_mask is not None:
@@ -6470,7 +6468,6 @@ class UVData(UVBase):
             update_vis = require_phasing
 
         if not use_old_proj:
-
             telescope_location = self.telescope_location_lat_lon_alt
             unprojected_blts = self._check_for_cat_type("unprojected")
 
@@ -12840,7 +12837,6 @@ class UVData(UVBase):
                     or blt_inds is not None
                     or phase_center_ids is not None
                 ):
-
                     if blt_inds is not None:
                         if (
                             antenna_nums is not None
