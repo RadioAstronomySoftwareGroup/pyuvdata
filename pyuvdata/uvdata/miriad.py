@@ -287,12 +287,11 @@ class Miriad(UVData):
         try:
             altitude = uv["altitude"]
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        except (KeyError):
+        except KeyError:
             # get info from known telescopes.
             # Check to make sure the lat/lon values match reasonably well
             telescope_obj = uvtel.get_telescope(self.telescope_name)
             if telescope_obj is not False:
-
                 tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
                 lat_close = np.isclose(
                     telescope_obj.telescope_location_lat_lon_alt[0],
@@ -311,7 +310,6 @@ class Miriad(UVData):
                         telescope_obj.telescope_location_lat_lon_alt
                     )
                 else:
-
                     self.telescope_location_lat_lon_alt = (
                         latitude,
                         longitude,
@@ -416,7 +414,7 @@ class Miriad(UVData):
             # so we convert to floats on write and back here
             self.antenna_numbers = uv["antnums"].astype(int)
             self.Nants_telescope = len(self.antenna_numbers)
-        except (KeyError):
+        except KeyError:
             self.antenna_numbers = None
             self.Nants_telescope = None
 
@@ -589,7 +587,7 @@ class Miriad(UVData):
                         # leave bad locations as zeros to make them obvious
                         self.antenna_positions[ai, :] = rel_ecef_antpos[num, :]
 
-        except (KeyError):
+        except KeyError:
             # there is no antpos variable
             warnings.warn("Antenna positions are not present in the file.")
             self.antenna_positions = None
@@ -611,20 +609,20 @@ class Miriad(UVData):
             ant_name_str = ant_name_var.replace("\x00", "")
             ant_name_list = ant_name_str[1:-1].split(", ")
             self.antenna_names = ant_name_list
-        except (KeyError):
+        except KeyError:
             self.antenna_names = self.antenna_numbers.astype(str).tolist()
 
         # check for antenna diameters
         try:
             self.antenna_diameters = uv["antdiam"]
-        except (KeyError):
+        except KeyError:
             # backwards compatibility for when keyword was 'diameter'
             try:
                 self.antenna_diameters = uv["diameter"]
                 # if we find it, we need to remove it from extra_keywords to
                 # keep from writing it out
                 self.extra_keywords.pop("diameter")
-            except (KeyError):
+            except KeyError:
                 pass
         if self.antenna_diameters is not None:
             self.antenna_diameters = self.antenna_diameters * np.ones(
@@ -1086,7 +1084,7 @@ class Miriad(UVData):
                 raise ValueError("Number of channels in spectrum has changed!")
             try:
                 cnt = uv["cnt"]
-            except (KeyError):
+            except KeyError:
                 cnt = np.ones(d.shape, dtype=np.float64)
             ra = uv["ra"]
             dec = uv["dec"]
@@ -1140,7 +1138,7 @@ class Miriad(UVData):
                         phase_frame,  # Entry 16
                     ]
                 )
-            except (KeyError):
+            except KeyError:
                 data_accumulator[uv["pol"]] = [
                     [
                         uvw,  # Entry 0
@@ -1258,7 +1256,7 @@ class Miriad(UVData):
                         "Nblts does not match the number of unique blts in the data"
                     )
                     self.Nblts = len(t_grid)
-            except (KeyError):
+            except KeyError:
                 self.Nblts = len(t_grid)
         else:
             # The select on read will make the header nblts not match the
@@ -1272,7 +1270,7 @@ class Miriad(UVData):
                         "Ntimes does not match the number of unique times in the data"
                     )
                     self.Ntimes = len(times)
-            except (KeyError):
+            except KeyError:
                 self.Ntimes = len(times)
         else:
             # The select on read will make the header ntimes not match the
@@ -1300,7 +1298,7 @@ class Miriad(UVData):
                         "Nbls does not match the number of unique baselines in the data"
                     )
                     self.Nbls = len(np.unique(self.baseline_array))
-            except (KeyError):
+            except KeyError:
                 self.Nbls = len(np.unique(self.baseline_array))
         else:
             # The select on read will make the header nbls not match the

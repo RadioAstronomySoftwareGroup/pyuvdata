@@ -2208,7 +2208,6 @@ class UVCal(UVBase):
         both_jones = np.intersect1d(this.jones_array, other.jones_array)
         both_times = np.intersect1d(this.time_array, other.time_array)
         if this.cal_type != "delay":
-
             # With flexible spectral window, the handling here becomes a bit funky,
             # because we are allowed to have channels with the same frequency *if* they
             # belong to different spectral windows (one real-life example: might want

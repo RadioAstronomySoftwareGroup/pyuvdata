@@ -1465,7 +1465,6 @@ def test_select(future_shapes, caltype, gain_data, delay_data_inputflag):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
-
     if caltype == "gain":
         calobj = wideband_gain
     else:
@@ -2810,7 +2809,7 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     # test against by-hand indexing
     if future_shapes:
         expected_array = uvc.gain_array[
-            uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5),
+            uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5)
         ]
     else:
         expected_array = uvc.gain_array[
@@ -2901,7 +2900,6 @@ def test_copy(future_shapes, gain_data, delay_data_inputflag, caltype):
 
 @pytest.mark.parametrize("antnamefix", ["all", "partial"])
 def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
-
     # fix the antenna names in the uvcal object to match telescope object
     new_names = np.array(
         [name.replace("ant", "HH") for name in gain_data.antenna_names]
@@ -3751,7 +3749,6 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
 
 
 def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
-
     uvd, uvc = uvcalibrate_data
 
     with pytest.raises(

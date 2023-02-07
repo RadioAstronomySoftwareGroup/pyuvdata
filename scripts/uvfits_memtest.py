@@ -47,7 +47,6 @@ def read_uvfits():
     ).T
 
     if vis_hdu.header["NAXIS"] == 7:
-
         data_array = (
             vis_hdu.data.data[:, 0, 0, :, :, :, 0]
             + 1j * vis_hdu.data.data[:, 0, 0, :, :, :, 1]
@@ -75,7 +74,6 @@ def read_uvfits():
     freq_index = int(Nfreqs // 2)
 
     if vis_hdu.header["NAXIS"] == 7:
-
         data_slice = (
             vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 0]
             + 1j * vis_hdu.data.data[:, 0, 0, :, 0:freq_index, :, 1]

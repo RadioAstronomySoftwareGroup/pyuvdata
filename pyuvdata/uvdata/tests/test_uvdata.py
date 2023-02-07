@@ -10155,7 +10155,6 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
 
 
 def test_getattr_error(casa_uvfits):
-
     with pytest.raises(
         ValueError,
         match="The older phase attributes, including phase_type, phase_center_ra, "
@@ -11947,7 +11946,6 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     ],
 )
 def test_from_file(filename):
-
     if "miriad" in filename:
         pytest.importorskip("pyuvdata._miriad")
     if isinstance(filename, str):
@@ -12049,7 +12047,6 @@ def test_flex_pol_check_errs(sma_mir, pol_sel, flex_err, err_msg):
 
 
 def test_convert_remove_flex_pol_error(uv_phase_comp):
-
     uvd, _ = uv_phase_comp
 
     uvd2 = uvd.copy()

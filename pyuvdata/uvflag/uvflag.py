@@ -2877,7 +2877,6 @@ class UVFlag(UVBase):
                 if (
                     self.type != "baseline" and "times" not in history_update_string
                 ) or self.type == "baseline":
-
                     history_update_string += ", times"
             else:
                 history_update_string += "times"
@@ -3492,7 +3491,6 @@ class UVFlag(UVBase):
                     self.Npols = len(self.polarization_array)
 
                 if self.type == "baseline":
-
                     self.ant_1_array = header["ant_1_array"][()]
                     self.ant_2_array = header["ant_2_array"][()]
 

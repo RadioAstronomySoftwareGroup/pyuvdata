@@ -721,7 +721,6 @@ class CALFITS(UVCal):
                         self.quality_array = data[:, :, :, :, :, 3]
 
                 if self.cal_type == "delay":
-
                     self.delay_array = data[:, :, :, :, :, 0]
                     self.quality_array = data[:, :, :, :, :, 1]
 

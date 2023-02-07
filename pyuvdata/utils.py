@@ -167,7 +167,7 @@ def _fits_indexhdus(hdulist):
     for i in range(len(hdulist)):
         try:
             tablenames[hdulist[i].header["EXTNAME"]] = i
-        except (KeyError):
+        except KeyError:
             continue
     return tablenames
 

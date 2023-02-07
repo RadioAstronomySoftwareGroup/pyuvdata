@@ -60,7 +60,6 @@ def _fix_uvfits_multi_group_params(vis_hdu):
 
 
 def _make_multi_phase_center(uvobj, init_phase_dict, frame_list):
-
     init_ra = init_phase_dict["cat_lon"]
     init_dec = init_phase_dict["cat_lat"]
     init_epoch = init_phase_dict["cat_epoch"]

@@ -28,7 +28,7 @@ try:
     from astropy_healpix import HEALPix
 
     healpix_installed = True
-except (ImportError):
+except ImportError:
     healpix_installed = False
 
 casa_beamfits = os.path.join(DATA_PATH, "HERABEAM.FITS")
@@ -3065,7 +3065,6 @@ def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
         assert uvb3 == uvb2
 
     else:
-
         with pytest.raises(ValueError, match="Unknown beam_type: foobar, beam_type"):
             uvb3.read(filenames, skip_bad_files=skip)
 

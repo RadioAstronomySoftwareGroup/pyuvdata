@@ -28,7 +28,7 @@ def setup_and_teardown_package():
     try:
         t1 = Time.now()
         t1.ut1
-    except (Exception):
+    except Exception:
         iers.conf.auto_max_age = None
 
     # Also ensure that we're downloading the site data from astropy

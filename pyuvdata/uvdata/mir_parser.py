@@ -1185,7 +1185,7 @@ class MirParser(object):
             check_list.append((self.ac_data["achid"], self.auto_data))
 
         # Run our check
-        for (idx_arr, data_arr) in check_list:
+        for idx_arr, data_arr in check_list:
             if data_arr is None:
                 # If not loaded, move along
                 continue
@@ -2379,7 +2379,7 @@ class MirParser(object):
             if new_obj._has_cross:
                 recpos_list.append(("_sp_dict", sphid_dict))
 
-            for (attr, idict) in recpos_list:
+            for attr, idict in recpos_list:
                 for inhid, jdict in getattr(other, attr).items():
                     getattr(new_obj, attr)[inhid_dict.get(inhid, inhid)] = {
                         idict.get(sphid, sphid): kdict.copy()
