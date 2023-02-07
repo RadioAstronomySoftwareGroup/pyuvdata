@@ -142,7 +142,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.value
@@ -165,7 +164,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.value = value
@@ -190,7 +188,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.degrees()
@@ -214,7 +211,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_degrees(value)
@@ -239,7 +235,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt()
@@ -263,7 +258,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt(value)
@@ -288,7 +282,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fget(self):
             this_param = getattr(self, param_name)
             return this_param.lat_lon_alt_degrees()
@@ -312,7 +305,6 @@ class UVBase(object):
 
         """
 
-        # Create method to return
         def fset(self, value):
             this_param = getattr(self, param_name)
             this_param.set_lat_lon_alt_degrees(value)
