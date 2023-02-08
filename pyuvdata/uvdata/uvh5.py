@@ -638,7 +638,7 @@ class FastUVH5Meta:
         The object will be metadata-only.
         """
         uvd = UVH5()
-        uvd.read(self, read_data=False, run_check_acceptability=check_lsts)
+        uvd.read_uvh5(self, read_data=False, run_check_acceptability=check_lsts)
         return uvd
 
 
