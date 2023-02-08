@@ -29,7 +29,7 @@ def casa_uvfits_main():
             "The uvw_array does not match the expected values",
         ],
     ):
-        uv_in.read(casa_tutorial_uvfits)
+        uv_in.read(casa_tutorial_uvfits, use_future_array_shapes=True)
 
     yield uv_in
 
@@ -54,7 +54,7 @@ def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv_object.read(testfile)
+    uv_object.read(testfile, use_future_array_shapes=True)
 
     yield uv_object
 
@@ -80,7 +80,7 @@ def paper_miriad_main():
     """Read in PAPER miriad file."""
     pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
     uv_in = UVData()
-    uv_in.read(paper_miriad_file)
+    uv_in.read(paper_miriad_file, use_future_array_shapes=True)
 
     yield uv_in
 
@@ -104,7 +104,7 @@ def sma_mir_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile)
+    uv_object.read(testfile, use_future_array_shapes=True)
 
     yield uv_object
 
@@ -146,8 +146,8 @@ def uv_phase_comp_main():
         ]
         * 2,
     ):
-        uvd1 = UVData.from_file(file1)
-        uvd2 = UVData.from_file(file2)
+        uvd1 = UVData.from_file(file1, use_future_array_shapes=True)
+        uvd2 = UVData.from_file(file2, use_future_array_shapes=True)
 
     yield uvd1, uvd2
 

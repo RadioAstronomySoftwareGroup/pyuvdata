@@ -16,6 +16,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.mwa_corr_fits import input_output_mapping
+from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 # set up MWA correlator file list
 testdir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")
@@ -71,6 +72,7 @@ def flag_file_init(tmp_path_factory):
     yield flag_testfiles
 
 
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 def test_read_mwa_write_uvfits(tmp_path):
     """
     MWA correlator fits to uvfits loopback test.
@@ -80,8 +82,13 @@ def test_read_mwa_write_uvfits(tmp_path):
     """
     mwa_uv = UVData()
     uvfits_uv = UVData()
-    messages = ["some coarse channel files were not submitted"]
-    with uvtest.check_warnings(UserWarning, messages):
+    with uvtest.check_warnings(
+        [UserWarning, DeprecationWarning],
+        match=[
+            "some coarse channel files were not submitted",
+            _future_array_shapes_warning,
+        ],
+    ):
         mwa_uv.read(
             filelist[0:2], correct_cable_len=True, phase_to_pointing_center=True
         )
@@ -147,10 +154,11 @@ def test_read_mwax_write_uvfits(tmp_path):
             [spoof_file, filelist[11]],
             correct_cable_len=True,
             phase_to_pointing_center=True,
+            use_future_array_shapes=True,
         )
     testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
     mwax_uv.write_uvfits(testfile)
-    uvfits_uv.read_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile, use_future_array_shapes=True)
 
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
         # Check to make sure that the UVFITS-specific paramters are set on the
@@ -175,7 +183,7 @@ def test_mwax_metafits_keys(tmp_path):
         meta[0].header["DELAYMOD"] = None
         meta.writeto(meta_spoof_file)
     uv = UVData()
-    uv.read([meta_spoof_file, filelist[1]])
+    uv.read([meta_spoof_file, filelist[1]], use_future_array_shapes=True)
 
     assert "DELAYMOD" not in uv.extra_keywords.keys()
 
@@ -185,7 +193,7 @@ def test_mwax_metafits_keys(tmp_path):
 def test_select_on_read():
     mwa_uv = UVData()
     mwa_uv2 = UVData()
-    mwa_uv.read(filelist[0:2], correct_cable_len=True)
+    mwa_uv.read(filelist[0:2], correct_cable_len=True, use_future_array_shapes=True)
     unique_times = np.unique(mwa_uv.time_array)
     select_times = unique_times[
         np.where(
@@ -205,6 +213,7 @@ def test_select_on_read():
             filelist[0:2],
             correct_cable_len=True,
             time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
+            use_future_array_shapes=True,
         )
     assert mwa_uv == mwa_uv2
 
@@ -226,20 +235,16 @@ def test_read_mwa_read_cotter():
         remove_dig_gains=False,
         remove_coarse_band=False,
         remove_flagged_ants=False,
+        use_future_array_shapes=True,
     )
-    cotter_uv.read(filelist[6])
+    cotter_uv.read(filelist[6], use_future_array_shapes=True)
     # cotter doesn't record the auto xy polarizations
     # due to a possible bug in cotter, the auto yx polarizations are conjugated
     # fix these before testing data_array
     autos = np.isclose(mwa_uv.ant_1_array - mwa_uv.ant_2_array, 0.0)
-    cotter_uv.data_array[autos, :, :, 2] = cotter_uv.data_array[autos, :, :, 3]
-    cotter_uv.data_array[autos, :, :, 3] = np.conj(cotter_uv.data_array[autos, :, :, 3])
-    assert np.allclose(
-        mwa_uv.data_array[:, :, :, :],
-        cotter_uv.data_array[:, :, :, :],
-        atol=1e-4,
-        rtol=0,
-    )
+    cotter_uv.data_array[autos, :, 2] = cotter_uv.data_array[autos, :, 3]
+    cotter_uv.data_array[autos, :, 3] = np.conj(cotter_uv.data_array[autos, :, 3])
+    assert np.allclose(mwa_uv.data_array, cotter_uv.data_array, atol=1e-4, rtol=0)
     assert mwa_uv.freq_array == cotter_uv.freq_array
 
 
@@ -257,10 +262,15 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
     messages = ["some coarse channel files were not submitted"]
     files = [filelist[1], filelist[5]]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv.read(files, correct_cable_len=True, phase_to_pointing_center=True)
+        mwa_uv.read(
+            files,
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
+            use_future_array_shapes=True,
+        )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile)
-    uvfits_uv.read_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(mwa_uv.filename) == {
@@ -294,7 +304,7 @@ def test_read_mwa_multi():
     set2 = [filelist[0], filelist[2]]
     mwa_uv = UVData()
 
-    mwa_uv.read([set1, set2])
+    mwa_uv.read([set1, set2], use_future_array_shapes=True)
 
     mwa_uv2 = UVData()
     messages = [
@@ -305,7 +315,9 @@ def test_read_mwa_multi():
         "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv2.read([set1, set2], file_type="mwa_corr_fits")
+        mwa_uv2.read(
+            [set1, set2], file_type="mwa_corr_fits", use_future_array_shapes=True
+        )
 
     assert mwa_uv == mwa_uv2
 
@@ -323,7 +335,7 @@ def test_read_mwa_multi_concat(tmp_path):
     set1 = filelist[0:2]
     set2 = [filelist[0], mod_mini_6]
     mwa_uv = UVData()
-    mwa_uv.read([set1, set2], axis="freq")
+    mwa_uv.read([set1, set2], axis="freq", use_future_array_shapes=True)
 
     mwa_uv2 = UVData()
     messages = [
@@ -334,7 +346,12 @@ def test_read_mwa_multi_concat(tmp_path):
         "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv2.read([set1, set2], axis="freq", file_type="mwa_corr_fits")
+        mwa_uv2.read(
+            [set1, set2],
+            axis="freq",
+            file_type="mwa_corr_fits",
+            use_future_array_shapes=True,
+        )
 
     assert mwa_uv == mwa_uv2
     os.remove(mod_mini_6)
@@ -351,14 +368,15 @@ def test_read_mwa_flags():
         "cable length correction is now defaulted to True",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv.read(subfiles, use_aoflagger_flags=False)
+        mwa_uv.read(subfiles, use_aoflagger_flags=False, use_future_array_shapes=True)
 
     del mwa_uv
 
     mwa_uv = UVData()
-    with pytest.raises(ValueError) as cm:
-        mwa_uv.read(subfiles[0:2], use_aoflagger_flags=True)
-    assert str(cm.value).startswith("no flag files submitted")
+    with pytest.raises(ValueError, match="no flag files submitted"):
+        mwa_uv.read(
+            subfiles[0:2], use_aoflagger_flags=True, use_future_array_shapes=True
+        )
     del mwa_uv
 
 
@@ -379,9 +397,9 @@ def test_multiple_coarse():
         "cable length correction is now defaulted to True",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv1.read(order1)
+        mwa_uv1.read(order1, use_future_array_shapes=True)
     with uvtest.check_warnings(UserWarning, messages):
-        mwa_uv2.read(order2)
+        mwa_uv2.read(order2, use_future_array_shapes=True)
 
     assert mwa_uv1 == mwa_uv2
 
@@ -393,12 +411,15 @@ def test_ppds(tmp_path):
     # turnaround test with just ppds file given
     mwa_uv = UVData()
     mwa_uv.read(
-        [filelist[1], filelist[7]], phase_to_pointing_center=True, flag_init=False
+        [filelist[1], filelist[7]],
+        phase_to_pointing_center=True,
+        flag_init=False,
+        use_future_array_shapes=True,
     )
     testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
     mwa_uv.write_uvfits(testfile)
     uvfits_uv = UVData()
-    uvfits_uv.read_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(mwa_uv.filename) == {
@@ -427,7 +448,7 @@ def test_ppds(tmp_path):
 
     # check that extra keywords are added when both ppds file and metafits file given
     mwa_uv = UVData()
-    mwa_uv.read([filelist[0], filelist[1], filelist[7]])
+    mwa_uv.read([filelist[0], filelist[1], filelist[7]], use_future_array_shapes=True)
     assert "MWAVER" in mwa_uv.extra_keywords and "MWADATE" in mwa_uv.extra_keywords
 
 
@@ -443,9 +464,8 @@ def test_fine_channels(tmp_path):
     with fits.open(filelist[2]) as mini6:
         mini6[1].data = np.concatenate((mini6[1].data, mini6[1].data))
         mini6.writeto(bad_fine)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="files submitted have different numbers"):
         mwa_uv.read([bad_fine, filelist[1]])
-    assert str(cm.value).startswith("files submitted have different numbers")
     del mwa_uv
 
 
@@ -462,9 +482,8 @@ def test_fine_channels_mwax(tmp_path):
         mini[1].data = np.repeat(mini[1].data, 2, axis=1)
         mini[2].data = np.repeat(mini[2].data, 2, axis=1)
         mini.writeto(bad_fine)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="files submitted have different numbers"):
         mwax_uv.read([bad_fine, filelist[12]])
-    assert str(cm.value).startswith("files submitted have different numbers")
     del mwax_uv
 
 
@@ -482,9 +501,8 @@ def test_fine_channels_mwax(tmp_path):
 def test_break_read_mwacorrfits(files, err_msg):
     """Break read_mwa_corr_fits by submitting files incorrectly."""
     mwa_uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=err_msg):
         mwa_uv.read(files)
-    assert str(cm.value).startswith(err_msg)
     del mwa_uv
 
 
@@ -499,9 +517,10 @@ def test_file_extension(tmp_path):
     bad_ext = str(tmp_path / "1131733552.meta")
     with fits.open(filelist[0]) as meta:
         meta.writeto(bad_ext)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="only fits, metafits, and mwaf files supported"
+    ):
         mwa_uv.read(bad_ext, file_type="mwa_corr_fits")
-    assert str(cm.value).startswith("only fits, metafits, and mwaf files supported")
     del mwa_uv
 
 
@@ -517,9 +536,8 @@ def test_diff_obs(tmp_path):
     with fits.open(filelist[2]) as mini6:
         mini6[0].header["OBSID"] = "1131733555"
         mini6.writeto(bad_obs)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="files from different observations"):
         mwa_uv.read([bad_obs, filelist[0], filelist[1]])
-    assert str(cm.value).startswith("files from different observations")
     del mwa_uv
 
 
@@ -535,9 +553,8 @@ def test_misaligned_times(tmp_path):
     with fits.open(filelist[2]) as mini6:
         mini6[1].header["MILLITIM"] = 250
         mini6.writeto(bad_obs)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="coarse channel start times are misaligned"):
         mwa_uv.read([bad_obs, filelist[0], filelist[1]])
-    assert str(cm.value).startswith("coarse channel start times are misaligned")
     del mwa_uv
 
 
@@ -556,6 +573,7 @@ def test_flag_nsample_basic():
         flag_init=False,
         propagate_coarse_flags=False,
         remove_flagged_ants=False,
+        use_future_array_shapes=True,
     )
     # check that only bad antennas are flagged for all times, freqs, pols
     bad_ants = [59, 114]
@@ -600,16 +618,17 @@ def test_flag_init(flag_file_init):
         start_flag=0,
         end_flag=0,
         propagate_coarse_flags=False,
+        use_future_array_shapes=True,
     )
 
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
     freq_inds_complement = [ind for ind in range(16) if ind not in freq_inds]
 
     assert np.all(
-        uv.flag_array[:, :, freq_inds, :]
+        uv.flag_array[:, freq_inds, :]
     ), "Not all of edge and center channels are flagged!"
     assert not np.any(
-        np.all(uv.flag_array[:, :, freq_inds_complement, :], axis=(0, 1, -1))
+        np.all(uv.flag_array[:, freq_inds_complement, :], axis=(0, 1, -1))
     ), "Some non-edge/center channels are entirely flagged!"
 
 
@@ -628,6 +647,7 @@ def test_flag_start_flag(flag_file_init):
         edge_width=0,
         flag_dc_offset=False,
         propagate_coarse_flags=False,
+        use_future_array_shapes=True,
     )
 
     reshape = [uv.Ntimes, uv.Nbls, uv.Nfreqs, uv.Npols]
@@ -670,9 +690,8 @@ def test_flag_start_flag(flag_file_init):
 def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
     uv = UVData()
     # give noninteger multiple inputs
-    with pytest.raises(err_type) as cm:
+    with pytest.raises(err_type, match=err_msg):
         uv.read(flag_file_init, **read_kwargs)
-    assert str(cm.value).startswith(err_msg)
 
 
 def test_read_metadata_only(tmp_path):
@@ -685,6 +704,7 @@ def test_read_metadata_only(tmp_path):
             correct_cable_len=True,
             phase_to_pointing_center=True,
             read_data=False,
+            use_future_array_shapes=True,
         )
 
     assert uvd.metadata_only
@@ -696,9 +716,11 @@ def test_data_array_precision():
     uv = UVData()
     uv2 = UVData()
     # read in data array as single precision
-    uv.read(filelist[0:2], data_array_dtype=np.complex64)
+    uv.read(filelist[0:2], data_array_dtype=np.complex64, use_future_array_shapes=True)
     # now read as double precision
-    uv2.read(filelist[0:2], data_array_dtype=np.complex128)
+    uv2.read(
+        filelist[0:2], data_array_dtype=np.complex128, use_future_array_shapes=True
+    )
 
     assert uv == uv2
     assert uv.data_array.dtype.type is np.complex64
@@ -714,9 +736,13 @@ def test_nsample_array_precision():
     uv2 = UVData()
     uv3 = UVData()
     # read in nsample array at different precisions
-    uv.read(filelist[0:2], nsample_array_dtype=np.float32)
-    uv2.read(filelist[0:2], nsample_array_dtype=np.float64)
-    uv3.read(filelist[0:2], nsample_array_dtype=np.float16)
+    uv.read(filelist[0:2], nsample_array_dtype=np.float32, use_future_array_shapes=True)
+    uv2.read(
+        filelist[0:2], nsample_array_dtype=np.float64, use_future_array_shapes=True
+    )
+    uv3.read(
+        filelist[0:2], nsample_array_dtype=np.float16, use_future_array_shapes=True
+    )
 
     assert uv == uv2
     assert uv == uv3
@@ -747,10 +773,10 @@ def test_invalid_precision_errors():
 def test_remove_dig_gains():
     """Test digital gain removal."""
     uv1 = UVData()
-    uv1.read(filelist[0:2], data_array_dtype=np.complex64)
+    uv1.read(filelist[0:2], data_array_dtype=np.complex64, use_future_array_shapes=True)
 
     uv2 = UVData()
-    uv2.read(filelist[0:2], remove_dig_gains=False)
+    uv2.read(filelist[0:2], remove_dig_gains=False, use_future_array_shapes=True)
 
     with fits.open(filelist[0]) as meta:
         meta_tbl = meta[1].data
@@ -766,8 +792,8 @@ def test_remove_dig_gains():
     ant_2_inds = np.tile(np.array(ant_2_inds), uv2.Ntimes).astype(np.int_)
     dig_gains = dig_gains[good_ants, 23]
     uv2.data_array = uv2.data_array / (
-        dig_gains[ant_1_inds, np.newaxis, np.newaxis, np.newaxis]
-        * dig_gains[ant_2_inds, np.newaxis, np.newaxis, np.newaxis]
+        dig_gains[ant_1_inds, np.newaxis, np.newaxis]
+        * dig_gains[ant_2_inds, np.newaxis, np.newaxis]
     )
     uv2.history = uv1.history
 
@@ -788,10 +814,16 @@ def test_remove_coarse_band(tmp_path):
         mini1.writeto(cb_spoof)
 
     uv1 = UVData()
-    uv1.read([filelist[0], cb_spoof], data_array_dtype=np.complex64)
+    uv1.read(
+        [filelist[0], cb_spoof],
+        data_array_dtype=np.complex64,
+        use_future_array_shapes=True,
+    )
 
     uv2 = UVData()
-    uv2.read([filelist[0], cb_spoof], remove_coarse_band=False)
+    uv2.read(
+        [filelist[0], cb_spoof], remove_coarse_band=False, use_future_array_shapes=True
+    )
 
     with h5py.File(
         DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
@@ -827,10 +859,12 @@ def test_remove_coarse_band_mwax_40(tmp_path):
         meta.writeto(meta_spoof)
 
     uv1 = UVData()
-    uv1.read([filelist[11], cb_spoof])
+    uv1.read([filelist[11], cb_spoof], use_future_array_shapes=True)
 
     uv2 = UVData()
-    uv2.read([filelist[11], cb_spoof], remove_coarse_band=False)
+    uv2.read(
+        [filelist[11], cb_spoof], remove_coarse_band=False, use_future_array_shapes=True
+    )
 
     with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_40kHz.h5", "r") as f:
         cb_array = f["coarse_band"][:]
@@ -861,10 +895,12 @@ def test_remove_coarse_band_mwax_80(tmp_path):
         meta.writeto(meta_spoof)
 
     uv1 = UVData()
-    uv1.read([meta_spoof, cb_spoof])
+    uv1.read([meta_spoof, cb_spoof], use_future_array_shapes=True)
 
     uv2 = UVData()
-    uv2.read([meta_spoof, cb_spoof], remove_coarse_band=False)
+    uv2.read(
+        [meta_spoof, cb_spoof], remove_coarse_band=False, use_future_array_shapes=True
+    )
 
     with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_80kHz.h5", "r") as f:
         cb_array = f["coarse_band"][:]
@@ -896,7 +932,7 @@ def test_remove_coarse_band_mwax_warning(tmp_path):
 
     uv = UVData()
     with pytest.raises(ValueError, match="mwax passband shapes are only available"):
-        uv.read([meta_spoof, cb_spoof], flag_init=False)
+        uv.read([meta_spoof, cb_spoof], flag_init=False, use_future_array_shapes=True)
 
 
 def test_aoflagger_flags():
@@ -910,13 +946,17 @@ def test_aoflagger_flags():
     ]
     with uvtest.check_warnings(UserWarning, messages):
         uv.read(
-            files, flag_init=False, remove_flagged_ants=False, correct_cable_len=False
+            files,
+            flag_init=False,
+            remove_flagged_ants=False,
+            correct_cable_len=False,
+            use_future_array_shapes=True,
         )
 
     with fits.open(filelist[3]) as aoflags:
         flags = aoflags[1].data.field("FLAGS")
-    flags = flags[:, np.newaxis, :, np.newaxis]
-    flags = np.repeat(flags, 4, axis=3)
+    flags = flags[:, :, np.newaxis]
+    flags = np.repeat(flags, 4, axis=2)
 
     assert np.all(uv.flag_array == flags)
 
@@ -937,7 +977,9 @@ def test_aoflagger_flags_multiple(tmp_path):
     files.append(mod_mini_6)
 
     uv = UVData()
-    uv.read(files, flag_init=False, remove_flagged_ants=False)
+    uv.read(
+        files, flag_init=False, remove_flagged_ants=False, use_future_array_shapes=True
+    )
 
     with fits.open(filelist[3]) as aoflags:
         flags1 = aoflags[1].data.field("FLAGS")
@@ -945,8 +987,8 @@ def test_aoflagger_flags_multiple(tmp_path):
         flags2 = aoflags[1].data.field("FLAGS")
     flags = np.array([flags2[:, 0], flags1[:, 0]])
     flags = np.transpose(flags)
-    flags = flags[:, np.newaxis, :, np.newaxis]
-    flags = np.repeat(flags, 4, axis=3)
+    flags = flags[:, :, np.newaxis]
+    flags = np.repeat(flags, 4, axis=2)
 
     assert np.all(uv.flag_array == flags)
 
@@ -959,9 +1001,8 @@ def test_mismatch_flags():
     uv = UVData()
     files = filelist[0:2]
     files.append(filelist[4])
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="flag file coarse bands do not match"):
         uv.read(files)
-    assert str(cm.value).startswith("flag file coarse bands do not match")
 
 
 @pytest.mark.filterwarnings(
@@ -974,7 +1015,12 @@ def test_propagate_coarse_flags():
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
     """
     uv = UVData()
-    uv.read(filelist[0:3], flag_init=False, propagate_coarse_flags=True)
+    uv.read(
+        filelist[0:3],
+        flag_init=False,
+        propagate_coarse_flags=True,
+        use_future_array_shapes=True,
+    )
     assert np.all(uv.flag_array)
 
 
@@ -990,6 +1036,7 @@ def test_start_flag(tmp_path):
         end_flag=0,
         edge_width=0,
         flag_dc_offset=False,
+        use_future_array_shapes=True,
     )
     good_ants = np.delete(np.unique(uv1.ant_1_array), [59, 114])
     uv1.select(antenna_nums=good_ants)
@@ -1007,6 +1054,7 @@ def test_start_flag(tmp_path):
         end_flag=0,
         edge_width=0,
         flag_dc_offset=False,
+        use_future_array_shapes=True,
     )
     # start_time is before goodtime, so all data should be flagged
     assert np.all(uv2.flag_array)
@@ -1017,9 +1065,8 @@ def test_start_flag(tmp_path):
 def test_start_flag_goodtime_ppds():
     """Test that error is thrown using 'goodtime' with only ppds file."""
     uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="To use start_flag='goodtime',"):
         uv.read([filelist[1], filelist[7]], flag_init=True, start_flag="goodtime")
-    assert str(cm.value).startswith("To use start_flag='goodtime',")
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -1027,9 +1074,10 @@ def test_start_flag_goodtime_ppds():
 def test_start_flag_bad_string():
     """Test that error is thrown if start_flag is given string other than 'goodtime'"""
     uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="start_flag must be int or float or 'goodtime'"
+    ):
         uv.read(filelist[0:2], flag_init=True, start_flag="badstring")
-    assert str(cm.value).startswith("start_flag must be int or float or 'goodtime'")
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -1041,7 +1089,12 @@ def test_start_flag_int_time(tmp_path):
     with fits.open(filelist[0]) as meta:
         meta[0].header["GOODTIME"] = 1447698337.25
         meta.writeto(new_meta)
-    uv.read([new_meta, filelist[1]], flag_init=True, start_flag="goodtime")
+    uv.read(
+        [new_meta, filelist[1]],
+        flag_init=True,
+        start_flag="goodtime",
+        use_future_array_shapes=True,
+    )
     # first integration time should be flagged
     # data only has one integration time, so all data should be flagged
     assert np.all(uv.flag_array)
@@ -1083,10 +1136,11 @@ def test_van_vleck_int():
         remove_dig_gains=False,
         remove_flagged_ants=False,
         correct_cable_len=False,
+        use_future_array_shapes=True,
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    uv2.read(filelist[10], use_future_array_shapes=True)
     assert np.allclose(uv1.data_array, uv2.data_array)
 
 
@@ -1102,10 +1156,11 @@ def test_van_vleck_cheby():
         remove_coarse_band=False,
         remove_dig_gains=False,
         correct_cable_len=False,
+        use_future_array_shapes=True,
     )
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
-    uv2.read(filelist[10])
+    uv2.read(filelist[10], use_future_array_shapes=True)
 
     # select only good ants
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
@@ -1134,6 +1189,7 @@ def test_van_vleck_interp(tmp_path):
             remove_coarse_band=False,
             remove_dig_gains=False,
             correct_cable_len=False,
+            use_future_array_shapes=True,
         )
 
 
@@ -1142,9 +1198,9 @@ def test_van_vleck_interp(tmp_path):
 def test_remove_flagged_ants(tmp_path):
     """Test remove_flagged_ants."""
     uv1 = UVData()
-    uv1.read(filelist[8:10], remove_flagged_ants=True)
+    uv1.read(filelist[8:10], remove_flagged_ants=True, use_future_array_shapes=True)
     uv2 = UVData()
-    uv2.read(filelist[8:10], remove_flagged_ants=False)
+    uv2.read(filelist[8:10], remove_flagged_ants=False, use_future_array_shapes=True)
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
 
     uv2.select(antenna_nums=good_ants)
@@ -1163,7 +1219,10 @@ def test_small_sigs(tmp_path):
         mini.writeto(small_sigs)
     uv1 = UVData()
     uv1.read(
-        [small_sigs, filelist[9]], correct_van_vleck=True, flag_small_auto_ants=True
+        [small_sigs, filelist[9]],
+        correct_van_vleck=True,
+        flag_small_auto_ants=True,
+        use_future_array_shapes=True,
     )
     messages = ["values are being corrected with the van vleck integral"]
     messages = messages * 8
@@ -1175,6 +1234,7 @@ def test_small_sigs(tmp_path):
             [small_sigs, filelist[9]],
             correct_van_vleck=True,
             flag_small_auto_ants=False,
+            use_future_array_shapes=True,
         )
 
     assert "flagged by the Van Vleck" in uv1.history
@@ -1192,7 +1252,12 @@ def test_deprecated_keywords():
     with uvtest.check_warnings(
         [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning], messages
     ):
-        uv.read(filelist[0:2], use_cotter_flags=False, flag_small_sig_ants=True)
+        uv.read(
+            filelist[0:2],
+            use_cotter_flags=False,
+            flag_small_sig_ants=True,
+            use_future_array_shapes=True,
+        )
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -1210,14 +1275,14 @@ def test_bscale(tmp_path):
     uv3 = UVData()
     uv4 = UVData()
     # check when bscale is not in zeroth hdu but is in first
-    uv1.read([filelist[0], bscale])
+    uv1.read([filelist[0], bscale], use_future_array_shapes=True)
     assert uv1.extra_keywords["SCALEFAC"] == 0.5
     # check when bscale is in both zeroth and first hdu
-    uv2.read(filelist[0:2])
+    uv2.read(filelist[0:2], use_future_array_shapes=True)
     assert uv2.extra_keywords["SCALEFAC"] == 0.5
     # check pre-October 2014 data
-    uv3.read(filelist[8:10])
+    uv3.read(filelist[8:10], use_future_array_shapes=True)
     assert uv3.extra_keywords["SCALEFAC"] == 0.25
     # check mwax data
-    uv4.read(filelist[11:13])
+    uv4.read(filelist[11:13], use_future_array_shapes=True)
     assert "SCALEFAC" not in uv4.extra_keywords.keys()

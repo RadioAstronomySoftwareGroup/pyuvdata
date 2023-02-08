@@ -35,6 +35,15 @@ reporting_request = (
     "this feature, we would like to investigate this more."
 )
 
+_future_array_shapes_warning = (
+    "The shapes of several attributes will be changing in the future to remove the "
+    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
+    "method to convert to the future array shapes now or set the parameter of the same "
+    "name on this method to both convert to the future array shapes and silence this "
+    "warning. See the UVData tutorial on ReadTheDocs for more details about these "
+    "shape changes."
+)
+
 old_phase_attrs = [
     "phase_type",
     "phase_center_ra",
@@ -2249,6 +2258,9 @@ class UVData(UVBase):
         parameter on this object to True.
 
         """
+        if self.future_array_shapes:
+            return
+
         self._set_future_array_shapes()
         if not self.metadata_only:
             # remove the length-1 spw axis for all data-like parameters
@@ -2272,6 +2284,13 @@ class UVData(UVBase):
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
         """
+        warnings.warn(
+            "This method will be removed in version 3.0 when the current array shapes "
+            "are no longer supported.",
+            DeprecationWarning,
+        )
+        if not self.future_array_shapes:
+            return
         if not self.flex_spw:
             unique_channel_widths = np.unique(self.channel_width)
             if unique_channel_widths.size > 1:
@@ -10953,6 +10972,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a list of FHD files.
@@ -10994,6 +11014,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -11024,6 +11047,7 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
@@ -11044,6 +11068,7 @@ class UVData(UVBase):
         check_autos=True,
         fix_autos=True,
         rechunk=None,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from an SMA MIR file.
@@ -11095,6 +11120,13 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+
         """
         from . import mir
 
@@ -11114,6 +11146,7 @@ class UVData(UVBase):
             check_autos=check_autos,
             fix_autos=fix_autos,
             rechunk=rechunk,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -11140,6 +11173,7 @@ class UVData(UVBase):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a miriad file.
@@ -11228,6 +11262,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -11273,6 +11310,7 @@ class UVData(UVBase):
             fix_use_ant_pos=fix_use_ant_pos,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
@@ -11293,6 +11331,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a measurement set.
@@ -11357,6 +11396,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -11394,6 +11436,7 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(ms_obj)
         del ms_obj
@@ -11428,6 +11471,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -11537,6 +11581,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -11602,6 +11649,7 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(corr_obj)
         del corr_obj
@@ -11633,6 +11681,7 @@ class UVData(UVBase):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in header, metadata and data from a single uvfits file.
@@ -11747,6 +11796,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -11796,6 +11848,7 @@ class UVData(UVBase):
             fix_use_ant_pos=fix_use_ant_pos,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
@@ -11830,6 +11883,7 @@ class UVData(UVBase):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read a UVH5 file.
@@ -11959,6 +12013,9 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -12010,6 +12067,7 @@ class UVData(UVBase):
             fix_use_ant_pos=fix_use_ant_pos,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -12023,6 +12081,7 @@ class UVData(UVBase):
         skip_bad_files=False,
         background_lsts=True,
         ignore_name=False,
+        use_future_array_shapes=False,
         # phasing parameters
         allow_rephase=None,
         phase_center_radec=None,
@@ -12149,6 +12208,9 @@ class UVData(UVBase):
             combining multiple files, which would otherwise result in an error being
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Phasing
         -------
@@ -12462,6 +12524,9 @@ class UVData(UVBase):
             Correlator chunk code for MIR dataset.
         pseudo_cont : boolean
             Read in only pseudo-continuuum values in MIR dataset.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
@@ -12592,12 +12657,21 @@ class UVData(UVBase):
                         self.read(
                             filename[file_num],
                             file_type=file_type,
+                            read_data=read_data,
+                            skip_bad_files=skip_bad_files,
+                            background_lsts=background_lsts,
+                            use_future_array_shapes=use_future_array_shapes,
+                            # phasing parameters
+                            fix_old_proj=fix_old_proj,
+                            fix_use_ant_pos=fix_use_ant_pos,
+                            make_multi_phase=make_multi_phase,
                             allow_rephase=allow_rephase,
                             phase_center_radec=phase_center_radec,
                             phase_frame=phase_frame,
                             phase_epoch=phase_epoch,
                             phase_use_ant_pos=phase_use_ant_pos,
                             unphase_to_drift=unphase_to_drift,
+                            # selecting parameters
                             antenna_nums=antenna_nums,
                             antenna_names=antenna_names,
                             ant_str=ant_str,
@@ -12605,40 +12679,67 @@ class UVData(UVBase):
                             frequencies=frequencies,
                             freq_chans=freq_chans,
                             times=times,
-                            polarizations=polarizations,
-                            blt_inds=blt_inds,
-                            phase_center_ids=phase_center_ids,
                             time_range=time_range,
                             lsts=lsts,
                             lst_range=lst_range,
+                            polarizations=polarizations,
+                            blt_inds=blt_inds,
+                            phase_center_ids=phase_center_ids,
                             keep_all_metadata=keep_all_metadata,
-                            read_data=read_data,
-                            phase_type=phase_type,
-                            projected=projected,
-                            correct_lat_lon=correct_lat_lon,
-                            use_model=use_model,
-                            data_column=data_column,
-                            pol_order=pol_order,
-                            data_array_dtype=data_array_dtype,
-                            nsample_array_dtype=nsample_array_dtype,
-                            skip_bad_files=skip_bad_files,
-                            background_lsts=background_lsts,
+                            # checking parameters
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
                             strict_uvw_antpos_check=strict_uvw_antpos_check,
-                            isource=isource,
+                            check_autos=check_autos,
+                            fix_autos=fix_autos,
+                            # file-type specific parameters
+                            # miriad
+                            phase_type=phase_type,
+                            projected=projected,
+                            correct_lat_lon=correct_lat_lon,
+                            calc_lst=calc_lst,
+                            # FHD
+                            use_model=use_model,
+                            # MS
+                            data_column=data_column,
+                            pol_order=pol_order,
+                            ignore_single_chan=ignore_single_chan,
+                            raise_error=raise_error,
+                            read_weights=read_weights,
+                            # MS & MIR
+                            allow_flex_pol=allow_flex_pol,
+                            # uvh5
+                            multidim_index=multidim_index,
+                            remove_flex_pol=remove_flex_pol,
+                            # uvh5 & mwa_corr_fits
+                            data_array_dtype=data_array_dtype,
+                            # mwa_corr_fits
+                            use_aoflagger_flags=use_aoflagger_flags,
+                            use_cotter_flags=use_cotter_flags,
+                            remove_dig_gains=remove_dig_gains,
+                            remove_coarse_band=remove_coarse_band,
+                            correct_cable_len=correct_cable_len,
+                            correct_van_vleck=correct_van_vleck,
+                            cheby_approx=cheby_approx,
+                            flag_small_auto_ants=flag_small_auto_ants,
+                            flag_small_sig_ants=flag_small_sig_ants,
+                            propagate_coarse_flags=propagate_coarse_flags,
+                            flag_init=flag_init,
+                            edge_width=edge_width,
+                            start_flag=start_flag,
+                            end_flag=end_flag,
+                            flag_dc_offset=flag_dc_offset,
+                            remove_flagged_ants=remove_flagged_ants,
+                            phase_to_pointing_center=phase_to_pointing_center,
+                            nsample_array_dtype=nsample_array_dtype,
+                            # MIR
+                            isource=None,
                             irec=irec,
                             isb=isb,
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
-                            calc_lst=calc_lst,
-                            fix_old_proj=fix_old_proj,
-                            fix_use_ant_pos=fix_use_ant_pos,
-                            make_multi_phase=make_multi_phase,
-                            allow_flex_pol=allow_flex_pol,
-                            check_autos=check_autos,
-                            fix_autos=fix_autos,
+                            rechunk=rechunk,
                         )
                     unread = False
                 except KeyError as err:
@@ -12729,11 +12830,20 @@ class UVData(UVBase):
                                 f,
                                 file_type=file_type,
                                 allow_rephase=allow_rephase,
+                                read_data=read_data,
+                                skip_bad_files=skip_bad_files,
+                                background_lsts=background_lsts,
+                                use_future_array_shapes=use_future_array_shapes,
+                                # phasing parameters
+                                fix_old_proj=fix_old_proj,
+                                fix_use_ant_pos=fix_use_ant_pos,
+                                make_multi_phase=make_multi_phase,
                                 phase_center_radec=phase_center_radec,
                                 phase_frame=phase_frame,
                                 phase_epoch=phase_epoch,
                                 phase_use_ant_pos=phase_use_ant_pos,
                                 unphase_to_drift=unphase_to_drift,
+                                # selecting parameters
                                 antenna_nums=antenna_nums,
                                 antenna_names=antenna_names,
                                 ant_str=ant_str,
@@ -12741,40 +12851,66 @@ class UVData(UVBase):
                                 frequencies=frequencies,
                                 freq_chans=freq_chans,
                                 times=times,
-                                polarizations=polarizations,
-                                blt_inds=blt_inds,
-                                phase_center_ids=phase_center_ids,
                                 time_range=time_range,
                                 lsts=lsts,
                                 lst_range=lst_range,
+                                polarizations=polarizations,
+                                blt_inds=blt_inds,
+                                phase_center_ids=phase_center_ids,
                                 keep_all_metadata=keep_all_metadata,
-                                read_data=read_data,
-                                phase_type=phase_type,
-                                projected=projected,
-                                correct_lat_lon=correct_lat_lon,
-                                use_model=use_model,
-                                data_column=data_column,
-                                pol_order=pol_order,
-                                data_array_dtype=data_array_dtype,
-                                nsample_array_dtype=nsample_array_dtype,
-                                skip_bad_files=skip_bad_files,
-                                background_lsts=background_lsts,
+                                # checking parameters
                                 run_check=run_check,
                                 check_extra=check_extra,
                                 run_check_acceptability=run_check_acceptability,
                                 strict_uvw_antpos_check=strict_uvw_antpos_check,
-                                isource=isource,
+                                check_autos=check_autos,
+                                fix_autos=fix_autos,
+                                # file-type specific parameters
+                                # miriad
+                                phase_type=phase_type,
+                                projected=projected,
+                                correct_lat_lon=correct_lat_lon,
+                                calc_lst=calc_lst,
+                                # FHD
+                                use_model=use_model,
+                                # MS
+                                data_column=data_column,
+                                pol_order=pol_order,
+                                ignore_single_chan=ignore_single_chan,
+                                raise_error=raise_error,
+                                read_weights=read_weights,
+                                # MS & MIR
+                                allow_flex_pol=allow_flex_pol,
+                                # uvh5
+                                multidim_index=multidim_index,
+                                remove_flex_pol=remove_flex_pol,
+                                # uvh5 & mwa_corr_fits
+                                data_array_dtype=data_array_dtype,
+                                # mwa_corr_fits
+                                use_aoflagger_flags=use_aoflagger_flags,
+                                use_cotter_flags=use_cotter_flags,
+                                remove_dig_gains=remove_dig_gains,
+                                remove_coarse_band=remove_coarse_band,
+                                correct_cable_len=correct_cable_len,
+                                correct_van_vleck=correct_van_vleck,
+                                cheby_approx=cheby_approx,
+                                flag_small_auto_ants=flag_small_auto_ants,
+                                flag_small_sig_ants=flag_small_sig_ants,
+                                propagate_coarse_flags=propagate_coarse_flags,
+                                flag_init=flag_init,
+                                edge_width=edge_width,
+                                start_flag=start_flag,
+                                end_flag=end_flag,
+                                flag_dc_offset=flag_dc_offset,
+                                remove_flagged_ants=remove_flagged_ants,
+                                phase_to_pointing_center=phase_to_pointing_center,
+                                nsample_array_dtype=nsample_array_dtype,
+                                # MIR
+                                isource=None,
                                 irec=irec,
                                 isb=isb,
                                 corrchunk=corrchunk,
                                 pseudo_cont=pseudo_cont,
-                                calc_lst=calc_lst,
-                                fix_old_proj=fix_old_proj,
-                                fix_use_ant_pos=fix_use_ant_pos,
-                                make_multi_phase=make_multi_phase,
-                                allow_flex_pol=allow_flex_pol,
-                                check_autos=check_autos,
-                                fix_autos=fix_autos,
                                 rechunk=rechunk,
                             )
                         if phase_dict is not None:
@@ -12977,6 +13113,7 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "mir":
@@ -12995,6 +13132,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     rechunk=rechunk,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "miriad":
@@ -13019,6 +13157,7 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "mwa_corr_fits":
@@ -13051,6 +13190,7 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "fhd":
@@ -13065,6 +13205,7 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "ms":
@@ -13083,6 +13224,7 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
 
             elif file_type == "uvh5":
@@ -13115,6 +13257,7 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
+                    use_future_array_shapes=use_future_array_shapes,
                 )
                 select = False
 
@@ -13160,6 +13303,7 @@ class UVData(UVBase):
         skip_bad_files=False,
         background_lsts=True,
         ignore_name=False,
+        use_future_array_shapes=False,
         # phasing parameters
         allow_rephase=None,
         phase_center_radec=None,
@@ -13286,6 +13430,9 @@ class UVData(UVBase):
             combining multiple files, which would otherwise result in an error being
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Phasing
         -------
@@ -13599,6 +13746,9 @@ class UVData(UVBase):
             Correlator chunk code for MIR dataset.
         pseudo_cont : boolean
             Read in only pseudo-continuuum values in MIR dataset.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
@@ -13625,6 +13775,7 @@ class UVData(UVBase):
             skip_bad_files=skip_bad_files,
             background_lsts=background_lsts,
             ignore_name=ignore_name,
+            use_future_array_shapes=use_future_array_shapes,
             # phasing parameters
             allow_rephase=allow_rephase,
             phase_center_radec=phase_center_radec,

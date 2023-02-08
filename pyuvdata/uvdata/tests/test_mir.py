@@ -18,16 +18,19 @@ from ... import UVData
 from ... import tests as uvtest
 from ...data import DATA_PATH
 from ...uvdata.mir import Mir
+from ..uvdata import _future_array_shapes_warning
 
 
 @pytest.fixture(scope="session")
 def sma_mir_filt_main():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile, pseudo_cont=True, corrchunk=0)
+    uv_object.read(
+        testfile, pseudo_cont=True, corrchunk=0, use_future_array_shapes=True
+    )
 
-    uv_object.flag_array[:, :, : uv_object.Nfreqs // 2, 0] = True
-    uv_object.flag_array[:, :, uv_object.Nfreqs // 2 :, 1] = True
+    uv_object.flag_array[:, : uv_object.Nfreqs // 2, 0] = True
+    uv_object.flag_array[:, uv_object.Nfreqs // 2 :, 1] = True
     uv_object.set_lsts_from_time_array()
     uv_object._set_app_coords_helper()
 
@@ -42,6 +45,8 @@ def sma_mir_filt(sma_mir_filt_main):
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     """
@@ -53,11 +58,10 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     testfile = os.path.join(tmp_path, "outtest_mir.uvfits")
     uvfits_uv = UVData()
 
-    if future_shapes:
-        sma_mir.use_future_array_shapes()
-
+    if not future_shapes:
+        sma_mir.use_current_array_shapes()
     sma_mir.write_uvfits(testfile)
-    uvfits_uv.read_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile, use_future_array_shapes=future_shapes)
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
         # Check to make sure that the UVFITS-specific paramters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
@@ -65,9 +69,6 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
         assert getattr(sma_mir, item) is None
         assert getattr(uvfits_uv, item) is not None
         setattr(uvfits_uv, item, None)
-
-    if future_shapes:
-        uvfits_uv.use_future_array_shapes()
 
     # UVFITS doesn't allow for numbering of spectral windows like MIR does, so
     # we need an extra bit of handling here
@@ -131,6 +132,8 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
@@ -144,14 +147,19 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
     testfile = os.path.join(tmp_path, "outtest_mir.ms")
     ms_uv = UVData()
 
-    if future_shapes:
-        sma_mir.use_future_array_shapes()
+    warn_msg = ["The `make_multi_phase` option is deprecated"]
+    if not future_shapes:
+        sma_mir.use_current_array_shapes()
+        warn_msg.append(_future_array_shapes_warning)
 
     sma_mir.write_ms(testfile, clobber=True)
-    with uvtest.check_warnings(
-        DeprecationWarning, match="The `make_multi_phase` option is deprecated"
-    ):
-        ms_uv.read(testfile, make_multi_phase=True, allow_rephase=False)
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        ms_uv.read(
+            testfile,
+            make_multi_phase=True,
+            allow_rephase=False,
+            use_future_array_shapes=future_shapes,
+        )
 
     # fix up the phase center info to match the mir dataset
     cat_id = list(sma_mir.phase_center_catalog.keys())[0]
@@ -163,9 +171,6 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
     # Single integration with 1 phase center = single scan number
     # output in the MS
     assert ms_uv.scan_number_array == np.array([1])
-
-    if future_shapes:
-        ms_uv.use_future_array_shapes()
 
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,
@@ -214,7 +219,7 @@ def test_read_mir_write_uvh5(sma_mir, tmp_path):
     uvh5_uv = UVData()
 
     sma_mir.write_uvh5(testfile)
-    uvh5_uv.read_uvh5(testfile)
+    uvh5_uv.read_uvh5(testfile, use_future_array_shapes=True)
 
     # Check the history first via find
     assert 0 == uvh5_uv.history.find(
@@ -247,7 +252,9 @@ def test_mir_partial_read(sma_mir):
         "support select on read. Entire file will be read and then select will be "
         "performed",
     ):
-        uv3 = UVData.from_file(testfile, freq_chans=freq_chans_to_keep)
+        uv3 = UVData.from_file(
+            testfile, freq_chans=freq_chans_to_keep, use_future_array_shapes=True
+        )
 
     assert uv3 == uv2
 
@@ -274,7 +281,8 @@ def test_multi_nchan_spw_read(tmp_path):
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+    with uvtest.check_warnings(DeprecationWarning, _future_array_shapes_warning):
+        uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
 
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
     with pytest.raises(IndexError):
@@ -312,7 +320,7 @@ def test_read_mir_sideband_select(sma_mir, pseudo_cont):
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     if pseudo_cont:
-        sma_mir.read(testfile, pseudo_cont=pseudo_cont)
+        sma_mir.read(testfile, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
 
     # Re-order here so that we can more easily compare the two
     sma_mir.reorder_freqs(channel_order="freq", spw_order="freq")
@@ -320,10 +328,10 @@ def test_read_mir_sideband_select(sma_mir, pseudo_cont):
     sma_mir.history = ""
 
     mir_lsb = UVData()
-    mir_lsb.read(testfile, isb=0, pseudo_cont=pseudo_cont)
+    mir_lsb.read(testfile, isb=0, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
 
     mir_usb = UVData()
-    mir_usb.read(testfile, isb=1, pseudo_cont=pseudo_cont)
+    mir_usb.read(testfile, isb=1, pseudo_cont=pseudo_cont, use_future_array_shapes=True)
 
     mir_recomb = mir_lsb + mir_usb
     # Re-order here so that we can more easily compare the two
@@ -355,10 +363,13 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     mir_obj = Mir()
     mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
+    mir_uv.use_future_array_shapes()
 
     # Write out our modified data set
     mir_uv.write_ms(testfile, clobber=True)
-    ms_uv = UVData.from_file(testfile, allow_rephase=False)
+    ms_uv = UVData.from_file(
+        testfile, allow_rephase=False, use_future_array_shapes=True
+    )
 
     # fix up the phase center info to match the mir dataset
     cat_id = list(mir_uv.phase_center_catalog.keys())[0]
@@ -414,6 +425,7 @@ def test_inconsistent_sp_records(mir_data, sma_mir):
         mir_obj = Mir()
         mir_obj._init_from_mir_parser(mir_data)
         mir_uv._convert_from_filetype(mir_obj)
+        mir_uv.use_future_array_shapes()
 
     assert mir_uv == sma_mir
 
@@ -430,6 +442,7 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
         mir_obj = Mir()
         mir_obj._init_from_mir_parser(mir_data)
         mir_uv._convert_from_filetype(mir_obj)
+        mir_uv.use_future_array_shapes()
 
     assert mir_uv == sma_mir
 
@@ -447,10 +460,13 @@ def test_multi_ipol(mir_data, sma_mir):
     mir_obj = Mir()
     mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
+    mir_uv.use_future_array_shapes()
 
     assert mir_uv == sma_mir
 
 
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("filetype", ["uvh5", "miriad", "ms", "uvfits"])
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
@@ -461,8 +477,8 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
     elif filetype == "miriad":
         pytest.importorskip("pyuvdata._miriad")
 
-    if future_shapes:
-        sma_mir_filt.use_future_array_shapes()
+    if not future_shapes:
+        sma_mir_filt.use_current_array_shapes()
 
     uvd2 = sma_mir_filt.copy(metadata_only=True)
 
@@ -502,10 +518,9 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
         else:
             getattr(sma_mir_filt, "write_" + filetype)(testfile)
 
-    test_uv = UVData.from_file(testfile, remove_flex_pol=False)
-
-    if future_shapes:
-        test_uv.use_future_array_shapes()
+    test_uv = UVData.from_file(
+        testfile, remove_flex_pol=False, use_future_array_shapes=future_shapes
+    )
 
     if filetype in ["uvfits", "miriad"]:
         test_uv._make_flex_pol(raise_error=True)
@@ -618,7 +633,7 @@ def test_flex_pol_spw_all_flag(sma_mir_filt):
     Test that if one spw is totally flagged, the polarization gets filled correctly.
     """
     # Flag all of the data where we have y-pol data
-    sma_mir_filt.flag_array[:, :, : sma_mir_filt.Nfreqs // 2, :] = True
+    sma_mir_filt.flag_array[:, : sma_mir_filt.Nfreqs // 2, :] = True
     sma_mir_filt._make_flex_pol()
 
     # Since all of the y-pol data is flagged, the flex-pol data should only contain
@@ -659,7 +674,7 @@ def test_bad_pol_code(mir_data):
 def test_rechunk_on_read():
     """Test that rechunking on read works as expected."""
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_data = UVData.from_file(testfile, rechunk=16384)
+    uv_data = UVData.from_file(testfile, rechunk=16384, use_future_array_shapes=True)
 
     # Do some basic checks to make sure that this loaded correctly.
     assert uv_data.freq_array.size == 8

@@ -16,6 +16,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.ms import MS
+from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
 
@@ -26,7 +27,7 @@ allowed_failures = "filename"
 def nrao_uv_main():
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
-    uvobj.read(testfile)
+    uvobj.read(testfile, use_future_array_shapes=True)
 
     yield uvobj
 
@@ -45,23 +46,7 @@ def nrao_uv(nrao_uv_main):
     return
 
 
-@pytest.fixture(scope="session")
-def mir_uv_main():
-    mir_uv = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_uv.read(testfile)
-
-    yield mir_uv
-
-
-@pytest.fixture(scope="function")
-def mir_uv(mir_uv_main):
-    """Make a function level copy of a MIR data object"""
-    mir_uv = mir_uv_main.copy()
-
-    yield mir_uv
-
-
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location are not set")
@@ -75,12 +60,13 @@ def test_cotter_ms():
     uvobj2 = UVData()
 
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning] * 3 + [DeprecationWarning],
         match=[
             "Warning: select on read keyword set",
             "telescope_location are not set or being overwritten. Using known values "
             "for MWA.",
             "UVW orientation appears to be flipped,",
+            _future_array_shapes_warning,
         ],
     ):
         uvobj2.read(testfile, freq_chans=np.arange(2))
@@ -110,7 +96,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
         uvobj.write_ms(testfile)
 
     uvobj2 = UVData()
-    uvobj2.read_ms(testfile)
+    uvobj2.read_ms(testfile, use_future_array_shapes=True)
 
     # also update filenames
     assert uvobj.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
@@ -164,7 +150,7 @@ def test_read_lwa(tmp_path):
 
         safe_extract(tf, path=tmp_path)
 
-    uvobj.read(new_filename, file_type="ms")
+    uvobj.read(new_filename, file_type="ms", use_future_array_shapes=True)
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
 
     assert uvobj.history == uvobj.pyuvdata_version_str
@@ -179,7 +165,7 @@ def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     uvobj = UVData()
     testfile_no_spw = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.ms")
-    uvobj.read(testfile_no_spw)
+    uvobj.read(testfile_no_spw, use_future_array_shapes=True)
     del uvobj
 
 
@@ -188,7 +174,7 @@ def test_spwsupported():
     """Test reading in an ms file with multiple spws."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.ms")
-    uvobj.read(testfile)
+    uvobj.read(testfile, use_future_array_shapes=True)
 
     assert uvobj.Nspws == 2
 
@@ -226,7 +212,7 @@ def test_extra_pol_setup(tmp_path):
 
         safe_extract(tf, path=tmp_path)
 
-    uvobj.read(new_filename, file_type="ms")
+    uvobj.read(new_filename, file_type="ms", use_future_array_shapes=True)
 
     # delete the untarred folder
     shutil.rmtree(new_filename)
@@ -312,7 +298,7 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     uvfits_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest.uvfits")
     ms_uv.write_uvfits(testfile)
-    uvfits_uv.read(testfile)
+    uvfits_uv.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uvfits_uv.filename == ["outtest.uvfits"]
@@ -349,7 +335,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
     ms_uv.write_miriad(testfile)
-    miriad_uv.read(testfile)
+    miriad_uv.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert miriad_uv.filename == ["outtest_miriad"]
@@ -388,7 +374,9 @@ def test_multi_files(casa_uvfits, axis):
     if axis is None:
         filesread = np.array(filesread)
 
-    uv_multi.read(filesread, axis=axis, allow_rephase=False)
+    uv_multi.read(
+        filesread, axis=axis, allow_rephase=False, use_future_array_shapes=True
+    )
 
     # histories are different because of combining along freq. axis
     # replace the history
@@ -448,7 +436,7 @@ def test_bad_col_name():
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
-        uvobj.read(testfile, data_column="FOO")
+        uvobj.read(testfile, data_column="FOO", use_future_array_shapes=True)
 
 
 @pytest.mark.parametrize("check_warning", [True, False])
@@ -500,7 +488,7 @@ def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_history_lesson(mir_uv, tmp_path):
+def test_ms_history_lesson(sma_mir, tmp_path):
     """
     Test that the MS reader/writer can parse complex history
     """
@@ -508,12 +496,12 @@ def test_ms_history_lesson(mir_uv, tmp_path):
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_history_lesson.ms")
-    mir_uv.history = (
+    sma_mir.history = (
         "Line 1.\nBegin measurement set history\nAPP_PARAMS;CLI_COMMAND;"
         "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
         "End measurement set history.\nLine 2.\n"
     )
-    mir_uv.write_ms(testfile)
+    sma_mir.write_ms(testfile)
 
     tb_hist = tables.table(testfile + "/HISTORY", readonly=False, ack=False)
     tb_hist.addrows()
@@ -525,7 +513,7 @@ def test_ms_history_lesson(mir_uv, tmp_path):
     tb_hist.putcell("MESSAGE", 2, "Line 3.")
     tb_hist.close()
 
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, use_future_array_shapes=True)
 
     assert ms_uv.history.startswith(
         "Line 1.\nBegin measurement set history\nAPP_PARAMS;CLI_COMMAND;APPLICATION;"
@@ -538,12 +526,12 @@ def test_ms_history_lesson(mir_uv, tmp_path):
     tb_hist.rename(os.path.join(testfile, "FORGOTTEN"))
     tb_hist.close()
 
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, use_future_array_shapes=True)
     assert ms_uv.history.startswith("  Read/written with pyuvdata version:")
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
+def test_ms_multi_spw_data_variation(sma_mir, tmp_path):
     """
     Test that the MS writer/reader appropriately reads in a single-source data set
     as non-multi-phase if it can be, even if the original data set was.
@@ -553,46 +541,46 @@ def test_ms_multi_spw_data_variation(mir_uv, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_multi_spw_data_variation.ms")
 
-    mir_uv.write_ms(testfile)
+    sma_mir.write_ms(testfile)
 
     tb_main = tables.table(testfile, readonly=False, ack=False)
-    tb_main.putcol("EXPOSURE", np.arange(mir_uv.Nblts * mir_uv.Nspws) + 1.0)
+    tb_main.putcol("EXPOSURE", np.arange(sma_mir.Nblts * sma_mir.Nspws) + 1.0)
     tb_main.close()
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Column EXPOSURE appears to vary on between"):
         ms_uv.read(testfile)
-    assert str(cm.value).startswith("Column EXPOSURE appears to vary on between")
 
     with uvtest.check_warnings(
         UserWarning, match="Column EXPOSURE appears to vary on between windows, "
     ):
-        ms_uv.read(testfile, raise_error=False)
+        ms_uv.read(testfile, raise_error=False, use_future_array_shapes=True)
 
     # Check that the values do indeed match the first entry in the catalog
     assert np.all(ms_uv.integration_time == np.array([1.0]))
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_ms_phasing(mir_uv, future_shapes, tmp_path):
+def test_ms_phasing(sma_mir, future_shapes, tmp_path):
     """
     Test that the MS writer can appropriately handle unphased data sets.
     """
-    if future_shapes:
-        mir_uv.use_future_array_shapes()
+    if not future_shapes:
+        sma_mir.use_current_array_shapes()
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_phasing.ms")
 
-    mir_uv.unproject_phase()
+    sma_mir.unproject_phase()
 
     with pytest.raises(ValueError, match="The data are unprojected."):
-        mir_uv.write_ms(testfile)
+        sma_mir.write_ms(testfile)
 
-    mir_uv.write_ms(testfile, force_phase=True)
+    sma_mir.write_ms(testfile, force_phase=True)
 
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, use_future_array_shapes=True)
 
     assert np.allclose(ms_uv.phase_center_app_ra, ms_uv.lst_array)
     assert np.allclose(
@@ -600,57 +588,58 @@ def test_ms_phasing(mir_uv, future_shapes, tmp_path):
     )
 
 
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_ms_single_chan(mir_uv, future_shapes, tmp_path):
+def test_ms_single_chan(sma_mir, future_shapes, tmp_path):
     """
     Make sure that single channel writing/reading work as expected
     """
-    if future_shapes:
-        mir_uv.use_future_array_shapes()
+    if not future_shapes:
+        sma_mir.use_current_array_shapes()
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_single_chan.ms")
 
-    mir_uv.select(freq_chans=0)
-    mir_uv.write_ms(testfile)
-    mir_uv.set_lsts_from_time_array()
-    mir_uv._set_app_coords_helper()
+    sma_mir.select(freq_chans=0)
+    sma_mir.write_ms(testfile)
+    sma_mir.set_lsts_from_time_array()
+    sma_mir._set_app_coords_helper()
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No valid data available in the MS file."):
         ms_uv.read(testfile)
-    assert str(cm.value).startswith("No valid data available in the MS file.")
 
-    ms_uv.read(testfile, ignore_single_chan=False)
+    ms_uv.read(
+        testfile, ignore_single_chan=False, use_future_array_shapes=future_shapes
+    )
 
     # Easiest way to check that everything worked is to just check for equality, but
     # the MS file is single-spw, single-field, so we have a few things we need to fix
 
-    cat_id = list(mir_uv.phase_center_catalog.keys())[0]
-    cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
+    cat_id = list(sma_mir.phase_center_catalog.keys())[0]
+    cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
     ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
 
     # Next, turn on flex-spw
     ms_uv._set_flex_spw()
-    ms_uv.channel_width = np.array([ms_uv.channel_width])
+    if not future_shapes:
+        ms_uv.channel_width = np.array([ms_uv.channel_width])
     ms_uv.flex_spw_id_array = ms_uv.spw_array.copy()
-
-    if future_shapes:
-        ms_uv.use_future_array_shapes()
 
     # Finally, take care of the odds and ends
     ms_uv.extra_keywords = {}
-    ms_uv.history = mir_uv.history
-    ms_uv.filename = mir_uv.filename
-    ms_uv.instrument = mir_uv.instrument
+    ms_uv.history = sma_mir.history
+    ms_uv.filename = sma_mir.filename
+    ms_uv.instrument = sma_mir.instrument
     ms_uv.reorder_blts()
 
     # propagate scan numbers to the uvfits, ONLY for comparison
-    mir_uv.scan_number_array = ms_uv.scan_number_array
+    sma_mir.scan_number_array = ms_uv.scan_number_array
 
-    assert ms_uv == mir_uv
+    assert ms_uv == sma_mir
 
 
 @pytest.mark.filterwarnings("ignore:pamatten in extra_keywords is a list, array")
@@ -686,7 +675,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             "bfmask in extra_keywords is a list, array or dict",
         ],
     ):
-        miriad_uv.read(carma_file)
+        miriad_uv.read(carma_file, use_future_array_shapes=True)
 
     # MIRIAD is missing these in the file, so we'll fill it in here.
     miriad_uv.antenna_diameters = np.zeros(miriad_uv.Nants_telescope)
@@ -748,7 +737,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
 
     # Read back in as MS. Should have 3 scan numbers defined.
     ms_uv = UVData()
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, use_future_array_shapes=True)
 
     assert np.unique(ms_uv.scan_number_array).size == 3
     assert (np.unique(ms_uv.scan_number_array) == np.array([1, 2, 3])).all()
@@ -759,7 +748,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_extra_data_descrip(mir_uv, tmp_path):
+def test_ms_extra_data_descrip(sma_mir, tmp_path):
     """
     Make sure that data sets can be read even if the main table doesn't have data
     for a particular listed spectral window in the DATA_DESCRIPTION table.
@@ -769,7 +758,7 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_extra_data_descrip.ms")
 
-    mir_uv.write_ms(testfile)
+    sma_mir.write_ms(testfile)
 
     tb_dd = tables.table(
         os.path.join(testfile, "DATA_DESCRIPTION"), ack=False, readonly=False
@@ -779,9 +768,9 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
         tb_dd.putcell(col, tb_dd.nrows() - 1, tb_dd.getcell(col, 0))
     tb_dd.close()
 
-    ms_uv.read(testfile, ignore_single_chan=False)
-    cat_id = list(mir_uv.phase_center_catalog.keys())[0]
-    cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
+    ms_uv.read(testfile, ignore_single_chan=False, use_future_array_shapes=True)
+    cat_id = list(sma_mir.phase_center_catalog.keys())[0]
+    cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
     ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
@@ -789,30 +778,30 @@ def test_ms_extra_data_descrip(mir_uv, tmp_path):
     # There are some minor differences between the values stored by MIR and that
     # calculated by UVData. Since MS format requires these to be calculated on the fly,
     # we calculate them here just to verify that everything is looking okay.
-    mir_uv.set_lsts_from_time_array()
-    mir_uv._set_app_coords_helper()
+    sma_mir.set_lsts_from_time_array()
+    sma_mir._set_app_coords_helper()
 
     # These reorderings just make sure that data from the two formats are lined up
     # correctly.
-    mir_uv.reorder_freqs(spw_order="number")
+    sma_mir.reorder_freqs(spw_order="number")
     ms_uv.reorder_blts()
 
     # Fix the remaining differences between the two objects, all of which are expected
-    mir_uv.instrument = mir_uv.telescope_name
-    ms_uv.history = mir_uv.history
-    mir_uv.extra_keywords = ms_uv.extra_keywords
-    mir_uv.filename = ms_uv.filename = None
+    sma_mir.instrument = sma_mir.telescope_name
+    ms_uv.history = sma_mir.history
+    sma_mir.extra_keywords = ms_uv.extra_keywords
+    sma_mir.filename = ms_uv.filename = None
 
     # propagate scan numbers to the miriad uvdata, ONLY for comparison
-    mir_uv.scan_number_array = ms_uv.scan_number_array
+    sma_mir.scan_number_array = ms_uv.scan_number_array
 
     # Finally, with all exceptions handled, check for equality.
-    assert ms_uv == mir_uv
+    assert ms_uv == sma_mir
 
 
 @pytest.mark.parametrize("onewin", [True, False])
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_ms_weights(mir_uv, tmp_path, onewin):
+def test_ms_weights(sma_mir, tmp_path, onewin):
     """
     Test that the MS writer/reader appropriately handles data when the
     WEIGHT_SPECTRUM column is missing or bypassed.
@@ -822,23 +811,23 @@ def test_ms_weights(mir_uv, tmp_path, onewin):
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_weights.ms")
     if onewin:
-        mir_uv.select(freq_chans=np.arange(16384))
+        sma_mir.select(freq_chans=np.arange(16384))
 
-    mir_uv.nsample_array[0, 0, :, :] = np.tile(
-        np.arange(mir_uv.Nfreqs / mir_uv.Nspws), (mir_uv.Npols, mir_uv.Nspws)
+    sma_mir.nsample_array[0, :, :] = np.tile(
+        np.arange(sma_mir.Nfreqs / sma_mir.Nspws), (sma_mir.Npols, sma_mir.Nspws)
     ).T
-    mir_uv.write_ms(testfile)
+    sma_mir.write_ms(testfile)
 
     tb_main = tables.table(testfile, readonly=False, ack=False)
     tb_main.removecols("WEIGHT_SPECTRUM")
     tb_main.close()
 
-    ms_uv.read(testfile)
+    ms_uv.read(testfile, use_future_array_shapes=True)
 
     # Check that the values do indeed match expected (median) value
-    assert np.all(ms_uv.nsample_array == np.median(mir_uv.nsample_array))
+    assert np.all(ms_uv.nsample_array == np.median(sma_mir.nsample_array))
 
-    ms_uv.read(testfile, read_weights=False)
+    ms_uv.read(testfile, read_weights=False, use_future_array_shapes=True)
     # Check that the values do indeed match expected (median) value
     assert np.all(ms_uv.nsample_array == 1.0)
 
@@ -860,7 +849,7 @@ def test_ms_weights(mir_uv, tmp_path, onewin):
         ],
     ),
 )
-def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
+def test_ms_reader_errs(sma_mir, tmp_path, badcol, badval, errtype, msg):
     """
     Test whether the reader throws an appripropriate errors on read.
     """
@@ -868,7 +857,7 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
 
     ms_uv = UVData()
     testfile = os.path.join(tmp_path, "out_ms_reader_errs.ms")
-    mir_uv.write_ms(testfile)
+    sma_mir.write_ms(testfile)
 
     data_col = "DATA"
 
@@ -902,9 +891,13 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
     if badcol == "timescale":
         with uvtest.check_warnings(UserWarning, match=msg):
             ms_uv.read(
-                testfile, data_column=data_col, file_type="ms", raise_error=False
+                testfile,
+                data_column=data_col,
+                file_type="ms",
+                raise_error=False,
+                use_future_array_shapes=True,
             )
-        assert ms_uv._time_array == mir_uv._time_array
+        assert ms_uv._time_array == sma_mir._time_array
 
 
 def test_antenna_diameter_handling(hera_uvh5, tmp_path):
@@ -918,7 +911,7 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     ):
         uv_obj.write_ms(test_file, force_phase=True)
 
-    uv_obj2 = UVData.from_file(test_file)
+    uv_obj2 = UVData.from_file(test_file, use_future_array_shapes=True)
 
     # MS write/read adds some stuff to history & extra keywords
     uv_obj2.history = uv_obj.history
@@ -937,10 +930,10 @@ def test_no_source(sma_mir, tmp_path):
 
     sma_mir.write_ms(filename)
 
-    uv.read(filename)
+    uv.read(filename, use_future_array_shapes=True)
 
     shutil.rmtree(os.path.join(filename, "SOURCE"))
-    uv2.read(filename)
+    uv2.read(filename, use_future_array_shapes=True)
 
     assert uv == uv2
 
@@ -951,7 +944,7 @@ def test_no_source(sma_mir, tmp_path):
 def test_timescale_handling():
     ut1_file = os.path.join(DATA_PATH, "1090008640_birli_pyuvdata.ms")
 
-    uvobj = UVData.from_file(ut1_file)
+    uvobj = UVData.from_file(ut1_file, use_future_array_shapes=True)
     assert (
         np.round(Time(uvobj.time_array[0], format="jd").gps, decimals=5) == 1090008642.0
     )

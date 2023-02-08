@@ -11,7 +11,7 @@ import h5py
 import numpy as np
 
 from .. import utils as uvutils
-from .uvdata import UVData
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["UVH5"]
 
@@ -835,6 +835,7 @@ class UVH5(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a UVH5 file.
@@ -963,6 +964,9 @@ class UVH5(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Returns
         -------
@@ -1055,6 +1059,23 @@ class UVH5(UVData):
                     "issue."
                 )
 
+        if remove_flex_pol:
+            self.remove_flex_pol()
+
+        if use_future_array_shapes:
+            if not self.future_array_shapes:
+                self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
+            if self.future_array_shapes:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore",
+                        message="This method will be removed in version 3.0 when the "
+                        "current array shapes are no longer supported.",
+                    )
+                    self.use_current_array_shapes()
+
         # check if object has all required UVParameters set
         if run_check:
             self.check(
@@ -1065,14 +1086,6 @@ class UVH5(UVData):
                 check_autos=check_autos,
                 fix_autos=fix_autos,
             )
-
-        if remove_flex_pol:
-            self.remove_flex_pol()
-
-        # For now, always use current shapes when data is read in, even if the file
-        # has the future shapes.
-        if self.future_array_shapes:
-            self.use_current_array_shapes()
 
         return
 
@@ -1362,7 +1375,13 @@ class UVH5(UVData):
             )
 
         if revert_fas:
-            self.use_current_array_shapes()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="This method will be removed in version 3.0 when the "
+                    "current array shapes are no longer supported.",
+                )
+                self.use_current_array_shapes()
 
         return
 
@@ -1495,7 +1514,13 @@ class UVH5(UVData):
             )
 
         if revert_fas:
-            self.use_current_array_shapes()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="This method will be removed in version 3.0 when the "
+                    "current array shapes are no longer supported.",
+                )
+                self.use_current_array_shapes()
 
         return
 
@@ -1938,6 +1963,12 @@ class UVH5(UVData):
                 f["Header"]["history"] = np.string_(history)
 
         if revert_fas:
-            self.use_current_array_shapes()
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="This method will be removed in version 3.0 when the "
+                    "current array shapes are no longer supported.",
+                )
+                self.use_current_array_shapes()
 
         return

@@ -16,7 +16,7 @@ from astropy.time import Time
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-from .uvdata import UVData, reporting_request
+from .uvdata import UVData, _future_array_shapes_warning, reporting_request
 
 __all__ = ["Miriad"]
 
@@ -736,6 +736,7 @@ class Miriad(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a miriad file.
@@ -826,6 +827,9 @@ class Miriad(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -1684,6 +1688,11 @@ class Miriad(UVData):
         if fix_old_proj and projected:
             # this will error if it could not have been phased with the old method
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         # check if object has all required uv_properties set
         if run_check:
