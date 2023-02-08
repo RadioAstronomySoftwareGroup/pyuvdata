@@ -17,6 +17,7 @@ from astropy import units
 from astropy.coordinates import Angle, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
+from packaging import version
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
@@ -738,11 +739,10 @@ def test_converttofiletype(casa_uvfits):
     uvobj._convert_from_filetype(fhd_obj)
     assert uvobj == uvobj2
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="filetype must be uvfits, mir, miriad, ms, fhd, or uvh5"
+    ):
         uvobj._convert_to_filetype("foo")
-    assert str(cm.value).startswith(
-        "filetype must be uvfits, mir, miriad, ms, fhd, or uvh5"
-    )
 
 
 def test_baseline_to_antnums(uvdata_baseline):
@@ -751,12 +751,12 @@ def test_baseline_to_antnums(uvdata_baseline):
     assert uvdata_baseline.uv_object.baseline_to_antnums(592128) == (257, 256)
     assert uvdata_baseline.uv_object.baseline_to_antnums(4404493223938) == (2051, 2050)
 
-    with pytest.raises(Exception) as cm:
+    with pytest.raises(
+        Exception,
+        match=f"error Nants={uvdata_baseline.uv_object2.Nants_telescope}>2147483648"
+        " not supported",
+    ):
         uvdata_baseline.uv_object2.baseline_to_antnums(65536)
-    assert str(cm.value).startswith(
-        "error Nants={Nants}>2147483648"
-        " not supported".format(Nants=uvdata_baseline.uv_object2.Nants_telescope)
-    )
     with pytest.raises(ValueError, match="negative baseline numbers are not supported"):
         uvdata_baseline.uv_object.baseline_to_antnums(-10)
     with pytest.raises(
@@ -1893,9 +1893,10 @@ def test_select_bls(casa_uvfits):
     assert list(set(sorted_pairs_object2)) == [(1, 7)]
 
     # check for errors associated with antenna pairs not included in data and bad inputs
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="bls must be a list of tuples of antenna numbers"
+    ):
         uv_object.select(bls=list(zip(first_ants, second_ants)) + [1, 7])
-    assert str(cm.value).startswith("bls must be a list of tuples of antenna numbers")
 
     with pytest.raises(
         ValueError, match="bls must be a list of tuples of antenna numbers"
@@ -2229,9 +2230,10 @@ def test_select_lsts_out_of_range_error(casa_uvfits):
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
     target_lst = np.min(unique_lsts) - 0.1
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match=f"LST {target_lst} is not present in the lst_array"
+    ):
         uv_object.select(lsts=[target_lst])
-    assert str(cm.value).startswith(f"LST {target_lst} is not present in the lst_array")
 
     return
 
@@ -2396,25 +2398,23 @@ def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
     uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No elements in time range"):
         uv_object.select(
             time_range=[
                 np.min(unique_times) - uv_object.integration_time[0] * 2,
                 np.min(unique_times) - uv_object.integration_time[0],
             ]
         )
-    assert str(cm.value).startswith("No elements in time range")
 
 
 def test_select_lst_range_no_data(casa_uvfits):
     """Check for error associated with LSTS not included in data."""
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="No elements in LST range"):
         uv_object.select(
             lst_range=[np.min(unique_lsts) - 0.2, np.min(unique_lsts) - 0.1]
         )
-    assert str(cm.value).startswith("No elements in LST range")
 
 
 def test_select_time_and_time_range(casa_uvfits):
@@ -2424,11 +2424,13 @@ def test_select_time_and_time_range(casa_uvfits):
     mean_time = np.mean(unique_times)
     time_range = [np.min(unique_times), mean_time]
     times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Only one of [times, time_range, lsts, lst_range] may be specified"
+        ),
+    ):
         uv_object.select(time_range=time_range, times=times_to_keep)
-    assert str(cm.value).startswith(
-        "Only one of [times, time_range, lsts, lst_range] may be specified"
-    )
 
 
 def test_select_time_range_one_elem(casa_uvfits):
@@ -2437,9 +2439,8 @@ def test_select_time_range_one_elem(casa_uvfits):
     unique_times = np.unique(uv_object.time_array)
     mean_time = np.mean(unique_times)
     time_range = [np.min(unique_times), mean_time]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="time_range must be length 2"):
         uv_object.select(time_range=time_range[0])
-    assert str(cm.value).startswith("time_range must be length 2")
 
 
 def test_select_lst_range_one_elem(casa_uvfits):
@@ -2448,11 +2449,8 @@ def test_select_lst_range_one_elem(casa_uvfits):
     unique_lsts = np.unique(uv_object.lst_array)
     mean_lst = np.mean(unique_lsts)
     lst_range = [np.min(unique_lsts), mean_lst]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="lst_range must be length 2"):
         uv_object.select(lst_range=lst_range[0])
-    assert str(cm.value).startswith("lst_range must be length 2")
-
-    return
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3193,18 +3191,14 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
     assert np.min(uv2.uvw_array[:, 1]) >= 0
 
     # test errors
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="convention must be one of"):
         uv2.conjugate_bls(convention="foo")
-    assert str(cm.value).startswith("convention must be one of")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="If convention is an index array"):
         uv2.conjugate_bls(convention=np.arange(5) - 1)
-    assert str(cm.value).startswith("If convention is an index array")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="If convention is an index array"):
         uv2.conjugate_bls(convention=[uv2.Nblts])
-
-    assert str(cm.value).startswith("If convention is an index array")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3268,9 +3262,8 @@ def test_reorder_pols(casa_uvfits, future_shapes):
         uv2.reorder_pols({"order": "foo"})
 
     # check error if order is an array of the wrong length
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="If order is an index array, it must"):
         uv2.reorder_pols(order=[3, 2, 1])
-    assert str(cm.value).startswith("If order is an index array, it must")
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3291,9 +3284,8 @@ def test_reorder_blts_errs(casa_uvfits, order, minor_order, msg):
     """
     Verify that reorder_blts throws expected errors when supplied with bad args
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         casa_uvfits.reorder_blts(order=order, minor_order=minor_order)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3427,11 +3419,10 @@ def test_reorder_freqs_errs(sma_mir, arg_dict, msg):
     Verify that appropriate errors are thrown when providing bad arguments to
     reorder_freqs.
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         sma_mir.reorder_freqs(
             spw_order=arg_dict.get("spord"), channel_order=arg_dict.get("chord")
         )
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -3659,13 +3650,12 @@ def test_sum_vis_errors(uv1_2_set_uvws, attr_to_get, attr_to_set, arg_dict, msg)
     for attr in attr_to_set.keys():
         setattr(uv2, attr, attr_to_set[attr])
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=re.escape(msg)):
         uv1.sum_vis(
             uv2,
             override_params=arg_dict.get("override"),
             inplace=arg_dict.get("inplace"),
         )
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -5540,9 +5530,8 @@ def test_get_data(casa_uvfits):
     d = uv.get_data((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
         uv.get_data((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     # Check conjugation
     d = uv.get_data(ant2, ant1, pol)
@@ -5583,9 +5572,8 @@ def test_get_flags(casa_uvfits):
     d = uv.get_flags((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
         uv.get_flags((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     # Check conjugation
     d = uv.get_flags(ant2, ant1, pol)
@@ -5622,9 +5610,8 @@ def test_get_nsamples(casa_uvfits):
     d = uv.get_nsamples((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
         uv.get_nsamples((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     # Check conjugation
     d = uv.get_nsamples(ant2, ant1, pol)
@@ -5742,9 +5729,8 @@ def test_get_times(casa_uvfits):
     d = uv.get_times((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
         uv.get_times((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     # Check conjugation
     d = uv.get_times(ant2, ant1, pol)
@@ -5777,9 +5763,8 @@ def test_get_lsts(casa_uvfits):
     d = uv.get_lsts((ant1, ant2, pol))
     assert np.all(dcheck == d)
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="no more than 3 key values can be passed"):
         uv.get_lsts((ant1, ant2, pol), (ant1, ant2, pol))
-    assert str(cm.value).startswith("no more than 3 key values can be passed")
 
     # Check conjugation
     d = uv.get_lsts(ant2, ant1, pol)
@@ -7607,9 +7592,10 @@ def test_upsample_in_time_errors(hera_uvh5):
 
     # test using a too-small integration time
     max_integration_time = 1e-3 * np.amin(uv_object.integration_time)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Decreasing the integration time by more than"
+    ):
         uv_object.upsample_in_time(max_integration_time)
-    assert str(cm.value).startswith("Decreasing the integration time by more than")
 
     # catch a warning for doing no work
     uv_object2 = uv_object.copy()
@@ -9852,23 +9838,20 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
     """Test errors raised by remove_eq_coeffs method."""
     uvobj = casa_uvfits
     # raise error when eq_coeffs are not defined
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="The eq_coeffs attribute must be defined"):
         uvobj.remove_eq_coeffs()
-    assert str(cm.value).startswith("The eq_coeffs attribute must be defined")
 
     # raise error when eq_coeffs are defined but not eq_coeffs_convention
     uvobj.eq_coeffs = np.ones((uvobj.Nants_telescope, uvobj.Nfreqs))
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="The eq_coeffs_convention attribute must be defined"
+    ):
         uvobj.remove_eq_coeffs()
-    assert str(cm.value).startswith(
-        "The eq_coeffs_convention attribute must be defined"
-    )
 
     # raise error when convention is not a valid choice
     uvobj.eq_coeffs_convention = "foo"
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Got unknown convention foo. Must be one of"):
         uvobj.remove_eq_coeffs()
-    assert str(cm.value).startswith("Got unknown convention foo. Must be one of")
 
     return
 
@@ -9904,12 +9887,12 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
 )
 def test_multifile_read_errors(read_func, filelist):
     uv = UVData()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match="Reading multiple files from class specific read functions is no "
+        "longer supported.",
+    ):
         getattr(uv, read_func)(filelist)
-    assert str(cm.value).startswith(
-        "Reading multiple files from class specific read functions is no "
-        "longer supported."
-    )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -9927,18 +9910,21 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/ant_1_array"]
 
+    if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
+        err_msg = "Unable to synchronously open object"
+    else:
+        err_msg = "Unable to open object"
+
     uv = UVData()
     # Test that the expected error arises
-    with pytest.raises(KeyError) as cm:
+    with pytest.raises(KeyError, match=err_msg):
         uv.read(testfile, skip_bad_files=False)
-    assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
 
     # Test when the corrupted file is at the beggining, skip_bad_files=False
     fileList = [testfile, uvh5_file]
-    with pytest.raises(KeyError) as cm:
+    with pytest.raises(KeyError, match=err_msg):
         with uvtest.check_warnings(UserWarning, match="Failed to read"):
             uv.read(fileList, skip_bad_files=False)
-    assert "Unable to open object (object 'ant_1_array' doesn't exist)" in str(cm.value)
     assert uv != uv_true
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
@@ -10048,10 +10034,15 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
 
     assert uv_test == uv_true
 
+    if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
+        err_msg = "Unable to synchronously open object"
+    else:
+        err_msg = "Unable to open object"
+
     # Test with corrupted file first in list, but with skip_bad_files=False
     uv_test = UVData()
     if err_type == "KeyError":
-        with pytest.raises(KeyError, match="Unable to open object"):
+        with pytest.raises(KeyError, match=err_msg):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
@@ -10086,7 +10077,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     # Test with corrupted file in middle of list, but with skip_bad_files=False
     uv_test = UVData()
     if err_type == "KeyError":
-        with pytest.raises(KeyError, match="Unable to open object"):
+        with pytest.raises(KeyError, match=err_msg):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
                 uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
@@ -12281,9 +12272,8 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
 
     sma_copy = sma_mir.copy()
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=err_msg):
         sma_mir._make_flex_pol(True, True)
-    assert str(cm.value).startswith(err_msg)
 
     with uvtest.check_warnings(UserWarning, err_msg):
         sma_mir._make_flex_pol(False, True)
