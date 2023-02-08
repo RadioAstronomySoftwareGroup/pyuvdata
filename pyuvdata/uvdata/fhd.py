@@ -12,7 +12,7 @@ from scipy.io import readsav
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-from .uvdata import UVData
+from .uvdata import UVData, _future_array_shapes_warning
 from .uvdata import radian_tol as default_radian_tol
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
@@ -329,6 +329,7 @@ class FHD(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from a list of FHD files.
@@ -373,6 +374,9 @@ class FHD(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -726,6 +730,11 @@ class FHD(UVData):
             proc.join()
 
         self._set_app_coords_helper()
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         # check if object has all required uv_properties set
         if run_check:

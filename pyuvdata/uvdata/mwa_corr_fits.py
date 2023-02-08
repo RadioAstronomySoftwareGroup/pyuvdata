@@ -20,7 +20,7 @@ from pyuvdata.data import DATA_PATH
 
 from .. import _corr_fits
 from .. import utils as uvutils
-from . import UVData
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 
@@ -1101,6 +1101,7 @@ class MWACorrFITS(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in MWA correlator gpu box files.
@@ -1213,7 +1214,9 @@ class MWACorrFITS(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
-
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -1857,7 +1860,15 @@ class MWACorrFITS(UVData):
             )
 
         # switch to current_array_shape
-        self.use_current_array_shapes()
+        if not use_future_array_shapes:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
+            with warnings.catch_warnings():
+                warnings.filterwarnings(
+                    "ignore",
+                    message="This method will be removed in version 3.0 when the "
+                    "current array shapes are no longer supported.",
+                )
+                self.use_current_array_shapes()
 
         # check if object is self-consistent
         # uvws are calcuated using pyuvdata, so turn off the check for speed.

@@ -13,7 +13,7 @@ from astropy.io import fits
 from astropy.time import Time
 
 from .. import utils as uvutils
-from .uvdata import UVData
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["UVFITS"]
 
@@ -348,17 +348,6 @@ class UVFITS(UVData):
         if fix_old_proj:
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
 
-        # check if object has all required UVParameters set
-        if run_check:
-            self.check(
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                strict_uvw_antpos_check=strict_uvw_antpos_check,
-                allow_flip_conj=True,
-                check_autos=check_autos,
-                fix_autos=fix_autos,
-            )
-
     def read_uvfits(
         self,
         filename,
@@ -386,6 +375,7 @@ class UVFITS(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in header, metadata and data from a uvfits file.
@@ -500,6 +490,9 @@ class UVFITS(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -855,37 +848,48 @@ class UVFITS(UVData):
                     self.uvw_array[:, :, None], self.phase_center_app_dec - np.pi / 2, 0
                 )[:, :, 0]
 
-            if not read_data:
-                # don't read in the data. This means the object is a metadata
-                # only object but that may not matter for many purposes.
-                return
+            if read_data:
+                # Now read in the data
+                self._get_data(
+                    vis_hdu,
+                    antenna_nums,
+                    antenna_names,
+                    ant_str,
+                    bls,
+                    frequencies,
+                    freq_chans,
+                    times,
+                    time_range,
+                    lsts,
+                    lst_range,
+                    polarizations,
+                    blt_inds,
+                    phase_center_ids,
+                    False,
+                    keep_all_metadata,
+                    run_check,
+                    check_extra,
+                    run_check_acceptability,
+                    strict_uvw_antpos_check,
+                    fix_old_proj,
+                    fix_use_ant_pos,
+                    check_autos,
+                    fix_autos,
+                )
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
-            # Now read in the data
-            self._get_data(
-                vis_hdu,
-                antenna_nums,
-                antenna_names,
-                ant_str,
-                bls,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                polarizations,
-                blt_inds,
-                phase_center_ids,
-                False,
-                keep_all_metadata,
-                run_check,
-                check_extra,
-                run_check_acceptability,
-                strict_uvw_antpos_check,
-                fix_old_proj,
-                fix_use_ant_pos,
-                check_autos,
-                fix_autos,
+        # check if object has all required UVParameters set
+        if run_check:
+            self.check(
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                strict_uvw_antpos_check=strict_uvw_antpos_check,
+                allow_flip_conj=True,
+                check_autos=check_autos,
+                fix_autos=fix_autos,
             )
 
     def write_uvfits(

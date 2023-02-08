@@ -12,7 +12,7 @@ from astropy.time import Time
 from .. import get_telescope
 from .. import utils as uvutils
 from . import mir_parser
-from .uvdata import UVData
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["Mir"]
 
@@ -42,6 +42,7 @@ class Mir(UVData):
         check_autos=True,
         fix_autos=False,
         rechunk=None,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from an SMA MIR file, and map to the UVData model.
@@ -91,6 +92,10 @@ class Mir(UVData):
         rechunk : int
             Number of channels to average over when reading in the dataset. Optional
             argument, typically required to be a power of 2.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -121,6 +126,11 @@ class Mir(UVData):
             mir_data.rechunk(rechunk)
 
         self._init_from_mir_parser(mir_data, allow_flex_pol=allow_flex_pol)
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

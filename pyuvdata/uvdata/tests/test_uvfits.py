@@ -16,6 +16,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -104,7 +105,9 @@ def uvfits_nospw_main():
     uv_in = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uv_in.read(paper_uvfits, run_check_acceptability=False)
+    uv_in.read(
+        paper_uvfits, run_check_acceptability=False, use_future_array_shapes=True
+    )
 
     return uv_in
 
@@ -124,7 +127,7 @@ def test_read_nrao(casa_uvfits):
 
     # test reading metadata only
     uvobj2 = UVData()
-    uvobj2.read(casa_tutorial_uvfits, read_data=False)
+    uvobj2.read(casa_tutorial_uvfits, read_data=False, use_future_array_shapes=True)
 
     assert expected_extra_keywords.sort() == list(uvobj2.extra_keywords.keys()).sort()
     assert uvobj2.check()
@@ -147,13 +150,13 @@ def test_time_precision(tmp_path):
         DATA_PATH, "2018-03-21-01_26_33_0004384620257280_000000_downselected.ms"
     )
     uvd = UVData()
-    uvd.read(lwa_file)
+    uvd.read(lwa_file, use_future_array_shapes=True)
 
     testfile = os.path.join(tmp_path, "lwa_testfile.uvfits")
     uvd.write_uvfits(testfile)
 
     uvd2 = UVData()
-    uvd2.read(testfile)
+    uvd2.read(testfile, use_future_array_shapes=True)
 
     latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
@@ -232,7 +235,7 @@ def test_source_group_params(casa_uvfits, tmp_path):
         hdulist.close()
 
     uv_out = UVData()
-    uv_out.read(write_file2)
+    uv_out.read(write_file2, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -267,7 +270,7 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame, high_precision):
 
     write_file = os.path.join(tmp_path, "outtest_multisource.uvfits")
     uv_in.write_uvfits(write_file)
-    uv_out = UVData.from_file(write_file)
+    uv_out = UVData.from_file(write_file, use_future_array_shapes=True)
 
     if frame == "fk5":
         # objects should just be equal because all the phase centers had the same frames
@@ -331,7 +334,7 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
         hdulist.close()
 
     uv_out = UVData()
-    uv_out.read(write_file2)
+    uv_out.read(write_file2, use_future_array_shapes=True)
     assert uv_out.phase_center_catalog[0]["cat_frame"] == frame
 
 
@@ -381,7 +384,7 @@ def test_multi_source_frame_defaults(casa_uvfits, tmp_path, frame_list):
         hdulist.close()
 
     uv_out = UVData()
-    uv_out.read(write_file2)
+    uv_out.read(write_file2, use_future_array_shapes=True)
 
     out_frame_list = []
     for phase_dict in uv_out.phase_center_catalog.values():
@@ -434,11 +437,12 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         hdulist.close()
 
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning] * 3 + [DeprecationWarning],
         [
             "UVFITS file is missing AIPS SU table, which is required when ",
             "Telescope EVLA is not",
             "The uvw_array does not match the expected values",
+            _future_array_shapes_warning,
         ],
     ):
         uv_in.read(write_file2)
@@ -450,18 +454,16 @@ def test_multispw_supported():
     """Test reading in a uvfits file with multiple spws."""
     uvobj = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
-    uvobj.read(testfile)
+    uvobj.read(testfile, use_future_array_shapes=True)
 
     # We know this file has two spws
     assert uvobj.Nspws == 2
 
     # Verify that the data array has the right shape
-    assert np.size(uvobj.data_array, axis=1) == 1
-    assert np.size(uvobj.data_array, axis=2) == uvobj.Nfreqs
+    assert np.size(uvobj.data_array, axis=1) == uvobj.Nfreqs
 
     # Verify that the freq array has the right shape
-    assert np.size(uvobj.freq_array, axis=0) == 1
-    assert np.size(uvobj.freq_array, axis=1) == uvobj.Nfreqs
+    assert np.size(uvobj.freq_array) == uvobj.Nfreqs
 
     # Verift thaat the spw_array is the right length
     assert len(uvobj.spw_array) == uvobj.Nspws
@@ -475,7 +477,7 @@ def test_casa_nonascii_bytes_antenna_names():
     with uvtest.check_warnings(
         UserWarning, "Telescope mock-HERA is not in known_telescopes."
     ):
-        uv1.read(testfile, run_check=False)
+        uv1.read(testfile, run_check=False, use_future_array_shapes=True)
     # fmt: off
     expected_ant_names = [
         'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
@@ -499,6 +501,8 @@ def test_casa_nonascii_bytes_antenna_names():
     assert uv1.antenna_names == expected_ant_names
 
 
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -511,16 +515,14 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
     """
     uv_in = casa_uvfits
 
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    if not future_shapes:
+        uv_in.use_current_array_shapes()
 
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
-    if future_shapes:
-        uv_out.use_future_array_shapes()
+    uv_out.read(write_file, use_future_array_shapes=future_shapes)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -579,12 +581,12 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
                 "The uvw_array does not match the expected values",
             ],
         ):
-            uv2 = UVData.from_file(write_file2)
+            uv2 = UVData.from_file(write_file2, use_future_array_shapes=True)
         uv2.uvw_array = uvutils._rotate_one_axis(
             uv2.uvw_array[:, :, None], -1 * (uv2.phase_center_app_dec - np.pi / 2), 0
         )[:, :, 0]
     else:
-        uv2 = UVData.from_file(write_file2)
+        uv2 = UVData.from_file(write_file2, use_future_array_shapes=True)
 
     uv2._consolidate_phase_center_catalogs(reference_catalog=uv_in.phase_center_catalog)
     assert uv2 == uv_in
@@ -630,7 +632,7 @@ def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
         ValueError,
         match="There is no consistent set of baseline coordinates in this file.",
     ):
-        UVData.from_file(write_file2)
+        UVData.from_file(write_file2, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -642,7 +644,7 @@ def test_readwriteread_no_lst(tmp_path, casa_uvfits):
 
     # test that it works with write_lst = False
     uv_in.write_uvfits(write_file, write_lst=False)
-    uv_out.read(write_file)
+    uv_out.read(write_file, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -667,7 +669,7 @@ def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
     # check that if x_orientation is set, it's read back out properly
     uv_in.x_orientation = "east"
     uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
+    uv_out.read(write_file, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -694,7 +696,7 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
         np.zeros((uv_in.Nants_telescope,), dtype=np.float64) + 14.0
     )
     uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
+    uv_out.read(write_file, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -734,7 +736,7 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
         ],
     ):
         uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
+    uv_out.read(write_file, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -781,7 +783,7 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
 
-    uv_out.read(write_file2)
+    uv_out.read(write_file2, use_future_array_shapes=True)
     assert uv_out.telescope_name == "EVLA"
     assert uv_out.timesys == time_sys
 
@@ -862,7 +864,7 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
                 "The integration time is not specified and only one time",
             ],
         ):
-            uv_out.read(write_file2),
+            uv_out.read(write_file2, use_future_array_shapes=True),
 
     return
 
@@ -972,7 +974,7 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
     for name, value in zip(kwd_names, kwd_values):
         uv_in.extra_keywords[name] = value
     uv_in.write_uvfits(testfile)
-    uv_out.read(testfile)
+    uv_out.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -996,7 +998,7 @@ def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     uv_in.reorder_blts(order)
 
     uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
+    uv_out.read(write_file, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -1052,13 +1054,13 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
         unique_lsts = np.unique(uvfits_uv2.lst_array)
         select_kwargs["lst_range"] = unique_lsts[lst_inds]
 
-    uvfits_uv.read(casa_tutorial_uvfits, **select_kwargs)
+    uvfits_uv.read(casa_tutorial_uvfits, use_future_array_shapes=True, **select_kwargs)
     uvfits_uv2.select(**select_kwargs)
     assert uvfits_uv == uvfits_uv2
 
     testfile = str(tmp_path / "outtest_casa.uvfits")
     uvfits_uv.write_uvfits(testfile)
-    uvfits_uv2.read(testfile)
+    uvfits_uv2.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert uvfits_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -1084,7 +1086,12 @@ def test_select_read_nospw(uvfits_nospw, tmp_path, select_kwargs):
     uvfits_uv = UVData()
     # This file has a crazy epoch (2291.34057617) which breaks the uvw_antpos check
     # Since it's a PAPER file, I think this is a bug in the file, not in the check.
-    uvfits_uv.read(paper_uvfits, run_check_acceptability=False, **select_kwargs)
+    uvfits_uv.read(
+        paper_uvfits,
+        run_check_acceptability=False,
+        use_future_array_shapes=True,
+        **select_kwargs
+    )
 
     uvfits_uv2.select(run_check_acceptability=False, **select_kwargs)
     assert uvfits_uv == uvfits_uv2
@@ -1143,7 +1150,7 @@ def test_select_read_nospw_pol(casa_uvfits, tmp_path):
 
     pols_to_keep = [-1, -2]
     uvfits_uv = UVData()
-    uvfits_uv.read(write_file, polarizations=pols_to_keep)
+    uvfits_uv.read(write_file, polarizations=pols_to_keep, use_future_array_shapes=True)
     uvfits_uv2 = casa_uvfits
     uvfits_uv2.select(polarizations=pols_to_keep)
 
@@ -1168,7 +1175,7 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     miriad_uv = UVData()
     testfile = str(tmp_path / "outtest_miriad")
     uvfits_uv.write_miriad(testfile, clobber=True)
-    miriad_uv.read_miriad(testfile)
+    miriad_uv.read_miriad(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert miriad_uv.filename == ["outtest_miriad"]
@@ -1181,18 +1188,18 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     assert miriad_uv == uvfits_uv
 
     # check that setting the projected keyword also works
-    miriad_uv.read_miriad(testfile, projected=True)
+    miriad_uv.read_miriad(testfile, projected=True, use_future_array_shapes=True)
 
     # check that setting the projected False raises an error
     with pytest.raises(
         ValueError, match="projected is False but the RA values are constant."
     ):
-        miriad_uv.read_miriad(testfile, projected=False)
+        miriad_uv.read_miriad(testfile, projected=False, use_future_array_shapes=True)
 
     # check that setting it works after selecting a single time
     uvfits_uv.select(times=uvfits_uv.time_array[0])
     uvfits_uv.write_miriad(testfile, clobber=True)
-    miriad_uv.read_miriad(testfile)
+    miriad_uv.read_miriad(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert miriad_uv.filename == ["outtest_miriad"]
@@ -1220,7 +1227,12 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
-    uv1.read(np.array([testfile1, testfile2]), file_type="uvfits", allow_rephase=False)
+    uv1.read(
+        np.array([testfile1, testfile2]),
+        file_type="uvfits",
+        allow_rephase=False,
+        use_future_array_shapes=True,
+    )
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1261,7 +1273,12 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
 
-    uv1.read([testfile1, testfile2], axis="freq", allow_rephase=False)
+    uv1.read(
+        [testfile1, testfile2],
+        axis="freq",
+        allow_rephase=False,
+        use_future_array_shapes=True,
+    )
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -1304,7 +1321,12 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     # check with metadata_only
     uv_full = uv_full.copy(metadata_only=True)
     uv1 = UVData()
-    uv1.read([testfile1, testfile2], read_data=False, allow_rephase=False)
+    uv1.read(
+        [testfile1, testfile2],
+        read_data=False,
+        allow_rephase=False,
+        use_future_array_shapes=True,
+    )
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1354,7 +1376,11 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
         + ["Unprojecting this UVData object."] * 2
         + ["The `unphase_to_drift` option is deprecated"] * 2,
     ):
-        uv1.read(np.array([testfile1, testfile2]), unphase_to_drift=True)
+        uv1.read(
+            np.array([testfile1, testfile2]),
+            unphase_to_drift=True,
+            use_future_array_shapes=True,
+        )
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -1391,7 +1417,9 @@ def test_multi_unphase_on_read(casa_uvfits, tmp_path):
             "The `unphase_to_drift` option is deprecated",
         ],
     ):
-        uv_full2.read(casa_tutorial_uvfits, unphase_to_drift=True)
+        uv_full2.read(
+            casa_tutorial_uvfits, unphase_to_drift=True, use_future_array_shapes=True
+        )
     assert uv_full2 == uv_full
 
 
@@ -1431,6 +1459,7 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
             np.array([testfile1, testfile2]),
             phase_center_radec=phase_center_radec,
             allow_rephase=True,
+            use_future_array_shapes=True,
         )
 
     # Check history is correct, before replacing and doing a full object check
@@ -1467,7 +1496,11 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
             "The `phase_center_radec` parameter is deprecated",
         ],
     ):
-        uv_full2.read(casa_tutorial_uvfits, phase_center_radec=phase_center_radec)
+        uv_full2.read(
+            casa_tutorial_uvfits,
+            phase_center_radec=phase_center_radec,
+            use_future_array_shapes=True,
+        )
 
     uv_full2._consolidate_phase_center_catalogs(
         reference_catalog=uv_full.phase_center_catalog
@@ -1479,7 +1512,9 @@ def test_multi_phase_on_read(casa_uvfits, tmp_path):
             DeprecationWarning, match="The `phase_center_radec` parameter is deprecated"
         ):
             uv_full2.read(
-                casa_tutorial_uvfits, phase_center_radec=phase_center_radec[0]
+                casa_tutorial_uvfits,
+                phase_center_radec=phase_center_radec[0],
+                use_future_array_shapes=True,
             )
 
 
@@ -1495,9 +1530,9 @@ def test_read_ms_write_uvfits_casa_history(tmp_path):
     uvfits_uv = UVData()
     ms_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
     testfile = str(tmp_path / "outtest.uvfits")
-    ms_uv.read_ms(ms_file)
+    ms_uv.read_ms(ms_file, use_future_array_shapes=True)
     ms_uv.write_uvfits(testfile)
-    uvfits_uv.read(testfile)
+    uvfits_uv.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert ms_uv.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
@@ -1540,9 +1575,11 @@ def test_cotter_telescope_frame(tmp_path):
         UserWarning,
         ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
     ):
-        uvd1.read_uvfits(write_file, read_data=False)
+        uvd1.read_uvfits(write_file, read_data=False, use_future_array_shapes=True)
 
 
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1555,8 +1592,8 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
     """
     uv_in = casa_uvfits
 
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+    if not future_shapes:
+        uv_in.use_current_array_shapes()
 
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
@@ -1567,9 +1604,7 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
     assert not np.allclose(uv_in.polarization_array, polarization_input)
 
     uv_in.write_uvfits(write_file)
-    uv_out.read(write_file)
-    if future_shapes:
-        uv_out.use_future_array_shapes()
+    uv_out.read(write_file, use_future_array_shapes=future_shapes)
 
     # put polarizations back in order
     uv_in.reorder_pols(order="AIPS")
@@ -1611,7 +1646,7 @@ def test_mwax_birli_frame(tmp_path):
         UserWarning,
         ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
     ):
-        UVData.from_file(outfile, read_data=False)
+        UVData.from_file(outfile, read_data=False, use_future_array_shapes=True)
 
 
 def test_mwax_missing_frame_comment(tmp_path):
@@ -1625,7 +1660,7 @@ def test_mwax_missing_frame_comment(tmp_path):
         UserWarning,
         ["Required Antenna keyword 'FRAME' not set; Assuming frame is 'ITRF'."],
     ):
-        UVData.from_file(outfile, read_data=False)
+        UVData.from_file(outfile, read_data=False, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
@@ -1646,7 +1681,7 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
     ):
         sma_mir.write_uvfits(filename, spoof_nonessential=spoof)
 
-    sma_uvfits = UVData.from_file(filename)
+    sma_uvfits = UVData.from_file(filename, use_future_array_shapes=True)
 
     # UVFITS has some differences w/ the MIR format that are expected -- handle
     # all of that here, making sure that the returned values are consistent with
@@ -1742,7 +1777,10 @@ def test_fix_phase(hera_uvh5, tmpdir, use_ant_pos):
 
     with uvtest.check_warnings(UserWarning, warn_msg):
         uv_fixed = UVData.from_file(
-            write_file, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
+            write_file,
+            fix_old_proj=True,
+            fix_use_ant_pos=use_ant_pos,
+            use_future_array_shapes=True,
         )
 
     with uvtest.check_warnings(UserWarning, warn_msg):

@@ -14,7 +14,7 @@ import numpy as np
 from astropy.time import Time
 
 from .. import utils as uvutils
-from .uvdata import UVData, reporting_request
+from .uvdata import UVData, _future_array_shapes_warning, reporting_request
 
 __all__ = ["MS"]
 
@@ -1890,6 +1890,7 @@ class MS(UVData):
         allow_flex_pol=False,
         check_autos=True,
         fix_autos=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in a casa measurement set.
@@ -1954,6 +1955,9 @@ class MS(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         Raises
         ------
@@ -2357,6 +2361,11 @@ class MS(UVData):
 
         # order polarizations
         self.reorder_pols(order=pol_order, run_check=False)
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

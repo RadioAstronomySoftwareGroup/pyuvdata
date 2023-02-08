@@ -16,6 +16,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 # set up FHD file list
 testdir = os.path.join(DATA_PATH, "fhd_vis_data/")
@@ -40,7 +41,7 @@ for s in testfile_suffix:
 @pytest.fixture(scope="function")
 def fhd_data():
     fhd_uv = UVData()
-    fhd_uv.read(testfiles)
+    fhd_uv.read(testfiles, use_future_array_shapes=True)
 
     return fhd_uv
 
@@ -48,7 +49,7 @@ def fhd_data():
 @pytest.fixture(scope="function")
 def fhd_model():
     fhd_uv = UVData()
-    fhd_uv.read(testfiles, use_model=True)
+    fhd_uv.read(testfiles, use_model=True, use_future_array_shapes=True)
 
     return fhd_uv
 
@@ -66,7 +67,7 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filename attributes are correct
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles}
@@ -84,7 +85,7 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
 def test_read_fhd_metadata_only(fhd_data):
     fhd_uv = UVData()
-    fhd_uv.read_fhd(testfiles, read_data=False)
+    fhd_uv.read_fhd(testfiles, read_data=False, use_future_array_shapes=True)
 
     assert fhd_uv.metadata_only
 
@@ -99,7 +100,7 @@ def test_read_fhd_metadata_only_error():
     with pytest.raises(
         ValueError, match="No obs file included in file list and read_data is False."
     ):
-        fhd_uv.read_fhd(testfiles[:7], read_data=False)
+        fhd_uv.read_fhd(testfiles[:7], read_data=False, use_future_array_shapes=True)
 
 
 def test_read_fhd_select():
@@ -112,22 +113,24 @@ def test_read_fhd_select():
     fhd_uv = UVData()
     fhd_uv2 = UVData()
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning, UserWarning, DeprecationWarning],
         [
             'Warning: select on read keyword set, but file_type is "fhd" which '
             "does not support select on read. Entire file will be read and then "
             "select will be performed",
             "Telescope location derived from obs lat/lon/alt values does not match the "
             "location in the layout file. Using the value from known_telescopes.",
+            _future_array_shapes_warning,
         ],
     ):
         fhd_uv2.read(testfiles, freq_chans=np.arange(2))
 
     with uvtest.check_warnings(
-        UserWarning,
+        [UserWarning, DeprecationWarning],
         [
             "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes."
+            "location in the layout file. Using the value from known_telescopes.",
+            _future_array_shapes_warning,
         ],
     ):
         fhd_uv.read(testfiles)
@@ -145,13 +148,13 @@ def test_read_fhd_write_read_uvfits_no_layout():
 
     # check warning raised
     with uvtest.check_warnings(UserWarning, "No layout file"):
-        fhd_uv.read(files_use, run_check=False)
+        fhd_uv.read(files_use, run_check=False, use_future_array_shapes=True)
 
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set"
     ):
         with uvtest.check_warnings(UserWarning, "No layout file"):
-            fhd_uv.read(files_use)
+            fhd_uv.read(files_use, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
@@ -175,6 +178,7 @@ def test_fhd_antenna_pos(fhd_data):
         correct_cable_len=True,
         phase_to_pointing_center=True,
         read_data=False,
+        use_future_array_shapes=True,
     )
 
     assert fhd_data._antenna_names == mwa_corr_obj._antenna_names
@@ -182,7 +186,7 @@ def test_fhd_antenna_pos(fhd_data):
 
     cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     cotter_obj = UVData()
-    cotter_obj.read(cotter_file)
+    cotter_obj.read(cotter_file, use_future_array_shapes=True)
 
     # don't test antenna_numbers, they will not match.
     # mwa_corr_fits now uses antenna_numbers that correspond to antenna_names
@@ -205,11 +209,11 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path):
     uvfits_uv = UVData()
     variant_flag_file = testdir + testfile_prefix + "variant_flags.sav"
     files_use = testfiles[1:] + [variant_flag_file]
-    fhd_uv.read(files_use)
+    fhd_uv.read(files_use, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
@@ -236,11 +240,11 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path):
     uvfits_uv = UVData()
     layout_fixed_file = testdir + testfile_prefix + "fixed_arr_center_layout.sav"
     files_use = testfiles[0:6] + [layout_fixed_file, testfiles[7]]
-    fhd_uv.read(files_use)
+    fhd_uv.read(files_use, use_future_array_shapes=True)
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
 
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
@@ -278,11 +282,11 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path):
         "tile_names from obs structure does not match",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(files_use)
+        fhd_uv.read(files_use, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
@@ -318,11 +322,11 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path):
         "tile_names from obs structure does not match",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(files_use)
+        fhd_uv.read(files_use, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
@@ -349,11 +353,11 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path):
     # bad layout structure values
     altered_layout_file = testdir + testfile_prefix + "broken_layout.sav"
     files_use = testfiles[0:6] + [altered_layout_file, testfiles[7]]
-    fhd_uv.read(files_use)
+    fhd_uv.read(files_use, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in files_use}
@@ -382,14 +386,14 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path):
         "location in the layout file. Using the value from known_telescopes.",
     ]
     with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(testfiles[:-2])
+        fhd_uv.read(testfiles[:-2], use_future_array_shapes=True)
 
     # Check only pyuvdata history with no settings file
     assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles[:-2]}
@@ -408,18 +412,18 @@ def test_break_read_fhd():
     fhd_uv = UVData()
     # missing flags
     with pytest.raises(ValueError, match="No flags file included in file list"):
-        fhd_uv.read(testfiles[1:])
+        fhd_uv.read(testfiles[1:], use_future_array_shapes=True)
 
     # Missing params
     subfiles = [item for sublist in [testfiles[0:2], testfiles[3:]] for item in sublist]
     with pytest.raises(ValueError, match="No params file included in file list"):
-        fhd_uv.read(subfiles)
+        fhd_uv.read(subfiles, use_future_array_shapes=True)
 
     # No data files
     with pytest.raises(
         ValueError, match="No data files included in file list and read_data is True."
     ):
-        fhd_uv.read(["foo.sav"])
+        fhd_uv.read(["foo.sav"], use_future_array_shapes=True)
 
 
 def test_read_fhd_warnings():
@@ -442,7 +446,7 @@ def test_read_fhd_warnings():
     ]
     fhd_uv = UVData()
     with uvtest.check_warnings(UserWarning, warn_messages):
-        fhd_uv.read(bad_filelist, run_check=False)
+        fhd_uv.read(bad_filelist, run_check=False, use_future_array_shapes=True)
 
     # bad flag file
     broken_flag_file = testdir + testfile_prefix + "broken_flags.sav"
@@ -451,7 +455,7 @@ def test_read_fhd_warnings():
     with pytest.raises(
         ValueError, match="No recognized key for visibility weights in flags_file."
     ):
-        fhd_uv.read(bad_filelist)
+        fhd_uv.read(bad_filelist, use_future_array_shapes=True)
 
 
 @pytest.mark.parametrize(
@@ -485,7 +489,7 @@ def test_read_fhd_extra_files(new_file_end, file_copy, message):
         copyfile(file_copy, extra_file)
     fhd_uv = UVData()
     with pytest.raises(ValueError, match=message):
-        fhd_uv.read(testfiles + new_files)
+        fhd_uv.read(testfiles + new_files, use_future_array_shapes=True)
     for extra_file in new_files:
         os.remove(extra_file)
 
@@ -498,7 +502,7 @@ def test_read_fhd_model(tmp_path, fhd_model):
 
     outfile = str(tmp_path / "outtest_FHD_1061316296_model.uvfits")
     fhd_uv.write_uvfits(outfile)
-    uvfits_uv.read_uvfits(outfile)
+    uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
     assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in testfiles}
@@ -520,7 +524,11 @@ def test_multi_files(fhd_model):
     test1 = list(np.array(testfiles)[[0, 1, 2, 4, 6, 7]])
     test2 = list(np.array(testfiles)[[0, 2, 3, 5, 6, 7]])
     fhd_uv1.read(
-        np.array([test1, test2]), use_model=True, file_type="fhd", allow_rephase=False
+        np.array([test1, test2]),
+        use_model=True,
+        file_type="fhd",
+        allow_rephase=False,
+        use_future_array_shapes=True,
     )
 
     fhd_uv2 = fhd_model
@@ -551,6 +559,7 @@ def test_multi_files_axis(fhd_model):
         use_model=True,
         axis="polarization",
         allow_rephase=False,
+        use_future_array_shapes=True,
     )
 
     fhd_uv2 = fhd_model
@@ -579,7 +588,7 @@ def test_single_time():
     with uvtest.check_warnings(
         UserWarning, "Telescope gaussian is not in known_telescopes."
     ):
-        fhd_uv.read(single_time_filelist)
+        fhd_uv.read(single_time_filelist, use_future_array_shapes=True)
 
     assert np.unique(fhd_uv.time_array).size == 1
 
@@ -590,13 +599,13 @@ def test_conjugation():
     fhd_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
 
     uvfits_uv = UVData()
-    uvfits_uv.read(uvfits_file)
+    uvfits_uv.read(uvfits_file, use_future_array_shapes=True)
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
         UserWarning, "Telescope gaussian is not in known_telescopes."
     ):
-        fhd_uv.read(fhd_filelist)
+        fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)
 
@@ -626,14 +635,18 @@ def test_read_old_hera_files():
             "The uvw_array does not match the expected values given the antenna",
         ],
     ):
-        hera_fhd_no_layout = UVData.from_file(testfiles_no_layout)
+        hera_fhd_no_layout = UVData.from_file(
+            testfiles_no_layout, use_future_array_shapes=True
+        )
 
     with uvtest.check_warnings(
         UserWarning,
         match="antenna_diameters are not set or being overwritten. Using known values "
         "for HERA.",
     ):
-        hera_fhd = UVData.from_file(testfiles, run_check=False)
+        hera_fhd = UVData.from_file(
+            testfiles, run_check=False, use_future_array_shapes=True
+        )
 
     orig_tele_location = hera_fhd.telescope_location
     with uvtest.check_warnings(
