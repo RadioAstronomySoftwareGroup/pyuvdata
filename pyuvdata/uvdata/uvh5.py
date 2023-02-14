@@ -272,9 +272,12 @@ class FastUVH5Meta:
         self,
         path: str | Path,
         blt_order: Literal["determine"] | tuple[str] | None = None,
+        blts_are_rectangular: bool | None = None,
+        time_first: bool | None = None,
     ):
         self.path = Path(path)
-
+        self.__blts_are_rectangular = blts_are_rectangular
+        self.__time_first = time_first
         self.__blt_order = blt_order
 
     @contextmanager
@@ -360,15 +363,34 @@ class FastUVH5Meta:
         associated, AND the blt ordering to either be (time, baseline) or
         (baseline,time).
         """
-        return self.Nblts == self.Ntimes * self.Nbls and self.blt_order in (
+        if self.__blts_are_rectangular is not None:
+            return self.__blts_are_rectangular
+
+        if self.Nblts == self.Ntimes * self.Nbls and self.blt_order in (
             ("time", "baseline"),
             ("baseline", "time"),
+        ):
+            return True
+
+        is_rect, self.__time_first = uvutils.determine_rectangularity(
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            nbls=self.Nbls,
+            ntimes=self.Ntimes,
         )
+        return is_rect
 
     @cached_property
     def _time_first(self) -> bool:
         """Whether times move first in the blt axis."""
-        return self.blts_are_rectangular and self.blt_order[1] == "time"
+        # first hit the blts_are_rectangular property to set the time_first property
+        if not self.blts_are_rectangular:
+            return False
+        if self.__time_first is not None:
+            return self.__time_first
+
+        with self.header() as h:
+            return h["time_array"][1] != h["time_array"][0]
 
     @cached_property
     def phase_center_catalog(self) -> dict | None:
@@ -656,9 +678,16 @@ class UVH5(UVData):
         filename: str | Path | FastUVH5Meta,
         run_check_acceptability: bool = True,
         blt_order: tuple[str] | None | Literal["determine"] = None,
+        blts_are_rectangular: bool | None = None,
+        time_first: bool | None = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
-            obj = FastUVH5Meta(filename, blt_order=blt_order)
+            obj = FastUVH5Meta(
+                filename,
+                blt_order=blt_order,
+                blts_are_rectangular=blts_are_rectangular,
+                time_first=time_first,
+            )
         else:
             obj = filename
 

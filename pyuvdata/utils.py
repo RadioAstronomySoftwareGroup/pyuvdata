@@ -5612,3 +5612,87 @@ def determine_blt_order(
         return ("time",)
 
     return None
+
+
+def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
+    """Determine if the data is rectangular or not.
+
+    Parameters
+    ----------
+    time_array : array_like
+        Array of times in JD.
+    baseline_array : array_like
+        Array of baseline integers.
+    nbls : int
+        Number of baselines.
+    ntimes : int
+        Number of times.
+
+    Returns
+    -------
+    is_rect : bool
+        True if the data is rectangular, False otherwise.
+    time_first : bool
+        True if the data is rectangular and time moves first (i.e. is "last axis").
+        False either if baseline moves first, OR if it is not rectangular.
+
+    Notes
+    -----
+    Rectangular data is defined as data for which using regular slicing of size Ntimes
+    or Nbls will give you either all the same time and all different baselines, or
+    vice versa. This does NOT require that the baselines and times are sorted within
+    that structure.
+    """
+    # check if the data is rectangular
+    is_rect = True
+    time_first = True
+    bl_first = True
+
+    if time_array.size != nbls * ntimes:
+        return False, False
+
+    if nbls * ntimes == 1:
+        return True, True
+
+    # check if we're moving time first
+    for i in range(1, nbls):
+        if time_array[i] == time_array[0]:
+            time_first = False
+            break
+
+    # check if we're moving bl first
+    bl0 = baseline_array[0]
+    for i in range(1, ntimes):
+        if baseline_array[i] == bl0:
+            bl_first = False
+            break
+
+    if not time_first and not bl_first:
+        return False, False
+
+    # Now do a proper check.
+    if time_first:
+        for i in range(nbls):
+            if (
+                np.unique(time_array[i::ntimes]).size != 1
+                or np.unique(baseline_array[i::ntimes]).size != nbls
+            ):
+                is_rect = False
+                break
+
+    if bl_first:
+        for i in range(ntimes):
+            if (
+                np.unique(baseline_array[i::nbls]).size != 1
+                or np.unique(time_array[i::nbls]).size != ntimes
+            ):
+                is_rect = False
+                break
+
+    if not is_rect:
+        return False, False
+
+    if time_first and bl_first:
+        raise ValueError("Something went wrong when determining rectangularity.")
+
+    return is_rect, time_first
