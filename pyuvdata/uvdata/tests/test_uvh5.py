@@ -219,10 +219,8 @@ def test_read_uvh5_errors():
     """
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, "fake_file.uvh5")
-    with pytest.raises(IOError, match=re.escape(f"{fake_file} not found")):
+    with pytest.raises(IOError, match="Unable to open file"):
         uv_in.read_uvh5(fake_file)
-
-    return
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

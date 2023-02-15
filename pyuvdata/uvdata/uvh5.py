@@ -275,6 +275,7 @@ class FastUVH5Meta:
         time_first: bool | None = None,
     ):
         self.path = Path(path)
+        self.__file = None
         self.__blts_are_rectangular = blts_are_rectangular
         self.__time_first = time_first
         self.__blt_order = blt_order
@@ -283,45 +284,45 @@ class FastUVH5Meta:
 
     def __del__(self):
         """Close the file when the object is deleted."""
-        self._file.close()
+        if self.__file:
+            self.__file.close()
 
     def close(self):
         """Close the file."""
-        del self.__header
-        self.__file.close()
+        self.__header = None
+        if self.__file:
+            self.__file.close()
 
     def open(self):  # noqa: A003
         """Open the file."""
         self.__file = h5py.File(self.path, "r")
-        self.__header = self._file["/Header"]
+        self.__header = self.__file["/Header"]
 
     @cached_property
     def header(self) -> h5py.Group:
         """Get the header group."""
-        try:
-            return self.__header
-        except AttributeError:
+        if self.__header is None:
             self.open()
-            return self.__header
+        return self.__header
 
     def __getattr__(self, name: str) -> Any:
         """Get attribute directly from header group."""
-        if name not in self.header:
-            if name not in self._defaults:
-                raise AttributeError(f"{name} not found in {self.path}")
-            else:
+        try:
+            x = self.header[name][()]
+            if name in self._string_attrs:
+                x = bytes(x).decode("utf8")
+            elif name in self._int_attrs:
+                x = int(x)
+            elif name in self._float_attrs:
+                x = float(x)
+
+            self.__dict__[name] = x
+            return x
+        except KeyError:
+            try:
                 return self._defaults[name]
-
-        x = self.header[name][()]
-        if name in self._string_attrs:
-            x = bytes(x).decode("utf8")
-        elif name in self._int_attrs:
-            x = int(x)
-        elif name in self._float_attrs:
-            x = float(x)
-
-        self.__dict__[name] = x
-        return x
+            except KeyError as e:
+                raise AttributeError(f"{name} not found in {self.path}") from e
 
     @cached_property
     def blt_order(self) -> tuple[str]:
@@ -387,7 +388,10 @@ class FastUVH5Meta:
             return False
         if self.__time_first is not None:
             return self.__time_first
-
+        if self.Ntimes == 1:
+            return False
+        if self.Nbls == 1:
+            return True
         return self.header["time_array"][1] != self.header["time_array"][0]
 
     @cached_property
