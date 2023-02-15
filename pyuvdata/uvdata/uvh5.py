@@ -8,7 +8,6 @@ from __future__ import annotations
 import json
 import os
 import warnings
-from contextlib import contextmanager
 from functools import cached_property
 from pathlib import Path
 from typing import Any, Literal
@@ -280,49 +279,49 @@ class FastUVH5Meta:
         self.__time_first = time_first
         self.__blt_order = blt_order
 
-    @contextmanager
-    def header(self):
-        """Open the header group of the file.
+        self.open()
 
-        Use like::
+    def __del__(self):
+        """Close the file when the object is deleted."""
+        self._file.close()
 
-            with obj.header() as h:
-                print(h['Nblts'][()])
-        """
-        with h5py.File(self.path, "r") as fl:
-            yield fl["Header"]
+    def close(self):
+        """Close the file."""
+        del self.__header
+        self.__file.close()
 
-    @contextmanager
-    def datagrp(self):
-        """Open the data group of the file.
+    def open(self):  # noqa: A003
+        """Open the file."""
+        self.__file = h5py.File(self.path, "r")
+        self.__header = self._file["/Header"]
 
-        Use like::
-
-            with obj.datagrp() as d:
-                print(d['visdata'][()])
-        """
-        with h5py.File(self.path, "r") as fl:
-            yield fl["/Data"]
+    @cached_property
+    def header(self) -> h5py.Group:
+        """Get the header group."""
+        try:
+            return self.__header
+        except AttributeError:
+            self.open()
+            return self.__header
 
     def __getattr__(self, name: str) -> Any:
         """Get attribute directly from header group."""
-        with self.header() as h:
-            if name not in h:
-                if name not in self._defaults:
-                    raise AttributeError(f"{name} not found in {self.path}")
-                else:
-                    return self._defaults[name]
+        if name not in self.header:
+            if name not in self._defaults:
+                raise AttributeError(f"{name} not found in {self.path}")
+            else:
+                return self._defaults[name]
 
-            x = h[name][()]
-            if name in self._string_attrs:
-                x = bytes(x).decode("utf8")
-            elif name in self._int_attrs:
-                x = int(x)
-            elif name in self._float_attrs:
-                x = float(x)
+        x = self.header[name][()]
+        if name in self._string_attrs:
+            x = bytes(x).decode("utf8")
+        elif name in self._int_attrs:
+            x = int(x)
+        elif name in self._float_attrs:
+            x = float(x)
 
-            self.__dict__[name] = x
-            return x
+        self.__dict__[name] = x
+        return x
 
     @cached_property
     def blt_order(self) -> tuple[str]:
@@ -330,15 +329,15 @@ class FastUVH5Meta:
         if self.__blt_order not in (None, "determine"):
             return self.__blt_order
 
-        with self.header() as h:
-            if "blt_order" in h:
-                blt_order_str = bytes(h["blt_order"][()]).decode("utf8")
-                return tuple(blt_order_str.split(", "))
+        h = self.header
+        if "blt_order" in h:
+            blt_order_str = bytes(h["blt_order"][()]).decode("utf8")
+            return tuple(blt_order_str.split(", "))
+        else:
+            if self.__blt_order == "determine":
+                return self.get_blt_order()
             else:
-                if self.__blt_order == "determine":
-                    return self.get_blt_order()
-                else:
-                    return None
+                return None
 
     def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
@@ -389,92 +388,90 @@ class FastUVH5Meta:
         if self.__time_first is not None:
             return self.__time_first
 
-        with self.header() as h:
-            return h["time_array"][1] != h["time_array"][0]
+        return self.header["time_array"][1] != self.header["time_array"][0]
 
     @cached_property
     def phase_center_catalog(self) -> dict | None:
         """Dictionary of phase centers."""
-        with self.header() as header:
-            if "phase_center_catalog" not in header:
-                return None
-            phase_center_catalog = {}
-            key_list = list(header["phase_center_catalog"].keys())
-            if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
-                # This is the new, correct way
-                for pc, pc_dict in header["phase_center_catalog"].items():
-                    pc_id = int(pc)
-                    phase_center_catalog[pc_id] = {}
-                    for key, dset in pc_dict.items():
-                        if issubclass(dset.dtype.type, np.bytes_):
-                            phase_center_catalog[pc_id][key] = bytes(dset[()]).decode(
-                                "utf8"
-                            )
-                        elif dset.shape is None:
-                            phase_center_catalog[pc_id][key] = None
-                        else:
-                            phase_center_catalog[pc_id][key] = dset[()]
-            else:
-                # This is the old way this was written
-                for key in header["phase_center_catalog"].keys():
-                    pc_dict = json.loads(
-                        bytes(header["phase_center_catalog"][key][()]).decode("utf8")
-                    )
-                    pc_dict["cat_name"] = key
-                    pc_id = pc_dict.pop("cat_id")
-                    phase_center_catalog[pc_id] = pc_dict
+        header = self.header
+        if "phase_center_catalog" not in header:
+            return None
+        phase_center_catalog = {}
+        key_list = list(header["phase_center_catalog"].keys())
+        if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
+            # This is the new, correct way
+            for pc, pc_dict in header["phase_center_catalog"].items():
+                pc_id = int(pc)
+                phase_center_catalog[pc_id] = {}
+                for key, dset in pc_dict.items():
+                    if issubclass(dset.dtype.type, np.bytes_):
+                        phase_center_catalog[pc_id][key] = bytes(dset[()]).decode(
+                            "utf8"
+                        )
+                    elif dset.shape is None:
+                        phase_center_catalog[pc_id][key] = None
+                    else:
+                        phase_center_catalog[pc_id][key] = dset[()]
+        else:
+            # This is the old way this was written
+            for key in header["phase_center_catalog"].keys():
+                pc_dict = json.loads(
+                    bytes(header["phase_center_catalog"][key][()]).decode("utf8")
+                )
+                pc_dict["cat_name"] = key
+                pc_id = pc_dict.pop("cat_id")
+                phase_center_catalog[pc_id] = pc_dict
 
-            return phase_center_catalog
+        return phase_center_catalog
 
     @cached_property
     def phase_type(self) -> str:
         """The phase type of the data."""
-        with self.header() as h:
-            if "phase_type" not in h:
-                return "drift"
-
-            phs = bytes(h["phase_type"][()]).decode("utf8")
-            if phs in ("drift", "phased"):
-                return phs
-            warnings.warn(
-                "Unknown phase types are no longer supported, marking this "
-                "object as unprojected (unphased) by default."
-            )
+        h = self.header
+        if "phase_type" not in h:
             return "drift"
+
+        phs = bytes(h["phase_type"][()]).decode("utf8")
+        if phs in ("drift", "phased"):
+            return phs
+        warnings.warn(
+            "Unknown phase types are no longer supported, marking this "
+            "object as unprojected (unphased) by default."
+        )
+        return "drift"
 
     @cached_property
     def phase_center_id_array(self):
         """Array of phase center IDs."""
         if self.phase_center_catalog:
-            with self.header() as h:
-                return h["phase_center_id_array"][:]
+            return self.header["phase_center_id_array"][:]
         else:
             return None
 
     @cached_property
     def times(self) -> np.ndarray:
         """The unique times in the file."""
-        with self.header() as h:
-            if self.blts_are_rectangular:
-                if self._time_first:
-                    return h["time_array"][: self.Ntimes]
-                else:
-                    return h["time_array"][:: self.Nbls]
+        h = self.header
+        if self.blts_are_rectangular:
+            if self._time_first:
+                return h["time_array"][: self.Ntimes]
             else:
-                return np.unique(self.time_array)
+                return h["time_array"][:: self.Nbls]
+        else:
+            return np.unique(self.time_array)
 
     @cached_property
     def lsts(self) -> np.ndarray:
         """The unique LSTs in the file."""
-        with self.header() as h:
-            if "lst_array" in h:
-                if self.blts_are_rectangular:
-                    if self._time_first:
-                        return h["lst_array"][: self.Ntimes]
-                    else:
-                        return h["lst_array"][:: self.Nbls]
+        h = self.header
+        if "lst_array" in h:
+            if self.blts_are_rectangular:
+                if self._time_first:
+                    return h["lst_array"][: self.Ntimes]
                 else:
-                    return np.unique(self.lst_array)
+                    return h["lst_array"][:: self.Nbls]
+            else:
+                return np.unique(self.lst_array)
 
         # If lst_array not there, compute ourselves.
         return uvutils.get_lst_for_time(
@@ -484,45 +481,45 @@ class FastUVH5Meta:
     @cached_property
     def lst_array(self) -> np.ndarray:
         """The LSTs corresponding to each baseline-time."""
-        with self.header() as h:
-            if "lst_array" in h:
-                return h["lst_array"][:]
-            else:
-                return uvutils.get_lst_for_time(
-                    self.time_array, *self.telescope_location_lat_lon_alt_degrees
-                )
+        h = self.header
+        if "lst_array" in h:
+            return h["lst_array"][:]
+        else:
+            return uvutils.get_lst_for_time(
+                self.time_array, *self.telescope_location_lat_lon_alt_degrees
+            )
 
     @cached_property
     def channel_width(self) -> float:
         """The width of each frequency channel in Hz."""
         # Pull in the channel_width parameter as either an array or as a single float,
         # depending on whether or not the data is stored with a flexible spw.
-        with self.header() as h:
-            if self.flex_spw or np.asarray(h["channel_width"]).ndim == 1:
-                return h["channel_width"][:]
-            else:
-                return float(h["channel_width"][()])
+        h = self.header
+        if self.flex_spw or np.asarray(h["channel_width"]).ndim == 1:
+            return h["channel_width"][:]
+        else:
+            return float(h["channel_width"][()])
 
     @cached_property
     def extra_keywords(self) -> dict:
         """The extra_keywords from the file."""
-        with self.header() as header:
-            if "extra_keywords" not in header:
-                raise AttributeError("No extra_keywords in this file.")
+        header = self.header
+        if "extra_keywords" not in header:
+            raise AttributeError("No extra_keywords in this file.")
 
-            extra_keywords = {}
-            for key in header["extra_keywords"].keys():
-                if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                    extra_keywords[key] = bytes(
-                        header["extra_keywords"][key][()]
-                    ).decode("utf8")
+        extra_keywords = {}
+        for key in header["extra_keywords"].keys():
+            if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+                extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
+                    "utf8"
+                )
+            else:
+                # special handling for empty datasets == python `None` type
+                if header["extra_keywords"][key].shape is None:
+                    extra_keywords[key] = None
                 else:
-                    # special handling for empty datasets == python `None` type
-                    if header["extra_keywords"][key].shape is None:
-                        extra_keywords[key] = None
-                    else:
-                        extra_keywords[key] = header["extra_keywords"][key][()]
-            return extra_keywords
+                    extra_keywords[key] = header["extra_keywords"][key][()]
+        return extra_keywords
 
     def check_lsts_against_times(self):
         """Check that LSTs consistent with the time_array and telescope location."""
@@ -540,26 +537,26 @@ class FastUVH5Meta:
     @cached_property
     def unique_ant_1_array(self) -> np.ndarray:
         """The unique antenna 1 indices in the file."""
-        with self.header() as h:
-            if self.blts_are_rectangular:
-                if self._time_first:
-                    return h["ant_1_array"][:: self.Ntimes]
-                else:
-                    return h["ant_1_array"][: self.Nbls]
+        h = self.header
+        if self.blts_are_rectangular:
+            if self._time_first:
+                return h["ant_1_array"][:: self.Ntimes]
             else:
-                return np.unique(self.ant_1_array)
+                return h["ant_1_array"][: self.Nbls]
+        else:
+            return np.unique(self.ant_1_array)
 
     @cached_property
     def unique_ant_2_array(self) -> np.ndarray:
         """The unique antenna 2 indices in the file."""
-        with self.header() as h:
-            if self.blts_are_rectangular:
-                if self._time_first:
-                    return h["ant_2_array"][:: self.Ntimes]
-                else:
-                    return h["ant_2_array"][: self.Nbls]
+        h = self.header
+        if self.blts_are_rectangular:
+            if self._time_first:
+                return h["ant_2_array"][:: self.Ntimes]
             else:
-                return np.unique(self.ant_2_array)
+                return h["ant_2_array"][: self.Nbls]
+        else:
+            return np.unique(self.ant_2_array)
 
     @cached_property
     def baseline_array(self) -> np.ndarray:
@@ -578,8 +575,7 @@ class FastUVH5Meta:
     @cached_property
     def antenna_names(self) -> list[str]:
         """The antenna names in the file."""
-        with self.header() as h:
-            return [bytes(name).decode("utf8") for name in h["antenna_names"][:]]
+        return [bytes(name).decode("utf8") for name in self.header["antenna_names"][:]]
 
     @cached_property
     def antpairs(self) -> list[tuple[int, int]]:
@@ -641,17 +637,17 @@ class FastUVH5Meta:
     def vis_units(self) -> str:
         """The visibility units in the file, as a string."""
         # check for vis_units
-        with self.header() as header:
-            if "vis_units" in header:
-                vis_units = bytes(header["vis_units"][()]).decode("utf8")
-                # Added here because older files allowed for both upper and lowercase
-                # formats, although since the attribute is case sensitive, we want to
-                # correct for this here.
-                if vis_units == "UNCALIB":
-                    vis_units = "uncalib"
-            else:
-                # default to uncalibrated data
+        h = self.header
+        if "vis_units" in h:
+            vis_units = bytes(h["vis_units"][()]).decode("utf8")
+            # Added here because older files allowed for both upper and lowercase
+            # formats, although since the attribute is case sensitive, we want to
+            # correct for this here.
+            if vis_units == "UNCALIB":
                 vis_units = "uncalib"
+        else:
+            # default to uncalibrated data
+            vis_units = "uncalib"
         return vis_units
 
     def to_uvdata(self, check_lsts: bool = False) -> UVData:
