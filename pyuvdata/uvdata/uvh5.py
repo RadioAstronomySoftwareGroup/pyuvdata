@@ -292,16 +292,18 @@ class FastUVH5Meta:
         self.__header = None
         if self.__file:
             self.__file.close()
+        self.__file = None
 
     def open(self):  # noqa: A003
         """Open the file."""
-        self.__file = h5py.File(self.path, "r")
-        self.__header = self.__file["/Header"]
+        if self.__file is None:
+            self.__file = h5py.File(self.path, "r")
+            self.__header = self.__file["/Header"]
 
     @cached_property
     def header(self) -> h5py.Group:
         """Get the header group."""
-        if self.__header is None:
+        if self.__file is None:
             self.open()
         return self.__header
 
