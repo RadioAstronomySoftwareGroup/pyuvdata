@@ -17,7 +17,6 @@ from astropy import units
 from astropy.coordinates import Angle, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
-from packaging import version
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
@@ -10081,11 +10080,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     with h5py.File(testfile, "r+") as h5f:
         del h5f["Header/ant_1_array"]
 
-    if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
-        err_msg = "Unable to synchronously open object"
-    else:
-        err_msg = "Unable to open object"
-
+    err_msg = "ant_1_array not found in"
     uv = UVData()
     # Test that the expected error arises
     with pytest.raises(KeyError, match=err_msg):
@@ -10221,10 +10216,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
 
     assert uv_test == uv_true
 
-    if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
-        err_msg = "Unable to synchronously open object"
-    else:
-        err_msg = "Unable to open object"
+    err_msg = "ant_1_array not found"
 
     # Test with corrupted file first in list, but with skip_bad_files=False
     uv_test = UVData()
