@@ -848,15 +848,18 @@ class MS(UVData):
 
         # Do not touch the history table if it has no information
         if history_table.nrows() > 0:
-            history_str = (
-                "Begin measurement set history\n"
-                "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;"
-                "OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
-            )
+            history_str = "Begin measurement set history\n"
 
-            app_params = history_table.getcol("APP_PARAMS")["array"]
-            # TODO: might need to handle the case where cli_command is empty
-            cli_command = history_table.getcol("CLI_COMMAND")["array"]
+            try:
+                app_params = history_table.getcol("APP_PARAMS")["array"]
+                history_str += "APP_PARAMS;"
+            except RuntimeError:
+                app_params = None
+            try:
+                cli_command = history_table.getcol("CLI_COMMAND")["array"]
+                history_str += "CLI_COMMAND;"
+            except RuntimeError:
+                cli_command = None
             application = history_table.getcol("APPLICATION")
             message = history_table.getcol("MESSAGE")
             obj_id = history_table.getcol("OBJECT_ID")
@@ -864,19 +867,16 @@ class MS(UVData):
             origin = history_table.getcol("ORIGIN")
             priority = history_table.getcol("PRIORITY")
             times = history_table.getcol("TIME")
+            history_str += (
+                "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
+            )
             # Now loop through columns and generate history string
             ntimes = len(times)
-            cols = [
-                app_params,
-                cli_command,
-                application,
-                message,
-                obj_id,
-                obs_id,
-                origin,
-                priority,
-                times,
-            ]
+            cols = [application, message, obj_id, obs_id, origin, priority, times]
+            if cli_command is not None:
+                cols.insert(0, cli_command)
+            if app_params is not None:
+                cols.insert(0, app_params)
 
             # if this MS was written by pyuvdata, some history that originated in
             # pyuvdata is in the MS history table. We separate that out since it doesn't
@@ -1465,8 +1465,9 @@ class MS(UVData):
         raise_error : bool
             On read, whether to raise an error if different records (i.e.,
             different spectral windows) report different metadata for the same
-            time-baseline combination, which CASA allows by UVData does not. Default
-            is True, if set to False will raise a warning instead.
+            time-baseline combination (which CASA allows but UVData does not) or if the
+            timescale is not supported by astropy. Default is True, if set to False will
+            raise a warning instead.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), compress down the polarization-axis of
@@ -1524,6 +1525,17 @@ class MS(UVData):
         self.extra_keywords["DATA_COL"] = data_column
 
         time_arr = tb_main.getcol("TIME")
+        timescale = tb_main.getcolkeyword("TIME", "MEASINFO")["Ref"]
+        if timescale.lower() not in Time.SCALES:
+            msg = "This file has a timescale that is not supported by astropy."
+            if raise_error:
+                raise ValueError(
+                    msg + " To bypass this error, you can set raise_error=False, which "
+                    "will raise a warning instead and treat the time as being in UTC."
+                )
+            else:
+                warnings.warn(msg + " Defaulting to treating it as being in UTC.")
+                timescale = "utc"
         # N.b., EXPOSURE is what's needed for noise calculation, but INTERVAL defines
         # the time period over which the data are collected
         int_arr = tb_main.getcol("EXPOSURE")
@@ -1552,7 +1564,9 @@ class MS(UVData):
             # If we only have a single spectral window, then we can bypass a whole lot
             # of slicing and dicing on account of there being a one-to-one releationship
             # in rows of the MS to the per-blt records of UVData objects.
-            self.time_array = Time(time_arr / 86400.0, format="mjd").jd
+            self.time_array = Time(
+                time_arr / 86400.0, format="mjd", scale=timescale.lower()
+            ).utc.jd
             self.integration_time = int_arr
             self.ant_1_array = ant_1_arr
             self.ant_2_array = ant_2_arr
@@ -1841,7 +1855,10 @@ class MS(UVData):
 
         self.ant_1_array = ant_1_arr
         self.ant_2_array = ant_2_arr
-        self.time_array = Time(time_arr / 86400.0, format="mjd").jd
+
+        self.time_array = Time(
+            time_arr / 86400.0, format="mjd", scale=timescale.lower()
+        ).utc.jd
         self.integration_time = int_arr
         self.uvw_array = uvw_arr * ((-1) ** flip_conj)
         self.phase_center_id_array = field_arr
@@ -1911,10 +1928,13 @@ class MS(UVData):
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. If detected, by default the reader
-            will throw an error. However, if set to False, the reader will simply give
-            a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object.
+            combination, but UVData objects do not. It also allows for timescales that
+            are not supported by astropy. If any of these problems are detected, by
+            default the reader will throw an error. However, if set to False, the reader
+            will simply give a warning and try to do the best it can. If the problem is
+            with differing metadata, it will use the first value read in the file as the
+            "correct" metadata in the UVData object. If the problem is with the
+            timescale, it will just assume UTC.
         read_weights : bool
             Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).

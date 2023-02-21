@@ -11316,10 +11316,13 @@ class UVData(UVBase):
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. If detected, by default the reader
-            will throw an error. However, if set to False, the reader will simply give
-            a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object.
+            combination, but UVData objects do not. It also allows for timescales that
+            are not supported by astropy. If any of these problems are detected, by
+            default the reader will throw an error. However, if set to False, the reader
+            will simply give a warning and try to do the best it can. If the problem is
+            with differing metadata, it will use the first value read in the file as the
+            "correct" metadata in the UVData object. If the problem is with the
+            timescale, it will just assume UTC.
         read_weights : bool
             Read in the weights from the MS file, default is True. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
@@ -12338,10 +12341,13 @@ class UVData(UVBase):
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. If detected, by default the reader
-            will throw an error. However, if set to False, the reader will simply give
-            a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object.
+            combination, but UVData objects do not. It also allows for timescales that
+            are not supported by astropy. If any of these problems are detected, by
+            default the reader will throw an error. However, if set to False, the reader
+            will simply give a warning and try to do the best it can. If the problem is
+            with differing metadata, it will use the first value read in the file as the
+            "correct" metadata in the UVData object. If the problem is with the
+            timescale, it will just assume UTC.
         read_weights : bool
             Read in the weights from the MS file. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).
@@ -13472,10 +13478,13 @@ class UVData(UVBase):
         raise_error : bool
             The measurement set format allows for different spectral windows and
             polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. If detected, by default the reader
-            will throw an error. However, if set to False, the reader will simply give
-            a warning, and will use the first value read in the file as the "correct"
-            metadata in the UVData object.
+            combination, but UVData objects do not. It also allows for timescales that
+            are not supported by astropy. If any of these problems are detected, by
+            default the reader will throw an error. However, if set to False, the reader
+            will simply give a warning and try to do the best it can. If the problem is
+            with differing metadata, it will use the first value read in the file as the
+            "correct" metadata in the UVData object. If the problem is with the
+            timescale, it will just assume UTC.
         read_weights : bool
             Read in the weights from the MS file. If false, the method
             will set the `nsamples_array` to the same uniform value (namely 1.0).

@@ -23,6 +23,7 @@ to set several of these new parameters.
 deprecation warnings.
 
 ### Fixed
+- Fixed a bug in reading MS files with non-UTC time scales.
 - Fixed some bugs in UVData, UVFlag and UVCal `__add__` and `select` methods for objects
 with only one spectral window and `flex_spw_id_array` defined. Also fixed some handling
 in those methods on UVFlag for objects with multiple spectral windows.

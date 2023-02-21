@@ -10,6 +10,7 @@ import shutil
 
 import numpy as np
 import pytest
+from astropy.time import Time
 
 import pyuvdata.tests as uvtest
 from pyuvdata import UVData
@@ -851,6 +852,12 @@ def test_ms_weights(mir_uv, tmp_path, onewin):
         ["ARRAY_ID", np.arange(8), ValueError, "This file appears to have multiple"],
         ["DATA_COL", None, ValueError, "Invalid data_column value supplied."],
         ["TEL_LOC", None, ValueError, "Telescope frame is not ITRF and telescope is"],
+        [
+            "timescale",
+            None,
+            ValueError,
+            "This file has a timescale that is not supported by astropy.",
+        ],
     ),
 )
 def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
@@ -881,14 +888,23 @@ def test_ms_reader_errs(mir_uv, tmp_path, badcol, badval, errtype, msg):
         )
         tb_ant.putcolkeyword("POSITION", "MEASINFO", {"type": "position", "Ref": "ABC"})
         tb_ant.close()
+    elif badcol == "timescale":
+        tb_main = tables.table(testfile, ack=False, readonly=False)
+        tb_main.putcolkeyword("TIME", "MEASINFO", {"Ref": "GMST"})
     else:
         tb_main = tables.table(testfile, ack=False, readonly=False)
         tb_main.putcol(badcol, badval)
         tb_main.close()
 
-    with pytest.raises(errtype) as cm:
+    with pytest.raises(errtype, match=msg):
         ms_uv.read(testfile, data_column=data_col, file_type="ms")
-    assert str(cm.value).startswith(msg)
+
+    if badcol == "timescale":
+        with uvtest.check_warnings(UserWarning, match=msg):
+            ms_uv.read(
+                testfile, data_column=data_col, file_type="ms", raise_error=False
+            )
+        assert ms_uv._time_array == mir_uv._time_array
 
 
 def test_antenna_diameter_handling(hera_uvh5, tmp_path):
@@ -927,3 +943,15 @@ def test_no_source(sma_mir, tmp_path):
     uv2.read(filename)
 
     assert uv == uv2
+
+
+@pytest.mark.filterwarnings("ignore:telescope_location are not set")
+@pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+def test_timescale_handling():
+    ut1_file = os.path.join(DATA_PATH, "1090008640_birli_pyuvdata.ms")
+
+    uvobj = UVData.from_file(ut1_file)
+    assert (
+        np.round(Time(uvobj.time_array[0], format="jd").gps, decimals=5) == 1090008642.0
+    )
