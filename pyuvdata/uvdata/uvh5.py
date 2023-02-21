@@ -232,40 +232,46 @@ class FastUVH5Meta:
     gotten dynamically from the file.
     """
 
-    _string_attrs = (
-        "history",
-        "instrument",
-        "object_name",
-        "x_orientation",
-        "telescope_name",
-        "rdate",
-        "timesys",
-        "eq_coeffs_convention",
-        "phase_type",
-        "phase_center_frame",
+    _string_attrs = frozenset(
+        {
+            "history",
+            "instrument",
+            "object_name",
+            "x_orientation",
+            "telescope_name",
+            "rdate",
+            "timesys",
+            "eq_coeffs_convention",
+            "phase_type",
+            "phase_center_frame",
+        }
     )
 
     _defaults = {"x_orientation": None, "flex_spw": False}
 
-    _int_attrs = (
-        "Nblts",
-        "Ntimes",
-        "Npols",
-        "Nspws",
-        "Nfreqs",
-        "uvplane_reference_time",
-        "Nphase",
-        "Nants_data",
-        "Nants_telescope",
+    _int_attrs = frozenset(
+        {
+            "Nblts",
+            "Ntimes",
+            "Npols",
+            "Nspws",
+            "Nfreqs",
+            "uvplane_reference_time",
+            "Nphase",
+            "Nants_data",
+            "Nants_telescope",
+        }
     )
-    _float_attrs = (
-        "dut1",
-        "earth_omega",
-        "gst0",
-        "phase_center_ra" "phase_center_dec",
-        "phase_center_epoch",
+    _float_attrs = frozenset(
+        {
+            "dut1",
+            "earth_omega",
+            "gst0",
+            "phase_center_ra" "phase_center_dec",
+            "phase_center_epoch",
+        }
     )
-    _bool_attrs = ("flex_spw",)
+    _bool_attrs = frozenset(("flex_spw",))
 
     def __init__(
         self,
@@ -755,8 +761,13 @@ class UVH5(UVData):
             "phase_center_frame_pa",
             "extra_keywords",
         ]:
-            if hasattr(obj, attr):
+            try:
                 setattr(self, attr, getattr(obj, attr))
+            except AttributeError:
+                pass
+
+            # if hasattr(obj, attr):
+            #     setattr(self, attr, getattr(obj, attr))
 
         if self.blt_order is not None:
             self._blt_order.form = (len(self.blt_order),)
