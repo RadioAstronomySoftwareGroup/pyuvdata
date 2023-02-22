@@ -275,18 +275,31 @@ class FastUVH5Meta:
 
     def __init__(
         self,
-        path: str | Path,
+        path: str | Path | h5py.File | h5py.Group,
         blt_order: Literal["determine"] | tuple[str] | None = None,
         blts_are_rectangular: bool | None = None,
         time_first: bool | None = None,
     ):
-        self.path = Path(path)
-        self.__file = None
+        try:
+            self.path = Path(path.file.filename)  # it's a h5py.File/Group
+            self.__file = path.file
+            try:
+                self.__header = self.__file["/Header"]
+                self.__datagrp = self.__file["/Data"]
+            except KeyError as e:
+                if not isinstance(path, h5py.Group):
+                    raise ValueError(
+                        "path input must be a str, Path, File or Group object"
+                    ) from e
+                self.__header = path
+        except AttributeError:
+            self.path = Path(path)
+            self.__file = None
+            self.open()
+
         self.__blts_are_rectangular = blts_are_rectangular
         self.__time_first = time_first
         self.__blt_order = blt_order
-
-        self.open()
 
     def __del__(self):
         """Close the file when the object is deleted."""
@@ -296,6 +309,7 @@ class FastUVH5Meta:
     def close(self):
         """Close the file."""
         self.__header = None
+        self.__datagrp = None
         if self.__file:
             self.__file.close()
         self.__file = None
@@ -305,6 +319,7 @@ class FastUVH5Meta:
         if self.__file is None:
             self.__file = h5py.File(self.path, "r")
             self.__header = self.__file["/Header"]
+            self.__datagrp = self.__file["/Data"]
 
     @cached_property
     def header(self) -> h5py.Group:
@@ -312,6 +327,13 @@ class FastUVH5Meta:
         if self.__file is None:
             self.open()
         return self.__header
+
+    @cached_property
+    def datagrp(self) -> h5py.Group:
+        """Get the header group."""
+        if self.__file is None:
+            self.open()
+        return self.__datagrp
 
     def __getattr__(self, name: str) -> Any:
         """Get attribute directly from header group."""
@@ -821,8 +843,7 @@ class UVH5(UVData):
 
     def _read_header(
         self,
-        header,
-        filename: str | Path | FastUVH5Meta,
+        filename: str | Path | FastUVH5Meta | h5py.File | h5py.Group,
         run_check_acceptability=True,
         background_lsts=True,
     ):
@@ -1364,46 +1385,41 @@ class UVH5(UVData):
         self._filename.form = (1,)
 
         # open hdf5 file for reading
-        with h5py.File(filename, "r") as f:
-            # extract header information
-            header = f["/Header"]
-            self._read_header(
-                header,
-                meta,
-                run_check_acceptability=run_check_acceptability,
-                background_lsts=background_lsts,
-            )
+        self._read_header(
+            meta,
+            run_check_acceptability=run_check_acceptability,
+            background_lsts=background_lsts,
+        )
 
-            if read_data:
-                # Now read in the data
-                dgrp = f["/Data"]
-                self._get_data(
-                    dgrp,
-                    antenna_nums,
-                    antenna_names,
-                    ant_str,
-                    bls,
-                    frequencies,
-                    freq_chans,
-                    times,
-                    time_range,
-                    lsts,
-                    lst_range,
-                    polarizations,
-                    blt_inds,
-                    phase_center_ids,
-                    data_array_dtype,
-                    keep_all_metadata,
-                    multidim_index,
-                    run_check,
-                    check_extra,
-                    run_check_acceptability,
-                    strict_uvw_antpos_check,
-                    fix_old_proj,
-                    fix_use_ant_pos,
-                    check_autos,
-                    fix_autos,
-                )
+        if read_data:
+            # Now read in the data
+            self._get_data(
+                meta.datagrp,
+                antenna_nums,
+                antenna_names,
+                ant_str,
+                bls,
+                frequencies,
+                freq_chans,
+                times,
+                time_range,
+                lsts,
+                lst_range,
+                polarizations,
+                blt_inds,
+                phase_center_ids,
+                data_array_dtype,
+                keep_all_metadata,
+                multidim_index,
+                run_check,
+                check_extra,
+                run_check_acceptability,
+                strict_uvw_antpos_check,
+                fix_old_proj,
+                fix_use_ant_pos,
+                check_autos,
+                fix_autos,
+            )
 
         # Finally, backfill the apparent coords if they aren't in the original datafile
         add_app_coords = (
@@ -1930,7 +1946,6 @@ class UVH5(UVData):
             header = f["/Header"]
             uvd_file._read_header(
                 header,
-                filename,
                 run_check_acceptability=run_check_acceptability,
                 background_lsts=background_lsts,
             )
