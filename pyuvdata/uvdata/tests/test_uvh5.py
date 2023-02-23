@@ -219,9 +219,9 @@ def test_read_uvh5_errors():
     Test raising errors in read function.
     """
     if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
-        err_msg = "Unable to synchronously open object"
+        err_msg = "Unable to synchronously open file"
     else:
-        err_msg = "Unable to open object"
+        err_msg = "Unable to open file"
 
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, "fake_file.uvh5")
