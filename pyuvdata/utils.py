@@ -5692,7 +5692,8 @@ def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
     if not is_rect:
         return False, False
 
-    if time_first and bl_first:
-        raise ValueError("Something went wrong when determining rectangularity.")
+    assert (
+        time_first and bl_first
+    ), "Something went wrong when determining rectangularity."
 
     return is_rect, time_first

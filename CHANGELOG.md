@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ## [2.3.0] - 2023-03-13
 
 ### Added
+- A new `FastUVH5Meta` object that enables quick partial reading of uvh5 file metadata.
 - A new `interpolation_function` parameter to `UVBeam.interp` and `UVBeam.to_healpix`
 to allow the function name to be passed into the methods, with sensible defaulting.
 - Support for selecting on phase center IDs, including on read.
@@ -22,13 +23,11 @@ from them will inherit them. UVFlag objects will also inherit these parameters w
 they are converted between types using UVData and UVCalobjects.
 - The `UVFlag.set_telescope_params` method, similar to the ones on UVData and UVCal,
 to set several of these new parameters.
-- A new `FastUVH5Meta` object that enables quick partial reading of uvh5 file metadata.
 
 ### Changed
 - Increases the h5py minimum version to 3.1.
 - Increase the minimum compatible version for lunarsky to 0.2.1 to fix astropy
 deprecation warnings.
-
 
 ### Fixed
 - Fixed some bugs related to handling of the `UVCal.time_range` parameter in

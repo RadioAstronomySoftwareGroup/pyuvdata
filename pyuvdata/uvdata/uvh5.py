@@ -354,6 +354,20 @@ class FastUVH5Meta:
             except KeyError as e:
                 raise AttributeError(f"{name} not found in {self.path}") from e
 
+    def get_blt_order(self) -> tuple[str]:
+        """Get the blt order from analysing metadata."""
+        if self.blt_order is not None:
+            return self.blt_order
+
+        return uvutils.determine_blt_order(
+            time_array=self.time_array,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            baseline_array=self.baseline_array,
+            Nbls=self.Nbls,
+            Ntimes=self.Ntimes,
+        )
+
     @cached_property
     def blt_order(self) -> tuple[str]:
         """Tuple defining order of blts axis."""
@@ -369,20 +383,6 @@ class FastUVH5Meta:
                 return self.get_blt_order()
             else:
                 return None
-
-    def get_blt_order(self) -> tuple[str]:
-        """Get the blt order from analysing metadata."""
-        if self.blt_order is not None:
-            return self.blt_order
-
-        return uvutils.determine_blt_order(
-            time_array=self.time_array,
-            ant_1_array=self.ant_1_array,
-            ant_2_array=self.ant_2_array,
-            baseline_array=self.baseline_array,
-            Nbls=self.Nbls,
-            Ntimes=self.Ntimes,
-        )
 
     @cached_property
     def blts_are_rectangular(self) -> bool:
@@ -462,8 +462,14 @@ class FastUVH5Meta:
     def phase_type(self) -> str:
         """The phase type of the data."""
         h = self.header
-        if "phase_type" not in h:
-            return "drift"
+        if self.phase_center_catalog is not None:
+            if all(
+                pc["cat_type"] == "unprojected"
+                for pc in self.phase_center_catalog.values()
+            ):
+                return "drift"
+            else:
+                return "phased"
 
         phs = bytes(h["phase_type"][()]).decode("utf8")
         if phs in ("drift", "phased"):
@@ -710,6 +716,7 @@ class UVH5(UVData):
         blt_order: tuple[str] | None | Literal["determine"] = None,
         blts_are_rectangular: bool | None = None,
         time_first: bool | None = None,
+        background_lsts: bool = True,
     ):
         if not isinstance(filename, FastUVH5Meta):
             obj = FastUVH5Meta(
@@ -721,9 +728,20 @@ class UVH5(UVData):
         else:
             obj = filename
 
+        # First, get the things relevant for setting LSTs, so that can be run in the
+        # background if desired.
+        self.time_array = obj.time_array
+        self.telescope_location_lat_lon_alt_degrees = (
+            obj.telescope_location_lat_lon_alt_degrees
+        )
+
+        if "lst_array" in obj.header:
+            self.lst_array = obj.header["lst_array"][:]
+        else:
+            proc = self.set_lsts_from_time_array(background=background_lsts)
+
         # Required parameters
         for attr in [
-            "telescope_location_lat_lon_alt_degrees",
             "instrument",
             "telescope_name",
             "history",
@@ -744,9 +762,7 @@ class UVH5(UVData):
             "phase_center_id_array",
             "Nbls",
             "baseline_array",
-            "time_array",
             "integration_time",
-            "lst_array",
             "freq_array",
             "spw_array",
             "channel_width",
@@ -787,9 +803,6 @@ class UVH5(UVData):
                 setattr(self, attr, getattr(obj, attr))
             except AttributeError:
                 pass
-
-            # if hasattr(obj, attr):
-            #     setattr(self, attr, getattr(obj, attr))
 
         if self.blt_order is not None:
             self._blt_order.form = (len(self.blt_order),)
@@ -841,6 +854,9 @@ class UVH5(UVData):
             ), arr_shape_msg
             self._set_future_array_shapes()
 
+        if proc is not None:
+            proc.join()
+
     def _read_header(
         self,
         filename: str | Path | FastUVH5Meta | h5py.File | h5py.Group,
@@ -869,7 +885,9 @@ class UVH5(UVData):
         None
         """
         self._read_header_with_fast_meta(
-            filename, run_check_acceptability=run_check_acceptability
+            filename,
+            run_check_acceptability=run_check_acceptability,
+            background_lsts=background_lsts,
         )
 
     def _get_data(
