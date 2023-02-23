@@ -7542,7 +7542,7 @@ class UVData(UVBase):
                     np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)
                 ] = other.flag_array
 
-        if not self.metadata_only:
+            # Fix ordering
             if this.future_array_shapes:
                 if len(bnew_inds) > 0:
                     for name, param in zip(

@@ -2024,6 +2024,101 @@ def test_reorder_jones_errors(gain_data):
         calobj.reorder_jones(order=np.arange(2))
 
 
+@pytest.mark.filterwarnings("ignore:Combined Jones elements are not evenly spaced")
+@pytest.mark.parametrize("add_type", ["ant", "time", "freq", "jones"])
+@pytest.mark.parametrize("sort_type", ["ant", "time", "freq", "jones"])
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
+    calobj = gain_data.copy()
+    # add total_quality_array and initial flag array
+    calobj.input_flag_array = copy.copy(calobj.flag_array)
+    if add_type != "ant":
+        calobj.total_quality_array = np.random.random(
+            calobj._total_quality_array.expected_shape(calobj)
+        )
+
+    # all the input objects have a Njones=1. make copies and add them to get to 4
+    for jpol in [-6, -7, -8]:
+        calobj2 = gain_data.copy()
+        calobj2.jones_array[0] = jpol
+        calobj += calobj2
+
+    if future_shapes:
+        calobj.use_future_array_shapes()
+
+    if add_type == "ant":
+        ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 80, 81])
+        ants2 = np.array([65, 72, 88, 89, 96, 97, 104, 105, 112])
+        cal1 = calobj.select(antenna_nums=ants1, inplace=False)
+        cal2 = calobj.select(antenna_nums=ants2, inplace=False)
+    elif add_type == "time":
+        n_times2 = calobj.Ntimes // 2
+        times1 = calobj.time_array[:n_times2]
+        times2 = calobj.time_array[n_times2:]
+        cal1 = calobj.select(times=times1, inplace=False)
+        cal2 = calobj.select(times=times2, inplace=False)
+    elif add_type == "freq":
+        cal1 = calobj.select(freq_chans=np.arange(calobj.Nfreqs // 2), inplace=False)
+        cal2 = calobj.select(
+            freq_chans=np.arange(calobj.Nfreqs // 2, calobj.Nfreqs), inplace=False
+        )
+    elif add_type == "jones":
+        cal1 = calobj.select(jones=np.array([-5, -7]), inplace=False)
+        cal2 = calobj.select(jones=np.array([-6, -8]), inplace=False)
+
+    if sort_type == "ant":
+        cal1.reorder_antennas("number")
+        cal2.reorder_antennas("-number")
+        calobj.reorder_antennas("name")
+        order_check = cal1._ant_array == cal2._ant_array
+    elif sort_type == "time":
+        cal1.reorder_times("time")
+        cal2.reorder_times("-time")
+        calobj.reorder_times("time")
+        order_check = cal1._time_array == cal2._time_array
+    elif sort_type == "freq":
+        cal1.reorder_freqs(channel_order="freq")
+        cal2.reorder_freqs(channel_order="-freq")
+        calobj.reorder_freqs("freq")
+        order_check = cal1._freq_array == cal2._freq_array
+    elif sort_type == "jones":
+        cal1.reorder_jones("name")
+        cal2.reorder_jones("-number")
+        calobj.reorder_jones("number")
+        order_check = cal1._jones_array == cal2._jones_array
+
+    # Make sure that the order has actually been scrambled
+    assert not np.all(order_check)
+
+    # Combine the objects in both orders
+    cal3 = cal1 + cal2
+    cal4 = cal2 + cal1
+
+    if sort_type == "ant":
+        cal3.reorder_antennas("name")
+        cal4.reorder_antennas("name")
+    elif sort_type == "time":
+        cal3.reorder_times("time")
+        cal4.reorder_times("time")
+    elif sort_type == "freq":
+        cal3.reorder_freqs(channel_order="freq")
+        cal4.reorder_freqs(channel_order="freq")
+    elif sort_type == "jones":
+        cal3.reorder_jones("number")
+        cal4.reorder_jones("number")
+
+    # Deal with the history separately, since it will be different
+    assert str.startswith(cal3.history, calobj.history)
+    assert str.startswith(cal4.history, calobj.history)
+    calobj.history = ""
+    cal3.history = ""
+    cal4.history = ""
+
+    # Finally, make sure everything else lines up
+    assert cal3 == calobj
+    assert cal4 == calobj
+
+
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_add_antennas_multispw(future_shapes, multi_spw_gain):
     """Test adding antennas between two UVCal objects"""
