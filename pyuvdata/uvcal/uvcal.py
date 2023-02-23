@@ -2237,8 +2237,12 @@ class UVCal(UVBase):
         n_axes = 0
 
         # Check we don't have overlapping data
-        both_jones = np.intersect1d(this.jones_array, other.jones_array)
-        both_times = np.intersect1d(this.time_array, other.time_array)
+        both_jones, this_jones_ind, other_jones_ind = np.intersect1d(
+            this.jones_array, other.jones_array, return_indices=True
+        )
+        both_times, this_times_ind, other_times_ind = np.intersect1d(
+            this.time_array, other.time_array, return_indices=True
+        )
         if this.cal_type != "delay":
             # With flexible spectral window, the handling here becomes a bit funky,
             # because we are allowed to have channels with the same frequency *if* they
@@ -2286,8 +2290,11 @@ class UVCal(UVBase):
             # delay type cal
             # Make a non-empty array so we raise an error if other data is duplicated
             both_freq = [0]
+            this_freq_ind = []
 
-        both_ants = np.intersect1d(this.ant_array, other.ant_array)
+        both_ants, this_ants_ind, other_ants_ind = np.intersect1d(
+            this.ant_array, other.ant_array, return_indices=True
+        )
         if len(both_jones) > 0:
             if len(both_times) > 0:
                 if len(both_freq) > 0:
@@ -2296,6 +2303,54 @@ class UVCal(UVBase):
                             "These objects have overlapping data and"
                             " cannot be combined."
                         )
+
+        # Next, we want to make sure that the ordering of the _overlapping_ data is
+        # the same, so that things can get plugged together in a sensible way.
+        if len(this_ants_ind) != 0:
+            this_argsort = np.argsort(this_ants_ind)
+            other_argsort = np.argsort(other_ants_ind)
+
+            if np.any(this_argsort != other_argsort):
+                temp_ind = np.arange(this.Nants_data)
+                temp_ind[this_ants_ind[this_argsort]] = temp_ind[
+                    this_ants_ind[other_argsort]
+                ]
+
+                this.reorder_antennas(temp_ind)
+
+        if len(this_times_ind) != 0:
+            this_argsort = np.argsort(this_times_ind)
+            other_argsort = np.argsort(other_times_ind)
+
+            if np.any(this_argsort != other_argsort):
+                temp_ind = np.arange(this.Ntimes)
+                temp_ind[this_times_ind[this_argsort]] = temp_ind[
+                    this_times_ind[other_argsort]
+                ]
+
+                this.reorder_times(temp_ind)
+
+        if len(this_freq_ind) != 0:
+            this_argsort = np.argsort(this_freq_ind)
+            other_argsort = np.argsort(other_freq_ind)
+            if np.any(this_argsort != other_argsort):
+                temp_ind = np.arange(this.Nfreqs)
+                temp_ind[this_freq_ind[this_argsort]] = temp_ind[
+                    this_freq_ind[other_argsort]
+                ]
+
+                this.reorder_freqs(channel_order=temp_ind)
+
+        if len(this_jones_ind) != 0:
+            this_argsort = np.argsort(this_jones_ind)
+            other_argsort = np.argsort(other_jones_ind)
+            if np.any(this_argsort != other_argsort):
+                temp_ind = np.arange(this.Njones)
+                temp_ind[this_jones_ind[this_argsort]] = temp_ind[
+                    this_jones_ind[other_argsort]
+                ]
+
+                this.reorder_jones(temp_ind)
 
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)
@@ -2383,8 +2438,7 @@ class UVCal(UVBase):
             this.ant_array = np.concatenate(
                 [this.ant_array, other.ant_array[anew_inds]]
             )
-            order = np.argsort(this.ant_array)
-            this.ant_array = this.ant_array[order]
+            ant_order = np.argsort(this.ant_array)
             if not self.metadata_only:
                 if self.future_array_shapes:
                     zero_pad_data = np.zeros(
@@ -2419,17 +2473,17 @@ class UVCal(UVBase):
                 if this.cal_type == "delay":
                     this.delay_array = np.concatenate(
                         [this.delay_array, zero_pad_data], axis=0
-                    )[order]
+                    )
                 else:
                     this.gain_array = np.concatenate(
                         [this.gain_array, zero_pad_data], axis=0
-                    )[order]
+                    )
                 this.flag_array = np.concatenate(
                     [this.flag_array, 1 - zero_pad_flags], axis=0
-                ).astype(np.bool_)[order]
+                ).astype(np.bool_)
                 this.quality_array = np.concatenate(
                     [this.quality_array, zero_pad_data], axis=0
-                )[order]
+                )
 
                 # If total_quality_array exists, we set it to None and warn the user
                 if (
@@ -2464,7 +2518,7 @@ class UVCal(UVBase):
                     if this.input_flag_array is not None:
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=0
-                        ).astype(np.bool_)[order]
+                        ).astype(np.bool_)
                     elif other.input_flag_array is not None:
                         if self.future_array_shapes:
                             this.input_flag_array = np.array(
@@ -2493,7 +2547,7 @@ class UVCal(UVBase):
                             ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=0
-                        ).astype(np.bool_)[order]
+                        ).astype(np.bool_)
 
         if len(fnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as the
@@ -2541,9 +2595,9 @@ class UVCal(UVBase):
                     this.freq_range = this.freq_range[unique_index, :]
                 this.Nspws = len(this.spw_array)
 
-                # If we have a flex/multi-spw data set, need to sort out the order of
+                # If we have a multi-spw data set, need to sort out the order of
                 # the individual windows first.
-                order = np.concatenate(
+                f_order = np.concatenate(
                     [
                         np.where(this.flex_spw_id_array == idx)[0]
                         for idx in sorted(this.spw_array)
@@ -2554,18 +2608,18 @@ class UVCal(UVBase):
                 # windows need sorting. If they are ordered in ascending or descending
                 # fashion, leave them be. If not, sort in ascending order
                 for idx in this.spw_array:
-                    select_mask = this.flex_spw_id_array[order] == idx
+                    select_mask = this.flex_spw_id_array[f_order] == idx
                     check_freqs = (
-                        this.freq_array[order[select_mask]]
+                        this.freq_array[f_order[select_mask]]
                         if this.future_array_shapes
-                        else this.freq_array[0, order[select_mask]]
+                        else this.freq_array[0, f_order[select_mask]]
                     )
                     if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
                         not np.all(check_freqs[1:] < check_freqs[:-1])
                     ):
-                        subsort_order = order[select_mask]
-                        order[select_mask] = subsort_order[np.argsort(check_freqs)]
-                this.flex_spw_id_array = this.flex_spw_id_array[order]
+                        subsort_order = f_order[select_mask]
+                        f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
+                this.flex_spw_id_array = this.flex_spw_id_array
                 this.spw_array = np.array(sorted(this.spw_array))
             else:
                 if this_has_spw_id or other_has_spw_id:
@@ -2574,38 +2628,32 @@ class UVCal(UVBase):
                     )
 
                 if this.future_array_shapes:
-                    order = np.argsort(this.freq_array)
+                    f_order = np.argsort(this.freq_array)
                 else:
-                    order = np.argsort(this.freq_array[0, :])
-
-            if this.future_array_shapes:
-                this.freq_array = this.freq_array[order]
-            else:
-                this.freq_array = this.freq_array[:, order]
+                    f_order = np.argsort(this.freq_array[0, :])
 
             if this.flex_spw or this.future_array_shapes:
                 this.channel_width = np.concatenate(
                     [this.channel_width, other.channel_width[fnew_inds]]
                 )
-                this.channel_width = this.channel_width[order]
 
             if not self.metadata_only:
                 if self.future_array_shapes:
                     this.gain_array = np.concatenate(
                         [this.gain_array, zero_pad], axis=1
-                    )[:, order, :, :]
+                    )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad], axis=1
-                    ).astype(np.bool_)[:, order, :, :]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad], axis=1
-                    )[:, order, :, :]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros((len(fnew_inds), this.Ntimes, this.Njones))
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=0
-                        )[order, :, :]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros((len(fnew_inds), this.Ntimes, this.Njones))
                         this.total_quality_array = np.zeros(
@@ -2613,17 +2661,17 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=0
-                        )[order, :, :]
+                        )
                 else:
                     this.gain_array = np.concatenate(
                         [this.gain_array, zero_pad], axis=2
-                    )[:, :, order, :, :]
+                    )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad], axis=2
-                    ).astype(np.bool_)[:, :, order, :, :]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad], axis=2
-                    )[:, :, order, :, :]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
@@ -2631,7 +2679,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
-                        )[:, order, :, :]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (1, len(fnew_inds), this.Ntimes, this.Njones)
@@ -2641,7 +2689,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
-                        )[:, order, :, :]
+                        )
 
                 if (
                     this.input_flag_array is not None
@@ -2659,7 +2707,7 @@ class UVCal(UVBase):
                         if this.input_flag_array is not None:
                             this.input_flag_array = np.concatenate(
                                 [this.input_flag_array, 1 - zero_pad], axis=1
-                            ).astype(np.bool_)[:, order, :, :]
+                            ).astype(np.bool_)
                         elif other.input_flag_array is not None:
                             this.input_flag_array = np.array(
                                 1
@@ -2674,7 +2722,7 @@ class UVCal(UVBase):
                             ).astype(np.bool_)
                             this.input_flag_array = np.concatenate(
                                 [this.input_flag_array, 1 - zero_pad], axis=1
-                            ).astype(np.bool_)[:, order, :, :]
+                            ).astype(np.bool_)
                     else:
                         zero_pad = np.zeros(
                             (
@@ -2688,7 +2736,7 @@ class UVCal(UVBase):
                         if this.input_flag_array is not None:
                             this.input_flag_array = np.concatenate(
                                 [this.input_flag_array, 1 - zero_pad], axis=2
-                            ).astype(np.bool_)[:, :, order, :, :]
+                            ).astype(np.bool_)
                         elif other.input_flag_array is not None:
                             this.input_flag_array = np.array(
                                 1
@@ -2704,7 +2752,7 @@ class UVCal(UVBase):
                             ).astype(np.bool_)
                             this.input_flag_array = np.concatenate(
                                 [this.input_flag_array, 1 - zero_pad], axis=2
-                            ).astype(np.bool_)[:, :, order, :, :]
+                            ).astype(np.bool_)
 
         if len(tnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
@@ -2715,14 +2763,11 @@ class UVCal(UVBase):
             this.lst_array = np.concatenate(
                 [this.lst_array, other.lst_array[tnew_inds]]
             )
-            order = np.argsort(this.time_array)
-            this.time_array = this.time_array[order]
-            this.lst_array = this.lst_array[order]
+            t_order = np.argsort(this.time_array)
             if self.future_array_shapes:
                 this.integration_time = np.concatenate(
                     [this.integration_time, other.integration_time[tnew_inds]]
                 )
-                this.integration_time = this.integration_time[order]
 
             if not self.metadata_only:
                 if self.future_array_shapes:
@@ -2745,17 +2790,17 @@ class UVCal(UVBase):
                     if this.cal_type == "delay":
                         this.delay_array = np.concatenate(
                             [this.delay_array, zero_pad_data], axis=2
-                        )[:, :, order, :]
+                        )
                     else:
                         this.gain_array = np.concatenate(
                             [this.gain_array, zero_pad_data], axis=2
-                        )[:, :, order, :]
+                        )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad_flags], axis=2
-                    ).astype(np.bool_)[:, :, order, :]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad_data], axis=2
-                    )[:, :, order, :]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
@@ -2763,7 +2808,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
-                        )[:, order, :]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (this.quality_array.shape[1], len(tnew_inds), this.Njones)
@@ -2773,7 +2818,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=1
-                        )[:, order, :]
+                        )
 
                     if this.input_flag_array is not None:
                         zero_pad = np.zeros(
@@ -2786,7 +2831,7 @@ class UVCal(UVBase):
                         )
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=2
-                        ).astype(np.bool_)[:, :, order, :]
+                        ).astype(np.bool_)
                     elif other.input_flag_array is not None:
                         zero_pad = np.zeros(
                             (
@@ -2809,7 +2854,7 @@ class UVCal(UVBase):
                         ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=2
-                        ).astype(np.bool_)[:, :, order, :]
+                        ).astype(np.bool_)
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -2832,17 +2877,17 @@ class UVCal(UVBase):
                     if this.cal_type == "delay":
                         this.delay_array = np.concatenate(
                             [this.delay_array, zero_pad_data], axis=3
-                        )[:, :, :, order, :]
+                        )
                     else:
                         this.gain_array = np.concatenate(
                             [this.gain_array, zero_pad_data], axis=3
-                        )[:, :, :, order, :]
+                        )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad_flags], axis=3
-                    ).astype(np.bool_)[:, :, :, order, :]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad_data], axis=3
-                    )[:, :, :, order, :]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
@@ -2855,7 +2900,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
-                        )[:, :, order, :]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
@@ -2870,7 +2915,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
-                        )[:, :, order, :]
+                        )
 
                     if this.input_flag_array is not None:
                         zero_pad = np.zeros(
@@ -2884,7 +2929,7 @@ class UVCal(UVBase):
                         )
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)[:, :, :, order, :]
+                        ).astype(np.bool_)
                     elif other.input_flag_array is not None:
                         zero_pad = np.zeros(
                             (
@@ -2909,7 +2954,7 @@ class UVCal(UVBase):
                         ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)[:, :, :, order, :]
+                        ).astype(np.bool_)
 
         if len(jnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
@@ -2917,8 +2962,7 @@ class UVCal(UVBase):
             this.jones_array = np.concatenate(
                 [this.jones_array, other.jones_array[jnew_inds]]
             )
-            order = np.argsort(np.abs(this.jones_array))
-            this.jones_array = this.jones_array[order]
+            j_order = np.argsort(np.abs(this.jones_array))
             if not self.metadata_only:
                 if self.future_array_shapes:
                     zero_pad_data = np.zeros(
@@ -2940,17 +2984,17 @@ class UVCal(UVBase):
                     if this.cal_type == "delay":
                         this.delay_array = np.concatenate(
                             [this.delay_array, zero_pad_data], axis=3
-                        )[:, :, :, order]
+                        )
                     else:
                         this.gain_array = np.concatenate(
                             [this.gain_array, zero_pad_data], axis=3
-                        )[:, :, :, order]
+                        )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad_flags], axis=3
-                    ).astype(np.bool_)[:, :, :, order]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad_data], axis=3
-                    )[:, :, :, order]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
@@ -2962,7 +3006,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
-                        )[:, :, order]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
@@ -2976,7 +3020,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
-                        )[:, :, order]
+                        )
 
                     if this.input_flag_array is not None:
                         zero_pad = np.zeros(
@@ -2989,7 +3033,7 @@ class UVCal(UVBase):
                         )
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)[:, :, :, order]
+                        ).astype(np.bool_)
                     elif other.input_flag_array is not None:
                         zero_pad = np.zeros(
                             (
@@ -3012,7 +3056,7 @@ class UVCal(UVBase):
                         ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)[:, :, :, order]
+                        ).astype(np.bool_)
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -3035,17 +3079,17 @@ class UVCal(UVBase):
                     if this.cal_type == "delay":
                         this.delay_array = np.concatenate(
                             [this.delay_array, zero_pad_data], axis=4
-                        )[:, :, :, :, order]
+                        )
                     else:
                         this.gain_array = np.concatenate(
                             [this.gain_array, zero_pad_data], axis=4
-                        )[:, :, :, :, order]
+                        )
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad_flags], axis=4
-                    ).astype(np.bool_)[:, :, :, :, order]
+                    ).astype(np.bool_)
                     this.quality_array = np.concatenate(
                         [this.quality_array, zero_pad_data], axis=4
-                    )[:, :, :, :, order]
+                    )
 
                     if this.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
@@ -3058,7 +3102,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=3
-                        )[:, :, :, order]
+                        )
                     elif other.total_quality_array is not None and can_combine_tqa:
                         zero_pad = np.zeros(
                             (
@@ -3073,7 +3117,7 @@ class UVCal(UVBase):
                         )
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=3
-                        )[:, :, :, order]
+                        )
 
                     if this.input_flag_array is not None:
                         zero_pad = np.zeros(
@@ -3087,7 +3131,7 @@ class UVCal(UVBase):
                         )
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=4
-                        ).astype(np.bool_)[:, :, :, :, order]
+                        ).astype(np.bool_)
                     elif other.input_flag_array is not None:
                         zero_pad = np.zeros(
                             (
@@ -3112,7 +3156,7 @@ class UVCal(UVBase):
                         ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=4
-                        ).astype(np.bool_)[:, :, :, :, order]
+                        ).astype(np.bool_)
 
         # Now populate the data
         if not self.metadata_only:
@@ -3199,6 +3243,93 @@ class UVCal(UVBase):
                         this.input_flag_array[
                             np.ix_(ants_t2o, [0], freqs_t2o, times_t2o, jones_t2o)
                         ] = other.input_flag_array
+
+            # Fix ordering
+            if len(anew_inds) > 0:
+                for name, param in zip(this._data_params, this.data_like_parameters):
+                    if param is not None:
+                        setattr(this, name, param[ant_order])
+            if this.future_array_shapes:
+                if len(fnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[f_order])
+                        else:
+                            setattr(this, name, param[:, f_order])
+                if len(tnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[:, t_order])
+                        else:
+                            setattr(this, name, param[:, :, t_order])
+                if len(jnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[:, :, j_order])
+                        else:
+                            setattr(this, name, param[:, :, :, j_order])
+            else:
+                if len(fnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[:, f_order])
+                        else:
+                            setattr(this, name, param[:, :, f_order])
+                if len(tnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[:, :, t_order])
+                        else:
+                            setattr(this, name, param[:, :, :, t_order])
+                if len(jnew_inds) > 0:
+                    for name, param in zip(
+                        this._data_params, this.data_like_parameters
+                    ):
+                        if param is None:
+                            continue
+                        elif name == "total_quality_array":
+                            setattr(this, name, param[:, :, :, j_order])
+                        else:
+                            setattr(this, name, param[:, :, :, :, j_order])
+
+        if len(anew_inds) > 0:
+            this.ant_array = this.ant_array[ant_order]
+        if len(fnew_inds) > 0:
+            if this.future_array_shapes:
+                this.freq_array = this.freq_array[f_order]
+            else:
+                this.freq_array = this.freq_array[:, f_order]
+            if this.flex_spw or this.future_array_shapes:
+                this.channel_width = this.channel_width[f_order]
+            if this.flex_spw_id_array is not None:
+                this.flex_spw_id_array = this.flex_spw_id_array[f_order]
+        if len(tnew_inds) > 0:
+            this.time_array = this.time_array[t_order]
+            this.lst_array = this.lst_array[t_order]
+            if self.future_array_shapes:
+                this.integration_time = this.integration_time[t_order]
+        if len(jnew_inds) > 0:
+            this.jones_array = this.jones_array[j_order]
 
         # Update N parameters (e.g. Njones)
         this.Njones = this.jones_array.shape[0]
