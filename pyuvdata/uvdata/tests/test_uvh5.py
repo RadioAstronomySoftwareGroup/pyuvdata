@@ -13,6 +13,7 @@ import h5py
 import numpy as np
 import pytest
 from astropy.time import Time
+from packaging import version
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
@@ -217,9 +218,14 @@ def test_read_uvh5_errors():
     """
     Test raising errors in read function.
     """
+    if version.parse(h5py.version.hdf5_version) >= version.parse("1.14.0"):
+        err_msg = "Unable to synchronously open object"
+    else:
+        err_msg = "Unable to open object"
+
     uv_in = UVData()
     fake_file = os.path.join(DATA_PATH, "fake_file.uvh5")
-    with pytest.raises(IOError, match="Unable to open file"):
+    with pytest.raises(IOError, match=err_msg):
         uv_in.read_uvh5(fake_file)
 
 
