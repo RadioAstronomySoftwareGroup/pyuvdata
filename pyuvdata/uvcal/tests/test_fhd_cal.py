@@ -11,6 +11,7 @@ import pytest
 import pyuvdata.tests as uvtest
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 # set up FHD files
 testdir = os.path.join(DATA_PATH, "fhd_cal_data/")
@@ -55,7 +56,7 @@ def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path)
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile)
+    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
@@ -71,14 +72,22 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
         fhd_cal_full = fhd_cal_fit
 
     fhd_cal = UVCal()
-    fhd_cal.read_fhd_cal(
-        cal_testfile,
-        obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=settings_testfile,
-        raw=raw,
-        read_data=False,
-    )
+    with uvtest.check_warnings(
+        [DeprecationWarning, UserWarning],
+        match=[
+            _future_array_shapes_warning,
+            "Telescope location derived from obs lat/lon/alt",
+        ],
+    ):
+        fhd_cal.read_fhd_cal(
+            cal_testfile,
+            obs_testfile,
+            layout_file=layout_testfile,
+            settings_file=settings_testfile,
+            raw=raw,
+            read_data=False,
+        )
+    fhd_cal.use_future_array_shapes()
 
     fhd_cal2 = fhd_cal_full.copy(metadata_only=True)
 
@@ -110,6 +119,7 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
         settings_file=settings_testfile_nodiffuse,
         raw=raw,
         read_data=False,
+        use_future_array_shapes=True,
     )
 
     assert fhd_cal.diffuse_model is None
@@ -129,6 +139,7 @@ def test_read_fhdcal_multimode():
         layout_file=layout_testfile,
         settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
         raw=False,
+        use_future_array_shapes=True,
     )
     assert fhd_cal.extra_keywords["MODE_FIT"] == "[90, 150, 230, 320, 400, 524]"
 
@@ -142,8 +153,8 @@ def test_read_fhdcal_multimode():
         settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
         raw=False,
         read_data=False,
+        use_future_array_shapes=True,
     )
-
     # this file set has a mismatch in Nsources between the cal file & settings
     # file for some reason. I think it's just an issue with the files chosen
     assert fhd_cal.Nsources != fhd_cal2.Nsources
@@ -181,11 +192,12 @@ def test_extra_history(extra_history, tmp_path):
         layout_file=layout_testfile,
         settings_file=settings_testfile,
         extra_history=extra_history,
+        use_future_array_shapes=True,
     )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile)
+    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
     for line in extra_history:
         assert line in fhd_cal.history
@@ -208,11 +220,12 @@ def test_flags_galaxy(tmp_path):
         obs_testfile_flag,
         layout_file=layout_testfile,
         settings_file=settings_testfile_flag,
+        use_future_array_shapes=True,
     )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile)
+    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
@@ -232,6 +245,7 @@ def test_unknown_telescope():
             os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
             layout_file=layout_testfile,
             settings_file=settings_testfile,
+            use_future_array_shapes=True,
         )
     assert fhd_cal.telescope_name == "foo"
 
@@ -251,7 +265,11 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         ValueError, match="A settings_file must be provided if read_data is False."
     ):
         fhd_cal.read_fhd_cal(
-            cal_file, obs_file, layout_file=layout_file, read_data=False
+            cal_file,
+            obs_file,
+            layout_file=layout_file,
+            read_data=False,
+            use_future_array_shapes=True,
         )
 
     message_list = [
@@ -264,7 +282,9 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         message_list.append("UVParameter diffuse_model does not match")
 
     with uvtest.check_warnings(UserWarning, message_list):
-        fhd_cal.read_fhd_cal(cal_file, obs_file, layout_file=layout_file)
+        fhd_cal.read_fhd_cal(
+            cal_file, obs_file, layout_file=layout_file, use_future_array_shapes=True
+        )
 
     # Check only pyuvdata version history with no settings file
     expected_history = "\n" + fhd_cal.pyuvdata_version_str
@@ -286,7 +306,12 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         4 * nfiles - 3
     )
     with uvtest.check_warnings(warning_list, message_list):
-        fhd_cal.read_fhd_cal(cal_file, obs_file, settings_file=settings_file)
+        fhd_cal.read_fhd_cal(
+            cal_file,
+            obs_file,
+            settings_file=settings_file,
+            use_future_array_shapes=True,
+        )
 
     # Check no antenna_positions
     assert fhd_cal.antenna_positions is None
@@ -312,11 +337,12 @@ def test_read_multi(tmp_path):
             obs_file_multi,
             settings_file=settings_file_multi,
             layout_file=layout_file_multi,
+            use_future_array_shapes=True,
         )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile)
+    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
@@ -394,5 +420,9 @@ def test_break_read_multi(cal_file, obs_file, layout_file, settings_file, messag
 
     with pytest.raises(ValueError, match=message):
         fhd_cal.read_fhd_cal(
-            cal_file, obs_file, layout_file=layout_file, settings_file=settings_file
+            cal_file,
+            obs_file,
+            layout_file=layout_file,
+            settings_file=settings_file,
+            use_future_array_shapes=True,
         )

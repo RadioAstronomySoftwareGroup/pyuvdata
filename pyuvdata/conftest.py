@@ -46,10 +46,12 @@ def uvcalibrate_init_data_main():
     uvdata.read(
         os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
         file_type="uvh5",
+        use_future_array_shapes=True,
     )
     uvcal = UVCal()
     uvcal.read_calfits(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
+        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
+        use_future_array_shapes=True,
     )
 
     yield uvdata, uvcal

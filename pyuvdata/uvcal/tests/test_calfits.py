@@ -15,6 +15,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
@@ -22,8 +23,7 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
-@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
@@ -38,24 +38,33 @@ def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
     else:
         cal_in = delay_data
 
-    if future_shapes:
-        cal_in.use_future_array_shapes()
+    if not future_shapes:
+        cal_in.use_current_array_shapes()
 
     cal_out = UVCal()
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    if not future_shapes:
+        warn_type = DeprecationWarning
+        warn_msg = _future_array_shapes_warning
+    elif caltype == "delay":
+        warn_type = UserWarning
+        warn_msg = "When converting a delay-style cal to future array shapes the"
+    else:
+        warn_type = None
+        warn_msg = ""
+
+    with uvtest.check_warnings(warn_type, match=warn_msg):
+        cal_out.read_calfits(write_file, use_future_array_shapes=future_shapes)
 
     assert cal_out.filename == [os.path.basename(write_file)]
-
-    if future_shapes:
-        cal_out.use_future_array_shapes()
 
     assert cal_in == cal_out
 
     return
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_path):
     """
@@ -65,18 +74,24 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
 
     time_diffs = np.diff(cal_in.time_array)
 
-    gain_data.integration_time = np.mean(time_diffs) * (24.0 * 60.0**2)
+    gain_data.integration_time = np.full(
+        cal_in.Ntimes, np.mean(time_diffs) * (24.0 * 60.0**2)
+    )
 
-    if future_shapes:
-        cal_in.use_future_array_shapes()
+    if not future_shapes:
+        cal_in.use_current_array_shapes()
 
     cal_out = UVCal()
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
 
-    if future_shapes:
-        cal_out.use_future_array_shapes()
+    if not future_shapes:
+        warn_type = DeprecationWarning
+    else:
+        warn_type = None
+
+    with uvtest.check_warnings(warn_type, match=_future_array_shapes_warning):
+        cal_out.read_calfits(write_file, use_future_array_shapes=future_shapes)
 
     assert cal_in == cal_out
 
@@ -90,7 +105,7 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
         ("zen.2457698.40355.xx.delay.calfits", "delay"),
     ],
 )
-def test_read_metadata_only(filein, caltype, gain_data, delay_data, tmp_path):
+def test_read_metadata_only(filein, caltype, gain_data, delay_data):
     """
     check that metadata only reads work
     """
@@ -103,7 +118,7 @@ def test_read_metadata_only(filein, caltype, gain_data, delay_data, tmp_path):
     cal2 = cal_in.copy(metadata_only=True)
     cal3 = UVCal()
     testfile = os.path.join(DATA_PATH, filein)
-    cal3.read_calfits(testfile, read_data=False)
+    cal3.read_calfits(testfile, read_data=False, use_future_array_shapes=True)
     assert cal2 == cal3
 
     return
@@ -117,7 +132,7 @@ def test_readwriteread_no_freq_range(gain_data, tmp_path):
 
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
     return
@@ -130,10 +145,10 @@ def test_readwriteread_no_time_range(tmp_path):
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
 
-    cal_in.read_calfits(testfile)
+    cal_in.read_calfits(testfile, use_future_array_shapes=True)
     cal_in.time_range = None
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
     return
@@ -218,7 +233,7 @@ def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file2)
+        cal_out.read_calfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -279,7 +294,7 @@ def test_fits_header_errors_gain(gain_data, tmp_path, header_dict, error_msg):
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file2)
+        cal_out.read_calfits(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -307,7 +322,7 @@ def test_latlonalt_noxyz(gain_data, tmp_path):
 
         hdulist.writeto(write_file2, overwrite=True)
 
-    cal_out.read_calfits(write_file2)
+    cal_out.read_calfits(write_file2, use_future_array_shapes=True)
     assert cal_out == cal_in
 
 
@@ -337,7 +352,7 @@ def test_extra_keywords(gain_data, kwd1, kwd2, val1, val2, tmp_path):
     cal_in.extra_keywords[kwd1] = val1
     cal_in.extra_keywords[kwd2] = val2
     cal_in.write_calfits(testfile, clobber=True)
-    cal_out.read_calfits(testfile)
+    cal_out.read_calfits(testfile, use_future_array_shapes=True)
 
     assert cal_in == cal_out
 
@@ -389,6 +404,7 @@ def test_extra_keywords_warnings(gain_data, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
     """
@@ -408,10 +424,11 @@ def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
         cal_in._input_flag_array.expected_shape(cal_in), dtype=bool
     )
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_jones(caltype, gain_data, delay_data, tmp_path):
     """
@@ -443,10 +460,11 @@ def test_jones(caltype, gain_data, delay_data, tmp_path):
     cal_in.quality_array = np.zeros(cal_in._quality_array.expected_shape(cal_in))
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
+@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_readwriteread_total_quality_array(caltype, gain_data, delay_data, tmp_path):
     """
@@ -469,7 +487,7 @@ def test_readwriteread_total_quality_array(caltype, gain_data, delay_data, tmp_p
     )
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
     del cal_in
     del cal_out
@@ -491,9 +509,9 @@ def test_total_quality_array_size(caltype, gain_data, delay_data):
     )
 
     if caltype == "gain":
-        proper_shape = (1, cal_in.Nfreqs, cal_in.Ntimes, cal_in.Njones)
+        proper_shape = (cal_in.Nfreqs, cal_in.Ntimes, cal_in.Njones)
     else:
-        proper_shape = (1, 1, cal_in.Ntimes, cal_in.Njones)
+        proper_shape = (1, cal_in.Ntimes, cal_in.Njones)
     assert cal_in.total_quality_array.shape == proper_shape
     del cal_in
 
@@ -513,7 +531,7 @@ def test_write_time_precision(gain_data, tmp_path):
     if cal_in.lst_array is not None:
         cal_in.set_lsts_from_time_array()
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -543,7 +561,7 @@ def test_read_noversion_history(gain_data, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    cal_out.read_calfits(write_file2)
+    cal_out.read_calfits(write_file2, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -558,5 +576,5 @@ def test_write_freq_spacing_not_channel_width(gain_data, tmp_path):
     cal_in.select(freq_chans=np.arange(0, 10, 2))
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file)
+    cal_out.read_calfits(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
