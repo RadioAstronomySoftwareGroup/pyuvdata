@@ -837,6 +837,9 @@ class UVH5(UVData):
         if obj.flex_spw:
             self._set_flex_spw()
 
+        if self.flex_spw_id_array is None and not self.flex_spw:
+            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
+
         # Here is where we start handling phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
         if self.phase_center_catalog is not None:
