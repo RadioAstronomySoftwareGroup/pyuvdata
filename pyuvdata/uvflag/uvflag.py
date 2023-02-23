@@ -112,22 +112,42 @@ def flags2waterfall(uv, flag_array=None, keep_pol=False):
         raise ValueError("Flag array must align with UVData or UVCal object.")
 
     if isinstance(uv, UVCal):
+        mean_axis = [0]
+        if not uv.future_array_shapes:
+            mean_axis.append(1)
+        if not keep_pol:
+            if uv.future_array_shapes:
+                mean_axis.append(3)
+            else:
+                mean_axis.append(4)
+
+        mean_axis = tuple(mean_axis)
         if keep_pol:
-            waterfall = np.swapaxes(np.mean(flag_array, axis=(0, 1)), 0, 1)
+            waterfall = np.swapaxes(np.mean(flag_array, axis=mean_axis), 0, 1)
         else:
-            waterfall = np.mean(flag_array, axis=(0, 1, 4)).T
+            waterfall = np.mean(flag_array, axis=mean_axis).T
     else:
+        mean_axis = [0]
+        if not uv.future_array_shapes:
+            mean_axis.append(1)
+        if not keep_pol:
+            if uv.future_array_shapes:
+                mean_axis.append(2)
+            else:
+                mean_axis.append(3)
+
+        mean_axis = tuple(mean_axis)
         if keep_pol:
             waterfall = np.zeros((uv.Ntimes, uv.Nfreqs, uv.Npols))
             for i, t in enumerate(np.unique(uv.time_array)):
                 waterfall[i, :] = np.mean(
-                    flag_array[uv.time_array == t, 0, :, :], axis=0
+                    flag_array[uv.time_array == t], axis=mean_axis
                 )
         else:
             waterfall = np.zeros((uv.Ntimes, uv.Nfreqs))
             for i, t in enumerate(np.unique(uv.time_array)):
                 waterfall[i, :] = np.mean(
-                    flag_array[uv.time_array == t, 0, :, :], axis=(0, 2)
+                    flag_array[uv.time_array == t], axis=mean_axis
                 )
 
     return waterfall
@@ -771,6 +791,9 @@ class UVFlag(UVBase):
         parameter on this object to True.
 
         """
+        if self.future_array_shapes:
+            return
+
         self._set_future_array_shapes()
         if not self.type == "waterfall":
             # remove the length-1 spw axis for all data-like parameters
@@ -789,12 +812,15 @@ class UVFlag(UVBase):
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
         """
+        if not self.future_array_shapes:
+            return
+
+        data_like_params = ["metric_array", "weights_array", "flag_array"]
+
         self.future_array_shapes = False
         if not self.type == "waterfall":
             if self.type == "baseline":
-                for param_name in self._data_params:
-                    if param_name == "weights_square_array":
-                        continue
+                for param_name in data_like_params:
                     getattr(self, "_" + param_name).form = (
                         "Nblts",
                         1,
@@ -802,9 +828,7 @@ class UVFlag(UVBase):
                         "Npols",
                     )
             elif self.type == "antenna":
-                for param_name in self._data_params:
-                    if param_name == "weights_square_array":
-                        continue
+                for param_name in data_like_params:
                     getattr(self, "_" + param_name).form = (
                         "Nants_data",
                         1,
@@ -2971,21 +2995,15 @@ class UVFlag(UVBase):
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
-                if self.type != "waterfall" and not self.future_array_shapes:
-                    frequencies = self.freq_array[0, freq_chans]
-                else:
-                    frequencies = self.freq_array[freq_chans]
+                frequencies = np.squeeze(self.freq_array)[freq_chans]
 
             else:
                 frequencies = uvutils._get_iterable(frequencies)
-                if self.type != "waterfall" and not self.future_array_shapes:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[0, freq_chans]))
+                frequencies = np.sort(
+                    list(
+                        set(frequencies) | set(np.squeeze(self.freq_array)[freq_chans])
                     )
-                else:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[freq_chans]))
-                    )
+                )
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)

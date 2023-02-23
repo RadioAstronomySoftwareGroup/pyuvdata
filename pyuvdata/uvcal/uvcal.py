@@ -17,6 +17,15 @@ from ..uvdata import UVData
 
 __all__ = ["UVCal"]
 
+_future_array_shapes_warning = (
+    "The shapes of several attributes will be changing in the future to remove the "
+    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
+    "method to convert to the future array shapes now or set the parameter of the same "
+    "name on this method to both convert to the future array shapes and silence this "
+    "warning. See the UVCal tutorial on ReadTheDocs for more details about these "
+    "shape changes."
+)
+
 
 class UVCal(UVBase):
     """
@@ -661,6 +670,9 @@ class UVCal(UVBase):
         self._quality_array.form = self._delay_array.form
         self._total_quality_array.form = self._delay_array.form[1:]
 
+        if self.future_array_shapes:
+            self._set_wide_band()
+
     def _set_unknown_cal_type(self):
         """Set cal_type to 'unknown' and adjust required parameters."""
         self.cal_type = "unknown"
@@ -783,6 +795,9 @@ class UVCal(UVBase):
         parameter on this object to True.
 
         """
+        if self.future_array_shapes:
+            return
+
         self._set_future_array_shapes()
         if not self.metadata_only:
             # remove the length-1 spw axis for all data-like parameters
@@ -819,6 +834,17 @@ class UVCal(UVBase):
                         self.input_flag_array, axis=1
                     )[:, np.newaxis, :, :]
 
+        if self.cal_type == "delay":
+            if self.freq_range is None:
+                self.freq_range = np.asarray(
+                    [np.min(self.freq_array), np.max(self.freq_array)]
+                )
+            self.freq_array = None
+            self.channel_width = None
+            self.Nfreqs = 1
+        else:
+            self.freq_range = None
+
         # remove the length-1 spw axis for the freq_array
         if self.freq_array is not None:
             self.freq_array = self.freq_array[0, :]
@@ -848,8 +874,18 @@ class UVCal(UVBase):
         This method sets allows users to convert back to the current array shapes.
         This method sets the `future_array_shapes` parameter on this object to False.
         """
-        if self.Nspws > 1:
-            raise ValueError("Cannot use current array shapes if Nspws > 1.")
+        warnings.warn(
+            "This method will be removed in version 3.0 when the current array shapes "
+            "are no longer supported.",
+            DeprecationWarning,
+        )
+        if not self.future_array_shapes:
+            return
+
+        if self.Nspws > 1 and self.wide_band:
+            raise ValueError(
+                "Cannot use current array shapes if Nspws > 1 and wide_band is True"
+            )
 
         if self.cal_type != "delay" and self.wide_band:
             raise ValueError(
@@ -948,10 +984,18 @@ class UVCal(UVBase):
                     )
 
         self._freq_array.form = (1, "Nfreqs")
-        self.freq_array = self.freq_array[np.newaxis, :]
+        if self.freq_array is not None:
+            self.freq_array = self.freq_array[np.newaxis, :]
+        elif self.Nfreqs == 1:
+            self.freq_array = np.full((1, 1), self.freq_range[0, 0])
 
-        self.freq_range = self.freq_range[0, :].tolist()
         self._freq_range.form = (2,)
+        if self.freq_range is not None:
+            self.freq_range = self.freq_range[0, :]
+        else:
+            self.freq_range = np.asarray(
+                [np.min(self.freq_array), np.max(self.freq_array)]
+            )
 
     def set_telescope_params(self, overwrite=False):
         """
@@ -1989,7 +2033,7 @@ class UVCal(UVBase):
                     channel_width = channel_width[0]
             if self.freq_range is not None:
                 # Already errored if more than one spw, so just use the first one here
-                if isinstance(self.freq_range, list):
+                if not self.future_array_shapes:
                     freq_range_use = np.asarray(self.freq_range)
                 else:
                     freq_range_use = self.freq_range[0, :]
@@ -2591,10 +2635,11 @@ class UVCal(UVBase):
                 unique_index = np.sort(np.unique(this.spw_array, return_index=True)[1])
                 this.spw_array = this.spw_array[unique_index]
                 if this.future_array_shapes:
-                    this.freq_range = np.concatenate(
-                        [this.freq_range, other.freq_range], axis=0
-                    )
-                    this.freq_range = this.freq_range[unique_index, :]
+                    if this.freq_range is not None:
+                        this.freq_range = np.concatenate(
+                            [this.freq_range, other.freq_range], axis=0
+                        )
+                        this.freq_range = this.freq_range[unique_index, :]
                 this.Nspws = len(this.spw_array)
 
                 # If we have a multi-spw data set, need to sort out the order of
@@ -2633,6 +2678,13 @@ class UVCal(UVBase):
                     f_order = np.argsort(this.freq_array)
                 else:
                     f_order = np.argsort(this.freq_array[0, :])
+
+                if this.freq_range is not None:
+                    this.freq_range = np.array(
+                        [np.min(this.freq_array), np.max(this.freq_array)]
+                    )
+                    if this.future_array_shapes:
+                        this.freq_range = this.freq_range[np.newaxis, :]
 
             if this.flex_spw or this.future_array_shapes:
                 this.channel_width = np.concatenate(
@@ -3674,6 +3726,13 @@ class UVCal(UVBase):
                             tqa = cal_object.total_quality_array[spw_inds, :, :]
                             cal_object.total_quality_array = tqa
 
+        if self.freq_array is None and (
+            freq_chans is not None or frequencies is not None
+        ):
+            raise ValueError(
+                "Cannot select on frequencies because this is a wide_band object with "
+                "no freq_array."
+            )
         if freq_chans is not None:
             freq_chans = uvutils._get_iterable(freq_chans)
             if frequencies is None:
@@ -3735,6 +3794,13 @@ class UVCal(UVBase):
                 if cal_object.freq_range is not None and cal_object.future_array_shapes:
                     cal_object.freq_range = cal_object.freq_range[spw_mask, :]
                 cal_object.Nspws = len(cal_object.spw_array)
+            else:
+                if cal_object.freq_range is not None:
+                    cal_object.freq_range = np.array(
+                        [np.min(cal_object.freq_array), np.max(cal_object.freq_array)]
+                    )
+                    if cal_object.future_array_shapes:
+                        cal_object.freq_range = cal_object.freq_range[np.newaxis, :]
 
             if cal_object.Nfreqs > 1:
                 spacing_error, chanwidth_error = cal_object._check_freq_spacing(
@@ -4133,6 +4199,11 @@ class UVCal(UVBase):
                     else:
                         uvc.freq_array = uvdata.freq_array[np.newaxis, :]
 
+                if not future_array_shapes:
+                    uvc.freq_range = np.array(
+                        [np.min(uvdata.freq_array), np.max(uvdata.freq_array)]
+                    )
+
                 if (
                     uvdata.flex_spw
                     or uvdata.future_array_shapes == uvc.future_array_shapes
@@ -4168,6 +4239,10 @@ class UVCal(UVBase):
                     uvc.freq_array = frequencies
                 else:
                     uvc.freq_array = frequencies[np.newaxis, :]
+                    uvc.freq_range = np.array(
+                        [np.min(frequencies), np.max(frequencies)]
+                    )
+
                 uvc.Nfreqs = frequencies.size
 
                 if flex_spw:
@@ -4232,10 +4307,11 @@ class UVCal(UVBase):
                 else:
                     uvc.Nspws = 1
                     uvc.spw_array = np.asarray([0])
-                    uvc.freq_range = [
-                        np.min(uvdata.freq_array),
-                        np.max(uvdata.freq_array),
-                    ]
+                    uvc.freq_range = np.array(
+                        [np.min(uvdata.freq_array), np.max(uvdata.freq_array)]
+                    )
+                    uvc.freq_array = np.asarray([[uvdata.freq_array.item(0)]])
+                    uvc.Nfreqs = 1
             else:
                 freq_range_use = np.asarray(freq_range)
                 if future_array_shapes:
@@ -4261,12 +4337,14 @@ class UVCal(UVBase):
                     uvc.Nspws = 1
                     uvc.spw_array = np.asarray([0])
                     if freq_range_use.size == 2:
-                        uvc.freq_range = np.squeeze(freq_range_use).tolist()
+                        uvc.freq_range = np.squeeze(freq_range_use)
                     else:
                         raise ValueError(
                             "if future_array_shapes is False, freq_range must have "
                             "2 elements."
                         )
+                    uvc.freq_array = np.asarray([[freq_range_use[0]]])
+                    uvc.Nfreqs = 1
 
         for param_name in params_to_copy:
             setattr(uvc, param_name, getattr(uvdata, param_name))
@@ -4371,6 +4449,7 @@ class UVCal(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        use_future_array_shapes=False,
     ):
         """
         Read in data from calfits file(s).
@@ -4391,6 +4470,9 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         """
         from . import calfits
@@ -4402,6 +4484,7 @@ class UVCal(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                use_future_array_shapes=use_future_array_shapes,
             )
             if len(filename) > 1:
                 for f in filename[1:]:
@@ -4412,6 +4495,7 @@ class UVCal(UVBase):
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
+                        use_future_array_shapes=use_future_array_shapes,
                     )
                     self += uvcal2
                 del uvcal2
@@ -4423,6 +4507,7 @@ class UVCal(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                use_future_array_shapes=use_future_array_shapes,
             )
             self._convert_from_filetype(calfits_obj)
             del calfits_obj
@@ -4439,6 +4524,7 @@ class UVCal(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        use_future_array_shapes=False,
     ):
         """
         Read data from an FHD cal.sav file.
@@ -4474,6 +4560,9 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         """
         from . import fhd_cal
@@ -4526,6 +4615,7 @@ class UVCal(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                use_future_array_shapes=use_future_array_shapes,
             )
             if len(cal_file) > 1:
                 for ind, f in enumerate(cal_file[1:]):
@@ -4545,6 +4635,7 @@ class UVCal(UVBase):
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
+                        use_future_array_shapes=use_future_array_shapes,
                     )
 
                     self += uvcal2
@@ -4575,6 +4666,7 @@ class UVCal(UVBase):
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
+                use_future_array_shapes=use_future_array_shapes,
             )
             self._convert_from_filetype(fhd_cal_obj)
             del fhd_cal_obj

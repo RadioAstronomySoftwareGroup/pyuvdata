@@ -9,7 +9,7 @@ import numpy as np
 from astropy.io import fits
 
 from .. import utils as uvutils
-from .uvcal import UVCal
+from .uvcal import UVCal, _future_array_shapes_warning
 
 __all__ = ["CALFITS"]
 
@@ -72,13 +72,16 @@ class CALFITS(UVCal):
 
         # we've already run the check_freq_spacing, so spacings and channel widths are
         # the same to our tolerances
-        if self.future_array_shapes:
-            if self.freq_array is not None:
+        if self.freq_array is not None:
+            if self.future_array_shapes:
                 ref_freq = self.freq_array[0]
             else:
-                ref_freq = self.freq_range[0, 0]
+                ref_freq = self.freq_array[0, 0]
         else:
-            ref_freq = self.freq_array[0, 0]
+            if self.future_array_shapes:
+                ref_freq = self.freq_range[0, 0]
+            else:
+                ref_freq = self.freq_range[0]
 
         if self.Nfreqs > 1:
             if chanwidth_error:
@@ -99,15 +102,15 @@ class CALFITS(UVCal):
                 else:
                     delta_freq_array = self.channel_width
         else:
-            if self.future_array_shapes or self.flex_spw:
-                if self.channel_width is not None:
+            if self.channel_width is not None:
+                if self.future_array_shapes or self.flex_spw:
                     delta_freq_array = self.channel_width[0]
                 else:
-                    # default to 1 Hz for wide-band cals with Nfreqs=1 and no channel
-                    # width info
-                    delta_freq_array = 1.0
+                    delta_freq_array = self.channel_width
             else:
-                delta_freq_array = self.channel_width
+                # default to 1 Hz for wide-band cals with Nfreqs=1 and no channel
+                # width info
+                delta_freq_array = 1.0
 
         if self.Ntimes > 1:
             if not uvutils._test_array_constant_spacing(self._time_array):
@@ -519,6 +522,7 @@ class CALFITS(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        use_future_array_shapes=False,
     ):
         """
         Read data from a calfits file.
@@ -541,6 +545,9 @@ class CALFITS(UVCal):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         """
         # update filename attribute
@@ -605,16 +612,22 @@ class CALFITS(UVCal):
 
             time_range = hdr.pop("TMERANGE", None)
             if time_range is not None:
-                self.time_range = list(map(float, time_range.split(",")))
+                self.time_range = np.asarray(
+                    list(map(np.float64, time_range.split(",")))
+                )
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop("XORIENT")
             self.cal_type = hdr.pop("CALTYPE")
             if self.cal_type == "delay":
-                self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
+                self.freq_range = np.asarray(
+                    list(map(float, hdr.pop("FRQRANGE").split(",")))
+                )
             else:
                 if "FRQRANGE" in hdr:
-                    self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
+                    self.freq_range = np.asarray(
+                        list(map(float, hdr.pop("FRQRANGE").split(",")))
+                    )
 
             self.cal_style = hdr.pop("CALSTYLE")
             if self.cal_style == "sky":
@@ -798,6 +811,12 @@ class CALFITS(UVCal):
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

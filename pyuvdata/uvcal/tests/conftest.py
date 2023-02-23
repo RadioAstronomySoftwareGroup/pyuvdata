@@ -19,7 +19,8 @@ def gain_data_main():
     """Read in gain calfits file."""
     gain_object = UVCal()
     gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    gain_object.read_calfits(gainfile)
+    gain_object.read_calfits(gainfile, use_future_array_shapes=True)
+    gain_object.freq_range = None
 
     yield gain_object
 
@@ -41,7 +42,16 @@ def delay_data_main():
     """Read in delay calfits file, add input flag array."""
     delay_object = UVCal()
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
-    delay_object.read_calfits(delayfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "telescope_location is not set. Using known values for HERA.",
+            "antenna_positions is not set. Using known values for HERA.",
+            "When converting a delay-style cal to future array shapes the flag_array"
+            " (and input_flag_array if it exists) must drop the frequency axis",
+        ],
+    ):
+        delay_object.read_calfits(delayfile, use_future_array_shapes=True)
 
     # yield the data for testing, then del after tests finish
     yield delay_object
@@ -86,37 +96,6 @@ def delay_data_inputflag(delay_data_inputflag_main):
 
 
 @pytest.fixture(scope="session")
-def delay_data_inputflag_future_main(delay_data_inputflag_main):
-    delay_object = delay_data_inputflag_main.copy()
-
-    # convert to future array shapes, drop freq_array, set Nfreqs=1
-    with uvtest.check_warnings(
-        UserWarning, match="When converting a delay-style cal to future array shapes"
-    ):
-        delay_object.use_future_array_shapes()
-
-    delay_object.freq_array = None
-    delay_object.channel_width = None
-    delay_object.Nfreqs = 1
-
-    delay_object.check()
-
-    yield delay_object
-
-    del delay_object
-
-
-@pytest.fixture(scope="function")
-def delay_data_inputflag_future(delay_data_inputflag_future_main):
-    """Make function level future shape delay uvcal object."""
-    delay_object = delay_data_inputflag_future_main.copy()
-
-    yield delay_object
-
-    del delay_object
-
-
-@pytest.fixture(scope="session")
 def fhd_cal_raw_main():
     """Read in raw FHD cal."""
     fhd_cal = UVCal()
@@ -129,6 +108,7 @@ def fhd_cal_raw_main():
             layout_file=test_fhd_cal.layout_testfile,
             settings_file=test_fhd_cal.settings_testfile,
             raw=True,
+            use_future_array_shapes=True,
         )
 
     yield fhd_cal
@@ -159,6 +139,7 @@ def fhd_cal_fit_main():
             layout_file=test_fhd_cal.layout_testfile,
             settings_file=test_fhd_cal.settings_testfile,
             raw=False,
+            use_future_array_shapes=True,
         )
     yield fhd_cal
 

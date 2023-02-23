@@ -11,7 +11,7 @@ from scipy.io import readsav
 
 from .. import utils as uvutils
 from ..uvdata.fhd import get_fhd_history, get_fhd_layout_info
-from .uvcal import UVCal
+from .uvcal import UVCal, _future_array_shapes_warning
 
 __all__ = ["FHDCal"]
 
@@ -38,6 +38,7 @@ class FHDCal(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        use_future_array_shapes=False,
     ):
         """
         Read data from an FHD cal.sav file.
@@ -73,6 +74,9 @@ class FHDCal(UVCal):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             parameters after reading in the file.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
 
         """
         if not read_data and settings_file is None:
@@ -128,7 +132,7 @@ class FHDCal(UVCal):
         time_use = bl_info["time_use"][0]
 
         time_array_use = time_array[np.where(time_use > 0)]
-        self.time_range = [np.min(time_array_use), np.max(time_array_use)]
+        self.time_range = np.asarray([np.min(time_array_use), np.max(time_array_use)])
 
         self.telescope_name = obs_data["instrument"][0].decode("utf8")
         latitude = np.deg2rad(float(obs_data["LAT"][0]))
@@ -438,6 +442,11 @@ class FHDCal(UVCal):
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
+
+        if use_future_array_shapes:
+            self.use_future_array_shapes()
+        else:
+            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

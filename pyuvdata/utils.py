@@ -4622,44 +4622,45 @@ def uvcalibrate(
                 )
 
     downselect_cal_freq = False
-    if uvdata.future_array_shapes:
-        uvdata_freq_arr_use = uvdata.freq_array
-    else:
-        uvdata_freq_arr_use = uvdata.freq_array[0, :]
-    if uvcal.future_array_shapes:
-        uvcal_freq_arr_use = uvcal.freq_array
-    else:
-        uvcal_freq_arr_use = uvcal.freq_array[0, :]
-    try:
-        freq_arr_match = np.allclose(
-            np.sort(uvcal_freq_arr_use),
-            np.sort(uvdata_freq_arr_use),
-            atol=uvdata._freq_array.tols[1],
-            rtol=uvdata._freq_array.tols[0],
-        )
-    except ValueError:
-        freq_arr_match = False
-
-    if freq_arr_match is False:
-        # check more carefully
-        uvcal_freqs_to_keep = []
-        for this_freq in uvdata_freq_arr_use:
-            wh_freq_match = np.nonzero(
-                np.isclose(
-                    uvcal.freq_array - this_freq,
-                    0,
-                    atol=uvdata._freq_array.tols[1],
-                    rtol=uvdata._freq_array.tols[0],
-                )
+    if uvcal.freq_array is not None:
+        if uvdata.future_array_shapes:
+            uvdata_freq_arr_use = uvdata.freq_array
+        else:
+            uvdata_freq_arr_use = uvdata.freq_array[0, :]
+        if uvcal.future_array_shapes:
+            uvcal_freq_arr_use = uvcal.freq_array
+        else:
+            uvcal_freq_arr_use = uvcal.freq_array[0, :]
+        try:
+            freq_arr_match = np.allclose(
+                np.sort(uvcal_freq_arr_use),
+                np.sort(uvdata_freq_arr_use),
+                atol=uvdata._freq_array.tols[1],
+                rtol=uvdata._freq_array.tols[0],
             )
-            if wh_freq_match[0].size > 0:
-                uvcal_freqs_to_keep.append(uvcal.freq_array[wh_freq_match][0])
-            else:
-                raise ValueError(
-                    f"Frequency {this_freq} exists on UVData but not on UVCal."
+        except ValueError:
+            freq_arr_match = False
+
+        if freq_arr_match is False:
+            # check more carefully
+            uvcal_freqs_to_keep = []
+            for this_freq in uvdata_freq_arr_use:
+                wh_freq_match = np.nonzero(
+                    np.isclose(
+                        uvcal.freq_array - this_freq,
+                        0,
+                        atol=uvdata._freq_array.tols[1],
+                        rtol=uvdata._freq_array.tols[0],
+                    )
                 )
-        if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
-            downselect_cal_freq = True
+                if wh_freq_match[0].size > 0:
+                    uvcal_freqs_to_keep.append(uvcal.freq_array[wh_freq_match][0])
+                else:
+                    raise ValueError(
+                        f"Frequency {this_freq} exists on UVData but not on UVCal."
+                    )
+            if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
+                downselect_cal_freq = True
 
     # check if uvdata.x_orientation isn't set (it's required for uvcal)
     uvd_x = uvdata.x_orientation
