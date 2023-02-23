@@ -300,8 +300,9 @@ class UVData(UVBase):
             '"Stokes", but this is inaccurate as visibilities cannot be in '
             "true Stokes polarizations for physical antennas. We adopt the "
             "term pseudo-Stokes to refer to linear combinations of instrumental "
-            "visibility polarizations (e.g. pI = xx + yy). A value of 0 is only "
-            "allowed if flex_spw_polarization_array is True."
+            "visibility polarizations (e.g. pI = xx + yy). A value of 0 indicates that "
+            "the polarization is different for different spectral windows and is only "
+            "allowed if flex_spw_polarization_array is defined (not None)."
         )
         self._polarization_array = uvp.UVParameter(
             "polarization_array",
