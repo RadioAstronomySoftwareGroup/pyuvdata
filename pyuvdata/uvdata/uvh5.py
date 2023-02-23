@@ -431,8 +431,8 @@ class FastUVH5Meta:
         if "phase_center_catalog" not in header:
             return None
         phase_center_catalog = {}
-        key_list = list(header["phase_center_catalog"].keys())
-        if isinstance(header["phase_center_catalog"][key_list[0]], h5py.Group):
+        key0 = next(iter(header["phase_center_catalog"].keys()))
+        if isinstance(header["phase_center_catalog"][key0], h5py.Group):
             # This is the new, correct way
             for pc, pc_dict in header["phase_center_catalog"].items():
                 pc_id = int(pc)
