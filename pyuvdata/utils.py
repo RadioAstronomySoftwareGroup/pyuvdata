@@ -5575,16 +5575,16 @@ def determine_blt_order(
         ):
             break
 
-    if (Nbls > 1 and Ntimes > 1) and (
-        (time_bl and bl_time)
-        or (time_a and a_time)
-        or (time_b and b_time)
-        or (time_order and a_order)
-        or (time_order and b_order)
-        or (a_order and b_order)
-        or (time_order and bl_order)
-    ):
-        raise ValueError(
+    if Nbls > 1 and Ntimes > 1:
+        assert not (
+            (time_bl and bl_time)
+            or (time_a and a_time)
+            or (time_b and b_time)
+            or (time_order and a_order)
+            or (time_order and b_order)
+            or (a_order and b_order)
+            or (time_order and bl_order)
+        ), (
             "Something went horribly wrong when trying to determine the order of "
             "the blts axis."
             "Please raise an issue on github, as this is not meant to happen."
@@ -5692,7 +5692,7 @@ def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
     if not is_rect:
         return False, False
 
-    assert (
+    assert not (
         time_first and bl_first
     ), "Something went wrong when determining rectangularity."
 
