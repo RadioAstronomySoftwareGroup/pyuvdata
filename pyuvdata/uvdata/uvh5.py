@@ -280,21 +280,26 @@ class FastUVH5Meta:
         blts_are_rectangular: bool | None = None,
         time_first: bool | None = None,
     ):
-        try:
-            self.path = Path(path.file.filename)  # it's a h5py.File/Group
-            self.__file = path.file
-            try:
-                self.__header = self.__file["/Header"]
-                self.__datagrp = self.__file["/Data"]
-            except KeyError as e:
-                if not isinstance(path, h5py.Group):
-                    raise ValueError(
-                        "path input must be a str, Path, File or Group object"
-                    ) from e
+        self.__file = None
+
+        if isinstance(path, h5py.Group):
+            self.path = Path(path.file.filename)
+            if path.file:  # False if File not open
+                self.__file = path.file
                 self.__header = path
-        except AttributeError:
+                self.__datagrp = self.__file["/Data"]
+            else:
+                self.open()
+        elif isinstance(path, h5py.File):
+            self.path = Path(path.file.filename)
+            if path:  # False if File not open
+                self.__file = path
+                self.__header = path["/Header"]
+                self.__datagrp = path["/Data"]
+        elif isinstance(path, (str, Path)):
             self.path = Path(path)
-            self.__file = None
+
+        if not self.__file:  # either None, or False (not open)
             self.open()
 
         self.__blts_are_rectangular = blts_are_rectangular
@@ -310,13 +315,18 @@ class FastUVH5Meta:
         """Close the file."""
         self.__header = None
         self.__datagrp = None
+        del self.header  # need to refresh these
+        try:
+            del self.datagrp
+        except AttributeError:
+            pass
         if self.__file:
             self.__file.close()
         self.__file = None
 
     def open(self):  # noqa: A003
         """Open the file."""
-        if self.__file is None:
+        if not self.__file:
             self.__file = h5py.File(self.path, "r")
             self.__header = self.__file["/Header"]
             self.__datagrp = self.__file["/Data"]
@@ -324,14 +334,14 @@ class FastUVH5Meta:
     @cached_property
     def header(self) -> h5py.Group:
         """Get the header group."""
-        if self.__file is None:
+        if not self.__file:
             self.open()
         return self.__header
 
     @cached_property
     def datagrp(self) -> h5py.Group:
         """Get the header group."""
-        if self.__file is None:
+        if not self.__file:
             self.open()
         return self.__datagrp
 
@@ -356,9 +366,6 @@ class FastUVH5Meta:
 
     def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
-        if self.blt_order is not None:
-            return self.blt_order
-
         return uvutils.determine_blt_order(
             time_array=self.time_array,
             ant_1_array=self.ant_1_array,
@@ -575,7 +582,7 @@ class FastUVH5Meta:
             )
 
     @cached_property
-    def unique_ant_1_array(self) -> np.ndarray:
+    def unique_antpair_1_array(self) -> np.ndarray:
         """The unique antenna 1 indices in the file."""
         h = self.header
         if self.blts_are_rectangular:
@@ -584,10 +591,10 @@ class FastUVH5Meta:
             else:
                 return h["ant_1_array"][: self.Nbls]
         else:
-            return np.unique(self.ant_1_array)
+            return np.array([x for x, y in self.antpairs])
 
     @cached_property
-    def unique_ant_2_array(self) -> np.ndarray:
+    def unique_antpair_2_array(self) -> np.ndarray:
         """The unique antenna 2 indices in the file."""
         h = self.header
         if self.blts_are_rectangular:
@@ -596,7 +603,18 @@ class FastUVH5Meta:
             else:
                 return h["ant_2_array"][: self.Nbls]
         else:
-            return np.unique(self.ant_2_array)
+            return np.array([y for x, y in self.antpairs])
+
+    @cached_property
+    def unique_ants(self) -> set:
+        """The unique antennas in the file."""
+        return set(
+            np.unique(
+                np.concatenate(
+                    (self.unique_antpair_1_array, self.unique_antpair_2_array)
+                )
+            )
+        )
 
     @cached_property
     def baseline_array(self) -> np.ndarray:
@@ -609,7 +627,9 @@ class FastUVH5Meta:
     def unique_baseline_array(self) -> np.ndarray:
         """The unique baselines in the file, as unique integers."""
         return uvutils.antnums_to_baseline(
-            self.unique_ant_1_array, self.unique_ant_2_array, self.Nants_telescope
+            self.unique_antpair_1_array,
+            self.unique_antpair_2_array,
+            self.Nants_telescope,
         )
 
     @cached_property
@@ -620,7 +640,10 @@ class FastUVH5Meta:
     @cached_property
     def antpairs(self) -> list[tuple[int, int]]:
         """Get the unique antenna pairs in the file."""
-        return list(zip(self.unique_ant_1_array, self.unique_ant_2_array))
+        if self.blts_are_rectangular:
+            return list(zip(self.unique_antpair_1_array, self.unique_antpair_2_array))
+        else:
+            return list(set(zip(self.ant_1_array, self.ant_2_array)))
 
     def has_key(self, key: tuple[int, int] | tuple[int, int, str]) -> bool:
         """Check if the file has a given antpair or antpair-pol key."""

@@ -8,6 +8,9 @@
 import json
 import os
 import re
+import shutil
+import tempfile
+from pathlib import Path
 
 import h5py
 import numpy as np
@@ -3472,3 +3475,153 @@ def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
 
     uvd2 = UVData.from_file(outfile, use_future_array_shapes=True)
     assert uvd == uvd2
+
+
+@pytest.mark.usefixtures("tmp_path_factory")
+class TestFastUVH5Meta:
+    def setup_class(self):
+        self.fl = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
+
+        self.tmp_path = tempfile.TemporaryDirectory("fastuvh5meta")
+
+        uvd = UVData()
+        uvd.read(self.fl, bls=[(26, 26)])
+        self.fl_singlebl = os.path.join(self.tmp_path.name, "singlebl.uvh5")
+        uvd.write_uvh5(self.fl_singlebl)
+
+        meta = uvh5.FastUVH5Meta(self.fl)
+        uvd = meta.to_uvdata()
+        uvd.reorder_blts(order="baseline", minor_order="time")
+        self.fl_time_first = os.path.join(self.tmp_path.name, "time_first.uvh5")
+        uvd.initialize_uvh5_file(self.fl_time_first, clobber=True)
+
+    def teardown_class(self):
+        self.tmp_path.cleanup()
+
+    def test_input_file_type(self):
+        uv1 = uvh5.FastUVH5Meta(self.fl)
+        uv2 = uvh5.FastUVH5Meta(Path(self.fl))
+        with h5py.File(self.fl, "r") as f:
+            uv3 = uvh5.FastUVH5Meta(f)
+            uv4 = uvh5.FastUVH5Meta(f["/Header"])
+
+        assert uv1.antpairs == uv2.antpairs
+        assert uv1.antpairs == uv3.antpairs
+        assert uv1.antpairs == uv4.antpairs
+
+    def test_closing(self):
+        uv1 = uvh5.FastUVH5Meta(self.fl)
+        file_id = uv1.header.file.id.id
+        uv1.close()
+
+        # After we close, it has to reopen and therefore has a differnt fid
+        assert uv1.header.file.id.id != file_id
+
+        assert bool(uv1.header.file)  # file is open
+        flobj = uv1.header.file
+
+        uv1.close()
+        assert uv1.datagrp.file.id.id != file_id
+
+        del uv1
+        assert not bool(flobj)  # file is closed
+
+    def test_get_blt_order(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        blt_order = meta.get_blt_order()
+        assert blt_order == ("time",)
+        assert meta.blt_order is None
+
+        meta = uvh5.FastUVH5Meta(self.fl, blt_order="determine")
+        assert meta.blt_order == ("time",)
+
+        meta = uvh5.FastUVH5Meta(self.fl, blt_order=("time",))
+        assert meta.blt_order == ("time",)
+
+    def test_blts_rectangular(self):
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=None)
+        assert meta.blts_are_rectangular
+
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=True)
+        assert meta.blts_are_rectangular
+
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
+        assert not meta.blts_are_rectangular
+
+    def test_time_first(self):
+        meta = uvh5.FastUVH5Meta(self.fl, time_first=None)
+        assert not meta._time_first
+
+        meta = uvh5.FastUVH5Meta(self.fl_singlebl)
+        assert meta._time_first
+
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
+        assert not meta._time_first
+
+        meta1 = uvh5.FastUVH5Meta(self.fl_time_first)
+        assert np.all(meta1.times == meta.times)
+        assert meta1._time_first
+
+    def test_phase_type_with_pcc(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        assert meta.phase_type == "drift"
+
+        uvd = meta.to_uvdata()
+        uvd.initialize_uvh5_file(os.path.join(self.tmp_path.name, "new_pcc.uvh5"))
+
+        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "new_pcc.uvh5"))
+        assert meta1.phase_center_catalog is not None
+        assert meta1.phase_type == "drift"
+
+    def test_getting_lsts(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+
+        shutil.copy(self.fl, os.path.join(self.tmp_path.name, "no_lsts.uvh5"))
+        with h5py.File(os.path.join(self.tmp_path.name, "no_lsts.uvh5"), "r+") as f:
+            del f["/Header/lst_array"]
+
+        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "no_lsts.uvh5"))
+        assert np.allclose(meta1.lst_array, meta.lst_array)
+
+    def test_unique_arrays(self):
+        def do_asserts(meta):
+            assert set(meta.unique_antpair_1_array) == set(meta.ant_1_array)
+            assert set(meta.unique_antpair_2_array) == set(meta.ant_2_array)
+            assert set(meta.unique_baseline_array) == set(
+                np.unique(meta.baseline_array)
+            )
+            assert set(meta.antpairs) == set(uvd.get_antpairs())
+
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
+        uvd = meta.to_uvdata()
+        do_asserts(meta)
+
+        meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=True)
+        do_asserts(meta)
+
+        meta = uvh5.FastUVH5Meta(self.fl_time_first)
+        do_asserts(meta)
+
+    def test_has_key(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        assert meta.has_key((26, 26))
+        assert not meta.has_key((150, 150))
+        assert meta.has_key((0, 1))
+        assert meta.has_key((1, 0))
+        assert (1, 0) not in meta.antpairs
+
+        assert meta.has_key((0, 1, "xy"))
+        assert meta.has_key((1, 0, "yx"))
+
+    def test_freqs_is_1d(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        assert meta.freqs.ndim == 1
+
+    def test_pols(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        assert meta.pols == ["xx", "yy", "xy", "yx"]
+
+    def antpos_enu(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        uvd = meta.to_uvdata()
+        assert np.allclose(meta.antpos_enu, uvd.get_ENU_antpos()[0])
