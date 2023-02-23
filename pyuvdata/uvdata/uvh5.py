@@ -737,6 +737,7 @@ class UVH5(UVData):
 
         if "lst_array" in obj.header:
             self.lst_array = obj.header["lst_array"][:]
+            proc = None
         else:
             proc = self.set_lsts_from_time_array(background=background_lsts)
 
