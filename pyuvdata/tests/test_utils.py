@@ -4026,3 +4026,30 @@ def test_determine_blt_order(blt_order):
             or (len(blt_order) == 1 and blt_order[0] != "time")
             or not blt_order  # we by default move time first (backwards, but still)
         )
+
+
+def test_determine_blt_order_size_1():
+    times = np.array([2458119.5])
+    ant1 = np.array([0])
+    ant2 = np.array([1])
+    bl = uvutils.antnums_to_baseline(ant1, ant2, 2)
+
+    order = uvutils.determine_blt_order(times, ant1, ant2, bl, Nbls=1, Ntimes=1)
+    assert order == ("baseline", "time")
+    is_rect, time_first = uvutils.determine_rectangularity(times, bl, nbls=1, ntimes=1)
+    assert is_rect
+    assert time_first
+
+
+def test_determine_blt_order_time_first():
+    times = np.linspace(2458119.5, 2458120.5, 10)
+    ant1 = np.arange(3)
+    ant2 = np.arange(3)
+    ANT1, ANT2 = np.meshgrid(ant1, ant2)
+    BL = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), 3)
+
+    TIME = np.tile(times, len(ANT1))
+    BL = np.concatenate([np.shuffle(BL) for i in range(len(times))])
+
+    is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
+    assert not is_rect
