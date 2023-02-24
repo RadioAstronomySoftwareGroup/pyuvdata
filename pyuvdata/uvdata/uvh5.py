@@ -282,20 +282,16 @@ class FastUVH5Meta:
     ):
         self.__file = None
 
-        if isinstance(path, h5py.Group):
+        if isinstance(path, h5py.File):
+            self.path = Path(path.filename)
+            self.__file = path
+            self.__header = path["/Header"]
+            self.__datagrp = path["/Data"]
+        elif isinstance(path, h5py.Group):
             self.path = Path(path.file.filename)
-            if path.file:  # False if File not open
-                self.__file = path.file
-                self.__header = path
-                self.__datagrp = self.__file["/Data"]
-            else:
-                self.open()
-        elif isinstance(path, h5py.File):
-            self.path = Path(path.file.filename)
-            if path:  # False if File not open
-                self.__file = path
-                self.__header = path["/Header"]
-                self.__datagrp = path["/Data"]
+            self.__file = path.file
+            self.__header = path
+            self.__datagrp = self.__file["/Data"]
         elif isinstance(path, (str, Path)):
             self.path = Path(path)
 
@@ -656,19 +652,6 @@ class FastUVH5Meta:
             return True
         else:
             return False
-
-    @cached_property
-    def freqs(self) -> np.ndarray:
-        """The frequencies in the file, in Hz.
-
-        Always a 1D array.
-        """
-        fq = self.freq_array
-
-        if fq.ndim == 2:
-            return fq[0]
-        else:
-            return fq
 
     @cached_property
     def pols(self) -> list[str]:

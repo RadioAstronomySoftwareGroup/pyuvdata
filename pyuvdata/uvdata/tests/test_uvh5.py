@@ -3591,6 +3591,9 @@ class TestFastUVH5Meta:
                 np.unique(meta.baseline_array)
             )
             assert set(meta.antpairs) == set(uvd.get_antpairs())
+            assert meta.unique_ants == set(
+                np.concatenate([meta.ant_1_array, meta.ant_2_array])
+            )
 
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
         uvd = meta.to_uvdata()
@@ -3612,10 +3615,6 @@ class TestFastUVH5Meta:
 
         assert meta.has_key((0, 1, "xy"))
         assert meta.has_key((1, 0, "yx"))
-
-    def test_freqs_is_1d(self):
-        meta = uvh5.FastUVH5Meta(self.fl)
-        assert meta.freqs.ndim == 1
 
     def test_pols(self):
         meta = uvh5.FastUVH5Meta(self.fl)
