@@ -4049,7 +4049,8 @@ def test_determine_blt_order_time_first():
     BL = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), 3)
 
     TIME = np.tile(times, len(ANT1))
-    BL = np.concatenate([np.shuffle(BL) for i in range(len(times))])
+    rng = np.random.default_rng(12345)
+    BL = np.concatenate([rng.permuted(BL) for i in range(len(times))])
 
     is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
     assert not is_rect
