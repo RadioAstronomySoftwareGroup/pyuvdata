@@ -3944,3 +3944,85 @@ def test_read_slicing():
     slices[1] = 0
     data = uvutils._index_dset(dset, slices)
     assert data.shape == tuple(shape)
+
+
+@pytest.mark.parametrize(
+    "blt_order",
+    [
+        ("time", "baseline"),
+        ("baseline", "time"),
+        ("ant1", "time"),
+        ("ant2", "time"),
+        ("time", "ant1"),
+        ("time", "ant2"),
+        ("baseline",),
+        ("time",),
+        ("ant1",),
+        ("ant2",),
+        (),
+    ],
+)
+def test_determine_blt_order(blt_order):
+    nant = 3
+    ntime = 2
+
+    def getbl(ant1, ant2):
+        return uvutils.antnums_to_baseline(ant1, ant2, nant)
+
+    def getantbls():
+        # Arrange them backwards so by default they are NOT sorted
+        ant1 = np.arange(nant, dtype=int)[::-1]
+        ant2 = ant1.copy()
+        ANT1, ANT2 = np.meshgrid(ant1, ant2)
+
+        return ANT1.flatten(), ANT2.flatten()
+
+    def gettimebls(blt_order):
+        ant1, ant2 = getantbls()
+        time_array = np.linspace(
+            2000, 1000, ntime
+        )  # backwards so not sorted by default
+
+        TIME = np.tile(time_array, len(ant1))
+        ANT1 = np.repeat(ant1, len(time_array))
+        ANT2 = np.repeat(ant2, len(time_array))
+        BASELINE = getbl(ANT1, ANT2)
+
+        lc = locals()
+        if blt_order:
+            inds = np.lexsort(tuple(lc[k.upper()] for k in blt_order[::-1]))
+        else:
+            inds = np.arange(len(TIME))
+
+        return TIME[inds], ANT1[inds], ANT2[inds], BASELINE[inds]
+
+    # time, bl
+    TIME, ANT1, ANT2, BL = gettimebls(blt_order)
+    print(blt_order)
+    print("TIME: ", TIME)
+    print("ANT1: ", ANT1)
+    print("ANT2: ", ANT2)
+    print("BL: ", BL)
+    order = uvutils.determine_blt_order(
+        TIME, ANT1, ANT2, BL, Nbls=nant**2, Ntimes=ntime
+    )
+    if blt_order:
+        assert order == blt_order
+    else:
+        assert order is None
+
+    is_rect, time_first = uvutils.determine_rectangularity(
+        TIME, BL, nbls=nant**2, ntimes=ntime
+    )
+    if blt_order in [("ant1", "time"), ("ant2", "time")]:
+        # sorting by ant1/ant2 then time means we split the other ant into a
+        # separate group
+        assert not is_rect
+        assert not time_first
+    else:
+        assert is_rect
+        assert time_first == (
+            (len(blt_order) == 2 and blt_order[-1] == "time")
+            or (len(blt_order) == 1 and blt_order[0] != "time")
+            or not blt_order  # we by default move time first (backwards, but still)
+        )
