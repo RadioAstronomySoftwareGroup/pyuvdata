@@ -513,7 +513,7 @@ class FastUVH5Meta:
         """The unique times in the file."""
         h = self.header
         if self.blts_are_rectangular:
-            if self._time_first:
+            if self.time_axis_faster_than_bls:
                 return h["time_array"][: self.Ntimes]
             else:
                 return h["time_array"][:: self.Nbls]
@@ -526,7 +526,7 @@ class FastUVH5Meta:
         h = self.header
         if "lst_array" in h:
             if self.blts_are_rectangular:
-                if self._time_first:
+                if self.time_axis_faster_than_bls:
                     return h["lst_array"][: self.Ntimes]
                 else:
                     return h["lst_array"][:: self.Nbls]
@@ -599,7 +599,7 @@ class FastUVH5Meta:
         """The unique antenna 1 indices in the file."""
         h = self.header
         if self.blts_are_rectangular:
-            if self._time_first:
+            if self.time_axis_faster_than_bls:
                 return h["ant_1_array"][:: self.Ntimes]
             else:
                 return h["ant_1_array"][: self.Nbls]
@@ -611,7 +611,7 @@ class FastUVH5Meta:
         """The unique antenna 2 indices in the file."""
         h = self.header
         if self.blts_are_rectangular:
-            if self._time_first:
+            if self.time_axis_faster_than_bls:
                 return h["ant_2_array"][:: self.Ntimes]
             else:
                 return h["ant_2_array"][: self.Nbls]

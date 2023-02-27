@@ -3493,8 +3493,10 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
         uvd.reorder_blts(order="baseline", minor_order="time")
-        self.fl_time_first = os.path.join(self.tmp_path.name, "time_first.uvh5")
-        uvd.initialize_uvh5_file(self.fl_time_first, clobber=True)
+        self.fltime_axis_faster_than_bls = os.path.join(
+            self.tmp_path.name, "time_axis_faster_than_bls.uvh5"
+        )
+        uvd.initialize_uvh5_file(self.fltime_axis_faster_than_bls, clobber=True)
 
     def teardown_class(self):
         self.tmp_path.cleanup()
@@ -3549,22 +3551,22 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
         assert not meta.blts_are_rectangular
 
-    def test_time_first(self):
-        meta = uvh5.FastUVH5Meta(self.fl, time_first=None)
-        assert not meta._time_first
+    def testtime_axis_faster_than_bls(self):
+        meta = uvh5.FastUVH5Meta(self.fl, time_axis_faster_than_bls=None)
+        assert not meta.time_axis_faster_than_bls
 
         meta = uvh5.FastUVH5Meta(self.fl_singlebl)
-        assert meta._time_first
+        assert meta.time_axis_faster_than_bls
 
         meta = uvh5.FastUVH5Meta(self.fl_singlebl, blts_are_rectangular=True)
-        assert meta._time_first
+        assert meta.time_axis_faster_than_bls
 
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
-        assert not meta._time_first
+        assert not meta.time_axis_faster_than_bls
 
-        meta1 = uvh5.FastUVH5Meta(self.fl_time_first)
+        meta1 = uvh5.FastUVH5Meta(self.fltime_axis_faster_than_bls)
         assert np.all(meta1.times == meta.times)
-        assert meta1._time_first
+        assert meta1.time_axis_faster_than_bls
 
     def test_phase_type_with_pcc(self):
         meta = uvh5.FastUVH5Meta(self.fl)
@@ -3591,10 +3593,13 @@ class TestFastUVH5Meta:
         uvd = meta.to_uvdata()
         uvd.reorder_blts(order="baseline", minor_order="time")
         uvd.initialize_uvh5_file(
-            os.path.join(self.tmp_path.name, "time_first.uvh5"), clobber=True
+            os.path.join(self.tmp_path.name, "time_axis_faster_than_bls.uvh5"),
+            clobber=True,
         )
 
-        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "time_first.uvh5"))
+        meta1 = uvh5.FastUVH5Meta(
+            os.path.join(self.tmp_path.name, "time_axis_faster_than_bls.uvh5")
+        )
         assert np.allclose(meta1.lsts, meta.lsts)
 
     def test_unique_arrays(self):
@@ -3616,7 +3621,7 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=True)
         do_asserts(meta)
 
-        meta = uvh5.FastUVH5Meta(self.fl_time_first)
+        meta = uvh5.FastUVH5Meta(self.fltime_axis_faster_than_bls)
         do_asserts(meta)
 
     def test_has_key(self):

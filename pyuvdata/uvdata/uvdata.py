@@ -3,6 +3,8 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer datasets."""
+from __future__ import annotations
+
 import copy
 import os
 import threading
