@@ -88,6 +88,8 @@ def uvdata_props():
         "flex_spw_id_array",
         "flex_spw_polarization_array",
         "filename",
+        "blts_are_rectangular",
+        "time_axis_faster_than_bls",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
