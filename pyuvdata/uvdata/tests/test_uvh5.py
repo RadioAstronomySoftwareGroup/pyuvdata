@@ -3551,7 +3551,7 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
         assert not meta.blts_are_rectangular
 
-    def testtime_axis_faster_than_bls(self):
+    def test_time_axis_faster_than_bls(self):
         meta = uvh5.FastUVH5Meta(self.fl, time_axis_faster_than_bls=None)
         assert not meta.time_axis_faster_than_bls
 
@@ -3649,3 +3649,27 @@ class TestFastUVH5Meta:
         sma_mir.write_uvh5(os.path.join(testdir, "sma_mir.uvh5"))
         meta = uvh5.FastUVH5Meta(os.path.join(testdir, "sma_mir.uvh5"))
         assert meta.phase_type == "phased"
+
+    def test_rectangularity_roundtrip(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        uvd = meta.to_uvdata()
+        uvd.initialize_uvh5_file(
+            os.path.join(self.tmp_path.name, "rectangular.uvh5"), clobber=True
+        )
+        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "rectangular.uvh5"))
+        assert meta1.blts_are_rectangular
+        assert not meta1.time_axis_faster_than_bls
+
+        # force them to be wrong!
+        meta = uvh5.FastUVH5Meta(self.fl)
+        uvd = meta.to_uvdata()
+        uvd.blts_are_rectangular = False
+        uvd.time_axis_faster_than_bls = False
+        uvd.initialize_uvh5_file(
+            os.path.join(self.tmp_path.name, "not_rectangular.uvh5"), clobber=True
+        )
+        meta1 = uvh5.FastUVH5Meta(
+            os.path.join(self.tmp_path.name, "not_rectangular.uvh5")
+        )
+        assert not meta1.blts_are_rectangular
+        assert not meta1.time_axis_faster_than_bls

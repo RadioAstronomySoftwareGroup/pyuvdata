@@ -437,7 +437,7 @@ class FastUVH5Meta:
         if self.__time_first is not None:
             return self.__time_first
         if "time_axis_faster_than_bls" in self.header:
-            return self.header["time_axis_faster_than_bls"]
+            return bool(self.header["time_axis_faster_than_bls"][()])
         if self.Ntimes == 1:
             return False
         if self.Nbls == 1:
@@ -800,6 +800,8 @@ class UVH5(UVData):
             "uvw_array",
             "channel_width",
             "phase_center_catalog",
+            # "blts_are_rectangular",
+            # "time_axis_faster_than_bls",
         ]:
             try:
                 setattr(self, attr, getattr(obj, attr))
