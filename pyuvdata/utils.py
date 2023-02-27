@@ -5660,9 +5660,10 @@ def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
     -------
     is_rect : bool
         True if the data is rectangular, False otherwise.
-    time_first : bool
-        True if the data is rectangular and time moves first (i.e. is "last axis").
-        False either if baseline moves first, OR if it is not rectangular.
+    time_axis_faster_than_bls : bool
+        True if the data is rectangular and the time axis is the last axis (i.e. times
+        change first, then bls). False either if baselines change first, OR if it is
+        not rectangular.
 
     Notes
     -----
