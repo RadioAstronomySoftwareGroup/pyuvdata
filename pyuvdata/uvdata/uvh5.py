@@ -216,14 +216,24 @@ class FastUVH5Meta:
     ----------
     filename : str or Path
         The filename to read from.
-    blt_order : tuple of str
+    blt_order : tuple of str or "determine", optional
         The order of the baseline-time axis. This can be determined, or read
         directly from file, however since it has been optional in the past, many
         existing files do not contain it in the metadata.
         Some reading operations are significantly faster if this is known, so providing
         it here can provide a speedup. Default is to try and read it from file,
         and if not there, just leave it as None. Set to "determine" to auto-detect
-        the blt_order from the metadata.
+        the blt_order from the metadata (takes extra time to do so).
+    blts_are_rectangular : bool, optional
+        Whether the baseline-time axis is rectangular. This can be read from metadata
+        in new files, but many old files do not contain it. If not provided, the
+        rectangularity will be determined from the data. This is a non-negligible
+        operation, so if you know it, it can be provided here to speed up reading.
+    time_axis_faster_than_bls : bool, optional
+        If blts are rectangular, this variable specifies whether the time axis is
+        the fastest-moving virtual axis. Various reading functions benefit from knowing
+        this, so if it is known, it can be provided here to speed up reading. It will
+        be determined from the data if not provided.
 
     Notes
     -----
@@ -267,7 +277,8 @@ class FastUVH5Meta:
             "dut1",
             "earth_omega",
             "gst0",
-            "phase_center_ra" "phase_center_dec",
+            "phase_center_ra",
+            "phase_center_dec",
             "phase_center_epoch",
         }
     )
@@ -278,7 +289,7 @@ class FastUVH5Meta:
         path: str | Path | h5py.File | h5py.Group,
         blt_order: Literal["determine"] | tuple[str] | None = None,
         blts_are_rectangular: bool | None = None,
-        time_first: bool | None = None,
+        time_axis_faster_than_bls: bool | None = None,
     ):
         self.__file = None
 
@@ -299,7 +310,7 @@ class FastUVH5Meta:
             self.open()
 
         self.__blts_are_rectangular = blts_are_rectangular
-        self.__time_first = time_first
+        self.__time_first = time_axis_faster_than_bls
         self.__blt_order = blt_order
 
     def __del__(self):
@@ -399,6 +410,10 @@ class FastUVH5Meta:
         if self.__blts_are_rectangular is not None:
             return self.__blts_are_rectangular
 
+        h = self.header
+        if "blts_are_rectangular" in h:
+            return bool(h["blts_are_rectangular"][()])
+
         if self.Nblts == self.Ntimes * self.Nbls and self.blt_order in (
             ("time", "baseline"),
             ("baseline", "time"),
@@ -414,13 +429,15 @@ class FastUVH5Meta:
         return is_rect
 
     @cached_property
-    def _time_first(self) -> bool:
+    def time_axis_faster_than_bls(self) -> bool:
         """Whether times move first in the blt axis."""
         # first hit the blts_are_rectangular property to set the time_first property
         if not self.blts_are_rectangular:
             return False
         if self.__time_first is not None:
             return self.__time_first
+        if "time_axis_faster_than_bls" in self.header:
+            return self.header["time_axis_faster_than_bls"]
         if self.Ntimes == 1:
             return False
         if self.Nbls == 1:
@@ -664,15 +681,21 @@ class FastUVH5Meta:
     @cached_property
     def antpos_enu(self) -> np.ndarray:
         """The antenna positions in ENU coordinates, in meters."""
-        XYZ = uvutils.XYZ_from_LatLonAlt(
-            self.latitude * np.pi / 180, self.longitude * np.pi / 180, self.altitude
-        )
         return uvutils.ENU_from_ECEF(
-            self.antenna_positions + XYZ,
-            self.latitude * np.pi / 180,
-            self.longitude,
-            self.altitude,
+            self.antenna_positions + self.telescope_location,
+            *self.telescope_location_lat_lon_alt,
+            frame="itrs",
         )
+
+    @cached_property
+    def telescope_location(self):
+        """The telescope location in ECEF coordinates, in meters."""
+        return uvutils.XYZ_from_LatLonAlt(*self.telescope_location_lat_lon_alt)
+
+    @property
+    def telescope_location_lat_lon_alt(self) -> tuple[float, float, float]:
+        """The telescope location in latitude, longitude, and altitude, in degrees."""
+        return self.latitude * np.pi / 180, self.longitude * np.pi / 180, self.altitude
 
     @property
     def telescope_location_lat_lon_alt_degrees(self) -> tuple[float, float, float]:
@@ -721,7 +744,7 @@ class UVH5(UVData):
         run_check_acceptability: bool = True,
         blt_order: tuple[str] | None | Literal["determine"] = None,
         blts_are_rectangular: bool | None = None,
-        time_first: bool | None = None,
+        time_axis_faster_than_bls: bool | None = None,
         background_lsts: bool = True,
     ):
         if not isinstance(filename, FastUVH5Meta):
@@ -729,7 +752,7 @@ class UVH5(UVData):
                 filename,
                 blt_order=blt_order,
                 blts_are_rectangular=blts_are_rectangular,
-                time_first=time_first,
+                time_axis_faster_than_bls=time_axis_faster_than_bls,
             )
         else:
             obj = filename
@@ -868,10 +891,7 @@ class UVH5(UVData):
             proc.join()
 
     def _read_header(
-        self,
-        filename: str | Path | FastUVH5Meta | h5py.File | h5py.Group,
-        run_check_acceptability=True,
-        background_lsts=True,
+        self, filename: str | Path | FastUVH5Meta | h5py.File | h5py.Group, **kwargs
     ):
         """
         Read header information from a UVH5 file.
@@ -884,21 +904,16 @@ class UVH5(UVData):
         header : h5py datagroup
             A reference to an h5py data group that contains the header
             information. Should be "/Header" for UVH5 files conforming to spec.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+
+        Other Parameters
+        ----------------
+        All other parameters passed through to :func:`_read_header_with_fast_meta`.
 
         Returns
         -------
         None
         """
-        self._read_header_with_fast_meta(
-            filename,
-            run_check_acceptability=run_check_acceptability,
-            background_lsts=background_lsts,
-        )
+        self._read_header_with_fast_meta(filename, **kwargs)
 
     def _get_data(
         self,
@@ -1251,6 +1266,9 @@ class UVH5(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        blt_order: tuple[str] | Literal["determine"] | None = None,
+        blts_are_rectangular: bool | None = None,
+        time_axis_faster_than_bls: bool | None = None,
     ):
         """
         Read in data from a UVH5 file.
@@ -1382,10 +1400,29 @@ class UVH5(UVData):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        blt_order : tuple of str or "determine", optional
+            The order of the baseline-time axis. This can be determined, or read
+            directly from file, however since it has been optional in the past, many
+            existing files do not contain it in the metadata.
+            Some reading operations are significantly faster if this is known, so
+            providing it here can provide a speedup. Default is to try and read it from
+            file, and if not there, just leave it as None. Set to "determine" to
+            auto-detect the blt_order from the metadata (takes extra time to do so).
+        blts_are_rectangular : bool, optional
+            Whether the baseline-time axis is rectangular. This can be read from
+            metadata in new files, but many old files do not contain it. If not
+            provided, the rectangularity will be determined from the data. This is a
+            non-negligible operation, so if you know it, it can be provided here to
+            speed up reading.
+        time_axis_faster_than_bls : bool, optional
+            If blts are rectangular, this variable specifies whether the time axis is
+            the fastest-moving virtual axis. Various reading functions benefit from
+            knowing this, so if it is known, it can be provided here to speed up
+            reading. It will be determined from the data if not provided.
 
         Returns
         -------
-            None
+        None
 
         Raises
         ------
@@ -1402,7 +1439,12 @@ class UVH5(UVData):
             meta = filename
             filename = str(meta.path)
         else:
-            meta = FastUVH5Meta(filename)
+            meta = FastUVH5Meta(
+                filename,
+                blt_order=blt_order,
+                blts_are_rectangular=blts_are_rectangular,
+                time_axis_faster_than_bls=time_axis_faster_than_bls,
+            )
 
         if not os.path.exists(filename):
             raise IOError(filename + " not found")
@@ -1607,6 +1649,11 @@ class UVH5(UVData):
             header["flex_spw_id_array"] = self.flex_spw_id_array
         if self.flex_spw_polarization_array is not None:
             header["flex_spw_polarization_array"] = self.flex_spw_polarization_array
+
+        if self.blts_are_rectangular is not None:
+            header["blts_are_rectangular"] = self.blts_are_rectangular
+        if self.time_axis_faster_than_bls is not None:
+            header["time_axis_faster_than_bls"] = self.time_axis_faster_than_bls
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:

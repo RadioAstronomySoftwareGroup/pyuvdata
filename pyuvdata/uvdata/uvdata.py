@@ -8,6 +8,7 @@ import os
 import threading
 import warnings
 from collections.abc import Iterable
+from typing import Literal
 
 import astropy.units as units
 import numpy as np
@@ -634,6 +635,27 @@ class UVData(UVBase):
             required=False,
             expected_type=str,
             acceptable_vals=blt_order_options,
+        )
+
+        desc = (
+            "Whether the baseline-time axis is rectangular. If not provided, the "
+            "rectangularity will be determined from the data. This is a non-negligible"
+            "operation, so if you know it, it can be provided."
+        )
+        self._blts_are_rectangular = uvp.UVParameter(
+            "blts_are_rectangular", description=desc, required=False, expected_type=bool
+        )
+
+        desc = (
+            "If blts are rectangular, this variable specifies whether the time axis is"
+            "the fastest-moving virtual axis. Various reading/indexing functions "
+            "benefit from knowing this, so if it is known, it should be provided."
+        )
+        self._time_axis_faster_than_bls = uvp.UVParameter(
+            "time_axis_faster_than_bls",
+            description=desc,
+            required=False,
+            expected_type=bool,
         )
 
         desc = (
@@ -3247,6 +3269,22 @@ class UVData(UVBase):
         )
         logger.debug("... Done UVBase Check")
 
+        # Check blt axis rectangularity arguments
+        if self.time_axis_faster_than_bls and not self.blts_are_rectangular:
+            raise ValueError(
+                "time_axis_faster_than_bls is True but blts_are_rectangular is False. "
+                "This is not allowed."
+            )
+
+        if self.time_axis_faster_than_bls:
+            if self.Nbls != 1 and self.Ntimes == 1:
+                raise ValueError("time_axis_faster_than_bls is True but Ntimes is 1. ")
+            if self.Ntimes > 1 and self.time_array[1] == self.time_array[0]:
+                raise ValueError(
+                    "time_axis_faster_than_bls is True but time_array does not"
+                    "move first"
+                )
+
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
         if self.Nants_data != self._calc_nants_data():
@@ -4321,7 +4359,7 @@ class UVData(UVBase):
             antpos = antpos[select, :]
             ants = telescope_ants[select]
 
-        if center is True:
+        if center:
             antpos -= np.median(antpos, axis=0)
 
         return antpos, ants
@@ -12140,6 +12178,9 @@ class UVData(UVBase):
         # uvh5
         multidim_index=False,
         remove_flex_pol=True,
+        blt_order: tuple[str] | Literal["determine"] | None = None,
+        blts_are_rectangular: bool | None = None,
+        time_axis_faster_than_bl: bool | None = None,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -12446,6 +12487,25 @@ class UVData(UVBase):
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
+        blt_order : tuple of str or "determine", optional
+            The order of the baseline-time axis *in the file*. This can be determined,
+            or read directly from file, however since it has been optional in the past,
+            many existing files do not contain it in the metadata.
+            Some reading operations are significantly faster if this is known, so
+            providing it here can provide a speedup. Default is to try and read it from
+            file, and if not there, just leave it as None. Set to "determine" to
+            auto-detect the blt_order from the metadata (takes extra time to do so).
+        blts_are_rectangular : bool, optional
+            Whether the baseline-time axis is rectangular. This can be read from
+            metadata in new files, but many old files do not contain it. If not
+            provided, the rectangularity will be determined from the data. This is a
+            non-negligible operation, so if you know it, it can be provided here to
+            speed up reading.
+        time_axis_faster_than_bls : bool, optional
+            If blts are rectangular, this variable specifies whether the time axis is
+            the fastest-moving virtual axis. Various reading functions benefit from
+            knowing this, so if it is known, it can be provided here to speed up
+            reading. It will be determined from the data if not provided.
 
         MWA FITS
         --------

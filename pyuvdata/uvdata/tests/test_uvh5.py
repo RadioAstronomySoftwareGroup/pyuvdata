@@ -3478,6 +3478,7 @@ def test_uvh5_bitshuffle(uv_phase_comp, tmp_path):
 
 
 @pytest.mark.usefixtures("tmp_path_factory")
+@pytest.mark.usefixtures("sma_mir")
 class TestFastUVH5Meta:
     def setup_class(self):
         self.fl = os.path.join(DATA_PATH, "zen.2458432.34569.uvh5")
@@ -3555,6 +3556,9 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl_singlebl)
         assert meta._time_first
 
+        meta = uvh5.FastUVH5Meta(self.fl_singlebl, blts_are_rectangular=True)
+        assert meta._time_first
+
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
         assert not meta._time_first
 
@@ -3582,6 +3586,16 @@ class TestFastUVH5Meta:
 
         meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "no_lsts.uvh5"))
         assert np.allclose(meta1.lst_array, meta.lst_array)
+
+        # Now test a different ordering.
+        uvd = meta.to_uvdata()
+        uvd.reorder_blts(order="baseline", minor_order="time")
+        uvd.initialize_uvh5_file(
+            os.path.join(self.tmp_path.name, "time_first.uvh5"), clobber=True
+        )
+
+        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "time_first.uvh5"))
+        assert np.allclose(meta1.lsts, meta.lsts)
 
     def test_unique_arrays(self):
         def do_asserts(meta):
@@ -3620,7 +3634,13 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl)
         assert meta.pols == ["xx", "yy", "xy", "yx"]
 
-    def antpos_enu(self):
+    def test_antpos_enu(self):
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
         assert np.allclose(meta.antpos_enu, uvd.get_ENU_antpos()[0])
+
+    def test_phased_phase_type(self, sma_mir, tmp_path_factory):
+        testdir = tmp_path_factory.mktemp("test_phased_phase_type")
+        sma_mir.write_uvh5(os.path.join(testdir, "sma_mir.uvh5"))
+        meta = uvh5.FastUVH5Meta(os.path.join(testdir, "sma_mir.uvh5"))
+        assert meta.phase_type == "phased"
