@@ -148,7 +148,7 @@ setup_args = {
         "h5py>=3.1",
         "numpy>=1.20",
         "pyerfa>=2.0",
-        "scipy>=1.3",
+        "scipy>=1.5",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
     ],
     "extras_require": {
