@@ -9,7 +9,7 @@ dependencies:
   - cython>=0.23
   - h5py>=3.1
   - hdf5plugin>=3.1.0
-  - numpy>=1.19
+  - numpy>=1.20
   - pip
   - pre-commit
   - pyerfa>=2.0
