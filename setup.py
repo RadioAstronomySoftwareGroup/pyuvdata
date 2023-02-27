@@ -146,7 +146,7 @@ setup_args = {
     "install_requires": [
         "astropy>=5.0.4",
         "h5py>=3.1",
-        "numpy>=1.19",
+        "numpy>=1.20",
         "pyerfa>=2.0",
         "scipy>=1.3",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
