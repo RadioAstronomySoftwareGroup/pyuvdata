@@ -1527,7 +1527,11 @@ class MS(UVData):
         time_arr = tb_main.getcol("TIME")
         timescale = tb_main.getcolkeyword("TIME", "MEASINFO")["Ref"]
         if timescale.lower() not in Time.SCALES:
-            msg = "This file has a timescale that is not supported by astropy."
+            msg = (
+                "This file has a timescale that is not supported by astropy. "
+                "If you need support for this timescale please make an issue on our "
+                "GitHub repo."
+            )
             if raise_error:
                 raise ValueError(
                     msg + " To bypass this error, you can set raise_error=False, which "
