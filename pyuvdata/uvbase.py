@@ -392,11 +392,7 @@ class UVBase(object):
             yield a
 
     def __eq__(
-        self,
-        other,
-        check_extra=True,
-        allowed_failures=("filename", "blt_order"),
-        silent=False,
+        self, other, check_extra=True, allowed_failures=("filename",), silent=False
     ):
         """
         Test if classes match and parameters are equal.

@@ -263,6 +263,7 @@ class UVParameter(object):
         acceptable_range=None,
         tols=(1e-05, 1e-08),
         strict_type_check=False,
+        ignore_eq_none: bool = False,
     ):
         """Init UVParameter object."""
         self.name = name
@@ -290,6 +291,8 @@ class UVParameter(object):
             # relative and absolute tolerances to be used in np.isclose
             self.tols = tols
 
+        self.ignore_eq_none = ignore_eq_none and not required
+
     def __eq__(self, other, silent=False):
         """
         Test if classes match and values are within tolerances.
@@ -302,210 +305,213 @@ class UVParameter(object):
             When set to False (default), descriptive text is printed out when parameters
             do not match. If set to True, this text is not printed.
         """
-        if isinstance(other, self.__class__) and isinstance(self, other.__class__):
-            if self.value is None:
-                if other.value is not None:
-                    if not silent:
-                        print(f"{self.name} is None on left, but not right")
-                    return False
-                else:
-                    return True
-            if other.value is None:
-                if self.value is not None:
-                    if not silent:
-                        print(f"{self.name} is None on right, but not left")
-                    return False
+        if not isinstance(other, self.__class__) and isinstance(self, other.__class__):
+            if not silent:
+                print(f"{self.name} parameter classes are different")
+            return False
 
-            if isinstance(self.value, np.ndarray) and not isinstance(
-                self.value.item(0), (str, np.str_)
-            ):
-                if not isinstance(other.value, np.ndarray):
-                    if not silent:
-                        print(f"{self.name} parameter value is array, but other is not")
-                    return False
-                if self.value.shape != other.value.shape:
+        # if a parameter should be considered equal if one of them is None, exit here.
+        if self.ignore_eq_none and (self.value is None or other.value is None):
+            return True
+
+        if self.value is None:
+            if other.value is not None:
+                if not silent:
+                    print(f"{self.name} is None on left, but not right")
+                return False
+            else:
+                return True
+        if other.value is None:
+            if self.value is not None:
+                if not silent:
+                    print(f"{self.name} is None on right, but not left")
+                return False
+
+        if isinstance(self.value, np.ndarray) and not isinstance(
+            self.value.item(0), (str, np.str_)
+        ):
+            if not isinstance(other.value, np.ndarray):
+                if not silent:
+                    print(f"{self.name} parameter value is array, but other is not")
+                return False
+            if self.value.shape != other.value.shape:
+                if not silent:
+                    print(
+                        f"{self.name} parameter value is array, shapes are " "different"
+                    )
+                return False
+
+            if isinstance(self.value, units.Quantity):
+                if not self.value.unit.is_equivalent(other.value.unit):
                     if not silent:
                         print(
-                            f"{self.name} parameter value is array, shapes are "
-                            "different"
+                            f"{self.name} parameter value is an astropy Quantity, "
+                            "units are not equivalent"
+                        )
+                    return False
+                if not isinstance(self.tols[1], units.Quantity):
+                    atol_use = self.tols[1] * self.value.unit
+                else:
+                    atol_use = self.tols[1]
+                if not units.quantity.allclose(
+                    self.value,
+                    other.value,
+                    rtol=self.tols[0],
+                    atol=atol_use,
+                    equal_nan=True,
+                ):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is an astropy Quantity, "
+                            "values are not close"
+                        )
+                    return False
+            else:
+                # check to see if strict types are used
+                if self.strict_type:
+                    # types must match
+                    if other.strict_type:
+                        # both strict, expected_type must match
+                        if self.expected_type != other.expected_type:
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter has incompatible "
+                                    f"types. Left is {self.expected_type}, right "
+                                    f"is {other.expected_type}"
+                                )
+                            return False
+                    elif not isinstance(self.value.item(0), other.expected_type):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible dtypes. "
+                                f"Left requires {self.expected_type}, right is "
+                                f"{other.value.dtype}"
+                            )
+                        return False
+                elif other.strict_type:
+                    # types must match in the other direction
+                    if not isinstance(other.value.item(0), self.expected_type):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter has incompatible dtypes. "
+                                f"Left is {self.value.dtype}, right requires "
+                                f"{other.expected_type}"
+                            )
+                        return False
+                if not np.allclose(
+                    self.value,
+                    other.value,
+                    rtol=self.tols[0],
+                    atol=self.tols[1],
+                    equal_nan=True,
+                ):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is array, values are not "
+                            "close"
+                        )
+                    return False
+        else:
+            # check to see if strict types are used
+            if self.strict_type:
+                # types must match
+                if not isinstance(self.value, other.expected_type):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter has incompatible types. Left "
+                            f"requires {type(self.value)}, right is "
+                            f"{other.expected_type}"
+                        )
+                    return False
+            if other.strict_type:
+                # types must match in the other direction
+                if not isinstance(other.value, self.expected_type):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter has incompatible types. Left "
+                            f"is {self.expected_type}, right requires "
+                            f"{type(other.value)}"
                         )
                     return False
 
-                if isinstance(self.value, units.Quantity):
-                    if not self.value.unit.is_equivalent(other.value.unit):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter value is an astropy Quantity, "
-                                "units are not equivalent"
-                            )
-                        return False
-                    if not isinstance(self.tols[1], units.Quantity):
-                        atol_use = self.tols[1] * self.value.unit
-                    else:
-                        atol_use = self.tols[1]
-                    if not units.quantity.allclose(
-                        self.value,
-                        other.value,
-                        rtol=self.tols[0],
-                        atol=atol_use,
-                        equal_nan=True,
-                    ):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter value is an astropy Quantity, "
-                                "values are not close"
-                            )
-                        return False
-                else:
-                    # check to see if strict types are used
-                    if self.strict_type:
-                        # types must match
-                        if other.strict_type:
-                            # both strict, expected_type must match
-                            if self.expected_type != other.expected_type:
-                                if not silent:
-                                    print(
-                                        f"{self.name} parameter has incompatible "
-                                        f"types. Left is {self.expected_type}, right "
-                                        f"is {other.expected_type}"
-                                    )
-                                return False
-                        elif not isinstance(self.value.item(0), other.expected_type):
-                            if not silent:
-                                print(
-                                    f"{self.name} parameter has incompatible dtypes. "
-                                    f"Left requires {self.expected_type}, right is "
-                                    f"{other.value.dtype}"
-                                )
-                            return False
-                    elif other.strict_type:
-                        # types must match in the other direction
-                        if not isinstance(other.value.item(0), self.expected_type):
-                            if not silent:
-                                print(
-                                    f"{self.name} parameter has incompatible dtypes. "
-                                    f"Left is {self.value.dtype}, right requires "
-                                    f"{other.expected_type}"
-                                )
-                            return False
+            str_type = False
+            if isinstance(self.value, str):
+                str_type = True
+            if isinstance(self.value, (list, np.ndarray, tuple)):
+                if isinstance(self.value[0], str):
+                    str_type = True
+
+            if not str_type:
+                if isinstance(other.value, np.ndarray):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is not an array, "
+                            "but other is not"
+                        )
+                    return False
+                try:
                     if not np.allclose(
-                        self.value,
-                        other.value,
+                        np.array(self.value),
+                        np.array(other.value),
                         rtol=self.tols[0],
                         atol=self.tols[1],
                         equal_nan=True,
                     ):
                         if not silent:
                             print(
-                                f"{self.name} parameter value is array, values are not "
-                                "close"
+                                f"{self.name} parameter value can be cast to an "
+                                "array and tested with np.allclose. The values are "
+                                "not close"
                             )
                         return False
-            else:
-                # check to see if strict types are used
-                if self.strict_type:
-                    # types must match
-                    if not isinstance(self.value, other.expected_type):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter has incompatible types. Left "
-                                f"requires {type(self.value)}, right is "
-                                f"{other.expected_type}"
-                            )
-                        return False
-                if other.strict_type:
-                    # types must match in the other direction
-                    if not isinstance(other.value, self.expected_type):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter has incompatible types. Left "
-                                f"is {self.expected_type}, right requires "
-                                f"{type(other.value)}"
-                            )
-                        return False
+                except TypeError:
+                    if isinstance(self.value, dict):
+                        message_str = f"{self.name} parameter is a dict"
+                        dict_equal, dict_message_str = _param_dict_equal(
+                            self.value, other.value
+                        )
 
-                str_type = False
-                if isinstance(self.value, str):
-                    str_type = True
-                if isinstance(self.value, (list, np.ndarray, tuple)):
-                    if isinstance(self.value[0], str):
-                        str_type = True
-
-                if not str_type:
-                    if isinstance(other.value, np.ndarray):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter value is not an array, "
-                                "but other is not"
-                            )
-                        return False
-                    try:
-                        if not np.allclose(
-                            np.array(self.value),
-                            np.array(other.value),
-                            rtol=self.tols[0],
-                            atol=self.tols[1],
-                            equal_nan=True,
-                        ):
-                            if not silent:
-                                print(
-                                    f"{self.name} parameter value can be cast to an "
-                                    "array and tested with np.allclose. The values are "
-                                    "not close"
-                                )
-                            return False
-                    except TypeError:
-                        if isinstance(self.value, dict):
-                            message_str = f"{self.name} parameter is a dict"
-                            dict_equal, dict_message_str = _param_dict_equal(
-                                self.value, other.value
-                            )
-
-                            if dict_equal:
-                                return True
-                            else:
-                                message_str += dict_message_str
-                                if not silent:
-                                    print(message_str)
-                                return False
+                        if dict_equal:
+                            return True
                         else:
-                            if self.value != other.value:
-                                if not silent:
-                                    print(
-                                        f"{self.name} parameter value is not a string "
-                                        "or a dict and cannot be cast as a numpy "
-                                        "array. The values are not equal."
-                                    )
-                                return False
-
-                else:
-                    if isinstance(self.value, (list, np.ndarray, tuple)):
-                        if [s.strip() for s in self.value] != [
-                            s.strip() for s in other.value
-                        ]:
+                            message_str += dict_message_str
                             if not silent:
-                                print(
-                                    f"{self.name} parameter value is a list of "
-                                    "strings, values are different"
-                                )
+                                print(message_str)
                             return False
                     else:
-                        if self.value.strip() != other.value.strip():
-                            if self.value.replace("\n", "").replace(
-                                " ", ""
-                            ) != other.value.replace("\n", "").replace(" ", ""):
-                                if not silent:
-                                    print(
-                                        f"{self.name} parameter value is a string, "
-                                        "values are different"
-                                    )
-                                return False
+                        if self.value != other.value:
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter value is not a string "
+                                    "or a dict and cannot be cast as a numpy "
+                                    "array. The values are not equal."
+                                )
+                            return False
 
-            return True
-        else:
-            if not silent:
-                print(f"{self.name} parameter classes are different")
-            return False
+            else:
+                if isinstance(self.value, (list, np.ndarray, tuple)):
+                    if [s.strip() for s in self.value] != [
+                        s.strip() for s in other.value
+                    ]:
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is a list of "
+                                "strings, values are different"
+                            )
+                        return False
+                else:
+                    if self.value.strip() != other.value.strip():
+                        if self.value.replace("\n", "").replace(
+                            " ", ""
+                        ) != other.value.replace("\n", "").replace(" ", ""):
+                            if not silent:
+                                print(
+                                    f"{self.name} parameter value is a string, "
+                                    "values are different"
+                                )
+                            return False
+
+        return True
 
     def __ne__(self, other, silent=True):
         """

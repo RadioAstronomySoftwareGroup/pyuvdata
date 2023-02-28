@@ -637,6 +637,7 @@ class UVData(UVBase):
             required=False,
             expected_type=str,
             acceptable_vals=blt_order_options,
+            ignore_eq_none=True,
         )
 
         desc = (
@@ -645,7 +646,11 @@ class UVData(UVBase):
             "operation, so if you know it, it can be provided."
         )
         self._blts_are_rectangular = uvp.UVParameter(
-            "blts_are_rectangular", description=desc, required=False, expected_type=bool
+            "blts_are_rectangular",
+            description=desc,
+            required=False,
+            expected_type=bool,
+            ignore_eq_none=True,
         )
 
         desc = (
@@ -658,6 +663,7 @@ class UVData(UVBase):
             description=desc,
             required=False,
             expected_type=bool,
+            ignore_eq_none=True,
         )
 
         desc = (
