@@ -7318,6 +7318,7 @@ class UVData(UVBase):
                 this.reorder_pols(temp_ind)
 
         # Pad out self to accommodate new data
+        blt_order = None
         if len(bnew_inds) > 0:
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
@@ -7367,6 +7368,7 @@ class UVData(UVBase):
                 [this.phase_center_id_array, other.phase_center_id_array[bnew_inds]]
             )[blt_order]
 
+        f_order = None
         if len(fnew_inds) > 0:
             if this.future_array_shapes:
                 this.freq_array = np.concatenate(
@@ -7460,6 +7462,8 @@ class UVData(UVBase):
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad], axis=2
                     ).astype(np.bool_)
+
+        p_order = None
         if len(pnew_inds) > 0:
             this.polarization_array = np.concatenate(
                 [this.polarization_array, other.polarization_array[pnew_inds]]
@@ -7543,42 +7547,23 @@ class UVData(UVBase):
                 ] = other.flag_array
 
             # Fix ordering
+            baxis_num = 0
             if this.future_array_shapes:
-                if len(bnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[blt_order, :, :])
-
-                if len(fnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[:, f_order, :])
-
-                if len(pnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[:, :, p_order])
+                faxis_num = 1
+                paxis_num = 2
             else:
-                if len(bnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[blt_order, :, :, :])
+                faxis_num = 2
+                paxis_num = 3
 
-                if len(fnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[:, :, f_order, :])
-
-                if len(pnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        setattr(this, name, param[:, :, :, p_order])
+            axis_dict = {
+                baxis_num: {"inds": bnew_inds, "order": blt_order},
+                faxis_num: {"inds": fnew_inds, "order": f_order},
+                paxis_num: {"inds": pnew_inds, "order": p_order},
+            }
+            for axis, subdict in axis_dict.items():
+                for name, param in zip(this._data_params, this.data_like_parameters):
+                    if len(subdict["inds"]) > 0:
+                        setattr(this, name, np.take(param, subdict["order"], axis=axis))
 
         if len(fnew_inds) > 0:
             if this.future_array_shapes:
