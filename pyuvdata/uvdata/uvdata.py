@@ -3289,7 +3289,7 @@ class UVData(UVBase):
                 raise ValueError("time_axis_faster_than_bls is True but Ntimes is 1. ")
             if self.Ntimes > 1 and self.time_array[1] == self.time_array[0]:
                 raise ValueError(
-                    "time_axis_faster_than_bls is True but time_array does not"
+                    "time_axis_faster_than_bls is True but time_array does not "
                     "move first"
                 )
 
@@ -5065,14 +5065,13 @@ class UVData(UVBase):
 
         # Fix the rectangularity attributes
         if order in ("bda", "ant1", "ant2") or minor_order in ("ant1", "ant2", None):
-            self.blts_are_rectangular = False
-            self.time_axis_faster_than_bls = False
-        elif order == "baseline" and minor_order == "time":
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = True
-        elif order == "time" and minor_order == "baseline":
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = False
+            self.blts_are_rectangular = None
+            self.time_axis_faster_than_bls = None
+        elif self.blts_are_rectangular:
+            if order == "baseline" and minor_order == "time":
+                self.time_axis_faster_than_bls = True
+            elif order == "time" and minor_order == "baseline":
+                self.time_axis_faster_than_bls = False
 
         # check if object is self-consistent
         if run_check:
