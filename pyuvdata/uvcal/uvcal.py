@@ -2434,6 +2434,7 @@ class UVCal(UVBase):
             Nf_tqa = this.Nfreqs
 
         # Pad out self to accommodate new data
+        ant_order = None
         if len(anew_inds) > 0:
             this.ant_array = np.concatenate(
                 [this.ant_array, other.ant_array[anew_inds]]
@@ -2549,6 +2550,7 @@ class UVCal(UVBase):
                             [this.input_flag_array, 1 - zero_pad], axis=0
                         ).astype(np.bool_)
 
+        f_order = None
         if len(fnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as the
             # main data.
@@ -2754,6 +2756,7 @@ class UVCal(UVBase):
                                 [this.input_flag_array, 1 - zero_pad], axis=2
                             ).astype(np.bool_)
 
+        t_order = None
         if len(tnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
             # the main data
@@ -2956,6 +2959,7 @@ class UVCal(UVBase):
                             [this.input_flag_array, 1 - zero_pad], axis=3
                         ).astype(np.bool_)
 
+        j_order = None
         if len(jnew_inds) > 0:
             # Exploit the fact that quality array has the same dimensions as
             # the main data
@@ -3245,72 +3249,37 @@ class UVCal(UVBase):
                         ] = other.input_flag_array
 
             # Fix ordering
-            if len(anew_inds) > 0:
-                for name, param in zip(this._data_params, this.data_like_parameters):
-                    if param is not None:
-                        setattr(this, name, param[ant_order])
+            ant_axis_num = 0
             if this.future_array_shapes:
-                if len(fnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[f_order])
-                        else:
-                            setattr(this, name, param[:, f_order])
-                if len(tnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[:, t_order])
-                        else:
-                            setattr(this, name, param[:, :, t_order])
-                if len(jnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[:, :, j_order])
-                        else:
-                            setattr(this, name, param[:, :, :, j_order])
+                faxis_num = 1
+                taxis_num = 2
+                jaxis_num = 3
             else:
-                if len(fnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[:, f_order])
-                        else:
-                            setattr(this, name, param[:, :, f_order])
-                if len(tnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[:, :, t_order])
-                        else:
-                            setattr(this, name, param[:, :, :, t_order])
-                if len(jnew_inds) > 0:
-                    for name, param in zip(
-                        this._data_params, this.data_like_parameters
-                    ):
-                        if param is None:
-                            continue
-                        elif name == "total_quality_array":
-                            setattr(this, name, param[:, :, :, j_order])
-                        else:
-                            setattr(this, name, param[:, :, :, :, j_order])
+                faxis_num = 2
+                taxis_num = 3
+                jaxis_num = 4
+
+            axis_dict = {
+                ant_axis_num: {"inds": anew_inds, "order": ant_order},
+                faxis_num: {"inds": fnew_inds, "order": f_order},
+                taxis_num: {"inds": tnew_inds, "order": t_order},
+                jaxis_num: {"inds": jnew_inds, "order": j_order},
+            }
+
+            for name, param in zip(this._data_params, this.data_like_parameters):
+                if param is None:
+                    continue
+                axis_delta = 0
+                if name == "total_quality_array":
+                    axis_delta = 1
+
+                for axis, subdict in axis_dict.items():
+                    if len(subdict["inds"]) > 0:
+                        setattr(
+                            this,
+                            name,
+                            np.take(param, subdict["order"], axis=axis - axis_delta),
+                        )
 
         if len(anew_inds) > 0:
             this.ant_array = this.ant_array[ant_order]
