@@ -305,7 +305,9 @@ class UVParameter(object):
             When set to False (default), descriptive text is printed out when parameters
             do not match. If set to True, this text is not printed.
         """
-        if not isinstance(other, self.__class__) and isinstance(self, other.__class__):
+        if not (
+            isinstance(other, self.__class__) and isinstance(self, other.__class__)
+        ):
             if not silent:
                 print(f"{self.name} parameter classes are different")
             return False

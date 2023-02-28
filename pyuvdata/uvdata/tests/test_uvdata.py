@@ -1640,8 +1640,24 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_phase_center_id_blts(carma_miriad):
     uv_obj = carma_miriad
-    uv_obj.reorder_blts(order="baseline")
+    print(
+        uv_obj.Nbls,
+        uv_obj.Nblts,
+        uv_obj.Ntimes,
+        uv_obj.Nbls * uv_obj.Ntimes,
+        uv_obj.blts_are_rectangular,
+        uv_obj.time_axis_faster_than_bls,
+    )
 
+    uv_obj.reorder_blts(order="baseline")
+    print(
+        uv_obj.Nbls,
+        uv_obj.Nblts,
+        uv_obj.Ntimes,
+        uv_obj.Nbls * uv_obj.Ntimes,
+        uv_obj.blts_are_rectangular,
+        uv_obj.time_axis_faster_than_bls,
+    )
     uv1 = uv_obj.select(
         phase_center_ids=0, blt_inds=np.arange(uv_obj.Nblts // 2), inplace=False
     )
