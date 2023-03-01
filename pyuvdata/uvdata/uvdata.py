@@ -4856,7 +4856,7 @@ class UVData(UVBase):
             self.time_axis_faster_than_bls = None
             return
 
-        rect, time = uvutils.detect_rectangularity(
+        rect, time = uvutils.determine_rectangularity(
             self.time_array,
             self.baseline_array,
             self.Nbls,
