@@ -12872,3 +12872,20 @@ def test_setting_time_axis_wrongly(casa_uvfits):
     assert not casa_uvfits.time_axis_faster_than_bls
     casa_uvfits.blts_are_rectangular = True
     assert not casa_uvfits.time_axis_faster_than_bls
+
+
+def test_set_rectangularity(casa_uvfits, hera_uvh5):
+    # without setting force=True, starting from unknown rectangularity, it does nothing.
+    casa_uvfits.set_rectangularity()
+    assert casa_uvfits.blts_are_rectangular is None
+    assert casa_uvfits.time_axis_faster_than_bls is None
+
+    # setting force=True will set the rectangularity attributes only if obvious
+    casa_uvfits.set_rectangularity(force=True)
+    assert casa_uvfits.blts_are_rectangular is False
+    assert casa_uvfits.time_axis_faster_than_bls is False
+
+    hera_uvh5.reorder_blts(order="time", minor_order="baseline")
+    hera_uvh5.set_rectangularity(force=True, calculate=True)
+    assert hera_uvh5.blts_are_rectangular is True
+    assert hera_uvh5.time_axis_faster_than_bls is False

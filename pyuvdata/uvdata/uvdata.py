@@ -4837,15 +4837,12 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
-    def set_rectangularity(self, calculate: bool = False, force: bool = False) -> None:
+    def set_rectangularity(self, force: bool = False) -> None:
         """
         Set the rectangularity attributes of the object.
 
         Parameters
         ----------
-        calculate : bool, optional
-            Whether to manually calculate the rectangularity of the object. This can
-            take extra time, compared to rudimentary checks on the object's attributes.
         force : bool, optional
             Whether to foce setting the rectangularity attributes, even if they are
             unset. Default is to leave them unset if they are not already set, but
@@ -4859,36 +4856,15 @@ class UVData(UVBase):
             self.time_axis_faster_than_bls = None
             return
 
-        # Clear all info, so we recalculate from scratch.
-        self.blts_are_rectangular = None
-        self.time_axis_faster_than_bls = None
-
-        # Simple checks.
-        if self.Nbls * self.Ntimes != self.Nblts:
-            self.blts_are_rectangular = False
-            self.time_axis_faster_than_bls = False
-        elif self.Nbls == 1:
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = True
-        elif self.Ntimes == 1:
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = False
-        elif self.blt_order == ("time", "baseline"):
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = False
-        elif self.blt_order == ("baseline", "time"):
-            self.blts_are_rectangular = True
-            self.time_axis_faster_than_bls = True
-
-        if calculate and self.blts_are_rectangular is None:
-            rect, time = uvutils.detect_rectangularity(
-                self.time_array, self.baseline_array, self.Nbls, self.Ntimes
-            )
-            self.blts_are_rectangular = rect
-            self.time_axis_faster_than_bls = time
-
-        if self.blts_are_rectangular is False:
-            self.time_axis_faster_than_bls = False
+        rect, time = uvutils.detect_rectangularity(
+            self.time_array,
+            self.baseline_array,
+            self.Nbls,
+            self.Ntimes,
+            blt_order=self.blt_order,
+        )
+        self.blts_are_rectangular = rect
+        self.time_axis_faster_than_bls = time
 
     def reorder_blts(
         self,
