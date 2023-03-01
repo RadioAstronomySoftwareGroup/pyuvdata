@@ -5703,7 +5703,6 @@ def determine_rectangularity(
         time_first = False
     if baseline_array[1] == baseline_array[0]:
         bl_first = False
-
     if not time_first and not bl_first:
         return False, False
 
