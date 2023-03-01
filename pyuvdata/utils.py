@@ -5642,7 +5642,13 @@ def determine_blt_order(
     return None
 
 
-def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
+def determine_rectangularity(
+    time_array: np.ndarray,
+    baseline_array: np.ndarray,
+    nbls: int,
+    ntimes: int,
+    blt_order: str | tuple[str] | None = None,
+):
     """Determine if the data is rectangular or not.
 
     Parameters
@@ -5655,6 +5661,9 @@ def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
         Number of baselines.
     ntimes : int
         Number of times.
+    blt_order : str or tuple of str, optional
+        If known, pass the blt_order, which can short-circuit the determination
+        of rectangularity.
 
     Returns
     -------
@@ -5673,67 +5682,44 @@ def determine_rectangularity(time_array, baseline_array, nbls, ntimes):
     that structure.
     """
     # check if the data is rectangular
-    is_rect = True
     time_first = True
     bl_first = True
 
     if time_array.size != nbls * ntimes:
         return False, False
-
-    if nbls * ntimes == 1:
+    elif nbls * ntimes == 1:
         return True, True
-
-    if nbls == 1:
+    elif nbls == 1:
         return True, True
-    if ntimes == 1:
+    elif ntimes == 1:
+        return True, False
+    elif blt_order == ("baseline", "time"):
+        return True, True
+    elif blt_order == ("time", "baseline"):
         return True, False
 
-    # check if we're moving time first
-    for i in range(1, ntimes):
-        if time_array[i] == time_array[0]:
-            time_first = False
-            break
-
-    # check if we're moving bl first
-    bl0 = baseline_array[0]
-    for i in range(1, nbls):
-        if baseline_array[i] == bl0:
-            bl_first = False
-            break
+    # That's all the easiest checks.
+    if time_array[1] == time_array[0]:
+        time_first = False
+    if baseline_array[1] == baseline_array[0]:
+        bl_first = False
 
     if not time_first and not bl_first:
         return False, False
 
-    # Now do a proper check.
     if time_first:
-        for i in range(ntimes):
-            if (
-                np.unique(time_array[i::ntimes]).size != 1
-                or np.unique(baseline_array[i::ntimes]).size != nbls
-            ):
-                is_rect = False
-                break
-
+        time_array = time_array.reshape((nbls, ntimes))
+        baseline_array = baseline_array.reshape((nbls, ntimes))
+        if np.sum(np.abs(np.diff(time_array, axis=0))) != 0:
+            return False, False
+        if np.sum(np.abs(np.diff(baseline_array, axis=1))) != 0:
+            return False, False
+        return True, True
     elif bl_first:
-        for i in range(nbls):
-            if (
-                np.unique(baseline_array[i::nbls]).size != 1
-                or np.unique(time_array[i::nbls]).size != ntimes
-            ):
-                is_rect = False
-                break
-
-    if not is_rect:
-        return False, False
-
-    # We can't be rectangular AND have time/bl move first.
-    assert not (time_first and bl_first), (
-        "Something went wrong when determining rectangularity. "
-        "Data was determined to be rectangular, but also to have time AND "
-        "baseline moving first. "
-        "Please raise an issue on github, as this is not meant to happen."
-        f"Got TIMES = {time_array}\n"
-        f"Got BLs = {baseline_array}\n"
-    )
-
-    return is_rect, time_first
+        time_array = time_array.reshape((ntimes, nbls))
+        baseline_array = baseline_array.reshape((ntimes, nbls))
+        if np.sum(np.abs(np.diff(time_array, axis=1))) != 0:
+            return False, False
+        if np.sum(np.abs(np.diff(baseline_array, axis=0))) != 0:
+            return False, False
+        return True, False
