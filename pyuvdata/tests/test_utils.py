@@ -4061,3 +4061,9 @@ def test_determine_rect_time_first():
     BL = np.tile(bls, len(times))
     is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
     assert not is_rect
+
+    TIME = np.array([1000.0, 1000.0, 2000.0, 1000.0])
+    BLS = np.array([0, 0, 1, 0])
+
+    is_rect, time_first = uvutils.determine_rectangularity(TIME, BLS, nbls=2, ntimes=2)
+    assert not is_rect
