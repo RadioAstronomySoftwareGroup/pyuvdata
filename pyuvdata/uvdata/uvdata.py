@@ -5091,12 +5091,7 @@ class UVData(UVBase):
             self.flag_array = self.flag_array[index_array]
             self.nsample_array = self.nsample_array[index_array]
 
-        # Fix the rectangularity attributes
-        if order in ("bda", "ant1", "ant2") or minor_order in ("ant1", "ant2", None):
-            self.blts_are_rectangular = None
-            self.time_axis_faster_than_bls = None
-        else:
-            self.set_rectangularity(force=True)
+        self.set_rectangularity(force=True)
 
         # check if object is self-consistent
         if run_check:
