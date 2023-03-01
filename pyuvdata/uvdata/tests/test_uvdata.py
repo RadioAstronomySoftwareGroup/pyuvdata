@@ -12886,6 +12886,6 @@ def test_set_rectangularity(casa_uvfits, hera_uvh5):
     assert casa_uvfits.time_axis_faster_than_bls is False
 
     hera_uvh5.reorder_blts(order="time", minor_order="baseline")
-    hera_uvh5.set_rectangularity(force=True, calculate=True)
+    hera_uvh5.set_rectangularity(force=True)
     assert hera_uvh5.blts_are_rectangular is True
     assert hera_uvh5.time_axis_faster_than_bls is False
