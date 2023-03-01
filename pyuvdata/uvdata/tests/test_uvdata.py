@@ -1640,24 +1640,8 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_phase_center_id_blts(carma_miriad):
     uv_obj = carma_miriad
-    print(
-        uv_obj.Nbls,
-        uv_obj.Nblts,
-        uv_obj.Ntimes,
-        uv_obj.Nbls * uv_obj.Ntimes,
-        uv_obj.blts_are_rectangular,
-        uv_obj.time_axis_faster_than_bls,
-    )
-
     uv_obj.reorder_blts(order="baseline")
-    print(
-        uv_obj.Nbls,
-        uv_obj.Nblts,
-        uv_obj.Ntimes,
-        uv_obj.Nbls * uv_obj.Ntimes,
-        uv_obj.blts_are_rectangular,
-        uv_obj.time_axis_faster_than_bls,
-    )
+
     uv1 = uv_obj.select(
         phase_center_ids=0, blt_inds=np.arange(uv_obj.Nblts // 2), inplace=False
     )
@@ -12862,3 +12846,29 @@ def test_init_like_hera_cal(
             ]["cat_name"]
 
     assert uvd2 == hera_uvh5
+
+
+def test_setting_time_axis_wrongly(casa_uvfits):
+    casa_uvfits.time_axis_faster_than_bls = True
+    with pytest.raises(ValueError, match="time_axis_faster_than_bls is True but"):
+        casa_uvfits.check()
+
+    casa_uvfits.reorder_blts(order="time", minor_order="baseline")
+    casa_uvfits.blts_are_rectangular = True
+    with pytest.raises(
+        ValueError, match="time_axis_faster_than_bls is True but time_array"
+    ):
+        casa_uvfits.time_axis_faster_than_bls = True
+        casa_uvfits.check()
+
+    casa_uvfits.select(times=casa_uvfits.time_array[0])
+    with pytest.raises(
+        ValueError, match="time_axis_faster_than_bls is True but Ntimes is 1"
+    ):
+        casa_uvfits.time_axis_faster_than_bls = True
+        casa_uvfits.check()
+
+    casa_uvfits.reorder_blts(order="baseline", minor_order="time")
+    assert not casa_uvfits.time_axis_faster_than_bls
+    casa_uvfits.blts_are_rectangular = True
+    assert not casa_uvfits.time_axis_faster_than_bls

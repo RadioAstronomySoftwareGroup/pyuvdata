@@ -3283,7 +3283,6 @@ class UVData(UVBase):
                 "time_axis_faster_than_bls is True but blts_are_rectangular is False. "
                 "This is not allowed."
             )
-
         if self.time_axis_faster_than_bls:
             if self.Nbls != 1 and self.Ntimes == 1:
                 raise ValueError("time_axis_faster_than_bls is True but Ntimes is 1. ")
@@ -4838,6 +4837,59 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
+    def set_rectangularity(self, calculate: bool = False, force: bool = False) -> None:
+        """
+        Set the rectangularity attributes of the object.
+
+        Parameters
+        ----------
+        calculate : bool, optional
+            Whether to manually calculate the rectangularity of the object. This can
+            take extra time, compared to rudimentary checks on the object's attributes.
+        force : bool, optional
+            Whether to foce setting the rectangularity attributes, even if they are
+            unset. Default is to leave them unset if they are not already set, but
+            otherwise just ensure correctness.
+
+        Returns
+        -------
+        None
+        """
+        if not force and self.blts_are_rectangular is None:
+            self.time_axis_faster_than_bls = None
+            return
+
+        # Clear all info, so we recalculate from scratch.
+        self.blts_are_rectangular = None
+        self.time_axis_faster_than_bls = None
+
+        # Simple checks.
+        if self.Nbls * self.Ntimes != self.Nblts:
+            self.blts_are_rectangular = False
+            self.time_axis_faster_than_bls = False
+        elif self.Nbls == 1:
+            self.blts_are_rectangular = True
+            self.time_axis_faster_than_bls = True
+        elif self.Ntimes == 1:
+            self.blts_are_rectangular = True
+            self.time_axis_faster_than_bls = False
+        elif self.blt_order == ("time", "baseline"):
+            self.blts_are_rectangular = True
+            self.time_axis_faster_than_bls = False
+        elif self.blt_order == ("baseline", "time"):
+            self.blts_are_rectangular = True
+            self.time_axis_faster_than_bls = True
+
+        if calculate and self.blts_are_rectangular is None:
+            rect, time = uvutils.detect_rectangularity(
+                self.time_array, self.baseline_array, self.Nbls, self.Ntimes
+            )
+            self.blts_are_rectangular = rect
+            self.time_axis_faster_than_bls = time
+
+        if self.blts_are_rectangular is False:
+            self.time_axis_faster_than_bls = False
+
     def reorder_blts(
         self,
         order="time",
@@ -5067,11 +5119,8 @@ class UVData(UVBase):
         if order in ("bda", "ant1", "ant2") or minor_order in ("ant1", "ant2", None):
             self.blts_are_rectangular = None
             self.time_axis_faster_than_bls = None
-        elif self.blts_are_rectangular:
-            if order == "baseline" and minor_order == "time":
-                self.time_axis_faster_than_bls = True
-            elif order == "time" and minor_order == "baseline":
-                self.time_axis_faster_than_bls = False
+        else:
+            self.set_rectangularity(force=True)
 
         # check if object is self-consistent
         if run_check:
@@ -7625,6 +7674,7 @@ class UVData(UVBase):
         else:
             freq_t2o = np.nonzero(np.in1d(this_freqs, other_freqs))[0]
         blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
+
         if not self.metadata_only:
             if this.future_array_shapes:
                 this.data_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.data_array
@@ -7729,6 +7779,12 @@ class UVData(UVBase):
                             " Unique part of next object history follows. "
                             + extra_history
                         )
+
+        # Reset blt_order if blt axis was added to and it is set
+        if len(blt_t2o) > 0:
+            this.blt_order = None
+
+        this.set_rectangularity(force=True)
 
         # Check final object is self-consistent
         if run_check:
@@ -9436,24 +9492,25 @@ class UVData(UVBase):
 
         # Update the rectangularity attributes
         if blt_inds is not None:
-            if self.Nbls > 1 and self.Ntimes > 1:
-                # We don't know. We could check, but it takes time.
-                self.blts_are_rectangular = None
-            else:
-                self.blts_are_rectangular = True
+            self.set_rectangularity(force=True)
+        #     if self.Nbls > 1 and self.Ntimes > 1:
+        #         # We don't know. We could check, but it takes time.
+        #         self.blts_are_rectangular = None
+        #     else:
+        #         self.blts_are_rectangular = True
 
-        if self.blts_are_rectangular is False:
-            self.time_axis_faster_than_bls = False
-        elif self.blts_are_rectangular is None:
-            self.time_axis_faster_than_bls = None
+        # if self.blts_are_rectangular is False:
+        #     self.time_axis_faster_than_bls = False
+        # elif self.blts_are_rectangular is None:
+        #     self.time_axis_faster_than_bls = None
 
-        if self.time_axis_faster_than_bls is not None:
-            if self.Ntimes == 1 and self.Nbls > 1:
-                self.time_axis_faster_than_bls = False
-            elif self.Ntimes > 1 and self.Nbls == 1:
-                self.time_axis_faster_than_bls = True
-            elif self.Ntimes == 1 and self.Nbls == 1:
-                self.time_axis_faster_than_bls = True
+        # if self.time_axis_faster_than_bls is not None:
+        #     if self.Ntimes == 1 and self.Nbls > 1:
+        #         self.time_axis_faster_than_bls = False
+        #     elif self.Ntimes > 1 and self.Nbls == 1:
+        #         self.time_axis_faster_than_bls = True
+        #     elif self.Ntimes == 1 and self.Nbls == 1:
+        #         self.time_axis_faster_than_bls = True
 
         # If we have a flex-pol data set, but we only have one pol, then this doesn't
         # need to be flex-pol anymore, and we can drop it here
