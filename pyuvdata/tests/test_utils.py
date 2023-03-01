@@ -4041,16 +4041,23 @@ def test_determine_blt_order_size_1():
     assert time_first
 
 
-def test_determine_blt_order_time_first():
+def test_determine_rect_time_first():
     times = np.linspace(2458119.5, 2458120.5, 10)
     ant1 = np.arange(3)
     ant2 = np.arange(3)
     ANT1, ANT2 = np.meshgrid(ant1, ant2)
-    BL = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), 3)
+    bls = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), 3)
 
-    TIME = np.tile(times, len(ANT1))
     rng = np.random.default_rng(12345)
-    BL = np.concatenate([rng.permuted(BL) for i in range(len(times))])
 
+    TIME = np.tile(times, len(bls))
+    BL = np.concatenate([rng.permuted(bls) for i in range(len(times))])
+
+    is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
+    assert not is_rect
+
+    # now, permute time instead of bls
+    TIME = np.concatenate([rng.permuted(times) for i in range(len(bls))])
+    BL = np.tile(bls, len(times))
     is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
     assert not is_rect
