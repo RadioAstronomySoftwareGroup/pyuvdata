@@ -3262,9 +3262,10 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
     assert uvdcal == uvdcal2
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
-@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
 def test_uvcalibrate(
@@ -3276,10 +3277,10 @@ def test_uvcalibrate(
 ):
     uvd, uvc = uvcalibrate_data
 
-    if uvd_future_shapes:
-        uvd.use_future_array_shapes()
-    if uvc_future_shapes:
-        uvc.use_future_array_shapes()
+    if not uvd_future_shapes:
+        uvd.use_current_array_shapes()
+    if not uvc_future_shapes:
+        uvc.use_current_array_shapes()
 
     uvc.gain_convention = gain_convention
 
@@ -3348,6 +3349,7 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
@@ -3356,10 +3358,10 @@ def test_uvcalibrate_flag_propagation(
 ):
     uvd, uvc = uvcalibrate_data
 
-    if uvd_future_shapes:
-        uvd.use_future_array_shapes()
-    if uvc_future_shapes:
-        uvc.use_future_array_shapes()
+    if not uvd_future_shapes:
+        uvd.use_current_array_shapes()
+    if not uvc_future_shapes:
+        uvc.use_current_array_shapes()
 
     # test flag propagation
     uvc.flag_array[0] = True
@@ -3476,13 +3478,14 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data, future_shapes):
     uvd, uvc = uvcalibrate_init_data
 
-    if future_shapes:
-        uvd.use_future_array_shapes()
-        uvc.use_future_array_shapes()
+    if not future_shapes:
+        uvd.use_current_array_shapes()
+        uvc.use_current_array_shapes()
 
     with pytest.raises(
         ValueError,
@@ -3674,7 +3677,6 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
 def test_uvcalibrate_wideband_gain(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    uvc.use_future_array_shapes()
     uvc._set_wide_band()
     uvc.flex_spw_id_array = None
     uvc.spw_array = np.array([1, 2, 3])

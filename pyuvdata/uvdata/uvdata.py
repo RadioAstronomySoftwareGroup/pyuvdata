@@ -7602,6 +7602,10 @@ class UVData(UVBase):
             for axis, subdict in axis_dict.items():
                 for name, param in zip(this._data_params, this.data_like_parameters):
                     if len(subdict["inds"]) > 0:
+                        unique_order_diffs = np.unique(np.diff(subdict["order"]))
+                        if np.array_equal(unique_order_diffs, np.array([1])):
+                            # everything is already in order
+                            continue
                         setattr(this, name, np.take(param, subdict["order"], axis=axis))
 
         if len(fnew_inds) > 0:

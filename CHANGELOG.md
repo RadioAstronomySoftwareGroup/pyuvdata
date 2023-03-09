@@ -23,6 +23,9 @@ to set several of these new parameters.
 deprecation warnings.
 
 ### Fixed
+- Fixed some bugs related to handling of the `UVCal.time_range` parameter in
+`UVCal.__add__` and other methods. Ensured that it is a list when
+`UVCal.future_array_shapes` is False.
 - Fixed a bug in `UVCal.__add__` when data are sorted differently along any axis or
 interleaved along an axis.
 - Fixed a bug in reading MS files with non-UTC time scales.

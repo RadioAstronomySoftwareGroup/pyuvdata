@@ -208,8 +208,8 @@ class UVCal(UVBase):
         desc = (
             "Required if cal_type='delay' or wide_band=True. Frequency range that "
             "solutions are valid for. If future_array_shapes is False it is a "
-            "list: [start_frequency, end_frequency], otherwise it is an array of shape "
-            "(Nspws, 2). Units are Hz."
+            "length 2 array with [start_frequency, end_frequency], otherwise it is an "
+            "array of shape (Nspws, 2). Units are Hz."
         )
         self._freq_range = uvp.UVParameter(
             "freq_range",
@@ -236,7 +236,7 @@ class UVCal(UVBase):
 
         desc = (
             "Time range (in JD) that cal solutions are valid for."
-            "list: [start_time, end_time] in JD. Should only be set in Ntimes is 1."
+            "list: [start_time, end_time] in JD. Should only be set if Ntimes is 1."
         )
         self._time_range = uvp.UVParameter(
             "time_range", description=desc, form=2, expected_type=float, required=False
@@ -523,9 +523,10 @@ class UVCal(UVBase):
             "Array of qualities of the calibration for entire arrays. "
             "The shape depends on cal_type, if the cal_type is 'gain' or "
             "'unknown', the shape is: (1, Nfreqs, Ntimes, Njones) or "
-            "(Nfreqs, Ntimes, Njones) if future_array_shapes=True, "
-            "if the cal_type is 'delay', the shape is (1, 1, Ntimes, Njones) or "
-            "(1, Ntimes, Njones) if future_array_shapes=True, type = float."
+            "(Nfreqs, Ntimes, Njones) if future_array_shapes=True and wide_band=False, "
+            "or (Nspws, Ntimes, Njones) if wide_band=True. "
+            "If the cal_type is 'delay', the shape is (1, 1, Ntimes, Njones) or "
+            "(Nspws, Ntimes, Njones) if future_array_shapes=True, type = float."
         )
         self._total_quality_array = uvp.UVParameter(
             "total_quality_array",
@@ -835,10 +836,6 @@ class UVCal(UVBase):
                     )[:, np.newaxis, :, :]
 
         if self.cal_type == "delay":
-            if self.freq_range is None:
-                self.freq_range = np.asarray(
-                    [np.min(self.freq_array), np.max(self.freq_array)]
-                )
             self.freq_array = None
             self.channel_width = None
             self.Nfreqs = 1
@@ -991,11 +988,9 @@ class UVCal(UVBase):
 
         self._freq_range.form = (2,)
         if self.freq_range is not None:
-            self.freq_range = self.freq_range[0, :]
+            self.freq_range = self.freq_range[0, :].tolist()
         else:
-            self.freq_range = np.asarray(
-                [np.min(self.freq_array), np.max(self.freq_array)]
-            )
+            self.freq_range = [np.min(self.freq_array), np.max(self.freq_array)]
 
     def set_telescope_params(self, overwrite=False):
         """
@@ -1630,7 +1625,7 @@ class UVCal(UVBase):
             e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
             you would specify `-number`. Alternatively, one can supply an index array
             of length Nspws that specifies how to shuffle the spws (this is not the
-            desired final spw order). Default is to apply nos orting of spectral
+            desired final spw order). Default is to apply no sorting of spectral
             windows.
         channel_order : str or array_like of int
             A string describing the desired order of frequency channels within a
@@ -1671,6 +1666,10 @@ class UVCal(UVBase):
                     "channel_order and select_spws are ignored for wide-band "
                     "calibration solutions"
                 )
+            if spw_order is None:
+                # default sensibly
+                spw_order = "number"
+
             flip_spws = spw_order[0] == "-"
 
             if isinstance(spw_order, (np.ndarray, list, tuple)):
@@ -2216,10 +2215,25 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
+        # check that both objects have the same array shapes
+        if this.future_array_shapes != other.future_array_shapes:
+            raise ValueError(
+                "Both objects must have the same `future_array_shapes` parameter. "
+                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
+                "methods to convert them."
+            )
+
         # Check to make sure that both objects are consistent w/ use of flex_spw
         if this.flex_spw != other.flex_spw:
             raise ValueError(
                 "To combine these data, flex_spw must be set to the same "
+                "value (True or False) for both objects."
+            )
+
+        # Check that both objects are either wide_band or not
+        if this.wide_band != other.wide_band:
+            raise ValueError(
+                "To combine these data, wide_band must be set to the same "
                 "value (True or False) for both objects."
             )
 
@@ -2229,14 +2243,6 @@ class UVCal(UVBase):
             warnings.warn(
                 "One object has the flex_spw_id_array set and one does not. Combined "
                 "object will have it set."
-            )
-
-        # check that both objects have the same array shapes
-        if this.future_array_shapes != other.future_array_shapes:
-            raise ValueError(
-                "Both objects must have the same `future_array_shapes` parameter. "
-                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
-                "methods to convert them."
             )
 
         # Check objects are compatible
@@ -2252,8 +2258,6 @@ class UVCal(UVBase):
             compatibility_params.append("_integration_time")
             if not this.flex_spw:
                 compatibility_params.append("_channel_width")
-        if this.cal_type == "delay":
-            compatibility_params.append("_freq_range")
 
         warning_params = [
             "_observer",
@@ -2287,7 +2291,7 @@ class UVCal(UVBase):
         both_times, this_times_ind, other_times_ind = np.intersect1d(
             this.time_array, other.time_array, return_indices=True
         )
-        if this.cal_type != "delay":
+        if this.cal_type != "delay" and not this.wide_band:
             # With flexible spectral window, the handling here becomes a bit funky,
             # because we are allowed to have channels with the same frequency *if* they
             # belong to different spectral windows (one real-life example: might want
@@ -2330,6 +2334,11 @@ class UVCal(UVBase):
                         return_indices=True,
                     )
 
+        elif this.wide_band:
+            # this is really about spws, but that replaces the freq axis for wide_band
+            both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
+                this.spw_array, other.spw_array, return_indices=True
+            )
         else:
             # delay type cal
             # Make a non-empty array so we raise an error if other data is duplicated
@@ -2378,12 +2387,20 @@ class UVCal(UVBase):
             this_argsort = np.argsort(this_freq_ind)
             other_argsort = np.argsort(other_freq_ind)
             if np.any(this_argsort != other_argsort):
-                temp_ind = np.arange(this.Nfreqs)
-                temp_ind[this_freq_ind[this_argsort]] = temp_ind[
-                    this_freq_ind[other_argsort]
-                ]
+                if this.wide_band:
+                    temp_ind = np.arange(this.Nspws)
+                    temp_ind[this_freq_ind[this_argsort]] = temp_ind[
+                        this_freq_ind[other_argsort]
+                    ]
 
-                this.reorder_freqs(channel_order=temp_ind)
+                    this.reorder_freqs(spw_order=temp_ind)
+                else:
+                    temp_ind = np.arange(this.Nfreqs)
+                    temp_ind[this_freq_ind[this_argsort]] = temp_ind[
+                        this_freq_ind[other_argsort]
+                    ]
+
+                    this.reorder_freqs(channel_order=temp_ind)
 
         if len(this_jones_ind) != 0:
             this_argsort = np.argsort(this_jones_ind)
@@ -2420,8 +2437,7 @@ class UVCal(UVBase):
         else:
             tnew_inds = []
 
-        # adding along frequency axis is not supported for delay-type cal files
-        if this.cal_type == "gain":
+        if this.cal_type == "gain" and not this.wide_band:
             # find the freq indices in "other" but not in "this"
             if self.flex_spw:
                 other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
@@ -2455,7 +2471,19 @@ class UVCal(UVBase):
                 n_axes += 1
             else:
                 fnew_inds = []
+        elif this.wide_band:
+            temp = np.nonzero(~np.in1d(other.spw_array, this.spw_array))[0]
+            if len(temp) > 0:
+                fnew_inds = temp
+                if n_axes > 0:
+                    history_update_string += ", spectral window"
+                else:
+                    history_update_string += "spectral window"
+                n_axes += 1
+            else:
+                fnew_inds = []
         else:
+            # adding along frequency axis is not supported for old delay-type
             # delay type, set fnew_inds to an empty list
             fnew_inds = []
 
@@ -2476,6 +2504,15 @@ class UVCal(UVBase):
             Nf_tqa = 1
         else:
             Nf_tqa = this.Nfreqs
+
+        if (
+            not self.metadata_only
+            and this.input_flag_array is None
+            and other.input_flag_array is not None
+        ):
+            this.input_flag_array = np.full(
+                this._input_flag_array.expected_shape(this), True, dtype=bool
+            )
 
         # Pad out self to accommodate new data
         ant_order = None
@@ -2543,10 +2580,7 @@ class UVCal(UVBase):
                     this.total_quality_array = None
                     can_combine_tqa = False
 
-                if (
-                    this.input_flag_array is not None
-                    or other.input_flag_array is not None
-                ):
+                if this.input_flag_array is not None:
                     if self.future_array_shapes:
                         zero_pad = np.zeros(
                             (
@@ -2560,87 +2594,62 @@ class UVCal(UVBase):
                         zero_pad = np.zeros(
                             (len(anew_inds), 1, this.Nfreqs, this.Ntimes, this.Njones)
                         )
-                    if this.input_flag_array is not None:
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=0
-                        ).astype(np.bool_)
-                    elif other.input_flag_array is not None:
-                        if self.future_array_shapes:
-                            this.input_flag_array = np.array(
-                                1
-                                - np.zeros(
-                                    (
-                                        this.Nants_data,
-                                        this.quality_array.shape[1],
-                                        this.Ntimes,
-                                        this.Njones,
-                                    )
-                                )
-                            ).astype(np.bool_)
-                        else:
-                            this.input_flag_array = np.array(
-                                1
-                                - np.zeros(
-                                    (
-                                        this.Nants_data,
-                                        1,
-                                        this.Nfreqs,
-                                        this.Ntimes,
-                                        this.Njones,
-                                    )
-                                )
-                            ).astype(np.bool_)
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=0
-                        ).astype(np.bool_)
+                    this.input_flag_array = np.concatenate(
+                        [this.input_flag_array, 1 - zero_pad], axis=0
+                    ).astype(np.bool_)
 
         f_order = None
         if len(fnew_inds) > 0:
-            # Exploit the fact that quality array has the same dimensions as the
-            # main data.
-            # Also do not need to worry about different cases for gain v. delay type
-            if self.future_array_shapes:
-                zero_pad = np.zeros(
-                    (
-                        this.quality_array.shape[0],
-                        len(fnew_inds),
-                        this.Ntimes,
-                        this.Njones,
-                    )
+            if this.wide_band:
+                this.spw_array = np.concatenate(
+                    [this.spw_array, other.spw_array[fnew_inds]]
                 )
+                this.freq_range = np.concatenate(
+                    [this.freq_range, other.freq_range[fnew_inds]], axis=0
+                )
+            elif self.future_array_shapes:
                 this.freq_array = np.concatenate(
                     [this.freq_array, other.freq_array[fnew_inds]]
                 )
             else:
-                zero_pad = np.zeros(
-                    (
-                        this.quality_array.shape[0],
-                        1,
-                        len(fnew_inds),
-                        this.Ntimes,
-                        this.Njones,
-                    )
-                )
                 this.freq_array = np.concatenate(
                     [this.freq_array, other.freq_array[:, fnew_inds]], axis=1
                 )
 
-            if this.flex_spw:
+            if this.flex_spw and not this.wide_band:
                 this.flex_spw_id_array = np.concatenate(
                     [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
                 )
-                this.spw_array = np.concatenate([this.spw_array, other.spw_array])
+                concat_spw_array = np.concatenate([this.spw_array, other.spw_array])
                 # We want to preserve per-spw information based on first appearance
                 # in the concatenated array.
-                unique_index = np.sort(np.unique(this.spw_array, return_index=True)[1])
-                this.spw_array = this.spw_array[unique_index]
-                if this.future_array_shapes:
-                    if this.freq_range is not None:
+                unique_index = np.sort(
+                    np.unique(this.flex_spw_id_array, return_index=True)[1]
+                )
+                this.spw_array = this.flex_spw_id_array[unique_index]
+                spw_index = np.asarray(
+                    [
+                        np.nonzero(concat_spw_array == spw)[0][0]
+                        for spw in this.spw_array
+                    ]
+                )
+                if this.freq_range is not None and other.freq_range is not None:
+                    if this.future_array_shapes:
                         this.freq_range = np.concatenate(
                             [this.freq_range, other.freq_range], axis=0
                         )
-                        this.freq_range = this.freq_range[unique_index, :]
-                this.Nspws = len(this.spw_array)
+                        this.freq_range = this.freq_range[spw_index, :]
+                    else:
+                        this.freq_range = [
+                            min([this.freq_range[0], other.freq_range[0]]),
+                            max([this.freq_range[1], other.freq_range[1]]),
+                        ]
+                elif this.freq_range is not None or other.freq_range is not None:
+                    warnings.warn(
+                        "One object has the freq_range set and one does not. Combined "
+                        "object will not have it set."
+                    )
+                    this.freq_range = None
 
                 # If we have a multi-spw data set, need to sort out the order of
                 # the individual windows first.
@@ -2666,36 +2675,58 @@ class UVCal(UVBase):
                     ):
                         subsort_order = f_order[select_mask]
                         f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
-                this.flex_spw_id_array = this.flex_spw_id_array
                 this.spw_array = np.array(sorted(this.spw_array))
             else:
                 if this_has_spw_id or other_has_spw_id:
                     this.flex_spw_id_array = np.full(
                         this.freq_array.size, this.spw_array[0], dtype=int
                     )
-
-                if this.future_array_shapes:
-                    f_order = np.argsort(this.freq_array)
+                if this.wide_band:
+                    f_order = np.argsort(this.spw_array)
                 else:
-                    f_order = np.argsort(this.freq_array[0, :])
-
-                if this.freq_range is not None:
-                    this.freq_range = np.array(
-                        [np.min(this.freq_array), np.max(this.freq_array)]
-                    )
                     if this.future_array_shapes:
-                        this.freq_range = this.freq_range[np.newaxis, :]
+                        f_order = np.argsort(this.freq_array)
+                    else:
+                        f_order = np.argsort(this.freq_array[0, :])
 
-            if this.flex_spw or this.future_array_shapes:
+                    if this.freq_range is not None and other.freq_range is not None:
+                        temp = np.concatenate((this.freq_range, other.freq_range))
+                        this.freq_range = [np.min(temp), np.max(temp)]
+                        if this.future_array_shapes:
+                            this.freq_range = np.array(this.freq_range)[np.newaxis, :]
+                    elif this.freq_range is not None or other.freq_range is not None:
+                        warnings.warn(
+                            "One object has the freq_range set and one does not. "
+                            "Combined object will not have it set."
+                        )
+                        this.freq_range = None
+
+            if not this.wide_band and (this.flex_spw or this.future_array_shapes):
                 this.channel_width = np.concatenate(
                     [this.channel_width, other.channel_width[fnew_inds]]
                 )
 
             if not self.metadata_only:
                 if self.future_array_shapes:
-                    this.gain_array = np.concatenate(
-                        [this.gain_array, zero_pad], axis=1
+                    # Exploit the fact that quality array has the same dimensions as the
+                    # main data.
+                    zero_pad = np.zeros(
+                        (
+                            this.quality_array.shape[0],
+                            len(fnew_inds),
+                            this.Ntimes,
+                            this.Njones,
+                        )
                     )
+                    if this.cal_type == "gain":
+                        this.gain_array = np.concatenate(
+                            [this.gain_array, zero_pad], axis=1
+                        )
+                    else:
+                        this.delay_array = np.concatenate(
+                            [this.delay_array, zero_pad], axis=1
+                        )
+
                     this.flag_array = np.concatenate(
                         [this.flag_array, 1 - zero_pad], axis=1
                     ).astype(np.bool_)
@@ -2717,6 +2748,15 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=0
                         )
                 else:
+                    zero_pad = np.zeros(
+                        (
+                            this.quality_array.shape[0],
+                            1,
+                            len(fnew_inds),
+                            this.Ntimes,
+                            this.Njones,
+                        )
+                    )
                     this.gain_array = np.concatenate(
                         [this.gain_array, zero_pad], axis=2
                     )
@@ -2745,10 +2785,7 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=1
                         )
 
-                if (
-                    this.input_flag_array is not None
-                    or other.input_flag_array is not None
-                ):
+                if this.input_flag_array is not None:
                     if self.future_array_shapes:
                         zero_pad = np.zeros(
                             (
@@ -2758,25 +2795,9 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                        if this.input_flag_array is not None:
-                            this.input_flag_array = np.concatenate(
-                                [this.input_flag_array, 1 - zero_pad], axis=1
-                            ).astype(np.bool_)
-                        elif other.input_flag_array is not None:
-                            this.input_flag_array = np.array(
-                                1
-                                - np.zeros(
-                                    (
-                                        this.flag_array.shape[0],
-                                        this.flag_array.shape[1],
-                                        this.flag_array.shape[2],
-                                        this.Njones,
-                                    )
-                                )
-                            ).astype(np.bool_)
-                            this.input_flag_array = np.concatenate(
-                                [this.input_flag_array, 1 - zero_pad], axis=1
-                            ).astype(np.bool_)
+                        this.input_flag_array = np.concatenate(
+                            [this.input_flag_array, 1 - zero_pad], axis=1
+                        ).astype(np.bool_)
                     else:
                         zero_pad = np.zeros(
                             (
@@ -2787,26 +2808,9 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                        if this.input_flag_array is not None:
-                            this.input_flag_array = np.concatenate(
-                                [this.input_flag_array, 1 - zero_pad], axis=2
-                            ).astype(np.bool_)
-                        elif other.input_flag_array is not None:
-                            this.input_flag_array = np.array(
-                                1
-                                - np.zeros(
-                                    (
-                                        this.flag_array.shape[0],
-                                        1,
-                                        this.flag_array.shape[2],
-                                        this.flag_array.shape[3],
-                                        this.Njones,
-                                    )
-                                )
-                            ).astype(np.bool_)
-                            this.input_flag_array = np.concatenate(
-                                [this.input_flag_array, 1 - zero_pad], axis=2
-                            ).astype(np.bool_)
+                        this.input_flag_array = np.concatenate(
+                            [this.input_flag_array, 1 - zero_pad], axis=2
+                        ).astype(np.bool_)
 
         t_order = None
         if len(tnew_inds) > 0:
@@ -2887,29 +2891,7 @@ class UVCal(UVBase):
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=2
                         ).astype(np.bool_)
-                    elif other.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                this.flag_array.shape[1],
-                                len(tnew_inds),
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.array(
-                            1
-                            - np.zeros(
-                                (
-                                    this.flag_array.shape[0],
-                                    this.flag_array.shape[1],
-                                    this.flag_array.shape[2],
-                                    this.Njones,
-                                )
-                            )
-                        ).astype(np.bool_)
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=2
-                        ).astype(np.bool_)
+
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -2982,31 +2964,6 @@ class UVCal(UVBase):
                                 this.Njones,
                             )
                         )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)
-                    elif other.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                1,
-                                this.flag_array.shape[2],
-                                len(tnew_inds),
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.array(
-                            1
-                            - np.zeros(
-                                (
-                                    this.flag_array.shape[0],
-                                    1,
-                                    this.flag_array.shape[2],
-                                    this.flag_array.shape[3],
-                                    this.Njones,
-                                )
-                            )
-                        ).astype(np.bool_)
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
                         ).astype(np.bool_)
@@ -3090,29 +3047,6 @@ class UVCal(UVBase):
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=3
                         ).astype(np.bool_)
-                    elif other.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                this.flag_array.shape[1],
-                                this.flag_array.shape[2],
-                                len(jnew_inds),
-                            )
-                        )
-                        this.input_flag_array = np.array(
-                            1
-                            - np.zeros(
-                                (
-                                    this.flag_array.shape[0],
-                                    this.flag_array.shape[1],
-                                    this.flag_array.shape[2],
-                                    this.Njones,
-                                )
-                            )
-                        ).astype(np.bool_)
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -3188,84 +3122,48 @@ class UVCal(UVBase):
                         this.input_flag_array = np.concatenate(
                             [this.input_flag_array, 1 - zero_pad], axis=4
                         ).astype(np.bool_)
-                    elif other.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                1,
-                                this.flag_array.shape[2],
-                                this.flag_array.shape[3],
-                                len(jnew_inds),
-                            )
-                        )
-                        this.input_flag_array = np.array(
-                            1
-                            - np.zeros(
-                                (
-                                    this.flag_array.shape[0],
-                                    1,
-                                    this.flag_array.shape[2],
-                                    this.flag_array.shape[3],
-                                    this.Njones,
-                                )
-                            )
-                        ).astype(np.bool_)
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=4
-                        ).astype(np.bool_)
 
         # Now populate the data
         if not self.metadata_only:
             jones_t2o = np.nonzero(np.in1d(this.jones_array, other.jones_array))[0]
             times_t2o = np.nonzero(np.in1d(this.time_array, other.time_array))[0]
-            if self.future_array_shapes:
+            if self.wide_band:
+                freqs_t2o = np.nonzero(np.in1d(this.spw_array, other.spw_array))[0]
+            elif self.future_array_shapes:
                 freqs_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
             else:
-                freqs_t2o = np.nonzero(
-                    np.in1d(this.freq_array[0, :], other.freq_array[0, :])
-                )[0]
+                if self.cal_type == "gain":
+                    freqs_t2o = np.nonzero(
+                        np.in1d(this.freq_array[0, :], other.freq_array[0, :])
+                    )[0]
+                else:
+                    freqs_t2o = [0]
             ants_t2o = np.nonzero(np.in1d(this.ant_array, other.ant_array))[0]
             if self.future_array_shapes:
                 if this.cal_type == "delay":
                     this.delay_array[
-                        np.ix_(ants_t2o, [0], times_t2o, jones_t2o)
+                        np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
                     ] = other.delay_array
-                    this.quality_array[
-                        np.ix_(ants_t2o, [0], times_t2o, jones_t2o)
-                    ] = other.quality_array
-                    this.flag_array[
-                        np.ix_(ants_t2o, [0], times_t2o, jones_t2o)
-                    ] = other.flag_array
                 else:
                     this.gain_array[
                         np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
                     ] = other.gain_array
-                    this.quality_array[
-                        np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
-                    ] = other.quality_array
-                    this.flag_array[
-                        np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
-                    ] = other.flag_array
+                this.quality_array[
+                    np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
+                ] = other.quality_array
+                this.flag_array[
+                    np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
+                ] = other.flag_array
                 if this.total_quality_array is not None:
                     if other.total_quality_array is not None:
-                        if this.cal_type == "delay":
-                            this.total_quality_array[
-                                np.ix_([0], times_t2o, jones_t2o)
-                            ] = other.total_quality_array
-                        else:
-                            this.total_quality_array[
-                                np.ix_(freqs_t2o, times_t2o, jones_t2o)
-                            ] = other.total_quality_array
+                        this.total_quality_array[
+                            np.ix_(freqs_t2o, times_t2o, jones_t2o)
+                        ] = other.total_quality_array
                 if this.input_flag_array is not None:
                     if other.input_flag_array is not None:
-                        if this.cal_type == "delay":
-                            this.input_flag_array[
-                                np.ix_(ants_t2o, [0], times_t2o, jones_t2o)
-                            ] = other.input_flag_array
-                        else:
-                            this.input_flag_array[
-                                np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
-                            ] = other.input_flag_array
+                        this.input_flag_array[
+                            np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
+                        ] = other.input_flag_array
             else:
                 if this.cal_type == "delay":
                     this.delay_array[
@@ -3317,16 +3215,19 @@ class UVCal(UVBase):
                 taxis_num: {"inds": tnew_inds, "order": t_order},
                 jaxis_num: {"inds": jnew_inds, "order": j_order},
             }
+            for axis, subdict in axis_dict.items():
+                for name, param in zip(this._data_params, this.data_like_parameters):
+                    if param is None:
+                        continue
+                    axis_delta = 0
+                    if name == "total_quality_array":
+                        axis_delta = 1
 
-            for name, param in zip(this._data_params, this.data_like_parameters):
-                if param is None:
-                    continue
-                axis_delta = 0
-                if name == "total_quality_array":
-                    axis_delta = 1
-
-                for axis, subdict in axis_dict.items():
                     if len(subdict["inds"]) > 0:
+                        unique_order_diffs = np.unique(np.diff(subdict["order"]))
+                        if np.array_equal(unique_order_diffs, np.array([1])):
+                            # everything is already in order
+                            continue
                         setattr(
                             this,
                             name,
@@ -3336,14 +3237,18 @@ class UVCal(UVBase):
         if len(anew_inds) > 0:
             this.ant_array = this.ant_array[ant_order]
         if len(fnew_inds) > 0:
-            if this.future_array_shapes:
-                this.freq_array = this.freq_array[f_order]
+            if this.wide_band:
+                this.spw_array = this.spw_array[f_order]
+                this.freq_range = this.freq_range[f_order]
             else:
-                this.freq_array = this.freq_array[:, f_order]
-            if this.flex_spw or this.future_array_shapes:
-                this.channel_width = this.channel_width[f_order]
-            if this.flex_spw_id_array is not None:
-                this.flex_spw_id_array = this.flex_spw_id_array[f_order]
+                if this.future_array_shapes:
+                    this.freq_array = this.freq_array[f_order]
+                else:
+                    this.freq_array = this.freq_array[:, f_order]
+                if this.flex_spw or this.future_array_shapes:
+                    this.channel_width = this.channel_width[f_order]
+                if this.flex_spw_id_array is not None:
+                    this.flex_spw_id_array = this.flex_spw_id_array[f_order]
         if len(tnew_inds) > 0:
             this.time_array = this.time_array[t_order]
             this.lst_array = this.lst_array[t_order]
@@ -3355,8 +3260,9 @@ class UVCal(UVBase):
         # Update N parameters (e.g. Njones)
         this.Njones = this.jones_array.shape[0]
         this.Ntimes = this.time_array.shape[0]
-        if this.cal_type == "gain":
+        if this.cal_type == "gain" and not this.wide_band:
             this.Nfreqs = this.freq_array.size
+        this.Nspws = this.spw_array.size
         this.Nants_data = len(
             np.unique(this.ant_array.tolist() + other.ant_array.tolist())
         )
@@ -3791,16 +3697,29 @@ class UVCal(UVBase):
             if cal_object.flex_spw:
                 spw_mask = np.isin(cal_object.spw_array, cal_object.flex_spw_id_array)
                 cal_object.spw_array = cal_object.spw_array[spw_mask]
+                cal_object.Nspws = cal_object.spw_array.size
                 if cal_object.freq_range is not None and cal_object.future_array_shapes:
-                    cal_object.freq_range = cal_object.freq_range[spw_mask, :]
-                cal_object.Nspws = len(cal_object.spw_array)
+                    cal_object.freq_range = np.zeros(
+                        (cal_object.Nspws, 2), dtype=cal_object.freq_array.dtype
+                    )
+                    for index, spw in enumerate(cal_object.spw_array):
+                        spw_inds = np.nonzero(cal_object.flex_spw_id_array == spw)[0]
+                        cal_object.freq_range[index, 0] = np.min(
+                            cal_object.freq_array[spw_inds]
+                        )
+                        cal_object.freq_range[index, 1] = np.max(
+                            cal_object.freq_array[spw_inds]
+                        )
             else:
                 if cal_object.freq_range is not None:
-                    cal_object.freq_range = np.array(
-                        [np.min(cal_object.freq_array), np.max(cal_object.freq_array)]
-                    )
+                    cal_object.freq_range = [
+                        np.min(cal_object.freq_array),
+                        np.max(cal_object.freq_array),
+                    ]
                     if cal_object.future_array_shapes:
-                        cal_object.freq_range = cal_object.freq_range[np.newaxis, :]
+                        cal_object.freq_range = np.asarray(cal_object.freq_range)[
+                            np.newaxis, :
+                        ]
 
             if cal_object.Nfreqs > 1:
                 spacing_error, chanwidth_error = cal_object._check_freq_spacing(
@@ -4200,9 +4119,10 @@ class UVCal(UVBase):
                         uvc.freq_array = uvdata.freq_array[np.newaxis, :]
 
                 if not future_array_shapes:
-                    uvc.freq_range = np.array(
-                        [np.min(uvdata.freq_array), np.max(uvdata.freq_array)]
-                    )
+                    uvc.freq_range = [
+                        np.min(uvdata.freq_array),
+                        np.max(uvdata.freq_array),
+                    ]
 
                 if (
                     uvdata.flex_spw
@@ -4239,9 +4159,7 @@ class UVCal(UVBase):
                     uvc.freq_array = frequencies
                 else:
                     uvc.freq_array = frequencies[np.newaxis, :]
-                    uvc.freq_range = np.array(
-                        [np.min(frequencies), np.max(frequencies)]
-                    )
+                    uvc.freq_range = [np.min(frequencies), np.max(frequencies)]
 
                 uvc.Nfreqs = frequencies.size
 
@@ -4307,9 +4225,10 @@ class UVCal(UVBase):
                 else:
                     uvc.Nspws = 1
                     uvc.spw_array = np.asarray([0])
-                    uvc.freq_range = np.array(
-                        [np.min(uvdata.freq_array), np.max(uvdata.freq_array)]
-                    )
+                    uvc.freq_range = [
+                        np.min(uvdata.freq_array),
+                        np.max(uvdata.freq_array),
+                    ]
                     uvc.freq_array = np.asarray([[uvdata.freq_array.item(0)]])
                     uvc.Nfreqs = 1
             else:
@@ -4337,7 +4256,7 @@ class UVCal(UVBase):
                     uvc.Nspws = 1
                     uvc.spw_array = np.asarray([0])
                     if freq_range_use.size == 2:
-                        uvc.freq_range = np.squeeze(freq_range_use)
+                        uvc.freq_range = freq_range_use.tolist()
                     else:
                         raise ValueError(
                             "if future_array_shapes is False, freq_range must have "

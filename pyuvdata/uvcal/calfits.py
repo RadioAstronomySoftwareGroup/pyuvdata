@@ -78,10 +78,8 @@ class CALFITS(UVCal):
             else:
                 ref_freq = self.freq_array[0, 0]
         else:
-            if self.future_array_shapes:
-                ref_freq = self.freq_range[0, 0]
-            else:
-                ref_freq = self.freq_range[0]
+            # can only get here if future_shapes is True
+            ref_freq = self.freq_range[0, 0]
 
         if self.Nfreqs > 1:
             if chanwidth_error:
@@ -620,14 +618,10 @@ class CALFITS(UVCal):
             self.x_orientation = hdr.pop("XORIENT")
             self.cal_type = hdr.pop("CALTYPE")
             if self.cal_type == "delay":
-                self.freq_range = np.asarray(
-                    list(map(float, hdr.pop("FRQRANGE").split(",")))
-                )
+                self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
             else:
                 if "FRQRANGE" in hdr:
-                    self.freq_range = np.asarray(
-                        list(map(float, hdr.pop("FRQRANGE").split(",")))
-                    )
+                    self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
 
             self.cal_style = hdr.pop("CALSTYLE")
             if self.cal_style == "sky":

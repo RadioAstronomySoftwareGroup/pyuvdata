@@ -12570,12 +12570,17 @@ def test_normalize_by_autos_errs(uv_phase_comp, select_kwargs, err_type, err_msg
         uv.normalize_by_autos()
 
 
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("muck_data", ["pol", "time", None])
-def test_normalize_by_autos_roundtrip(hera_uvh5, muck_data):
+def test_normalize_by_autos_roundtrip(hera_uvh5, muck_data, future_shapes):
     """
     Check that we can roundtrip autocorrelation normalization under various
     different circumstances.
     """
+    if not future_shapes:
+        hera_uvh5.use_current_array_shapes()
+
     if muck_data == "pol":
         # Stick in pseudo-Stokes pols and verify that these roundtrip correctly
         hera_uvh5.polarization_array[:] = [1, 2]
