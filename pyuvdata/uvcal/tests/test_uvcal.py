@@ -6,6 +6,7 @@
 
 """
 import copy
+import itertools
 import os
 
 import numpy as np
@@ -1151,6 +1152,21 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
         calobj2._input_flag_array.expected_shape(calobj2)
     ).astype(np.bool_)
 
+    # add freq_range
+    if future_shapes:
+        calobj2.freq_range = np.zeros(
+            (calobj2.Nspws, 2), dtype=calobj2.freq_array.dtype
+        )
+        for index, spw in enumerate(calobj2.spw_array):
+            spw_inds = np.nonzero(calobj2.flex_spw_id_array == spw)[0]
+            calobj2.freq_range[index, 0] = np.min(
+                np.squeeze(calobj2.freq_array)[spw_inds]
+            )
+            calobj2.freq_range[index, 1] = np.max(
+                np.squeeze(calobj2.freq_array)[spw_inds]
+            )
+        calobj2.check()
+
     calobj2.select(frequencies=freqs_to_keep)
 
     assert len(freqs_to_keep) == calobj2.Nfreqs
@@ -2025,11 +2041,21 @@ def test_reorder_jones_errors(gain_data):
 
 @pytest.mark.filterwarnings("ignore:Combined Jones elements are not evenly spaced")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not evenly spaced")
+@pytest.mark.filterwarnings("ignore:Cannot reorder the frequency/spw axis with only")
 @pytest.mark.parametrize("add_type", ["ant", "time", "freq", "jones"])
 @pytest.mark.parametrize("sort_type", ["ant", "time", "freq", "jones"])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
-    calobj = gain_data.copy()
+@pytest.mark.parametrize(
+    ["future_shapes", "wide_band"], [[True, False], [False, False], [True, True]]
+)
+def test_add_different_sorting(
+    add_type, sort_type, future_shapes, wide_band, gain_data, wideband_gain
+):
+    if wide_band:
+        calobj = wideband_gain.copy()
+        calobj.check()
+        assert calobj.freq_range is not None
+    else:
+        calobj = gain_data.copy()
     # add total_quality_array and initial flag array
     calobj.input_flag_array = copy.copy(calobj.flag_array)
     if add_type != "ant":
@@ -2039,7 +2065,10 @@ def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
 
     # all the input objects have a Njones=1. make copies and add them to get to 4
     for jpol in [-6, -7, -8]:
-        calobj2 = gain_data.copy()
+        if wide_band:
+            calobj2 = wideband_gain.copy()
+        else:
+            calobj2 = gain_data.copy()
         calobj2.jones_array[0] = jpol
         calobj += calobj2
 
@@ -2058,10 +2087,18 @@ def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
         cal1 = calobj.select(times=times1, inplace=False)
         cal2 = calobj.select(times=times2, inplace=False)
     elif add_type == "freq":
-        cal1 = calobj.select(freq_chans=np.arange(calobj.Nfreqs // 2), inplace=False)
-        cal2 = calobj.select(
-            freq_chans=np.arange(calobj.Nfreqs // 2, calobj.Nfreqs), inplace=False
-        )
+        if wide_band:
+            spws1 = calobj.spw_array[: calobj.Nspws // 2]
+            spws2 = calobj.spw_array[calobj.Nspws // 2 :]
+            cal1 = calobj.select(spws=spws1, inplace=False)
+            cal2 = calobj.select(spws=spws2, inplace=False)
+        else:
+            cal1 = calobj.select(
+                freq_chans=np.arange(calobj.Nfreqs // 2), inplace=False
+            )
+            cal2 = calobj.select(
+                freq_chans=np.arange(calobj.Nfreqs // 2, calobj.Nfreqs), inplace=False
+            )
     elif add_type == "jones":
         cal1 = calobj.select(jones=np.array([-5, -7]), inplace=False)
         cal2 = calobj.select(jones=np.array([-6, -8]), inplace=False)
@@ -2077,10 +2114,16 @@ def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
         calobj.reorder_times("time")
         order_check = cal1._time_array == cal2._time_array
     elif sort_type == "freq":
-        cal1.reorder_freqs(channel_order="freq")
-        cal2.reorder_freqs(channel_order="-freq")
-        calobj.reorder_freqs("freq")
-        order_check = cal1._freq_array == cal2._freq_array
+        if wide_band:
+            cal1.reorder_freqs(spw_order="number")
+            cal2.reorder_freqs(spw_order="-number")
+            calobj.reorder_freqs(spw_order="number")
+            order_check = cal1._spw_array == cal2._spw_array
+        else:
+            cal1.reorder_freqs(channel_order="freq")
+            cal2.reorder_freqs(channel_order="-freq")
+            calobj.reorder_freqs(channel_order="freq")
+            order_check = cal1._freq_array == cal2._freq_array
     elif sort_type == "jones":
         cal1.reorder_jones("name")
         cal2.reorder_jones("-number")
@@ -2101,8 +2144,12 @@ def test_add_different_sorting(gain_data, add_type, sort_type, future_shapes):
         cal3.reorder_times("time")
         cal4.reorder_times("time")
     elif sort_type == "freq":
-        cal3.reorder_freqs(channel_order="freq")
-        cal4.reorder_freqs(channel_order="freq")
+        if wide_band:
+            cal3.reorder_freqs()
+            cal4.reorder_freqs()
+        else:
+            cal3.reorder_freqs(channel_order="freq")
+            cal4.reorder_freqs(channel_order="freq")
     elif sort_type == "jones":
         cal3.reorder_jones("number")
         cal4.reorder_jones("number")
@@ -2182,9 +2229,15 @@ def test_add_frequencies(future_shapes, gain_data):
     assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
-    # also check for missing flex_spw_id_array in one object
+    # also check for missing flex_spw_id_array and freq_range in one object
     calobj.select(frequencies=freqs1)
     calobj.flex_spw_id_array = None
+    if future_shapes:
+        calobj.freq_range = np.array(
+            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+        )[np.newaxis, :]
+    else:
+        calobj.freq_range = None
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     if future_shapes:
@@ -2192,14 +2245,17 @@ def test_add_frequencies(future_shapes, gain_data):
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
+    msg = [
+        "flex_spw_id_array is not set. It will be required starting in version 3.0 "
+        "for non-wide-band objects",
+        "One object has the flex_spw_id_array set and one does not. Combined "
+        "object will have it set.",
+        "One object has the freq_range set and one does not. Combined "
+        "object will not have it set.",
+    ]
+
     with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        match=[
-            "flex_spw_id_array is not set. It will be required starting in version 3.0 "
-            "for non-wide-band objects",
-            "One object has the flex_spw_id_array set and one does not. Combined "
-            "object will have it set.",
-        ],
+        [DeprecationWarning, UserWarning, UserWarning], match=msg
     ):
         calobj += calobj2
     assert np.allclose(
@@ -2220,6 +2276,13 @@ def test_add_frequencies(future_shapes, gain_data):
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
+    if future_shapes:
+        calobj.freq_range = np.array(
+            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+        )[np.newaxis, :]
+        calobj2.freq_range = np.array(
+            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+        )[np.newaxis, :]
     calobj += calobj2
     assert np.allclose(
         calobj.total_quality_array,
@@ -2290,6 +2353,7 @@ def test_add_frequencies(future_shapes, gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:One object has the freq_range set and one does not")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("split_f_ind", [3, 5])
 def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
@@ -2307,6 +2371,7 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
+    calobj_full2 = calobj.copy()
     if future_shapes:
         freqs1 = calobj.freq_array[np.arange(0, split_f_ind)]
         freqs2 = calobj.freq_array[np.arange(split_f_ind, calobj.Nfreqs)]
@@ -2315,7 +2380,25 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
         freqs2 = calobj.freq_array[0, np.arange(split_f_ind, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
-    calobj += calobj2
+    if split_f_ind == 5:
+        if future_shapes:
+            calobj2.freq_range = np.array(
+                [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+            )[np.newaxis, :]
+        else:
+            calobj2.freq_range = None
+        calobj_full.freq_range = None
+        warn_type = UserWarning
+        msg = (
+            "One object has the freq_range set and one does not. Combined "
+            "object will not have it set."
+        )
+    else:
+        warn_type = None
+        msg = ""
+
+    with uvtest.check_warnings(warn_type, match=msg):
+        calobj += calobj2
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -2328,8 +2411,13 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
     assert calobj == calobj_full
 
     # test adding out of order
-    calobj = calobj_full.copy()
+    calobj = calobj_full2.copy()
     calobj.select(frequencies=freqs1)
+    if split_f_ind == 5:
+        if future_shapes:
+            calobj.freq_range = np.array(
+                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+            )[np.newaxis, :]
     calobj2 += calobj
 
     # Check history is correct, before replacing and doing a full object check
@@ -2339,6 +2427,105 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
         "data along frequency axis using pyuvdata.",
         calobj2.history,
     )
+    calobj2.history = calobj_full.history
+    if split_f_ind == 5 and future_shapes:
+        assert calobj_full._freq_range != calobj2._freq_range
+        calobj_full.freq_range = calobj2.freq_range
+    assert calobj2 == calobj_full
+
+
+@pytest.mark.parametrize("axis", ["ant", "spw", "multi"])
+def test_add_spw_delay(multi_spw_delay, axis):
+    calobj_full = multi_spw_delay
+    calobj_full.select(times=calobj_full.time_array[:2])
+
+    spw1 = calobj_full.spw_array[0]
+    spw2 = calobj_full.spw_array[1:]
+    ants1 = np.array([9, 10])
+    ants2 = np.array([80, 81])
+    calobj_full.select(antenna_nums=np.concatenate((ants1, ants2)))
+
+    calobj = calobj_full.copy()
+    calobj2 = calobj.copy()
+
+    if axis == "ant":
+        calobj.select(antenna_nums=ants1)
+        calobj2.select(antenna_nums=ants2)
+    elif axis == "spw":
+        calobj.select(spws=spw1)
+        calobj2.select(spws=spw2)
+    elif axis == "multi":
+        calobj.select(antenna_nums=ants1, spws=spw1)
+        calobj2.select(antenna_nums=ants2, spws=spw2)
+
+        # zero out missing data in reference object
+        ant1_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants1))[0]
+        ant2_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants2))[0]
+        calobj_full.delay_array[ant1_inds, 1:] = 0
+        calobj_full.delay_array[ant2_inds, 0] = 0
+        calobj_full.quality_array[ant1_inds, 1:] = 0
+        calobj_full.quality_array[ant2_inds, 0] = 0
+        calobj_full.flag_array[ant1_inds, 1:] = True
+        calobj_full.flag_array[ant2_inds, 0] = True
+        calobj_full.input_flag_array[ant1_inds, 1:] = True
+        calobj_full.input_flag_array[ant2_inds, 0] = True
+    calobj += calobj2
+
+    # Check history is correct, before replacing and doing a full object check
+    if axis == "multi":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific antennas, spectral "
+            "windows using pyuvdata. Combined data along antenna, spectral window axis "
+            "using pyuvdata.",
+            calobj.history,
+        )
+    elif axis == "spw":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific spectral windows using "
+            "pyuvdata. Combined data along spectral window axis using pyuvdata.",
+            calobj.history,
+        )
+    elif axis == "ant":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
+            "Combined data along antenna axis using pyuvdata.",
+            calobj.history,
+        )
+    calobj.history = calobj_full.history
+    assert calobj == calobj_full
+
+    # test adding out of order
+    calobj = calobj_full.copy()
+    if axis == "ant":
+        calobj.select(antenna_nums=ants1)
+    elif axis == "spw":
+        calobj.select(spws=spw1)
+    elif axis == "multi":
+        calobj2 = calobj.copy()
+        calobj.select(antenna_nums=ants1, spws=spw1)
+        calobj2.select(antenna_nums=ants2, spws=spw2)
+    calobj2 += calobj
+
+    # Check history is correct, before replacing and doing a full object check
+    if axis == "multi":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific antennas, spectral "
+            "windows using pyuvdata. Combined data along antenna, spectral window axis "
+            "using pyuvdata.",
+            calobj2.history,
+        )
+    elif axis == "spw":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific spectral windows using "
+            "pyuvdata. Combined data along spectral window axis using pyuvdata.",
+            calobj2.history,
+        )
+    elif axis == "ant":
+        assert uvutils._check_histories(
+            calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
+            "Combined data along antenna axis using pyuvdata.",
+            calobj2.history,
+        )
     calobj2.history = calobj_full.history
     assert calobj2 == calobj_full
 
@@ -2697,37 +2884,145 @@ def test_add(caltype, gain_data, delay_data_inputflag):
     )
 
 
-def test_add_multiple_axes(gain_data):
+@pytest.mark.parametrize(
+    ["ant", "freq", "time", "jones"],
+    [
+        [True, True, False, False],
+        [False, False, True, True],
+        [True, True, True, False],
+        [False, True, True, True],
+        [True, True, True, True],
+    ],
+)
+@pytest.mark.parametrize("in_order", [True, False])
+def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
     """Test addition along multiple axes"""
-    calobj = gain_data
-    calobj2 = calobj.copy()
+    calobj_full = gain_data
+    calobj_full.select(
+        antenna_nums=calobj_full.ant_array[:4],
+        frequencies=calobj_full.freq_array[:2],
+        times=calobj_full.time_array[:2],
+    )
 
-    ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 65, 72])
-    ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
-    freqs1 = calobj.freq_array[np.arange(0, 5)]
-    freqs2 = calobj.freq_array[np.arange(5, 10)]
-    n_times2 = calobj.Ntimes // 2
-    times1 = calobj.time_array[:n_times2]
-    times2 = calobj.time_array[n_times2:]
-    # artificially change the Jones value to permit addition
-    calobj2.jones_array[0] = -6
+    # add more jones terms to allow for better testing of selections
+    while calobj_full.Njones < 2:
+        new_jones = np.min(calobj_full.jones_array) - 1
+        calobj_full.jones_array = np.append(calobj_full.jones_array, new_jones)
+        calobj_full.Njones += 1
+        calobj_full.flag_array = np.concatenate(
+            (calobj_full.flag_array, calobj_full.flag_array[:, :, :, [-1]]), axis=3
+        )
+        calobj_full.gain_array = np.concatenate(
+            (calobj_full.gain_array, calobj_full.gain_array[:, :, :, [-1]]), axis=3
+        )
+        calobj_full.quality_array = np.concatenate(
+            (calobj_full.quality_array, calobj_full.quality_array[:, :, :, [-1]]),
+            axis=3,
+        )
+    # add an input_flag_array
+    calobj_full.input_flag_array = calobj_full.flag_array
+
+    calobj = calobj_full.copy()
+    calobj2 = calobj_full.copy()
+
+    ants1 = None
+    ants2 = None
+    freqs1 = None
+    freqs2 = None
+    times1 = None
+    times2 = None
+    jones1 = None
+    jones2 = None
+
+    if ant:
+        ants1 = calobj.ant_array[calobj.Nants_data // 2 :]
+        ants2 = calobj.ant_array[: calobj.Nants_data // 2]
+    if freq:
+        freqs1 = calobj.freq_array[: calobj.Nfreqs // 2]
+        freqs2 = calobj.freq_array[calobj.Nfreqs // 2 :]
+    if time:
+        times1 = calobj.time_array[: calobj.Ntimes // 2]
+        times2 = calobj.time_array[calobj.Ntimes // 2 :]
+    if jones:
+        jones1 = calobj.jones_array[: calobj.Njones // 2]
+        jones2 = calobj.jones_array[calobj.Njones // 2 :]
 
     # perform select
-    calobj.select(antenna_nums=ants1, frequencies=freqs1, times=times1)
-    calobj2.select(antenna_nums=ants2, frequencies=freqs2, times=times2)
+    calobj.select(antenna_nums=ants1, frequencies=freqs1, times=times1, jones=jones1)
+    calobj2.select(antenna_nums=ants2, frequencies=freqs2, times=times2, jones=jones2)
 
-    calobj += calobj2
+    if in_order:
+        calobj3 = calobj + calobj2
+    else:
+        calobj3 = calobj2 + calobj
 
-    # check resulting dimensionality
-    assert len(calobj.ant_array) == 19
-    assert len(calobj.freq_array) == 10
-    assert len(calobj.time_array) == calobj.Ntimes
-    assert len(calobj.jones_array) == 2
+    # remove the missing parts from calobj_full
+    if ant:
+        ant1_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants1))[0]
+        ant2_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants2))[0]
+    else:
+        ant1_inds = np.arange(calobj_full.Nants_data)
+        ant2_inds = np.arange(calobj_full.Nants_data)
+    if freq:
+        freq1_inds = np.nonzero(np.in1d(calobj_full.freq_array, freqs1))[0]
+        freq2_inds = np.nonzero(np.in1d(calobj_full.freq_array, freqs2))[0]
+    else:
+        freq1_inds = np.arange(calobj_full.Nfreqs)
+        freq2_inds = np.arange(calobj_full.Nfreqs)
+    if time:
+        time1_inds = np.nonzero(np.in1d(calobj_full.time_array, times1))[0]
+        time2_inds = np.nonzero(np.in1d(calobj_full.time_array, times2))[0]
+    else:
+        time1_inds = np.arange(calobj_full.Ntimes)
+        time2_inds = np.arange(calobj_full.Ntimes)
+    if jones:
+        jones1_inds = np.nonzero(np.in1d(calobj_full.jones_array, jones1))[0]
+        jones2_inds = np.nonzero(np.in1d(calobj_full.jones_array, jones2))[0]
+    else:
+        jones1_inds = np.arange(calobj_full.Njones)
+        jones2_inds = np.arange(calobj_full.Njones)
+    axis_dict = {
+        "ant": {"axis": 0, 1: ant1_inds, 2: ant2_inds},
+        "freq": {"axis": 1, 1: freq1_inds, 2: freq2_inds},
+        "time": {"axis": 2, 1: time1_inds, 2: time2_inds},
+        "jones": {"axis": 3, 1: jones1_inds, 2: jones2_inds},
+    }
+    axes_used = []
+    if ant:
+        axes_used.append("ant")
+    if freq:
+        axes_used.append("freq")
+    if time:
+        axes_used.append("time")
+    if jones:
+        axes_used.append("jones")
+    axis_list = []
+    for n_comb in range(1, len(axes_used)):
+        axis_list += list(itertools.combinations(axes_used, n_comb))
+    for al in axis_list:
+        set_use = [1, 1, 1, 1]
+        for axis in al:
+            set_use[axis_dict[axis]["axis"]] = 2
+        inds = np.ix_(
+            axis_dict["ant"][set_use[0]],
+            axis_dict["freq"][set_use[1]],
+            axis_dict["time"][set_use[2]],
+            axis_dict["jones"][set_use[3]],
+        )
+        calobj_full.gain_array[inds] = 0
+        calobj_full.quality_array[inds] = 0
+        calobj_full.flag_array[inds] = True
+        calobj_full.input_flag_array[inds] = True
+
+    # reset history to equality passes
+    calobj3.history = calobj_full.history
+
+    assert calobj3 == calobj_full
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain):
+def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain, wideband_gain):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data
@@ -2766,6 +3061,13 @@ def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain):
         match="To combine these data, flex_spw must be set to the same value",
     ):
         gain_data + multi_spw_gain
+
+    # test wide_band mismatch
+    with pytest.raises(
+        ValueError,
+        match="To combine these data, wide_band must be set to the same value",
+    ):
+        gain_data + wideband_gain
 
 
 def test_jones_warning(gain_data):

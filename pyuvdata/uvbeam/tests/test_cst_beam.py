@@ -546,6 +546,11 @@ def test_read_power_multi_pol():
             "If feed_pol and filename are both lists they need to be the same length",
         ],
         [
+            cst_files[0],
+            {"beam_type": "power", "feed_pol": ["x", "y"]},
+            "Too many feed_pols specified",
+        ],
+        [
             [[cst_files[0]], [cst_files[1]]],
             {"beam_type": "power", "frequency": [150e6, 123e6], "feed_pol": ["x"]},
             "filename can not be a nested list",
