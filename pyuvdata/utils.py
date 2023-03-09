@@ -1611,6 +1611,11 @@ def phase_uvw(ra, dec, initial_uvw):
         uvw array in the same frame as initial_uvws, ra and dec.
 
     """
+    warnings.warn(
+        "This function supports the old phasing method and will be removed along with "
+        "the old phasing code in version 2.4",
+        DeprecationWarning,
+    )
     if initial_uvw.ndim == 1:
         initial_uvw = initial_uvw[np.newaxis, :]
 
@@ -1645,6 +1650,11 @@ def unphase_uvw(ra, dec, uvw):
         shape (Nlocs, 3).
 
     """
+    warnings.warn(
+        "This function supports the old phasing method and will be removed along with "
+        "the old phasing code in version 2.4",
+        DeprecationWarning,
+    )
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 

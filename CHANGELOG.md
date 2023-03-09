@@ -45,6 +45,8 @@ types.
 - Severe performance hit when calling `polnum2str` and its variants for many baselines.
 
 ### Deprecated
+- The utility functions `phase_uvw` and `unphase_uvw` associated with the deprecated
+old phasing method.
 - The `flex_spw_id_array` will be required on all UVData and UVFlag and all
 non-wide-band UVCal objects in version 3.0.
 - Deprecated the `interpolation_function` attribute on UVBeams.

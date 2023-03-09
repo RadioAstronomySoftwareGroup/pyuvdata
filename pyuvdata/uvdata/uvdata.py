@@ -5511,11 +5511,15 @@ class UVData(UVBase):
             obs_time = obs_times[ind]
 
             if use_ant_pos:
-                ant_uvw = uvutils.phase_uvw(
-                    self.telescope_location_lat_lon_alt[1],
-                    self.telescope_location_lat_lon_alt[0],
-                    self.antenna_positions,
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", "This function supports the old phasing method"
+                    )
+                    ant_uvw = uvutils.phase_uvw(
+                        self.telescope_location_lat_lon_alt[1],
+                        self.telescope_location_lat_lon_alt[0],
+                        self.antenna_positions,
+                    )
                 # instead of looping through every ind, find the spot in antenna number
                 # array where ant_num <= ant1 < ant_number and similarly for ant2
                 # for all baselines in inds
@@ -5541,9 +5545,13 @@ class UVData(UVBase):
 
                 uvws_use = self.uvw_array[inds, :]
 
-                uvw_rel_positions = uvutils.unphase_uvw(
-                    frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", "This function supports the old phasing method"
+                    )
+                    uvw_rel_positions = uvutils.unphase_uvw(
+                        frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
+                    )
 
                 frame_uvw_coord = SkyCoord(
                     x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
@@ -6263,9 +6271,15 @@ class UVData(UVBase):
                     .T.value
                 )
 
-                frame_ant_uvw = uvutils.phase_uvw(
-                    frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_ant_rel
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", "This function supports the old phasing method"
+                    )
+                    frame_ant_uvw = uvutils.phase_uvw(
+                        frame_phase_center.ra.rad,
+                        frame_phase_center.dec.rad,
+                        frame_ant_rel,
+                    )
                 # instead of looping through every ind, find the spot in antenna number
                 # array where ant_num <= ant1 < ant_number and similarly for ant2
                 # for all baselines in inds
@@ -6308,9 +6322,15 @@ class UVData(UVBase):
                     - frame_telescope_location.cartesian.get_xyz().value
                 )
 
-                self.uvw_array[inds, :] = uvutils.phase_uvw(
-                    frame_phase_center.ra.rad, frame_phase_center.dec.rad, frame_rel_uvw
-                )
+                with warnings.catch_warnings():
+                    warnings.filterwarnings(
+                        "ignore", "This function supports the old phasing method"
+                    )
+                    self.uvw_array[inds, :] = uvutils.phase_uvw(
+                        frame_phase_center.ra.rad,
+                        frame_phase_center.dec.rad,
+                        frame_rel_uvw,
+                    )
 
         # calculate data and apply phasor
         if not self.metadata_only:
