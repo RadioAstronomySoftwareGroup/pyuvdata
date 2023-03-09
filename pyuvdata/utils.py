@@ -1588,6 +1588,9 @@ def phase_uvw(ra, dec, initial_uvw):
     """
     Calculate phased uvws/positions from unphased ones in an icrs or gcrs frame.
 
+    This method is deprecated because it is associated with the old style of phasing,
+    which is less correct than the way we do it now.
+
     This code expects input uvws or positions relative to the telescope
     location in the same frame that ra/dec are in (e.g. icrs or gcrs) and
     returns phased ones in the same frame.
@@ -1629,6 +1632,9 @@ def phase_uvw(ra, dec, initial_uvw):
 def unphase_uvw(ra, dec, uvw):
     """
     Calculate unphased uvws/positions from phased ones in an icrs or gcrs frame.
+
+    This method is deprecated because it is associated with the old style of phasing,
+    which is less correct than the way we do it now.
 
     This code expects phased uvws or positions in the same frame that ra/dec
     are in (e.g. icrs or gcrs) and returns unphased ones in the same frame.
