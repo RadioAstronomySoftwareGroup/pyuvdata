@@ -2224,7 +2224,14 @@ def test_phasing_funcs():
         (gcrs_from_itrs_coord.cartesian - gcrs_array_center.cartesian).get_xyz().T
     )
 
-    gcrs_uvw = uvutils.phase_uvw(gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="This function supports the old phasing method and will be removed along "
+        "with the old phasing code in version 2.4",
+    ):
+        gcrs_uvw = uvutils.phase_uvw(
+            gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value
+        )
 
     mwa_tools_calcuvw_u = -97.122828
     mwa_tools_calcuvw_v = 50.388281
@@ -2235,9 +2242,14 @@ def test_phasing_funcs():
     assert np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
 
     # also test unphasing
-    temp2 = uvutils.unphase_uvw(
-        gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
-    )
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="This function supports the old phasing method and will be removed along "
+        "with the old phasing code in version 2.4",
+    ):
+        temp2 = uvutils.unphase_uvw(
+            gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
+        )
     assert np.allclose(gcrs_rel.value, temp2)
 
 
