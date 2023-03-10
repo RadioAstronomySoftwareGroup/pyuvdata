@@ -9464,24 +9464,6 @@ class UVData(UVBase):
         # Update the rectangularity attributes
         if blt_inds is not None:
             self.set_rectangularity(force=True)
-        #     if self.Nbls > 1 and self.Ntimes > 1:
-        #         # We don't know. We could check, but it takes time.
-        #         self.blts_are_rectangular = None
-        #     else:
-        #         self.blts_are_rectangular = True
-
-        # if self.blts_are_rectangular is False:
-        #     self.time_axis_faster_than_bls = False
-        # elif self.blts_are_rectangular is None:
-        #     self.time_axis_faster_than_bls = None
-
-        # if self.time_axis_faster_than_bls is not None:
-        #     if self.Ntimes == 1 and self.Nbls > 1:
-        #         self.time_axis_faster_than_bls = False
-        #     elif self.Ntimes > 1 and self.Nbls == 1:
-        #         self.time_axis_faster_than_bls = True
-        #     elif self.Ntimes == 1 and self.Nbls == 1:
-        #         self.time_axis_faster_than_bls = True
 
         # If we have a flex-pol data set, but we only have one pol, then this doesn't
         # need to be flex-pol anymore, and we can drop it here
