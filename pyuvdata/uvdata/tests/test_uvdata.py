@@ -12848,6 +12848,7 @@ def test_init_like_hera_cal(
     assert uvd2 == hera_uvh5
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_setting_time_axis_wrongly(casa_uvfits):
     casa_uvfits.time_axis_faster_than_bls = True
     with pytest.raises(ValueError, match="time_axis_faster_than_bls is True but"):
