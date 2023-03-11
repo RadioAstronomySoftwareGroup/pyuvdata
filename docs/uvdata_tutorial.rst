@@ -1218,7 +1218,7 @@ UVData object.
 
 **WARNING**: There is no guarantee that two objects combined in this fashion
 will result in a self-consistent object after concatenation. Basic checking is
-done, but time-consuming robust check are eschewed for the sake of speed. The
+done, but time-consuming robust checks are eschewed for the sake of speed. The
 data will also *not* be reordered or sorted as part of the concatenation, and so
 this must be done manually by the user if a reordering is desired
 (see :ref:`sorting_data`).

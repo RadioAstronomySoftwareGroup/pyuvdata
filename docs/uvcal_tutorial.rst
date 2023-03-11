@@ -96,9 +96,12 @@ a) Reading a cal fits gain calibration file.
   >>> import matplotlib.pyplot as plt # doctest: +SKIP
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
+  >>> # Can optionally specify the ``file_type`` to either method
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+  >>> cal = UVCal()
+  >>> cal.read(filename, file_type="calfits", use_future_array_shapes=True)
 
   >>> # Cal type:
   >>> print(cal.cal_type)
@@ -140,12 +143,22 @@ b) FHD cal to cal fits
   >>> settings_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt')
   >>> layout_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav')
 
-  >>> fhd_cal = UVCal()
-  >>> fhd_cal.read_fhd_cal(
+  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
+  >>> # Can optionally specify the ``file_type`` to either method
+  >>> fhd_cal = UVCal.from_file(
   ...    cal_testfile,
-  ...    obs_testfile,
+  ...    obs_file=obs_testfile,
   ...    settings_file=settings_testfile,
   ...    layout_file=layout_testfile,
+  ...    use_future_array_shapes=True,
+  ... )
+  >>> fhd_cal = UVCal()
+  >>> fhd_cal.read(
+  ...    cal_testfile,
+  ...    obs_file=obs_testfile,
+  ...    settings_file=settings_testfile,
+  ...    layout_file=layout_testfile,
+  ...    file_type="fhd",
   ...    use_future_array_shapes=True,
   ... )
   >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
@@ -189,20 +202,19 @@ a) Data for a single antenna and instrumental polarization
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> UVC = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
-  >>> UVC.read_calfits(filename, use_future_array_shapes=True)
-  >>> gain = UVC.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
+  >>> uvc = UVCal.from_file(filename, use_future_array_shapes=True)
+  >>> gain = uvc.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
 
   >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
-  >>> gain = UVC.get_gains((9, 'Jxx'))
+  >>> gain = uvc.get_gains((9, 'Jxx'))
 
   >>> # If no polarization is fed, then all polarizations are returned
-  >>> gain = UVC.get_gains(9)
+  >>> gain = uvc.get_gains(9)
 
   >>> # One can also request flags and quality arrays in a similar manner
-  >>> flags = UVC.get_flags(9, 'Jxx')
-  >>> quals = UVC.get_quality(9, 'Jxx')
+  >>> flags = uvc.get_flags(9, 'Jxx')
+  >>> quals = uvc.get_quality(9, 'Jxx')
 
 UVCal: Calibrating UVData
 -------------------------
@@ -223,8 +235,7 @@ a) Calibration of UVData by UVCal
   ...    file_type="uvh5",
   ...    use_future_array_shapes=True
   ... )
-  >>> uvc = UVCal()
-  >>> uvc.read_calfits(
+  >>> uvc = UVCal.from_file(
   ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
   ...    use_future_array_shapes=True
   ... )
@@ -253,9 +264,8 @@ a) Select antennas to keep on UVCal object using the antenna number.
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(cal.ant_array)
@@ -274,9 +284,8 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # print all the antenna names with data in the original file
   >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
@@ -304,9 +313,8 @@ d) Select times
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # print all the times in the original file
   >>> print(cal.time_array)
@@ -334,9 +342,8 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> import pyuvdata.utils as uvutils
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # Jones component numbers can be found in the jones_array
   >>> print(cal.jones_array)
@@ -393,9 +400,8 @@ a) Add frequencies.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal1 = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
 
   >>> # Downselect frequencies to recombine
@@ -413,9 +419,8 @@ b) Add times.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal1 = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
 
   >>> # Downselect times to recombine
@@ -437,16 +442,15 @@ directly without creating a third uvcal object.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal1 = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal1 = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
   >>> times = np.unique(cal1.time_array)
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
   >>> cal1.__add__(cal2, inplace=True)
 
-  >>> cal1.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal1.read(filename, use_future_array_shapes=True)
   >>> cal2 = cal1.copy()
   >>> cal1.select(times=times[0:len(times) // 2])
   >>> cal2.select(times=times[len(times) // 2:])
@@ -454,9 +458,9 @@ directly without creating a third uvcal object.
 
 d) Reading multiple files.
 **************************
-If any of the read methods (:meth:`pyuvdata.UVCal.read_calfits`,
-:meth:`pyuvdata.UVCal.read_fhd_cal`) are given a list of files,
-each file will be read in succession and added to the previous.
+If you pass a list of files to the read or from_file methods (:meth:`pyuvdata.UVCal.read`,
+:meth:`pyuvdata.UVCal.from_file`), each file will be read in succession and combined
+with the previous file(s).
 
 .. code-block:: python
 
@@ -464,9 +468,8 @@ each file will be read in succession and added to the previous.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
   >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
   >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
@@ -475,10 +478,9 @@ each file will be read in succession and added to the previous.
   >>> cal3.write_calfits(os.path.join('.', 'tutorial3.fits'))
   >>> filenames = [os.path.join('.', f) for f
   ...              in ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']]
-  >>> cal.read_calfits(filenames, use_future_array_shapes=True)
+  >>> cal.read(filenames, use_future_array_shapes=True)
 
   >>> # For FHD cal datasets pass lists for each file type
-  >>> fhd_cal = UVCal()
   >>> obs_testfiles = [
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav'),
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_obs.sav'),
@@ -495,13 +497,53 @@ each file will be read in succession and added to the previous.
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
   ... ]
-  >>> fhd_cal.read_fhd_cal(
+  >>> fhd_cal = UVCal.from_file(
   ...    cal_testfiles,
-  ...    obs_testfiles,
+  ...    obs_file=obs_testfiles,
   ...    settings_file=settings_testfiles,
   ...    layout_file=layout_testfiles,
   ...    use_future_array_shapes=True,
   ... )
+
+e) Fast concatenation
+*********************
+As an alternative to the :meth:`pyuvdata.UVCal.__add__` method,
+the :meth:`pyuvdata.UVCal.fast_concat` method can be used.
+The user specifies a UVCal object to combine with the existing one,
+along with the axis along which they should be combined. Fast concatenation can
+be invoked implicitly when reading in multiple files as above by passing the
+``axis`` keyword argument. This will use the ``fast_concat`` method instead of
+the ``__add__`` method to combine the data contained in the files into a single
+UVCal object.
+
+**WARNING**: There is no guarantee that two objects combined in this fashion
+will result in a self-consistent object after concatenation. Basic checking is
+done, but time-consuming robust checks are eschewed for the sake of speed. The
+data will also *not* be reordered or sorted as part of the concatenation, and so
+this must be done manually by the user if a reordering is desired
+(see :ref:`sorting_data`).
+
+
+.. code-block:: python
+
+  >>> import os
+  >>> import numpy as np
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+  >>> cal1 = cal.select(freq_chans=np.arange(0, 2), inplace=False)
+  >>> cal2 = cal.select(freq_chans=np.arange(2, 4), inplace=False)
+  >>> cal3 = cal.select(freq_chans=np.arange(4, 7), inplace=False)
+  >>> cal1.write_calfits(os.path.join('.', 'tutorial1.fits'), clobber=True)
+  >>> cal2.write_calfits(os.path.join('.', 'tutorial2.fits'), clobber=True)
+  >>> cal3.write_calfits(os.path.join('.', 'tutorial3.fits'), clobber=True)
+  >>> filenames = [os.path.join('.', f) for f
+  ...              in ['tutorial1.fits', 'tutorial2.fits', 'tutorial3.fits']]
+  >>> cal.read(filenames, axis="freq", use_future_array_shapes=True)
+
+
+.. _sorting_data:
 
 UVCal: Sorting data along various axes
 ---------------------------------------
@@ -520,9 +562,8 @@ specified by passing an index array.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> # Default is to order by antenna number
   >>> cal.reorder_antennas()
   >>> print(np.min(np.diff(cal.ant_array)) >= 0)
@@ -548,9 +589,8 @@ channels.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> # First create a multi-spectral window UVCal object:
   >>> cal._set_flex_spw()
   >>> cal.channel_width = np.zeros(cal.Nfreqs, dtype=np.float64) + cal.channel_width
@@ -605,9 +645,8 @@ array for the time axis.
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # Default is to order by ascending time
   >>> cal.reorder_times()
@@ -631,9 +670,8 @@ by the Jones component number or name, or by an explicit index ordering set by t
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> # Default is to order by Jones component name
   >>> cal.reorder_jones()
   >>> print(cal.jones_array)
@@ -651,11 +689,10 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
   >>> import os
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> cal = UVCal()
 
   >>> # This file has a cal_type of 'delay'.
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.delay.calfits')
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
   >>> print(cal.cal_type)
   delay
 
@@ -670,24 +707,20 @@ object's ``gain_array`` to an array consistent with its pre-existing ``delay_arr
 
   >>> # If we want the calibration to use a positive value in its exponent, rather
   >>> # than the default negative value:
-  >>> cal = UVCal()
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
-  >>> cal = cal.convert_to_gain(delay_convention='plus', freq_array=freq_array, channel_width=channel_width)
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+  >>> cal.convert_to_gain(delay_convention='plus', freq_array=freq_array, channel_width=channel_width)
 
   >>> # Convert to gain *without* running the default check that internal arrays are
   >>> # of compatible shapes:
-  >>> cal = UVCal()
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal.read(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check=False)
 
   >>> # Convert to gain *without* running the default check that optional parameters
   >>> # are properly shaped and typed:
-  >>> cal = UVCal()
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal.read(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, check_extra=False)
 
   >>> # Convert to gain *without* running the default checks on the reasonableness
   >>> # of the resulting calibration's parameters.
-  >>> cal = UVCal()
-  >>> cal.read_calfits(filename, use_future_array_shapes=True)
+  >>> cal.read(filename, use_future_array_shapes=True)
   >>> cal.convert_to_gain(freq_array=freq_array, channel_width=channel_width, run_check_acceptability=False)
