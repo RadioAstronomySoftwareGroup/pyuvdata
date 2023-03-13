@@ -184,12 +184,12 @@ class FHDCal(UVCal):
             self.antenna_names = [
                 ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
+            self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
             if self.telescope_name.lower() == "mwa":
                 self.antenna_names = [
                     "Tile" + "0" * (3 - len(ant)) + ant for ant in self.antenna_names
                 ]
             self.Nants_telescope = len(self.antenna_names)
-            self.antenna_numbers = np.arange(self.Nants_telescope)
 
         self.antenna_names = np.asarray(self.antenna_names)
 

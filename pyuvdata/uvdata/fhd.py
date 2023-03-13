@@ -454,8 +454,8 @@ class FHD(UVData):
         if layout_file is None:
             warnings.warn(
                 "No layout file included in file list, "
-                "antenna_postions will not be defined (unless they are defined in the known telescopes) "
-                "and antenna names might be incorrect."
+                "antenna_postions will not be defined "
+                "and antenna names and numbers might be incorrect."
             )
         if settings_file is None:
             warnings.warn("No settings file included in file list")
@@ -603,29 +603,17 @@ class FHD(UVData):
         else:
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
 
-            # check to see if we have the layout info for this telescope.
-            # If so, don't set anything here, we'll set the values below
-            telescope_obj = uvtel.get_telescope(self.telescope_name)
-
-            if telescope_obj.Nants_telescope is None:
-                # we don't have layout info, so go ahead and set the antenna_names,
-                # antenna_numbers and Nants_telescope from the baseline info struct.
+            # we don't have layout info, so go ahead and set the antenna_names,
+            # antenna_numbers and Nants_telescope from the baseline info struct.
+            self.antenna_names = [
+                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
+            ]
+            self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
+            if self.telescope_name.lower() == "mwa":
                 self.antenna_names = [
-                    ant.decode("utf8").strip()
-                    for ant in bl_info["TILE_NAMES"][0].tolist()
+                    "Tile" + "0" * (3 - len(ant)) + ant for ant in self.antenna_names
                 ]
-                if self.telescope_name.lower() == "mwa":
-                    self.antenna_names = [
-                        "Tile" + "0" * (3 - len(ant)) + ant
-                        for ant in self.antenna_names
-                    ]
-                self.Nants_telescope = len(self.antenna_names)
-                self.antenna_numbers = np.arange(self.Nants_telescope)
-
-        try:
-            self.set_telescope_params()
-        except ValueError as ve:
-            warnings.warn(str(ve))
+            self.Nants_telescope = len(self.antenna_names)
 
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(background=background_lsts)
