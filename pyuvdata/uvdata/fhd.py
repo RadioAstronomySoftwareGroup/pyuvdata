@@ -208,9 +208,7 @@ def get_fhd_layout_info(
     )
     antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions, longitude)
 
-    antenna_names = [
-        ant.decode("utf8").strip() for ant in layout["antenna_names"][0].tolist()
-    ]
+    antenna_names = [ant.decode("utf8") for ant in layout["antenna_names"][0].tolist()]
     layout_fields.remove("antenna_names")
 
     # make these 0-indexed (rather than one indexed)
@@ -222,10 +220,13 @@ def get_fhd_layout_info(
 
     if telescope_name.lower() == "mwa":
         # check that obs.baseline_info.tile_names match the antenna names
+        # (accounting for possible differences in white space)
         # this only applies for MWA because the tile_names come from
         # metafits files. layout["antenna_names"] comes from the antenna table
         # in the uvfits file and will be used if no metafits was submitted
-        if obs_tile_names != antenna_names:
+        if [ant.strip() for ant in obs_tile_names] != [
+            ant.strip() for ant in antenna_names
+        ]:
             warnings.warn(
                 "tile_names from obs structure does not match "
                 "antenna_names from layout"
@@ -578,12 +579,12 @@ class FHD(UVData):
             # might have been stored in bl_info, so pull the obs_tile_names
             # and check them against the layout file
             obs_tile_names = [
-                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
+                ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            # in older FHD versions, tile numbers were stored instead of tile names
             if self.telescope_name.lower() == "mwa" and obs_tile_names[0][0] != "T":
                 obs_tile_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
+                    "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
+                    for ant in obs_tile_names
                 ]
             layout_param_dict = get_fhd_layout_info(
                 layout_file,

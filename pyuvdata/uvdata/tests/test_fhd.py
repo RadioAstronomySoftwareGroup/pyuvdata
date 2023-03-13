@@ -599,8 +599,10 @@ def test_conjugation():
     uvfits_uv.read(uvfits_file, use_future_array_shapes=True)
 
     fhd_uv = UVData()
-
-    fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning, "tile_names from obs structure does not match"
+    ):
+        fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)
 

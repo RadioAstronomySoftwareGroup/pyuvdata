@@ -142,11 +142,12 @@ class FHDCal(UVCal):
         # get the stuff FHD read from the antenna table (in layout file)
         if layout_file is not None:
             obs_tile_names = [
-                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
+                ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
             if self.telescope_name.lower() == "mwa":
                 obs_tile_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in obs_tile_names
+                    "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
+                    for ant in obs_tile_names
                 ]
 
             layout_param_dict = get_fhd_layout_info(
