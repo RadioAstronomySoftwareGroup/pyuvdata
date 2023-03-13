@@ -181,13 +181,12 @@ class CALFITS(UVCal):
         # Conforming to fits format
         prihdr["SIMPLE"] = True
         prihdr["TELESCOP"] = self.telescope_name
-        if self.telescope_location is not None:
-            prihdr["ARRAYX"] = self.telescope_location[0]
-            prihdr["ARRAYY"] = self.telescope_location[1]
-            prihdr["ARRAYZ"] = self.telescope_location[2]
-            prihdr["LAT"] = self.telescope_location_lat_lon_alt_degrees[0]
-            prihdr["LON"] = self.telescope_location_lat_lon_alt_degrees[1]
-            prihdr["ALT"] = self.telescope_location_lat_lon_alt[2]
+        prihdr["ARRAYX"] = self.telescope_location[0]
+        prihdr["ARRAYY"] = self.telescope_location[1]
+        prihdr["ARRAYZ"] = self.telescope_location[2]
+        prihdr["LAT"] = self.telescope_location_lat_lon_alt_degrees[0]
+        prihdr["LON"] = self.telescope_location_lat_lon_alt_degrees[1]
+        prihdr["ALT"] = self.telescope_location_lat_lon_alt[2]
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
         prihdr["CALSTYLE"] = self.cal_style
@@ -491,11 +490,8 @@ class CALFITS(UVCal):
                 self.ant_array, np.zeros(nants_add, dtype=np.int64) - 1
             )
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
-        if self.antenna_positions is not None:
-            col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
-            cols = fits.ColDefs([col1, col2, col3, col4])
-        else:
-            cols = fits.ColDefs([col1, col2, col3])
+        col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
+        cols = fits.ColDefs([col1, col2, col3, col4])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header["EXTNAME"] = "ANTENNAS"
 

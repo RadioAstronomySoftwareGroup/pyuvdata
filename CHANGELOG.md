@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.3.0] - 2023-03-13
+
 ### Added
 - A new `interpolation_function` parameter to `UVBeam.interp` and `UVBeam.to_healpix`
 to allow the function name to be passed into the methods, with sensible defaulting.
@@ -19,6 +21,7 @@ they are converted between types using UVData and UVCalobjects.
 to set several of these new parameters.
 
 ### Changed
+- Increases the h5py minimum version to 3.1.
 - Increase the minimum compatible version for lunarsky to 0.2.1 to fix astropy
 deprecation warnings.
 
@@ -59,6 +62,10 @@ non-wide-band UVCal objects in version 3.0.
 `phase_center_dec`, `phase_center_frame`, `phase_center_epoch`, `object_name`) in favor
 of the `phase_center_catalog`. The older phase attributes will be removed in version 3.0.
 - The `lst_from_uv` function in the uvflag module.
+
+### Removed
+- Removed deprecated handling for UVCal objects without `telescope_location`,
+`antenna_positions` and `lst_array` parameters defined.
 
 ## [2.2.12] - 2022-12-07
 

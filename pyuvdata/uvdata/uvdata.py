@@ -2225,7 +2225,8 @@ class UVData(UVBase):
             ):
                 warnings.warn(
                     f"phase_center_catalog is already set, so {__name}, which is an "
-                    "old phase attribute, cannot be set.",
+                    "old phase attribute, cannot be set. This will become an error in "
+                    "version 3.0",
                     DeprecationWarning,
                 )
                 return
@@ -12565,7 +12566,7 @@ class UVData(UVBase):
                 "The `make_multi_phase` option is deprecated. Since all objects now "
                 "support multiple phase centers, the only effect of setting this to "
                 "True is to prevent rephasing. A better approach is to set "
-                "`allow_rephase=False`.",
+                "`allow_rephase=False`. This will become an error in version 3.0.",
                 DeprecationWarning,
             )
 

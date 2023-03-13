@@ -973,7 +973,7 @@ class UVFITS(UVData):
                     "UVFITS-required metadata are now set automatically to their "
                     'best known values, and no longer need to be "spoofed". As such, '
                     "the spoof_nonessential parameter is deprecated, and will be "
-                    "removed in a future release."
+                    "removed in version 2.4."
                 ),
                 DeprecationWarning,
             )

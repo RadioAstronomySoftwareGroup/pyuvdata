@@ -851,7 +851,7 @@ class Miriad(UVData):
         if phase_type is not None:
             warnings.warn(
                 "The phase_type parameter is deprecated, use the projected parameter "
-                "instead.",
+                "instead. This will become an error in version 3.0.",
                 DeprecationWarning,
             )
             if projected is None:
