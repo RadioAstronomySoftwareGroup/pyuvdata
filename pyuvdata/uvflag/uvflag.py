@@ -72,7 +72,7 @@ def lst_from_uv(uv):
     """
     warnings.warn(
         "The lst_from_uv function is deprecated. Use the `set_lsts_from_time_array` "
-        "method on the input object.",
+        "method on the input object. This will become an error in version 2.4.",
         category=DeprecationWarning,
     )
 

@@ -145,7 +145,7 @@ setup_args = {
     "include_package_data": True,
     "install_requires": [
         "astropy>=5.0.4",
-        "h5py>=3.0",
+        "h5py>=3.1",
         "numpy>=1.19",
         "pyerfa>=2.0",
         "scipy>=1.3",

@@ -11,6 +11,8 @@ import os
 
 import numpy as np
 import pytest
+from astropy.io import fits
+from astropy.table import Table
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
@@ -313,26 +315,6 @@ def test_check(gain_data):
     assert gain_data.check()
 
 
-def test_check_warnings(gain_data):
-    """Test that parameter checks run properly"""
-    gain_data.telescope_location = None
-    gain_data.lst_array = None
-    gain_data.antenna_positions = None
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        [
-            "The telescope_location is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-            "The lst_array is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
-        ],
-    ):
-        assert gain_data.check()
-
-
 def test_check_flag_array(gain_data):
     gain_data.flag_array = np.ones((gain_data.flag_array.shape), dtype=int)
 
@@ -492,30 +474,47 @@ def test_future_array_shape_errors(
 
 def test_unknown_telescopes(gain_data, tmp_path):
     calobj = gain_data
-    calobj.telescope_name = "foo"
-    calobj.telescope_location = None
-    calobj.lst_array = None
-    calobj.antenna_positions = None
 
-    write_file_calfits = str(tmp_path / "test.calfits")
-    deprecation_messages = [
-        "The telescope_location is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3",
-        "The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3",
-        "The lst_array is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3",
-    ]
+    write_file = str(tmp_path / "test.calfits")
+    write_file2 = str(tmp_path / "test2.calfits")
+    calobj.write_calfits(write_file)
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        primary_hdu = hdu_list[0]
+        primary_hdr = primary_hdu.header.copy()
+        del primary_hdr["ARRAYX"]
+        del primary_hdr["ARRAYY"]
+        del primary_hdr["ARRAYZ"]
+        del primary_hdr["LAT"]
+        del primary_hdr["LON"]
+        del primary_hdr["ALT"]
+        primary_hdr["TELESCOP"] = "foo"
+        primary_hdu.header = primary_hdr
 
-    with uvtest.check_warnings(DeprecationWarning, match=deprecation_messages):
-        calobj.write_calfits(write_file_calfits, clobber=True)
+        ant_hdu = hdu_list[hdunames["ANTENNAS"]]
+
+        table = Table(ant_hdu.data)
+        del table["ANTXYZ"]
+        ant_hdu = fits.BinTableHDU(table)
+        ant_hdu.header["EXTNAME"] = "ANTENNAS"
+
+        hdulist = fits.HDUList([primary_hdu, ant_hdu])
+
+        hdulist.writeto(write_file2)
+        hdulist.close()
 
     calobj2 = UVCal()
-    with uvtest.check_warnings(
-        [UserWarning] + [DeprecationWarning] * 3,
-        match=["Telescope foo is not in known_telescopes"] + deprecation_messages,
+    with pytest.raises(
+        ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
-        calobj2.read_calfits(write_file_calfits, use_future_array_shapes=True)
+        with uvtest.check_warnings(
+            [UserWarning], match=["Telescope foo is not in known_telescopes"]
+        ):
+            calobj2.read_calfits(write_file2, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        [UserWarning], match=["Telescope foo is not in known_telescopes"]
+    ):
+        calobj2.read_calfits(write_file2, use_future_array_shapes=True, run_check=False)
 
 
 def test_nants_data_telescope_larger(gain_data):
@@ -3348,21 +3347,29 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
         ]
 
     # remove the antenna_positions to test matching them on read
-    gain_data2 = gain_data.copy()
-    gain_data2.antenna_positions = None
+    write_file = str(tmp_path / "test.calfits")
+    write_file2 = str(tmp_path / "test2.calfits")
+    gain_data.write_calfits(write_file)
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        primary_hdu = hdu_list[0]
+        ant_hdu = hdu_list[hdunames["ANTENNAS"]]
 
-    write_file_calfits = str(tmp_path / "test.calfits")
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3",
-    ):
-        gain_data2.write_calfits(write_file_calfits)
+        table = Table(ant_hdu.data)
+        del table["ANTXYZ"]
+        ant_hdu = fits.BinTableHDU(table)
+        ant_hdu.header["EXTNAME"] = "ANTENNAS"
 
+        hdulist = fits.HDUList([primary_hdu, ant_hdu])
+
+        hdulist.writeto(write_file2)
+        hdulist.close()
+
+    gain_data2 = UVCal()
     with uvtest.check_warnings(
         UserWarning, "antenna_positions is not set. Using known values for HERA."
     ):
-        gain_data2.read_calfits(write_file_calfits, use_future_array_shapes=True)
+        gain_data2.read_calfits(write_file2, use_future_array_shapes=True)
 
     assert gain_data2.antenna_positions is not None
     assert gain_data == gain_data2
@@ -3391,27 +3398,47 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         gain_data.antenna_numbers[1] = orig_num
 
     # remove the antenna_positions to test matching them on read
-    gain_data2 = gain_data.copy()
-    gain_data2.antenna_positions = None
+    write_file = str(tmp_path / "test.calfits")
+    write_file2 = str(tmp_path / "test2.calfits")
+    gain_data.write_calfits(write_file)
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        primary_hdu = hdu_list[0]
+        ant_hdu = hdu_list[hdunames["ANTENNAS"]]
 
-    write_file_calfits = str(tmp_path / "test.calfits")
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The antenna_positions parameter is not set. It will be a required "
-        "parameter starting in pyuvdata version 2.3",
+        table = Table(ant_hdu.data)
+        del table["ANTXYZ"]
+        ant_hdu = fits.BinTableHDU(table)
+        ant_hdu.header["EXTNAME"] = "ANTENNAS"
+
+        hdulist = fits.HDUList([primary_hdu, ant_hdu])
+
+        hdulist.writeto(write_file2)
+        hdulist.close()
+
+    gain_data2 = UVCal()
+    with pytest.raises(
+        ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
-        gain_data2.write_calfits(write_file_calfits)
+        with uvtest.check_warnings(
+            [UserWarning],
+            match=[
+                "Not all antennas have positions in the telescope object. "
+                "Not setting antenna_positions."
+            ],
+        ):
+            gain_data2.read_calfits(write_file2, use_future_array_shapes=True)
 
     with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
+        UserWarning,
         match=[
             "Not all antennas have positions in the telescope object. "
-            "Not setting antenna_positions.",
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3",
+            "Not setting antenna_positions."
         ],
     ):
-        gain_data2.read_calfits(write_file_calfits, use_future_array_shapes=True)
+        gain_data2.read_calfits(
+            write_file2, use_future_array_shapes=True, run_check=False
+        )
 
     assert gain_data2.antenna_positions is None
 

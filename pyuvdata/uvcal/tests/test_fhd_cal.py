@@ -292,29 +292,21 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         expected_history += " Combined data along time axis using pyuvdata."
     assert fhd_cal.history == expected_history
 
-    message_list = (
-        ["No layout file, antenna_postions will not be defined."] * nfiles
-        + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
-        + [
-            "The antenna_positions parameter is not set. It will be a required "
-            "parameter starting in pyuvdata version 2.3"
-        ]
-        * (4 * nfiles - 3)
-    )
+    message_list = [
+        "No layout file, antenna_postions will not be defined."
+    ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
-    warning_list = [UserWarning] * (2 * nfiles - 1) + [DeprecationWarning] * (
-        4 * nfiles - 3
-    )
-    with uvtest.check_warnings(warning_list, message_list):
-        fhd_cal.read_fhd_cal(
-            cal_file,
-            obs_file,
-            settings_file=settings_file,
-            use_future_array_shapes=True,
-        )
-
-    # Check no antenna_positions
-    assert fhd_cal.antenna_positions is None
+    warning_list = [UserWarning] * (2 * nfiles - 1)
+    with pytest.raises(
+        ValueError, match="Required UVParameter _antenna_positions has not been set."
+    ):
+        with uvtest.check_warnings(warning_list, message_list):
+            fhd_cal.read_fhd_cal(
+                cal_file,
+                obs_file,
+                settings_file=settings_file,
+                use_future_array_shapes=True,
+            )
 
 
 def test_read_multi(tmp_path):

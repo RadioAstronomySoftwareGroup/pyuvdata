@@ -103,7 +103,7 @@ class UVCal(UVBase):
             description=desc,
             acceptable_range=(6.35e6, 6.39e6),
             tols=1e-3,
-            required=False,
+            required=True,
         )
 
         desc = (
@@ -154,7 +154,7 @@ class UVCal(UVBase):
             form=("Nants_telescope", 3),
             expected_type=float,
             tols=1e-3,  # 1 mm
-            required=False,
+            required=True,
         )
 
         desc = (
@@ -263,7 +263,7 @@ class UVCal(UVBase):
             form=("Ntimes",),
             expected_type=float,
             tols=radian_tol,
-            required=False,
+            required=True,
         )
 
         desc = (
@@ -1188,30 +1188,6 @@ class UVCal(UVBase):
             self._set_sky()
         elif self.cal_style == "redundant":
             self._set_redundant()
-
-        # If the telescope location is not set issue a deprecation warning
-        if self.telescope_location is None:
-            warnings.warn(
-                "The telescope_location is not set. It will be a required "
-                "parameter starting in pyuvdata version 2.3",
-                category=DeprecationWarning,
-            )
-
-        # If the antenna positions parameter is not set issue a deprecation warning
-        if self.antenna_positions is None:
-            warnings.warn(
-                "The antenna_positions parameter is not set. It will be a required "
-                "parameter starting in pyuvdata version 2.3",
-                category=DeprecationWarning,
-            )
-
-        # If the lst_array parameter is not set issue a deprecation warning
-        if self.lst_array is None:
-            warnings.warn(
-                "The lst_array is not set. It will be a required "
-                "parameter starting in pyuvdata version 2.3",
-                category=DeprecationWarning,
-            )
 
         # if wide_band is True, Nfreqs must be 1.
         if self.wide_band:
