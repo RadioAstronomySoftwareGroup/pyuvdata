@@ -64,9 +64,7 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path):
     """
     fhd_uv = fhd_data
     uvfits_uv = UVData()
-    print(fhd_uv.Nfreqs)
-    print(fhd_uv.Ntimes)
-    print(fhd_uv.Nants_data)
+
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
@@ -442,7 +440,6 @@ def test_read_fhd_warnings():
     warn_messages = [
         "Ntimes does not match",
         "Telescope location derived from obs",
-        "Telescope foo is not in known_telescopes.",
         "These visibilities may have been phased improperly",
         "Nbls does not match",
     ]
@@ -587,7 +584,7 @@ def test_single_time():
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "tile_names from obs structure does not match",
+        UserWarning, "tile_names from obs structure does not match"
     ):
         fhd_uv.read(single_time_filelist, use_future_array_shapes=True)
 
@@ -602,69 +599,10 @@ def test_conjugation():
     uvfits_uv.read(uvfits_file, use_future_array_shapes=True)
 
     fhd_uv = UVData()
-    with uvtest.check_warnings(
-        UserWarning, "Telescope gaussian is not in known_telescopes.",
-    ):
-        fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
+
+    fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)
 
     assert uvfits_uv._uvw_array == fhd_uv._uvw_array
     assert uvfits_uv._data_array == fhd_uv._data_array
-
-
-def test_read_old_hera_files():
-    testdir = os.path.join(DATA_PATH, "hera_fhd_vis_data/")
-    testfile_prefix = "old_mini_"
-    testfiles = []
-    testfiles_no_layout = []
-    for suffix in testfile_suffix:
-        testfiles.append(testdir + testfile_prefix + suffix)
-        if "layout" in suffix:
-            continue
-        testfiles_no_layout.append(testdir + testfile_prefix + suffix)
-
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "No layout file included in file list, antenna_postions will not be "
-            "defined (unless they are defined in the known telescopes).",
-            "Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
-            "antenna_positions are not set or being overwritten. Using known values "
-            "for HERA.",
-            "The uvw_array does not match the expected values given the antenna",
-        ],
-    ):
-        hera_fhd_no_layout = UVData.from_file(
-            testfiles_no_layout, use_future_array_shapes=True
-        )
-
-    with uvtest.check_warnings(
-        UserWarning,
-        match="antenna_diameters are not set or being overwritten. Using known values "
-        "for HERA.",
-    ):
-        hera_fhd = UVData.from_file(
-            testfiles, run_check=False, use_future_array_shapes=True
-        )
-
-    orig_tele_location = hera_fhd.telescope_location
-    with uvtest.check_warnings(
-        UserWarning,
-        match="Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
-        "antenna_positions, telescope_location, telescope_name are not set or being "
-        "overwritten. Using known values for HERA.",
-    ):
-        hera_fhd.set_telescope_params(overwrite=True)
-    # reset telescope_location & name to match the original
-    hera_fhd.telescope_location = orig_tele_location
-    hera_fhd.telescope_name = "hera"
-
-    # set optional parameters that are only filled with a layout file
-    hera_fhd_no_layout.dut1 = hera_fhd.dut1
-    hera_fhd_no_layout.earth_omega = hera_fhd.earth_omega
-    hera_fhd_no_layout.gst0 = hera_fhd.gst0
-    hera_fhd_no_layout.timesys = hera_fhd.timesys
-    hera_fhd_no_layout.extra_keywords = hera_fhd.extra_keywords
-
-    assert hera_fhd_no_layout == hera_fhd
