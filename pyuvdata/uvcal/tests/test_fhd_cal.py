@@ -212,13 +212,16 @@ def test_flags_galaxy(tmp_path):
 
     fhd_cal = UVCal()
     calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(
-        cal_testfile_flag,
-        obs_testfile_flag,
-        layout_file=layout_testfile_flag,
-        settings_file=settings_testfile_flag,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning, match=["tile_names from obs structure does not match"]
+    ):
+        fhd_cal.read_fhd_cal(
+            cal_testfile_flag,
+            obs_testfile_flag,
+            layout_file=layout_testfile_flag,
+            settings_file=settings_testfile_flag,
+            use_future_array_shapes=True,
+        )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
