@@ -183,12 +183,13 @@ class FHDCal(UVCal):
             self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
             # FHD stores antenna numbers, not names, in the "TILE_NAMES" field
             self.antenna_names = [
-                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
+                ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
             self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
             if self.telescope_name.lower() == "mwa":
                 self.antenna_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in self.antenna_names
+                    "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
+                    for ant in self.antenna_names
                 ]
             self.Nants_telescope = len(self.antenna_names)
 

@@ -26,6 +26,7 @@ to set several of these new parameters.
 deprecation warnings.
 
 ### Fixed
+- Handling of antenna_names and antenna_numbers in `read_fhd` and `read_fhd_cal`.
 - Fixed some bugs related to handling of the `UVCal.time_range` parameter in
 `UVCal.__add__` and other methods. Ensured that it is a list when
 `UVCal.future_array_shapes` is False.

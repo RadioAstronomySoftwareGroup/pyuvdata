@@ -607,12 +607,13 @@ class FHD(UVData):
             # we don't have layout info, so go ahead and set the antenna_names,
             # antenna_numbers and Nants_telescope from the baseline info struct.
             self.antenna_names = [
-                ant.decode("utf8").strip() for ant in bl_info["TILE_NAMES"][0].tolist()
+                ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
             self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
             if self.telescope_name.lower() == "mwa":
                 self.antenna_names = [
-                    "Tile" + "0" * (3 - len(ant)) + ant for ant in self.antenna_names
+                    "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
+                    for ant in self.antenna_names
                 ]
             self.Nants_telescope = len(self.antenna_names)
 
