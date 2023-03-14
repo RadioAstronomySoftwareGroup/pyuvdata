@@ -23,6 +23,30 @@ pytest.importorskip("casacore")
 allowed_failures = "filename"
 
 
+def is_within_directory(directory, target):
+    abs_directory = os.path.abspath(directory)
+    abs_target = os.path.abspath(target)
+
+    prefix = os.path.commonprefix([abs_directory, abs_target])
+
+    return prefix == abs_directory
+
+
+def check_members(tar, path):
+    for member in tar.getmembers():
+        member_path = os.path.join(path, member.name)
+        if not is_within_directory(path, member_path):
+            raise Exception("Attempted Path Traversal in Tar File")
+
+    return tar.getmembers()
+
+
+def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+    # this is factored this way (splitting out the `check_members` function)
+    # to appease bandit.
+    tar.extractall(path, members=check_members(tar, path), numeric_owner=numeric_owner)
+
+
 @pytest.fixture(scope="session")
 def nrao_uv_main():
     uvobj = UVData()
@@ -132,22 +156,6 @@ def test_read_lwa(tmp_path):
     with tarfile.open(testfile) as tf:
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
 
-        def is_within_directory(directory, target):
-            abs_directory = os.path.abspath(directory)
-            abs_target = os.path.abspath(target)
-
-            prefix = os.path.commonprefix([abs_directory, abs_target])
-
-            return prefix == abs_directory
-
-        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-            for member in tar.getmembers():
-                member_path = os.path.join(path, member.name)
-                if not is_within_directory(path, member_path):
-                    raise Exception("Attempted Path Traversal in Tar File")
-
-            tar.extractall(path, members, numeric_owner=numeric_owner)
-
         safe_extract(tf, path=tmp_path)
 
     uvobj.read(new_filename, file_type="ms", use_future_array_shapes=True)
@@ -193,22 +201,6 @@ def test_extra_pol_setup(tmp_path):
 
     with tarfile.open(testfile) as tf:
         new_filename = os.path.join(tmp_path, tf.getnames()[0])
-
-        def is_within_directory(directory, target):
-            abs_directory = os.path.abspath(directory)
-            abs_target = os.path.abspath(target)
-
-            prefix = os.path.commonprefix([abs_directory, abs_target])
-
-            return prefix == abs_directory
-
-        def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-            for member in tar.getmembers():
-                member_path = os.path.join(path, member.name)
-                if not is_within_directory(path, member_path):
-                    raise Exception("Attempted Path Traversal in Tar File")
-
-            tar.extractall(path, members, numeric_owner=numeric_owner)
 
         safe_extract(tf, path=tmp_path)
 
