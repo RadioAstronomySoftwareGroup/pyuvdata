@@ -158,7 +158,7 @@ def get_fhd_layout_info(
     xyz_telescope_frame = layout["coordinate_frame"][0].decode("utf8").lower()
     layout_fields.remove("coordinate_frame")
 
-    if xyz_telescope_frame == "itrf":
+    if xyz_telescope_frame.strip() == "itrf":
         # compare to lat/lon/alt
         location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
         latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(

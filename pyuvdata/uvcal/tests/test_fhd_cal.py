@@ -73,7 +73,11 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
 
     fhd_cal = UVCal()
     with uvtest.check_warnings(
-        DeprecationWarning, match=[_future_array_shapes_warning]
+        [DeprecationWarning, UserWarning],
+        match=[
+            _future_array_shapes_warning,
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_cal.read_fhd_cal(
             cal_testfile,
@@ -213,7 +217,11 @@ def test_flags_galaxy(tmp_path):
     fhd_cal = UVCal()
     calfits_cal = UVCal()
     with uvtest.check_warnings(
-        UserWarning, match=["tile_names from obs structure does not match"]
+        UserWarning,
+        match=[
+            "tile_names from obs structure does not match",
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_cal.read_fhd_cal(
             cal_testfile_flag,
@@ -233,7 +241,11 @@ def test_unknown_telescope():
     fhd_cal = UVCal()
 
     with uvtest.check_warnings(
-        UserWarning, match=["Telescope foo is not in known_telescopes."]
+        UserWarning,
+        match=[
+            "Telescope foo is not in known_telescopes.",
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_cal.read_fhd_cal(
             cal_testfile,
@@ -267,7 +279,10 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             use_future_array_shapes=True,
         )
 
-    message_list = ["No settings file"]
+    message_list = [
+        "No settings file",
+        "Telescope location derived from obs lat/lon/alt",
+    ]
     if nfiles > 1:
         message_list *= 2
         message_list.append("UVParameter diffuse_model does not match")
@@ -306,7 +321,12 @@ def test_read_multi(tmp_path):
     calfits_cal = UVCal()
 
     with uvtest.check_warnings(
-        UserWarning, ["UVParameter diffuse_model does not match"]
+        UserWarning,
+        [
+            "UVParameter diffuse_model does not match",
+            "Telescope location derived from obs lat/lon/alt",
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_cal.read_fhd_cal(
             cal_file_multi,
