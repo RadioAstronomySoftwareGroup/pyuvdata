@@ -100,14 +100,17 @@ def fhd_cal_raw_main():
     """Read in raw FHD cal."""
     fhd_cal = UVCal()
 
-    fhd_cal.read_fhd_cal(
-        test_fhd_cal.cal_testfile,
-        test_fhd_cal.obs_testfile,
-        layout_file=test_fhd_cal.layout_testfile,
-        settings_file=test_fhd_cal.settings_testfile,
-        raw=True,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Telescope location derived from obs lat/lon/alt"
+    ):
+        fhd_cal.read_fhd_cal(
+            test_fhd_cal.cal_testfile,
+            test_fhd_cal.obs_testfile,
+            layout_file=test_fhd_cal.layout_testfile,
+            settings_file=test_fhd_cal.settings_testfile,
+            raw=True,
+            use_future_array_shapes=True,
+        )
 
     yield fhd_cal
 
@@ -129,14 +132,17 @@ def fhd_cal_fit_main():
     """Read in fit FHD cal."""
     fhd_cal = UVCal()
 
-    fhd_cal.read_fhd_cal(
-        test_fhd_cal.cal_testfile,
-        test_fhd_cal.obs_testfile,
-        layout_file=test_fhd_cal.layout_testfile,
-        settings_file=test_fhd_cal.settings_testfile,
-        raw=False,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning, "Telescope location derived from obs lat/lon/alt"
+    ):
+        fhd_cal.read_fhd_cal(
+            test_fhd_cal.cal_testfile,
+            test_fhd_cal.obs_testfile,
+            layout_file=test_fhd_cal.layout_testfile,
+            settings_file=test_fhd_cal.settings_testfile,
+            raw=False,
+            use_future_array_shapes=True,
+        )
 
     yield fhd_cal
 

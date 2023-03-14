@@ -584,7 +584,11 @@ def test_single_time():
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "tile_names from obs structure does not match"
+        UserWarning,
+        [
+            "tile_names from obs structure does not match",
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_uv.read(single_time_filelist, use_future_array_shapes=True)
 
@@ -600,7 +604,11 @@ def test_conjugation():
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
-        UserWarning, "tile_names from obs structure does not match"
+        UserWarning,
+        [
+            "tile_names from obs structure does not match",
+            "Telescope location derived from obs lat/lon/alt",
+        ],
     ):
         fhd_uv.read(fhd_filelist, use_future_array_shapes=True)
 
