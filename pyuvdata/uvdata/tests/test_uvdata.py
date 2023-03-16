@@ -5152,7 +5152,7 @@ def test_fast_concat_errors(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
-    with pytest.raises(ValueError, match="If axis is specifed it must be one of"):
+    with pytest.raises(ValueError, match="Axis must be one of"):
         uv1.fast_concat(uv2, "foo", inplace=True)
 
     uv2.use_current_array_shapes()

@@ -3327,6 +3327,472 @@ class UVCal(UVBase):
         )
         return self
 
+    def fast_concat(
+        self,
+        other,
+        axis,
+        inplace=False,
+        verbose_history=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Concatenate two UVCal objects along specified axis with almost no checking.
+
+        Warning! This method assumes all the metadata along other axes is sorted
+        the same way. The __add__ method is much safer, it checks all the metadata,
+        but it is slower. Some quick checks are run, but this method doesn't
+        make any guarantees that the resulting object is correct.
+
+        Parameters
+        ----------
+        other : UVCal object or list of UVCal objects
+            UVCal object or list of UVCal objects which will be added to self.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. Allowed values are: 'antenna', 'time', 'freq', 'spw',
+            'jones' ('freq' is not allowed for delay or wideband objects and spw is
+            only allowed for wideband objects).
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+        verbose_history : bool
+            Option to allow more verbose history. If True and if the histories for the
+            two objects are different, the combined object will keep all the history of
+            both input objects (if many objects are combined in succession this can
+            lead to very long histories). If False and if the histories for the two
+            objects are different, the combined object will have the history of the
+            first object and only the parts of the second object history that are unique
+            (this is done word by word and can result in hard to interpret histories).
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+
+        """
+        if inplace:
+            this = self
+        else:
+            this = self.copy()
+        if not isinstance(other, (list, tuple, np.ndarray)):
+            # if this is a UVCal object already, stick it in a list
+            other = [other]
+        # Check that both objects are UVCal and valid
+        this.check(
+            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+        )
+        for obj in other:
+            if not issubclass(obj.__class__, this.__class__):
+                if not issubclass(this.__class__, obj.__class__):
+                    raise ValueError(
+                        "Only UVCal (or subclass) objects can be "
+                        "added to a UVCal (or subclass) object"
+                    )
+            obj.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        # check that all objects have the same array shapes
+        for obj in other:
+            if this.future_array_shapes != obj.future_array_shapes:
+                raise ValueError(
+                    "All objects must have the same `future_array_shapes` parameter. "
+                    "Use the `use_future_array_shapes` or `use_current_array_shapes` "
+                    "methods to convert them."
+                )
+
+        # Check that all objects are consistent w/ use of flex_spw
+        for obj in other:
+            if this.flex_spw != obj.flex_spw:
+                raise ValueError(
+                    "To combine these data, flex_spw must be set to the same "
+                    "value (True or False) for all objects."
+                )
+
+        # Check that all objects are consistent w/ use of wide_band or not
+        for obj in other:
+            if this.wide_band != obj.wide_band:
+                raise ValueError(
+                    "To combine these data, wide_band must be set to the same "
+                    "value (True or False) for all objects."
+                )
+
+        this_has_spw_id = this.flex_spw_id_array is not None
+        other_has_spw_id = np.array(
+            [obj.flex_spw_id_array is not None for obj in other]
+        )
+        if not np.all(other_has_spw_id == this_has_spw_id):
+            warnings.warn(
+                "Some objects have the flex_spw_id_array set and some do not. Combined "
+                "object will have it set."
+            )
+
+        allowed_axes = ["antenna", "time", "jones"]
+        if this.wide_band is True:
+            allowed_axes.append("spw")
+        elif self.cal_type == "gain":
+            allowed_axes.append("freq")
+        if axis not in allowed_axes:
+            raise ValueError("Axis must be one of: " + ", ".join(allowed_axes))
+
+        # Check objects are compatible
+        compatibility_params = [
+            "_cal_type",
+            "_telescope_name",
+            "_gain_convention",
+            "_x_orientation",
+            "_cal_style",
+            "_ref_antenna_name",
+        ]
+        if not this.future_array_shapes:
+            compatibility_params.append("_integration_time")
+            if not this.flex_spw:
+                compatibility_params.append("_channel_width")
+
+        warning_params = [
+            "_observer",
+            "_git_hash_cal",
+            "_sky_field",
+            "_sky_catalog",
+            "_Nsources",
+            "_baseline_range",
+            "_diffuse_model",
+        ]
+
+        history_update_string = " Combined data along "
+
+        if axis == "freq" or axis == "spw":
+            if axis == "freq":
+                history_update_string += "frequency"
+            else:
+                history_update_string += "spectral window"
+            compatibility_params += [
+                "_jones_array",
+                "_ant_array",
+                "_time_array",
+                "_integration_time",
+                "_lst_array",
+                "_time_range",
+            ]
+        elif axis == "jones":
+            history_update_string += "jones"
+            compatibility_params += [
+                "_freq_array",
+                "_channel_width",
+                "_ant_array",
+                "_time_array",
+                "_integration_time",
+                "_lst_array",
+                "_time_range",
+            ]
+        elif axis == "antenna":
+            history_update_string += "antenna"
+            compatibility_params += [
+                "_freq_array",
+                "_channel_width",
+                "_jones_array",
+                "_time_array",
+                "_integration_time",
+                "_lst_array",
+                "_time_range",
+            ]
+        elif axis == "time":
+            history_update_string += "time"
+            compatibility_params += [
+                "_freq_array",
+                "_channel_width",
+                "_jones_array",
+                "_ant_array",
+            ]
+            if not this.future_array_shapes:
+                compatibility_params += ["_integration_time"]
+
+        history_update_string += " axis using pyuvdata."
+        histories_match = []
+        for obj in other:
+            histories_match.append(uvutils._check_histories(this.history, obj.history))
+
+        this.history += history_update_string
+        for obj_num, obj in enumerate(other):
+            if not histories_match[obj_num]:
+                if verbose_history:
+                    this.history += " Next object history follows. " + obj.history
+                else:
+                    extra_history = uvutils._combine_history_addition(
+                        this.history, obj.history
+                    )
+                    if extra_history is not None:
+                        this.history += (
+                            " Unique part of next object history follows. "
+                            + extra_history
+                        )
+        # Actually check compatibility parameters
+        for obj in other:
+            for a in compatibility_params:
+                params_match = getattr(this, a) == getattr(obj, a)
+                if not params_match:
+                    msg = (
+                        "UVParameter "
+                        + a[1:]
+                        + " does not match. Cannot combine objects."
+                    )
+                    raise ValueError(msg)
+
+            for a in warning_params:
+                params_match = getattr(this, a) == getattr(obj, a)
+                if not params_match:
+                    msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
+                    warnings.warn(msg)
+
+        total_quality_exists = [this.total_quality_array is not None] + [
+            obj.total_quality_array is not None for obj in other
+        ]
+        this_tqa_exp_shape = this._total_quality_array.expected_shape(this)
+
+        input_flag_exists = [this.input_flag_array is not None] + [
+            obj.input_flag_array is not None for obj in other
+        ]
+        this_ifa_exp_shape = this._input_flag_array.expected_shape(this)
+
+        freq_range_exists = [this.freq_range is not None] + [
+            obj.freq_range is not None for obj in other
+        ]
+
+        if axis == "antenna":
+            this.Nants_data = sum([this.Nants_data] + [obj.Nants_data for obj in other])
+            this.ant_array = np.concatenate(
+                [this.ant_array] + [obj.ant_array for obj in other]
+            )
+            axis_num = 0
+        elif axis == "freq":
+            this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
+            if this.future_array_shapes:
+                this.freq_array = np.concatenate(
+                    [this.freq_array] + [obj.freq_array for obj in other]
+                )
+            else:
+                this.freq_array = np.concatenate(
+                    [this.freq_array] + [obj.freq_array for obj in other], axis=1
+                )
+            if this.flex_spw or this.future_array_shapes:
+                this.channel_width = np.concatenate(
+                    [this.channel_width] + [obj.channel_width for obj in other]
+                )
+            if this.flex_spw:
+                this.flex_spw_id_array = np.concatenate(
+                    [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
+                )
+                concat_spw_array = np.concatenate(
+                    [this.spw_array] + [obj.spw_array for obj in other]
+                )
+                # We want to preserve per-spw information based on first appearance
+                # in the concatenated array.
+                unique_index = np.sort(
+                    np.unique(this.flex_spw_id_array, return_index=True)[1]
+                )
+                this.spw_array = this.flex_spw_id_array[unique_index]
+                this.Nspws = this.spw_array.size
+                spw_index = np.asarray(
+                    [
+                        np.nonzero(concat_spw_array == spw)[0][0]
+                        for spw in this.spw_array
+                    ]
+                )
+                if np.all(freq_range_exists):
+                    if this.future_array_shapes:
+                        this.freq_range = np.concatenate(
+                            [this.freq_range] + [obj.freq_range for obj in other],
+                            axis=0,
+                        )
+                        this.freq_range = this.freq_range[spw_index, :]
+                    else:
+                        temp = np.concatenate(
+                            ([this.freq_range] + [obj.freq_range for obj in other])
+                        )
+                        this.freq_range = [np.min(temp), np.max(temp)]
+                elif np.any(freq_range_exists):
+                    warnings.warn(
+                        "Some objects have the freq_range set and some do not. "
+                        "Combined object will not have it set."
+                    )
+                    this.freq_range = None
+            else:
+                if this_has_spw_id or other_has_spw_id:
+                    this.flex_spw_id_array = np.full(
+                        this.Nfreqs, this.spw_array[0], dtype=int
+                    )
+                if np.all(freq_range_exists):
+                    temp = np.concatenate(
+                        ([this.freq_range] + [obj.freq_range for obj in other])
+                    )
+                    this.freq_range = [np.min(temp), np.max(temp)]
+                    if this.future_array_shapes:
+                        this.freq_range = np.array(this.freq_range)
+                        this.freq_range = this.freq_range[np.newaxis, :]
+                elif np.any(freq_range_exists):
+                    warnings.warn(
+                        "Some objects have the freq_range set and and some do not. "
+                        "Combined object will not have it set."
+                    )
+                    this.freq_range = None
+
+            spacing_error, chanwidth_error = this._check_freq_spacing(
+                raise_errors=False
+            )
+            if spacing_error:
+                warnings.warn(
+                    "Combined frequencies are not evenly spaced or have differing "
+                    "values of channel widths. This will make it impossible to write "
+                    "this data out to some file types."
+                )
+            elif chanwidth_error:
+                warnings.warn(
+                    "Combined frequencies are separated by more than their "
+                    "channel width. This will make it impossible to write this data "
+                    "out to some file types."
+                )
+
+            if this.future_array_shapes:
+                axis_num = 1
+            else:
+                axis_num = 2
+        elif axis == "spw":
+            # only get here for a wide-band cal (so only if future_array_shapes is True)
+            this.Nspws = sum([this.Nspws] + [obj.Nspws for obj in other])
+            this.spw_array = np.concatenate(
+                [this.spw_array] + [obj.spw_array for obj in other]
+            )
+            this.freq_range = np.concatenate(
+                [this.freq_range] + [obj.freq_range for obj in other], axis=0
+            )
+            axis_num = 1
+        elif axis == "time":
+            this.Ntimes = sum([this.Ntimes] + [obj.Ntimes for obj in other])
+            this.time_array = np.concatenate(
+                [this.time_array] + [obj.time_array for obj in other]
+            )
+            if this.future_array_shapes:
+                this.integration_time = np.concatenate(
+                    [this.integration_time] + [obj.integration_time for obj in other]
+                )
+            this.lst_array = np.concatenate(
+                [this.lst_array] + [obj.lst_array for obj in other]
+            )
+            if this.future_array_shapes:
+                axis_num = 2
+            else:
+                axis_num = 3
+        elif axis == "jones":
+            this.Njones = sum([this.Njones] + [obj.Njones for obj in other])
+            this.jones_array = np.concatenate(
+                [this.jones_array] + [obj.jones_array for obj in other]
+            )
+            if this.future_array_shapes:
+                axis_num = 3
+            else:
+                axis_num = 4
+
+        if not self.metadata_only:
+            this.quality_array = np.concatenate(
+                [this.quality_array] + [obj.quality_array for obj in other],
+                axis=axis_num,
+            )
+            this.flag_array = np.concatenate(
+                [this.flag_array] + [obj.flag_array for obj in other], axis=axis_num
+            )
+
+            if this.cal_type == "gain":
+                this.gain_array = np.concatenate(
+                    [this.gain_array] + [obj.gain_array for obj in other], axis=axis_num
+                )
+            else:
+                this.delay_array = np.concatenate(
+                    [this.delay_array] + [obj.delay_array for obj in other],
+                    axis=axis_num,
+                )
+
+            if np.any(input_flag_exists):
+                if np.all(input_flag_exists):
+                    this.input_flag_array = np.concatenate(
+                        [this.input_flag_array]
+                        + [obj.input_flag_array for obj in other],
+                        axis=axis_num,
+                    )
+                else:
+                    ifa_list = []
+                    if this.input_flag_array is None:
+                        ifa_list.append(np.full(this_ifa_exp_shape, True, dtype=bool))
+                    else:
+                        ifa_list.append(this.input_flag_array)
+                    for obj in other:
+                        if obj.input_flag_array is None:
+                            ifa_list.append(
+                                np.full(
+                                    (obj._input_flag_array.expected_shape(obj)),
+                                    True,
+                                    dtype=bool,
+                                )
+                            )
+                        else:
+                            ifa_list.append(obj.input_flag_array)
+                    this.input_flag_array = np.concatenate(ifa_list, axis=axis_num)
+
+            if np.any(total_quality_exists):
+                if axis == "antenna":
+                    warnings.warn(
+                        "Total quality array detected in at least one file; the "
+                        "array in the new object will be set to 'None' because "
+                        "whole-array values cannot be combined when adding antennas"
+                    )
+                    this.total_quality_array = None
+                else:
+                    if np.all(total_quality_exists):
+                        this.total_quality_array = np.concatenate(
+                            [this.total_quality_array]
+                            + [obj.total_quality_array for obj in other],
+                            axis=axis_num - 1,
+                        )
+                    else:
+                        tqa_list = []
+                        if this.total_quality_array is None:
+                            tqa_list.append(np.zeros(this_tqa_exp_shape, dtype=float))
+                        else:
+                            tqa_list.append(this.total_quality_array)
+                        for obj in other:
+                            if obj.total_quality_array is None:
+                                tqa_list.append(
+                                    np.zeros(
+                                        (obj._total_quality_array.expected_shape(obj)),
+                                        dtype=float,
+                                    )
+                                )
+                            else:
+                                tqa_list.append(obj.total_quality_array)
+                        this.total_quality_array = np.concatenate(
+                            tqa_list, axis=axis_num - 1
+                        )
+
+        # update filename attribute
+        for obj in other:
+            this.filename = uvutils._combine_filenames(this.filename, obj.filename)
+        if this.filename is not None:
+            this._filename.form = len(this.filename)
+
+        # Check final object is self-consistent
+        if run_check:
+            this.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        if not inplace:
+            return this
+
     def select(
         self,
         antenna_nums=None,

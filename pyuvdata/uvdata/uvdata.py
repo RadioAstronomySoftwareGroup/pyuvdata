@@ -7957,9 +7957,7 @@ class UVData(UVBase):
         """
         allowed_axes = ["blt", "freq", "polarization"]
         if axis not in allowed_axes:
-            raise ValueError(
-                "If axis is specifed it must be one of: " + ", ".join(allowed_axes)
-            )
+            raise ValueError("Axis must be one of: " + ", ".join(allowed_axes))
 
         if inplace:
             this = self
@@ -8068,6 +8066,7 @@ class UVData(UVBase):
             history_update_string += "polarization"
             compatibility_params += [
                 "_freq_array",
+                "_channel_width",
                 "_ant_1_array",
                 "_ant_2_array",
                 "_integration_time",
@@ -8164,27 +8163,19 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 if this.future_array_shapes:
-                    this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=1
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array] + [obj.nsample_array for obj in other],
-                        axis=1,
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=1
-                    )
+                    axis_num = 1
                 else:
-                    this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=2
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array] + [obj.nsample_array for obj in other],
-                        axis=2,
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=2
-                    )
+                    axis_num = 2
+                this.data_array = np.concatenate(
+                    [this.data_array] + [obj.data_array for obj in other], axis=axis_num
+                )
+                this.nsample_array = np.concatenate(
+                    [this.nsample_array] + [obj.nsample_array for obj in other],
+                    axis=axis_num,
+                )
+                this.flag_array = np.concatenate(
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=axis_num
+                )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
                 [this.polarization_array] + [obj.polarization_array for obj in other]
@@ -8199,27 +8190,19 @@ class UVData(UVBase):
 
             if not self.metadata_only:
                 if this.future_array_shapes:
-                    this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=2
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array] + [obj.nsample_array for obj in other],
-                        axis=2,
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=2
-                    )
+                    axis_num = 2
                 else:
-                    this.data_array = np.concatenate(
-                        [this.data_array] + [obj.data_array for obj in other], axis=3
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array] + [obj.nsample_array for obj in other],
-                        axis=3,
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array] + [obj.flag_array for obj in other], axis=3
-                    )
+                    axis_num = 3
+                this.data_array = np.concatenate(
+                    [this.data_array] + [obj.data_array for obj in other], axis=axis_num
+                )
+                this.nsample_array = np.concatenate(
+                    [this.nsample_array] + [obj.nsample_array for obj in other],
+                    axis=axis_num,
+                )
+                this.flag_array = np.concatenate(
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=axis_num
+                )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
             this.ant_1_array = np.concatenate(
