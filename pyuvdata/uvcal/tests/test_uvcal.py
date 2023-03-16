@@ -192,6 +192,85 @@ def multi_spw_delay(delay_data_inputflag):
     del delay_obj
 
 
+def extend_jones_axis(calobj, input_flag=True, total_quality=True):
+    while calobj.Njones < 4:
+        new_jones = np.min(calobj.jones_array) - 1
+        calobj.jones_array = np.append(calobj.jones_array, new_jones)
+        calobj.Njones += 1
+        if not calobj.metadata_only:
+            if calobj.future_array_shapes:
+                calobj.flag_array = np.concatenate(
+                    (calobj.flag_array, calobj.flag_array[:, :, :, [-1]]), axis=3
+                )
+                if calobj.cal_type == "gain":
+                    calobj.gain_array = np.concatenate(
+                        (calobj.gain_array, calobj.gain_array[:, :, :, [-1]]), axis=3
+                    )
+                else:
+                    calobj.delay_array = np.concatenate(
+                        (calobj.delay_array, calobj.delay_array[:, :, :, [-1]]), axis=3
+                    )
+                if calobj.input_flag_array is not None:
+                    calobj.input_flag_array = np.concatenate(
+                        (
+                            calobj.input_flag_array,
+                            calobj.input_flag_array[:, :, :, [-1]],
+                        ),
+                        axis=3,
+                    )
+                calobj.quality_array = np.concatenate(
+                    (calobj.quality_array, calobj.quality_array[:, :, :, [-1]]), axis=3
+                )
+                if calobj.total_quality_array is not None:
+                    calobj.total_quality_array = np.concatenate(
+                        (
+                            calobj.total_quality_array,
+                            calobj.total_quality_array[:, :, [-1]],
+                        ),
+                        axis=2,
+                    )
+            else:
+                calobj.flag_array = np.concatenate(
+                    (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]]), axis=4
+                )
+                if calobj.cal_type == "gain":
+                    calobj.gain_array = np.concatenate(
+                        (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]]), axis=4
+                    )
+                else:
+                    calobj.delay_array = np.concatenate(
+                        (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]]),
+                        axis=4,
+                    )
+                if calobj.input_flag_array is not None:
+                    calobj.input_flag_array = np.concatenate(
+                        (
+                            calobj.input_flag_array,
+                            calobj.input_flag_array[:, :, :, :, [-1]],
+                        ),
+                        axis=4,
+                    )
+                calobj.quality_array = np.concatenate(
+                    (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]]),
+                    axis=4,
+                )
+                if calobj.total_quality_array is not None:
+                    calobj.total_quality_array = np.concatenate(
+                        (
+                            calobj.total_quality_array,
+                            calobj.total_quality_array[:, :, :, [-1]],
+                        ),
+                        axis=3,
+                    )
+    if not calobj.metadata_only:
+        if calobj.input_flag_array is None and input_flag:
+            calobj.input_flag_array = calobj.flag_array
+        if calobj.total_quality_array is None and total_quality:
+            calobj.total_quality_array = np.ones(
+                calobj._total_quality_array.expected_shape(calobj)
+            )
+
+
 def test_parameter_iter(uvcal_data):
     """Test expected parameters."""
     (
@@ -1361,57 +1440,7 @@ def test_select_polarizations(
     calobj2 = calobj.copy()
 
     # add more jones terms to allow for better testing of selections
-    while calobj.Njones < 4:
-        new_jones = np.min(calobj.jones_array) - 1
-        calobj.jones_array = np.append(calobj.jones_array, new_jones)
-        calobj.Njones += 1
-        if future_shapes:
-            calobj.flag_array = np.concatenate(
-                (calobj.flag_array, calobj.flag_array[:, :, :, [-1]]), axis=3
-            )
-            if calobj.input_flag_array is not None:
-                calobj.input_flag_array = np.concatenate(
-                    (calobj.input_flag_array, calobj.input_flag_array[:, :, :, [-1]]),
-                    axis=3,
-                )
-            if caltype == "gain":
-                calobj.gain_array = np.concatenate(
-                    (calobj.gain_array, calobj.gain_array[:, :, :, [-1]]), axis=3
-                )
-            else:
-                calobj.delay_array = np.concatenate(
-                    (calobj.delay_array, calobj.delay_array[:, :, :, [-1]]), axis=3
-                )
-            calobj.quality_array = np.concatenate(
-                (calobj.quality_array, calobj.quality_array[:, :, :, [-1]]), axis=3
-            )
-        else:
-            calobj.flag_array = np.concatenate(
-                (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]]), axis=4
-            )
-            if calobj.input_flag_array is not None:
-                calobj.input_flag_array = np.concatenate(
-                    (
-                        calobj.input_flag_array,
-                        calobj.input_flag_array[:, :, :, :, [-1]],
-                    ),
-                    axis=4,
-                )
-            if caltype == "gain":
-                calobj.gain_array = np.concatenate(
-                    (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]]), axis=4
-                )
-            else:
-                calobj.delay_array = np.concatenate(
-                    (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]]), axis=4
-                )
-            calobj.quality_array = np.concatenate(
-                (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]]), axis=4
-            )
-    # add dummy total_quality_array
-    calobj.total_quality_array = np.zeros(
-        calobj._total_quality_array.expected_shape(calobj)
-    )
+    extend_jones_axis(calobj)
 
     assert calobj.check()
     calobj2 = calobj.copy()
@@ -1586,7 +1615,8 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inputflag):
     """Test adding antennas between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
@@ -1602,7 +1632,12 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     calobj.select(antenna_nums=ants1)
     calobj2.select(antenna_nums=ants2)
-    calobj += calobj2
+    if method == "fast_concat":
+        kwargs = {"axis": "antenna", "inplace": True}
+    else:
+        kwargs = {}
+
+    getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -1619,7 +1654,8 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
         calobj._total_quality_array.expected_shape(calobj)
     )
     with uvtest.check_warnings(UserWarning, match="Total quality array detected"):
-        calobj.__iadd__(calobj2)
+        getattr(calobj, method)(calobj2, **kwargs)
+
     assert calobj.total_quality_array is None
 
     if caltype == "delay":
@@ -1632,7 +1668,7 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
         # test for when input_flag_array is present in second file but not first
@@ -1644,7 +1680,7 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # Out of order - antennas
@@ -1652,8 +1688,12 @@ def test_add_antennas(future_shapes, caltype, gain_data, delay_data_inputflag):
     calobj2 = calobj.copy()
     calobj.select(antenna_nums=ants2)
     calobj2.select(antenna_nums=ants1)
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     calobj.history = calobj_full.history
+    if method == "fast_concat":
+        # need to sort objects before they will be equal
+        assert calobj != calobj_full
+        calobj.reorder_antennas()
     assert calobj == calobj_full
 
 
@@ -1951,12 +1991,9 @@ def test_reorder_jones(
     if not future_shapes:
         calobj.use_current_array_shapes()
 
-    # all the input objects have a Njones=1. make copies and add them to get to 4
+    # all the input objects have a Njones=1, extend to get to 4
     calobj2 = calobj.copy(metadata_only=metadata_only)
-    for jpol in [-6, -7, -8]:
-        calobj3 = calobj.copy(metadata_only=metadata_only)
-        calobj3.jones_array[0] = jpol
-        calobj2 += calobj3
+    extend_jones_axis(calobj2)
 
     if caltype == "gain" and not metadata_only:
         # add total_quality_array
@@ -2009,12 +2046,9 @@ def test_reorder_jones(
 
 
 def test_reorder_jones_errors(gain_data):
-    # all the input objects have a Njones=1. make copies and add them to get to 4
+    # all the input objects have a Njones=1, extend to get to 4
     calobj = gain_data.copy()
-    for jpol in [-6, -7, -8]:
-        calobj2 = gain_data.copy()
-        calobj2.jones_array[0] = jpol
-        calobj += calobj2
+    extend_jones_axis(calobj)
 
     with pytest.raises(
         ValueError,
@@ -2062,14 +2096,8 @@ def test_add_different_sorting(
             calobj._total_quality_array.expected_shape(calobj)
         )
 
-    # all the input objects have a Njones=1. make copies and add them to get to 4
-    for jpol in [-6, -7, -8]:
-        if wide_band:
-            calobj2 = wideband_gain.copy()
-        else:
-            calobj2 = gain_data.copy()
-        calobj2.jones_array[0] = jpol
-        calobj += calobj2
+    # all the input objects have a Njones=1, extend to get to 4
+    extend_jones_axis(calobj, total_quality=False)
 
     if future_shapes:
         calobj.use_future_array_shapes()
@@ -2169,7 +2197,8 @@ def test_add_different_sorting(
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_antennas_multispw(future_shapes, multi_spw_gain):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_antennas_multispw(future_shapes, multi_spw_gain, method):
     """Test adding antennas between two UVCal objects"""
     calobj = multi_spw_gain
 
@@ -2183,7 +2212,12 @@ def test_add_antennas_multispw(future_shapes, multi_spw_gain):
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     calobj.select(antenna_nums=ants1)
     calobj2.select(antenna_nums=ants2)
-    calobj += calobj2
+    if method == "fast_concat":
+        kwargs = {"axis": "antenna", "inplace": True}
+    else:
+        kwargs = {}
+
+    getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -2197,16 +2231,15 @@ def test_add_antennas_multispw(future_shapes, multi_spw_gain):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_frequencies(future_shapes, gain_data):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_frequencies(future_shapes, gain_data, method):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
     calobj = gain_data
 
     if not future_shapes:
         calobj.use_current_array_shapes()
-
     calobj2 = calobj.copy()
-
     calobj_full = calobj.copy()
     if future_shapes:
         freqs1 = calobj.freq_array[np.arange(0, calobj.Nfreqs // 2)]
@@ -2216,7 +2249,13 @@ def test_add_frequencies(future_shapes, gain_data):
         freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
-    calobj += calobj2
+
+    if method == "fast_concat":
+        kwargs = {"axis": "freq", "inplace": True}
+    else:
+        kwargs = {}
+
+    getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -2246,17 +2285,31 @@ def test_add_frequencies(future_shapes, gain_data):
     calobj.total_quality_array = tqa
     msg = [
         "flex_spw_id_array is not set. It will be required starting in version 3.0 "
-        "for non-wide-band objects",
-        "One object has the flex_spw_id_array set and one does not. Combined "
-        "object will have it set.",
-        "One object has the freq_range set and one does not. Combined "
-        "object will not have it set.",
+        "for non-wide-band objects"
     ]
+    if method == "fast_concat":
+        msg.extend(
+            [
+                "Some objects have the flex_spw_id_array set and some do not. Combined "
+                "object will have it set.",
+                "Some objects have the freq_range set and and some do not. "
+                "Combined object will not have it set.",
+            ]
+        )
+    else:
+        msg.extend(
+            [
+                "One object has the flex_spw_id_array set and one does not. Combined "
+                "object will have it set.",
+                "One object has the freq_range set and one does not. Combined "
+                "object will not have it set.",
+            ]
+        )
 
     with uvtest.check_warnings(
         [DeprecationWarning, UserWarning, UserWarning], match=msg
     ):
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2282,7 +2335,8 @@ def test_add_frequencies(future_shapes, gain_data):
         calobj2.freq_range = np.array(
             [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
         )[np.newaxis, :]
-    calobj += calobj2
+
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2301,7 +2355,7 @@ def test_add_frequencies(future_shapes, gain_data):
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2325,7 +2379,7 @@ def test_add_frequencies(future_shapes, gain_data):
         tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = ifa
     calobj2.input_flag_array = None
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # test for when input_flag_array is present in second file but not first
@@ -2338,7 +2392,7 @@ def test_add_frequencies(future_shapes, gain_data):
         tot_ifa = np.concatenate([ifa, ifa2], axis=2)
     calobj.input_flag_array = None
     calobj2.input_flag_array = ifa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # Out of order - freqs
@@ -2346,16 +2400,28 @@ def test_add_frequencies(future_shapes, gain_data):
     calobj2 = calobj_full.copy()
     calobj.select(frequencies=freqs2)
     calobj2.select(frequencies=freqs1)
-    calobj += calobj2
+    if method == "fast_concat":
+        warn_type = UserWarning
+        msg = "Combined frequencies are not evenly spaced"
+    else:
+        warn_type = None
+        msg = ""
+    with uvtest.check_warnings(warn_type, match=msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     calobj.history = calobj_full.history
+    if method == "fast_concat":
+        # need to sort object first
+        calobj.reorder_freqs(channel_order="freq")
     assert calobj == calobj_full
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:One object has the freq_range set and one does not")
+@pytest.mark.filterwarnings("ignore:Some objects have the freq_range set")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("split_f_ind", [3, 5])
-def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_gain):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
 
@@ -2388,16 +2454,27 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
             calobj2.freq_range = None
         calobj_full.freq_range = None
         warn_type = UserWarning
-        msg = (
-            "One object has the freq_range set and one does not. Combined "
-            "object will not have it set."
-        )
+        if method == "fast_concat":
+            msg = (
+                "Some objects have the freq_range set and some do not. "
+                "Combined object will not have it set."
+            )
+        else:
+            msg = (
+                "One object has the freq_range set and one does not. Combined "
+                "object will not have it set."
+            )
     else:
         warn_type = None
         msg = ""
 
+    if method == "fast_concat":
+        kwargs = {"axis": "freq", "inplace": True}
+    else:
+        kwargs = {}
+
     with uvtest.check_warnings(warn_type, match=msg):
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -2417,7 +2494,22 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
             calobj.freq_range = np.array(
                 [np.min(calobj.freq_array), np.max(calobj.freq_array)]
             )[np.newaxis, :]
-    calobj2 += calobj
+
+    if method == "fast_concat":
+        if split_f_ind == 5:
+            calobj2.fast_concat(calobj, axis="freq", inplace=True)
+        else:
+            with pytest.raises(
+                ValueError,
+                match="Channels from different spectral windows are interspersed "
+                "with one another, rather than being grouped together along the "
+                "frequency axis. Most file formats do not support such "
+                "non-grouping of data.",
+            ):
+                calobj2.fast_concat(calobj, axis="freq", inplace=True)
+            return
+    else:
+        calobj2 += calobj
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
@@ -2430,12 +2522,29 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, multi_spw_gain):
     if split_f_ind == 5 and future_shapes:
         assert calobj_full._freq_range != calobj2._freq_range
         calobj_full.freq_range = calobj2.freq_range
+
+    if method == "fast_concat":
+        # need to sort object first
+        calobj2.reorder_freqs(channel_order="freq", spw_order="number")
     assert calobj2 == calobj_full
 
 
-@pytest.mark.parametrize("axis", ["ant", "spw", "multi"])
-def test_add_spw_delay(multi_spw_delay, axis):
-    calobj_full = multi_spw_delay
+@pytest.mark.parametrize(
+    ["axis", "method"],
+    [
+        ["antenna", "__add__"],
+        ["spw", "__add__"],
+        ["multi", "__add__"],
+        ["antenna", "fast_concat"],
+        ["spw", "fast_concat"],
+    ],
+)
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain):
+    if caltype == "delay":
+        calobj_full = multi_spw_delay
+    else:
+        calobj_full = wideband_gain
     calobj_full.select(times=calobj_full.time_array[:2])
 
     spw1 = calobj_full.spw_array[0]
@@ -2447,7 +2556,7 @@ def test_add_spw_delay(multi_spw_delay, axis):
     calobj = calobj_full.copy()
     calobj2 = calobj.copy()
 
-    if axis == "ant":
+    if axis == "antenna":
         calobj.select(antenna_nums=ants1)
         calobj2.select(antenna_nums=ants2)
     elif axis == "spw":
@@ -2460,15 +2569,25 @@ def test_add_spw_delay(multi_spw_delay, axis):
         # zero out missing data in reference object
         ant1_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants1))[0]
         ant2_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants2))[0]
-        calobj_full.delay_array[ant1_inds, 1:] = 0
-        calobj_full.delay_array[ant2_inds, 0] = 0
+        if caltype == "delay":
+            calobj_full.delay_array[ant1_inds, 1:] = 0
+            calobj_full.delay_array[ant2_inds, 0] = 0
+        else:
+            calobj_full.gain_array[ant1_inds, 1:] = 0
+            calobj_full.gain_array[ant2_inds, 0] = 0
         calobj_full.quality_array[ant1_inds, 1:] = 0
         calobj_full.quality_array[ant2_inds, 0] = 0
         calobj_full.flag_array[ant1_inds, 1:] = True
         calobj_full.flag_array[ant2_inds, 0] = True
         calobj_full.input_flag_array[ant1_inds, 1:] = True
         calobj_full.input_flag_array[ant2_inds, 0] = True
-    calobj += calobj2
+
+    if method == "fast_concat":
+        kwargs = {"axis": axis, "inplace": False}
+    else:
+        kwargs = {}
+
+    calobj3 = getattr(calobj, method)(calobj2, **kwargs)
 
     # Check history is correct, before replacing and doing a full object check
     if axis == "multi":
@@ -2476,34 +2595,30 @@ def test_add_spw_delay(multi_spw_delay, axis):
             calobj_full.history + "  Downselected to specific antennas, spectral "
             "windows using pyuvdata. Combined data along antenna, spectral window axis "
             "using pyuvdata.",
-            calobj.history,
+            calobj3.history,
         )
     elif axis == "spw":
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
-            calobj.history,
+            calobj3.history,
         )
-    elif axis == "ant":
+    elif axis == "antenna":
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
             "Combined data along antenna axis using pyuvdata.",
-            calobj.history,
+            calobj3.history,
         )
-    calobj.history = calobj_full.history
-    assert calobj == calobj_full
+    calobj3.history = calobj_full.history
+    assert calobj3 == calobj_full
 
     # test adding out of order
-    calobj = calobj_full.copy()
-    if axis == "ant":
-        calobj.select(antenna_nums=ants1)
-    elif axis == "spw":
-        calobj.select(spws=spw1)
-    elif axis == "multi":
-        calobj2 = calobj.copy()
-        calobj.select(antenna_nums=ants1, spws=spw1)
-        calobj2.select(antenna_nums=ants2, spws=spw2)
-    calobj2 += calobj
+    calobj3 = getattr(calobj2, method)(calobj, **kwargs)
+    if method == "fast_concat":
+        if axis == "spw":
+            calobj3.reorder_freqs(spw_order="number")
+        else:
+            calobj3.reorder_antennas()
 
     # Check history is correct, before replacing and doing a full object check
     if axis == "multi":
@@ -2511,28 +2626,29 @@ def test_add_spw_delay(multi_spw_delay, axis):
             calobj_full.history + "  Downselected to specific antennas, spectral "
             "windows using pyuvdata. Combined data along antenna, spectral window axis "
             "using pyuvdata.",
-            calobj2.history,
+            calobj3.history,
         )
     elif axis == "spw":
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
-            calobj2.history,
+            calobj3.history,
         )
-    elif axis == "ant":
+    elif axis == "antenna":
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
             "Combined data along antenna axis using pyuvdata.",
-            calobj2.history,
+            calobj3.history,
         )
-    calobj2.history = calobj_full.history
-    assert calobj2 == calobj_full
+    calobj3.history = calobj_full.history
+    assert calobj3 == calobj_full
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputflag):
     """Test adding times between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
@@ -2550,7 +2666,12 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
     times2 = calobj.time_array[n_times2:]
     calobj.select(times=times1)
     calobj2.select(times=times2)
-    calobj += calobj2
+
+    if method == "fast_concat":
+        kwargs = {"axis": "time", "inplace": True}
+    else:
+        kwargs = {}
+    getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -2570,7 +2691,7 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2588,7 +2709,7 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2607,7 +2728,7 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2628,7 +2749,7 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
             tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
         # test for when input_flag_array is present in second file but not first
@@ -2643,7 +2764,7 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
             tot_ifa = np.concatenate([ifa, ifa2], axis=3)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # Out of order - times
@@ -2651,14 +2772,18 @@ def test_add_times(future_shapes, caltype, gain_data, delay_data_inputflag):
     calobj2 = calobj.copy()
     calobj.select(times=times2)
     calobj2.select(times=times1)
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     calobj.history = calobj_full.history
+    if method == "fast_concat":
+        # need to sort object first
+        calobj.reorder_times()
     assert calobj == calobj_full
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_times_multispw(future_shapes, multi_spw_gain):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_times_multispw(future_shapes, method, multi_spw_gain):
     """Test adding times between two UVCal objects"""
     calobj = multi_spw_gain
 
@@ -2673,7 +2798,11 @@ def test_add_times_multispw(future_shapes, multi_spw_gain):
     times2 = calobj.time_array[n_times2:]
     calobj.select(times=times1)
     calobj2.select(times=times2)
-    calobj += calobj2
+    if method == "fast_concat":
+        kwargs = {"axis": "time", "inplace": True}
+    else:
+        kwargs = {}
+    getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -2688,7 +2817,8 @@ def test_add_times_multispw(future_shapes, multi_spw_gain):
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputflag):
     """Test adding Jones axes between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
@@ -2703,7 +2833,11 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     calobj_original = calobj.copy()
     # artificially change the Jones value to permit addition
     calobj2.jones_array[0] = -6
-    calobj += calobj2
+    if method == "fast_concat":
+        kwargs = {"axis": "jones", "inplace": True}
+    else:
+        kwargs = {}
+    getattr(calobj, method)(calobj2, **kwargs)
 
     # check dimensionality of resulting object
     if caltype == "gain":
@@ -2721,7 +2855,7 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj.total_quality_array = tqa
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2738,7 +2872,7 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj2.total_quality_array = tqa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2757,7 +2891,7 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
         tot_tqa = np.concatenate([tqa, tqa2], axis=3)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2778,7 +2912,7 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
             tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
         # test for when input_flag_array is present in second file but not first
@@ -2793,14 +2927,14 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
             tot_ifa = np.concatenate([ifa, ifa2], axis=4)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
-        calobj += calobj2
+        getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
 
     # Out of order - jones
     calobj = calobj_original.copy()
     calobj2 = calobj_original.copy()
     calobj.jones_array[0] = -6
-    calobj += calobj2
+    getattr(calobj, method)(calobj2, **kwargs)
     calobj2 = calobj.copy()
     calobj.select(jones=-5)
     calobj.history = calobj_original.history
@@ -2813,7 +2947,8 @@ def test_add_jones(future_shapes, caltype, gain_data, delay_data_inputflag):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_jones_multispw(future_shapes, multi_spw_gain):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_add_jones_multispw(future_shapes, method, multi_spw_gain):
     """Test adding Jones axes between two UVCal objects"""
     calobj = multi_spw_gain
 
@@ -2824,7 +2959,11 @@ def test_add_jones_multispw(future_shapes, multi_spw_gain):
 
     # artificially change the Jones value to permit addition
     calobj2.jones_array[0] = -6
-    calobj += calobj2
+    if method == "fast_concat":
+        kwargs = {"axis": "jones", "inplace": True}
+    else:
+        kwargs = {}
+    getattr(calobj, method)(calobj2, **kwargs)
 
     # check dimensionality of resulting object
     assert calobj.gain_array.shape[-1] == 2
@@ -2833,7 +2972,8 @@ def test_add_jones_multispw(future_shapes, multi_spw_gain):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add(caltype, gain_data, delay_data_inputflag):
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add(caltype, method, gain_data, delay_data_inputflag):
     """Test miscellaneous aspects of add method"""
     if caltype == "gain":
         calobj = gain_data
@@ -2848,7 +2988,13 @@ def test_add(caltype, gain_data, delay_data_inputflag):
     ants2 = np.array([80, 81, 88, 89, 96, 97, 104, 105, 112])
     calobj.select(antenna_nums=ants1)
     calobj2.select(antenna_nums=ants2)
-    calobj_add = calobj + calobj2
+
+    if method == "fast_concat":
+        kwargs = {"axis": "antenna", "inplace": False}
+    else:
+        kwargs = {}
+
+    calobj_add = getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_original.history + "  Downselected to specific "
@@ -2865,7 +3011,7 @@ def test_add(caltype, gain_data, delay_data_inputflag):
         calobj2.history = "Some random history string OMNI_RUN:"
     else:
         calobj2.history = "Some random history string firstcal.py"
-    new_cal = calobj + calobj2
+    new_cal = getattr(calobj, method)(calobj2, **kwargs)
 
     additional_history = "Some random history string"
     assert uvutils._check_histories(
@@ -2875,7 +3021,8 @@ def test_add(caltype, gain_data, delay_data_inputflag):
         new_cal.history,
     )
 
-    new_cal = calobj.__add__(calobj2, verbose_history=True)
+    kwargs["verbose_history"] = True
+    new_cal = getattr(calobj, method)(calobj2, **kwargs)
     assert uvutils._check_histories(
         calobj_original.history + " Combined data along antenna axis "
         "using pyuvdata. Next object history follows.  " + calobj2.history,
@@ -3021,7 +3168,10 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain, wideband_gain):
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add_errors(
+    caltype, method, gain_data, delay_data, multi_spw_gain, wideband_gain
+):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data
@@ -3030,43 +3180,156 @@ def test_add_errors(caltype, gain_data, delay_data, multi_spw_gain, wideband_gai
 
     calobj2 = calobj.copy()
 
-    # test addition of two identical objects
-    with pytest.raises(
-        ValueError, match="These objects have overlapping data and cannot be combined."
-    ):
-        calobj.__add__(calobj2)
+    if method == "fast_concat":
+        kwargs = {"axis": "antenna", "inplace": True}
+    else:
+        kwargs = {}
 
-    # test addition of UVCal and non-UVCal object (empty list)
+    if method == "fast_concat":
+        # test unknown axis values
+        allowed_axes = ["antenna", "time", "jones"]
+        if caltype == "gain":
+            allowed_axes.append("freq")
+        with pytest.raises(
+            ValueError, match="Axis must be one of: " + ", ".join(allowed_axes)
+        ):
+            calobj.fast_concat(calobj2, axis="foo")
+
+    else:
+        # test addition of two identical objects
+        with pytest.raises(
+            ValueError,
+            match="These objects have overlapping data and cannot be combined.",
+        ):
+            calobj + calobj2
+
+    # test addition of UVCal and non-UVCal object
     with pytest.raises(ValueError, match="Only UVCal "):
-        calobj.__add__([])
+        getattr(calobj, method)("foo", **kwargs)
 
     # test compatibility param mismatch
     calobj2.telescope_name = "PAPER"
     with pytest.raises(ValueError, match="Parameter telescope_name does not match"):
-        calobj.__add__(calobj2)
+        getattr(calobj, method)(calobj2, **kwargs)
 
     # test array shape mismatch
     calobj2 = calobj.copy()
     calobj2.use_current_array_shapes()
-    with pytest.raises(
-        ValueError,
-        match="Both objects must have the same `future_array_shapes` parameter.",
-    ):
-        calobj + calobj2
+    msg = (
+        " objects must have the same `future_array_shapes` parameter. Use the "
+        "`use_future_array_shapes` or `use_current_array_shapes` methods to convert "
+        "them."
+    )
+    if method == "fast_concat":
+        msg = "All" + msg
+    else:
+        msg = "Both" + msg
+
+    with pytest.raises(ValueError, match=msg):
+        getattr(calobj, method)(calobj2, **kwargs)
 
     # test flex_spw mismatch
     with pytest.raises(
         ValueError,
         match="To combine these data, flex_spw must be set to the same value",
     ):
-        gain_data + multi_spw_gain
+        getattr(gain_data, method)(multi_spw_gain, **kwargs)
 
     # test wide_band mismatch
     with pytest.raises(
         ValueError,
         match="To combine these data, wide_band must be set to the same value",
     ):
-        gain_data + wideband_gain
+        getattr(gain_data, method)(wideband_gain, **kwargs)
+
+
+@pytest.mark.parametrize("axis", ["antenna", "freq", "time", "jones", "spw"])
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+def test_fast_concat_multiple_files(
+    gain_data, delay_data, wideband_gain, multi_spw_delay, axis, caltype
+):
+    if caltype == "delay" and axis == "freq":
+        pytest.skip("Cannot combine along the freq axis with old delay types")
+    if axis == "spw":
+        if caltype == "gain":
+            calobj_full = wideband_gain
+        else:
+            calobj_full = multi_spw_delay
+        n_objects = 3
+    else:
+        if caltype == "gain":
+            calobj_full = gain_data
+        else:
+            calobj_full = delay_data
+        n_objects = 4
+
+    # add more jones terms to allow for better testing of selections
+    if axis != "antenna":
+        total_quality = True
+    else:
+        total_quality = False
+    extend_jones_axis(calobj_full, total_quality=total_quality)
+
+    axis_dict = {
+        "antenna": {
+            "arr_use": calobj_full.ant_array,
+            "axis_len": calobj_full.Nants_data,
+            "select_param": "antenna_nums",
+        },
+        "freq": {
+            "arr_use": np.arange(calobj_full.Nfreqs),
+            "axis_len": calobj_full.Nfreqs,
+            "select_param": "freq_chans",
+        },
+        "spw": {
+            "arr_use": calobj_full.spw_array,
+            "axis_len": calobj_full.Nspws,
+            "select_param": "spws",
+        },
+        "time": {
+            "arr_use": calobj_full.time_array,
+            "axis_len": calobj_full.Ntimes,
+            "select_param": "times",
+        },
+        "jones": {
+            "arr_use": calobj_full.jones_array,
+            "axis_len": calobj_full.Njones,
+            "select_param": "jones",
+        },
+    }
+
+    select_params = {}
+    ind_ranges = {
+        0: np.arange(axis_dict[axis]["axis_len"] // n_objects),
+        1: np.arange(
+            axis_dict[axis]["axis_len"] // n_objects,
+            axis_dict[axis]["axis_len"] * 2 // n_objects,
+        ),
+        2: np.arange(
+            axis_dict[axis]["axis_len"] * 2 // n_objects,
+            axis_dict[axis]["axis_len"] * 3 // n_objects,
+        ),
+        3: np.arange(
+            axis_dict[axis]["axis_len"] * 3 // n_objects, axis_dict[axis]["axis_len"]
+        ),
+    }
+    for obj_num in range(n_objects):
+        select_params[obj_num] = {}
+        select_params[obj_num][axis_dict[axis]["select_param"]] = axis_dict[axis][
+            "arr_use"
+        ][ind_ranges[obj_num]]
+    calobj0 = calobj_full.select(**select_params[0], inplace=False)
+    calobj1 = calobj_full.select(**select_params[1], inplace=False)
+    calobj2 = calobj_full.select(**select_params[2], inplace=False)
+    if n_objects == 4:
+        calobj3 = calobj_full.select(**select_params[3], inplace=False)
+
+    concat_list = [calobj1, calobj2]
+    if n_objects == 4:
+        concat_list.append(calobj3)
+    calobj_final = calobj0.fast_concat(concat_list, axis=axis, inplace=False)
+    calobj_final.history = calobj_full.history
+    assert calobj_final == calobj_full
 
 
 def test_jones_warning(gain_data):
@@ -3084,7 +3347,8 @@ def test_jones_warning(gain_data):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_warnings(future_shapes, gain_data):
+@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
+def test_frequency_warnings(future_shapes, gain_data, method):
     """Test having uneven or non-contiguous frequencies"""
     # test having unevenly spaced frequency separations
     calobj = gain_data
@@ -3106,6 +3370,11 @@ def test_frequency_warnings(future_shapes, gain_data):
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
+    if method == "fast_concat":
+        kwargs = {"axis": "freq", "inplace": True}
+    else:
+        kwargs = {}
+
     # change the last frequency bin to be smaller than the others
     if future_shapes:
         df = calobj2.freq_array[-1] - calobj2.freq_array[-2]
@@ -3116,9 +3385,9 @@ def test_frequency_warnings(future_shapes, gain_data):
     with uvtest.check_warnings(
         UserWarning, match="Combined frequencies are not evenly spaced"
     ):
-        calobj.__iadd__(calobj2)
+        getattr(calobj, method)(calobj2, **kwargs)
 
-    assert calobj.freq_array.size == calobj.Nfreqs
+    assert calobj.freq_array.size == freqs1.size + freqs2.size
 
     # now check having "non-contiguous" frequencies
     calobj = go1.copy()
@@ -3133,7 +3402,9 @@ def test_frequency_warnings(future_shapes, gain_data):
         UserWarning,
         match="Combined frequencies are separated by more than their channel width",
     ):
-        calobj.__iadd__(calobj2)
+        getattr(calobj, method)(calobj2, **kwargs)
+
+    assert calobj.freq_array.size == freqs1.size + freqs2.size
 
     freqs1 *= 10
     freqs2 *= 10
