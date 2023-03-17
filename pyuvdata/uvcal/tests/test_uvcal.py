@@ -156,7 +156,11 @@ def wideband_gain(gain_data):
     gain_obj.flex_spw_id_array = None
     gain_obj.Nfreqs = 1
 
-    gain_obj.check(check_freq_spacing=True)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The input_flag_array is deprecated and will be removed in version 2.5",
+    ):
+        gain_obj.check(check_freq_spacing=True)
 
     yield gain_obj
 
@@ -186,7 +190,11 @@ def multi_spw_delay(delay_data_inputflag):
     delay_obj.freq_range[2, 0] = delay_obj.freq_range[1, 1]
     delay_obj.freq_range[2, 1] = delay_obj.freq_range[1, 1] + 10e6
 
-    delay_obj.check()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The input_flag_array is deprecated and will be removed in version 2.5",
+    ):
+        delay_obj.check()
 
     yield delay_obj
 
@@ -274,14 +282,7 @@ def extend_jones_axis(calobj, input_flag=True, total_quality=True):
 
 def test_parameter_iter(uvcal_data):
     """Test expected parameters."""
-    (
-        uv_cal_object,
-        required_parameters,
-        required_properties,
-        extra_parameters,
-        extra_properties,
-        other_properties,
-    ) = uvcal_data
+    (uv_cal_object, required_parameters, _, extra_parameters, _, _) = uvcal_data
     all_params = []
     for prop in uv_cal_object:
         all_params.append(prop)
@@ -293,14 +294,7 @@ def test_parameter_iter(uvcal_data):
 
 def test_required_parameter_iter(uvcal_data):
     """Test expected required parameters."""
-    (
-        uv_cal_object,
-        required_parameters,
-        required_properties,
-        extra_parameters,
-        extra_properties,
-        other_properties,
-    ) = uvcal_data
+    (uv_cal_object, required_parameters, _, _, _, _) = uvcal_data
     # at first it's a metadata_only object, so need to modify required_parameters
     required = []
     for prop in uv_cal_object.required():
@@ -326,14 +320,7 @@ def test_required_parameter_iter(uvcal_data):
 
 def test_unexpected_parameters(uvcal_data):
     """Test for extra parameters."""
-    (
-        uv_cal_object,
-        required_parameters,
-        required_properties,
-        extra_parameters,
-        extra_properties,
-        other_properties,
-    ) = uvcal_data
+    (uv_cal_object, required_parameters, _, extra_parameters, _, _) = uvcal_data
     expected_parameters = required_parameters + extra_parameters
     attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] == "_"]
     for a in attributes:
@@ -344,9 +331,9 @@ def test_unexpected_attributes(uvcal_data):
     """Test for extra attributes."""
     (
         uv_cal_object,
-        required_parameters,
+        _,
         required_properties,
-        extra_parameters,
+        _,
         extra_properties,
         other_properties,
     ) = uvcal_data
@@ -364,7 +351,7 @@ def test_properties(uvcal_data):
         required_properties,
         extra_parameters,
         extra_properties,
-        other_properties,
+        _,
     ) = uvcal_data
     prop_dict = dict(
         list(
@@ -437,23 +424,27 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
         "shapes are no longer supported.",
     ):
         calobj.use_current_array_shapes()
-    calobj.check()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The input_flag_array is deprecated and will be removed in version 2.5",
+    ):
+        calobj.check()
 
     calobj3 = calobj.copy()
     # test the no-op
     calobj.use_current_array_shapes()
     assert calobj3 == calobj
 
+    warn_type = [DeprecationWarning]
+    warn_msg = ["The input_flag_array is deprecated and will be removed in version 2.5"]
+
     if caltype == "delay":
-        warn_type = UserWarning
-        warn_msg = [
+        warn_type += [UserWarning]
+        warn_msg += [
             "When converting a delay-style cal to future array shapes the "
             "flag_array (and input_flag_array if it exists) must drop the "
             "frequency axis so that it will be the same shape as the delay_array."
         ]
-    else:
-        warn_type = None
-        warn_msg = ""
     with uvtest.check_warnings(warn_type, match=warn_msg):
         calobj.use_future_array_shapes()
         calobj.check()
@@ -461,6 +452,7 @@ def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
     assert calobj == calobj2
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_future_array_shape_errors(
     caltype,
@@ -510,7 +502,10 @@ def test_future_array_shape_errors(
         calobj.Nfreqs = 2
         with uvtest.check_warnings(
             DeprecationWarning,
-            match="Nfreqs will be required to be 1 for wide_band cals",
+            match=[
+                "Nfreqs will be required to be 1 for wide_band cals",
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+            ],
         ):
             calobj.check()
         calobj.Nfreqs = 1
@@ -757,6 +752,7 @@ def test_flexible_spw(gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("convention", ["minus", "plus"])
 @pytest.mark.parametrize("same_freqs", [True, False])
@@ -767,8 +763,11 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
     delay_obj.channel_width = np.full(delay_obj.Nfreqs, 1e6)
     with uvtest.check_warnings(
         DeprecationWarning,
-        match="Nfreqs will be required to be 1 for wide_band cals (including all "
-        "delay cals) starting in version 3.0",
+        match=[
+            "Nfreqs will be required to be 1 for wide_band cals (including all "
+            "delay cals) starting in version 3.0",
+            "The input_flag_array is deprecated and will be removed in version 2.5",
+        ],
     ):
         delay_obj.check()
     freq_array = copy.deepcopy(delay_obj.freq_array)
@@ -799,16 +798,19 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
 
     if not future_shapes and not same_freqs:
         with uvtest.check_warnings(
-            UserWarning,
-            match="Existing flag array has a frequency axis of length > 1 but "
-            "frequencies do not match freq_array. The existing flag array "
-            "(and input_flag_array if it exists) will be collapsed using "
-            "the `pyuvdata.utils.and_collapse` function which will only "
-            "flag an antpol-time if all of the frequecies are flagged for "
-            "that antpol-time. Then it will be broadcast to all the new "
-            "frequencies. To preserve the original flag information, "
-            "create a UVFlag object from this cal object before this "
-            "operation.",
+            [UserWarning, DeprecationWarning],
+            match=[
+                "Existing flag array has a frequency axis of length > 1 but "
+                "frequencies do not match freq_array. The existing flag array "
+                "(and input_flag_array if it exists) will be collapsed using "
+                "the `pyuvdata.utils.and_collapse` function which will only "
+                "flag an antpol-time if all of the frequecies are flagged for "
+                "that antpol-time. Then it will be broadcast to all the new "
+                "frequencies. To preserve the original flag information, "
+                "create a UVFlag object from this cal object before this "
+                "operation.",
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+            ],
         ):
             new_gain_obj.convert_to_gain(
                 freq_array=freq_array,
@@ -875,7 +877,10 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
     if same_freqs:
         with uvtest.check_warnings(
             DeprecationWarning,
-            match="In version 3.0 and later freq_array and channel_width will be",
+            match=[
+                "In version 3.0 and later freq_array and channel_width will be",
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+            ],
         ):
             new_gain_obj2.convert_to_gain(delay_convention=convention)
 
@@ -962,6 +967,7 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
         )
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
@@ -1038,13 +1044,17 @@ def test_select_antennas(
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
-    with uvtest.check_warnings(
-        UserWarning, match="Cannot preserve total_quality_array"
-    ):
+    warn_type = [UserWarning]
+    msg = ["Cannot preserve total_quality_array"]
+    if caltype == "delay":
+        warn_type += [DeprecationWarning]
+        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+    with uvtest.check_warnings(warn_type, match=msg):
         calobj.select(antenna_names=ant_names, inplace=True)
     assert calobj.total_quality_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1093,13 +1103,17 @@ def test_select_times(
 
     # check for warnings and errors associated with unevenly spaced times
     calobj2 = calobj.copy()
-    with uvtest.check_warnings(
-        UserWarning, match="Selected times are not evenly spaced"
-    ):
+    warn_type = [UserWarning]
+    msg = ["Selected times are not evenly spaced"]
+    if caltype == "delay":
+        warn_type += [DeprecationWarning]
+        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+    with uvtest.check_warnings(warn_type, match=msg):
         calobj2.select(times=calobj2.time_array[[0, 2, 3]])
     pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
@@ -1165,20 +1179,16 @@ def test_select_frequencies(
         freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
     else:
         freqs_to_keep = calobj.freq_array[0, [0, 2, 4, 6, 8]]
-    if future_shapes and caltype == "delay":
-        with uvtest.check_warnings(
-            [UserWarning, DeprecationWarning],
-            match=[
-                "Selected frequencies are not contiguous.",
-                "Nfreqs will be required to be 1 for wide_band cals",
-            ],
-        ):
-            calobj2.select(frequencies=freqs_to_keep)
-    else:
-        with uvtest.check_warnings(
-            UserWarning, match="Selected frequencies are not contiguous."
-        ):
-            calobj2.select(frequencies=freqs_to_keep)
+    warn_type = [UserWarning]
+    msg = ["Selected frequencies are not contiguous."]
+    if caltype == "delay":
+        warn_type += [DeprecationWarning]
+        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+        if future_shapes:
+            warn_type += [DeprecationWarning]
+            msg += ["Nfreqs will be required to be 1 for wide_band cals"]
+    with uvtest.check_warnings(warn_type, match=msg):
+        calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with frequencies not included in data
@@ -1194,20 +1204,16 @@ def test_select_frequencies(
         freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
     else:
         freqs_to_keep = calobj2.freq_array[0, [0, 5, 6]]
-    if future_shapes and caltype == "delay":
-        with uvtest.check_warnings(
-            [UserWarning, DeprecationWarning],
-            match=[
-                "Selected frequencies are not evenly spaced",
-                "Nfreqs will be required to be 1 for wide_band cals",
-            ],
-        ):
-            calobj2.select(frequencies=freqs_to_keep)
-    else:
-        with uvtest.check_warnings(
-            UserWarning, match="Selected frequencies are not evenly spaced"
-        ):
-            calobj2.select(frequencies=freqs_to_keep)
+    warn_type = [UserWarning]
+    msg = ["Selected frequencies are not evenly spaced."]
+    if caltype == "delay":
+        warn_type += [DeprecationWarning]
+        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+        if future_shapes:
+            warn_type += [DeprecationWarning]
+            msg += ["Nfreqs will be required to be 1 for wide_band cals"]
+    with uvtest.check_warnings(warn_type, match=msg):
+        calobj2.select(frequencies=freqs_to_keep)
 
     with pytest.raises(
         ValueError,
@@ -1216,6 +1222,7 @@ def test_select_frequencies(
         calobj2.write_calfits(write_file_calfits)
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1307,8 +1314,13 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 
     calobj3 = calobj.select(spws=[1], inplace=False)
     assert calobj3 == calobj2
-
-    with uvtest.check_warnings(UserWarning, match="Cannot select on spws if Nspws=1."):
+    with uvtest.check_warnings(
+        [UserWarning, DeprecationWarning],
+        match=[
+            "Cannot select on spws if Nspws=1.",
+            "The input_flag_array is deprecated and will be removed in version 2.5",
+        ],
+    ):
         calobj3.select(spws=1)
     assert calobj3 == calobj2
 
@@ -1326,6 +1338,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
     assert calobj3 == calobj2
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
@@ -1398,6 +1411,7 @@ def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputfl
         assert f in obj_freqs[all_chans_to_keep]
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path):
     if caltype == "gain":
@@ -1438,6 +1452,7 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
         calobj.select(spws=[5])
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1497,14 +1512,18 @@ def test_select_polarizations(
     pytest.raises(ValueError, calobj2.select, jones=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    with uvtest.check_warnings(
-        UserWarning, match="Selected jones polarization terms are not evenly spaced"
-    ):
+    warn_type = [UserWarning, DeprecationWarning]
+    msg = [
+        "Selected jones polarization terms are not evenly spaced",
+        "The input_flag_array is deprecated and will be removed in version 2.5",
+    ]
+    with uvtest.check_warnings(warn_type, match=msg):
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
     pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -1574,6 +1593,7 @@ def test_select(future_shapes, caltype, gain_data, delay_data_inputflag):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
     if caltype == "gain":
@@ -1630,6 +1650,7 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1671,9 +1692,15 @@ def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inpu
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
-    with uvtest.check_warnings(UserWarning, match="Total quality array detected"):
+    warn_type = [UserWarning]
+    msg = ["Total quality array detected"]
+    if caltype == "delay":
+        warn_type += [DeprecationWarning] * 3
+        msg += [
+            "The input_flag_array is deprecated and will be removed in version 2.5"
+        ] * 3
+    with uvtest.check_warnings(warn_type, match=msg):
         getattr(calobj, method)(calobj2, **kwargs)
-
     assert calobj.total_quality_array is None
 
     if caltype == "delay":
@@ -1715,6 +1742,7 @@ def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inpu
     assert calobj == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1786,6 +1814,7 @@ def test_reorder_ants_errors(gain_data):
         gain_data.reorder_antennas(order=gain_data.antenna_numbers[:8])
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1839,6 +1868,7 @@ def test_reorder_freqs(
         assert calobj == calobj2
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
     if caltype == "gain":
@@ -1853,9 +1883,12 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
 
     if caltype == "delay":
         with uvtest.check_warnings(
-            UserWarning,
-            match="channel_order and select_spws are ignored for wide-band "
-            "calibration solutions",
+            [UserWarning, DeprecationWarning],
+            match=[
+                "channel_order and select_spws are ignored for wide-band "
+                "calibration solutions",
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+            ],
         ):
             calobj.reorder_freqs(spw_order="-number", channel_order="freq")
     else:
@@ -1927,6 +1960,7 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
         gain_data.reorder_freqs(channel_order=np.arange(3))
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1994,6 +2028,7 @@ def test_reorder_times_errors(gain_data):
         gain_data.reorder_times(order=np.arange(7))
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -2090,6 +2125,7 @@ def test_reorder_jones_errors(gain_data):
         calobj.reorder_jones(order=np.arange(2))
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:Combined Jones elements are not evenly spaced")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are not evenly spaced")
 @pytest.mark.filterwarnings("ignore:Cannot reorder the frequency/spw axis with only")
@@ -2247,6 +2283,7 @@ def test_add_antennas_multispw(future_shapes, multi_spw_gain, method):
     assert calobj == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
@@ -2547,6 +2584,7 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_
     assert calobj2 == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize(
     ["axis", "method"],
     [
@@ -2662,6 +2700,7 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
     assert calobj3 == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -2832,6 +2871,7 @@ def test_add_times_multispw(future_shapes, method, multi_spw_gain):
     assert calobj == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -2989,6 +3029,7 @@ def test_add_jones_multispw(future_shapes, method, multi_spw_gain):
     assert sorted(calobj.jones_array) == [-6, -5]
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
 def test_add(caltype, method, gain_data, delay_data_inputflag):
@@ -3048,6 +3089,7 @@ def test_add(caltype, method, gain_data, delay_data_inputflag):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize(
     ["ant", "freq", "time", "jones"],
     [
@@ -3184,6 +3226,7 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
     assert calobj3 == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
@@ -3261,6 +3304,7 @@ def test_add_errors(
         getattr(gain_data, method)(wideband_gain, **kwargs)
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("axis", ["antenna", "freq", "time", "jones", "spw"])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_fast_concat_multiple_files(
@@ -3464,6 +3508,7 @@ def test_parameter_warnings(gain_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
@@ -3498,8 +3543,10 @@ def test_multi_files(caltype, method, gain_data, delay_data_inputflag, tmp_path)
             "Use the generic `UVCal.read` method instead."
         ]
         if caltype == "delay":
-            warn_type += 2 * [UserWarning]
-            msg += 2 * ["When converting a delay-style cal to future array"]
+            warn_type += 2 * [UserWarning] + [DeprecationWarning] * 5
+            msg += 2 * ["When converting a delay-style cal to future array"] + 5 * [
+                "The input_flag_array is deprecated and will be removed in version 2.5"
+            ]
 
         with uvtest.check_warnings(warn_type, match=msg):
             calobj.read_calfits([f1, f2], use_future_array_shapes=True)

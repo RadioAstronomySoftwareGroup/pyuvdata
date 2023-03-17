@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 - A new generic `read` method on `UVCal` that, like the `read` methods on our other objects, supports all file types and a new `from_file` class method to allow one-line reading of UVCal files.
 
 ### Deprecated
+- The `input_flag_array` attribute on `UVCal`.
 - Support for the 'unknown' cal_type in UVCal.
 - Reading in multiple files to `UVCal` using file-type specific read methods
 (e.g. `read_calfits`) in favor of the generic `read` method.
