@@ -481,8 +481,8 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "Array of input flags, True is flagged. shape: "
-            "(Nants_data, 1, Nfreqs, Ntimes, Njones) or "
+            "Deprecated, support will be removed in version 2.5. Array of input flags, "
+            "True is flagged. shape: (Nants_data, 1, Nfreqs, Ntimes, Njones) or "
             "(Nants_data, Nfreqs, Ntimes, Njones) if future_array_shapes=True, "
             "type = bool."
         )
@@ -1259,6 +1259,12 @@ class UVCal(UVBase):
                         "All values in the flex_spw_id_array must exist in the "
                         "spw_array."
                     )
+
+        if self.input_flag_array is not None:
+            warnings.warn(
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+                DeprecationWarning,
+            )
 
         if check_freq_spacing:
             self._check_freq_spacing()

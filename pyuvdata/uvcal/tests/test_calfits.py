@@ -400,6 +400,7 @@ def test_extra_keywords_warnings(gain_data, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
     """
