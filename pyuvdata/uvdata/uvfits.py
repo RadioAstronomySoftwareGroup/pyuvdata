@@ -209,17 +209,10 @@ class UVFITS(UVData):
         lst_range,
         polarizations,
         blt_inds,
-        catalog_identifier,
-        read_metadata,
+        phase_center_ids,
         keep_all_metadata,
-        run_check,
-        check_extra,
-        run_check_acceptability,
-        strict_uvw_antpos_check,
         fix_old_proj,
         fix_use_ant_pos,
-        check_autos,
-        fix_autos,
     ):
         """
         Read just the visibility and flag data of the uvfits file.
@@ -240,7 +233,7 @@ class UVFITS(UVData):
             lst_range,
             polarizations,
             blt_inds,
-            catalog_identifier,
+            phase_center_ids,
         )
 
         if blt_inds is not None:
@@ -363,7 +356,7 @@ class UVFITS(UVData):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
-        catalog_identifier=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -864,16 +857,10 @@ class UVFITS(UVData):
                     lst_range,
                     polarizations,
                     blt_inds,
-                    False,
+                    None,
                     keep_all_metadata,
-                    run_check,
-                    check_extra,
-                    run_check_acceptability,
-                    strict_uvw_antpos_check,
                     fix_old_proj,
                     fix_use_ant_pos,
-                    check_autos,
-                    fix_autos,
                 )
         if use_future_array_shapes:
             self.use_future_array_shapes()
