@@ -8593,7 +8593,6 @@ class UVData(UVBase):
         lst_range,
         polarizations,
         blt_inds,
-        catalog_identifier,
         phase_center_ids,
     ):
         """
@@ -8997,49 +8996,6 @@ class UVData(UVBase):
                     f"{lst_range[1]}."
                 )
 
-        if catalog_identifier is not None:
-            cat_ids = set()
-            if isinstance(catalog_identifier, (int, str)):
-                catalog_identifier = [catalog_identifier]
-
-            for item in catalog_identifier:
-                if isinstance(item, str):
-                    temp_ids = []
-                    for key, pc_dict in self.phase_center_catalog.items():
-                        if item == pc_dict["cat_name"]:
-                            temp_ids.append(key)
-                    if len(temp_ids) == 0:
-                        raise ValueError(
-                            "No catalog entries matching the name %s." % item
-                        )
-                    cat_ids |= set(temp_ids)
-                elif isinstance(item, int):
-                    if item not in self.phase_center_catalog:
-                        raise ValueError(
-                            "No catalog entry with the source ID %i." % item
-                        )
-                    cat_ids |= {item}
-            # Need to cast back to a list here for isin to work correctly.
-            sou_blt_inds = np.where(np.isin(self.phase_center_id_array, list(cat_ids)))[
-                0
-            ]
-            if time_blt_inds.size == 0:
-                raise ValueError("No entries matching provided catalog identifiers.")
-            if blt_inds is not None:
-                # Use intesection (and) to join
-                # antenna_names/nums/ant_pairs_nums/blt_inds with times
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(sou_blt_inds)), dtype=np.int64
-                )
-            else:
-                blt_inds = sou_blt_inds
-
-            if n_selects > 0:
-                history_update_string += ", phase centers"
-            else:
-                history_update_string += "phase centers"
-            n_selects += 1
-
         if times is not None or time_range is not None:
             if n_selects > 0:
                 history_update_string += ", times"
@@ -9351,7 +9307,8 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
-        catalog_identifier=None,
+        phase_center_ids=None,
+        catalog_names=None,
         inplace=True,
         keep_all_metadata=True,
         run_check=True,
@@ -9493,7 +9450,7 @@ class UVData(UVBase):
             lst_range,
             polarizations,
             blt_inds,
-            catalog_identifier,
+            phase_center_ids,
         )
 
         # Call the low-level selection method.
@@ -11818,7 +11775,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
-        catalog_identifier=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -11986,7 +11943,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
-            catalog_identifier=catalog_identifier,
+            phase_center_ids=phase_center_ids,
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
             background_lsts=background_lsts,
@@ -12018,7 +11975,7 @@ class UVData(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
-        catalog_identifier=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -12232,7 +12189,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
-            catalog_identifier=catalog_identifier,
+            phase_center_ids=phase_center_ids,
             data_array_dtype=data_array_dtype,
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
@@ -12282,6 +12239,7 @@ class UVData(UVBase):
         antenna_names=None,
         ant_str=None,
         bls=None,
+        catalog_identifier=None,
         frequencies=None,
         freq_chans=None,
         times=None,
@@ -12343,7 +12301,6 @@ class UVData(UVBase):
         phase_to_pointing_center=False,
         nsample_array_dtype=np.float32,
         # MIR
-        catalog_identifier=None,
         corrchunk=None,
         receivers=None,
         sidebands=None,
@@ -13069,6 +13026,7 @@ class UVData(UVBase):
                                 frequencies=frequencies,
                                 freq_chans=freq_chans,
                                 times=times,
+                                catalog_identifier=catalog_identifier,
                                 time_range=time_range,
                                 lsts=lsts,
                                 lst_range=lst_range,
@@ -14096,6 +14054,7 @@ class UVData(UVBase):
             blt_inds=blt_inds,
             phase_center_ids=phase_center_ids,
             keep_all_metadata=keep_all_metadata,
+            catalog_identifier=catalog_identifier,
             # checking parameters
             run_check=run_check,
             check_extra=check_extra,
@@ -14148,7 +14107,6 @@ class UVData(UVBase):
             remove_flagged_ants=remove_flagged_ants,
             phase_to_pointing_center=phase_to_pointing_center,
             # MIR
-            catalog_identifier=catalog_identifier,
             corrchunk=corrchunk,
             receivers=receivers,
             sidebands=sidebands,

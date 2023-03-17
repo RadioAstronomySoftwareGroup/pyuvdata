@@ -1022,7 +1022,7 @@ class UVH5(UVData):
         lst_range,
         polarizations,
         blt_inds,
-        catalog_identifier,
+        phase_center_ids,
         data_array_dtype,
         keep_all_metadata,
         multidim_index,
@@ -1083,7 +1083,7 @@ class UVH5(UVData):
             lst_range,
             polarizations,
             blt_inds,
-            catalog_identifier,
+            phase_center_ids,
         )
 
         # figure out which axis is the most selective
@@ -1342,7 +1342,7 @@ class UVH5(UVData):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
-        catalog_identifier=None,
+        phase_center_ids=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -2326,7 +2326,7 @@ class UVH5(UVData):
             lst_range,
             polarizations,
             blt_inds,
-            catalog_identifier,
+            phase_center_ids,
         )
 
         # make sure that the dimensions of the data to write are correct
