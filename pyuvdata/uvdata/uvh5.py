@@ -800,8 +800,6 @@ class UVH5(UVData):
             "uvw_array",
             "channel_width",
             "phase_center_catalog",
-            # "blts_are_rectangular",
-            # "time_axis_faster_than_bls",
         ]:
             try:
                 setattr(self, attr, getattr(obj, attr))
