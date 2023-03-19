@@ -16,7 +16,7 @@ import h5py
 import numpy as np
 
 from .. import utils as uvutils
-from .uvdata import UVData, radian_tol, _future_array_shapes_warning
+from .uvdata import UVData, _future_array_shapes_warning, radian_tol
 
 __all__ = ["UVH5", "FastUVH5Meta"]
 
