@@ -16,7 +16,7 @@ import h5py
 import numpy as np
 
 from .. import utils as uvutils
-from .uvdata import UVData, radian_tol, _future_array_shapes_warning
+from .uvdata import UVData, _future_array_shapes_warning, radian_tol
 
 __all__ = ["UVH5", "FastUVH5Meta"]
 
@@ -725,7 +725,12 @@ class FastUVH5Meta:
         The object will be metadata-only.
         """
         uvd = UVH5()
-        uvd.read_uvh5(self, read_data=False, run_check_acceptability=check_lsts)
+        uvd.read_uvh5(
+            self,
+            read_data=False,
+            run_check_acceptability=check_lsts,
+            use_future_array_shapes=True,
+        )
         return uvd
 
 

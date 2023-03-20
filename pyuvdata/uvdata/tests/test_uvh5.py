@@ -3486,7 +3486,7 @@ class TestFastUVH5Meta:
         self.tmp_path = tempfile.TemporaryDirectory("fastuvh5meta")
 
         uvd = UVData()
-        uvd.read(self.fl, bls=[(26, 26)])
+        uvd.read(self.fl, bls=[(26, 26)], use_future_array_shapes=True)
         self.fl_singlebl = os.path.join(self.tmp_path.name, "singlebl.uvh5")
         uvd.write_uvh5(self.fl_singlebl)
 
