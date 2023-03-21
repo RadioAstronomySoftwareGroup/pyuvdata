@@ -815,9 +815,9 @@ class UVH5(UVData):
         # the file. These could be set automatically later on, but for now we'll leave
         # that up to the user dealing with the UVData object.
         if "blts_are_rectangular" in obj.header:
-            self.blts_are_rectangular = obj.header["blts_are_rectangular"]
+            self.blts_are_rectangular = obj.blts_are_rectangular
         if "time_axis_faster_than_bls" in obj.header:
-            self.time_axis_faster_than_bls = obj.header["time_axis_faster_than_bls"]
+            self.time_axis_faster_than_bls = obj.time_axis_faster_than_bls
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
