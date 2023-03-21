@@ -811,6 +811,14 @@ class UVH5(UVData):
             except AttributeError as e:
                 raise KeyError(str(e)) from e
 
+        # For now, only set the rectangularity parameters if they exist in the header of
+        # the file. These could be set automatically later on, but for now we'll leave
+        # that up to the user dealing with the UVData object.
+        if "blts_are_rectangular" in obj.header:
+            self.blts_are_rectangular = obj.header["blts_are_rectangular"]
+        if "time_axis_faster_than_bls" in obj.header:
+            self.time_axis_faster_than_bls = obj.header["time_axis_faster_than_bls"]
+
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
@@ -1450,9 +1458,6 @@ class UVH5(UVData):
                 blts_are_rectangular=blts_are_rectangular,
                 time_axis_faster_than_bls=time_axis_faster_than_bls,
             )
-
-        if not os.path.exists(filename):
-            raise IOError(filename + " not found")
 
         # update filename attribute
         basename = os.path.basename(filename)
