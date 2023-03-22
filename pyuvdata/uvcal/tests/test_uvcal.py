@@ -17,6 +17,7 @@ from astropy.table import Table
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
+from pyuvdata.data import DATA_PATH
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
@@ -582,18 +583,17 @@ def test_unknown_telescopes(gain_data, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    calobj2 = UVCal()
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
         with uvtest.check_warnings(
             [UserWarning], match=["Telescope foo is not in known_telescopes"]
         ):
-            calobj2.read_calfits(write_file2, use_future_array_shapes=True)
+            UVCal.from_file(write_file2, use_future_array_shapes=True)
     with uvtest.check_warnings(
         [UserWarning], match=["Telescope foo is not in known_telescopes"]
     ):
-        calobj2.read_calfits(write_file2, use_future_array_shapes=True, run_check=False)
+        UVCal.from_file(write_file2, use_future_array_shapes=True, run_check=False)
 
 
 def test_nants_data_telescope_larger(gain_data):
@@ -1011,8 +1011,9 @@ def test_select_antennas(
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check that reading it back in works too
-    new_calobj = UVCal()
-    new_calobj.read_calfits(write_file_calfits, use_future_array_shapes=future_shapes)
+    new_calobj = UVCal.from_file(
+        write_file_calfits, use_future_array_shapes=future_shapes
+    )
     assert calobj2 == new_calobj
 
     # check that total_quality_array is handled properly when present
@@ -1293,8 +1294,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
         calobj3.select(spws=1)
     assert calobj3 == calobj2
 
-    calobj3 = UVCal()
-    calobj3.read_calfits(write_file_calfits, use_future_array_shapes=future_shapes)
+    calobj3 = UVCal.from_file(write_file_calfits, use_future_array_shapes=future_shapes)
 
     calobj2.flex_spw = False
     calobj2._flex_spw_id_array.required = False
@@ -3448,7 +3448,8 @@ def test_parameter_warnings(gain_data):
 
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_multi_files(caltype, gain_data, delay_data_inputflag, tmp_path):
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_multi_files(caltype, method, gain_data, delay_data_inputflag, tmp_path):
     """Test read function when multiple files are included"""
     if caltype == "gain":
         calobj = gain_data
@@ -3470,7 +3471,21 @@ def test_multi_files(caltype, gain_data, delay_data_inputflag, tmp_path):
     calobj.write_calfits(f1, clobber=True)
     calobj2.write_calfits(f2, clobber=True)
     # Read both files together
-    calobj.read_calfits([f1, f2], use_future_array_shapes=True)
+    if method == "fast_concat":
+        calobj = UVCal.from_file([f1, f2], axis="time", use_future_array_shapes=True)
+    else:
+        warn_type = [DeprecationWarning]
+        msg = [
+            "Reading multiple files from file specific read methods is deprecated. "
+            "Use the generic `UVCal.read` method instead."
+        ]
+        if caltype == "delay":
+            warn_type += 2 * [UserWarning]
+            msg += 2 * ["When converting a delay-style cal to future array"]
+
+        with uvtest.check_warnings(warn_type, match=msg):
+            calobj.read_calfits([f1, f2], use_future_array_shapes=True)
+
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific times"
         " using pyuvdata. Combined data "
@@ -3482,7 +3497,7 @@ def test_multi_files(caltype, gain_data, delay_data_inputflag, tmp_path):
     assert calobj == calobj_full
 
     # check metadata only read
-    calobj.read_calfits([f1, f2], read_data=False, use_future_array_shapes=True)
+    calobj = UVCal.from_file([f1, f2], read_data=False, use_future_array_shapes=True)
     calobj_full_metadata_only = calobj_full.copy(metadata_only=True)
 
     calobj.history = calobj_full_metadata_only.history
@@ -3566,8 +3581,8 @@ def test_write_read_optional_attrs(gain_data, tmp_path):
     cal_in.write_calfits(write_file_calfits, clobber=True)
 
     # read and compare
-    cal_in2 = UVCal()
-    cal_in2.read_calfits(write_file_calfits, use_future_array_shapes=True)
+    # also check that passing a single file in a list works properly
+    cal_in2 = UVCal.from_file([write_file_calfits], use_future_array_shapes=True)
     assert cal_in == cal_in2
 
 
@@ -3636,11 +3651,10 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    gain_data2 = UVCal()
     with uvtest.check_warnings(
         UserWarning, "antenna_positions is not set. Using known values for HERA."
     ):
-        gain_data2.read_calfits(write_file2, use_future_array_shapes=True)
+        gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
 
     assert gain_data2.antenna_positions is not None
     assert gain_data == gain_data2
@@ -3687,7 +3701,6 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    gain_data2 = UVCal()
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
@@ -3698,7 +3711,7 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
                 "Not setting antenna_positions."
             ],
         ):
-            gain_data2.read_calfits(write_file2, use_future_array_shapes=True)
+            gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
 
     with uvtest.check_warnings(
         UserWarning,
@@ -3707,11 +3720,28 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
             "Not setting antenna_positions."
         ],
     ):
-        gain_data2.read_calfits(
+        gain_data2 = UVCal.from_file(
             write_file2, use_future_array_shapes=True, run_check=False
         )
 
     assert gain_data2.antenna_positions is None
+
+
+def test_read_errors():
+    with pytest.raises(
+        ValueError,
+        match="File type could not be determined, use the file_type keyword to specify "
+        "the type.",
+    ):
+        UVCal.from_file("foo.blah")
+
+    gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
+    with pytest.raises(
+        ValueError,
+        match="If filename is a list, tuple or array it cannot be nested or "
+        "multi dimensional.",
+    ):
+        UVCal.from_file([[gainfile]])
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")

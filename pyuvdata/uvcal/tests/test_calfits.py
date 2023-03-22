@@ -41,7 +41,6 @@ def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
     if not future_shapes:
         cal_in.use_current_array_shapes()
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
     if not future_shapes:
@@ -55,7 +54,7 @@ def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
         warn_msg = ""
 
     with uvtest.check_warnings(warn_type, match=warn_msg):
-        cal_out.read_calfits(write_file, use_future_array_shapes=future_shapes)
+        cal_out = UVCal.from_file(write_file, use_future_array_shapes=future_shapes)
 
     assert cal_out.filename == [os.path.basename(write_file)]
 
@@ -81,7 +80,6 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
     if not future_shapes:
         cal_in.use_current_array_shapes()
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
 
@@ -91,7 +89,7 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
         warn_type = None
 
     with uvtest.check_warnings(warn_type, match=_future_array_shapes_warning):
-        cal_out.read_calfits(write_file, use_future_array_shapes=future_shapes)
+        cal_out = UVCal.from_file(write_file, use_future_array_shapes=future_shapes)
 
     assert cal_in == cal_out
 
@@ -116,9 +114,8 @@ def test_read_metadata_only(filein, caltype, gain_data, delay_data):
 
     # check that metadata only reads work
     cal2 = cal_in.copy(metadata_only=True)
-    cal3 = UVCal()
     testfile = os.path.join(DATA_PATH, filein)
-    cal3.read_calfits(testfile, read_data=False, use_future_array_shapes=True)
+    cal3 = UVCal.from_file(testfile, read_data=False, use_future_array_shapes=True)
     assert cal2 == cal3
 
     return
@@ -127,12 +124,11 @@ def test_read_metadata_only(filein, caltype, gain_data, delay_data):
 def test_readwriteread_no_freq_range(gain_data, tmp_path):
     # test without freq_range parameter
     cal_in = gain_data
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_omnical.fits")
 
     cal_in.freq_range = None
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
     return
@@ -140,15 +136,13 @@ def test_readwriteread_no_freq_range(gain_data, tmp_path):
 
 def test_readwriteread_no_time_range(tmp_path):
     # test without time_range parameter
-    cal_in = UVCal()
-    cal_out = UVCal()
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
     write_file = str(tmp_path / "outtest_omnical.fits")
 
-    cal_in.read_calfits(testfile, use_future_array_shapes=True)
+    cal_in = UVCal.from_file(testfile, use_future_array_shapes=True)
     cal_in.time_range = None
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
     return
@@ -183,7 +177,6 @@ def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
     # change values for various axes in flag and total quality hdus to not
     # match primary hdu
     cal_in = delay_data
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_firstcal.fits")
     write_file2 = str(tmp_path / "outtest_firstcal2.fits")
 
@@ -233,7 +226,7 @@ def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file2, use_future_array_shapes=True)
+        UVCal.from_file(write_file2, use_future_array_shapes=True)
 
     return
 
@@ -250,7 +243,6 @@ def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
 def test_fits_header_errors_gain(gain_data, tmp_path, header_dict, error_msg):
     # repeat for gain type file
     cal_in = gain_data
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_omnical.fits")
     write_file2 = str(tmp_path / "outtest_omnical2.fits")
 
@@ -294,14 +286,13 @@ def test_fits_header_errors_gain(gain_data, tmp_path, header_dict, error_msg):
         hdulist.close()
 
     with pytest.raises(ValueError, match=error_msg):
-        cal_out.read_calfits(write_file2, use_future_array_shapes=True)
+        UVCal.from_file(write_file2, use_future_array_shapes=True)
 
     return
 
 
 def test_latlonalt_noxyz(gain_data, tmp_path):
     cal_in = gain_data
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest.fits")
     write_file2 = str(tmp_path / "outtest_noxyz.fits")
 
@@ -322,7 +313,7 @@ def test_latlonalt_noxyz(gain_data, tmp_path):
 
         hdulist.writeto(write_file2, overwrite=True)
 
-    cal_out.read_calfits(write_file2, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file2, use_future_array_shapes=True)
     assert cal_out == cal_in
 
 
@@ -345,14 +336,13 @@ def test_latlonalt_noxyz(gain_data, tmp_path):
 )
 def test_extra_keywords(gain_data, kwd1, kwd2, val1, val2, tmp_path):
     cal_in = gain_data
-    cal_out = UVCal()
     testfile = str(tmp_path / "outtest_extrakws.fits")
 
     # check handling of boolean keywords
     cal_in.extra_keywords[kwd1] = val1
     cal_in.extra_keywords[kwd2] = val2
     cal_in.write_calfits(testfile, clobber=True)
-    cal_out.read_calfits(testfile, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(testfile, use_future_array_shapes=True)
 
     assert cal_in == cal_out
 
@@ -418,13 +408,12 @@ def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
     else:
         cal_in = delay_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_input_flags.fits")
     cal_in.input_flag_array = np.zeros(
         cal_in._input_flag_array.expected_shape(cal_in), dtype=bool
     )
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -442,7 +431,6 @@ def test_jones(caltype, gain_data, delay_data, tmp_path):
     else:
         cal_in = delay_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_jones.fits")
 
     # Create filler jones info
@@ -460,7 +448,7 @@ def test_jones(caltype, gain_data, delay_data, tmp_path):
     cal_in.quality_array = np.zeros(cal_in._quality_array.expected_shape(cal_in))
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -478,7 +466,6 @@ def test_readwriteread_total_quality_array(caltype, gain_data, delay_data, tmp_p
     else:
         cal_in = delay_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_total_quality_array.fits")
 
     # Create filler total quality array
@@ -487,7 +474,7 @@ def test_readwriteread_total_quality_array(caltype, gain_data, delay_data, tmp_p
     )
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
     del cal_in
     del cal_out
@@ -522,7 +509,6 @@ def test_write_time_precision(gain_data, tmp_path):
     """
     cal_in = gain_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_time_prec.fits")
     # overwrite time array to break old code
     dt = cal_in.integration_time / (24.0 * 60.0 * 60.0)
@@ -531,7 +517,7 @@ def test_write_time_precision(gain_data, tmp_path):
     if cal_in.lst_array is not None:
         cal_in.set_lsts_from_time_array()
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -541,7 +527,6 @@ def test_read_noversion_history(gain_data, tmp_path):
     """
     cal_in = gain_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_nover.fits")
     write_file2 = str(tmp_path / "outtest_nover2.fits")
 
@@ -561,7 +546,7 @@ def test_read_noversion_history(gain_data, tmp_path):
         hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
-    cal_out.read_calfits(write_file2, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file2, use_future_array_shapes=True)
     assert cal_in == cal_out
 
 
@@ -569,12 +554,11 @@ def test_read_noversion_history(gain_data, tmp_path):
 def test_write_freq_spacing_not_channel_width(gain_data, tmp_path):
     cal_in = gain_data
 
-    cal_out = UVCal()
     write_file = str(tmp_path / "outtest_freqspace.fits")
 
     # select every other frequency -- then evenly spaced but doesn't match channel width
     cal_in.select(freq_chans=np.arange(0, 10, 2))
 
     cal_in.write_calfits(write_file, clobber=True)
-    cal_out.read_calfits(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out

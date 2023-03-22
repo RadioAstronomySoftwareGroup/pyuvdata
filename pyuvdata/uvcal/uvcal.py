@@ -4,6 +4,7 @@
 """Primary container for radio interferometer calibration solutions."""
 
 import copy
+import os
 import threading
 import warnings
 
@@ -3353,7 +3354,7 @@ class UVCal(UVBase):
             Axis to concatenate files along. This enables fast concatenation
             along the specified axis without the normal checking that all other
             metadata agrees. Allowed values are: 'antenna', 'time', 'freq', 'spw',
-            'jones' ('freq' is not allowed for delay or wideband objects and spw is
+            'jones' ('freq' is not allowed for delay or wideband objects and 'spw' is
             only allowed for wideband objects).
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
@@ -4839,6 +4840,16 @@ class UVCal(UVBase):
         from . import calfits
 
         if isinstance(filename, (list, tuple)):
+            warnings.warn(
+                "Reading multiple files from file specific read methods is deprecated. "
+                "Use the generic `UVCal.read` method instead. This will become an "
+                "error in version 2.5",
+                DeprecationWarning,
+            )
+
+            # cannot just call `read` here and let it handle the recursion because we
+            # can get a max recursion depth error. So leave the old handling for
+            # recursion until v2.5
             self.read_calfits(
                 filename[0],
                 read_data=read_data,
@@ -4927,6 +4938,22 @@ class UVCal(UVBase):
 
         """
         from . import fhd_cal
+
+        if (
+            isinstance(cal_file, (list, tuple))
+            or isinstance(obs_file, (list, tuple))
+            or isinstance(layout_file, (list, tuple))
+            or isinstance(settings_file, (list, tuple))
+        ):
+            warnings.warn(
+                "Reading multiple files from file specific read methods is deprecated. "
+                "Use the generic `UVCal.read` method instead. This will become an "
+                "error in version 2.5",
+                DeprecationWarning,
+            )
+            # cannot just call `read` here and let it handle the recursion because we
+            # can get a max recursion depth error. So leave the old handling for
+            # recursion until v2.5
 
         if isinstance(cal_file, (list, tuple)):
             if isinstance(obs_file, (list, tuple)):
@@ -5031,6 +5058,359 @@ class UVCal(UVBase):
             )
             self._convert_from_filetype(fhd_cal_obj)
             del fhd_cal_obj
+
+    def read(
+        self,
+        filename,
+        *,
+        axis=None,
+        file_type=None,
+        read_data=True,
+        use_future_array_shapes=False,
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        # file-type specific parameters
+        # FHD
+        obs_file=None,
+        layout_file=None,
+        settings_file=None,
+        raw=True,
+        extra_history=None,
+    ):
+        """
+        Read a generic file into a UVCal object.
+
+        This method supports a number of different types of files.
+        Universal parameters (required and optional) are listed directly below,
+        followed by parameters used by all file types related to checking. Each file
+        type also has its own set of optional parameters that are listed at the end of
+        this docstring.
+
+        Parameters
+        ----------
+        filename : str or array_like of str
+            The file(s) or list(s) (or array(s)) of files to read from.
+        file_type : str
+            One of ['calfits', 'fhd'] or None. If None, the code attempts to guess what
+            the file type is based on file extensions (FHD: .sav, .txt;
+            uvfits: .calfits). Note that if a list of datasets is passed, the file type
+            is determined from the first dataset.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'antenna', 'time', 'freq', 'spw', 'jones' ('freq' is
+            not allowed for delay or wideband objects and 'spw' is only allowed for
+            wideband objects). Only used if multiple files are passed.
+        read_data : bool
+            Read in the gains or delays, quality arrays and flag arrays.
+            If set to False, only the metadata will be read in. Setting read_data to
+            False results in a metadata only object.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+
+        Checking
+        --------
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
+        FHD
+        ---
+        obs_file : str or list of str
+            The obs.sav file or list of files to read from. This is required for FHD
+            files.
+        layout_file : str
+            The FHD layout file. Required for antenna_positions to be set.
+        settings_file : str or list of str, optional
+            The settings_file or list of files to read from. Optional,
+            but very useful for provenance.
+        raw : bool
+            Option to use the raw (per antenna, per frequency) solution or
+            to use the fitted (polynomial over phase/amplitude) solution.
+            Default is True (meaning use the raw solutions).
+
+        """
+        if isinstance(filename, (list, tuple, np.ndarray)):
+            for ind in range(len(filename)):
+                if isinstance(filename[ind], (list, tuple, np.ndarray)):
+                    raise ValueError(
+                        "If filename is a list, tuple or array it cannot be nested or "
+                        "multi dimensional."
+                    )
+            _, extension = os.path.splitext(filename[0])
+            n_files = len(filename)
+        else:
+            _, extension = os.path.splitext(filename)
+            n_files = 1
+
+        multi = False
+        if n_files > 1:
+            multi = True
+        elif isinstance(filename, (list, tuple, np.ndarray)):
+            filename = filename[0]
+
+        if file_type is None:
+            if extension == ".sav" or extension == ".txt":
+                file_type = "fhd"
+            elif "fits" in extension:
+                file_type = "calfits"
+            else:
+                raise ValueError(
+                    "File type could not be determined, use the "
+                    "file_type keyword to specify the type."
+                )
+
+        obs_file_use = None
+        layout_file_use = None
+        settings_file_use = None
+        if file_type == "fhd":
+            if obs_file is None:
+                raise ValueError("obs_file parameter must be set for FHD files.")
+            else:
+                if isinstance(obs_file, (list, tuple)):
+                    n_obs = len(obs_file)
+                    obs_file_use = obs_file[0]
+                else:
+                    n_obs = 1
+                    obs_file_use = obs_file
+            if n_obs != n_files:
+                raise ValueError("Number of obs_files must match number of cal_files")
+
+            if layout_file is not None:
+                if isinstance(layout_file, (list, tuple)):
+                    n_layout = len(layout_file)
+                    layout_file_use = layout_file[0]
+                else:
+                    n_layout = 1
+                    layout_file_use = layout_file
+                if n_layout != n_files:
+                    raise ValueError(
+                        "Number of layout_files must match number of cal_files"
+                    )
+
+            if settings_file is not None:
+                if isinstance(settings_file, (list, tuple)):
+                    n_settings = len(settings_file)
+                    settings_file_use = settings_file[0]
+                else:
+                    n_settings = 1
+                    settings_file_use = settings_file
+                if n_settings != n_files:
+                    raise ValueError(
+                        "Number of settings_files must match number of cal_files"
+                    )
+
+        if multi:
+            self.read(
+                filename[0],
+                file_type=file_type,
+                read_data=read_data,
+                use_future_array_shapes=use_future_array_shapes,
+                # checking parameters
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                # file-type specific parameters
+                # FHD
+                obs_file=obs_file_use,
+                layout_file=layout_file_use,
+                settings_file=settings_file_use,
+                raw=raw,
+                extra_history=extra_history,
+            )
+            uv_list = []
+            for ind, file in enumerate(filename[1:]):
+                if file_type == "fhd":
+                    file_index = ind + 1
+                    obs_file_use = obs_file[file_index]
+                    if layout_file is not None:
+                        layout_file_use = layout_file[file_index]
+                    if settings_file is not None:
+                        settings_file_use = settings_file[file_index]
+
+                uvcal2 = UVCal()
+                uvcal2.read(
+                    file,
+                    read_data=read_data,
+                    file_type=file_type,
+                    use_future_array_shapes=use_future_array_shapes,
+                    # checking parameters
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    # file-type specific parameters
+                    # FHD
+                    obs_file=obs_file_use,
+                    layout_file=layout_file_use,
+                    settings_file=settings_file_use,
+                    raw=raw,
+                    extra_history=extra_history,
+                )
+                uv_list.append(uvcal2)
+            # Concatenate once at end
+            if axis is not None:
+                # fast_concat to operates on lists
+                self.fast_concat(
+                    uv_list,
+                    axis,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    inplace=True,
+                )
+            else:
+                # Too much work to rewrite __add__ to operate on lists
+                # of files, so instead doing a binary tree merge
+                uv_list = [self] + uv_list
+                while len(uv_list) > 1:
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                        uv1.__iadd__(
+                            uv2,
+                            run_check=run_check,
+                            check_extra=check_extra,
+                            run_check_acceptability=run_check_acceptability,
+                        )
+                    uv_list = uv_list[0::2]
+                # Because self was at the beginning of the list,
+                # everything is merged into it at the end of this loop
+        else:
+            if file_type == "calfits":
+                self.read_calfits(
+                    filename,
+                    read_data=read_data,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    use_future_array_shapes=use_future_array_shapes,
+                )
+
+            elif file_type == "fhd":
+                self.read_fhd_cal(
+                    filename,
+                    obs_file,
+                    layout_file=layout_file,
+                    settings_file=settings_file,
+                    raw=raw,
+                    read_data=read_data,
+                    extra_history=extra_history,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    use_future_array_shapes=use_future_array_shapes,
+                )
+
+    @classmethod
+    def from_file(
+        cls,
+        filename,
+        *,
+        axis=None,
+        file_type=None,
+        read_data=True,
+        use_future_array_shapes=False,
+        # checking parameters
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        # file-type specific parameters
+        # FHD
+        obs_file=None,
+        layout_file=None,
+        settings_file=None,
+        raw=True,
+        extra_history=None,
+    ):
+        """
+        Initialize a new UVCal object by reading the input file.
+
+        This method supports a number of different types of files.
+        Universal parameters (required and optional) are listed directly below,
+        followed by parameters used by all file types related to checking. Each file
+        type also has its own set of optional parameters that are listed at the end of
+        this docstring.
+
+        Parameters
+        ----------
+        filename : str or array_like of str
+            The file(s) or list(s) (or array(s)) of files to read from.
+        file_type : str
+            One of ['calfits', 'fhd'] or None. If None, the code attempts to guess what
+            the file type is based on file extensions (FHD: .sav, .txt;
+            uvfits: .calfits). Note that if a list of datasets is passed, the file type
+            is determined from the first dataset.
+        axis : str
+            Axis to concatenate files along. This enables fast concatenation
+            along the specified axis without the normal checking that all other
+            metadata agrees. This method does not guarantee correct resulting
+            objects. Please see the docstring for fast_concat for details.
+            Allowed values are: 'antenna', 'time', 'freq', 'spw', 'jones' ('freq' is
+            not allowed for delay or wideband objects and 'spw' is only allowed for
+            wideband objects). Only used if multiple files are passed.
+        read_data : bool
+            Read in the gains or delays, quality arrays and flag arrays.
+            If set to False, only the metadata will be read in. Setting read_data to
+            False results in a metadata only object.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+
+        Checking
+        --------
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            parameters after reading in the file.
+
+        FHD
+        ---
+        obs_file : str or list of str
+            The obs.sav file or list of files to read from. This is required for FHD
+            files.
+        layout_file : str
+            The FHD layout file. Required for antenna_positions to be set.
+        settings_file : str or list of str, optional
+            The settings_file or list of files to read from. Optional,
+            but very useful for provenance.
+        raw : bool
+            Option to use the raw (per antenna, per frequency) solution or
+            to use the fitted (polynomial over phase/amplitude) solution.
+            Default is True (meaning use the raw solutions).
+
+        """
+        uvc = cls()
+        uvc.read(
+            filename,
+            axis=axis,
+            file_type=file_type,
+            read_data=read_data,
+            use_future_array_shapes=use_future_array_shapes,
+            # checking parameters
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            # file-type specific parameters
+            # FHD
+            obs_file=obs_file,
+            layout_file=layout_file,
+            settings_file=settings_file,
+            raw=raw,
+            extra_history=extra_history,
+        )
+        return uvc
 
     def write_calfits(
         self,

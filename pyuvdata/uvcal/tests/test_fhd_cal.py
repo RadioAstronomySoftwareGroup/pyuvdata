@@ -47,8 +47,6 @@ def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path)
     else:
         fhd_cal = fhd_cal_fit
 
-    calfits_cal = UVCal()
-
     filelist = [cal_testfile, obs_testfile, layout_testfile, settings_testfile]
 
     assert fhd_cal.filename == sorted(os.path.basename(file) for file in filelist)
@@ -56,7 +54,7 @@ def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path)
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
@@ -71,7 +69,6 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
     else:
         fhd_cal_full = fhd_cal_fit
 
-    fhd_cal = UVCal()
     with uvtest.check_warnings(
         [DeprecationWarning, UserWarning],
         match=[
@@ -79,9 +76,9 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
             "Telescope location derived from obs lat/lon/alt",
         ],
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             cal_testfile,
-            obs_testfile,
+            obs_file=obs_testfile,
             layout_file=layout_testfile,
             settings_file=settings_testfile,
             raw=raw,
@@ -112,9 +109,9 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
 
     # test that no diffuse is properly picked up from the settings file when
     # read_data is False
-    fhd_cal.read_fhd_cal(
+    fhd_cal = UVCal.from_file(
         cal_testfile,
-        obs_testfile,
+        obs_file=obs_testfile,
         layout_file=layout_testfile,
         settings_file=settings_testfile_nodiffuse,
         raw=raw,
@@ -132,10 +129,9 @@ def test_read_fhdcal_multimode():
     """
     Read cal with multiple mode_fit values.
     """
-    fhd_cal = UVCal()
-    fhd_cal.read_fhd_cal(
+    fhd_cal = UVCal.from_file(
         os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-        obs_testfile,
+        obs_file=obs_testfile,
         layout_file=layout_testfile,
         settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
         raw=False,
@@ -146,9 +142,9 @@ def test_read_fhdcal_multimode():
     fhd_cal2 = fhd_cal.copy(metadata_only=True)
 
     # check metadata only read
-    fhd_cal.read_fhd_cal(
+    fhd_cal = UVCal.from_file(
         os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-        obs_testfile,
+        obs_file=obs_testfile,
         layout_file=layout_testfile,
         settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
         raw=False,
@@ -184,11 +180,9 @@ def test_read_fhdcal_multimode():
 )
 def test_extra_history(extra_history, tmp_path):
     """Test that setting the extra_history keyword works."""
-    fhd_cal = UVCal()
-    calfits_cal = UVCal()
-    fhd_cal.read_fhd_cal(
+    fhd_cal = UVCal.from_file(
         cal_testfile,
-        obs_testfile,
+        obs_file=obs_testfile,
         layout_file=layout_testfile,
         settings_file=settings_testfile,
         extra_history=extra_history,
@@ -197,7 +191,7 @@ def test_extra_history(extra_history, tmp_path):
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
     for line in extra_history:
         assert line in fhd_cal.history
@@ -214,8 +208,6 @@ def test_flags_galaxy(tmp_path):
     settings_testfile_flag = os.path.join(testdir, testfile_prefix + "settings.txt")
     layout_testfile_flag = os.path.join(testdir, testfile_prefix + "layout.sav")
 
-    fhd_cal = UVCal()
-    calfits_cal = UVCal()
     with uvtest.check_warnings(
         UserWarning,
         match=[
@@ -223,9 +215,9 @@ def test_flags_galaxy(tmp_path):
             "Telescope location derived from obs lat/lon/alt",
         ],
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             cal_testfile_flag,
-            obs_testfile_flag,
+            obs_file=obs_testfile_flag,
             layout_file=layout_testfile_flag,
             settings_file=settings_testfile_flag,
             use_future_array_shapes=True,
@@ -233,13 +225,11 @@ def test_flags_galaxy(tmp_path):
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
 def test_unknown_telescope():
-    fhd_cal = UVCal()
-
     with uvtest.check_warnings(
         UserWarning,
         match=[
@@ -247,9 +237,9 @@ def test_unknown_telescope():
             "Telescope location derived from obs lat/lon/alt",
         ],
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             cal_testfile,
-            os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
+            obs_file=os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
             layout_file=layout_testfile,
             settings_file=settings_testfile,
             use_future_array_shapes=True,
@@ -266,14 +256,13 @@ def test_unknown_telescope():
 )
 def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfiles):
     """Try various cases of missing files."""
-    fhd_cal = UVCal()
     # check useful error message for metadata only read with no settings file
     with pytest.raises(
         ValueError, match="A settings_file must be provided if read_data is False."
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             cal_file,
-            obs_file,
+            obs_file=obs_file,
             layout_file=layout_file,
             read_data=False,
             use_future_array_shapes=True,
@@ -288,8 +277,11 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         message_list.append("UVParameter diffuse_model does not match")
 
     with uvtest.check_warnings(UserWarning, message_list):
-        fhd_cal.read_fhd_cal(
-            cal_file, obs_file, layout_file=layout_file, use_future_array_shapes=True
+        fhd_cal = UVCal.from_file(
+            cal_file,
+            obs_file=obs_file,
+            layout_file=layout_file,
+            use_future_array_shapes=True,
         )
 
     # Check only pyuvdata version history with no settings file
@@ -303,10 +295,19 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
     warning_list = [UserWarning] * (2 * nfiles - 1)
+
+    if nfiles > 1:
+        warning_list += [DeprecationWarning]
+        message_list += [
+            "Reading multiple files from file specific read methods is deprecated. Use "
+            "the generic `UVCal.read` method instead. This will become an error in "
+            "version 2.5"
+        ]
+
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
-        with uvtest.check_warnings(warning_list, message_list):
+        with uvtest.check_warnings(warning_list, match=message_list):
             fhd_cal.read_fhd_cal(
                 cal_file,
                 obs_file,
@@ -314,31 +315,69 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
                 use_future_array_shapes=True,
             )
 
-
-def test_read_multi(tmp_path):
-    """Test reading in multiple files."""
-    fhd_cal = UVCal()
-    calfits_cal = UVCal()
-
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "UVParameter diffuse_model does not match",
-            "Telescope location derived from obs lat/lon/alt",
-            "Telescope location derived from obs lat/lon/alt",
-        ],
+    with pytest.raises(
+        ValueError, match="A settings_file must be provided if read_data is False."
     ):
-        fhd_cal.read_fhd_cal(
-            cal_file_multi,
-            obs_file_multi,
-            settings_file=settings_file_multi,
-            layout_file=layout_file_multi,
-            use_future_array_shapes=True,
-        )
+        with uvtest.check_warnings(
+            [DeprecationWarning],
+            match="Reading multiple files from file specific read methods is "
+            "deprecated. Use the generic `UVCal.read` method instead. This will become "
+            "an error in version 2.5",
+        ):
+            fhd_cal.read_fhd_cal(
+                cal_file,
+                obs_file,
+                layout_file=layout_file,
+                read_data=False,
+                use_future_array_shapes=True,
+            )
+
+
+@pytest.mark.parametrize(
+    ["concat_method", "read_method"],
+    [["__add__", "read"], ["__add__", "read_fhd_cal"], ["fast_concat", "read"]],
+)
+def test_read_multi(tmp_path, concat_method, read_method):
+    """Test reading in multiple files."""
+    warn_type = [UserWarning] * 3
+    msg = [
+        "UVParameter diffuse_model does not match",
+        "Telescope location derived from obs lat/lon/alt values does not match the "
+        "location in the layout file.",
+        "Telescope location derived from obs lat/lon/alt values does not match the "
+        "location in the layout file.",
+    ]
+
+    if concat_method == "fast_concat":
+        with uvtest.check_warnings(warn_type, match=msg):
+            fhd_cal = UVCal.from_file(
+                cal_file_multi,
+                axis="time",
+                obs_file=obs_file_multi,
+                settings_file=settings_file_multi,
+                layout_file=layout_file_multi,
+                use_future_array_shapes=True,
+            )
+    else:
+        if read_method == "read_fhd_cal":
+            warn_type += [DeprecationWarning]
+            msg += [
+                "Reading multiple files from file specific read methods is deprecated. "
+                "Use the generic `UVCal.read` method instead."
+            ]
+        fhd_cal = UVCal()
+        with uvtest.check_warnings(warn_type, match=msg):
+            getattr(fhd_cal, read_method)(
+                cal_file_multi,
+                obs_file=obs_file_multi,
+                settings_file=settings_file_multi,
+                layout_file=layout_file_multi,
+                use_future_array_shapes=True,
+            )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal.read_calfits(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
     assert fhd_cal == calfits_cal
 
 
@@ -408,17 +447,38 @@ def test_read_multi(tmp_path):
             settings_file_multi,
             "Number of settings_files must match number of cal_files",
         ],
+        [
+            cal_file_multi,
+            None,
+            layout_file_multi,
+            settings_file_multi,
+            "obs_file parameter must be set for FHD files.",
+        ],
     ],
 )
-def test_break_read_multi(cal_file, obs_file, layout_file, settings_file, message):
+@pytest.mark.parametrize("read_method", ["read", "read_fhd_cal"])
+def test_break_read_multi(
+    cal_file, obs_file, layout_file, settings_file, message, read_method
+):
     """Test errors for different numbers of files."""
-    fhd_cal = UVCal()
-
+    cal = UVCal()
+    if read_method == "read_fhd_cal":
+        warn_type = DeprecationWarning
+        msg = [
+            "Reading multiple files from file specific read methods is deprecated. "
+            "Use the generic `UVCal.read` method instead."
+        ]
+    else:
+        warn_type = None
+        msg = ""
+    if obs_file is None and read_method == "read_fhd_cal":
+        message = "Number of obs_files must match number of cal_files"
     with pytest.raises(ValueError, match=message):
-        fhd_cal.read_fhd_cal(
-            cal_file,
-            obs_file,
-            layout_file=layout_file,
-            settings_file=settings_file,
-            use_future_array_shapes=True,
-        )
+        with uvtest.check_warnings(warn_type, match=msg):
+            getattr(cal, read_method)(
+                cal_file,
+                obs_file=obs_file,
+                layout_file=layout_file,
+                settings_file=settings_file,
+                use_future_array_shapes=True,
+            )
