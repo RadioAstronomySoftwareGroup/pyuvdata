@@ -17,9 +17,8 @@ from pyuvdata.data import DATA_PATH
 @pytest.fixture(scope="session")
 def gain_data_main():
     """Read in gain calfits file."""
-    gain_object = UVCal()
     gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    gain_object.read_calfits(gainfile, use_future_array_shapes=True)
+    gain_object = UVCal.from_file(gainfile, use_future_array_shapes=True)
     gain_object.freq_range = None
 
     yield gain_object
@@ -40,7 +39,6 @@ def gain_data(gain_data_main):
 @pytest.fixture(scope="session")
 def delay_data_main():
     """Read in delay calfits file, add input flag array."""
-    delay_object = UVCal()
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     with uvtest.check_warnings(
         UserWarning,
@@ -51,7 +49,7 @@ def delay_data_main():
             " (and input_flag_array if it exists) must drop the frequency axis",
         ],
     ):
-        delay_object.read_calfits(delayfile, use_future_array_shapes=True)
+        delay_object = UVCal.from_file(delayfile, use_future_array_shapes=True)
 
     # yield the data for testing, then del after tests finish
     yield delay_object
@@ -98,14 +96,12 @@ def delay_data_inputflag(delay_data_inputflag_main):
 @pytest.fixture(scope="session")
 def fhd_cal_raw_main():
     """Read in raw FHD cal."""
-    fhd_cal = UVCal()
-
     with uvtest.check_warnings(
         UserWarning, "Telescope location derived from obs lat/lon/alt"
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             test_fhd_cal.cal_testfile,
-            test_fhd_cal.obs_testfile,
+            obs_file=test_fhd_cal.obs_testfile,
             layout_file=test_fhd_cal.layout_testfile,
             settings_file=test_fhd_cal.settings_testfile,
             raw=True,
@@ -130,14 +126,12 @@ def fhd_cal_raw(fhd_cal_raw_main):
 @pytest.fixture(scope="session")
 def fhd_cal_fit_main():
     """Read in fit FHD cal."""
-    fhd_cal = UVCal()
-
     with uvtest.check_warnings(
         UserWarning, "Telescope location derived from obs lat/lon/alt"
     ):
-        fhd_cal.read_fhd_cal(
+        fhd_cal = UVCal.from_file(
             test_fhd_cal.cal_testfile,
-            test_fhd_cal.obs_testfile,
+            obs_file=test_fhd_cal.obs_testfile,
             layout_file=test_fhd_cal.layout_testfile,
             settings_file=test_fhd_cal.settings_testfile,
             raw=False,
