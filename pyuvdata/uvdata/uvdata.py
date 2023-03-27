@@ -10,7 +10,7 @@ import os
 import threading
 import warnings
 from collections.abc import Iterable
-from typing import Literal
+from typing import Callable, Literal
 
 import astropy.units as units
 import numpy as np
@@ -24,6 +24,7 @@ from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
+from .uvh5 import FastUVH5Meta
 
 __all__ = ["UVData"]
 import logging
@@ -11971,6 +11972,7 @@ class UVData(UVBase):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
     ):
         """
         Read a UVH5 file.
@@ -12103,6 +12105,13 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        nbl_function : callable, optional
+            A function that takes the FastUVH5Meta object as an argument and returns the
+            number of unique baselines. This is *only* called for UVH5 files whose
+            format spec version is <1.2 (if provided). If not provided, the number of
+            baselines will be taken directly from the header. Before v1.2 of the UVH5
+            spec, it was possible to have an incorrect number of baselines in the header
+            without error, so this provides an opportunity to rectify it.
 
         Raises
         ------
@@ -12155,6 +12164,7 @@ class UVData(UVBase):
             check_autos=check_autos,
             fix_autos=fix_autos,
             use_future_array_shapes=use_future_array_shapes,
+            nbl_function=nbl_function,
         )
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
@@ -12223,7 +12233,7 @@ class UVData(UVBase):
         remove_flex_pol=True,
         blt_order: tuple[str] | Literal["determine"] | None = None,
         blts_are_rectangular: bool | None = None,
-        time_axis_faster_than_bl: bool | None = None,
+        time_axis_faster_than_bls: bool | None = None,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -12252,6 +12262,7 @@ class UVData(UVBase):
         corrchunk=None,
         pseudo_cont=False,
         rechunk=None,
+        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
     ):
         """
         Read a generic file into a UVData object.
@@ -12549,6 +12560,13 @@ class UVData(UVBase):
             the fastest-moving virtual axis. Various reading functions benefit from
             knowing this, so if it is known, it can be provided here to speed up
             reading. It will be determined from the data if not provided.
+        nbl_function : callable, optional
+            A function that takes the FastUVH5Meta object as an argument and returns the
+            number of unique baselines. This is only called for UVH5 files whose format
+            spec version is <1.2 (if provided). If not provided, the number of baselines
+            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
+            possible to have an incorrect number of baselines in the header without
+            error, so this provides an opportunity to rectify it.
 
         MWA FITS
         --------
@@ -12849,6 +12867,9 @@ class UVData(UVBase):
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
+                            nbl_function=nbl_function,
+                            time_axis_faster_than_bls=time_axis_faster_than_bls,
+                            blts_are_rectangular=blts_are_rectangular,
                         )
                     unread = False
                 except KeyError as err:
@@ -12993,6 +13014,9 @@ class UVData(UVBase):
                                 # uvh5
                                 multidim_index=multidim_index,
                                 remove_flex_pol=remove_flex_pol,
+                                blts_are_rectangular=blts_are_rectangular,
+                                time_axis_faster_than_blt=time_axis_faster_than_bls,
+                                nbl_function=nbl_function,
                                 # uvh5 & mwa_corr_fits
                                 data_array_dtype=data_array_dtype,
                                 # mwa_corr_fits
@@ -13367,6 +13391,9 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    time_axis_faster_than_bls=time_axis_faster_than_bls,
+                    blts_are_rectangular=blts_are_rectangular,
+                    nbl_function=nbl_function,
                 )
                 select = False
 
@@ -13465,6 +13492,10 @@ class UVData(UVBase):
         # uvh5
         multidim_index=False,
         remove_flex_pol=True,
+        blt_order=None,
+        time_axis_faster_than_bls=None,
+        blts_are_rectangular=None,
+        nbl_function=None,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -13771,6 +13802,32 @@ class UVData(UVBase):
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
+        blt_order : tuple of str or "determine", optional
+            The order of the baseline-time axis *in the file*. This can be determined,
+            or read directly from file, however since it has been optional in the past,
+            many existing files do not contain it in the metadata.
+            Some reading operations are significantly faster if this is known, so
+            providing it here can provide a speedup. Default is to try and read it from
+            file, and if not there, just leave it as None. Set to "determine" to
+            auto-detect the blt_order from the metadata (takes extra time to do so).
+        blts_are_rectangular : bool, optional
+            Whether the baseline-time axis is rectangular. This can be read from
+            metadata in new files, but many old files do not contain it. If not
+            provided, the rectangularity will be determined from the data. This is a
+            non-negligible operation, so if you know it, it can be provided here to
+            speed up reading.
+        time_axis_faster_than_bls : bool, optional
+            If blts are rectangular, this variable specifies whether the time axis is
+            the fastest-moving virtual axis. Various reading functions benefit from
+            knowing this, so if it is known, it can be provided here to speed up
+            reading. It will be determined from the data if not provided.
+        nbl_function : callable, optional
+            A function that takes the FastUVH5Meta object as an argument and returns the
+            number of unique baselines. This is only called for UVH5 files whose format
+            spec version is <1.2 (if provided). If not provided, the number of baselines
+            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
+            possible to have an incorrect number of baselines in the header without
+            error, so this provides an opportunity to rectify it.
 
         MWA FITS
         --------
@@ -13940,6 +13997,10 @@ class UVData(UVBase):
             # uvh5 & mwa_corr_fits
             data_array_dtype=data_array_dtype,
             nsample_array_dtype=nsample_array_dtype,
+            blt_order=blt_order,
+            time_axis_faster_than_bls=time_axis_faster_than_bls,
+            blts_are_rectangular=blts_are_rectangular,
+            nbl_function=nbl_function,
             # mwa_corr_fits
             use_aoflagger_flags=use_aoflagger_flags,
             use_cotter_flags=use_cotter_flags,
