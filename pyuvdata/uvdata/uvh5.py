@@ -328,6 +328,45 @@ class FastUVH5Meta:
         if self.__file:
             self.__file.close()
 
+    def __getstate__(self):
+        """Get the state of the object."""
+        state = {
+            k: v
+            for k, v in self.__dict__.items()
+            if k
+            not in (
+                "_FastUVH5Meta__file",
+                "_FastUVH5Meta__header",
+                "_FastUVH5Meta__datagrp",
+                "header",
+                "datagrp",
+            )
+        }
+        return state
+
+    def __setstate__(self, state):
+        """Set the state of the object."""
+        self.__dict__.update(state)
+        self.__file = None
+        self.open()
+
+    def __eq__(self, other):
+        """Check equality of two FastUVH5Meta objects."""
+        if not isinstance(other, FastUVH5Meta):
+            return False
+
+        return (
+            self.path == other.path
+            and self.__blts_are_rectangular == other.__blts_are_rectangular
+            and (
+                self.__time_first == other.__time_first
+                or self.__time_first is None
+                or other.__time_first is None
+            )
+            and self.__blt_order == other.__blt_order
+            and self.Nbls == other.Nbls
+        )
+
     def close(self):
         """Close the file."""
         self.__header = None
@@ -383,7 +422,7 @@ class FastUVH5Meta:
 
     @cached_property
     def Nbls(self) -> int:  # noqa: N802
-        """Get the number of unique baselines."""
+        """The number of unique baselines."""
         if self.version < "1.2" and self._nbl_function is not None:
             return self._nbl_function(self)
 

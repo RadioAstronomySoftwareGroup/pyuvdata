@@ -13039,7 +13039,7 @@ class UVData(UVBase):
                                 multidim_index=multidim_index,
                                 remove_flex_pol=remove_flex_pol,
                                 blts_are_rectangular=blts_are_rectangular,
-                                time_axis_faster_than_blt=time_axis_faster_than_bls,
+                                time_axis_faster_than_bls=time_axis_faster_than_bls,
                                 nbl_function=nbl_function,
                                 # uvh5 & mwa_corr_fits
                                 data_array_dtype=data_array_dtype,
