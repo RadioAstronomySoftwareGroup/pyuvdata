@@ -367,6 +367,10 @@ class FastUVH5Meta:
             and self.Nbls == other.Nbls
         )
 
+    def __hash__(self):
+        """Get a unique hash for the object."""
+        return hash(self.path)
+
     def close(self):
         """Close the file."""
         self.__header = None
