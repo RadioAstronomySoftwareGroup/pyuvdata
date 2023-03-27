@@ -806,6 +806,7 @@ class UVH5(UVData):
             "Nspws",
             "Ntimes",
             "Nblts",
+            "Nbls",
             "Nants_data",
             "Nants_telescope",
             "antenna_names",
@@ -1483,6 +1484,7 @@ class UVH5(UVData):
                 blt_order=blt_order,
                 blts_are_rectangular=blts_are_rectangular,
                 time_axis_faster_than_bls=time_axis_faster_than_bls,
+                nbl_function=nbl_function,
             )
 
         # update filename attribute
