@@ -3673,3 +3673,26 @@ class TestFastUVH5Meta:
         )
         assert not meta1.blts_are_rectangular
         assert not meta1.time_axis_faster_than_bls
+
+    def test_nbl_function(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        nbls = meta.Nbls
+
+        newfl = os.path.join(self.tmp_path.name, "wrong_Nbls.uvh5")
+        uvd = meta.to_uvdata()
+        uvd.Nbls = nbls * 2
+        uvd.initialize_uvh5_file(newfl, clobber=True)
+        meta.close()
+
+        # This won't run the nbl function because the version is >1.1
+        meta1 = uvh5.FastUVH5Meta(newfl, nbl_function=lambda obj: nbls)
+        assert meta1.Nbls == 2 * nbls
+
+        meta1.close()
+        with h5py.File(newfl, "r+") as f:
+            v = f["/Header/version"]
+            v[...] = np.string_("1.1")
+
+        # Now this runs the function.
+        meta1 = uvh5.FastUVH5Meta(newfl, nbl_function=lambda obj: nbls)
+        assert meta1.Nbls == np.unique(meta1.baseline_array).size
