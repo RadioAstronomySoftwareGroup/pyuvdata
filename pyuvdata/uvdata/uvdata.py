@@ -10,7 +10,7 @@ import os
 import threading
 import warnings
 from collections.abc import Iterable
-from typing import Callable, Literal
+from typing import Literal
 
 import astropy.units as units
 import numpy as np
@@ -24,7 +24,6 @@ from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
-from .uvh5 import FastUVH5Meta
 
 __all__ = ["UVData"]
 import logging
@@ -11972,7 +11971,7 @@ class UVData(UVBase):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
-        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
+        nbl_function=None,
     ):
         """
         Read a UVH5 file.
@@ -12262,7 +12261,7 @@ class UVData(UVBase):
         corrchunk=None,
         pseudo_cont=False,
         rechunk=None,
-        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
+        nbl_function=None,
     ):
         """
         Read a generic file into a UVData object.
