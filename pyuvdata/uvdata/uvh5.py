@@ -423,7 +423,9 @@ class FastUVH5Meta:
     @cached_property
     def Nbls(self) -> int:  # noqa: N802
         """The number of unique baselines."""
-        if self.version < "1.2" and self._nbl_function is not None:
+        if (
+            "version" not in self.header or self.version < "1.2"
+        ) and self._nbl_function is not None:
             return self._nbl_function(self)
 
         return int(self.header["Nbls"][()])
