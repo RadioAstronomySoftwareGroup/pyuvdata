@@ -11974,7 +11974,7 @@ class UVData(UVBase):
         time_axis_faster_than_bls=None,
         blts_are_rectangular=None,
         blt_order=None,
-        nbl_function=None,
+        recompute_nbls: bool | None = None,
     ):
         """
         Read a UVH5 file.
@@ -12126,13 +12126,13 @@ class UVData(UVBase):
             the fastest-moving virtual axis. Various reading functions benefit from
             knowing this, so if it is known, it can be provided here to speed up
             reading. It will be determined from the data if not provided.
-        nbl_function : callable, optional
-            A function that takes the FastUVH5Meta object as an argument and returns the
-            number of unique baselines. This is only called for UVH5 files whose format
-            spec version is <1.2 (if provided). If not provided, the number of baselines
-            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
-            possible to have an incorrect number of baselines in the header without
-            error, so this provides an opportunity to rectify it.
+        recompute_nbls : bool, optional
+            Whether to recompute the number of unique baselines from the data. Before
+            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
+            baselines in the header without error, so this provides an opportunity to
+            rectify it. Old HERA files (< March 2023) may have this issue, but in this
+            case the correct number of baselines can be computed more quickly than by
+            fully re=computing, and so we do this.
 
         Raises
         ------
@@ -12185,7 +12185,7 @@ class UVData(UVBase):
             check_autos=check_autos,
             fix_autos=fix_autos,
             use_future_array_shapes=use_future_array_shapes,
-            nbl_function=nbl_function,
+            recompute_nbls=recompute_nbls,
             blt_order=blt_order,
             blts_are_rectangular=blts_are_rectangular,
             time_axis_faster_than_bls=time_axis_faster_than_bls,
@@ -12286,7 +12286,7 @@ class UVData(UVBase):
         corrchunk=None,
         pseudo_cont=False,
         rechunk=None,
-        nbl_function=None,
+        recompute_nbls: bool | None = None,
     ):
         """
         Read a generic file into a UVData object.
@@ -12584,13 +12584,14 @@ class UVData(UVBase):
             the fastest-moving virtual axis. Various reading functions benefit from
             knowing this, so if it is known, it can be provided here to speed up
             reading. It will be determined from the data if not provided.
-        nbl_function : callable, optional
-            A function that takes the FastUVH5Meta object as an argument and returns the
-            number of unique baselines. This is only called for UVH5 files whose format
-            spec version is <1.2 (if provided). If not provided, the number of baselines
-            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
-            possible to have an incorrect number of baselines in the header without
-            error, so this provides an opportunity to rectify it.
+        recompute_nbls : bool, optional
+            Whether to recompute the number of unique baselines from the data. Before
+            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
+            baselines in the header without error, so this provides an opportunity to
+            rectify it. Old HERA files (< March 2023) may have this issue, but in this
+            case the correct number of baselines can be computed more quickly than by
+            fully re=computing, and so we do this.
+
 
         MWA FITS
         --------
@@ -12891,7 +12892,7 @@ class UVData(UVBase):
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
-                            nbl_function=nbl_function,
+                            recompute_nbls=recompute_nbls,
                             time_axis_faster_than_bls=time_axis_faster_than_bls,
                             blts_are_rectangular=blts_are_rectangular,
                         )
@@ -13040,7 +13041,7 @@ class UVData(UVBase):
                                 remove_flex_pol=remove_flex_pol,
                                 blts_are_rectangular=blts_are_rectangular,
                                 time_axis_faster_than_bls=time_axis_faster_than_bls,
-                                nbl_function=nbl_function,
+                                recompute_nbls=recompute_nbls,
                                 # uvh5 & mwa_corr_fits
                                 data_array_dtype=data_array_dtype,
                                 # mwa_corr_fits
@@ -13417,7 +13418,7 @@ class UVData(UVBase):
                     use_future_array_shapes=use_future_array_shapes,
                     time_axis_faster_than_bls=time_axis_faster_than_bls,
                     blts_are_rectangular=blts_are_rectangular,
-                    nbl_function=nbl_function,
+                    recompute_nbls=recompute_nbls,
                 )
                 select = False
 
@@ -13519,7 +13520,7 @@ class UVData(UVBase):
         blt_order=None,
         time_axis_faster_than_bls=None,
         blts_are_rectangular=None,
-        nbl_function=None,
+        recompute_nbls: bool | None = None,
         # uvh5 & mwa_corr_fits
         data_array_dtype=np.complex128,
         # mwa_corr_fits
@@ -13845,13 +13846,14 @@ class UVData(UVBase):
             the fastest-moving virtual axis. Various reading functions benefit from
             knowing this, so if it is known, it can be provided here to speed up
             reading. It will be determined from the data if not provided.
-        nbl_function : callable, optional
-            A function that takes the FastUVH5Meta object as an argument and returns the
-            number of unique baselines. This is only called for UVH5 files whose format
-            spec version is <1.2 (if provided). If not provided, the number of baselines
-            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
-            possible to have an incorrect number of baselines in the header without
-            error, so this provides an opportunity to rectify it.
+        recompute_nbls : bool, optional
+            Whether to recompute the number of unique baselines from the data. Before
+            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
+            baselines in the header without error, so this provides an opportunity to
+            rectify it. Old HERA files (< March 2023) may have this issue, but in this
+            case the correct number of baselines can be computed more quickly than by
+            fully re=computing, and so we do this.
+
 
         MWA FITS
         --------
@@ -14024,7 +14026,7 @@ class UVData(UVBase):
             blt_order=blt_order,
             time_axis_faster_than_bls=time_axis_faster_than_bls,
             blts_are_rectangular=blts_are_rectangular,
-            nbl_function=nbl_function,
+            recompute_nbls=recompute_nbls,
             # mwa_corr_fits
             use_aoflagger_flags=use_aoflagger_flags,
             use_cotter_flags=use_cotter_flags,
