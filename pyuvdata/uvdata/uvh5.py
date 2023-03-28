@@ -428,7 +428,10 @@ class FastUVH5Meta:
     def Nbls(self) -> int:  # noqa: N802
         """The number of unique baselines."""
         if self._recompute_nbls:
-            return len(np.unique(self.baseline_array))
+            if self.__blts_are_rectangular:
+                return self.Nblts // self.Ntimes
+            else:
+                return len(np.unique(self.baseline_array))
         else:
             nbls = int(self.header["Nbls"][()])
 
@@ -438,7 +441,7 @@ class FastUVH5Meta:
                 if (
                     self.telescope_name == "HERA"
                     and nbls == self.Nblts
-                    and self.Nblts % self.Ntimes == 0
+                    and (self.__blts_are_rectangular or self.Nblts % self.Ntimes == 0)
                 ):
                     return self.Nblts // self.Ntimes
                 else:
