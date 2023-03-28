@@ -10,7 +10,7 @@ import os
 import warnings
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import h5py
 import numpy as np
@@ -234,13 +234,13 @@ class FastUVH5Meta:
         the fastest-moving virtual axis. Various reading functions benefit from knowing
         this, so if it is known, it can be provided here to speed up reading. It will
         be determined from the data if not provided.
-    nbl_function : callable, optional
-        A function that takes the FastUVH5Meta object as an argument and returns the
-        number of unique baselines. This is *only* called for UVH5 files whose format
-        spec version is <1.2 (if provided). If not provided, the number of baselines
-        will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
-        possible to have an incorrect number of baselines in the header without error,
-        so this provides an opportunity to rectify it.
+    recompute_nbls : bool, optional
+        Whether to recompute the number of unique baselines from the data. Before v1.2
+        of the UVH5 spec, it was possible to have an incorrect number of baselines in
+        the header without error, so this provides an opportunity to rectify it. Old
+        HERA files (< March 2023) may have this issue, but in this case the correct
+        number of baselines can be computed more quickly than by fully re=computing,
+        and so we do this.
 
     Notes
     -----
@@ -298,7 +298,7 @@ class FastUVH5Meta:
         blt_order: Literal["determine"] | tuple[str] | None = None,
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
-        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
+        recompute_nbls: bool | None = None,
     ):
         self.__file = None
 
@@ -321,7 +321,7 @@ class FastUVH5Meta:
         self.__blts_are_rectangular = blts_are_rectangular
         self.__time_first = time_axis_faster_than_bls
         self.__blt_order = blt_order
-        self._nbl_function = nbl_function
+        self._recompute_nbls = recompute_nbls
 
     def __del__(self):
         """Close the file when the object is deleted."""
@@ -427,12 +427,24 @@ class FastUVH5Meta:
     @cached_property
     def Nbls(self) -> int:  # noqa: N802
         """The number of unique baselines."""
-        if (
-            "version" not in self.header or self.version < "1.2"
-        ) and self._nbl_function is not None:
-            return self._nbl_function(self)
+        if self._recompute_nbls:
+            return len(np.unique(self.baseline_array))
+        else:
+            nbls = int(self.header["Nbls"][()])
 
-        return int(self.header["Nbls"][()])
+            if self._recompute_nbls is None:
+                # Test if this is an "old" HERA file. If so, the Nbls is wrong
+                # in the header, and equal to Nblts == Nbls*Ntimes.
+                if (
+                    self.telescope_name == "HERA"
+                    and nbls == self.Nblts
+                    and self.Nblts % self.Ntimes == 0
+                ):
+                    return self.Nblts // self.Ntimes
+                else:
+                    return nbls
+            else:
+                return nbls
 
     def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
@@ -814,7 +826,7 @@ class UVH5(UVData):
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
         background_lsts: bool = True,
-        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
+        recompute_nbls: bool | None = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
             obj = FastUVH5Meta(
@@ -822,7 +834,7 @@ class UVH5(UVData):
                 blt_order=blt_order,
                 blts_are_rectangular=blts_are_rectangular,
                 time_axis_faster_than_bls=time_axis_faster_than_bls,
-                nbl_function=nbl_function,
+                recompute_nbls=recompute_nbls,
             )
         else:
             obj = filename
@@ -1346,7 +1358,7 @@ class UVH5(UVData):
         blt_order: tuple[str] | Literal["determine"] | None = None,
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
-        nbl_function: Callable[[FastUVH5Meta], int] | None = None,
+        recompute_nbls: bool | None = None,
     ):
         """
         Read in data from a UVH5 file.
@@ -1497,13 +1509,13 @@ class UVH5(UVData):
             the fastest-moving virtual axis. Various reading functions benefit from
             knowing this, so if it is known, it can be provided here to speed up
             reading. It will be determined from the data if not provided.
-        nbl_function : callable, optional
-            A function that takes the FastUVH5Meta object as an argument and returns the
-            number of unique baselines. This is only called for UVH5 files whose format
-            spec version is <1.2 (if provided). If not provided, the number of baselines
-            will be taken directly from the header. Before v1.2 of the UVH5 spec, it was
-            possible to have an incorrect number of baselines in the header without
-            error, so this provides an opportunity to rectify it.
+        recompute_nbls : bool, optional
+            Whether to recompute the number of unique baselines from the data. Before
+            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
+            baselines in the header without error, so this provides an opportunity to
+            rectify it. Old HERA files (< March 2023) may have this issue, but in this
+            case the correct number of baselines can be computed more quickly than by
+            fully re=computing, and so we do this.
 
         Returns
         -------
@@ -1529,7 +1541,7 @@ class UVH5(UVData):
                 blt_order=blt_order,
                 blts_are_rectangular=blts_are_rectangular,
                 time_axis_faster_than_bls=time_axis_faster_than_bls,
-                nbl_function=nbl_function,
+                recompute_nbls=recompute_nbls,
             )
 
         # update filename attribute
