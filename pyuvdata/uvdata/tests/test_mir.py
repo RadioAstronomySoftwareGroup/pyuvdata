@@ -74,7 +74,7 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     # we need an extra bit of handling here
     assert len(np.unique(sma_mir.spw_array)) == len(np.unique(uvfits_uv.spw_array))
 
-    spw_dict = {idx: jdx for idx, jdx in zip(uvfits_uv.spw_array, sma_mir.spw_array)}
+    spw_dict = dict(zip(uvfits_uv.spw_array, sma_mir.spw_array))
 
     assert np.all(
         [
