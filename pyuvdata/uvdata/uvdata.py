@@ -7263,18 +7263,12 @@ class UVData(UVBase):
                     "have a regular polarization axis."
                 )
             elif this.flex_spw_polarization_array is not None:
-                this_flexpol_dict = {
-                    spw: pol
-                    for spw, pol in zip(
-                        this.spw_array, this.flex_spw_polarization_array
-                    )
-                }
-                other_flexpol_dict = {
-                    spw: pol
-                    for spw, pol in zip(
-                        other.spw_array, other.flex_spw_polarization_array
-                    )
-                }
+                this_flexpol_dict = dict(
+                    zip(this.spw_array, this.flex_spw_polarization_array)
+                )
+                other_flexpol_dict = dict(
+                    zip(other.spw_array, other.flex_spw_polarization_array)
+                )
                 for key in other_flexpol_dict.keys():
                     try:
                         if this_flexpol_dict[key] != other_flexpol_dict[key]:

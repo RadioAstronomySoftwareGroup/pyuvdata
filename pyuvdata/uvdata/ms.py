@@ -2268,12 +2268,9 @@ class MS(UVData):
             # to specify an additional (optional?) column that defines the reference
             # frame on a per-source basis.
             ref_dir_colname = measinfo_keyword["VarRefCol"]
-            ref_dir_dict = {
-                key: name
-                for key, name in zip(
-                    measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"]
-                )
-            }
+            ref_dir_dict = dict(
+                zip(measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"])
+            )
 
         if "Ref" in measinfo_keyword.keys():
             frame_tuple = self._parse_casa_frame_ref(measinfo_keyword["Ref"])

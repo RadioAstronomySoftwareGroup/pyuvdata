@@ -1578,12 +1578,9 @@ class MirMetaData(object):
         idx_stop = idx_start + len(self)
 
         index_dict = {
-            self._header_key: {
-                old_key: new_key
-                for old_key, new_key in zip(
-                    self.get_header_keys(use_mask=False), range(idx_start, idx_stop)
-                )
-            }
+            self._header_key: dict(
+                zip(self.get_header_keys(use_mask=False), range(idx_start, idx_stop))
+            )
         }
 
         return index_dict
@@ -1673,7 +1670,7 @@ class MirMetaData(object):
 
         if assume_unique:
             if len(group_fields) == 1:
-                return {key: value for key, value in zip(group_data[0], index_arr)}
+                return dict(zip(group_data[0], index_arr))
             else:
                 return {tup[:-1]: tup[-1] for tup in zip(*group_data, index_arr)}
 
@@ -2766,7 +2763,7 @@ class MirCodesData(MirMetaData):
             return_dict = (np.sum(mask) != 1) or (code_name in self._codes_index_dict)
 
         if return_dict:
-            return {key: value for key, value in zip(codes + index, index + codes)}
+            return dict(zip(codes + index, index + codes))
         else:
             return codes
 

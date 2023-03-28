@@ -1688,7 +1688,7 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
     # what we expect. Start w/ spectral windows
     assert len(np.unique(sma_mir.spw_array)) == len(np.unique(sma_uvfits.spw_array))
 
-    spw_dict = {idx: jdx for idx, jdx in zip(sma_uvfits.spw_array, sma_mir.spw_array)}
+    spw_dict = dict(zip(sma_uvfits.spw_array, sma_mir.spw_array))
 
     assert np.all(
         [
