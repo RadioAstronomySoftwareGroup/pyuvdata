@@ -13168,7 +13168,7 @@ class UVData(UVBase):
                 # everything is merged into it at the end of this loop
 
         else:
-            if file_type in ["fhd", "ms", "mwa_corr_fits", "mir"]:
+            if file_type in ["fhd", "ms", "mwa_corr_fits"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -13267,6 +13267,8 @@ class UVData(UVBase):
                 select_antenna_names = None
                 select_ant_str = None
                 select_bls = None
+                select_lsts = None
+                select_lst_range = None
                 select_times = None
                 select_time_range = None
                 select_polarizations = None
@@ -13280,14 +13282,26 @@ class UVData(UVBase):
                 select_frequencies = frequencies
                 select_freq_chans = freq_chans
                 select_blt_inds = blt_inds
+                select_phase_center_ids = phase_center_ids
 
                 if all(
                     item is None
-                    for item in [select_bls, frequencies, freq_chans, blt_inds]
+                    for item in [
+                        select_bls,
+                        frequencies,
+                        freq_chans,
+                        blt_inds,
+                        phase_center_ids,
+                    ]
                 ):
                     # If there's nothing to select, just bypass that operation.
                     select = False
-
+                else:
+                    warnings.warn(
+                        "Warning: a select on read keyword is set that is "
+                        "not supported by read_mir. This select will "
+                        "be done after reading the file."
+                    )
             # reading a single "file". Call the appropriate file-type read
             if file_type == "uvfits":
                 self.read_uvfits(

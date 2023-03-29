@@ -248,9 +248,8 @@ def test_mir_partial_read(sma_mir):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     with uvtest.check_warnings(
         UserWarning,
-        'Warning: select on read keyword set, but file_type is "mir" which does not '
-        "support select on read. Entire file will be read and then select will be "
-        "performed",
+        "Warning: a select on read keyword is set that is "
+        "not supported by read_mir. This select will be done after reading the file.",
     ):
         uv3 = UVData.from_file(
             testfile, freq_chans=freq_chans_to_keep, use_future_array_shapes=True
