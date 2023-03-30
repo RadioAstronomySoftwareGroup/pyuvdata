@@ -625,3 +625,26 @@ def test_rechunk_on_read():
     # Do some basic checks to make sure that this loaded correctly.
     assert uv_data.freq_array.size == 8
     assert np.all(uv_data.channel_width == 2.288e09)
+
+
+@pytest.mark.parametrize(
+    "select_kwargs",
+    [
+        {"antenna_nums": [1, 4]},
+        {"antenna_names": ["1", "4"]},
+        {"bls": [(1, 4)]},
+        {"time_range": [2459055, 2459056]},
+        {"lst_range": [2, 2.5]},
+        {"polarizations": ["hh", "vv"]},
+        {"catalog_names": ["3c84"]},
+        {"corrchunk": [1, 2, 3, 4]},
+        {"receivers": ["230", "240"]},
+        {"sidebands": ["l", "u"]},
+    ],
+)
+def test_select_on_read(select_kwargs, sma_mir):
+    print(select_kwargs)
+    testfile = os.path.join(DATA_PATH, "sma_test.mir")
+    uv_data = UVData.from_file(testfile, use_future_array_shapes=True, **select_kwargs)
+    uv_data.history = sma_mir.history
+    assert sma_mir == uv_data
