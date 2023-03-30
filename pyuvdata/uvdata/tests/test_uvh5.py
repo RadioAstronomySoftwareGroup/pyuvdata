@@ -3702,6 +3702,11 @@ class TestFastUVH5Meta:
         meta4 = uvh5.FastUVH5Meta(newfl, recompute_nbls=None)
         assert meta4.Nbls == meta.Nbls
 
+        meta5 = uvh5.FastUVH5Meta(
+            self.fl, recompute_nbls=True, blts_are_rectangular=True
+        )
+        assert meta5.Nbls == meta.Nbls
+
     def test_pickleability(self):
         meta = uvh5.FastUVH5Meta(self.fl)
         meta2 = deepcopy(meta)
