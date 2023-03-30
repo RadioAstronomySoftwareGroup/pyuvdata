@@ -12908,7 +12908,10 @@ def test_select_catalog_name_errs(hera_uvh5):
 def test_select_catalog_name(carma_miriad):
     # Select out the source
     for cat_id, cat_dict in carma_miriad.phase_center_catalog.items():
-        uv_name = carma_miriad.select(catalog_names=cat_dict["cat_name"], inplace=False)
-        uv_id = carma_miriad.select(phase_center_ids=cat_id, inplace=False)
+        uv_name = carma_miriad.copy()
+        uv_id = carma_miriad.copy()
+
+        uv_name.select(catalog_names=cat_dict["cat_name"])
+        uv_id.select(phase_center_ids=cat_id)
 
         assert uv_name == uv_id
