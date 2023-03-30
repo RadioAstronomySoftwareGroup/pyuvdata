@@ -12895,3 +12895,20 @@ def test_set_rectangularity(casa_uvfits, hera_uvh5):
     hera_uvh5.set_rectangularity(force=True)
     assert hera_uvh5.blts_are_rectangular is False
     assert hera_uvh5.time_axis_faster_than_bls is False
+
+
+def test_select_catalog_name_errs(hera_uvh5):
+    with pytest.raises(
+        ValueError, match="Cannot set both phase_center_ids and catalog_names."
+    ):
+        hera_uvh5.select(phase_center_ids=[1, 2, 3], catalog_names=[1, 2, 3])
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_catalog_name(carma_miriad):
+    # Select out the source
+    for cat_id, cat_dict in carma_miriad.phase_center_catalog.items():
+        uv_name = carma_miriad.select(catalog_names=cat_dict["cat_name"], inplace=False)
+        uv_id = carma_miriad.select(phase_center_ids=cat_id, inplace=False)
+
+        assert uv_name == uv_id

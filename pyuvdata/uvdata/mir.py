@@ -33,12 +33,10 @@ class Mir(UVData):
         antenna_nums=None,
         antenna_names=None,
         bls=None,
-        times=None,
         time_range=None,
-        lsts=None,
         lst_range=None,
         polarizations=None,
-        sources=None,
+        catalog_names=None,
         corrchunk=None,
         receivers=None,
         sidebands=None,
@@ -118,26 +116,21 @@ class Mir(UVData):
                 select_where += [
                     ("blcd", "eq", ["%i-%i" % (tup[0], tup[1]) for tup in bls])
                 ]
-            if times is not None:
-                # Have to convert times from UTC JD -> TT MJD for mIR
-                select_where += [
-                    ("mjd", "eq", Time(times, format="jd", scale="utc").tt.mjd)
-                ]
             if time_range is not None:
                 # Have to convert times from UTC JD -> TT MJD for mIR
                 select_where += [
-                    ("mjd", "btw", Time(time_range, format="jd", scale="utc").tt.mjd)
+                    (
+                        "mjd",
+                        "between",
+                        Time(time_range, format="jd", scale="utc").tt.mjd,
+                    )
                 ]
-            if time_range is not None:
-                select_where += [("lst", "eq", time_range)]
-            if lsts is not None:
-                select_where += [("lst", "eq", lsts)]
             if lst_range is not None:
-                select_where += [("lst_range", "btw", lst_range)]
+                select_where += [("lst_range", "between", lst_range)]
             if polarizations is not None:
                 select_where += [("pol", "eq", polarizations)]
-            if sources is not None:
-                select_where += [("source", "eq", sources)]
+            if catalog_names is not None:
+                select_where += [("source", "eq", catalog_names)]
             if receivers is not None:
                 select_where += [("rec", "eq", receivers)]
             if sidebands is not None:

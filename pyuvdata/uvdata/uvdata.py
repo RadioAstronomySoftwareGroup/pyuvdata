@@ -9431,6 +9431,16 @@ class UVData(UVBase):
         else:
             uv_obj = self.copy()
 
+        if catalog_names is not None:
+            if isinstance(catalog_names, str):
+                catalog_names = [catalog_names]
+            if phase_center_ids is not None:
+                raise ValueError("Cannot set both phase_center_ids and catalog_names.")
+            phase_center_ids = []
+            for cat_id, cat_dict in self.phase_center_catalog.items():
+                if cat_dict["cat_name"] in catalog_names:
+                    phase_center_ids.append(cat_id)
+
         # Figure out which index positions we want to hold on to.
         (
             blt_inds,
@@ -11149,12 +11159,10 @@ class UVData(UVBase):
         antenna_nums=None,
         antenna_names=None,
         bls=None,
-        times=None,
         time_range=None,
-        lsts=None,
         lst_range=None,
         polarizations=None,
-        catalog_identifier=None,
+        catalog_names=None,
         corrchunk=None,
         receivers=None,
         sidebands=None,
@@ -11231,12 +11239,10 @@ class UVData(UVBase):
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             bls=bls,
-            times=times,
             time_range=time_range,
-            lsts=lsts,
             lst_range=lst_range,
             polarizations=polarizations,
-            sources=catalog_identifier,
+            catalog_names=catalog_names,
             corrchunk=corrchunk,
             receivers=receivers,
             sidebands=sidebands,
@@ -12239,7 +12245,7 @@ class UVData(UVBase):
         antenna_names=None,
         ant_str=None,
         bls=None,
-        catalog_identifier=None,
+        catalog_names=None,
         frequencies=None,
         freq_chans=None,
         times=None,
@@ -13023,10 +13029,10 @@ class UVData(UVBase):
                                 antenna_names=antenna_names,
                                 ant_str=ant_str,
                                 bls=bls,
+                                catalog_names=catalog_names,
                                 frequencies=frequencies,
                                 freq_chans=freq_chans,
                                 times=times,
-                                catalog_identifier=catalog_identifier,
                                 time_range=time_range,
                                 lsts=lsts,
                                 lst_range=lst_range,
@@ -13267,9 +13273,7 @@ class UVData(UVBase):
                 select_antenna_names = None
                 select_ant_str = None
                 select_bls = None
-                select_lsts = None
                 select_lst_range = None
-                select_times = None
                 select_time_range = None
                 select_polarizations = None
 
@@ -13283,6 +13287,8 @@ class UVData(UVBase):
                 select_freq_chans = freq_chans
                 select_blt_inds = blt_inds
                 select_phase_center_ids = phase_center_ids
+                select_times = times
+                select_lsts = lsts
 
                 if all(
                     item is None
@@ -13292,6 +13298,8 @@ class UVData(UVBase):
                         freq_chans,
                         blt_inds,
                         phase_center_ids,
+                        times,
+                        lsts,
                     ]
                 ):
                     # If there's nothing to select, just bypass that operation.
@@ -13340,12 +13348,10 @@ class UVData(UVBase):
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     bls=bls,
-                    times=times,
                     time_range=time_range,
-                    lsts=lsts,
                     lst_range=lst_range,
                     polarizations=polarizations,
-                    catalog_identifier=catalog_identifier,
+                    catalog_names=catalog_names,
                     corrchunk=corrchunk,
                     receivers=receivers,
                     sidebands=sidebands,
@@ -13551,6 +13557,7 @@ class UVData(UVBase):
         antenna_names=None,
         ant_str=None,
         bls=None,
+        catalog_names=None,
         frequencies=None,
         freq_chans=None,
         times=None,
@@ -13613,7 +13620,6 @@ class UVData(UVBase):
         phase_to_pointing_center=False,
         nsample_array_dtype=np.float32,
         # MIR
-        catalog_identifier=None,
         corrchunk=None,
         receivers=None,
         sidebands=None,
@@ -14058,6 +14064,7 @@ class UVData(UVBase):
             antenna_names=antenna_names,
             ant_str=ant_str,
             bls=bls,
+            catalog_names=catalog_names,
             frequencies=frequencies,
             freq_chans=freq_chans,
             times=times,
@@ -14068,7 +14075,6 @@ class UVData(UVBase):
             blt_inds=blt_inds,
             phase_center_ids=phase_center_ids,
             keep_all_metadata=keep_all_metadata,
-            catalog_identifier=catalog_identifier,
             # checking parameters
             run_check=run_check,
             check_extra=check_extra,
