@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import tempfile
+from copy import deepcopy
 from pathlib import Path
 
 import h5py
@@ -3690,7 +3691,6 @@ class TestFastUVH5Meta:
 
         meta3 = uvh5.FastUVH5Meta(newfl, recompute_nbls=None)
 
-        print(meta.Nbls, meta2.Nbls, meta3.Nbls)
         assert meta.Nbls == meta2.Nbls == meta3.Nbls
 
         newfl = os.path.join(self.tmp_path.name, "not_hera.uvh5")
@@ -3701,3 +3701,17 @@ class TestFastUVH5Meta:
 
         meta4 = uvh5.FastUVH5Meta(newfl, recompute_nbls=None)
         assert meta4.Nbls == meta.Nbls
+
+    def test_pickleability(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        meta2 = deepcopy(meta)
+
+        assert meta == meta2
+
+    def test_hashability(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        meta2 = uvh5.FastUVH5Meta(self.fltime_axis_faster_than_bls)
+
+        assert meta != meta2
+        dct = {meta: 1, meta2: 2}
+        assert dct[meta] == 1
