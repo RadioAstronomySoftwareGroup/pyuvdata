@@ -9437,10 +9437,16 @@ class UVData(UVBase):
             if phase_center_ids is not None:
                 raise ValueError("Cannot set both phase_center_ids and catalog_names.")
             phase_center_ids = []
+            print("Match names: ", end="")
+            print(catalog_names)
             for cat_id, cat_dict in self.phase_center_catalog.items():
+                print("Cat name: ", end="")
+                print(cat_dict["cat_name"])
                 if cat_dict["cat_name"] in catalog_names:
+                    print("Match made!")
                     phase_center_ids.append(cat_id)
-
+            print("PCIDs: ", end="")
+            print(phase_center_ids)
         # Figure out which index positions we want to hold on to.
         (
             blt_inds,
