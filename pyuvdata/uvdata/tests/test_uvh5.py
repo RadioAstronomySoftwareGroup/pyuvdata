@@ -3720,3 +3720,9 @@ class TestFastUVH5Meta:
         assert meta != meta2
         dct = {meta: 1, meta2: 2}
         assert dct[meta] == 1
+
+    def test_equality(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+
+        assert meta == meta
+        assert meta != 1
