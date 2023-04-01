@@ -539,6 +539,11 @@ class MirMetaData(object):
         """Return length of full data array."""
         return 0 if self._data is None else self._data.size
 
+    @property
+    def _identifier(self):
+        """Return unique identifier field name(s)."""
+        return self._pseudo_header_key if self._header_key is None else self._header_key
+
     def __iter__(self):
         """
         Iterate over MirMetaData attributes.
@@ -1083,7 +1088,7 @@ class MirMetaData(object):
         and_where_args=True,
         header_key=None,
         index=None,
-        return_tuples=False,
+        return_tuples=None,
     ):
         """
         Get values from a particular field or set of fields of the metadata.
@@ -1149,6 +1154,8 @@ class MirMetaData(object):
         idx_arr = self._index_query(use_mask, where, and_where_args, header_key, index)
 
         if isinstance(field_name, (list, set, tuple)):
+            if return_tuples is None:
+                return_tuples = True
             metadata = []
             for item in field_name:
                 if isinstance(item, str):
@@ -1176,13 +1183,10 @@ class MirMetaData(object):
         Returns
         -------
         value_arr : ndarray or list of ndarrays or tuples
-            Values for the specified field name where the selection criteria match.
-            If `return_tuples=False`, then this will be an ndarray (of varying dtype) if
-            a single field name was supplied, otherwise a list of ndarrays will be
-            returned. If `return_tuples=True`, then a tuple containing the set of all
-            fields at each index position will be provided.
+            Values for the specified field name where the selection criteria match. If
+            a list of fields is supplied, then a list of arrays is returned.
         """
-        return self.get_value(field_name=field_name)
+        return self.get_value(field_name=field_name, return_tuples=False)
 
     def set_value(
         self,
@@ -1394,6 +1398,7 @@ class MirMetaData(object):
         index=None,
         reset=False,
         and_mask=True,
+        use_mask=True,
     ):
         """
         Set the internal object mask.
@@ -1405,9 +1410,9 @@ class MirMetaData(object):
         Parameters
         ----------
         mask : ndarray of bool
-            Optional argument, of the same length as the MirMetaData object, where True
-            marks which index positions to set. Setting this will cause any arguments
-            passed to `where`, `header_key`, and `index` to be ignored.
+            Optional argument, typically of the same length as the MirMetaData object,
+            where True marks which index positions to set. Setting this will cause any
+            arguments passed to `where`, `header_key`, and `index` to be ignored.
         where : tuple of sequence of tuples
             Optional argument, each tuple is used to call the `where` method to identify
             which index positions match the given criteria. Can be supplied as a
@@ -1440,6 +1445,13 @@ class MirMetaData(object):
             be combined with the existing internal mask using an element-wise "and"
             operation. If set to False, the two will instead be combined with an
             element-wise "or" operation. Default is True (i.e., and the masks together).
+        use_mask : bool
+            Only used if an argument for `mask` is supplied. If set to False, the
+            supplied mask is applied to the mask attribute directly, rather than only
+            to elements where the underlying mask is already set to True. This means
+            that the length of `mask` will need to be equal to the `_mask` attribute,
+            rather than the MirMetaData object. Default is True, which covers most
+            typical use cases.
         """
         if mask is None:
             mask = self._generate_mask(
@@ -1448,11 +1460,13 @@ class MirMetaData(object):
                 header_key=header_key,
                 index=index,
             )
+        elif use_mask and not np.all(self._mask):
+            temp_mask = np.zeros_like(self._mask)
+            temp_mask[self._mask] = mask
+            mask = temp_mask
 
-        if reset:
-            self._mask[:] = True
-
-        mask = (self._mask & mask) if and_mask else (self._mask | mask)
+        if not (reset or np.all(self._mask)):
+            mask = (self._mask & mask) if and_mask else (self._mask | mask)
 
         if np.array_equal(self._mask, mask):
             return False
@@ -1513,19 +1527,19 @@ class MirMetaData(object):
             otherwise  a list of tuples is returned. If `force_list=True` or list of
             ndarrays is returned -- one for each field in the (pseudo) header keys.
         """
-        if self._header_key is None:
-            key = self._pseudo_header_key
-        else:
-            key = [self._header_key] if force_list else self._header_key
-
-        return self.get_value(
-            key,
+        keys = self.get_value(
+            self._identifier,
             use_mask=use_mask,
             where=where,
             and_where_args=and_where_args,
             index=index,
-            return_tuples=(self._header_key is None) and (not force_list),
+            return_tuples=False if force_list else None,
         )
+
+        if force_list and not isinstance(keys, list):
+            keys = [keys]
+
+        return keys
 
     def _set_header_key_index_dict(self):
         """
@@ -1536,10 +1550,7 @@ class MirMetaData(object):
         positions inside the data array.
         """
         self._header_key_index_dict = self.group_by(
-            self._pseudo_header_key if self._header_key is None else self._header_key,
-            use_mask=False,
-            return_index=True,
-            assume_unique=True,
+            self._identifier, use_mask=False, return_index=True, assume_unique=True
         )
 
     def _generate_new_header_keys(self, other):
@@ -1657,7 +1668,9 @@ class MirMetaData(object):
 
         # Get the data we want to group by and then use lexsort to arrange the data
         # in order. This turns out to make extracting the index positions much faster.
-        group_data = self.get_value(group_fields, use_mask=use_mask)
+        group_data = self.get_value(
+            group_fields, use_mask=use_mask, return_tuples=False
+        )
         index_arr = np.lexsort(group_data)
         if not np.all(index_arr[1:] > index_arr[:-1]):
             group_data = [data[index_arr] for data in group_data]
@@ -1815,7 +1828,7 @@ class MirMetaData(object):
 
             # Get the existing metadata now, returned as tuples to make it easy
             # to use the update_dict
-            iter_data = self.get_value(field, return_tuples=is_tuple, use_mask=False)
+            iter_data = self.get_value(field, use_mask=False)
 
             # Note that with a complex dtype, passing _data a str will return a
             # reference to the array we want, so we can update in situ.
@@ -2304,6 +2317,60 @@ class MirMetaData(object):
             # and record size within the sch_read file itself.
             record_start += record_size + 8
         return int_dict, recpos_dict
+
+    def _make_key_mask(
+        self,
+        other,
+        reverse=False,
+        use_mask=True,
+        check_field=None,
+        set_mask=True,
+        use_cipher=False,
+    ):
+        """
+        Do a thing.
+
+        This does a thing.
+        """
+        if check_field is None:
+            check_field = (other if reverse else self)._identifier
+
+        use_cipher = use_cipher and not isinstance(check_field, str)
+
+        this_data = self.get_value(
+            check_field if reverse else self._identifier,
+            use_mask=use_mask,
+            return_tuples=(not (use_cipher or isinstance(check_field, str))),
+        )
+        other_data = other.get_value(
+            other._identifier if reverse else check_field,
+            use_mask=use_mask,
+            return_tuples=(not (use_cipher or isinstance(check_field, str))),
+        )
+
+        if use_cipher:
+            assert len(check_field) == 2, "Cannot use cipher with more than two fields."
+
+            for idx in range(len(check_field)):
+                if "u" in this_data[idx].dtype.name:
+                    this_data[idx] = this_data[idx].view(
+                        "u" + this_data[idx].dtype.name
+                    )
+                if "u" in other_data[idx].dtype.name:
+                    other_data[idx] = other_data[idx].view(
+                        "u" + other_data[idx].dtype.name
+                    )
+            this_data = (this_data[0].astype("u8") << 32) + this_data[1]
+            other_data = (other_data[0].astype("u8") << 32) + other_data[1]
+
+        if isinstance(check_field, str) or use_cipher:
+            other_data = other_data if reverse else np.unique(other_data)
+            mask = np.isin(this_data, other_data, assume_unique=not reverse)
+        else:
+            other_data = other_data if reverse else set(other_data)
+            mask = np.array([item in other_data for item in this_data])
+
+        return self.set_mask(mask=mask, use_mask=use_mask) if set_mask else mask
 
 
 class MirInData(MirMetaData):

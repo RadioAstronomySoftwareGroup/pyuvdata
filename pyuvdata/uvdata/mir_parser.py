@@ -1473,69 +1473,70 @@ class MirParser(object):
         # Start by cascading the filters up -- from largest metadata tables to the
         # smallest. First up, spec win -> baseline
         if not np.all(self.sp_data.get_mask()):
-            mask_update |= self.bl_data.set_mask(header_key=set(self.sp_data["blhid"]))
+            mask_update |= self.bl_data._make_key_mask(self.sp_data)
 
         # Now do baseline -> antennas. Special handling required because of the
         # lack of a unique index key for this table.
-        if not (np.all(self.bl_data.get_mask()) and not self._has_auto):
-            key_list = set(
-                self.bl_data.get_value(["iant1", "inhid"], return_tuples=True)
-                + self.bl_data.get_value(["iant2", "inhid"], return_tuples=True)
+        if self._has_auto or not np.all(self.bl_data.get_mask()):
+            mask = self.eng_data._make_key_mask(
+                self.bl_data,
+                check_field=("iant1", "inhid"),
+                set_mask=False,
+                use_cipher=True,
+            )
+            mask |= self.eng_data._make_key_mask(
+                self.bl_data,
+                check_field=("iant2", "inhid"),
+                set_mask=False,
+                use_cipher=True,
             )
 
             if self._has_auto:
-                key_list.union(
-                    self.ac_data.get_value(["antenna", "inhid"], return_tuples=True)
+                mask |= self.eng_data._make_key_mask(
+                    self.ac_data, set_mask=False, use_cipher=True
                 )
 
-            mask_update |= self.eng_data.set_mask(header_key=key_list)
+            mask_update |= self.eng_data.set_mask(mask=mask)
 
         # Now antennas -> int
         if not np.all(self.eng_data.get_mask()):
-            mask_update |= self.in_data.set_mask(header_key=set(self.eng_data["inhid"]))
+            mask_update |= self.in_data._make_key_mask(self.eng_data)
 
         # And weather scan -> int
         if not np.all(self.we_data.get_mask()):
-            mask_update |= self.in_data.set_mask(
-                where=("ints", "eq", self.we_data["ints"])
-            )
+            mask_update |= self.in_data._make_key_mask(self.we_data, reverse=True)
 
         # We now cascade the masks downward. First up, int -> weather scan
-        mask_update |= self.we_data.set_mask(header_key=self.in_data["ints"])
+        mask_update |= self.we_data._make_key_mask(self.in_data)
+
+        # Next, do int -> baseline
+        mask_update |= self.bl_data._make_key_mask(self.in_data, reverse=True)
 
         # Next, ant -> baseline. Again this requires a little extra special
         # handling, since eng_data doesn't have a unique header key.
-        bl_eng_mask = np.logical_and(
-            self.eng_data.get_mask(
-                header_key=self.bl_data.get_value(
-                    ["iant1", "inhid"], return_tuples=True, use_mask=False
-                )
-            ),
-            self.eng_data.get_mask(
-                header_key=self.bl_data.get_value(
-                    ["iant2", "inhid"], return_tuples=True, use_mask=False
-                )
-            ),
+        mask = self.bl_data._make_key_mask(
+            self.eng_data,
+            check_field=("iant1", "inhid"),
+            set_mask=False,
+            use_cipher=True,
+            reverse=True,
         )
-        mask_update |= self.bl_data.set_mask(mask=bl_eng_mask)
-
-        # Next, do int -> baseline
-        mask_update |= self.bl_data.set_mask(
-            where=("inhid", "eq", self.in_data["inhid"])
+        mask &= self.bl_data._make_key_mask(
+            self.eng_data,
+            check_field=("iant2", "inhid"),
+            set_mask=False,
+            use_cipher=True,
+            reverse=True,
         )
+        mask_update |= self.bl_data.set_mask(mask=mask)
 
         # Finally, do baseline -> spec win for the crosses...
-        mask_update |= self.sp_data.set_mask(
-            where=("blhid", "eq", self.bl_data["blhid"])
-        )
+        mask_update |= self.sp_data._make_key_mask(self.bl_data, reverse=True)
+
         # ...and the autos.
         if self._has_auto:
-            mask_update |= self.ac_data.set_mask(
-                mask=self.eng_data.get_mask(
-                    header_key=self.ac_data.get_value(
-                        ["antenna", "inhid"], return_tuples=True, use_mask=False
-                    )
-                )
+            mask_update |= self.ac_data._make_key_mask(
+                self.eng_data, use_cipher=True, reverse=True
             )
 
         if update_data or (update_data is None):
@@ -1803,6 +1804,14 @@ class MirParser(object):
         # Set/clear these to start
         self.vis_data = self.raw_data = self.auto_data = None
         self._tsys_applied = False
+
+        try:
+            # Check to make sure that records are properly cross-referenced
+            self._update_filter()
+        except KeyError:
+            # If we do see a key error, it means that we've got an unlinked record
+            # that we need to filter out.
+            self._crosscheck_records()
 
         # If requested, now we load up the visibilities.
         self.load_data(load_cross=load_cross, load_raw=load_raw, load_auto=load_auto)
@@ -2610,7 +2619,7 @@ class MirParser(object):
 
         for attr, mask in search_dict.items():
             self._metadata_attrs[attr].set_mask(
-                mask=mask, reset=reset, and_mask=and_mask
+                mask=mask, reset=reset, and_mask=and_mask, use_mask=False
             )
 
         # Now that we've screened the data that we want, update the object appropriately

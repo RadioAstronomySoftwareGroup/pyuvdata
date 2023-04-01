@@ -264,7 +264,11 @@ def test_mir_meta_get_value_errs(mir_in_data, field_name, err_type, err_msg):
         ["inhid", {}, [1] * 20],
         ["corrchunk", {"index": [0, 5, 10, 15]}, [0] * 4],
         ["blhid", {"where": ("blhid", "eq", 2)}, [2] * 5],
-        [["blhid", "sphid"], {"index": [1, 4]}, [[1, 1], [2, 5]]],
+        [
+            ["blhid", "sphid"],
+            {"index": [1, 4], "return_tuples": False},
+            [[1, 1], [2, 5]],
+        ],
         [["igq", "sphid"], {"index": [0, 3], "return_tuples": True}, [(0, 1), (0, 4)]],
     ],
 )
@@ -333,7 +337,10 @@ def test_mir_meta_generate_mask(mir_bl_data, arg, output):
         [{"where": ("u", "ne", 0), "and_mask": False}, True],
         [{"index": [1, 3], "reset": True}, [False, True, False, True]],
         [{"header_key": [3, 4, 3]}, [False, False, False, True]],
-        [{"mask": [True, False, True, False]}, [True, False, False, False]],
+        [
+            {"mask": [True, False, True, False], "use_mask": False},
+            [True, False, False, False],
+        ],
     ],
 )
 def test_mir_meta_set_mask(mir_bl_data, arg, output):
