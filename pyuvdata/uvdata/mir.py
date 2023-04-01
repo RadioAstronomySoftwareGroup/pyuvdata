@@ -198,6 +198,9 @@ class Mir(UVData):
         # will hopefully become the default for all data sets.
         self._set_flex_spw()
 
+        # Also set future array shapes here
+        self._set_future_array_shapes()
+
         # Create a simple list for broadcasting values stored on a
         # per-integration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])
@@ -445,8 +448,7 @@ class Mir(UVData):
         mir_data.unload_data()
 
         # Now assign our flexible arrays to the object itself
-        # TODO: Spw axis to be collapsed in future release
-        self.freq_array = freq_array[np.newaxis, :]
+        self.freq_array = freq_array
         self.Nfreqs = Nfreqs
         self.Nspws = Nspws
         self.channel_width = channel_width
@@ -688,11 +690,10 @@ class Mir(UVData):
         self._filename.form = (1,)
 
         # We call transpose here since vis_data above is shape (Nblts, Npols, Nfreqs),
-        # and we need to get it to (Nblts, 1, Nfreqs, Npols) to match what UVData
-        # expects.
-        self.data_array = np.transpose(vis_data, (0, 2, 1))[:, np.newaxis, :, :]
-        self.flag_array = np.transpose(vis_flags, (0, 2, 1))[:, np.newaxis, :, :]
-        self.nsample_array = np.transpose(vis_weights, (0, 2, 1))[:, np.newaxis, :, :]
+        # and we need to get it to (Nblts,Nfreqs, Npols) to match what UVData expects.
+        self.data_array = np.transpose(vis_data, (0, 2, 1))
+        self.flag_array = np.transpose(vis_flags, (0, 2, 1))
+        self.nsample_array = np.transpose(vis_weights, (0, 2, 1))
 
     def write_mir(self, filename):
         """
