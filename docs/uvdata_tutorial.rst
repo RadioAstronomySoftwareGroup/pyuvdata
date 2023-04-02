@@ -1621,7 +1621,7 @@ into a standard UVData object (which doubles its size).
   >>> print(mir_uv.polarization_array)
   [0]
   >>> print(mir_uv.data_array.shape)
-  (1, 1, 262160, 1)
+  (1, 262160, 1)
 
   >>> # Use the ``remove_flex_pol`` method to get a standard object. Note that it
   >>> # doubles the data_array size
@@ -1634,7 +1634,7 @@ into a standard UVData object (which doubles its size).
   >>> print(mir_uv.polarization_array)
   [-6 -5]
   >>> print(mir_uv.data_array.shape)
-  (1, 1, 262160, 2)
+  (1, 262160, 2)
 
 
 b) Converting between standard and flex_pol objects

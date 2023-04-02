@@ -218,7 +218,6 @@ class Mir(UVData):
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
-        load_lite=None,
     ):
         """
         Convert a MirParser object into a UVData object.
@@ -457,22 +456,22 @@ class Mir(UVData):
         self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
 
         inhid_list = mir_data.in_data["inhid"]
-        if (load_lite) or (load_lite is None and mir_data.vis_data is None):
+        mir_copy = None
+        if (mir_data.vis_data is None) and (mir_data.auto_data is None):
+            inhid_step = (len(inhid_list) // 10) + 1
             mir_copy = mir_data.copy(metadata_only=True, apply_mask=True)
-            inhid_step = max(len(inhid_list) // 10, 1)
         else:
-            mir_copy = mir_data
             inhid_step = len(inhid_list)
 
         for start in range(0, len(inhid_list), inhid_step):
-            if mir_data is not mir_copy:
+            if mir_copy is not None:
                 mir_copy.select(
                     where=("inhid", "eq", inhid_list[start : start + inhid_step]),
                     reset=True,
                 )
 
             self._prep_and_insert_data(
-                mir_copy,
+                mir_data if mir_copy is None else mir_copy,
                 sphid_dict,
                 spdx_dict,
                 blhid_blt_order,
@@ -480,6 +479,9 @@ class Mir(UVData):
                 apply_tsys=apply_tsys,
                 apply_dedoppler=apply_dedoppler,
             )
+
+        # Don't need the copy any more, so delete it
+        del mir_copy
 
         # Now handle the weights
         self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)

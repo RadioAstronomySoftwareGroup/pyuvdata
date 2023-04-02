@@ -121,7 +121,7 @@ def test_mir_parser_unload_data(mir_data):
     Check that the unload_data function works as expected
     """
     # Spoof for just this test
-    mir_data.raw_data = mir_data.vis_data
+    mir_data.raw_data = {1: {"data": [1] * 16384, "scale_fac": [1]}}
 
     attr_list = ["vis_data", "raw_data", "auto_data"]
 
@@ -755,7 +755,7 @@ def test_downselect_data(mir_data, select_vis, select_raw, select_auto):
 def test_unload_data(mir_data, unload_vis, unload_raw, unload_auto):
     """Verify that unload_data unloads data as expected."""
     # Spoof raw_data for just this test.
-    mir_data.raw_data = mir_data.vis_data
+    mir_data.raw_data = {1: {"data": [1] * 16384, "scale_fac": [1]}}
 
     mir_data.unload_data(
         unload_vis=unload_vis, unload_raw=unload_raw, unload_auto=unload_auto
