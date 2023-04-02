@@ -1466,11 +1466,22 @@ class MirParser(object):
             Default is True.
         """
         if unload_vis:
-            self.vis_data = None
+            if self.vis_data is not None:
+                for item in self.vis_data.values():
+                    del item["data"]
+                    del item["flags"]
+                self.vis_data = None
             self._tsys_applied = False
-        if unload_raw:
+        if unload_raw and self.raw_data is not None:
+            for item in self.raw_data.values():
+                print(item.keys())
+                del item["data"]
+                del item["scale_fac"]
             self.raw_data = None
-        if unload_auto:
+        if unload_auto and self.auto_data is not None:
+            for item in self.auto_data.values():
+                del item["data"]
+                del item["flags"]
             self.auto_data = None
 
     def _update_filter(self, update_data=None):
