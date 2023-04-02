@@ -290,7 +290,7 @@ class MirParser(object):
         """
         return not self.__eq__(other, verbose=verbose, metadata_only=metadata_only)
 
-    def copy(self, metadata_only=False):
+    def copy(self, metadata_only=False, apply_mask=False):
         """
         Make and return a copy of the MirParser object.
 
@@ -309,8 +309,30 @@ class MirParser(object):
 
         # include all attributes, not just UVParameter ones.
         for attr in vars(self):
-            if not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"]):
-                setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
+            if issubclass(getattr(self, attr).__class__, MirMetaData):
+                setattr(new_obj, attr, getattr(self, attr).copy(apply_mask=apply_mask))
+            elif not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"]):
+                if attr not in ["_metadata_attrs", "_sp_dict", "_ac_dict"]:
+                    setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
+
+        rec_dict_list = []
+        if self._has_auto:
+            rec_dict_list.append("_ac_dict")
+        if self._has_cross:
+            rec_dict_list.append("_sp_dict")
+
+        for item in rec_dict_list:
+            new_dict = {}
+            setattr(new_obj, item, new_dict)
+            for inhid, in_dict in getattr(self, item).items():
+                new_in_dict = {}
+                new_dict[inhid] = new_in_dict
+                for key, rec_dict in in_dict.items():
+                    new_in_dict[key] = {
+                        "start_idx": rec_dict["start_idx"],
+                        "end_idx": rec_dict["end_idx"],
+                        "chan_avg": rec_dict["chan_avg"],
+                    }
 
         for item in self._metadata_attrs:
             new_obj._metadata_attrs[item] = getattr(new_obj, item)

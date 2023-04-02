@@ -170,6 +170,47 @@ class Mir(UVData):
                 fix_autos=fix_autos,
             )
 
+    def _prep_and_insert_data(
+        self,
+        mir_data: mir_parser.MirParser,
+        sphid_dict,
+        spdx_dict,
+        blhid_blt_order,
+        apply_flags=True,
+        apply_tsys=True,
+        apply_dedoppler=True,
+    ):
+        """Load and prep data for import into UVData object."""
+        if mir_data.vis_data is None:
+            mir_data.load_data(load_cross=True, apply_tsys=apply_tsys)
+            if apply_flags:
+                mir_data.apply_flags()
+            if apply_dedoppler:
+                mir_data.redoppler_data()
+
+        if not np.all(
+            np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data.get_header_keys())
+        ):
+            raise KeyError(
+                "Mismatch between keys in vis_data and sphid in sp_data, which "
+                "should not happen. Please file an issue in our GitHub issue log "
+                "so that we can fix it."
+            )
+
+        for sp_rec, sphid in zip(mir_data.sp_data, mir_data.sp_data.get_header_keys()):
+            window = sphid_dict[sphid]
+            vis_rec = mir_data.vis_data[sphid]
+            blt_idx = blhid_blt_order[sp_rec["blhid"]]
+            ch_slice = spdx_dict[window]["ch_slice"]
+            pol_idx = spdx_dict[window]["pol_idx"]
+
+            # Now populate the fields with the relevant data from the object
+            self.data_array[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
+            self.flag_array[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
+
+        # Drop the data from the MirParser object once we have it loaded up.
+        mir_data.unload_data()
+
     def _init_from_mir_parser(
         self,
         mir_data: mir_parser.MirParser,
@@ -177,6 +218,7 @@ class Mir(UVData):
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
+        load_lite=None,
     ):
         """
         Convert a MirParser object into a UVData object.
@@ -240,6 +282,9 @@ class Mir(UVData):
                 pol_arr,
             )
         ]
+
+        # We'll also use this later
+        sphid_dict = dict(zip(mir_data.sp_data.get_header_keys(), spdx_list))
 
         # Create a dict with the ordering of the pols
         pol_dict = {key: idx for idx, key in enumerate(np.unique(pol_arr))}
@@ -408,44 +453,48 @@ class Mir(UVData):
         # way since when reading in a MIR file, we scan through the blt-axis the
         # slowest and the freq-axis the fastest (i.e., the data is roughly ordered by
         # blt, pol, freq).
-        vis_data = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
-        vis_flags = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
-        vis_weights = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
-        if mir_data.vis_data is None:
-            mir_data.load_data(load_cross=True, apply_tsys=apply_tsys)
-            if apply_flags:
-                mir_data.apply_flags()
-            if apply_dedoppler:
-                mir_data.redoppler_data()
+        self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
+        self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
 
-        if not np.all(
-            np.isin(list(mir_data.vis_data.keys()), mir_data.sp_data["sphid"])
-        ):
-            raise KeyError(
-                "Mismatch between keys in vis_data and sphid in sp_data, which should "
-                "not happen. Please file an issue in our GitHub issue log so that we "
-                "can fix it."
+        inhid_list = mir_data.in_data["inhid"]
+        if (load_lite) or (load_lite is None and mir_data.vis_data is None):
+            mir_copy = mir_data.copy(metadata_only=True, apply_mask=True)
+            inhid_step = max(len(inhid_list) // 10, 1)
+        else:
+            mir_copy = mir_data
+            inhid_step = len(inhid_list)
+
+        for start in range(0, len(inhid_list), inhid_step):
+            if mir_data is not mir_copy:
+                mir_copy.select(
+                    where=("inhid", "eq", inhid_list[start : start + inhid_step]),
+                    reset=True,
+                )
+
+            self._prep_and_insert_data(
+                mir_copy,
+                sphid_dict,
+                spdx_dict,
+                blhid_blt_order,
+                apply_flags=apply_flags,
+                apply_tsys=apply_tsys,
+                apply_dedoppler=apply_dedoppler,
             )
 
-        for sp_rec, window, vis_rec in zip(
-            mir_data.sp_data, spdx_list, mir_data.vis_data.values()
-        ):
+        # Now handle the weights
+        self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
+        for sp_rec, window in zip(mir_data.sp_data, spdx_list):
             blt_idx = blhid_blt_order[sp_rec["blhid"]]
             ch_slice = spdx_dict[window]["ch_slice"]
             pol_idx = spdx_dict[window]["pol_idx"]
-            vis_data[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
-            vis_flags[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
             # The "wt" column is calculated as (integ time)/(T_DSB ** 2), but we want
             # units of Jy**-2. To do this, we just need to multiply by one of the
             # forward gain of the antenna (130 Jy/K for SMA) squared and the channel
             # width. The factor of 2**2 (4) arises because we need to convert T_DSB**2
             # to T_SSB**2.
-            vis_weights[blt_idx, pol_idx, ch_slice] = (
+            self.nsample_array[blt_idx, pol_idx, ch_slice] = (
                 ((130.0 * 2.0) ** (-2.0)) * sp_rec["wt"] * np.abs(1e6 * sp_rec["fres"])
             )
-
-        # Drop the data from the MirParser object once we have it loaded up.
-        mir_data.unload_data()
 
         # Now assign our flexible arrays to the object itself
         self.freq_array = freq_array
@@ -691,9 +740,9 @@ class Mir(UVData):
 
         # We call transpose here since vis_data above is shape (Nblts, Npols, Nfreqs),
         # and we need to get it to (Nblts,Nfreqs, Npols) to match what UVData expects.
-        self.data_array = np.transpose(vis_data, (0, 2, 1))
-        self.flag_array = np.transpose(vis_flags, (0, 2, 1))
-        self.nsample_array = np.transpose(vis_weights, (0, 2, 1))
+        self.data_array = np.transpose(self.data_array, (0, 2, 1))
+        self.flag_array = np.transpose(self.flag_array, (0, 2, 1))
+        self.nsample_array = np.transpose(self.nsample_array, (0, 2, 1))
 
     def write_mir(self, filename):
         """
