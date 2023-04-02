@@ -516,16 +516,8 @@ class Mir(UVData):
         self.Nblts = Nblts
         self.Npols = Npols
         self.Ntimes = len(mir_data.in_data)
-        self.antenna_names = [
-            "Ant 1",
-            "Ant 2",
-            "Ant 3",
-            "Ant 4",
-            "Ant 5",
-            "Ant 6",
-            "Ant 7",
-            "Ant 8",
-        ]
+        self.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
+
         self.antenna_numbers = np.arange(1, 9)
 
         # Prepare the XYZ coordinates of the antenna positions.
