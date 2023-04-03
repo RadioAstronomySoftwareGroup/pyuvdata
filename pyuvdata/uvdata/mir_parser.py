@@ -290,7 +290,7 @@ class MirParser(object):
         """
         return not self.__eq__(other, verbose=verbose, metadata_only=metadata_only)
 
-    def copy(self, metadata_only=False, apply_mask=False):
+    def copy(self, metadata_only=False):
         """
         Make and return a copy of the MirParser object.
 
@@ -310,7 +310,7 @@ class MirParser(object):
         # include all attributes, not just UVParameter ones.
         for attr in vars(self):
             if issubclass(getattr(self, attr).__class__, MirMetaData):
-                setattr(new_obj, attr, getattr(self, attr).copy(apply_mask=apply_mask))
+                setattr(new_obj, attr, getattr(self, attr).copy())
             elif not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"]):
                 if attr not in ["_metadata_attrs", "_sp_dict", "_ac_dict"]:
                     setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
