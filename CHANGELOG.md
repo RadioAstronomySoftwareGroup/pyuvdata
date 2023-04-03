@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.3.1] - 2023-04-03
+
 ### Added
 - A new `FastUVH5Meta` object that enables quick partial reading of uvh5 file metadata.
 This is used by default in the `UVData.read_uvh5` method to initialize a `UVData`
