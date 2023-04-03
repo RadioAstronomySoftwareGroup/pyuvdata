@@ -456,22 +456,23 @@ class Mir(UVData):
         self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
 
         inhid_list = mir_data.in_data["inhid"]
-        mir_copy = None
+        backup_masks = {}
+        for item, obj in mir_data._metadata_attrs.items():
+            backup_masks[item] = obj._mask.copy()
+
         if (mir_data.vis_data is None) and (mir_data.auto_data is None):
             inhid_step = (len(inhid_list) // 10) + 1
-            mir_copy = mir_data.copy(metadata_only=True, apply_mask=True)
         else:
             inhid_step = len(inhid_list)
 
         for start in range(0, len(inhid_list), inhid_step):
-            if mir_copy is not None:
-                mir_copy.select(
-                    where=("inhid", "eq", inhid_list[start : start + inhid_step]),
-                    reset=True,
+            if (mir_data.vis_data is None) and (mir_data.auto_data is None):
+                mir_data.select(
+                    where=("inhid", "eq", inhid_list[start : start + inhid_step])
                 )
 
             self._prep_and_insert_data(
-                mir_data if mir_copy is None else mir_copy,
+                mir_data,
                 sphid_dict,
                 spdx_dict,
                 blhid_blt_order,
@@ -480,8 +481,8 @@ class Mir(UVData):
                 apply_dedoppler=apply_dedoppler,
             )
 
-        # Don't need the copy any more, so delete it
-        del mir_copy
+            for item, obj in mir_data._metadata_attrs.items():
+                obj._mask = backup_masks[item].copy()
 
         # Now handle the weights
         self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)

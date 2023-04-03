@@ -796,7 +796,7 @@ class MirMetaData(object):
             discard_flagged=discard_flagged,
         )
 
-    def copy(self, skip_data=False, apply_mask=False):
+    def copy(self, skip_data=False):
         """
         Make and return a copy of the MirMetaData object.
 
@@ -829,9 +829,6 @@ class MirMetaData(object):
                     copy_attr = copy.deepcopy(getattr(self, attr))
 
             setattr(copy_obj, attr, copy_attr)
-
-        if apply_mask:
-            copy_obj._hard_apply_mask()
 
         return copy_obj
 
@@ -2320,14 +2317,6 @@ class MirMetaData(object):
             # and record size within the sch_read file itself.
             record_start += record_size + 8
         return int_dict, recpos_dict
-
-    def _hard_apply_mask(self):
-        """Do a thing."""
-        if self._data is not None:
-            self._data = self._data[self._mask]
-            self._mask = np.ones(self._size, dtype=bool)
-            self._set_header_key_index_dict()
-            self._stored_values = {}
 
     def _make_key_mask(
         self,
