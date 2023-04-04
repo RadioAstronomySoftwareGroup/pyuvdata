@@ -1,7 +1,7 @@
 """A module defining functions for initializing UVData objects from scratch."""
 from __future__ import annotations
 
-from typing import Any, Literal, Sequence
+from typing import Any, Literal, Sequence, Union
 
 import numpy as np
 from astropy import units as un
@@ -14,7 +14,7 @@ try:
     from lunarsky import MoonLocation
 
     hasmoon = True
-    Locations = MoonLocation | EarthLocation
+    Locations = Union[MoonLocation, EarthLocation]
 except ImportError:
     hasmoon = False
     Locations = EarthLocation
