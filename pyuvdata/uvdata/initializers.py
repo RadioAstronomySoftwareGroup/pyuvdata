@@ -1,4 +1,6 @@
 """A module defining functions for initializing UVData objects from scratch."""
+from __future__ import annotations
+
 from typing import Any, Literal, Sequence
 
 import numpy as np
