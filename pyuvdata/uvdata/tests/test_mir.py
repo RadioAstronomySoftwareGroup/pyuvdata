@@ -280,8 +280,7 @@ def test_multi_nchan_spw_read(tmp_path):
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    with uvtest.check_warnings(DeprecationWarning, _future_array_shapes_warning):
-        uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+    uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
 
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
     with pytest.raises(IndexError):

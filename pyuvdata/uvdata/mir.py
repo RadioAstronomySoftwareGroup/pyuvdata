@@ -12,7 +12,7 @@ from astropy.time import Time
 from .. import get_telescope
 from .. import utils as uvutils
 from . import mir_parser
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["Mir"]
 
@@ -29,7 +29,6 @@ class Mir(UVData):
     def read_mir(
         self,
         filepath,
-        select_where=None,
         antenna_nums=None,
         antenna_names=None,
         bls=None,
@@ -40,6 +39,7 @@ class Mir(UVData):
         corrchunk=None,
         receivers=None,
         sidebands=None,
+        select_where=None,
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
@@ -52,24 +52,77 @@ class Mir(UVData):
         allow_flex_pol=True,
         check_autos=True,
         fix_autos=False,
-        use_future_array_shapes=False,
     ):
         """
-        Read in data from an SMA MIR file, and map to the UVData model.
+        Read in data from an SMA MIR file, and map to a UVData object.
 
-        Note that with the exception of filename, the rest of the parameters are
-        used to sub-select a range of data that matches the limitations of the current
-        instantiation of pyuvdata  -- namely 1 source. This could be dropped in the
-        future, as pyuvdata capabilities grow.
+        Note that with the exception of filename, most of the remaining parameters are
+        used to sub-select a range of data.
 
         Parameters
         ----------
         filepath : str
             The file path to the MIR folder to read from.
-        corrchunk : array-like of int
-            Correlator chunk codes for MIR dataset
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) specifying baselines
+            to include when reading data in to the object.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+        corrchunk : int or array-like of int
+            Correlator "chunk" (spectral window) to include when reading data into the
+            object, where 0 corresponds to the pseudo-continuum channel.
+        receivers : str or array-like of str
+            The names of the receivers ("230", "240", "345", "400") to include when
+            reading data into the object.
+        sidebands : str or array-like of str
+            The names of the sidebands ("l" for lower, "u" for upper) to include when
+            reading data into the object.
+        select_where : tuple or list of tuples, optional
+            Argument to pass to the `MirParser.select` method, which will downselect
+            which data is read into the object.
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
         pseudo_cont : boolean
             Read in only pseudo-continuum values. Default is false.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -93,13 +146,6 @@ class Mir(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
-        rechunk : int
-            Number of channels to average over when reading in the dataset. Optional
-            argument, typically required to be a power of 2.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
         """
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
@@ -155,11 +201,6 @@ class Mir(UVData):
             apply_dedoppler=apply_dedoppler,
         )
 
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
-
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -178,9 +219,43 @@ class Mir(UVData):
         blhid_blt_order,
         apply_flags=True,
         apply_tsys=True,
-        apply_dedoppler=True,
+        apply_dedoppler=False,
     ):
-        """Load and prep data for import into UVData object."""
+        """
+        Load and prep data for import into UVData object.
+
+        This is a helper function, not meant for users to call. It is used by the read
+        method to fill in the data and flag arrays of a UVData object based on the
+        records stored within the MIR dataset.
+
+        Parameters
+        ----------
+        mir_data : MirParser object
+            Object from which to plug data into the data arrays.
+        sphid_dict : dict
+            Map between MIR spectral record and position in the UVData array, as
+            dictated by blt-index, pol-index, and slice corresponding to the range
+            in frequencies.
+        spdx_dict : dict
+            Map between MIR sideband, receiver/polarization, and corrchunk to
+            UVData-oriented blt-index, pol-index, and slice corresponding to the range
+            in frequencies.
+        blhid_blt_order : dict
+            Map between MIR blhid to blt-index in the UVData object
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
+        """
         if mir_data.vis_data is None:
             mir_data.load_data(load_cross=True, apply_tsys=apply_tsys)
             if apply_flags:
@@ -197,12 +272,15 @@ class Mir(UVData):
                 "so that we can fix it."
             )
 
+        # Go through the data record-by-record to fill things in
         for sp_rec, sphid in zip(mir_data.sp_data, mir_data.sp_data.get_header_keys()):
+            # sphid_dict is a 3-element tuple, containing the sideband, receiver, and
+            # corrchunk for the spectral record (whose header key is sphid)
             window = sphid_dict[sphid]
-            vis_rec = mir_data.vis_data[sphid]
-            blt_idx = blhid_blt_order[sp_rec["blhid"]]
-            ch_slice = spdx_dict[window]["ch_slice"]
-            pol_idx = spdx_dict[window]["pol_idx"]
+            vis_rec = mir_data.vis_data[sphid]  # Visibilities + flags
+            blt_idx = blhid_blt_order[sp_rec["blhid"]]  # Blt index to load data into
+            pol_idx = spdx_dict[window]["pol_idx"]  # Polarization to load data into
+            ch_slice = spdx_dict[window]["ch_slice"]  # Channel range to load data into
 
             # Now populate the fields with the relevant data from the object
             self.data_array[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
@@ -448,29 +526,40 @@ class Mir(UVData):
         for key in spdx_dict:
             spdx_dict[key]["ch_slice"] = spw_dict[spdx_dict[key]["spw_id"]]["ch_slice"]
 
-        # Load up the visibilities into the MirParser object. The array is shaped this
+        # Create arrays to plug visibilities and flags into. The array is shaped this
         # way since when reading in a MIR file, we scan through the blt-axis the
         # slowest and the freq-axis the fastest (i.e., the data is roughly ordered by
         # blt, pol, freq).
         self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
 
-        inhid_list = mir_data.in_data["inhid"]
+        # Get a list of the current inhids for later
+        inhid_list = mir_data.in_data["inhid"].copy()
+
+        # Store a backup of the selection masks
         backup_masks = {}
         for item, obj in mir_data._metadata_attrs.items():
             backup_masks[item] = obj._mask.copy()
 
+        # If no data is loaded, we want to load subsets of data to start rather than
+        # the whole block in one go, since this will save us 2x in memory.
+        inhid_step = len(inhid_list)
         if (mir_data.vis_data is None) and (mir_data.auto_data is None):
-            inhid_step = (len(inhid_list) // 10) + 1
-        else:
-            inhid_step = len(inhid_list)
+            inhid_step = (inhid_step // 4) + 1
 
         for start in range(0, len(inhid_list), inhid_step):
+            # If no data is loaded, load up a quarter of the data at a time. This
+            # keeps the "extra" memory usage below that for the nsample_array attr,
+            # which is generated and filled _after_ this step (thus no extra memory
+            # should be required)
             if (mir_data.vis_data is None) and (mir_data.auto_data is None):
+                # Note that the masks are combined via and operation.
                 mir_data.select(
                     where=("inhid", "eq", inhid_list[start : start + inhid_step])
                 )
 
+            # Call this convenience function in case we need to run the data filling
+            # multiple times (if we are loading up subsets of data)
             self._prep_and_insert_data(
                 mir_data,
                 sphid_dict,
@@ -482,6 +571,9 @@ class Mir(UVData):
             )
 
             for item, obj in mir_data._metadata_attrs.items():
+                # Because the select operation messes with the masks, we want to restore
+                # those in case we mucked with them earlier (so that subsequent selects
+                # behave as expected).
                 obj._mask = backup_masks[item].copy()
 
         # Now handle the weights
