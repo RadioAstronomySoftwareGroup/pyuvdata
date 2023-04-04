@@ -24,6 +24,7 @@ from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
+from .initializers import new_uvdata
 
 __all__ = ["UVData"]
 import logging
@@ -769,6 +770,17 @@ class UVData(UVBase):
         )
 
         super(UVData, self).__init__()
+
+    @staticmethod
+    def new(**kwargs):
+        """Initialize a new UVData object from keyword arguments.
+
+        Parameters
+        ----------
+        All parameters passed through to the
+        :func:`~pyuvdata.uvdata.initializers.new_uvdata` function.
+        """
+        return new_uvdata(**kwargs)
 
     def _set_flex_spw(self):
         """
@@ -2234,7 +2246,7 @@ class UVData(UVBase):
             _warn_old_phase_attr(__name)
 
             if self.phase_center_catalog is not None:
-                phase_dict = list(self.phase_center_catalog.values())[0]
+                phase_dict = next(iter(self.phase_center_catalog.values()))
                 if __name == "phase_type":
                     if phase_dict["cat_type"] == "unprojected":
                         ret_val = "drift"
