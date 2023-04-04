@@ -673,3 +673,31 @@ def test_non_icrs_coord_read(mir_data):
     assert np.allclose(
         cat_entry["cat_lat"], mir_data.in_data["decr"], atol=4e-6, rtol=0
     )
+
+
+def test_dedoppler_data(mir_data, sma_mir):
+    mir_uv = UVData()
+    mir_obj = Mir()
+
+    # Need to unload data to redoppler
+    mir_data.unload_data()
+
+    # Deselect the pseudo-cont channel
+    mir_data.select(where=("corrchunk", "ne", 0))
+
+    # Now spoof a v4-style file
+    mir_data.codes_data.set_value("code", "4", index=0)
+    mir_data.sp_data["fDDS"] = 1.0
+
+    # Complete the initialization of the UVData object
+    mir_obj._init_from_mir_parser(mir_data, apply_dedoppler=True)
+    mir_uv._convert_from_filetype(mir_obj)
+
+    # Make sure things differ
+    assert sma_mir != mir_uv
+
+    # The only two things affected should be data_array and flag_array in the object,
+    # everything else should be identical.
+    mir_uv.data_array = sma_mir.data_array
+    mir_uv.flag_array = sma_mir.flag_array
+    assert sma_mir == mir_uv
