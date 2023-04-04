@@ -9391,7 +9391,11 @@ class UVData(UVBase):
             not commonly used.
         phase_center_ids : array_like of int, optional
             Phase center IDs to keep on the object (effectively a selection on
-            baseline-times).
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
@@ -11177,7 +11181,6 @@ class UVData(UVBase):
         allow_flex_pol=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
     ):
         """
         Read in data from an SMA MIR file.
@@ -12493,6 +12496,9 @@ class UVData(UVBase):
             length-3 tuples, the polarization string is in the order of the two
             antennas. If length-3 tuples are provided, `polarizations` must be
             None.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
@@ -12738,13 +12744,31 @@ class UVData(UVBase):
 
         MIR
         ---
-        corrchunk : int
-            Correlator chunk code for MIR dataset.
-        pseudo_cont : boolean
-            Read in only pseudo-continuuum values in MIR dataset.
-        rechunk : int
-            Number of channels to average over when reading in the dataset. Optional
-            argument, typically required to be a power of 2.
+        corrchunk : int or array-like of int
+            Correlator "chunk" (spectral window) to include when reading data into the
+            object, where 0 corresponds to the pseudo-continuum channel.
+        receivers : str or array-like of str
+            The names of the receivers ("230", "240", "345", "400") to include when
+            reading data into the object.
+        sidebands : str or array-like of str
+            The names of the sidebands ("l" for lower, "u" for upper) to include when
+            reading data into the object.
+        mir_select_where : tuple or list of tuples, optional
+            Argument to pass to the `MirParser.select` method, which will downselect
+            which data is read into the object.
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
