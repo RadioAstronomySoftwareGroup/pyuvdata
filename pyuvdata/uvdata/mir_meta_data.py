@@ -2370,37 +2370,53 @@ class MirMetaData(object):
             any underlying mask values were changed. If `set_mask=False`, then the mask
             is returned based on key-matching results.
         """
+        # Figure out what check_field should be if undefined
         if check_field is None:
             check_field = (other if reverse else self)._identifier
 
+        # Default to no cipher if there's only one field.
         use_cipher = use_cipher and not isinstance(check_field, str)
 
+        # Get header keys for this if normal, otherwise get corresponding field
         this_data = self.get_value(
             check_field if reverse else self._identifier,
             use_mask=use_mask,
             return_tuples=(not (use_cipher or isinstance(check_field, str))),
         )
+
+        # Get header keys for other if reverse, otherwise get corresponding field
         other_data = other.get_value(
             other._identifier if reverse else check_field,
             use_mask=use_mask,
             return_tuples=(not (use_cipher or isinstance(check_field, str))),
         )
 
+        # If using a cipher, we want to combine two fields together via bitshift
+        # and addition. Note that this is really only used for eng_data, since it's
+        # the only regularly indexed MirMetaData object that needs this.
         if use_cipher:
             assert len(check_field) == 2, "Cannot use cipher with more than two fields."
 
+            # Make sure that we have unsigned ints
             for idx in range(len(check_field)):
-                if "u" in this_data[idx].dtype.name:
+                if "u" not in this_data[idx].dtype.name:
                     this_data[idx] = this_data[idx].view(
                         "u" + this_data[idx].dtype.name
                     )
-                if "u" in other_data[idx].dtype.name:
+                if "u" not in other_data[idx].dtype.name:
                     other_data[idx] = other_data[idx].view(
                         "u" + other_data[idx].dtype.name
                     )
+            # Cast the first field to int64, bitshift up by 32 bits, then add with
+            # the other data field to produce a unique (compact) key to search on.
             this_data = (this_data[0].astype("u8") << 32) + this_data[1]
             other_data = (other_data[0].astype("u8") << 32) + other_data[1]
 
+        # We have two different methods to use here, the former being faster since
+        # numpy's isin is pretty fast. Note that use of unique here is to cut down
+        # on redundant keys (which helps to speed this whole thing up) -- it's generally
+        # only useful for reverse searches, since otherwise other_data contains all
+        # unique header keys.
         if isinstance(check_field, str) or use_cipher:
             other_data = other_data if reverse else np.unique(other_data)
             mask = np.isin(this_data, other_data, assume_unique=not reverse)

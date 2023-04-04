@@ -44,6 +44,11 @@ def mir_codes_data(mir_data_main):
     yield mir_data_main.codes_data.copy()
 
 
+@pytest.fixture(scope="function")
+def mir_ac_data(mir_data_main):
+    yield mir_data_main.ac_data.copy()
+
+
 def test_mir_meta_init(mir_data):
     """
     Test that the initialization of MirMetaData objects behave as expected. This
@@ -921,3 +926,39 @@ def test_mir_acdata_read_errs(mir_data):
     with pytest.raises(AssertionError) as err:
         mir_data.ac_data.read(mir_data.filepath, nchunks=1)
     str(err.value).startswith("Could not determine auto-correlation record size.")
+
+
+def test_mir_make_key_mask_cipher(mir_ac_data, mir_eng_data):
+    assert np.array_equal(
+        mir_eng_data._make_key_mask(mir_ac_data),
+        mir_eng_data._make_key_mask(mir_ac_data, use_cipher=False),
+    )
+
+
+def test_mir_make_key_mask(mir_in_data, mir_bl_data, mir_sp_data):
+    assert not mir_in_data._make_key_mask(mir_bl_data)
+    assert not mir_in_data._make_key_mask(mir_sp_data)
+    assert not mir_bl_data._make_key_mask(mir_sp_data)
+    assert not mir_in_data._make_key_mask(mir_in_data)
+    assert not mir_bl_data._make_key_mask(mir_bl_data)
+    assert not mir_sp_data._make_key_mask(mir_sp_data)
+
+    # Modify the mask for baselines
+    mir_bl_data._mask[::2] = False
+
+    # in_data mask should not change
+    assert not mir_in_data._make_key_mask(mir_bl_data)
+
+    # But sp_data mask should!
+    assert mir_sp_data._make_key_mask(mir_bl_data, reverse=True)
+
+    assert np.array_equal(mir_sp_data["sphid"], [6, 7, 8, 9, 10, 16, 17, 18, 19, 20])
+
+    # Finally, set the single ingtegration as bad, and make sure it cascades down
+    mir_in_data._mask[:] = False
+    mir_bl_data._make_key_mask(mir_in_data, reverse=True)
+    mir_sp_data._make_key_mask(mir_bl_data, reverse=True)
+
+    assert not any(mir_in_data._mask)
+    assert not any(mir_bl_data._mask)
+    assert not any(mir_sp_data._mask)

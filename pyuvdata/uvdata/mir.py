@@ -765,6 +765,9 @@ class Mir(UVData):
             source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             if source_epoch != 2000.0:
+                # When fed a non-J2000 coordinate, we want to convert that so that it
+                # can easily be written into CASA MS format. In this case, we take the
+                # median apparent position and translate that to ICRS
                 time_arr = Time(
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd

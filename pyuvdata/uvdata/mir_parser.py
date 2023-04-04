@@ -1838,14 +1838,6 @@ class MirParser(object):
         self.vis_data = self.raw_data = self.auto_data = None
         self._tsys_applied = False
 
-        try:
-            # Check to make sure that records are properly cross-referenced
-            self._update_filter()
-        except KeyError:
-            # If we do see a key error, it means that we've got an unlinked record
-            # that we need to filter out.
-            self._crosscheck_records()
-
         # If requested, now we load up the visibilities.
         self.load_data(load_cross=load_cross, load_raw=load_raw, load_auto=load_auto)
 
