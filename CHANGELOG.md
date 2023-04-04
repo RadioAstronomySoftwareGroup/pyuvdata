@@ -2,6 +2,18 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+### Added
+- The `catalog_name` keyword has been added to the `UVData.read` and `UVData.select`
+methods to allow users to select on source name.
+
+### Changed
+- The keywords for `UVData.read` have been changed for MIR-specific values to more
+generally match those founds with other data types.
+- The `UVData.read_mir` method has been overhauled to mak reading in of MIR data more
+efficiency in memory/processor usage.
+
+### Fixed
+- Frequency frame information for MS datasets is now correctly recorded as "TOPO".
 
 ## [2.3.1] - 2023-04-03
 
