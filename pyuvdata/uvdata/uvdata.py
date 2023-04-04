@@ -11154,7 +11154,6 @@ class UVData(UVBase):
     def read_mir(
         self,
         filepath,
-        mir_select_where=None,
         antenna_nums=None,
         antenna_names=None,
         bls=None,
@@ -11165,6 +11164,7 @@ class UVData(UVBase):
         corrchunk=None,
         receivers=None,
         sidebands=None,
+        select_where=None,
         apply_tsys=True,
         apply_flags=True,
         apply_dedoppler=False,
@@ -11188,53 +11188,96 @@ class UVData(UVBase):
         Parameters
         ----------
         filepath : str
-             The file path to the MIR folder to read from.
-        corrchunk : int
-            Correlator chunk code for MIR dataset. The default is None, which selects
-            all chunks.
+            The file path to the MIR folder to read from.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) specifying baselines
+            to include when reading data in to the object.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+        corrchunk : int or array-like of int
+            Correlator "chunk" (spectral window) to include when reading data into the
+            object, where 0 corresponds to the pseudo-continuum channel.
+        receivers : str or array-like of str
+            The names of the receivers ("230", "240", "345", "400") to include when
+            reading data into the object.
+        sidebands : str or array-like of str
+            The names of the sidebands ("l" for lower, "u" for upper) to include when
+            reading data into the object.
+        select_where : tuple or list of tuples, optional
+            Argument to pass to the `MirParser.select` method, which will downselect
+            which data is read into the object.
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
         pseudo_cont : boolean
-            Read in only the pseudo-continuuum values. Default is False.
+            Read in only pseudo-continuum values. Default is false.
+        rechunk : int
+            Number of channels to average over when reading in the dataset. Optional
+            argument, typically required to be a power of 2.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
+            before writing the file.
         check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
+            Option to check optional parameters as well as required ones.
         run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
+            Option to check acceptable range of the values of parameters before
+            writing the file.
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
+            uvw coordinates match antenna positions does not pass.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window.  Default is True.
+            attribute to define the polarization per spectral window. Default is True.
         check_autos : bool
             Check whether any auto-correlations have non-zero imaginary values in
             data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-        rechunk : int
-            Number of channels to average over when reading in the dataset. Optional
-            argument, typically required to be a power of 2.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
+            that they are real-only in data_array. Default is False.
         """
         from . import mir
 
         mir_obj = mir.Mir()
         mir_obj.read_mir(
             filepath,
-            select_where=mir_select_where,
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             bls=bls,
@@ -11245,6 +11288,7 @@ class UVData(UVBase):
             corrchunk=corrchunk,
             receivers=receivers,
             sidebands=sidebands,
+            select_where=select_where,
             apply_tsys=apply_tsys,
             apply_flags=apply_flags,
             apply_dedoppler=apply_dedoppler,
@@ -11257,7 +11301,6 @@ class UVData(UVBase):
             allow_flex_pol=allow_flex_pol,
             check_autos=check_autos,
             fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
         )
         self._convert_from_filetype(mir_obj)
         del mir_obj
@@ -13343,7 +13386,6 @@ class UVData(UVBase):
             elif file_type == "mir":
                 self.read_mir(
                     filename,
-                    mir_select_where=mir_select_where,
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     bls=bls,
@@ -13354,6 +13396,7 @@ class UVData(UVBase):
                     corrchunk=corrchunk,
                     receivers=receivers,
                     sidebands=sidebands,
+                    select_where=mir_select_where,
                     apply_dedoppler=apply_dedoppler,
                     apply_tsys=apply_tsys,
                     apply_flags=apply_flags,
@@ -13366,7 +13409,6 @@ class UVData(UVBase):
                     allow_flex_pol=allow_flex_pol,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                 )
             elif file_type == "miriad":
                 self.read_miriad(
