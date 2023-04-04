@@ -14073,19 +14073,31 @@ class UVData(UVBase):
 
         MIR
         ---
-        isource : int
-            Source code for MIR dataset.
-        irec : int
-            Receiver code for MIR dataset.
-        isb : int
-            Sideband code for MIR dataset.
-        corrchunk : int
-            Correlator chunk code for MIR dataset.
-        pseudo_cont : boolean
-            Read in only pseudo-continuuum values in MIR dataset.
-        rechunk : int
-            Number of channels to average over when reading in the dataset. Optional
-            argument, typically required to be a power of 2.
+        corrchunk : int or array-like of int
+            Correlator "chunk" (spectral window) to include when reading data into the
+            object, where 0 corresponds to the pseudo-continuum channel.
+        receivers : str or array-like of str
+            The names of the receivers ("230", "240", "345", "400") to include when
+            reading data into the object.
+        sidebands : str or array-like of str
+            The names of the sidebands ("l" for lower, "u" for upper) to include when
+            reading data into the object.
+        mir_select_where : tuple or list of tuples, optional
+            Argument to pass to the `MirParser.select` method, which will downselect
+            which data is read into the object.
+        apply_flags : bool
+            If set to True, apply "wideband" flags to the visibilities, which are
+            recorded by the realtime system to denote when data are expected to be bad
+            (e.g., antennas not on source, dewar warm). Default it true.
+        apply_tsys : bool
+            If set to False, data are returned as correlation coefficients (normalized
+            by the auto-correlations). Default is True, which instead scales the raw
+            visibilities and forward-gain of the antenna to produce values in Jy
+            (uncalibrated).
+        apply_dedoppler : bool
+            If set to True, data will be corrected for any doppler-tracking performed
+            during observations, and brought into the topocentric rest frame (default
+            for UVData objects). Default is False.
         allow_flex_pol : bool
             If only one polarization per spectral window is read (and the polarization
             differs from window to window), allow for the `UVData` object to use
