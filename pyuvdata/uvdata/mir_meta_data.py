@@ -2325,12 +2325,50 @@ class MirMetaData(object):
         use_mask=True,
         check_field=None,
         set_mask=True,
-        use_cipher=False,
+        use_cipher=True,
     ):
         """
-        Do a thing.
+        Generate a key mask by field-matching between MirMetaData objects.
 
-        This does a thing.
+        This creates a (meta)data mask based on when the header key of one object is
+        found in another. Useful for propagating flag information between different
+        types of objects (e.g., between per-integration and per-baseline records).
+
+        Parameters
+        ----------
+        other : MirMetaData object
+            MirMetaData object to use to compare against this object. Must either
+            contain the header key values as fields, or have the field(s) specified by
+            the `check_field` keyword.
+        reverse : bool
+            When set to False, the default, the normal pattern of behavior is to check
+            and see if the header key values in this object are found in the
+            corresponding field in the `other` object. If set to True, then the header
+            keys from the `other` object are sought in the corresponding fields in
+            this object.
+        use_mask : bool
+            If set to False, ignore the underlying data mask (as set by e.g., previous
+            select commands). Default is True.
+        check_field : str or list of str
+            Field in `other` (or this object, if `reverse=True`) to check against header
+            key values. Default is to use the same name(s) as the header key field(s).
+        set_mask : bool
+            If set to True, the default, then after the comparison is complete, the
+            method will set the underlying data mask based on matches found (keeping
+            only records where matching keys are found).
+        use_cipher : bool
+            Normally if header key values encompass two fields, pairs of values are
+            compared, which can be slow. If set to True, the method will try to combine
+            the information of the two fields via bit-shifting and addition, which can
+            significantly speed up the operation of the matching. Default is True if
+            not supplying an str-type for `check_field`.
+
+        Returns
+        -------
+        return_val : bool or ndarray of bool
+            If `set_mask=True`, then a bool is returned which specifies whether or not
+            any underlying mask values were changed. If `set_mask=False`, then the mask
+            is returned based on key-matching results.
         """
         if check_field is None:
             check_field = (other if reverse else self)._identifier
