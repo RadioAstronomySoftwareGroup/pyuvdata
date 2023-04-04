@@ -647,3 +647,29 @@ def test_select_on_read(select_kwargs, sma_mir):
     uv_data = UVData.from_file(testfile, use_future_array_shapes=True, **select_kwargs)
     uv_data.history = sma_mir.history
     assert sma_mir == uv_data
+
+
+def test_non_icrs_coord_read(mir_data):
+    # When fed a non-J2000 coordinate, we want to convert that so that it can easily
+    mir_uv = UVData()
+    mir_obj = Mir()
+
+    # Plug in a dummy epoch value
+    mir_data.in_data["epoch"] = 2020.0
+    mir_obj._init_from_mir_parser(mir_data)
+    mir_uv._convert_from_filetype(mir_obj)
+
+    cat_entry = list(mir_uv.phase_center_catalog.values())[0]
+
+    assert cat_entry["cat_frame"] == "icrs"
+    assert cat_entry["cat_epoch"] is None
+    assert np.isclose(cat_entry["cat_lon"], 0.8718033763283803, atol=4e-9, rtol=0)
+    assert np.isclose(cat_entry["cat_lat"], 0.724518442710549, atol=4e-9, rtol=0)
+
+    # Note that if the test dataset were written perfectly, the apparent coords would
+    # perfectly translate back to the original values in the dataset, but there's a
+    # defect of ~0.5 arcsec in how the positions were recorded, which we tolerate
+    assert np.allclose(cat_entry["cat_lon"], mir_data.in_data["rar"], atol=4e-6, rtol=0)
+    assert np.allclose(
+        cat_entry["cat_lat"], mir_data.in_data["decr"], atol=4e-6, rtol=0
+    )
