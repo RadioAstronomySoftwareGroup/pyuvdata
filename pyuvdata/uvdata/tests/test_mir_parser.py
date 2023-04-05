@@ -482,7 +482,6 @@ def test_scan_int_start(mir_data):
 
 def test_fix_int_dict(mir_data):
     """Verify that we can fix a "bad" integration start record."""
-    mir_data._clear_auto()
     bad_entry = {2: {"inhid": 1, "record_size": 120, "record_start": 120}}
 
     good_dict = {
@@ -496,6 +495,12 @@ def test_fix_int_dict(mir_data):
             }
         }
     }
+
+    # First, check that doing the autos throws a warning since it's a not a
+    # "true" int_dict but instead is synthetically generated
+    with uvtest.check_warnings(UserWarning, "Cannot fix auto file headers for "):
+        mir_data._fix_int_dict("auto")
+
     # Muck with the records so that the inhid does not match that on disk.
     mir_data.sp_data._data["inhid"][:] = 2
     mir_data.bl_data._data["inhid"][:] = 2

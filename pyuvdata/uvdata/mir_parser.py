@@ -419,6 +419,9 @@ class MirParser(object):
             # Don't attempt to fix kludged headers, since this implies that the file
             # metadata cannot be trusted
             if idict[data_type]["ignore_header"]:
+                warnings.warn(
+                    "Cannot fix %s file headers for %s, skipping." % (data_type, ifile)
+                )
                 continue
 
             int_dict = copy.deepcopy(idict[data_type]["int_dict"])
