@@ -416,8 +416,12 @@ class MirParser(object):
             (auto-correlations).
         """
         for ifile, idict in self._file_dict.items():
-            if not idict[data_type]["ignore_header"]:
-                int_dict = copy.deepcopy(idict[data_type]["int_dict"])
+            # Don't attempt to fix kludged headers, since this implies that the file
+            # metadata cannot be trusted
+            if idict[data_type]["ignore_header"]:
+                continue
+
+            int_dict = copy.deepcopy(idict[data_type]["int_dict"])
 
             # Each file's inhid is allowed to be different than the objects inhid --
             # this is used in cases when combining multiple files together (via
@@ -584,6 +588,8 @@ class MirParser(object):
             if not indv_file_dict[data_type]["ignore_header"]:
                 good_check = True
                 for inhid, idict in int_data_dict.items():
+                    if inhid not in int_dict:
+                        continue
                     # There is very little to check in the packdata records, so make
                     # sure that this entry corresponds to the inhid and size we expect.
                     good_check &= idict["inhid"] == int_dict[inhid]["inhid"]
@@ -1399,7 +1405,7 @@ class MirParser(object):
         # If we are potentially downselecting data (typically used when calling select),
         # make sure that we actually have all the data we need loaded.
         if allow_downselect or (allow_downselect is None):
-            if load_cross:
+            if load_cross and not (self.vis_data is None and self.raw_data is None):
                 try:
                     self._downselect_data(
                         select_vis=load_vis, select_raw=load_raw, select_auto=False
@@ -1409,7 +1415,7 @@ class MirParser(object):
                     if allow_downselect:
                         warnings.warn("Cannot downselect cross-correlation data.")
 
-            if load_auto:
+            if load_auto and self.auto_data is not None:
                 try:
                     self._downselect_data(
                         select_vis=False, select_raw=False, select_auto=True
@@ -1474,7 +1480,6 @@ class MirParser(object):
             self._tsys_applied = False
         if unload_raw and self.raw_data is not None:
             for item in self.raw_data.values():
-                print(item.keys())
                 del item["data"]
                 del item["scale_fac"]
             self.raw_data = None

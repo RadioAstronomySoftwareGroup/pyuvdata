@@ -18,6 +18,7 @@ from ... import UVData
 from ... import tests as uvtest
 from ...data import DATA_PATH
 from ...uvdata.mir import Mir
+from ...uvdata.mir_parser import MirParser
 from ..uvdata import _future_array_shapes_warning
 
 
@@ -642,7 +643,6 @@ def test_rechunk_on_read():
     ],
 )
 def test_select_on_read(select_kwargs, sma_mir):
-    print(select_kwargs)
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_data = UVData.from_file(testfile, use_future_array_shapes=True, **select_kwargs)
     uv_data.history = sma_mir.history
@@ -701,3 +701,34 @@ def test_dedoppler_data(mir_data, sma_mir):
     mir_uv.data_array = sma_mir.data_array
     mir_uv.flag_array = sma_mir.flag_array
     assert sma_mir == mir_uv
+
+
+def test_source_pos_change_warning(mir_data, tmp_path):
+    # We need to spoof a new file to synthetically generate a two-integration dataset
+    filepath = os.path.join(tmp_path, "source_pos_change_warning")
+    with uvtest.check_warnings(UserWarning, "Writing out raw data with tsys applied."):
+        mir_data.write(filepath)
+
+    mir_copy = MirParser(filepath)
+
+    # Now combine the data
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Duplicate metadata found for the following attributes",
+            "These two objects contain data taken at the exact same time",
+            "Both objects do not have auto-correlation data.",
+        ],
+    ):
+        mir_copy.__iadd__(mir_data, force=True, merge=False)
+
+    print(mir_copy.auto_data)
+
+    # Muck the ra coord
+    mir_copy.in_data["rar"] = [0, 1]
+    mir_obj = Mir()
+
+    with uvtest.check_warnings(
+        UserWarning, "Position for 3c84 changes by more than an arcminute."
+    ):
+        mir_obj._init_from_mir_parser(mir_copy)
