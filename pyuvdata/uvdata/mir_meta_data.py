@@ -1136,7 +1136,8 @@ class MirMetaData(object):
             If set to True, return a list of tuples containing the value of each field
             (in the order provided in `field_name`). If False, return an ndarray or
             list of ndarrays, where each array contains the set of values matching the
-            specified selection criteria.
+            specified selection criteria. Default is to return tuples if multiple fields
+            are being extracted, otherwise to return an ndarray of values.
 
         Returns
         -------
