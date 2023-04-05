@@ -566,6 +566,7 @@ class MirMetaData(object):
         len : int
             Number of unique entries contained within the meta data.
         """
+        # TODO: Consider caching value as usage expands
         return np.sum(self._mask)
 
     def __eq__(self, other, verbose=False, ignore_params=None, use_mask=False):

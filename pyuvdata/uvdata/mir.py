@@ -7,6 +7,7 @@ import os
 import warnings
 
 import numpy as np
+from astropy.coordinates import angular_separation
 from astropy.time import Time
 
 from .. import get_telescope
@@ -761,9 +762,10 @@ class Mir(UVData):
         isource = np.unique(mir_data.in_data["isource"])
         for sou_id in isource:
             source_mask = mir_data.in_data["isource"] == sou_id
-            source_ra = np.mean(mir_data.in_data["rar"][source_mask]).astype(float)
-            source_dec = np.mean(mir_data.in_data["decr"][source_mask]).astype(float)
+            source_ra = mir_data.in_data["rar"][source_mask].astype(float)
+            source_dec = mir_data.in_data["decr"][source_mask].astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
+            source_name = mir_data.codes_data["source"][sou_id]
             if source_epoch != 2000.0:
                 # When fed a non-J2000 coordinate, we want to convert that so that it
                 # can easily be written into CASA MS format. In this case, we take the
@@ -771,31 +773,32 @@ class Mir(UVData):
                 time_arr = Time(
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd
-                icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
+                source_ra, source_dec = uvutils.transform_app_to_icrs(
                     time_arr,
                     mir_data.in_data["ara"][source_mask],
                     mir_data.in_data["adec"][source_mask],
                     self.telescope_location_lat_lon_alt,
                 )
-                self._add_phase_center(
-                    mir_data.codes_data["source"][sou_id],
-                    cat_type="sidereal",
-                    cat_lon=np.median(icrs_ra),
-                    cat_lat=np.median(icrs_dec),
-                    cat_frame="icrs",
-                    info_source="file",
-                    cat_id=int(sou_id),
-                )
-            else:
-                self._add_phase_center(
-                    mir_data.codes_data["source"][sou_id],
-                    cat_type="sidereal",
-                    cat_lon=source_ra,
-                    cat_lat=source_dec,
-                    cat_epoch=source_epoch,
-                    cat_frame="fk5",
-                    info_source="file",
-                    cat_id=int(sou_id),
+            self._add_phase_center(
+                source_name,
+                cat_type="sidereal",
+                cat_lon=np.median(source_ra),
+                cat_lat=np.median(source_dec),
+                cat_epoch=None if (source_epoch != 2000.0) else source_epoch,
+                cat_frame="icrs" if (source_epoch != 2000.0) else "fk5",
+                info_source="file",
+                cat_id=int(sou_id),
+            )
+
+            # See if the ra/dec positions change by more than an arcmin, and if so,
+            # raise a warning to the user since this isn't common.
+            dist_check = angular_separation(
+                source_ra[0], source_dec[0], source_ra, source_dec
+            )
+
+            if any(dist_check > ((np.pi / 180.0) / 60)):
+                warnings.warn(
+                    "Position for %s changes by more than an arcminute." % source_name
                 )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
