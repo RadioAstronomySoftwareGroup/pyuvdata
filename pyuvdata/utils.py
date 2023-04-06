@@ -2699,14 +2699,14 @@ def transform_icrs_to_app(
                     frame="lunartopo",
                 )
             )
+            time_obj_array = LTime(time_obj_array)
 
+        time_obj_array.location = site_loc
         app_ha, app_dec = erfa.ae2hd(
             azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad
         )
         app_ra = np.mod(
-            time_obj_array.sidereal_time("apparent", longitude=site_loc.lon).rad
-            - app_ha,
-            2 * np.pi,
+            time_obj_array.sidereal_time("apparent").rad - app_ha, 2 * np.pi
         )
 
     elif astrometry_library == "novas":
@@ -2961,10 +2961,14 @@ def transform_app_to_icrs(
         time_obj_array = Time([time_obj_array])
 
     if astrometry_library == "astropy":
+        if hasmoon and isinstance(site_loc, MoonLocation):
+            time_obj_array = LTime(time_obj_array)
+
+        time_obj_array.location = site_loc
+
         az_coord, el_coord = erfa.hd2ae(
             np.mod(
-                time_obj_array.sidereal_time("apparent", longitude=site_loc.lon).rad
-                - ra_coord.to_value("rad"),
+                time_obj_array.sidereal_time("apparent").rad - ra_coord.to_value("rad"),
                 2 * np.pi,
             ),
             dec_coord.to_value("rad"),
@@ -3067,7 +3071,7 @@ def calc_frame_pos_angle(
 
     Paramters
     ---------
-    time_array : float or ndarray of floats
+    time_array : ndarray of floats
         Array of julian dates to calculate position angle values for, of shape
         (Ntimes,).
     app_ra : ndarray of floats
@@ -3102,6 +3106,8 @@ def calc_frame_pos_angle(
         # No-op detected, ENGAGE MAXIMUM SNARK!
         return np.zeros_like(time_array)
 
+    assert offset_pos > 0, "offset_pos must be greater than 0."
+
     # This creates an array of unique entries of ra + dec + time, since the processing
     # time for each element can be non-negligible, and entries along the Nblt axis can
     # be highly redundant.
@@ -3123,8 +3129,8 @@ def calc_frame_pos_angle(
 
     # Offset north/south positions by 0.5 deg, such that the PA is determined over a
     # 1 deg arc.
-    up_dec = unique_dec + (np.pi / 360.0)
-    dn_dec = unique_dec - (np.pi / 360.0)
+    up_dec = unique_dec + offset_pos
+    dn_dec = unique_dec - offset_pos
     up_ra = dn_ra = unique_ra
 
     # Wrap the positions if they happen to go over the poles
@@ -3783,7 +3789,13 @@ def calc_sidereal_coords(
 
 
 def get_lst_for_time(
-    jd_array, latitude, longitude, altitude, astrometry_library=None, frame="itrs"
+    jd_array=None,
+    latitude=None,
+    longitude=None,
+    altitude=None,
+    astrometry_library=None,
+    frame="itrs",
+    telescope_loc=None,
 ):
     """
     Get the local apparent sidereal time for a set of jd times at an earth location.
@@ -3842,25 +3854,47 @@ def get_lst_for_time(
 
     jd, reverse_inds = np.unique(jd_array, return_inverse=True)
 
-    if frame.upper() == "MCMF":
-        if not hasmoon:
+    site_loc = None
+    if telescope_loc is not None:
+        if not all(item is None for item in [latitude, longitude, altitude]):
             raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
+                "Cannot set both telescope_loc and latitude/longitude/altitude"
             )
-        TimeClass = LTime
-        loc = MoonLocation.from_selenodetic(
-            Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude
-        )
+        if isinstance(telescope_loc, EarthLocation) or (
+            hasmoon and isinstance(telescope_loc, MoonLocation)
+        ):
+            site_loc = telescope_loc
+        else:
+            latitude, longitude, altitude = telescope_loc
+
+    if site_loc is None:
+        if frame.upper() == "MCMF":
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MCMF frame."
+                )
+            site_loc = MoonLocation.from_selenodetic(
+                Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude
+            )
+        else:
+            site_loc = EarthLocation.from_geodetic(
+                Angle(longitude, unit="deg"),
+                Angle(latitude, unit="deg"),
+                height=altitude,
+            )
+
+    if isinstance(site_loc, EarthLocation):
+        TimeClass = Time
+    else:
         if not astrometry_library == "astropy":
             raise NotImplementedError(
                 "The MCMF frame is only supported with the 'astropy' astrometry "
                 "library"
             )
-    else:
-        TimeClass = Time  # astropy.time.Time
-        loc = (Angle(longitude, unit="deg"), Angle(latitude, unit="deg"), altitude)
+        TimeClass = LTime
 
-    times = TimeClass(jd, format="jd", scale="utc", location=loc)
+    times = TimeClass(jd, format="jd", scale="utc", location=site_loc)
+    times.shape
 
     if iers.conf.auto_max_age is None:  # pragma: no cover
         delta, status = times.get_delta_ut1_utc(return_status=True)
@@ -3890,7 +3924,10 @@ def get_lst_for_time(
             reverse_inds
         ]
     elif astrometry_library == "astropy":
-        lst_array = times.sidereal_time("apparent").radian[reverse_inds]
+        lst_array = times.sidereal_time("apparent").radian
+        if lst_array.ndim == 0:
+            lst_array = lst_array.reshape(1)
+        lst_array = lst_array[reverse_inds]
     elif astrometry_library == "novas":
         # Import the NOVAS library only if it's needed/available.
         try:
@@ -3973,6 +4010,170 @@ def check_lsts_against_times(
             "telescope location. Consider recomputing with the "
             "`set_lsts_from_time_array` method."
         )
+
+
+def uvw_track_generator(
+    lon_coord=None,
+    lat_coord=None,
+    coord_frame="icrs",
+    coord_epoch=None,
+    coord_type="sidereal",
+    time_array=None,
+    telescope_loc=None,
+    antenna_frame=None,
+    antenna_positions=None,
+    antenna_numbers=None,
+    ant_1_array=None,
+    ant_2_array=None,
+):
+    """
+    Calculate uvw coordinates (among other values) for a given position on the sky.
+
+    This function is meant to be a user-friendly wrapper around several pieces of code
+    for effectively simulating a track. Note that the naming of things may change
+    before this hits a PR.
+
+    Parameters
+    ----------
+    lon_coord : float or ndarray of float
+        Longitudinal (e.g., RA) coordinates, units of radians. Must match the same
+        shape as lat_coord.
+    lat_coord : float or ndarray of float
+        Latitudinal (e.g., Dec) coordinates, units of radians. Must match the same
+        shape as lon_coord.
+    coord_frame : string
+        The requested reference frame for the output coordinates, can be any frame
+        that is presently supported by astropy.
+    coord_epoch : float or str or Time object, optional
+        Epoch for ref_frame, nominally only used if converting to either the FK4 or
+        FK5 frames, in units of fractional years. If provided as a float and the
+        ref_frame is an FK4-variant, value will assumed to be given in Besselian
+        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
+        in Julian years.
+    time_array : float or ndarray of float or Time object
+        Times for which the apparent coordinates were calculated, in UTC JD. Must
+        match the shape of lon_coord and lat_coord.
+    telescope_loc : array-like of floats or EarthLocation or MoonLocation
+        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+        of the array. Can either be provided as an astropy EarthLocation, a lunarsky
+        Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
+        longitude, and altitude for a position on Earth in units of radians, radians,
+        and meters, respectively.
+    antenna_frame : str, optional
+        Reference frame for latitude/longitude/altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+    antenna_positions : ndarray of float
+        List of antenna positions relative to array center in ECEF coordinates,
+        required if not providing `uvw_array`. Shape is (Nants, 3).
+    antenna_numbers: ndarray of int, optional
+        List of antenna numbers, ordered in the same way as `antenna_positions` (e.g.,
+        `antenna_numbers[0]` should given the number of antenna that resides at ECEF
+        position given by `antenna_positions[0]`). Shape is (Nants,), requred if
+        supplying ant_1_array and ant_2_array.
+    ant_1_array : ndarray of int, optional
+        Antenna number of the first antenna in the baseline pair, for all baselines
+        Required if not providing `uvw_array`, shape is (Nblts,). If not supplied, then
+        the method will automatically fill in ant_1_array with all unique antenna
+        pairings for each time/position.
+    ant_2_array : ndarray of int, optional
+        Antenna number of the second antenna in the baseline pair, for all baselines
+        Required if not providing `uvw_array`, shape is (Nblts,). If not supplied, then
+        the method will automatically fill in ant_2_array with all unique antenna
+        pairings for each time/position.
+
+    Returns
+    -------
+    obs_dict : dict
+        Dictionary containing the results of the simulation, the only key of which
+        is 'uvw' for the uvw-coordinates of the observation.
+    """
+    if isinstance(telescope_loc, EarthLocation) or (
+        hasmoon and isinstance(telescope_loc, MoonLocation)
+    ):
+        site_loc = telescope_loc
+    elif antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
+        site_loc = MoonLocation.from_selenodetic(
+            Angle(telescope_loc[1], unit="deg"),
+            Angle(telescope_loc[0], unit="deg"),
+            telescope_loc[2],
+        )
+    else:
+        site_loc = EarthLocation.from_geodetic(
+            Angle(telescope_loc[1], unit="deg"),
+            Angle(telescope_loc[0], unit="deg"),
+            height=telescope_loc[2],
+        )
+
+    if not isinstance(lon_coord, np.ndarray):
+        lon_coord = np.array(lon_coord)
+    if not isinstance(lat_coord, np.ndarray):
+        lat_coord = np.array(lat_coord)
+    if not isinstance(time_array, np.ndarray):
+        time_array = np.array(time_array)
+
+    if lon_coord.ndim == 0:
+        lon_coord = lon_coord.reshape(1)
+    if lat_coord.ndim == 0:
+        lat_coord = lat_coord.reshape(1)
+    if time_array.ndim == 0:
+        time_array = time_array.reshape(1)
+
+    Ntimes = len(time_array)
+
+    if all([item is None for item in [antenna_numbers, ant_1_array, ant_2_array]]):
+        antenna_numbers = np.arange(1, 1 + len(antenna_positions))
+        ant_1_array = []
+        ant_2_array = []
+        for idx in range(len(antenna_positions)):
+            for jdx in range(idx + 1, len(antenna_positions)):
+                ant_1_array.append(idx + 1)
+                ant_2_array.append(jdx + 1)
+
+        Nbase = len(ant_1_array)
+
+        ant_1_array = np.tile(ant_1_array, Ntimes)
+        ant_2_array = np.tile(ant_2_array, Ntimes)
+        if (len(lon_coord) != 1) or (len(lon_coord) == len(time_array)):
+            lon_coord = np.repeat(lon_coord, Nbase)
+            lat_coord = np.repeat(lat_coord, Nbase)
+
+        time_array = np.repeat(time_array, Nbase)
+
+    lst_array = get_lst_for_time(
+        jd_array=time_array, telescope_loc=site_loc, frame=antenna_frame
+    )
+
+    app_ra, app_dec = calc_app_coords(
+        lon_coord=lon_coord,
+        lat_coord=lat_coord,
+        coord_frame="icrs",
+        coord_type=coord_type,
+        time_array=time_array,
+        lst_array=lst_array,
+        telescope_loc=site_loc,
+    )
+
+    frame_pa = calc_frame_pos_angle(
+        time_array, app_ra, app_dec, site_loc, coord_frame, ref_epoch=coord_epoch
+    )
+
+    uvws = calc_uvw(
+        app_ra=app_ra,
+        app_dec=app_dec,
+        frame_pa=frame_pa,
+        lst_array=lst_array,
+        antenna_positions=antenna_positions,
+        antenna_numbers=antenna_numbers,
+        ant_1_array=ant_1_array,
+        ant_2_array=ant_2_array,
+        telescope_lon=site_loc.lon.rad,
+    )
+    print("WOWZERS!")
+    return {"uvw": uvws}
 
 
 def _adj_list(vecs, tol, n_blocks=None):
