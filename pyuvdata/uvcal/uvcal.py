@@ -9,6 +9,7 @@ import threading
 import warnings
 
 import numpy as np
+from astropy.coordinates import EarthLocation
 
 from .. import parameter as uvp
 from .. import telescopes as uvtel
@@ -571,6 +572,35 @@ class UVCal(UVBase):
         :func:`~pyuvdata.uvcal.initializers.new_uvcal` function.
         """
         return initializers.new_uvcal(**kwargs)
+
+    @classmethod
+    def from_uvdata(cls, uvd: UVData, **kwargs):
+        """
+        Create a new UVCal object from a UVData object.
+
+        All parameters are passed through to the
+        :func:`~pyuvdata.uvcal.initializers.new_uvdata` function, but those that can
+        be set from the UVData object directly are not required.
+        """
+        utimes, indx = np.unique(uvd.time_array, return_index=True)
+        return initializers.new_uvcal(
+            freq_array=uvd.freq_array,
+            time_array=utimes,
+            antenna_positions=uvd.antenna_positions,
+            antenna_names=uvd.antenna_names,
+            antenna_numbers=uvd.antenna_numbers,
+            telescope_location=EarthLocation.from_geodetic(
+                lat=uvd.telescope_location_lat_lon_alt_degrees[0],
+                lon=uvd.telescope_location_lat_lon_alt_degrees[1],
+                height=uvd.telescope_location_lat_lon_alt[2],
+            ),
+            telescope_name=uvd.telescope_name,
+            integration_time=uvd.integration_time[indx],
+            channel_width=uvd.channel_width,
+            flex_spw_id_array=uvd.flex_spw_id_array,
+            x_orientation=kwargs.get("x_orientation", uvd.x_orientation),
+            **kwargs,
+        )
 
     def _set_flex_spw(self):
         """

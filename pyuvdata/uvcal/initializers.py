@@ -8,6 +8,7 @@ from astropy.time import Time
 
 from .. import __version__
 from ..uvdata.initializers import (
+    XORIENTMAP,
     Locations,
     get_antenna_params,
     get_freq_params,
@@ -24,8 +25,8 @@ def new_uvcal(
     telescope_name: str,
     cal_style: Literal["sky", "redundant"],
     gain_convention: Literal["divide", "multiply"],
-    x_orientation: Literal["east", "north", "e", "n", "ew", "ns"],
     jones_array: np.ndarray | str,
+    x_orientation: Literal["east", "north", "e", "n", "ew", "ns"],
     delay_array: np.ndarray | None = None,
     cal_type: Literal["delay", "gain", "unknown"] | None = None,
     integration_time: float | np.ndarray | None = None,
@@ -167,14 +168,6 @@ def new_uvcal(
         f"pyuvdata version {__version__}."
     )
 
-    XORIENTMAP = {
-        "east": "east",
-        "north": "north",
-        "e": "east",
-        "n": "north",
-        "ew": "east",
-        "ns": "north",
-    }
     x_orientation = XORIENTMAP[x_orientation.lower()]
 
     if delay_array is not None and cal_type is None:

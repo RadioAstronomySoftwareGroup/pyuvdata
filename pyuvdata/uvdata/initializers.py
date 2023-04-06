@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import warnings
-from itertools import product
+from itertools import combinations_with_replacement
 from typing import Any, Literal, Sequence, Union
 
 import numpy as np
@@ -19,6 +19,16 @@ try:
 except ImportError:
     hasmoon = False
     Locations = EarthLocation
+
+
+XORIENTMAP = {
+    "east": "east",
+    "north": "north",
+    "e": "east",
+    "n": "north",
+    "ew": "east",
+    "ns": "north",
+}
 
 
 def get_antenna_params(
@@ -322,6 +332,7 @@ def new_uvdata(
     time_axis_faster_than_bls: bool | None = None,
     phase_center_catalog: dict[str, Any] | None = None,
     phase_center_id_array: np.ndarray | None = None,
+    x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -429,6 +440,8 @@ def new_uvdata(
     phase_center_id_array : ndarray of int, optional
         Array of phase center ids. If not provided, it will be initialized to the first
         id found in ``phase_center_catalog``. It must have shape ``(Nblts,)``.
+    x_orientation : str
+        Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
 
     Other Parameters
     ----------------
@@ -453,7 +466,7 @@ def new_uvdata(
     )
 
     if antpairs is None:
-        antpairs = list(product(antenna_numbers, antenna_numbers))
+        antpairs = list(combinations_with_replacement(antenna_numbers, 2))
         do_blt_outer = True
 
     (
@@ -496,6 +509,9 @@ def new_uvdata(
         f"pyuvdata version {__version__}."
     )
 
+    if x_orientation is not None:
+        x_orientation = XORIENTMAP[x_orientation.lower()]
+
     # Now set all the metadata
     obj.freq_array = freq_array
     obj.polarization_array = polarization_array
@@ -528,6 +544,7 @@ def new_uvdata(
     obj.spw_array = spw_array
     obj.flex_spw_id_array = flex_spw_id_array
     obj.integration_time = integration_time
+    obj.x_orientation = x_orientation
 
     set_phase_params(
         obj,
