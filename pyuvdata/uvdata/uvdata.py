@@ -775,8 +775,6 @@ class UVData(UVBase):
     def new(**kwargs):
         """Initialize a new UVData object from keyword arguments.
 
-        Parameters
-        ----------
         All parameters passed through to the
         :func:`~pyuvdata.uvdata.initializers.new_uvdata` function.
         """

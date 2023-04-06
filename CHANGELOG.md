@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 objects, supports all file types and a new `from_file` class method to allow one-line
 reading of UVCal files.
 - A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new,
-self-consisten `UVData` object from scratch from a set of flexible input parameters.
+self-consistent `UVData` object from scratch from a set of flexible input parameters.
 
 ### Deprecated
 - Reading in multiple files to `UVCal` using file-type specific read methods

@@ -1,6 +1,7 @@
 """Tests of in-memory initialization of UVData objects."""
 from __future__ import annotations
 
+import copy
 from typing import Any
 
 import numpy as np
@@ -11,8 +12,8 @@ from pyuvdata import UVData
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
     get_antenna_params,
-    get_baseline_params,
     get_freq_params,
+    get_spw_params,
     get_time_params,
 )
 
@@ -22,11 +23,14 @@ def simplest_working_params() -> dict[str, Any]:
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
         "polarization_array": ["xx", "yy"],
-        "antenna_positions": {0: [0, 0, 0], 1: [0, 0, 1], 2: [0, 0, 2]},
+        "antenna_positions": {
+            0: [0.0, 0.0, 0.0],
+            1: [0.0, 0.0, 1.0],
+            2: [0.0, 0.0, 2.0],
+        },
         "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
         "telescope_name": "test",
-        "unique_antpairs": [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2), (2, 2)],
-        "unique_times": np.linspace(2459855, 2459856, 20),
+        "times": np.linspace(2459855, 2459856, 20),
     }
 
 
@@ -36,9 +40,9 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
     assert uvd.Nfreqs == 100
     assert uvd.Npols == 2
     assert uvd.Nants_data == 3
-    assert uvd.Nbls == 6
+    assert uvd.Nbls == 9
     assert uvd.Ntimes == 20
-    assert uvd.Nblts == 120
+    assert uvd.Nblts == 180
     assert uvd.Nspws == 1
 
 
@@ -65,6 +69,18 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
             antenna_names=None,
             **badp,
         )
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "antenna_positions must be a dictionary with keys that are all type int "
+            "or all type str",
+        ),
+    ):
+        badp = {
+            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+        }
+        UVData.new(antenna_positions={1: [0, 1, 2], "2": [3, 4, 5]}, **badp)
 
     with pytest.raises(ValueError, match="Antenna names must be integers"):
         badp = {
@@ -127,16 +143,16 @@ def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
         get_time_params(
             telescope_location=simplest_working_params["telescope_location"],
             integration_time={"a": "dict"},
-            time_array=simplest_working_params["unique_times"],
+            time_array=simplest_working_params["times"],
         )
 
     with pytest.raises(
         ValueError, match="integration_time must be the same shape as time_array"
     ):
         get_time_params(
-            integration_time=np.ones(len(simplest_working_params["unique_times"]) + 1),
+            integration_time=np.ones(len(simplest_working_params["times"]) + 1),
             telescope_location=simplest_working_params["telescope_location"],
-            time_array=simplest_working_params["unique_times"],
+            time_array=simplest_working_params["times"],
         )
 
 
@@ -163,84 +179,68 @@ def test_bad_freq_inputs(simplest_working_params: dict[str, Any]):
         )
 
 
-def test_bad_baseline_inputs():
-    with pytest.raises(
-        ValueError, match="Either antpairs or unique_antpairs must be provided"
-    ):
-        get_baseline_params(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]])
-        )
-
-
 def test_bad_rectangularity_inputs():
     with pytest.raises(
-        ValueError, match="Either baseline_array or unique_baselines must be provided"
-    ):
-        configure_blt_rectangularity(unique_times=np.linspace(2459855, 2459856, 20))
-
-    with pytest.raises(
-        ValueError, match="Either time_array or unique_times must be provided"
+        ValueError,
+        match="If times and antpairs differ in length, times must all be unique",
     ):
         configure_blt_rectangularity(
-            unique_baselines=np.array([[0, 1], [0, 2], [1, 2]])
+            times=np.array([0, 1, 2, 3, 3]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (0, 1)]),
         )
 
     with pytest.raises(
         ValueError,
-        match="Only one of baseline_array or unique_baselines can be provided",
+        match="If times and antpairs differ in length, antpairs must all be unique",
     ):
         configure_blt_rectangularity(
-            unique_times=np.linspace(2459855, 2459856, 20),
-            unique_baselines=np.array([[0, 1], [0, 2], [1, 2]]),
-            baseline_array=np.array([0, 1, 2, 3, 4, 5]),
+            times=np.array([0, 1, 2, 3, 4]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (1, 2)]),
+        )
+
+    with pytest.raises(ValueError, match="It is impossible to determine"):
+        configure_blt_rectangularity(
+            times=np.array([0, 1, 2, 3]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (0, 3)]),
         )
 
     with pytest.raises(
-        ValueError, match="Only one of time_array or unique_times can be provided"
+        ValueError, match="times must be unique if do_blt_outer is True"
     ):
         configure_blt_rectangularity(
-            unique_times=np.linspace(2459855, 2459856, 20),
-            unique_baselines=np.array([[0, 1], [0, 2], [1, 2]]),
-            time_array=np.linspace(2459855, 2459856, 20),
+            times=np.array([0, 1, 2, 3, 3]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (0, 1), (0, 2)]),
+            do_blt_outer=True,
         )
 
     with pytest.raises(
-        ValueError,
-        match="If unique_times are provided, unique_baselines must be provided",
+        ValueError, match="antpairs must be unique if do_blt_outer is True"
     ):
         configure_blt_rectangularity(
-            unique_times=np.linspace(2459855, 2459856, 20),
-            baseline_array=np.array([0, 1, 2, 3, 4, 5]),
+            times=np.array([0, 1, 2, 3, 4]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (0, 1), (0, 1)]),
+            do_blt_outer=True,
         )
 
     with pytest.raises(
-        ValueError,
-        match="If unique_baselines are provided, unique_times must be provided",
+        ValueError, match="blts_are_rectangular is True, but times and antpairs"
     ):
         configure_blt_rectangularity(
-            unique_baselines=np.array([[0, 1], [0, 2], [1, 2]]),
-            time_array=np.linspace(2459855, 2459856, 20),
-        )
-
-    with pytest.raises(
-        ValueError,
-        match="If unique_times are provided, blts_are_rectangular must be True",
-    ):
-        configure_blt_rectangularity(
-            unique_times=np.linspace(2459855, 2459856, 20),
-            unique_baselines=np.array([[0, 1], [0, 2], [1, 2]]),
-            blts_are_rectangular=False,
+            times=np.array([0, 1, 2]),
+            antpairs=np.array([(0, 1), (0, 2), (1, 2), (0, 2)]),
+            blts_are_rectangular=True,
+            do_blt_outer=False,
         )
 
 
 def test_alternate_antenna_inputs():
     antpos_dict = {
-        0: np.array([0, 0, 0]),
-        1: np.array([0, 0, 1]),
-        2: np.array([0, 0, 2]),
+        0: np.array([0.0, 0.0, 0.0]),
+        1: np.array([0.0, 0.0, 1.0]),
+        2: np.array([0.0, 0.0, 2.0]),
     }
 
-    antpos_array = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]])
+    antpos_array = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]], dtype=float)
     antnum = np.array([0, 1, 2])
     antname = np.array(["000", "001", "002"])
 
@@ -303,17 +303,6 @@ def test_alternate_freq_inputs():
     assert np.allclose(widths, widths3)
 
 
-def test_alternative_baseline_inputs():
-    antpos = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]])
-    ap = [(0, 0), (0, 1), (0, 2)]
-
-    bls, ubls = get_baseline_params(antenna_positions=antpos, antpairs=ap)
-    bls2, ubls2 = get_baseline_params(antenna_positions=antpos, unique_antpairs=ap)
-
-    assert np.all(bls == ubls2)
-    assert np.all(bls2 == ubls)
-
-
 def test_empty(simplest_working_params: dict[str, Any]):
     uvd = UVData.new(empty=True, **simplest_working_params)
 
@@ -349,7 +338,7 @@ def test_passing_data(simplest_working_params: dict[str, Any]):
     uvd = UVData.new(
         data_array=np.zeros(shape, dtype=complex),
         flag_array=np.ones(shape, dtype=bool),
-        nsample_array=np.ones(shape, dtype=int),
+        nsample_array=np.ones(shape, dtype=float),
         **simplest_working_params,
     )
 
@@ -391,10 +380,10 @@ def test_passing_kwargs(simplest_working_params: dict[str, Any]):
 
 def test_blt_rect():
     utimes = np.linspace(2459855, 2459856, 20)
-    ubls = np.array([1, 2, 3])
+    uaps = np.array([[1, 1], [1, 2], [2, 3]])
 
-    nbls, ntimes, rect, axis, times, bls = configure_blt_rectangularity(
-        unique_times=utimes, unique_baselines=ubls, time_axis_faster_than_bls=False
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=utimes, antpairs=uaps, time_axis_faster_than_bls=False
     )
 
     assert nbls == 3
@@ -403,14 +392,9 @@ def test_blt_rect():
     assert not axis
     assert len(times) == len(bls)
     assert times[1] == times[0]
-    assert bls[1] != bls[0]
 
-    TIMES, BLS = np.meshgrid(utimes, ubls)
-    TIMES = TIMES.flatten()
-    BLS = BLS.flatten()
-
-    nbls, ntimes, rect, axis, times, bls = configure_blt_rectangularity(
-        time_array=TIMES, baseline_array=BLS, blts_are_rectangular=True
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=utimes, antpairs=uaps, time_axis_faster_than_bls=True
     )
 
     assert nbls == 3
@@ -419,14 +403,12 @@ def test_blt_rect():
     assert axis
     assert len(times) == len(bls)
     assert times[1] != times[0]
-    assert bls[1] == bls[0]
 
-    BLS, TIMES = np.meshgrid(ubls, utimes)
-    TIMES = TIMES.flatten()
-    BLS = BLS.flatten()
+    TIMES = np.repeat(utimes, len(uaps))
+    BLS = np.tile(uaps, (len(utimes), 1))
 
-    nbls, ntimes, rect, axis, times, bls = configure_blt_rectangularity(
-        time_array=TIMES, baseline_array=BLS, blts_are_rectangular=True
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=TIMES, antpairs=BLS, blts_are_rectangular=True
     )
 
     assert nbls == 3
@@ -435,10 +417,23 @@ def test_blt_rect():
     assert not axis
     assert len(times) == len(bls)
     assert times[1] == times[0]
-    assert bls[1] != bls[0]
 
-    nbls, ntimes, rect, axis, times, bls = configure_blt_rectangularity(
-        time_array=TIMES, baseline_array=BLS, blts_are_rectangular=False
+    TIMES = np.tile(utimes, len(uaps))
+    BLS = np.repeat(uaps, len(utimes), axis=0)
+
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=TIMES, antpairs=BLS, blts_are_rectangular=True
+    )
+
+    assert nbls == 3
+    assert ntimes == 20
+    assert rect
+    assert axis
+    assert len(times) == len(bls)
+    assert times[1] != times[0]
+
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=TIMES, antpairs=BLS, blts_are_rectangular=False
     )
 
     assert nbls == 3
@@ -446,17 +441,50 @@ def test_blt_rect():
     assert not rect
     assert not axis
     assert len(times) == len(bls)
-    assert times[1] == times[0]
-    assert bls[1] != bls[0]
+    assert times[1] != times[0]
 
-    nbls, ntimes, rect, axis, times, bls = configure_blt_rectangularity(
-        time_array=TIMES, baseline_array=BLS
+    nbls, ntimes, rect, axis, times, bls, _ = configure_blt_rectangularity(
+        times=TIMES, antpairs=BLS
     )
 
     assert nbls == 3
     assert ntimes == 20
     assert rect
-    assert not axis
+    assert axis
     assert len(times) == len(bls)
-    assert times[1] == times[0]
-    assert bls[1] != bls[0]
+    assert times[1] != times[0]
+
+
+def test_set_phase_params(simplest_working_params):
+    obj = UVData.new(**simplest_working_params)
+
+    pcc = obj.phase_center_catalog
+
+    new = UVData.new(phase_center_catalog=pcc, **simplest_working_params)
+
+    assert new.phase_center_catalog == pcc
+
+    pccnew = copy.deepcopy(pcc)
+    pccnew[1] = copy.deepcopy(pccnew[0])
+    pccnew[1]["cat_type"] = "driftscan"
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "If phase_center_catalog has more than one key, "
+            "phase_center_id_array must be provided",
+        ),
+    ):
+        UVData.new(phase_center_catalog=pccnew, **simplest_working_params)
+
+
+def test_get_spw_params():
+    idarray = np.array([0, 0, 0, 0, 0])
+    freq = np.linspace(0, 1, 5)
+
+    _id, spw = get_spw_params(idarray, freq)
+    assert np.all(spw == 0)
+
+    idarray = np.array([0, 0, 0, 0, 1])
+    _id, spw = get_spw_params(idarray, freq)
+    assert np.all(spw == [0, 1])
