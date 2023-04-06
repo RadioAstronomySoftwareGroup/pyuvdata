@@ -11122,6 +11122,9 @@ def test_split_phase_center(hera_uvh5):
     assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id2)
     assert hera_uvh5.Nphase == 2
 
+    cat_id_all = hera_uvh5._look_for_name(["3c84", "3c84_2"])
+    assert np.all(np.isin(hera_uvh5.phase_center_id_array, cat_id_all))
+
     # Make sure the catalog makes sense -- entries should be identical sans cat_id
     temp_cat = hera_uvh5.phase_center_catalog.copy()
     temp_cat[cat_id1[0]]["cat_name"] = "3c84_2"
@@ -12910,5 +12913,8 @@ def test_select_catalog_name(carma_miriad):
     for cat_id, cat_dict in carma_miriad.phase_center_catalog.items():
         uv_name = carma_miriad.select(catalog_names=cat_dict["cat_name"], inplace=False)
         uv_id = carma_miriad.select(phase_center_ids=cat_id, inplace=False)
+
+        assert uv_id.history != uv_name.history
+        uv_id.history = uv_name.history = None
 
         assert uv_name == uv_id
