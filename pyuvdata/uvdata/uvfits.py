@@ -210,6 +210,7 @@ class UVFITS(UVData):
         polarizations,
         blt_inds,
         phase_center_ids,
+        catalog_names,
         keep_all_metadata,
         fix_old_proj,
         fix_use_ant_pos,
@@ -234,6 +235,7 @@ class UVFITS(UVData):
             polarizations,
             blt_inds,
             phase_center_ids,
+            catalog_names,
         )
 
         if blt_inds is not None:
@@ -357,6 +359,7 @@ class UVFITS(UVData):
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -443,7 +446,11 @@ class UVFITS(UVData):
             object. This is not commonly used. Ignored if read_data is False.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -857,7 +864,8 @@ class UVFITS(UVData):
                     lst_range,
                     polarizations,
                     blt_inds,
-                    None,
+                    phase_center_ids,
+                    catalog_names,
                     keep_all_metadata,
                     fix_old_proj,
                     fix_use_ant_pos,

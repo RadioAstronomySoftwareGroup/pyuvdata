@@ -1023,17 +1023,10 @@ class UVH5(UVData):
         polarizations,
         blt_inds,
         phase_center_ids,
+        catalog_names,
         data_array_dtype,
         keep_all_metadata,
         multidim_index,
-        run_check,
-        check_extra,
-        run_check_acceptability,
-        strict_uvw_antpos_check,
-        fix_old_proj,
-        fix_use_ant_pos,
-        check_autos,
-        fix_autos,
     ):
         """
         Read the data-size arrays (data, flags, nsamples) from a file.
@@ -1084,6 +1077,7 @@ class UVH5(UVData):
             polarizations,
             blt_inds,
             phase_center_ids,
+            catalog_names,
         )
 
         # figure out which axis is the most selective
@@ -1343,6 +1337,7 @@ class UVH5(UVData):
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -1435,7 +1430,11 @@ class UVH5(UVData):
             object. This is not commonly used. Ignored if read_data is False.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -1576,17 +1575,10 @@ class UVH5(UVData):
                 polarizations,
                 blt_inds,
                 phase_center_ids,
+                catalog_names,
                 data_array_dtype,
                 keep_all_metadata,
                 multidim_index,
-                run_check,
-                check_extra,
-                run_check_acceptability,
-                strict_uvw_antpos_check,
-                fix_old_proj,
-                fix_use_ant_pos,
-                check_autos,
-                fix_autos,
             )
 
         # Finally, backfill the apparent coords if they aren't in the original datafile
@@ -2179,10 +2171,10 @@ class UVH5(UVData):
         time_range=None,
         lsts=None,
         lst_range=None,
-        catalog_identifier=None,
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         run_check_acceptability=True,
         add_to_history=None,
     ):
@@ -2268,8 +2260,12 @@ class UVH5(UVData):
             The baseline-time indices to include when writing data to the file.
             This is not commonly used.
         phase_center_ids : array_like of int, optional
-            Phase center IDs to include when writing data into the file (effectively
-            a selection on baseline-times).
+            Phase center IDs to include when reading data into the object (effectively
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         add_to_history : str
             String to append to history before write out. Default is no appending.
 
@@ -2327,6 +2323,7 @@ class UVH5(UVData):
             polarizations,
             blt_inds,
             phase_center_ids,
+            catalog_names,
         )
 
         # make sure that the dimensions of the data to write are correct

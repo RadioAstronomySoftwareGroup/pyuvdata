@@ -826,7 +826,7 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        cat_name : str
+        cat_name : str or list of str
             Name to match against entries in phase_center_catalog.
 
         Returns
@@ -834,11 +834,18 @@ class UVData(UVBase):
         cat_id_list : list
             List of all catalog IDs which match the given name.
         """
-        return [
-            pc_id
-            for pc_id, pc_dict in self.phase_center_catalog.items()
-            if pc_dict["cat_name"] == cat_name
-        ]
+        if isinstance(cat_name, str):
+            return [
+                pc_id
+                for pc_id, pc_dict in self.phase_center_catalog.items()
+                if pc_dict["cat_name"] == cat_name
+            ]
+        else:
+            return [
+                pc_id
+                for pc_id, pc_dict in self.phase_center_catalog.items()
+                if pc_dict["cat_name"] in cat_name
+            ]
 
     def _look_in_catalog(
         self,
@@ -8594,6 +8601,7 @@ class UVData(UVBase):
         polarizations,
         blt_inds,
         phase_center_ids,
+        catalog_names,
     ):
         """
         Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
@@ -8666,8 +8674,13 @@ class UVData(UVBase):
         sources : str or list of str, optional
             Names of the phase centers to keep in the object, matched against entries
             in the phase center catalog ("cat_name").
-        cat_ids : array_like of int, optional
-            ID numbers of phase centers to keep.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
 
         Returns
         -------
@@ -8713,6 +8726,12 @@ class UVData(UVBase):
             history_update_string += "baseline-times"
             n_selects += 1
 
+        if (phase_center_ids is not None) and (catalog_names is not None):
+            raise ValueError("Cannot set both phase_center_ids and catalog_names.")
+
+        if catalog_names is not None:
+            phase_center_ids = self._look_for_name(catalog_names)
+
         if phase_center_ids is not None:
             phase_center_ids = np.array(uvutils._get_iterable(phase_center_ids))
             pc_blt_inds = np.nonzero(
@@ -8726,10 +8745,14 @@ class UVData(UVBase):
                 )
             else:
                 blt_inds = pc_blt_inds
+
+            update_substring = (
+                "phase center IDs" if (catalog_names is None) else "catalog names"
+            )
             if n_selects > 0:
-                history_update_string += ", phase center IDs"
+                history_update_string += ", " + update_substring
             else:
-                history_update_string += "phase center IDs"
+                history_update_string += update_substring
             n_selects += 1
 
         if antenna_names is not None:
@@ -9392,7 +9415,7 @@ class UVData(UVBase):
         phase_center_ids : array_like of int, optional
             Phase center IDs to keep on the object (effectively a selection on
             baseline-times). Cannot be used with `catalog_names`.
-        catalog_names : str or array-like of str
+        catalog_names : str or array-like of str, optional
             The names of the phase centers (sources) to keep in the object, which should
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
@@ -9435,15 +9458,6 @@ class UVData(UVBase):
         else:
             uv_obj = self.copy()
 
-        if catalog_names is not None:
-            if isinstance(catalog_names, str):
-                catalog_names = [catalog_names]
-            if phase_center_ids is not None:
-                raise ValueError("Cannot set both phase_center_ids and catalog_names.")
-            phase_center_ids = []
-            for cat_id, cat_dict in self.phase_center_catalog.items():
-                if cat_dict["cat_name"] in catalog_names:
-                    phase_center_ids.append(cat_id)
         # Figure out which index positions we want to hold on to.
         (
             blt_inds,
@@ -9464,6 +9478,7 @@ class UVData(UVBase):
             polarizations,
             blt_inds,
             phase_center_ids,
+            catalog_names,
         )
 
         # Call the low-level selection method.
@@ -11827,6 +11842,7 @@ class UVData(UVBase):
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         keep_all_metadata=True,
         read_data=True,
         background_lsts=True,
@@ -11913,7 +11929,11 @@ class UVData(UVBase):
             object. This is not commonly used. Ignored if read_data is False.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -11994,6 +12014,7 @@ class UVData(UVBase):
             lst_range=lst_range,
             polarizations=polarizations,
             blt_inds=blt_inds,
+            catalog_names=catalog_names,
             phase_center_ids=phase_center_ids,
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
@@ -12027,6 +12048,7 @@ class UVData(UVBase):
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         keep_all_metadata=True,
         read_data=True,
         data_array_dtype=np.complex128,
@@ -12120,7 +12142,11 @@ class UVData(UVBase):
             object. This is not commonly used. Ignored if read_data is False.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -12241,6 +12267,7 @@ class UVData(UVBase):
             polarizations=polarizations,
             blt_inds=blt_inds,
             phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
             data_array_dtype=data_array_dtype,
             keep_all_metadata=keep_all_metadata,
             read_data=read_data,
@@ -12496,9 +12523,10 @@ class UVData(UVBase):
             length-3 tuples, the polarization string is in the order of the two
             antennas. If length-3 tuples are provided, `polarizations` must be
             None.
-        catalog_names : str or array-like of str
+        catalog_names : str or array-like of str, optional
             The names of the phase centers (sources) to include when reading data into
             the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
@@ -12533,7 +12561,7 @@ class UVData(UVBase):
             object. This is not commonly used.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -13393,6 +13421,7 @@ class UVData(UVBase):
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     read_data=read_data,
                     keep_all_metadata=keep_all_metadata,
                     background_lsts=background_lsts,
@@ -13542,6 +13571,7 @@ class UVData(UVBase):
                     polarizations=polarizations,
                     blt_inds=blt_inds,
                     phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     read_data=read_data,
                     data_array_dtype=data_array_dtype,
                     keep_all_metadata=keep_all_metadata,
@@ -13862,7 +13892,11 @@ class UVData(UVBase):
             object. This is not commonly used.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to include when reading data into
+            the object, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -14677,6 +14711,7 @@ class UVData(UVBase):
         polarizations=None,
         blt_inds=None,
         phase_center_ids=None,
+        catalog_names=None,
         add_to_history=None,
         run_check_acceptability=True,
         fix_autos=False,
@@ -14763,7 +14798,11 @@ class UVData(UVBase):
             This is not commonly used.
         phase_center_ids : array_like of int, optional
             Phase center IDs to include when writing data into the file (effectively
-            a selection on baseline-times).
+            a selection on baseline-times). Cannot be used with catalog_names.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to include when writing data to
+            the file, which should match exactly in spelling and capitalization.
+            Cannot be used with phase_center_ids.
         add_to_history : str
             String to append to history before write out. Default is no appending.
         run_check_acceptability : bool
@@ -14801,6 +14840,7 @@ class UVData(UVBase):
             polarizations=polarizations,
             blt_inds=blt_inds,
             phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
             add_to_history=add_to_history,
             run_check_acceptability=run_check_acceptability,
         )
