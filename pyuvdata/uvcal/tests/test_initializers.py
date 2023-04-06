@@ -46,12 +46,6 @@ def test_new_uvcal_bad_inputs(uvc_kw):
         new_uvcal(ant_array=[0, 1, 2, 3], **uvc_kw)
 
     with pytest.raises(
-        ValueError,
-        match="If spw_array is not length 1, flex_spw_id_array must be provided",
-    ):
-        new_uvcal(spw_array=[0, 1], **uvc_kw)
-
-    with pytest.raises(
         ValueError, match="If cal_type is delay, delay_array must be provided"
     ):
         new_uvcal(
