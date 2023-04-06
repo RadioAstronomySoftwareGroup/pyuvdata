@@ -315,13 +315,14 @@ class FastUVH5Meta:
         elif isinstance(path, (str, Path)):
             self.path = Path(path)
 
-        if not self.__file:  # either None, or False (not open)
-            self.open()
-
         self.__blts_are_rectangular = blts_are_rectangular
         self.__time_first = time_axis_faster_than_bls
         self.__blt_order = blt_order
         self._recompute_nbls = recompute_nbls
+
+    def is_open(self) -> bool:
+        """Whether the file is open."""
+        return bool(self.__file)
 
     def __del__(self):
         """Close the file when the object is deleted."""
@@ -330,7 +331,7 @@ class FastUVH5Meta:
 
     def __getstate__(self):
         """Get the state of the object."""
-        state = {
+        return {
             k: v
             for k, v in self.__dict__.items()
             if k
@@ -342,13 +343,11 @@ class FastUVH5Meta:
                 "datagrp",
             )
         }
-        return state
 
     def __setstate__(self, state):
         """Set the state of the object."""
         self.__dict__.update(state)
         self.__file = None
-        self.open()
 
     def __eq__(self, other):
         """Check equality of two FastUVH5Meta objects."""
@@ -404,6 +403,13 @@ class FastUVH5Meta:
         if not self.__file:
             self.open()
         return self.__datagrp
+
+    def get_transactional(self, item: str):
+        """Get an attribute from the metadata but close the file object afterwards."""
+        try:
+            return getattr(self, item)
+        finally:
+            self.close()
 
     def __getattr__(self, name: str) -> Any:
         """Get attribute directly from header group."""

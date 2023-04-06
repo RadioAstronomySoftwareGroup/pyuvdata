@@ -3726,3 +3726,10 @@ class TestFastUVH5Meta:
 
         assert meta == meta
         assert meta != 1
+
+    def test_transactional(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+
+        lsts = meta.get_transactional("lsts")
+        assert not meta.is_open()
+        assert np.allclose(lsts, meta.lsts)
