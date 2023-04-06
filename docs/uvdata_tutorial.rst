@@ -292,6 +292,61 @@ approximation, and there is an option to instead use a slower integral implement
 
 .. _quick_access:
 
+UVData: Instantiating from arrays in memory
+-------------------------------------------
+``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
+is useful for mocking up data for testing or for creating a UVData object from
+simulated data. Instead of instantiating a blank object and setting each required
+parameter, you can use the ``.new()`` static method, which deals with the task
+of creating a consistent object from a minimal set of inputs
+
+.. code-block:: python
+
+  >>> from pyuvdata import UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> uvd = UVData.new(
+          freq_array = np.linspace(1e8, 2e8, 100),
+          polarization_array = ["xx", "yy"],
+          antenna_positions = {
+              0: [0.0, 0.0, 0.0],
+              1: [0.0, 0.0, 1.0],
+              2: [0.0, 0.0, 2.0],
+          },
+          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+          telescope_name = "test",
+          times = np.linspace(2459855, 2459856, 20),
+      )
+
+Notice that you need only provide the required parameters, and the rest will be
+filled in with sensible defaults. Importantly, the times and baselines can be provided
+either as unique values, with the intention that their cartesian outer product should be
+used (i.e. the combination of each provided time with each baseline), or as full
+length-Nblt arrays (if you don't require all combinations). While this behaviour can
+be inferred, it is best to set the ``do_blt_product`` keyword to ``True`` or ``False``
+to enable this:
+
+.. code-block:: python
+
+  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.1])
+  >>> antpairs = [(0, 1), (0, 2), (1, 2), (0, 1)]
+  >>> uvd = UVData.new(
+          freq_array = np.linspace(1e8, 2e8, 100),
+          polarization_array = ["xx", "yy"],
+          antenna_positions = {
+              0: [0.0, 0.0, 0.0],
+              1: [0.0, 0.0, 1.0],
+              2: [0.0, 0.0, 2.0],
+          },
+          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+          telescope_name = "test",
+          times = times,
+          antpairs=antpairs,
+          do_blt_product=False,
+      )
+
+See the full documentation for the function
+:func:`pyuvdata.uvdata.initializers.new_uvdata` for more information.
+
 UVData: Quick data access
 -------------------------
 A small suite of functions are available to quickly access the underlying numpy
@@ -1415,8 +1470,8 @@ d) Accessing partial metadata for uvh5 files
 For UVH5 files, you can access specific metadata without reading in the entire metadata,
 which is useful when, for example, you have thousands of files and need to quickly filter
 which files to eventually read based on the times. Instead of reading in the entire metadata
-for each file, you can read just the time array (for example), using the specialty
-``FastUVH5Meta`` class.
+for each file, you can read just the time array, using the specialty ``FastUVH5Meta``
+class.
 
 .. code-block:: python
 
@@ -1426,35 +1481,11 @@ for each file, you can read just the time array (for example), using the special
 
   # No data is read in when creating the object, and you can access each bit of metadata
   # individually, and it will lazy-load from the file
-  >>> print(len(meta.time_array))
-  200
+  >>> print(meta.time_array)
 
-  # Once loaded, the data is cached, so you can access it again without reading from disk
-  >>> "time_array" in meta.__dict__
-  True
-
-  # Once you've decided if you need this datafile, you can instantiate a
-  # (metadata-only) UVData object
+  # Once you've decided if you need this data, you can instantiate a (metadata-only) UVData
+  # object
   >>> uvd = meta.to_uvdata()
-
-  # If the metadata itself doesn't define whether the blt-axis is rectangular, this can
-  # be specified directly, which speeds up accessing the unique baselines and times.
-  >>> meta = FastUVH5Meta(filename, blts_are_rectangular=True)
-
-  # By default, the h5py.File object is opened on the first time you access a metadata
-  # attribute, and then closed only when the object is deleted. If you loop through
-  # many files, this can be a problem, as h5py has a limit on the number of open files.
-  # You can access metadata without keeping the file open by with the following:
-  >>> lsts = meta.get_transactional('lst_array')
-
-  # If you also want the data not to be cached on the object, specify cache=False
-  >>> freqs = meta.get_transactional('freq_array', cache=False)
-  >>> "freq_array" in meta.__dict__
-  False
-
-  # FastUVH5Meta is meant to be a read-only view into the HDF5 file, not a general
-  # data manipulation class. You should *not* set attributes or use it to write to the
-  # file. Use UVData for that.
 
 .. _sorting_data:
 
