@@ -74,7 +74,7 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
         ValueError,
         match=(
             "antenna_positions must be a dictionary with keys that are all type int "
-            "or all type str",
+            "or all type str"
         ),
     ):
         badp = {
@@ -472,7 +472,7 @@ def test_set_phase_params(simplest_working_params):
         ValueError,
         match=(
             "If phase_center_catalog has more than one key, "
-            "phase_center_id_array must be provided",
+            "phase_center_id_array must be provided"
         ),
     ):
         UVData.new(phase_center_catalog=pccnew, **simplest_working_params)
