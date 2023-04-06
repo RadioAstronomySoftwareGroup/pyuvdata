@@ -15,6 +15,7 @@ from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
 from ..uvdata import UVData
+from . import initializers
 
 __all__ = ["UVCal"]
 
@@ -560,6 +561,16 @@ class UVCal(UVBase):
         )
 
         super(UVCal, self).__init__()
+
+    @staticmethod
+    def new(**kwargs):
+        """
+        Create a new UVCal object.
+
+        All parameters are passed through to the
+        :func:`~pyuvdata.uvcal.initializers.new_uvcal` function.
+        """
+        return initializers.new_uvcal(**kwargs)
 
     def _set_flex_spw(self):
         """

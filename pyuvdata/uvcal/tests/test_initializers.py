@@ -102,8 +102,40 @@ def test_new_uvcal_jones_array(uvc_kw):
     assert custom.Njones == 2
 
 
-def test_new_uvcal_set_delay(uvc_kw):
-    # TODO: actually implement this
+# def test_new_uvcal_set_delay(uvc_kw):
+#     # TODO: actually implement this
+#     uvc = {k: v for k, v in uvc_kw.items() if k != "cal_type"}
+#     dl = new_uvcal(delay_array=np.linspace(0, 1, 10), **uvc)
+#     assert dl.cal_type == "delay"
+
+
+def test_new_uvcal_set_sky(uvc_kw):
+    uvc = {k: v for k, v in uvc_kw.items() if k != "cal_style"}
+    sk = new_uvcal(
+        cal_style="sky",
+        ref_antenna_name="mock",
+        sky_catalog="mock",
+        sky_field="mock",
+        **uvc
+    )
+    assert sk.cal_style == "sky"
+    assert sk.ref_antenna_name == "mock"
+    assert sk.sky_catalog == "mock"
+    assert sk.sky_field == "mock"
+
+
+def test_new_uvcal_set_extra_keywords(uvc_kw):
+    uvc = new_uvcal(extra_keywords={"test": "test", "test2": "test2"}, **uvc_kw)
+    assert uvc.extra_keywords["test"] == "test"
+    assert uvc.extra_keywords["test2"] == "test2"
+
+
+def test_new_uvcal_set_empty(uvc_kw):
+    uvc = new_uvcal(empty=True, **uvc_kw)
+    assert uvc.flag_array.dtype == bool
+
+
+def test_new_uvcal_set_unknown_cal_type(uvc_kw):
     uvc = {k: v for k, v in uvc_kw.items() if k != "cal_type"}
-    dl = new_uvcal(delay_array=np.linspace(0, 1, 10), **uvc)
-    assert dl.cal_type == "delay"
+    new = new_uvcal(cal_type="unknown", **uvc)
+    assert new.cal_type == "unknown"

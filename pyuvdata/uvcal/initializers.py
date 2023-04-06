@@ -187,28 +187,19 @@ def new_uvcal(
             raise ValueError(f"Unrecognized keyword argument: {k}")
 
     if empty:
+        fshape = (uvc.Nants_data, uvc.Nfreqs, uvc.Ntimes, uvc.Njones)
+        sshape = (uvc.Nants_data, uvc.Nspws, uvc.Ntimes, uvc.Njones)
+
         # Flag array
-        uvc.flag_array = np.zeros(
-            uvc.Nants_data, uvc.Nfreqs, uvc.Ntimes, uvc.Njones, dtype=bool
-        )
-        uvc.gain_array = np.ones(
-            uvc.Nants_data, uvc.Nfreqs, uvc.Ntimes, uvc.Njones, dtype=complex
-        )
-        uvc.input_flag_array = uvc.flag_array.copy()
+        uvc.flag_array = np.zeros(fshape, dtype=bool)
+        uvc.gain_array = np.ones(fshape, dtype=complex)
+        uvc.input_flag_array = np.zeros(fshape, dtype=bool)
         if cal_type == "delay":
-            uvc.quality_array = np.zeros(
-                uvc.Nants_data, uvc.Nspws, uvc.Ntimes, uvc.Njones, dtype=float
-            )
-            uvc.total_quality_array = np.zeros(
-                uvc.Nspws, uvc.Ntimes, uvc.Njones, dtype=float
-            )
+            uvc.quality_array = np.zeros(sshape, dtype=float)
+            uvc.total_quality_array = np.zeros(sshape[1:], dtype=float)
         else:
-            uvc.quality_array = np.zeros(
-                uvc.Nants_data, uvc.Nfreqs, uvc.Ntimes, uvc.Njones, dtype=float
-            )
-            uvc.total_quality_array = np.zeros(
-                uvc.Nfreqs, uvc.Ntimes, uvc.Njones, dtype=float
-            )
+            uvc.quality_array = np.zeros(fshape, dtype=float)
+            uvc.total_quality_array = np.zeros(fshape[1:], dtype=float)
 
     uvc.check()
     return uvc
