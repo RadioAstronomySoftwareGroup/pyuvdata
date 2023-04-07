@@ -405,7 +405,19 @@ class FastUVH5Meta:
         return self.__datagrp
 
     def get_transactional(self, item: str, cache: bool = True) -> Any:
-        """Get an attribute from the metadata but close the file object afterwards."""
+        """Get an attribute from the metadata but close the file object afterwards.
+
+        Using this method is safer than direct attribute access when dealing with
+        many files.
+
+        Parameters
+        ----------
+        item
+            The attribute to get.
+        cache
+            Whether to cache the attribute in the object so that the next access is
+            faster.
+        """
         try:
             val = getattr(self, item)
         finally:
