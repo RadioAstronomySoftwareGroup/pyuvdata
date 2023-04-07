@@ -3733,3 +3733,15 @@ class TestFastUVH5Meta:
         lsts = meta.get_transactional("lsts")
         assert not meta.is_open()
         assert np.allclose(lsts, meta.lsts)
+
+        # This attribute uses __getattr__
+        meta.get_transactional("freq_array", cache=False)
+        assert not meta.is_open()
+        assert "freq_array" not in meta.__dict__
+
+        # This is cached property
+        chwidth = meta.get_transactional("channel_width", cache=False)
+        assert not meta.is_open()
+        assert "channel_width" not in meta.__dict__
+        assert np.allclose(chwidth, meta.channel_width)
+        assert "channel_width" in meta.__dict__

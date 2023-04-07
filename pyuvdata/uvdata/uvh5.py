@@ -404,12 +404,18 @@ class FastUVH5Meta:
             self.open()
         return self.__datagrp
 
-    def get_transactional(self, item: str):
+    def get_transactional(self, item: str, cache: bool = True) -> Any:
         """Get an attribute from the metadata but close the file object afterwards."""
         try:
-            return getattr(self, item)
+            val = getattr(self, item)
         finally:
             self.close()
+
+            if not cache:
+                if item in self.__dict__:
+                    del self.__dict__[item]
+
+        return val
 
     def __getattr__(self, name: str) -> Any:
         """Get attribute directly from header group."""
@@ -422,7 +428,6 @@ class FastUVH5Meta:
             elif name in self._float_attrs:
                 x = float(x)
 
-            self.__dict__[name] = x
             return x
         except KeyError:
             try:
