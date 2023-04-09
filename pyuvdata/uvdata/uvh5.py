@@ -374,11 +374,17 @@ class FastUVH5Meta:
         """Close the file."""
         self.__header = None
         self.__datagrp = None
-        del self.header  # need to refresh these
+
+        try:
+            del self.header  # need to refresh these
+        except AttributeError:
+            pass
+
         try:
             del self.datagrp
         except AttributeError:
             pass
+
         if self.__file:
             self.__file.close()
         self.__file = None
