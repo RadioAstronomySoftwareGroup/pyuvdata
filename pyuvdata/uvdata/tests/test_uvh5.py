@@ -3745,3 +3745,9 @@ class TestFastUVH5Meta:
         assert "channel_width" not in meta.__dict__
         assert np.allclose(chwidth, meta.channel_width)
         assert "channel_width" in meta.__dict__
+
+    def test_close_before_open(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        meta.close()
+        assert not meta.is_open()
+        assert isinstance(meta.header, h5py.Group)
