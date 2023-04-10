@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
+
+## [2.3.2] - 2023-04-10
+
 ### Added
 - The `catalog_name` keyword has been added to the `UVData.read` and `UVData.select`
 methods to allow users to select on source name.

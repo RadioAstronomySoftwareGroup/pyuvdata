@@ -41,12 +41,14 @@ To do it fully by hand:
 
 1. Fork the feedstock repo to your personal github account.
 2. Make a new branch on your fork for the changes
-3. get the new SHA from pypi: Go to the PyPI file listing page, next to each
-file there's a little link labeled SHA256 that will copy the right value to your
+3. get the new SHA from pypi: Go to the PyPI download page for this release. Next to the
+source distribution (.tar.gz file) there's a "view hashes" link. Click that link to see
+the SHA256 hash and click the "copy" link next to it to copy the right value to your
 clipboard. Or you can just download the file yourself and run `openssl sha256` on it.
 4. update recipe/meta.yaml: minimally update the version, build & SHA (if it’s
 a new version, reset the build to zero, otherwise bump the build number).
-Generally review the whole file for things that should change.
+Generally review the whole file for things that should change, particularly any
+dependency changes.
 5. push your branch to github
 6. open a  PR against the feedstock repo from your branch.
 7. get a bot to automatically re-render the code by commenting on the PR with
