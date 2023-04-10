@@ -446,6 +446,7 @@ class FastUVH5Meta:
             elif name in self._float_attrs:
                 x = float(x)
 
+            self.__dict__[name] = x
             return x
         except KeyError:
             try:
