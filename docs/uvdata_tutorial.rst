@@ -290,8 +290,6 @@ approximation, and there is an option to instead use a slower integral implement
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> uvd.write_uvfits(write_file)
 
-.. _quick_access:
-
 UVData: Instantiating from arrays in memory
 -------------------------------------------
 ``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
@@ -323,11 +321,13 @@ either as unique values, with the intention that their cartesian outer product s
 used (i.e. the combination of each provided time with each baseline), or as full
 length-Nblt arrays (if you don't require all combinations). While this behaviour can
 be inferred, it is best to set the ``do_blt_product`` keyword to ``True`` or ``False``
-to enable this:
+to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
+where each baseline observed one time each. This case is ambiguous without the
+``do_blt_product`` keyword, so we must set it:
 
 .. code-block:: python
 
-  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.1])
+  >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
   >>> antpairs = [(0, 1), (0, 2), (1, 2), (0, 1)]
   >>> uvd = UVData.new(
           freq_array = np.linspace(1e8, 2e8, 100),
@@ -343,9 +343,62 @@ to enable this:
           antpairs=antpairs,
           do_blt_product=False,
       )
+  >>> uvd.time_array
+  array([2459855. , 2459855.1, 2459855.2, 2459855.3])
 
-See the full documentation for the function
-:func:`pyuvdata.uvdata.initializers.new_uvdata` for more information.
+Notice that the resulting ``time_array`` only has 4 values. If we had set
+``do_blt_product = True``, we would have gotten the cartesian outer product of the
+provided times and baselines, which would have resulted in 16 times:
+
+.. code-block:: python
+
+  >>> uvd_rect = UVData.new(
+          freq_array = np.linspace(1e8, 2e8, 100),
+          polarization_array = ["xx", "yy"],
+          antenna_positions = {
+              0: [0.0, 0.0, 0.0],
+              1: [0.0, 0.0, 1.0],
+              2: [0.0, 0.0, 2.0],
+          },
+          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+          telescope_name = "test",
+          times = times,
+          antpairs=antpairs,
+          do_blt_product=True,
+      )
+  >>> uvd_rect.time_array
+  array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
+         2459855.1, 2459855.1, 2459855.2, 2459855.2, 2459855.2, 2459855.2,
+         2459855.3, 2459855.3, 2459855.3, 2459855.3])
+
+To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keyword:
+
+.. code-block:: python
+
+    >>> uvd_rect = UVData.new(
+          freq_array = np.linspace(1e8, 2e8, 100),
+          polarization_array = ["xx", "yy"],
+          antenna_positions = {
+              0: [0.0, 0.0, 0.0],
+              1: [0.0, 0.0, 1.0],
+              2: [0.0, 0.0, 2.0],
+          },
+          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+          telescope_name = "test",
+          times = times,
+          antpairs=antpairs,
+          do_blt_product=True,
+          time_axis_faster_than_bls=True,
+      )
+    >>> uvd_rect.time_array
+    array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
+           2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
+           2459855. , 2459855.1, 2459855.2, 2459855.3])
+
+See the full documentation for the method
+:func:`pyuvdata.uvdata.UVData.new` for more information.
+
+.. _quick_access:
 
 UVData: Quick data access
 -------------------------

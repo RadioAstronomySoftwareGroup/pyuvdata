@@ -773,12 +773,10 @@ class UVData(UVBase):
 
     @staticmethod
     def new(**kwargs):
-        """Initialize a new UVData object from keyword arguments.
-
-        All parameters passed through to the
-        :func:`~pyuvdata.uvdata.initializers.new_uvdata` function.
-        """
+        """Stand-in docstring for new method."""
         return new_uvdata(**kwargs)
+
+    new.__doc__ = new_uvdata.__doc__
 
     def _set_flex_spw(self):
         """
