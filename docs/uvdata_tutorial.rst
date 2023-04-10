@@ -1409,6 +1409,49 @@ are written to the appropriate parts of the file on disk.
   >>> nsample_array = uvd2.nsample_array
   >>> uvd.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
 
+d) Accessing partial metadata for uvh5 files
+********************************************
+
+For UVH5 files, you can access specific metadata without reading in the entire metadata,
+which is useful when, for example, you have thousands of files and need to quickly filter
+which files to eventually read based on the times. Instead of reading in the entire metadata
+for each file, you can read just the time array (for example), using the specialty
+``FastUVH5Meta`` class.
+
+.. code-block:: python
+
+  >>> from pyuvdata.uvdata import FastUVH5Meta
+  >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
+  >>> meta = FastUVH5Meta(filename)
+
+  # No data is read in when creating the object, and you can access each bit of metadata
+  # individually, and it will lazy-load from the file
+  >>> print(meta.time_array)
+
+  # Once loaded, the data is cached, so you can access it again without reading from disk
+  >>> "time_array" in meta.__dict__
+  True
+
+  # Once you've decided if you need this datafile, you can instantiate a
+  # (metadata-only) UVData object
+  >>> uvd = meta.to_uvdata()
+
+  # If the metadata itself doesn't define whether the blt-axis is rectangular, this can
+  # be specified directly, which speeds up accessing the unique baselines and times.
+  >>> uvd = meta.to_uvdata(filename, blts_are_rectangular=True)
+
+  # By default, the h5py.File object is opened on the first time you access a metadata
+  # attribute, and then closed only when the object is deleted. If you loop through
+  # many files, this can be a problem, as h5py has a limit on the number of open files.
+  # You can access metadata without keeping the file open by with the following:
+  >>> meta.get_transactional('lst_array')
+
+  # If you also want the data not to be cached on the object, specify cache=False
+  >>> lsts = meta.get_transactional('lst_array', cache=False)
+
+  # FastUVH5Meta is meant to be a read-only view into the HDF5 file, not a general
+  # data manipulation class. You should set attributes or write to the file.
+  # Use UVData for that.
 
 .. _sorting_data:
 
