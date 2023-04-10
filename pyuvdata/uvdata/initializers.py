@@ -250,11 +250,9 @@ def set_phase_params(obj, phase_center_catalog, phase_center_id_array, time_arra
         obj._add_phase_center(cat_name="unprojected", cat_type="unprojected")
     else:
         for key, cat in phase_center_catalog.items():
-            print(f"Doing {key} {cat}")
             obj._add_phase_center(cat_id=key, **cat)
 
     if phase_center_id_array is None:
-        print("yes it is: ", len(obj.phase_center_catalog))
         if len(obj.phase_center_catalog) > 1:
             raise ValueError(
                 "If phase_center_catalog has more than one key, phase_center_id_array "
@@ -325,35 +323,36 @@ def new_uvdata(
         Location of the telescope.
     telescope_name : str
         Name of the telescope.
-    unique_times : ndarray of float, optional
-        Array of unique times in Julian Date. If provided, unique_antpairs must also
-        be provided, and the blt axis of the UVData object will be formed from the
-        outer product of unique_times and unique_antpairs. If not provided, time_array
-        must be provided.
-    time_array : ndarray of float, optional
-        Array of times in Julian Date. If provided, antpair_array must also be
-        provided. Required if unique_times is not provided. If time_array is provided,
-        it will be passed on as-is to the UVData object.
-    unique_antpairs : sequence of 2-tuple of int or 2D array of int, optional
-        Sequence of unique antenna pairs in the data. If provided, unique_times must
-        also be provided. If not, antpair_array must be provided. If provided, the blt
-        axis of the UVData object will be formed from the outer product of unique_times
-        and unique_antpairs.
-    antpair_array : sequence of 2-tuples of int or 2D array of int, optional
+    times : ndarray of float, optional
+        Array of times in Julian Date. These may be the *unique* times of the data if
+        each baseline observes the same set of times, otherwise they should be an
+        Nblts-length array of each time observed by each baseline. It is recommended
+        to set the ``do_blt_outer`` parameter to specify whether to apply the times
+        to each baseline.
+    antpairs : sequence of 2-tuples of int or 2D array of int, optional
         Antenna pairs in the data. If an ndarray, must have shape (Nants, 2).
-        If provided, time_array must also be
-        provided. Required if unique_antpairs is not provided. If antpair_array is
-        provided, it will be converted to baseline_array in the same order as provided,
-        and this is provided to the UVData object.
+        These may be the *unique* antpairs of the data if
+        each antpair observes the same set of times, otherwise they should be an
+        Nblts-length array of each antpair at each time. It is recommended
+        to set the ``do_blt_outer`` parameter to specify whether to apply the times
+        to each baseline. If not provided, use all unique antpairs determined from
+        the ``antenna_numbers``.
+    do_blt_outer : bool, optional
+        If True, the final ``time_array`` and ``baseline_array`` will contain
+        ``len(times)*len(antpairs)`` entries (one for each pair cartesian product of
+        times and antpairs). If False, the final ``time_array`` and ``baseline_array``
+        will be the same as the input ``times`` and ``antpairs``. If not provided,
+        it will be set to True if ``times`` and ``antpairs`` are different lengths
+        and all unique, otherwise it will be set to False.
     integration_time : float or ndarray of float, optional
         Integration time in seconds. If not provided, it will be derived from the
-        time_array, as the difference between successive times (with the last time
+        time_array, as the difference between successive times (with the last time-diff
         appended). If a float is provided, it will be used for all integrations.
         If an ndarray is provided, it must have the same shape as time_array (or
         unique_times, if that is what is provided).
     channel_width : float or ndarray of float, optional
         Channel width in Hz. If not provided, it will be derived from the freq_array,
-        as the difference between successive frequencies (with the last frequency
+        as the difference between successive frequencies (with the last frequency-diff
         appended). If a float is provided, it will be used for all channels.
         If an ndarray is provided, it must have the same shape as freq_array.
     antenna_names : list of str, optional
@@ -381,6 +380,9 @@ def new_uvdata(
         Array of nsamples. If not provided, and ``empty=True`` it will be initialized to
         all zeros. Otherwise a purely metadata-only object will be created. It must have
         shape ``(Nblts, Nfreqs, Npols)``
+    flex_spw_id_array : ndarray of int, optional
+        Array of spectral window IDs, one for each frequency. If not provided, it will
+        be initialized to all zeros. It must have shape ``(Nfreqs,)``.
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
