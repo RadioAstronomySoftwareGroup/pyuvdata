@@ -1426,7 +1426,8 @@ for each file, you can read just the time array (for example), using the special
 
   # No data is read in when creating the object, and you can access each bit of metadata
   # individually, and it will lazy-load from the file
-  >>> print(meta.time_array)
+  >>> print(len(meta.time_array))
+  200
 
   # Once loaded, the data is cached, so you can access it again without reading from disk
   >>> "time_array" in meta.__dict__
@@ -1438,16 +1439,18 @@ for each file, you can read just the time array (for example), using the special
 
   # If the metadata itself doesn't define whether the blt-axis is rectangular, this can
   # be specified directly, which speeds up accessing the unique baselines and times.
-  >>> uvd = meta.to_uvdata(filename, blts_are_rectangular=True)
+  >>> meta = FastUVH5Meta(filename, blts_are_rectangular=True)
 
   # By default, the h5py.File object is opened on the first time you access a metadata
   # attribute, and then closed only when the object is deleted. If you loop through
   # many files, this can be a problem, as h5py has a limit on the number of open files.
   # You can access metadata without keeping the file open by with the following:
-  >>> meta.get_transactional('lst_array')
+  >>> lsts = meta.get_transactional('lst_array')
 
   # If you also want the data not to be cached on the object, specify cache=False
-  >>> lsts = meta.get_transactional('lst_array', cache=False)
+  >>> freqs = meta.get_transactional('freq_array', cache=False)
+  >>> "freq_array" in meta.__dict__
+  False
 
   # FastUVH5Meta is meant to be a read-only view into the HDF5 file, not a general
   # data manipulation class. You should set attributes or write to the file.
