@@ -49,6 +49,7 @@ def write_index_rst(readme_file=None, write_file=None):
         "   uvcal\n"
         "   uvbeam\n"
         "   uvflag\n"
+        "   fast_uvh5_meta\n"
         "   utility_functions\n"
         "   known_telescopes\n"
         "   developer_docs\n"
