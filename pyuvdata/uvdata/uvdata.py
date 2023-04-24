@@ -776,8 +776,6 @@ class UVData(UVBase):
         """Stand-in docstring for new method."""
         return new_uvdata(**kwargs)
 
-    new.__doc__ = new_uvdata.__doc__
-
     def _set_flex_spw(self):
         """
         Set flex_spw to True, and adjust required parameters.
@@ -14972,3 +14970,6 @@ class UVData(UVBase):
                 except KeyError:
                     # If no data found for this antenna, then flag the whole blt
                     flag_arr[grp_idx] = True
+
+
+UVData.new.__doc__ = new_uvdata.__doc__
