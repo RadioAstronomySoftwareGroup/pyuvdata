@@ -5170,6 +5170,9 @@ class UVCal(UVBase):
                     "file_type keyword to specify the type."
                 )
 
+        if file_type not in ["calfits", "fhd"]:
+            raise ValueError("The only supported file_types are 'calfits' and 'fhd'.")
+
         obs_file_use = None
         layout_file_use = None
         settings_file_use = None

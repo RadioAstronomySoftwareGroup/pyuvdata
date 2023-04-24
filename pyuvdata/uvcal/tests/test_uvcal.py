@@ -3743,6 +3743,11 @@ def test_read_errors():
     ):
         UVCal.from_file([[gainfile]])
 
+    with pytest.raises(
+        ValueError, match="The only supported file_types are 'calfits' and 'fhd'."
+    ):
+        UVCal.from_file(gainfile, file_type="foo")
+
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("uvdata_future_shapes", [True, False])
