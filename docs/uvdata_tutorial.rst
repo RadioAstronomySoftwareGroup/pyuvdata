@@ -1453,8 +1453,8 @@ for each file, you can read just the time array (for example), using the special
   False
 
   # FastUVH5Meta is meant to be a read-only view into the HDF5 file, not a general
-  # data manipulation class. You should set attributes or write to the file.
-  # Use UVData for that.
+  # data manipulation class. You should *not* set attributes or use it to write to the
+  # file. Use UVData for that.
 
 .. _sorting_data:
 
