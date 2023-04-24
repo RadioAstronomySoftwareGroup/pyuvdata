@@ -548,7 +548,7 @@ class FastUVH5Meta:
             return bool(self.header["time_axis_faster_than_bls"][()])
         if self.Ntimes == 1:
             return False
-        if self.Nbls == 1:
+        if self.Ntimes == self.Nblts:
             return True
         return self.header["time_array"][1] != self.header["time_array"][0]
 
