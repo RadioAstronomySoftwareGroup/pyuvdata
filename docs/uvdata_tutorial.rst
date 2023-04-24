@@ -1517,28 +1517,6 @@ are written to the appropriate parts of the file on disk.
   >>> nsample_array = uvd2.nsample_array
   >>> uvd.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
 
-d) Accessing partial metadata for uvh5 files
-********************************************
-
-For UVH5 files, you can access specific metadata without reading in the entire metadata,
-which is useful when, for example, you have thousands of files and need to quickly filter
-which files to eventually read based on the times. Instead of reading in the entire metadata
-for each file, you can read just the time array, using the specialty ``FastUVH5Meta``
-class.
-
-.. code-block:: python
-
-  >>> from pyuvdata.uvdata import FastUVH5Meta
-  >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> meta = FastUVH5Meta(filename)
-
-  # No data is read in when creating the object, and you can access each bit of metadata
-  # individually, and it will lazy-load from the file
-  >>> print(meta.time_array)
-
-  # Once you've decided if you need this data, you can instantiate a (metadata-only) UVData
-  # object
-  >>> uvd = meta.to_uvdata()
 
 .. _sorting_data:
 
