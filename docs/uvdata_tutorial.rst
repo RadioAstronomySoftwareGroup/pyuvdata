@@ -303,17 +303,17 @@ of creating a consistent object from a minimal set of inputs
   >>> from pyuvdata import UVData
   >>> from astropy.coordinates import EarthLocation
   >>> uvd = UVData.new(
-          freq_array = np.linspace(1e8, 2e8, 100),
-          polarization_array = ["xx", "yy"],
-          antenna_positions = {
-              0: [0.0, 0.0, 0.0],
-              1: [0.0, 0.0, 1.0],
-              2: [0.0, 0.0, 2.0],
-          },
-          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-          telescope_name = "test",
-          times = np.linspace(2459855, 2459856, 20),
-      )
+  >>>     freq_array = np.linspace(1e8, 2e8, 100),
+  >>>     polarization_array = ["xx", "yy"],
+  >>>     antenna_positions = {
+  >>>         0: [0.0, 0.0, 0.0],
+  >>>         1: [0.0, 0.0, 1.0],
+  >>>         2: [0.0, 0.0, 2.0],
+  >>>     },
+  >>>     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+  >>>     telescope_name = "test",
+  >>>     times = np.linspace(2459855, 2459856, 20),
+  >>> )
 
 Notice that you need only provide the required parameters, and the rest will be
 filled in with sensible defaults. Importantly, the times and baselines can be provided
@@ -330,19 +330,19 @@ where each baseline observed one time each. This case is ambiguous without the
   >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
   >>> antpairs = [(0, 1), (0, 2), (1, 2), (0, 1)]
   >>> uvd = UVData.new(
-          freq_array = np.linspace(1e8, 2e8, 100),
-          polarization_array = ["xx", "yy"],
-          antenna_positions = {
-              0: [0.0, 0.0, 0.0],
-              1: [0.0, 0.0, 1.0],
-              2: [0.0, 0.0, 2.0],
-          },
-          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-          telescope_name = "test",
-          times = times,
-          antpairs=antpairs,
-          do_blt_product=False,
-      )
+  >>>     freq_array = np.linspace(1e8, 2e8, 100),
+  >>>     polarization_array = ["xx", "yy"],
+  >>>     antenna_positions = {
+  >>>         0: [0.0, 0.0, 0.0],
+  >>>         1: [0.0, 0.0, 1.0],
+  >>>         2: [0.0, 0.0, 2.0],
+  >>>     },
+  >>>     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+  >>>     telescope_name = "test",
+  >>>     times = times,
+  >>>     antpairs=antpairs,
+  >>>     do_blt_product=False,
+  >>> )
   >>> uvd.time_array
   array([2459855. , 2459855.1, 2459855.2, 2459855.3])
 
@@ -353,19 +353,19 @@ provided times and baselines, which would have resulted in 16 times:
 .. code-block:: python
 
   >>> uvd_rect = UVData.new(
-          freq_array = np.linspace(1e8, 2e8, 100),
-          polarization_array = ["xx", "yy"],
-          antenna_positions = {
-              0: [0.0, 0.0, 0.0],
-              1: [0.0, 0.0, 1.0],
-              2: [0.0, 0.0, 2.0],
-          },
-          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-          telescope_name = "test",
-          times = times,
-          antpairs=antpairs,
-          do_blt_product=True,
-      )
+  >>>     freq_array = np.linspace(1e8, 2e8, 100),
+  >>>     polarization_array = ["xx", "yy"],
+  >>>     antenna_positions = {
+  >>>         0: [0.0, 0.0, 0.0],
+  >>>         1: [0.0, 0.0, 1.0],
+  >>>         2: [0.0, 0.0, 2.0],
+  >>>     },
+  >>>     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+  >>>     telescope_name = "test",
+  >>>     times = times,
+  >>>     antpairs=antpairs,
+  >>>     do_blt_product=True,
+  >>> )
   >>> uvd_rect.time_array
   array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
          2459855.1, 2459855.1, 2459855.2, 2459855.2, 2459855.2, 2459855.2,
@@ -376,20 +376,20 @@ To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keywo
 .. code-block:: python
 
     >>> uvd_rect = UVData.new(
-          freq_array = np.linspace(1e8, 2e8, 100),
-          polarization_array = ["xx", "yy"],
-          antenna_positions = {
-              0: [0.0, 0.0, 0.0],
-              1: [0.0, 0.0, 1.0],
-              2: [0.0, 0.0, 2.0],
-          },
-          telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-          telescope_name = "test",
-          times = times,
-          antpairs=antpairs,
-          do_blt_product=True,
-          time_axis_faster_than_bls=True,
-      )
+    >>>   freq_array = np.linspace(1e8, 2e8, 100),
+    >>>   polarization_array = ["xx", "yy"],
+    >>>   antenna_positions = {
+    >>>       0: [0.0, 0.0, 0.0],
+    >>>       1: [0.0, 0.0, 1.0],
+    >>>       2: [0.0, 0.0, 2.0],
+    >>>   },
+    >>>   telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+    >>>   telescope_name = "test",
+    >>>   times = times,
+    >>>   antpairs=antpairs,
+    >>>   do_blt_product=True,
+    >>>   time_axis_faster_than_bls=True,
+    >>> )
     >>> uvd_rect.time_array
     array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
            2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
@@ -1699,6 +1699,7 @@ using some low-level Mir interfaces, then explore some of its properties and con
 into a standard UVData object (which doubles its size).
 
 .. code-block:: python
+
   >>> import os
   >>> import numpy as np
   >>> from pyuvdata import UVData
@@ -1752,6 +1753,7 @@ data_array but does not change its total size and then back, recovering the init
 object.
 
 .. code-block:: python
+
   >>> import os
   >>> import numpy as np
   >>> from pyuvdata import UVData
