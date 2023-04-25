@@ -321,10 +321,10 @@ filled in with sensible defaults. Importantly, the times and baselines can be pr
 either as unique values, with the intention that their cartesian outer product should be
 used (i.e. the combination of each provided time with each baseline), or as full
 length-Nblt arrays (if you don't require all combinations). While this behaviour can
-be inferred, it is best to set the ``do_blt_product`` keyword to ``True`` or ``False``
+be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
 to enable this. Let us for example create an unusual object with 4 times and 4 baselines,
 where each baseline observed one time each. This case is ambiguous without the
-``do_blt_product`` keyword, so we must set it:
+``do_blt_outer`` keyword, so we must set it:
 
 .. code-block:: python
 
@@ -345,13 +345,13 @@ where each baseline observed one time each. This case is ambiguous without the
   ...     telescope_name = "test",
   ...     times = times,
   ...     antpairs=antpairs,
-  ...     do_blt_product=False,
+  ...     do_blt_outer=False,
   ... )
   >>> uvd.time_array
   array([2459855. , 2459855.1, 2459855.2, 2459855.3])
 
 Notice that the resulting ``time_array`` only has 4 values. If we had set
-``do_blt_product = True``, we would have gotten the cartesian outer product of the
+``do_blt_outer = True``, we would have gotten the cartesian outer product of the
 provided times and baselines, which would have resulted in 16 times:
 
 .. code-block:: python
@@ -371,7 +371,7 @@ provided times and baselines, which would have resulted in 16 times:
   ...     telescope_name = "test",
   ...     times = times,
   ...     antpairs=antpairs,
-  ...     do_blt_product=True,
+  ...     do_blt_outer=True,
   ... )
   >>> uvd_rect.time_array
   array([2459855. , 2459855. , 2459855. , 2459855. , 2459855.1, 2459855.1,
@@ -397,7 +397,7 @@ To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keywo
     ...   telescope_name = "test",
     ...   times = times,
     ...   antpairs=antpairs,
-    ...   do_blt_product=True,
+    ...   do_blt_outer=True,
     ...   time_axis_faster_than_bls=True,
     ... )
     >>> uvd_rect.time_array
