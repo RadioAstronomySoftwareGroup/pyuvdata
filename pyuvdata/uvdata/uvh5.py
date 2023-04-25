@@ -673,7 +673,7 @@ class FastUVH5Meta:
         """The extra_keywords from the file."""
         header = self.header
         if "extra_keywords" not in header:
-            raise AttributeError("No extra_keywords in this file.")
+            return {}
 
         extra_keywords = {}
         for key in header["extra_keywords"].keys():
