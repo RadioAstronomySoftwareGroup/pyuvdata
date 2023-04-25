@@ -302,6 +302,7 @@ of creating a consistent object from a minimal set of inputs
 
   >>> from pyuvdata import UVData
   >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
@@ -327,6 +328,9 @@ where each baseline observed one time each. This case is ambiguous without the
 
 .. code-block:: python
 
+  >>> from pyuvdata import UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
   >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
   >>> antpairs = [(0, 1), (0, 2), (1, 2), (0, 1)]
   >>> uvd = UVData.new(
@@ -352,6 +356,9 @@ provided times and baselines, which would have resulted in 16 times:
 
 .. code-block:: python
 
+  >>> from pyuvdata import UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
   >>> uvd_rect = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
@@ -375,6 +382,9 @@ To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keywo
 
 .. code-block:: python
 
+  >>> from pyuvdata import UVData
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
     >>> uvd_rect = UVData.new(
     ...   freq_array = np.linspace(1e8, 2e8, 100),
     ...   polarization_array = ["xx", "yy"],
