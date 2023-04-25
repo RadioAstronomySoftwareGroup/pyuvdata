@@ -332,7 +332,7 @@ where each baseline observed one time each. This case is ambiguous without the
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
   >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
-  >>> antpairs = [(0, 1), (0, 2), (1, 2), (0, 1)]
+  >>> antpairs = [(0, 1), (0, 2), (1, 2), (1, 1)]
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
