@@ -285,6 +285,15 @@ def test_alternate_time_inputs():
     assert np.allclose(times, times3)
     assert np.allclose(ints, ints3)
 
+    # Single time
+    with pytest.warns(
+        UserWarning, match="integration_time not provided, and cannot be inferred"
+    ):
+        times4, ints4 = get_time_params(
+            time_array=time_array[:1], telescope_location=loc
+        )
+        assert np.allclose(ints4, 1.0)
+
 
 def test_alternate_freq_inputs():
     freq_array = np.linspace(1e8, 2e8, 15)
@@ -301,6 +310,13 @@ def test_alternate_freq_inputs():
     freqs3, widths3 = get_freq_params(freq_array=freq_array)
     assert np.allclose(freqs, freqs3)
     assert np.allclose(widths, widths3)
+
+    # Single frequency
+    with pytest.warns(
+        UserWarning, match="channel_width not provided, and cannot be inferred"
+    ):
+        freqs4, widths4 = get_freq_params(freq_array=freq_array[:1])
+        assert np.allclose(widths4, 1.0)
 
 
 def test_empty(simplest_working_params: dict[str, Any]):
@@ -461,12 +477,12 @@ def test_set_phase_params(simplest_working_params):
     pcc = obj.phase_center_catalog
 
     new = UVData.new(phase_center_catalog=pcc, **simplest_working_params)
-
     assert new.phase_center_catalog == pcc
 
     pccnew = copy.deepcopy(pcc)
     pccnew[1] = copy.deepcopy(pccnew[0])
     pccnew[1]["cat_type"] = "driftscan"
+    pccnew[1]["cat_name"] = "another_unprojected"
 
     with pytest.raises(
         ValueError,
