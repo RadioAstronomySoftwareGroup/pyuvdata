@@ -4,12 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new, self-consistent `UVData` object from scratch from a set of flexible input parameters.
 - A new `fast_concat` method on `UVCal`.
-- A new generic `read` method on `UVCal` that, like the `read` methods on our other
-objects, supports all file types and a new `from_file` class method to allow one-line
-reading of UVCal files.
-- A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new,
-self-consistent `UVData` object from scratch from a set of flexible input parameters.
+- A new generic `read` method on `UVCal` that, like the `read` methods on our other objects, supports all file types and a new `from_file` class method to allow one-line reading of UVCal files.
 
 ### Deprecated
 - Reading in multiple files to `UVCal` using file-type specific read methods
