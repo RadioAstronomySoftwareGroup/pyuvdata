@@ -1,6 +1,7 @@
 """A module defining functions for initializing UVData objects from scratch."""
 from __future__ import annotations
 
+import warnings
 from itertools import product
 from typing import Any, Literal, Sequence, Union
 
@@ -97,7 +98,16 @@ def get_time_params(
     )
 
     if integration_time is None:
-        integration_time = np.diff(np.sort(list(set(time_array))))[0] * 86400
+        utimes = np.sort(list(set(time_array)))
+        if len(utimes) > 1:
+            integration_time = np.diff(utimes) * 86400
+            integration_time = np.concatenate([integration_time, integration_time[-1:]])
+        else:
+            warnings.warn(
+                "integration_time not provided, and cannot be inferred from time_array,"
+                " setting to 1 second"
+            )
+            integration_time = np.array([1.0])
 
     if np.isscalar(integration_time):
         integration_time = np.full_like(time_array, integration_time)
@@ -119,8 +129,15 @@ def get_freq_params(
         raise ValueError("freq_array must be a numpy array.")
 
     if channel_width is None:
-        channel_width = freq_array[1:] - freq_array[:-1]
-        channel_width = np.concatenate([channel_width, channel_width[-1:]])
+        if freq_array.size > 1:
+            channel_width = freq_array[1:] - freq_array[:-1]
+            channel_width = np.concatenate([channel_width, channel_width[-1:]])
+        else:
+            warnings.warn(
+                "channel_width not provided, and cannot be inferred from freq_array, "
+                "setting to 1 Hz"
+            )
+            channel_width = np.array([1.0])
     elif np.isscalar(channel_width):
         channel_width = np.full_like(freq_array, channel_width)
 
@@ -347,14 +364,18 @@ def new_uvdata(
     integration_time : float or ndarray of float, optional
         Integration time in seconds. If not provided, it will be derived from the
         time_array, as the difference between successive times (with the last time-diff
-        appended). If a float is provided, it will be used for all integrations.
+        appended). If not provided and the number of unique times is one, then
+        a warning will be raised and the integration time set to 1 second.
+        If a float is provided, it will be used for all integrations.
         If an ndarray is provided, it must have the same shape as time_array (or
         unique_times, if that is what is provided).
     channel_width : float or ndarray of float, optional
         Channel width in Hz. If not provided, it will be derived from the freq_array,
         as the difference between successive frequencies (with the last frequency-diff
         appended). If a float is provided, it will be used for all channels.
-        If an ndarray is provided, it must have the same shape as freq_array.
+        If not provided and freq_array is length-one, the channel_width will be set to
+        1 Hz (and a warning issued). If an ndarray is provided, it must have the same
+        shape as freq_array.
     antenna_names : list of str, optional
         List of antenna names. If not provided, antenna numbers will be used to form
         the antenna_names, according to the antname_format. antenna_names need not be
