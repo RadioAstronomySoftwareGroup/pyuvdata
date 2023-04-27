@@ -309,8 +309,8 @@ class UVCal(UVBase):
 
         desc = (
             "Array of qualities of calibration solutions. "
-            "The shape depends on cal_type, if the cal_type is 'gain' or "
-            "'unknown', the shape is: (Nants_data, 1, Nfreqs, Ntimes, Njones) or "
+            "The shape depends on cal_type, if the cal_type is 'gain', the shape is: "
+            "(Nants_data, 1, Nfreqs, Ntimes, Njones) or "
             "(Nants_data, Nfreqs, Ntimes, Njones) if future_array_shapes=True and "
             "wide_band=False or (Nants_data, Nspws, Ntimes, Njones) if wide_band=True, "
             "if the cal_type is 'delay', the shape is "
@@ -338,12 +338,12 @@ class UVCal(UVBase):
         )
 
         # --- cal_type parameters ---
-        desc = "cal type parameter. Values are delay, gain or unknown."
+        desc = "cal type parameter. Values are delay or gain."
         self._cal_type = uvp.UVParameter(
             "cal_type",
             form="str",
             expected_type=str,
-            value="unknown",
+            value="gain",
             description=desc,
             acceptable_vals=["delay", "gain", "unknown"],
         )
@@ -522,8 +522,8 @@ class UVCal(UVBase):
 
         desc = (
             "Array of qualities of the calibration for entire arrays. "
-            "The shape depends on cal_type, if the cal_type is 'gain' or "
-            "'unknown', the shape is: (1, Nfreqs, Ntimes, Njones) or "
+            "The shape depends on cal_type, if the cal_type is 'gain', "
+            "the shape is: (1, Nfreqs, Ntimes, Njones) or "
             "(Nfreqs, Ntimes, Njones) if future_array_shapes=True and wide_band=False, "
             "or (Nspws, Ntimes, Njones) if wide_band=True. "
             "If the cal_type is 'delay', the shape is (1, 1, Ntimes, Njones) or "
@@ -676,7 +676,15 @@ class UVCal(UVBase):
             self._set_wide_band()
 
     def _set_unknown_cal_type(self):
-        """Set cal_type to 'unknown' and adjust required parameters."""
+        """Set cal_type to 'unknown' and adjust required parameters.
+
+        Deprecated.
+        """
+        warnings.warn(
+            "Setting the cal_type to 'unknown' is deprecated. This will become an "
+            "error in version 2.5",
+            DeprecationWarning,
+        )
         self.cal_type = "unknown"
         self._gain_array.required = False
         self._delay_array.required = False
@@ -716,7 +724,9 @@ class UVCal(UVBase):
         """List of strings giving the required data-like parameters."""
         cal_type = self._cal_type.value
         if cal_type is None:
-            cal_type = "unknown"
+            raise ValueError(
+                "Cannot get required data params because cal_type is not set."
+            )
 
         if cal_type == "gain":
             return ["gain_array", "flag_array", "quality_array"]
@@ -1198,6 +1208,14 @@ class UVCal(UVBase):
                     "all delay cals) starting in version 3.0",
                     category=DeprecationWarning,
                 )
+
+        # deprecate 'unknown' cal_type
+        if self.cal_type == "unknown":
+            warnings.warn(
+                "The 'unknown' cal_type is deprecated and will be removed in version "
+                "2.5",
+                DeprecationWarning,
+            )
 
         # first run the basic check from UVBase
         super(UVCal, self).check(
@@ -1953,6 +1971,7 @@ class UVCal(UVBase):
         if self.cal_type == "gain":
             raise ValueError("The data is already a gain cal_type.")
         elif self.cal_type != "delay":
+            # TODO remove this when the unknown cal_type is removed.
             raise ValueError("cal_type is unknown, cannot convert to gain")
 
         if self.Nspws > 1:

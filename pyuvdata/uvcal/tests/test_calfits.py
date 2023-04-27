@@ -155,7 +155,12 @@ def test_error_unknown_cal_type(delay_data, tmp_path):
     cal_in = delay_data
     write_file = str(tmp_path / "outtest_firstcal.fits")
 
-    cal_in._set_unknown_cal_type()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Setting the cal_type to 'unknown' is deprecated. This will become an "
+        "error in version 2.5",
+    ):
+        cal_in._set_unknown_cal_type()
     with pytest.raises(ValueError, match="unknown calibration type"):
         cal_in.write_calfits(write_file, run_check=False, clobber=True)
 
