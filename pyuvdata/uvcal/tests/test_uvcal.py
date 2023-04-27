@@ -639,7 +639,20 @@ def test_set_delay(gain_data):
 
 
 def test_set_unknown(gain_data):
-    gain_data._set_unknown_cal_type()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Setting the cal_type to 'unknown' is deprecated. This will become an "
+        "error in version 2.5",
+    ):
+        gain_data._set_unknown_cal_type()
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The 'unknown' cal_type is deprecated and will be removed in version "
+        "2.5",
+    ):
+        gain_data.check()
+
     assert not gain_data._delay_array.required
     assert not gain_data._gain_array.required
     assert gain_data._gain_array.form == gain_data._flag_array.form
@@ -923,7 +936,12 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
     with pytest.raises(ValueError, match="The data is already a gain cal_type."):
         gain_obj.convert_to_gain()
 
-    gain_obj._set_unknown_cal_type()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Setting the cal_type to 'unknown' is deprecated. This will become an "
+        "error in version 2.5",
+    ):
+        gain_obj._set_unknown_cal_type()
     with pytest.raises(ValueError, match="cal_type is unknown, cannot convert to gain"):
         gain_obj.convert_to_gain()
 
@@ -3597,13 +3615,33 @@ def test_copy(future_shapes, gain_data, delay_data_inputflag, caltype):
         uv_object = delay_data_inputflag
     else:
         uv_object = gain_data
-        uv_object._set_unknown_cal_type()
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match="Setting the cal_type to 'unknown' is deprecated. This will become "
+            "an error in version 2.5",
+        ):
+            uv_object._set_unknown_cal_type()
         uv_object.cal_type = caltype
 
     if not future_shapes:
-        uv_object.use_current_array_shapes()
+        if caltype is not None:
+            uv_object.use_current_array_shapes()
+        else:
+            with pytest.raises(
+                ValueError,
+                match="Cannot get required data params because cal_type is not set.",
+            ):
+                uv_object.use_current_array_shapes()
 
-    uv_object_copy = uv_object.copy()
+    if caltype is not None:
+        uv_object_copy = uv_object.copy()
+    else:
+        with pytest.raises(
+            ValueError,
+            match="Cannot get required data params because cal_type is not set.",
+        ):
+            uv_object_copy = uv_object.copy()
+        return
     assert uv_object_copy == uv_object
 
     uv_object_copy = uv_object.copy(metadata_only=True)
