@@ -359,7 +359,7 @@ class Mir(UVData):
             # really should never happen, only one value should exist per window).
             assert np.allclose(spw_fsky, mir_data.sp_data["fsky"][data_mask])
             assert np.allclose(spw_fres, mir_data.sp_data["fres"][data_mask])
-            assert np.allclose(spw_fres, mir_data.sp_data["nch"][data_mask])
+            assert np.allclose(spw_nchan, mir_data.sp_data["nch"][data_mask])
 
             # Get the data in the right units and dtype
             spw_fsky = float(spw_fsky[0] * 1e9)  # GHz -> Hz
