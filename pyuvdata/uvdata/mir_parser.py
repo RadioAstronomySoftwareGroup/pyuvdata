@@ -1122,14 +1122,14 @@ class MirParser(object):
         # which technically has a different keyword under which the system temperatures
         # are stored.
         tsys_dict = {
-            (idx, jdx, 0): tsys**0.5
+            (idx, jdx, 0): tsys**0.5 if (tsys > 0 and tsys < 1e5) else 0.0
             for idx, jdx, tsys in zip(
                 self.eng_data["inhid"], self.eng_data["antenna"], self.eng_data["tsys"]
             )
         }
         tsys_dict.update(
             {
-                (idx, jdx, 1): tsys**0.5
+                (idx, jdx, 1): tsys**0.5 if (tsys > 0 and tsys < 1e5) else 0.0
                 for idx, jdx, tsys in zip(
                     self.eng_data["inhid"],
                     self.eng_data["antenna"],
@@ -1161,13 +1161,18 @@ class MirParser(object):
 
         if invert:
             for key, value in normal_dict.items():
-                normal_dict[key] = 1.0 / value
+                if value != 0:
+                    normal_dict[key] = 1.0 / value
 
         # Finally, multiply the individual spectral records by the SEFD values
         # that are in the dictionary.
         for sphid, blhid in zip(self.sp_data["sphid"], self.sp_data["blhid"]):
             try:
-                self.vis_data[sphid]["data"] *= normal_dict[blhid]
+                norm_val = normal_dict[blhid]
+                if norm_val == 0.0:
+                    self.vis_data[sphid]["flags"][:] = True
+                else:
+                    self.vis_data[sphid]["data"] *= norm_val
             except KeyError:
                 self.vis_data[sphid]["flags"][:] = True
 
