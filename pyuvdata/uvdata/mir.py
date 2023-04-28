@@ -351,15 +351,15 @@ class Mir(UVData):
             data_mask = np.array([spdx == item for item in spdx_list])
 
             # Grab values, get them into appropriate types
-            spw_fsky = np.unique(mir_data.sp_data["fsky"][data_mask])
-            spw_fres = np.unique(mir_data.sp_data["fres"][data_mask])
-            spw_nchan = np.unique(mir_data.sp_data["nch"][data_mask])
+            spw_fsky = np.median(mir_data.sp_data["fsky"][data_mask])
+            spw_fres = np.median(mir_data.sp_data["fres"][data_mask])
+            spw_nchan = np.median(mir_data.sp_data["nch"][data_mask])
 
             # Make sure that something weird hasn't happened with the metadata (this
             # really should never happen, only one value should exist per window).
-            assert len(spw_fsky) == 1
-            assert len(spw_fres) == 1
-            assert len(spw_nchan) == 1
+            assert np.allclose(spw_fsky, mir_data.sp_data["fsky"][data_mask])
+            assert np.allclose(spw_fres, mir_data.sp_data["fres"][data_mask])
+            assert np.allclose(spw_fres, mir_data.sp_data["nch"][data_mask])
 
             # Get the data in the right units and dtype
             spw_fsky = float(spw_fsky[0] * 1e9)  # GHz -> Hz
