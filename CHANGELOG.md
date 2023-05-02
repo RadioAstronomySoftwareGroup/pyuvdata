@@ -12,6 +12,11 @@ All notable changes to this project will be documented in this file.
 - Reading in multiple files to `UVCal` using file-type specific read methods
 (e.g. `read_calfits`) in favor of the generic `read` method.
 
+### Fixed
+- Removed error when `time_axis_faster_than_bls=True` and `Ntimes=1`. In the case of
+`Ntimes=1`, it is inconsequential whether time-axis moves first or not, so it should
+not be an error.
+
 ## [2.3.2] - 2023-04-10
 
 ### Added
