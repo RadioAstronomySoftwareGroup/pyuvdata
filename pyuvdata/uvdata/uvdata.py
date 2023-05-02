@@ -3297,8 +3297,6 @@ class UVData(UVBase):
                 "This is not allowed."
             )
         if self.time_axis_faster_than_bls:
-            if self.Nbls != 1 and self.Ntimes == 1:
-                raise ValueError("time_axis_faster_than_bls is True but Ntimes is 1. ")
             if self.Ntimes > 1 and self.time_array[1] == self.time_array[0]:
                 raise ValueError(
                     "time_axis_faster_than_bls is True but time_array does not "
