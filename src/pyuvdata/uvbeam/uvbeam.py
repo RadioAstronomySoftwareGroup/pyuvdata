@@ -22,6 +22,29 @@ from . import _uvbeam, initializers
 __all__ = ["UVBeam"]
 
 
+def _convert_feeds_to_pols(feed_array, calc_cross_pols, x_orientation=None):
+    n_feeds = np.asarray(feed_array).size
+
+    feed_pol_order = [(0, 0)]
+    if n_feeds > 1:
+        feed_pol_order.append((1, 1))
+
+    if calc_cross_pols:
+        # to get here we have Nfeeds > 1
+        feed_pol_order.extend([(0, 1), (1, 0)])
+
+    pol_strings = []
+    for pair in feed_pol_order:
+        pol_strings.append(feed_array[pair[0]] + feed_array[pair[1]])
+    polarization_array = np.array(
+        [
+            utils.polstr2num(ps.upper(), x_orientation=x_orientation)
+            for ps in pol_strings
+        ]
+    )
+    return polarization_array, feed_pol_order
+
+
 class UVBeam(UVBase):
     """
     A class for defining a radio telescope antenna beam.
@@ -237,7 +260,7 @@ class UVBeam(UVBase):
 
         self._Nfeeds = uvp.UVParameter(
             "Nfeeds",
-            description="Number of feeds. " 'Not required if beam_type is "power".',
+            description="Number of feeds. Not required if beam_type is 'power'.",
             expected_type=int,
             acceptable_vals=[1, 2],
             required=False,
@@ -922,32 +945,15 @@ class UVBeam(UVBase):
             # There are no cross pols with one feed. Set this so the power beam is real
             calc_cross_pols = False
 
+        beam_object.polarization_array, feed_pol_order = _convert_feeds_to_pols(
+            beam_object.feed_array,
+            calc_cross_pols,
+            x_orientation=beam_object.x_orientation,
+        )
+        beam_object.Npols = beam_object.polarization_array.size
+
         efield_data = beam_object.data_array
         efield_naxes_vec = beam_object.Naxes_vec
-
-        feed_pol_order = [(0, 0)]
-        if beam_object.Nfeeds > 1:
-            feed_pol_order.append((1, 1))
-
-        if calc_cross_pols:
-            beam_object.Npols = beam_object.Nfeeds**2
-            # to get here we have Nfeeds > 1
-            feed_pol_order.extend([(0, 1), (1, 0)])
-        else:
-            beam_object.Npols = beam_object.Nfeeds
-
-        pol_strings = []
-        for pair in feed_pol_order:
-            pol_strings.append(
-                beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]]
-            )
-        beam_object.polarization_array = np.array(
-            [
-                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
-                for ps in pol_strings
-            ]
-        )
-
         if not keep_basis_vector:
             beam_object.Naxes_vec = 1
 
