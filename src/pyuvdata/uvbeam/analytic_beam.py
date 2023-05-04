@@ -8,7 +8,13 @@ from abc import ABC, abstractmethod
 import numpy as np
 from astropy.constants import c as speed_of_light
 
+from .uvbeam import _convert_feeds_to_pols
+
 __all__ = ["AnalyticBeam", "GaussianBeam"]
+
+
+# TODO: write the `update_cross_pols` method.
+# TODO: write a `to_uvbeam` method to allow for interpolation testing/exploration
 
 
 class AnalyticBeam(ABC):
@@ -33,6 +39,9 @@ class AnalyticBeam(ABC):
     ----------
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. N & E or x & y or R & L.
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or EN and NE) for
+        the power beam.
 
     """
 
@@ -42,7 +51,7 @@ class AnalyticBeam(ABC):
 
     basis_vector_type = None
 
-    def __init__(self, feed_array=None):
+    def __init__(self, feed_array=None, include_cross_pols=True):
         if self.basis_vector_type is not None:
             if self.basis_vector_type not in self.basis_vec_dict:
                 raise ValueError(
@@ -56,6 +65,8 @@ class AnalyticBeam(ABC):
             for feed in feed_array:
                 if feed not in ["N", "E", "x", "y", "R", "L"]:
                     raise ValueError
+        else:
+            feed_array = ["x", "y"]
         self.feed_array = feed_array
 
         if self.feed_array is not None:
@@ -63,9 +74,61 @@ class AnalyticBeam(ABC):
         else:
             self.Nfeeds = 1
 
+        # TODO: Add x_orientation here if needed.
+        self.polarization_array, _ = _convert_feeds_to_pols(
+            self.feed_array, include_cross_pols
+        )
+        self.Npols = self.polarization_array.size
+
         # TODO: think about where x_orientation should live, here or on interface class
 
+    def _check_eval_inputs(self, az_array, za_array, freq_array):
+        """Check the inputs for the eval methods."""
+        if az_array.ndim > 1 or za_array.ndim > 1 or freq_array.ndim > 1:
+            raise ValueError(
+                "az_array, za_array and freq_array must all be one dimensional."
+            )
+
+        if az_array.shape != za_array.shape:
+            raise ValueError("az_array and za_array must have the same shape.")
+
+    def _get_empty_data_array(self, az_array, za_array, freq_array, beam_type="efield"):
+        """Get the empty data to fill in the eval methods."""
+        if beam_type == "efield":
+            feed_pol_size = self.Nfeeds
+        else:
+            feed_pol_size = self.Npols
+        return np.zeros(
+            (self.Naxes_vec, feed_pol_size, freq_array.size, az_array.size), dtype=float
+        )
+
     @abstractmethod
+    def _efield_eval(self, az_array, za_array, freq_array):
+        """
+        Evaluate the efield at the given coordinates.
+
+        This is the method where the subclasses should implement the actual specific
+        beam evaluation.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of complex
+            An array of beam values. The shape of the evaluated data will be:
+            (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
+
+        """
+
     def efield_eval(self, az_array, za_array, freq_array):
         """
         Evaluate the efield at the given coordinates.
@@ -86,6 +149,36 @@ class AnalyticBeam(ABC):
         array_like of complex
             An array of beam values. The shape of the evaluated data will be:
             (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
+
+        """
+        self._check_eval_inputs(az_array, za_array, freq_array)
+
+        return self._efield_eval(az_array, za_array, freq_array)
+
+    @abstractmethod
+    def _power_eval(self, az_array, za_array, freq_array):
+        """
+        Evaluate the power at the given coordinates.
+
+        This is the method where the subclasses should implement the actual specific
+        beam evaluation.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to evaluate the beam at in radians. Must be the same shape
+            as za_array.
+        za_array : array_like of floats, optional
+            Zenith values to evaluate the beam at in radians. Must be the same shape
+            as az_array.
+        freq_array : array_like of floats, optional
+            Frequency values to evaluate the beam at in Hertz.
+
+        Returns
+        -------
+        array_like of float
+            An array of beam values. The shape of the evaluated data will be:
+            (1, Npols, freq_array.size, az_array.size)
 
         """
 
@@ -112,6 +205,9 @@ class AnalyticBeam(ABC):
             (1, Npols, freq_array.size, az_array.size)
 
         """
+        self._check_eval_inputs(az_array, za_array, freq_array)
+
+        return self._power_eval(az_array, za_array, freq_array)
 
 
 def diameter_to_sigma(diam, freqs):
@@ -210,48 +306,38 @@ class GaussianBeam(AnalyticBeam):
         if diameter is not None:
             self.diameter = diameter
 
-    def efield_eval(self, az_array, za_array, freq_array):
+    def get_sigmas(self, freq_array):
         """
-        Evaluate the efield at the given coordinates.
+        Get the sigmas for the gaussian beam using the diameter (if defined).
 
         Parameters
         ----------
-        az_array : array_like of floats, optional
-            Azimuth values to evaluate the beam at in radians. Must be the same shape
-            as za_array.
-        za_array : array_like of floats, optional
-            Zenith values to evaluate the beam at in radians. Must be the same shape
-            as az_array.
         freq_array : array_like of floats, optional
             Frequency values to evaluate the beam at in Hertz.
 
         Returns
         -------
-        array_like of complex
-            An array of beam values. The shape of the interpolated data will be:
-            (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
+        sigmas : array_like of float
+            Beam sigma values as a function of frequency. Size will match the
+            freq_array size.
 
         """
-        if az_array.ndim > 1 or za_array.ndim > 1 or freq_array.ndim > 1:
-            raise ValueError(
-                "az_array, za_array and freq_array must all be one dimensional."
-            )
-
-        if az_array.shape != za_array.shape:
-            raise ValueError("az_array and za_array must have the same shape.")
-
         if self.diameter is not None:
             sigmas = diameter_to_sigma(self.diameter, freq_array)
         elif self.sigma is not None:
             sigmas = (
                 self.sigma * (freq_array / self.reference_freq) ** self.spectral_index
             )
+        return sigmas
+
+    def _efield_eval(self, az_array, za_array, freq_array):
+        """Evaluate the efield at the given coordinates."""
+        sigmas = self.get_sigmas(freq_array)
+
         values = np.exp(
             -(za_array[np.newaxis, ...] ** 2) / (2 * sigmas[:, np.newaxis] ** 2)
         )
-        data_array = np.zeros(
-            (self.Naxes_vec, self.Nfeeds, freq_array.size, az_array.size), dtype=float
-        )
+        data_array = self._get_empty_data_array(az_array, za_array, freq_array)
         # This is different than what is in pyuvsim because it means that we have the
         # same response to any polarized source in both feeds. We think this is correct
         # for an azimuthally symmetric analytic beam but it is a change.
@@ -259,3 +345,18 @@ class GaussianBeam(AnalyticBeam):
         for fn in np.arange(self.Nfeeds):
             data_array[0, fn, :, :] = values / 2.0
             data_array[1, fn, :, :] = values / 2.0
+
+    def _power_eval(self, az_array, za_array, freq_array):
+        """Evaluate the power at the given coordinates."""
+        sigmas = self.get_sigmas(freq_array)
+
+        values = np.exp(
+            -(za_array[np.newaxis, ...] ** 2) / (sigmas[:, np.newaxis] ** 2)
+        )
+        data_array = self._get_empty_data_array(
+            az_array, za_array, freq_array, beam_type="power"
+        )
+        for fn in np.arange(self.Npols):
+            # For power beams the first axis is shallow because we don't have to worry
+            # about polarization.
+            data_array[0, fn, :, :] = values
