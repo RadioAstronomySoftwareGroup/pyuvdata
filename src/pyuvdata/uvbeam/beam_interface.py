@@ -8,6 +8,12 @@ import warnings
 from .analytic_beam import AnalyticBeam
 from .uvbeam import UVBeam
 
+# Other methods we may want to include:
+#  - beam area
+#  - beam squared area
+#  - efield to power
+#  - efield_to_pstokes
+
 
 class BeamInterface:
     """
@@ -22,10 +28,14 @@ class BeamInterface:
         Beam object to use for computations
     beam_type : str
         The beam type, either "efield" or "power".
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or EN and NE).
+        Used if beam is an AnalyticBeam and beam_type is "power" and if input UVBeam is
+        and Efield beam but beam_type is "power".
 
     """
 
-    def __init__(self, beam, beam_type=None):
+    def __init__(self, beam, beam_type=None, include_cross_pols=True):
         if not isinstance(beam, UVBeam) or isinstance(beam, AnalyticBeam):
             raise ValueError("beam must be a UVBeam or an AnalyticBeam instance.")
         self.beam = beam
@@ -38,7 +48,7 @@ class BeamInterface:
                     "`beam` is an efield UVBeam but `beam_type` is specified as "
                     "'power'. Converting efield beam to power."
                 )
-                self.beam.efield_to_power()
+                self.beam.efield_to_power(calc_cross_pols=include_cross_pols)
             else:
                 raise ValueError(
                     "`beam` is a power UVBeam but `beam_type` is specified as 'efield'."
@@ -46,8 +56,12 @@ class BeamInterface:
                     "either provide an efield UVBeam or do not specify `beam_type`."
                 )
         else:
+            # AnalyticBeam
             self._isuvbeam = False
             self.beam_type = beam_type
+            existing_cross_pols = self.Npols > self.Nfeeds
+            if existing_cross_pols != include_cross_pols:
+                self.beam.update_cross_pols(include_cross_pols=include_cross_pols)
 
     def compute_response(
         self,
@@ -106,8 +120,6 @@ class BeamInterface:
                 reuse_spline=reuse_spline,
                 spline_opts=spline_opts,
             )
-            if not self.beam.future_array_shapes:
-                interp_data = interp_data[:, 0]
         else:
             if self.beam_type == "efield":
                 interp_data = self.efield_eval(az_array, za_array, freq_array)
