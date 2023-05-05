@@ -40,9 +40,9 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
     assert uvd.Nfreqs == 100
     assert uvd.Npols == 2
     assert uvd.Nants_data == 3
-    assert uvd.Nbls == 9
+    assert uvd.Nbls == 6
     assert uvd.Ntimes == 20
-    assert uvd.Nblts == 180
+    assert uvd.Nblts == 120
     assert uvd.Nspws == 1
 
 
@@ -139,7 +139,9 @@ def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
             time_array="hello this is a string",
         )
 
-    with pytest.raises(ValueError, match="integration_time must be a numpy array"):
+    with pytest.raises(
+        TypeError, match="integration_time must be array_like of floats"
+    ):
         get_time_params(
             telescope_location=simplest_working_params["telescope_location"],
             integration_time={"a": "dict"},
@@ -161,7 +163,7 @@ def test_bad_freq_inputs(simplest_working_params: dict[str, Any]):
         badp = {k: v for k, v in simplest_working_params.items() if k != "freq_array"}
         UVData.new(freq_array="hello this is a string", **badp)
 
-    with pytest.raises(ValueError, match="channel_width must be a numpy array"):
+    with pytest.raises(TypeError, match="channel_width must be array_like of floats"):
         badp = {
             k: v for k, v in simplest_working_params.items() if k != "channel_width"
         }
