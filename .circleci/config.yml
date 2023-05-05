@@ -55,7 +55,7 @@ jobs:
             mkdir test-reports
             mkdir -p empty
             cd empty
-            pytest --pyargs pyuvdata -n 2 --dist=loadfile --cov=pyuvdata --cov-config="../.coveragerc" --cov-report xml:".././coverage.xml" --junitxml="../test-reports/xunit.xml"
+            python -m pytest --pyargs pyuvdata -n 2 --dist=loadfile --cov=pyuvdata --cov-config="../.coveragerc" --cov-report xml:".././coverage.xml" --junitxml="../test-reports/xunit.xml"
             cd ..
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
