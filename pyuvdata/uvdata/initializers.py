@@ -122,7 +122,10 @@ def get_time_params(
     if np.isscalar(integration_time):
         integration_time = np.full_like(time_array, integration_time)
 
-    integration_time = np.asarray(integration_time)
+    try:
+        integration_time = np.asarray(integration_time, dtype=float)
+    except TypeError as e:
+        raise TypeError("integration_time must be array_like of floats") from e
 
     if integration_time.shape != time_array.shape:
         raise ValueError("integration_time must be the same shape as time_array.")
@@ -150,7 +153,10 @@ def get_freq_params(
     elif np.isscalar(channel_width):
         channel_width = np.full_like(freq_array, channel_width)
 
-    channel_width = np.asarray(channel_width)
+    try:
+        channel_width = np.asarray(channel_width, dtype=float)
+    except TypeError as e:
+        raise TypeError("channel_width must be array_like of floats") from e
 
     if channel_width.shape != freq_array.shape:
         raise ValueError("channel_width must be the same shape as freq_array.")
