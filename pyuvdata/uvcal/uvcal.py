@@ -4467,23 +4467,23 @@ class UVCal(UVBase):
         """
         if times is not None:
             warnings.warn(
-                DeprecationWarning,
                 "The times keyword is deprecated in favor of time_array and will be "
                 "removed in v3.",
+                DeprecationWarning,
             )
             kwargs["time_array"] = np.array(times)
         if frequencies is not None:
             warnings.warn(
-                DeprecationWarning,
                 "The frequencies keyword is deprecated in favor of freq_array and will "
                 "be removed in v3.",
+                DeprecationWarning,
             )
             kwargs["freq_array"] = np.array(frequencies)
         if jones is not None:
             warnings.warn(
-                DeprecationWarning,
                 "The jones keyword is deprecated in favor of jones_array and will be "
                 "removed in v3.",
+                DeprecationWarning,
             )
             kwargs["jones_array"] = jones
 
