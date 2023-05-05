@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Literal
 
 import numpy as np
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from .. import __version__
@@ -18,7 +19,7 @@ from ..uvdata.initializers import (
 
 
 def new_uvcal(
-    freq_array: np.ndarray,
+    *,
     time_array: np.ndarray,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray],
     telescope_location: Locations,
@@ -27,8 +28,9 @@ def new_uvcal(
     gain_convention: Literal["divide", "multiply"],
     jones_array: np.ndarray | str,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"],
-    delay_array: np.ndarray | None = None,
-    cal_type: Literal["delay", "gain", "unknown"] | None = None,
+    freq_array: np.ndarray | None = None,
+    freq_range: np.ndarray | None = None,
+    cal_type: Literal["delay", "gain"] | None = None,
     integration_time: float | np.ndarray | None = None,
     channel_width: float | np.ndarray | None = None,
     antenna_names: list[str] | None = None,
@@ -41,6 +43,7 @@ def new_uvcal(
     sky_catalog: str | None = None,
     sky_field: str | None = None,
     empty: bool = False,
+    data: dict[str, np.ndarray] | None = None,
     history: str = "",
     **kwargs,
 ):
@@ -128,13 +131,6 @@ def new_uvcal(
 
     uvc = UVCal()
 
-    if wide_band:
-        raise NotImplementedError(
-            "Wideband calibrations are not yet supported for this constructor."
-        )
-    if not kwargs.get("flex_spw", True):
-        raise ValueError("flex_spw must be True for this constructor.")
-
     antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
         antenna_positions, antenna_names, antenna_numbers, antname_format
     )
@@ -152,9 +148,39 @@ def new_uvcal(
         telescope_location, time_array, integration_time
     )
 
-    freq_array, channel_width = get_freq_params(freq_array, channel_width)
+    if (freq_range is not None) and (
+        freq_array is not None
+        or channel_width is not None
+        or flex_spw_id_array is not None
+    ):
+        raise ValueError(
+            "Provide *either* freq_range *or* freq_array (and "
+            "optionally, channel_width, and flex_spw_id_array)."
+        )
 
-    flex_spw_id_array, spw_array = get_spw_params(flex_spw_id_array, freq_array)
+    if freq_array is not None:
+        freq_array, channel_width = get_freq_params(freq_array, channel_width)
+        flex_spw_id_array, spw_array = get_spw_params(
+            flex_spw_id_array, freq_array=freq_array
+        )
+        wide_band = False
+        freq_range = None
+        cal_type = "gain"
+    elif freq_range is not None:
+        # We're in wide-band mode.
+        flex_spw_id_array = None
+        wide_band = True
+        cal_type = cal_type or "delay"
+        freq_range = np.atleast_2d(np.array(freq_range))
+        spw_array = np.arange(len(freq_range))
+    else:
+        raise ValueError(
+            "You must provide either freq_array (optionally along with channel_width, "
+            " and flex_spw_id_array) or freq_range."
+        )
+
+    if cal_type not in ("gain", "delay"):
+        raise ValueError(f"cal_type must be either 'gain' or 'delay', got {cal_type}")
 
     if jones_array == "linear":
         jones_array = np.array([-5, -6, -7, -8])
@@ -170,27 +196,27 @@ def new_uvcal(
 
     x_orientation = XORIENTMAP[x_orientation.lower()]
 
-    if delay_array is not None and cal_type is None:
-        cal_type = "delay"
-    elif cal_type == "delay" and delay_array is None:
-        raise ValueError("If cal_type is delay, delay_array must be provided.")
+    if cal_style not in ("redundant", "sky"):
+        raise ValueError(f"cal_style must be 'redundant' or 'sky', got {cal_style}")
 
-    if cal_style == "sky":
-        if ref_antenna_name is None:
-            raise ValueError("If cal_style is sky, ref_antenna_name must be provided.")
-        if sky_catalog is None:
-            raise ValueError("If cal_style is sky, sky_catalog must be provided.")
-        if sky_field is None:
-            raise ValueError("If cal_style is sky, sky_field must be provided.")
+    if cal_style == "sky" and (
+        ref_antenna_name is None or sky_catalog is None or sky_field is None
+    ):
+        raise ValueError(
+            "If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field must "
+            "all be provided."
+        )
 
     # Now set all the metadata
     uvc.freq_array = freq_array
     uvc.antenna_positions = antenna_positions
-    uvc.telescope_location = [
-        telescope_location.x.to_value("m"),
-        telescope_location.y.to_value("m"),
-        telescope_location.z.to_value("m"),
-    ]
+    uvc.telescope_location = np.array(
+        [
+            telescope_location.x.to_value("m"),
+            telescope_location.y.to_value("m"),
+            telescope_location.z.to_value("m"),
+        ]
+    )
     uvc.telescope_name = telescope_name
     uvc.time_array = time_array
     uvc.lst_array = lst_array
@@ -198,7 +224,6 @@ def new_uvcal(
     uvc.channel_width = channel_width
     uvc.antenna_names = antenna_names
     uvc.antenna_numbers = antenna_numbers
-    uvc.flex_spw = True
     uvc.history = history
     uvc.ant_array = ant_array
     uvc.telescope_name = telescope_name
@@ -210,34 +235,35 @@ def new_uvcal(
     uvc.sky_catalog = sky_catalog
     uvc.sky_field = sky_field
     uvc.jones_array = jones_array
+    uvc.freq_range = freq_range
 
     if cal_type == "delay":
         uvc._set_delay()
     elif cal_type == "gain":
         uvc._set_gain()
-    elif cal_type == "unknown":
-        uvc._set_unknown_cal_type()
 
     if cal_style == "redundant":
         uvc._set_redundant()
     elif cal_style == "sky":
         uvc._set_sky()
 
-    print(uvc.cal_type)
+    uvc._set_future_array_shapes()
+    uvc._set_wide_band(wide_band)
 
     uvc.Nants_data = len(ant_array)
     uvc.Nants_telescope = len(antenna_numbers)
-    uvc.Nfreqs = len(freq_array)
+    uvc.Nfreqs = len(freq_array) if freq_array is not None else 1
+    # uvc.Ndlys = len(delay_array) if delay_array is not None else 1
     uvc.Ntimes = len(time_array)
-    uvc.Nspws = 1
+    uvc.Nspws = len(spw_array)
     uvc.Njones = len(jones_array)
 
     uvc.flex_spw_id_array = flex_spw_id_array
     uvc.spw_array = spw_array
-
     # We always make the following true.
-    uvc._set_future_array_shapes()
-    uvc._set_flex_spw()
+
+    if not wide_band:
+        uvc._set_flex_spw()
 
     for k, v in kwargs.items():
         if hasattr(uvc, k):
@@ -245,20 +271,259 @@ def new_uvcal(
         else:
             raise ValueError(f"Unrecognized keyword argument: {k}")
 
-    if empty:
-        fshape = (uvc.Nants_data, uvc.Nfreqs, uvc.Ntimes, uvc.Njones)
-        sshape = (uvc.Nants_data, uvc.Nspws, uvc.Ntimes, uvc.Njones)
+    if empty or data:
+        data = data or {}
+        shape = (
+            uvc.Nants_data,
+            uvc.Nspws if wide_band else uvc.Nfreqs,
+            uvc.Ntimes,
+            uvc.Njones,
+        )
 
         # Flag array
-        uvc.flag_array = np.zeros(fshape, dtype=bool)
-        uvc.gain_array = np.ones(fshape, dtype=complex)
-        uvc.input_flag_array = np.zeros(fshape, dtype=bool)
+        uvc.flag_array = data.get("flag_array", np.zeros(shape, dtype=bool))
+        uvc.input_flag_array = data.get("input_flag_array", np.zeros(shape, dtype=bool))
+
         if cal_type == "delay":
-            uvc.quality_array = np.zeros(sshape, dtype=float)
-            uvc.total_quality_array = np.zeros(sshape[1:], dtype=float)
+            uvc.delay_array = data.get("delay_array", np.zeros(shape, dtype=float))
         else:
-            uvc.quality_array = np.zeros(fshape, dtype=float)
-            uvc.total_quality_array = np.zeros(fshape[1:], dtype=float)
+            uvc.gain_array = data.get("gain_array", np.ones(shape, dtype=complex))
+
+        uvc.quality_array = data.get("quality_array", np.zeros(shape, dtype=float))
+        uvc.total_quality_array = data.get(
+            "total_quality_array", np.zeros(shape[1:], dtype=float)
+        )
 
     uvc.check()
     return uvc
+
+
+def new_uvcal_from_uvdata(
+    uvdata,
+    cal_style: Literal["sky", "redundant"],
+    gain_convention: Literal["divide", "multiply"],
+    cal_type: Literal["gain", "delay"] = "gain",
+    jones_array: np.ndarray | str | None = None,
+    wide_band: bool = False,
+    include_uvdata_history: bool = True,
+    spw_array: np.ndarray | None = None,
+    **kwargs,
+):
+    """Construct a UVCal object with default attributes from a UVData object.
+
+    Internally, this function takes whatever default parameters it can from the
+    UVData object, and then overwrites them with any parameters passed in as
+    kwargs. It then uses :func:`new_uvcal` to construct the UVCal object.
+
+    Parameters
+    ----------
+    uvdata : UVData
+        UVData object to use as a template.
+    cal_style : str
+        Calibration style. Must be 'sky' or 'redundant'.
+    gain_convention : str
+        Gain convention. Must be 'divide' or 'multiply'.
+    cal_type : str
+        Calibration type. Must be 'gain' or 'delay'. Default 'gain'.
+        Note that in contrast to :func:`new_uvcal`, this function sets the default
+        to 'gain', instead of trying to set it based on the input freq_range.
+    jones_array : array_like of int or str, optional
+        Array of Jones polarizations. Taken from UVData object is possible (i.e. it is
+        single-polarization data), otherwise must be specified. May be specified
+        as 'circular' or 'linear' to indicate all circular or all linear polarizations.
+    wide_band : bool
+        Whether the calibration is wide-band (i.e. one calibration parameter per
+        spectral window instead of per channel). Automatically set to True if cal_type
+        is 'delay', otherwise the default is False. Note that if wide_band is True,
+        the `freq_range` parameter is required.
+    include_uvdata_history : bool
+        Whether to include the UVData object's history in the UVCal object's history.
+        Default is True.
+    spw_array : array_like of int, optional
+        Array of spectral window numbers. This will be taken from the UVData object
+        if at all possible. The only time it is useful to pass this in explicitly is
+        if ``wide_band=True`` and the spectral windows desired are not just
+        ``(0, ..., Nspw-1)``.
+    kwargs : dict
+        All other parameters passed to the :func:`new_uvcal` constructor.
+    """
+    from ..uvdata import UVData
+
+    if not isinstance(uvdata, UVData):
+        raise ValueError("uvdata must be a UVData object.")
+
+    uses_future_shapes = uvdata.future_array_shapes
+    if not uses_future_shapes:
+        uvdata.use_future_array_shapes()
+
+    if cal_type == "delay":
+        wide_band = True
+
+    # If any time-length params are in kwargs, we can't use ANY of them from the UVData
+    if "integration_time" in kwargs or "time_array" in kwargs:
+        integration_time = kwargs.pop("integration_time", None)
+        time_array = kwargs.pop("time_array", None)
+    else:
+        indx = np.unique(uvdata.time_array, return_index=True)[1]
+        integration_time = uvdata.integration_time[indx]
+        time_array = uvdata.time_array[indx]
+
+    # Get frequency-type info from kwargs and uvdata
+    if cal_type == "gain" and not wide_band:
+        if "channel_width" in kwargs or "freq_array" in kwargs:
+            channel_width = kwargs.pop("channel_width", None)
+            freq_array = kwargs.pop("freq_array", None)
+            flex_spw_id_array = kwargs.pop("flex_spw_id_array", None)
+        else:
+            # Just in case the input uvdata is not future_array_shapes compliant, we
+            # flatten
+            freq_array = uvdata.freq_array.flatten()
+            channel_width = uvdata.channel_width.flatten()
+            flex_spw_id_array = getattr(uvdata, "flex_spw_id_array", None)
+        freq_range = None
+        if "freq_range" in kwargs:
+            del kwargs["freq_range"]
+        if spw_array is not None and len(spw_array) != len(
+            np.unique(flex_spw_id_array)
+        ):
+            raise ValueError(
+                "spw_array must be the same length as the number of unique spws in the "
+                "UVData object."
+            )
+    else:
+        channel_width = None
+        freq_array = None
+        flex_spw_id_array = None
+        _spwids = getattr(uvdata, "flex_spw_id_array", None)
+        if spw_array is None:
+            spw_array = np.sort(np.unique(_spwids))
+
+        freq_range = kwargs.pop("freq_range", None)
+        if freq_range is None:
+            freq_range = []
+            for spw in spw_array:
+                if _spwids is None:
+                    freqs = uvdata.freq_array
+                else:
+                    freqs = uvdata.freq_array[_spwids == spw]
+                freq_range.append([freqs.min(), freqs.max()])
+            freq_range = np.array(freq_range)
+
+        # Add spw_array to kwargs to get passed through explicitly, since they are
+        # not computable directly from flex_spw_id_array in this case
+        kwargs["spw_array"] = spw_array
+
+    # Figure out how to mesh the antenna parameters given with those in the uvd
+    if "antenna_positions" not in kwargs:
+        if "antenna_numbers" in kwargs or "antenna_names" in kwargs:
+            # User can provide a subset of antenna numbers or names, but not positions
+            antenna_numbers = kwargs.pop("antenna_numbers", None)
+            antenna_names = kwargs.pop("antenna_names", None)
+
+            if antenna_numbers is not None and antenna_names is not None:
+                raise ValueError(
+                    "Cannot specify both antenna_numbers and antenna_names but not "
+                    "antenna_positions"
+                )
+
+            if antenna_numbers is not None:
+                idx = [
+                    i
+                    for i, v in enumerate(uvdata.antenna_numbers)
+                    if v in antenna_numbers
+                ]
+            elif antenna_names is not None:
+                idx = [
+                    i for i, v in enumerate(uvdata.antenna_names) if v in antenna_names
+                ]
+
+            antenna_numbers = uvdata.antenna_numbers[idx]
+            antenna_names = uvdata.antenna_names[idx]
+            antenna_positions = uvdata.antenna_positions[idx]
+        else:
+            antenna_numbers = uvdata.antenna_numbers
+            antenna_names = uvdata.antenna_names
+            antenna_positions = uvdata.antenna_positions
+
+        # Sort them, because that's what the old function did
+        sort_idx = np.argsort(antenna_numbers)
+        antenna_numbers = np.asarray(antenna_numbers)[sort_idx]
+        antenna_names = ((np.asarray(antenna_names))[sort_idx]).tolist()
+        antenna_positions = antenna_positions[sort_idx]
+
+    else:
+        antenna_positions = kwargs.pop("antenna_positions")
+        antenna_numbers = kwargs.pop("antenna_numbers", None)
+        antenna_names = kwargs.pop("antenna_names", None)
+
+    ant_array = kwargs.pop(
+        "ant_array", np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
+    )
+
+    if antenna_numbers is not None:
+        ant_array = np.intersect1d(ant_array, antenna_numbers)
+    elif isinstance(antenna_positions, dict):
+        ant_array = np.intersect1d(ant_array, list(antenna_positions.keys()))
+
+    if jones_array is None:
+        if np.all(uvdata.polarization_array < -4):
+            if uvdata.Npols == 1 and uvdata.polarization_array[0] > -7:
+                # single pol data, make a single pol cal object
+                jones_array = uvdata.polarization_array
+            else:
+                jones_array = np.array([-5, -6])
+        elif np.all(uvdata.polarization_array < 0):
+            if uvdata.Npols == 1 and uvdata.polarization_array[0] > -3:
+                # single pol data, make a single pol cal object
+                jones_array = uvdata.polarization_array
+            else:
+                jones_array = np.array([-1, -2])
+        else:
+            raise ValueError(
+                "Since uvdata object is in psuedo-stokes polarization, you must "
+                "set jones_array."
+            )
+
+    if "history" not in kwargs:
+        history = "Initialized from a UVData object with pyuvdata."
+        if include_uvdata_history:
+            history += " UVData history is: " + uvdata.history
+    else:
+        history = kwargs.pop("history")
+
+    new = new_uvcal(
+        cal_style=cal_style,
+        gain_convention=gain_convention,
+        jones_array=jones_array,
+        x_orientation=kwargs.pop("x_orientation", uvdata.x_orientation),
+        freq_array=freq_array,
+        freq_range=freq_range,
+        cal_type=cal_type,
+        time_array=time_array,
+        antenna_positions=antenna_positions,
+        antenna_names=antenna_names,
+        antenna_numbers=antenna_numbers,
+        ant_array=ant_array,
+        telescope_location=kwargs.pop(
+            "telescope_location",
+            EarthLocation(
+                lat=uvdata.telescope_location_lat_lon_alt_degrees[0],
+                lon=uvdata.telescope_location_lat_lon_alt_degrees[1],
+                height=uvdata.telescope_location_lat_lon_alt_degrees[2],
+            ),
+        ),
+        telescope_name=kwargs.pop("telescope_name", uvdata.telescope_name),
+        integration_time=integration_time,
+        channel_width=channel_width,
+        flex_spw_id_array=flex_spw_id_array,
+        history=history,
+        **kwargs,
+    )
+
+    # Now convert the UVData object and UVCal object to proper array shapes
+    if not uses_future_shapes:
+        uvdata.use_current_array_shapes()
+        if not wide_band:
+            new.use_current_array_shapes()
+
+    return new

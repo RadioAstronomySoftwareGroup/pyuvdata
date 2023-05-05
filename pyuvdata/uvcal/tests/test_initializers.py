@@ -1,15 +1,18 @@
+import re
+
 import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 
-from pyuvdata.uvcal.initializers import new_uvcal
+from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
+from pyuvdata.uvdata.initializers import new_uvdata
 
 
 @pytest.fixture(scope="function")
-def uvc_kw():
+def uvd_kw():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
-        "time_array": np.linspace(2459850, 2459851, 12),
+        "times": np.linspace(2459850, 2459851, 12),
         "antenna_positions": {
             0: [0.0, 0.0, 0.0],
             1: [0.0, 0.0, 1.0],
@@ -17,12 +20,27 @@ def uvc_kw():
         },
         "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
         "telescope_name": "mock",
+        "polarization_array": np.array([-5, -6, -7, -8]),
+    }
+
+
+@pytest.fixture(scope="function")
+def uvc_only_kw():
+    return {
         "cal_style": "redundant",
         "gain_convention": "multiply",
         "x_orientation": "n",
         "jones_array": "linear",
         "cal_type": "gain",
     }
+
+
+@pytest.fixture(scope="function")
+def uvc_kw(uvd_kw, uvc_only_kw):
+    uvd_kw["time_array"] = uvd_kw["times"]
+    del uvd_kw["times"]
+    del uvd_kw["polarization_array"]
+    return {**uvc_only_kw, **uvd_kw}
 
 
 def test_new_uvcal_simplest(uvc_kw):
@@ -34,45 +52,27 @@ def test_new_uvcal_simplest(uvc_kw):
 
 
 def test_new_uvcal_bad_inputs(uvc_kw):
-    with pytest.raises(NotImplementedError):
-        new_uvcal(wide_band=True, **uvc_kw)
-
-    with pytest.raises(ValueError, match="flex_spw must be True for this constructor"):
-        new_uvcal(flex_spw=False, **uvc_kw)
-
     with pytest.raises(
         ValueError, match="The following ants are not in antenna_numbers"
     ):
         new_uvcal(ant_array=[0, 1, 2, 3], **uvc_kw)
 
     with pytest.raises(
-        ValueError, match="If cal_type is delay, delay_array must be provided"
-    ):
-        new_uvcal(
-            cal_type="delay", **{k: v for k, v in uvc_kw.items() if k != "cal_type"}
-        )
-
-    with pytest.raises(
-        ValueError, match="If cal_style is sky, ref_antenna_name must be provided"
+        ValueError,
+        match=re.escape(
+            "If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field must "
+            "all be provided"
+        ),
     ):
         new_uvcal(
             cal_style="sky", **{k: v for k, v in uvc_kw.items() if k != "cal_style"}
         )
 
     with pytest.raises(
-        ValueError, match="If cal_style is sky, sky_catalog must be provided"
+        ValueError, match="cal_style must be 'redundant' or 'sky'\\, got"
     ):
         new_uvcal(
-            cal_style="sky",
-            ref_antenna_name="mock",
-            **{k: v for k, v in uvc_kw.items() if k != "cal_style"}
-        )
-
-    with pytest.raises(
-        ValueError, match="If cal_style is sky, sky_field must be provided"
-    ):
-        new_uvcal(
-            cal_style="sky",
+            cal_style="wrong",
             ref_antenna_name="mock",
             sky_catalog="mock",
             **{k: v for k, v in uvc_kw.items() if k != "cal_style"}
@@ -80,6 +80,21 @@ def test_new_uvcal_bad_inputs(uvc_kw):
 
     with pytest.raises(ValueError, match="Unrecognized keyword argument"):
         new_uvcal(bad_kwarg=True, **uvc_kw)
+
+    with pytest.raises(
+        ValueError, match=re.escape("Provide *either* freq_range *or* freq_array")
+    ):
+        new_uvcal(freq_range=[100e6, 200e6], **uvc_kw)
+
+    with pytest.raises(ValueError, match="You must provide either freq_array"):
+        new_uvcal(**{k: v for k, v in uvc_kw.items() if k != "freq_array"})
+
+    with pytest.raises(ValueError, match="cal_type must be either 'gain' or 'delay'"):
+        new_uvcal(
+            cal_type="wrong",
+            freq_range=[150e6, 180e6],
+            **{k: v for k, v in uvc_kw.items() if k not in ("freq_array", "cal_type")}
+        )
 
 
 def test_new_uvcal_jones_array(uvc_kw):
@@ -94,13 +109,6 @@ def test_new_uvcal_jones_array(uvc_kw):
 
     custom = new_uvcal(jones_array=np.array([-1, -3]), **uvc)
     assert custom.Njones == 2
-
-
-# def test_new_uvcal_set_delay(uvc_kw):
-#     # TODO: actually implement this
-#     uvc = {k: v for k, v in uvc_kw.items() if k != "cal_type"}
-#     dl = new_uvcal(delay_array=np.linspace(0, 1, 10), **uvc)
-#     assert dl.cal_type == "delay"
 
 
 def test_new_uvcal_set_sky(uvc_kw):
@@ -129,7 +137,44 @@ def test_new_uvcal_set_empty(uvc_kw):
     assert uvc.flag_array.dtype == bool
 
 
-def test_new_uvcal_set_unknown_cal_type(uvc_kw):
-    uvc = {k: v for k, v in uvc_kw.items() if k != "cal_type"}
-    new = new_uvcal(cal_type="unknown", **uvc)
-    assert new.cal_type == "unknown"
+def test_new_uvcal_set_delay(uvc_kw):
+    uvc = {k: v for k, v in uvc_kw.items() if k not in ("freq_array", "cal_type")}
+    new = new_uvcal(
+        delay_array=np.linspace(1, 10, 10),
+        freq_range=[150e6, 180e6],
+        wide_band=False,
+        empty=True,
+        **uvc
+    )
+    assert new.cal_type == "delay"
+    assert new.quality_array.shape[1] == new.Nspws
+
+
+def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+
+    uvc = new_uvcal_from_uvdata(uvd, **uvc_only_kw)
+
+    assert np.all(uvc.time_array == uvd_kw["times"])
+    assert np.all(uvc.freq_array == uvd_kw["freq_array"])
+    assert uvc.telescope_name == uvd_kw["telescope_name"]
+
+    uvc = new_uvcal_from_uvdata(uvd, time_array=uvd_kw["times"][:-1], **uvc_only_kw)
+    assert np.all(uvc.time_array == uvd_kw["times"][:-1])
+
+    uvc = new_uvcal_from_uvdata(
+        uvd, freq_array=uvd_kw["freq_array"][:-1], **uvc_only_kw
+    )
+    assert np.all(uvc.freq_array == uvd_kw["freq_array"][:-1])
+
+    uvc = new_uvcal_from_uvdata(
+        uvd,
+        antenna_positions={
+            0: uvd_kw["antenna_positions"][0],
+            1: uvd_kw["antenna_positions"][1],
+        },
+        **uvc_only_kw
+    )
+
+    assert np.all(uvc.antenna_positions[0] == uvd_kw["antenna_positions"][0])
+    assert len(uvc.antenna_positions) == 2
