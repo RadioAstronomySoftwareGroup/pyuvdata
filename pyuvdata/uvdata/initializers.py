@@ -97,7 +97,7 @@ def get_time_params(
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Configure time parameters for new UVData object."""
     if not isinstance(time_array, np.ndarray):
-        raise ValueError("time_array must be a numpy array.")
+        raise ValueError(f"time_array must be a numpy array, got {type(time_array)}")
 
     lst_array = utils.get_lst_for_time(
         time_array,
@@ -122,8 +122,7 @@ def get_time_params(
     if np.isscalar(integration_time):
         integration_time = np.full_like(time_array, integration_time)
 
-    if not isinstance(integration_time, np.ndarray):
-        raise ValueError("integration_time must be a numpy array or a scalar.")
+    integration_time = np.asarray(integration_time)
 
     if integration_time.shape != time_array.shape:
         raise ValueError("integration_time must be the same shape as time_array.")
@@ -151,8 +150,7 @@ def get_freq_params(
     elif np.isscalar(channel_width):
         channel_width = np.full_like(freq_array, channel_width)
 
-    if not isinstance(channel_width, np.ndarray):
-        raise ValueError("channel_width must be a numpy array or a scalar.")
+    channel_width = np.asarray(channel_width)
 
     if channel_width.shape != freq_array.shape:
         raise ValueError("channel_width must be the same shape as freq_array.")
@@ -294,14 +292,29 @@ def set_phase_params(obj, phase_center_catalog, phase_center_id_array, time_arra
 
 
 def get_spw_params(
-    flex_spw_id_array: np.ndarray | None = None, freq_array: np.ndarray | None = None
+    flex_spw_id_array: np.ndarray | None = None,
+    freq_array: np.ndarray | None = None,
+    spw_array: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Configure spectral window parameters for new UVData object."""
-    if flex_spw_id_array is None:
+    if flex_spw_id_array is None and spw_array is None:
         flex_spw_id_array = np.zeros(freq_array.shape[0], dtype=int)
         spw_array = np.array([0])
-    else:
+    elif spw_array is not None:
+        if len(spw_array) > 1:
+            raise ValueError(
+                "If spw_array has more than one entry, flex_spw_id_array must be "
+                "provided."
+            )
+        flex_spw_id_array = np.full(freq_array.shape[0], spw_array[0], dtype=int)
+    elif flex_spw_id_array is not None:
         spw_array = np.sort(np.unique(flex_spw_id_array))
+    else:
+        if len(np.unique(spw_array)) != len(np.unique(flex_spw_id_array)):
+            raise ValueError(
+                "spw_array and flex_spw_id_array must have the same number of unique "
+                "values."
+            )
 
     return flex_spw_id_array, spw_array
 

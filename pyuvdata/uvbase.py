@@ -423,18 +423,16 @@ class UVBase(object):
         """
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
-            self_required = []
-            other_required = []
-            for param in self.required():
-                self_required.append(param)
-            for param in other.required():
-                other_required.append(param)
-            if set(self_required) != set(other_required):
+            self_required = set(self.required())
+            other_required = set(other.required())
+            if self_required != other_required:
                 if not silent:
                     print(
                         "Sets of required parameters do not match. "
                         f"Left is {self_required},"
-                        f" right is {other_required}."
+                        f" right is {other_required}. Left has "
+                        f"{self_required.difference(other_required)} extra."
+                        f" Right has {other_required.difference(self_required)} extra."
                     )
                 return False
 
@@ -453,9 +451,9 @@ class UVBase(object):
                             f" right is {other_extra}."
                         )
                     return False
-                p_check = self_required + self_extra
+                p_check = list(self_required) + self_extra
             else:
-                p_check = self_required
+                p_check = list(self_required)
 
             if allowed_failures is not None:
                 if isinstance(allowed_failures, str):
