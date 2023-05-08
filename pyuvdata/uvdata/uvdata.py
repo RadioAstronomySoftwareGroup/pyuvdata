@@ -34,6 +34,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
+EMPTY_INDX = np.array([], dtype=np.int64)
 
 reporting_request = (
     " Please report this in our issue log, we have not been able to find a file with "
@@ -254,6 +255,15 @@ class UVData(UVBase):
             tols=uvutils.RADIAN_TOL,
         )
 
+        def clear_antpair2ind_cache(self):
+            """Clear the antpair2ind cache."""
+            self.__antpair2ind_cache = {}
+            self.__key2ind_cache = {}
+
+        def clear_key2ind_cache(self):
+            """Clear the antpair2ind cache."""
+            self.__key2ind_cache = {}
+
         desc = (
             "Array of numbers for the first antenna, which is matched to that in "
             "the antenna_numbers attribute. Shape (Nblts), type = int."
@@ -264,6 +274,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
+            setter=clear_antpair2ind_cache,
         )
 
         desc = (
@@ -276,6 +287,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
+            setter=clear_antpair2ind_cache,
         )
 
         desc = (
@@ -324,6 +336,7 @@ class UVData(UVBase):
             expected_type=int,
             acceptable_vals=list(np.arange(-8, 5)),
             form=("Npols",),
+            setter=clear_key2ind_cache,
         )
 
         desc = (
@@ -766,12 +779,53 @@ class UVData(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
+        self.__antpair2ind_cache = {}
+        self.__key2ind_cache = {}
+
         super(UVData, self).__init__()
 
     @staticmethod
     @combine_docstrings(new_uvdata, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
+
+    def determine_blt_order(self) -> tuple[str] | tuple[str, str] | None:
+        """Determine, set and return the baseline-time ordering."""
+        if self.blt_order is not None:
+            return self.blt_order
+
+        order = uvutils.determine_blt_ordering(
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            n_bls=self.Nbls,
+            n_times=self.Ntimes,
+        )
+        self.blt_order = order
+        return order
+
+    def set_rectangularity(self, force: bool = False) -> bool:
+        """Whether blts axis is rectangular.
+
+        That is, this is true if the blts can be reshaped to ``(Ntimes, Nbls)`` OR
+        ``(Nbls, Ntimes)``. This requires each baseline to have the same number of times
+        associated, AND the blt ordering to either be (time, baseline) or
+        (baseline,time).
+        """
+        if self.blts_are_rectangular is not None and not force:
+            return
+
+        rect, timefirst = uvutils.determine_rectangularity(
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            nbls=self.Nbls,
+            ntimes=self.Ntimes,
+            blt_order=self.blt_order,
+        )
+
+        self.blts_are_rectangular = rect
+        self.time_axis_faster_than_bls = timefirst
 
     def _set_flex_spw(self):
         """
@@ -3640,7 +3694,7 @@ class UVData(UVBase):
             ant1, ant2, Nants_telescope=self.Nants_telescope, attempt256=attempt256
         )
 
-    def antpair2ind(self, ant1, ant2=None, *, ordered=True):
+    def antpair2ind(self, ant1, ant2=None, *, ordered=True) -> np.ndarray | slice:
         """
         Get indices along the baseline-time axis for a given antenna pair.
 
@@ -3658,8 +3712,10 @@ class UVData(UVBase):
 
         Returns
         -------
-        inds : ndarray of int-64
-            indices of the antpair along the baseline-time axis.
+        inds : ndarray of int-64 or slice
+            If possible, returns a slice object that can be used to index the blt
+            axis and get back the data associated with antpair. If not, returns indices
+            of the antpair along the baseline-time axis.
         """
         # check for expanded antpair or key
         if ant2 is None:
@@ -3684,21 +3740,64 @@ class UVData(UVBase):
             ordered = True
 
         # get indices
-        inds = np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
-        if ordered:
-            return inds
-        else:
-            ind2 = np.where((self.ant_1_array == ant2) & (self.ant_2_array == ant1))[0]
-            inds = np.asarray(np.append(inds, ind2), dtype=np.int64)
-            return inds
+        if (ant1, ant2, ordered) in self.__antpair2ind_cache:
+            return self.__antpair2ind_cache[(ant1, ant2, ordered)]
 
-    def _key2inds(self, key):
+        if self.blts_are_rectangular:
+            antpairs = self.get_antpairs()
+            try:
+                idx = antpairs.index((ant1, ant2))
+                if self.time_axis_faster_than_bls:
+                    inds = slice(self.Ntimes * idx, self.Ntimes * (idx + 1))
+                else:
+                    inds = slice(idx, None, self.Nbls)
+
+            except ValueError:
+                # antpair is not in data
+                inds = None
+
+            if not ordered:
+                try:
+                    idx = antpairs.index((ant2, ant1))
+                    if self.time_axis_faster_than_bls:
+                        ind2 = slice(self.Ntimes * idx, self.Ntimes * (idx + 1))
+                    else:
+                        ind2 = slice(idx, None, self.Nbls)
+
+                    if inds is None:
+                        inds = ind2
+                    else:
+                        # concatenate them.
+                        indxs = np.arange(self.Nblts)
+                        inds = np.asarray(
+                            np.append(indxs[inds], indxs[ind2]), dtype=np.int64
+                        )
+                except ValueError:
+                    # inverse antpair is not in data
+                    pass
+        else:
+            # get indices
+            inds = np.where((self.ant_1_array == ant1) & (self.ant_2_array == ant2))[0]
+
+            if not ordered:
+                ind2 = np.where(
+                    (self.ant_1_array == ant2) & (self.ant_2_array == ant1)
+                )[0]
+                inds = np.asarray(np.append(inds, ind2), dtype=np.int64)
+
+            if inds.size == 0:
+                inds = None
+
+        self.__antpair2ind_cache[(ant1, ant2, ordered)] = inds
+        return inds
+
+    def _key2inds(self, key: str | tuple[int] | tuple[int, int] | tuple[int, int, str]):
         """
         Interpret user specified key as antenna pair and/or polarization.
 
         Parameters
         ----------
-        key : tuple of int
+        key : str tuple of int
             Identifier of data. Key can be length 1, 2, or 3:
 
             if len(key) == 1:
@@ -3715,9 +3814,9 @@ class UVData(UVBase):
 
         Returns
         -------
-        blt_ind1 : ndarray of int
-            blt indices for antenna pair.
-        blt_ind2 : ndarray of int
+        blt_ind1 : ndarray of int or slice or None
+            blt indices for antenna pair. None if antpair is not in data.
+        blt_ind2 : ndarray of int or slice or None
             blt indices for conjugate antenna pair.
             Note if a cross-pol baseline is requested, the polarization will
             also be reversed so the appropriate correlations are returned.
@@ -3728,17 +3827,25 @@ class UVData(UVBase):
             polarization indices for blt_ind1 and blt_ind2
 
         """
+        orig_key = key
+
         key = uvutils._get_iterable(key)
-        if type(key) is str:
+        if not isinstance(key, str):
+            key = tuple(key)
+
+        if key in self.__key2ind_cache:
+            return self.__key2ind_cache[key]
+
+        if isinstance(key, str):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(
                 self.polarization_array
                 == uvutils.polstr2num(key, x_orientation=self.x_orientation)
             )[0]
             if len(pol_ind1) > 0:
-                blt_ind1 = np.arange(self.Nblts, dtype=np.int64)
-                blt_ind2 = np.array([], dtype=np.int64)
-                pol_ind2 = np.array([], dtype=np.int64)
+                blt_ind1 = slice(None)
+                blt_ind2 = None
+                pol_ind2 = None
                 pol_ind = (pol_ind1, pol_ind2)
             else:
                 raise KeyError("Polarization {pol} not found in data.".format(pol=key))
@@ -3746,14 +3853,14 @@ class UVData(UVBase):
             key = key[0]  # For simplicity
             if isinstance(key, Iterable):
                 # Nested tuple. Call function again.
-                blt_ind1, blt_ind2, pol_ind = self._key2inds(key)
+                return self._key2inds(key)
             elif key < 5:
                 # Small number, assume it is a polarization number a la AIPS memo
                 pol_ind1 = np.where(self.polarization_array == key)[0]
                 if len(pol_ind1) > 0:
-                    blt_ind1 = np.arange(self.Nblts)
-                    blt_ind2 = np.array([], dtype=np.int64)
-                    pol_ind2 = np.array([], dtype=np.int64)
+                    blt_ind1 = slice(None)
+                    blt_ind2 = None
+                    pol_ind2 = None
                     pol_ind = (pol_ind1, pol_ind2)
                 else:
                     raise KeyError(
@@ -3761,103 +3868,87 @@ class UVData(UVBase):
                     )
             else:
                 # Larger number, assume it is a baseline number
-                inv_bl = self.antnums_to_baseline(
-                    self.baseline_to_antnums(key)[1], self.baseline_to_antnums(key)[0]
-                )
-                blt_ind1 = np.where(self.baseline_array == key)[0]
-                blt_ind2 = np.where(self.baseline_array == inv_bl)[0]
-                if len(blt_ind1) + len(blt_ind2) == 0:
-                    raise KeyError("Baseline {bl} not found in data.".format(bl=key))
-                if len(blt_ind1) > 0:
-                    pol_ind1 = np.arange(self.Npols)
+                key = self.baseline_to_antnums(key)  # turns it into a len-2 key.
+
+        if isinstance(key, tuple) and len(key) >= 2:
+            # Key is an antenna pair
+            blt_ind1 = self.antpair2ind(key[0], key[1])
+            if key[0] == key[1]:  # catch autos
+                blt_ind2 = None
+            else:
+                blt_ind2 = self.antpair2ind(key[1], key[0])
+
+            if blt_ind1 is None and blt_ind2 is None:
+                if isinstance(orig_key, int):
+                    raise KeyError(f"Baseline {orig_key} not found in data")
                 else:
-                    pol_ind1 = np.array([], dtype=np.int64)
-                if len(blt_ind2) > 0:
+                    raise KeyError(f"Antenna pair {key[:2]} not found in data")
+
+            if len(key) == 3:
+                orig_pol = key[2]
+                if isinstance(key[2], str):
+                    pol = uvutils.polstr2num(key[2], x_orientation=self.x_orientation)
+                else:
+                    pol = key[2]
+
+            if blt_ind1 is None:
+                pol_ind1 = None
+            else:
+                if len(key) == 2:
+                    pol_ind1 = slice(None)
+                else:
+                    pol_ind1 = np.where(self.polarization_array == pol)[0]
+                    if pol_ind1.size == 0:
+                        pol_ind1 = None
+
+            if blt_ind2 is None:
+                pol_ind2 = None
+            else:
+                if len(key) == 2:
                     try:
                         pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
                     except ValueError as err:
-                        if len(blt_ind1) == 0:
+                        if blt_ind1 is None:
                             raise KeyError(
-                                f"Baseline {key} not found for polarization "
+                                f"Baseline {orig_key} not found for polarization "
                                 "array in data."
                             ) from err
                         else:
-                            pol_ind2 = np.array([], dtype=np.int64)
-                            blt_ind2 = np.array([], dtype=np.int64)
+                            pol_ind2 = None
+                            blt_ind2 = None
                 else:
-                    pol_ind2 = np.array([], dtype=np.int64)
-                pol_ind = (pol_ind1, pol_ind2)
-        elif len(key) == 2:
-            # Key is an antenna pair
-            blt_ind1 = self.antpair2ind(key[0], key[1])
-            blt_ind2 = self.antpair2ind(key[1], key[0])
-            if len(blt_ind1) + len(blt_ind2) == 0:
-                raise KeyError("Antenna pair {pair} not found in data".format(pair=key))
-            if len(blt_ind1) > 0:
-                pol_ind1 = np.arange(self.Npols)
-            else:
-                pol_ind1 = np.array([], dtype=np.int64)
-            if len(blt_ind2) > 0:
-                try:
-                    pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
-                except ValueError as err:
-                    if len(blt_ind1) == 0:
-                        raise KeyError(
-                            f"Baseline {key} not found for polarization array in data."
-                        ) from err
-                    else:
-                        pol_ind2 = np.array([], dtype=np.int64)
-                        blt_ind2 = np.array([], dtype=np.int64)
-            else:
-                pol_ind2 = np.array([], dtype=np.int64)
-            pol_ind = (pol_ind1, pol_ind2)
-        elif len(key) == 3:
-            # Key is an antenna pair + pol
-            blt_ind1 = self.antpair2ind(key[0], key[1])
-            blt_ind2 = self.antpair2ind(key[1], key[0])
-            if len(blt_ind1) + len(blt_ind2) == 0:
-                raise KeyError(
-                    "Antenna pair {pair} not found in "
-                    "data".format(pair=(key[0], key[1]))
-                )
-            if type(key[2]) is str:
-                # pol is str
-                if len(blt_ind1) > 0:
-                    pol_ind1 = np.where(
-                        self.polarization_array
-                        == uvutils.polstr2num(key[2], x_orientation=self.x_orientation)
-                    )[0]
-                else:
-                    pol_ind1 = np.array([], dtype=np.int64)
-                if len(blt_ind2) > 0:
                     pol_ind2 = np.where(
-                        self.polarization_array
-                        == uvutils.polstr2num(
-                            uvutils.conj_pol(key[2]), x_orientation=self.x_orientation
-                        )
+                        self.polarization_array == uvutils.conj_pol(pol)
                     )[0]
-                else:
-                    pol_ind2 = np.array([], dtype=np.int64)
-            else:
-                # polarization number a la AIPS memo
-                if len(blt_ind1) > 0:
-                    pol_ind1 = np.where(self.polarization_array == key[2])[0]
-                else:
-                    pol_ind1 = np.array([], dtype=np.int64)
-                if len(blt_ind2) > 0:
-                    pol_ind2 = np.where(
-                        self.polarization_array == uvutils.conj_pol(key[2])
-                    )[0]
-                else:
-                    pol_ind2 = np.array([], dtype=np.int64)
+                    if pol_ind2.size == 0:
+                        pol_ind2 = None
+
             pol_ind = (pol_ind1, pol_ind2)
-            if len(blt_ind1) * len(pol_ind[0]) + len(blt_ind2) * len(pol_ind[1]) == 0:
-                raise KeyError(
-                    "Polarization {pol} not found in data.".format(pol=key[2])
+            if (blt_ind1 is None or pol_ind1 is None) and (
+                blt_ind2 is None or pol_ind2 is None
+            ):
+                raise KeyError(f"Polarization {orig_pol} not found in data.")
+
+        # Convert to slices if possible
+        def slicify(ind):
+            if ind is None or isinstance(ind, slice):
+                return ind
+            if len(ind) == 0:
+                return None
+
+            if len(set(np.ediff1d(ind))) <= 1:
+                return slice(
+                    ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1
                 )
-        # Catch autos
-        if np.array_equal(blt_ind1, blt_ind2):
-            blt_ind2 = np.array([], dtype=np.int64)
+            else:
+                # can't slicify
+                return ind
+
+        blt_ind1 = slicify(blt_ind1)
+        blt_ind2 = slicify(blt_ind2)
+        pol_ind = (slicify(pol_ind[0]), slicify(pol_ind[1]))
+
+        self.__key2ind_cache[key] = (blt_ind1, blt_ind2, pol_ind)
         return (blt_ind1, blt_ind2, pol_ind)
 
     def _smart_slicing(
@@ -3891,127 +3982,28 @@ class UVData(UVBase):
         ndarray
             copy (or if possible, a read-only view) of relevant section of data
         """
-        p_reg_spaced = [False, False]
-        p_start = [0, 0]
-        p_stop = [0, 0]
-        dp = [1, 1]
-        for i, pi in enumerate(indp):
-            if len(pi) == 0:
-                continue
-            if len(set(np.ediff1d(pi))) <= 1:
-                p_reg_spaced[i] = True
-                p_start[i] = pi[0]
-                p_stop[i] = pi[-1] + 1
-                if len(pi) != 1:
-                    dp[i] = pi[1] - pi[0]
+        if squeeze not in ["full", "default", "none"]:
+            raise ValueError(
+                f'"{squeeze}" is not a valid option for squeeze.'
+                'Only "default", "none", or "full" are allowed.'
+            )
 
-        if len(ind2) == 0:
-            # only unconjugated baselines
-            if len(set(np.ediff1d(ind1))) <= 1:
-                blt_start = ind1[0]
-                blt_stop = ind1[-1] + 1
-                if len(ind1) == 1:
-                    dblt = 1
-                else:
-                    dblt = ind1[1] - ind1[0]
-                if p_reg_spaced[0]:
-                    if self.future_array_shapes:
-                        out = data[
-                            blt_start:blt_stop:dblt, :, p_start[0] : p_stop[0] : dp[0]
-                        ]
-                    else:
-                        out = data[
-                            blt_start:blt_stop:dblt,
-                            :,
-                            :,
-                            p_start[0] : p_stop[0] : dp[0],
-                        ]
-                else:
-                    if self.future_array_shapes:
-                        out = data[blt_start:blt_stop:dblt, :, indp[0]]
-                    else:
-                        out = data[blt_start:blt_stop:dblt, :, :, indp[0]]
+        if ind1 is None or ind2 is None:
+            ind = ind1 if ind2 is None else ind2
+            indp = indp[0] if ind2 is None else indp[1]
+
+            if isinstance(ind, slice):
+                out = data[ind, ..., indp]
             else:
-                out = data[ind1]
-                if p_reg_spaced[0]:
-                    if self.future_array_shapes:
-                        out = out[:, :, p_start[0] : p_stop[0] : dp[0]]
-                    else:
-                        out = out[:, :, :, p_start[0] : p_stop[0] : dp[0]]
-                else:
-                    if self.future_array_shapes:
-                        out = out[:, :, indp[0]]
-                    else:
-                        out = out[:, :, :, indp[0]]
-        elif len(ind1) == 0:
-            # only conjugated baselines
-            if len(set(np.ediff1d(ind2))) <= 1:
-                blt_start = ind2[0]
-                blt_stop = ind2[-1] + 1
-                if len(ind2) == 1:
-                    dblt = 1
-                else:
-                    dblt = ind2[1] - ind2[0]
-                if p_reg_spaced[1]:
-                    if self.future_array_shapes:
-                        out = np.conj(
-                            data[
-                                blt_start:blt_stop:dblt,
-                                :,
-                                p_start[1] : p_stop[1] : dp[1],
-                            ]
-                        )
-                    else:
-                        out = np.conj(
-                            data[
-                                blt_start:blt_stop:dblt,
-                                :,
-                                :,
-                                p_start[1] : p_stop[1] : dp[1],
-                            ]
-                        )
-                else:
-                    if self.future_array_shapes:
-                        out = np.conj(data[blt_start:blt_stop:dblt, :, indp[1]])
-                    else:
-                        out = np.conj(data[blt_start:blt_stop:dblt, :, :, indp[1]])
-            else:
-                out = data[ind2]
-                if p_reg_spaced[1]:
-                    if self.future_array_shapes:
-                        out = np.conj(out[:, :, p_start[1] : p_stop[1] : dp[1]])
-                    else:
-                        out = np.conj(out[:, :, :, p_start[1] : p_stop[1] : dp[1]])
-                else:
-                    if self.future_array_shapes:
-                        out = np.conj(out[:, :, indp[1]])
-                    else:
-                        out = np.conj(out[:, :, :, indp[1]])
+                out = data[ind][..., indp]
+
+            if ind1 is None:
+                out = np.conj(out)
         else:
             # both conjugated and unconjugated baselines
-            out = (data[ind1], np.conj(data[ind2]))
-            if p_reg_spaced[0] and p_reg_spaced[1]:
-                if self.future_array_shapes:
-                    out = np.append(
-                        out[0][:, :, p_start[0] : p_stop[0] : dp[0]],
-                        out[1][:, :, p_start[1] : p_stop[1] : dp[1]],
-                        axis=0,
-                    )
-                else:
-                    out = np.append(
-                        out[0][:, :, :, p_start[0] : p_stop[0] : dp[0]],
-                        out[1][:, :, :, p_start[1] : p_stop[1] : dp[1]],
-                        axis=0,
-                    )
-            else:
-                if self.future_array_shapes:
-                    out = np.append(
-                        out[0][:, :, indp[0]], out[1][:, :, indp[1]], axis=0
-                    )
-                else:
-                    out = np.append(
-                        out[0][:, :, :, indp[0]], out[1][:, :, :, indp[1]], axis=0
-                    )
+            out = np.append(
+                data[ind1][..., indp[0]], np.conj(data[ind2][..., indp[1]]), axis=0
+            )
 
         if squeeze == "full":
             out = np.squeeze(out)
@@ -4027,11 +4019,6 @@ class UVData(UVBase):
                 if out.shape[1] == 1:
                     # one spw dimension
                     out = np.squeeze(out, axis=1)
-        elif squeeze != "none":
-            raise ValueError(
-                '"' + str(squeeze) + '" is not a valid option for squeeze.'
-                'Only "default", "none", or "full" are allowed.'
-            )
 
         if force_copy:
             out = np.array(out)
@@ -4050,7 +4037,16 @@ class UVData(UVBase):
         ndarray of int
             Array of unique antennas with data associated with them.
         """
-        return np.unique(np.append(self.ant_1_array, self.ant_2_array))
+        if self.blts_are_rectangular:
+            if self.blt_order == ("baseline", "time"):
+                ant1 = self.ant_1_array[:: self.Ntimes]
+                ant2 = self.ant_2_array[:: self.Ntimes]
+            else:
+                ant1 = self.ant_1_array[: self.Nbls]
+                ant2 = self.ant_2_array[: self.Nbls]
+            return np.unique(np.append(ant1, ant2))
+        else:
+            return np.unique(np.append(self.ant_1_array, self.ant_2_array))
 
     def get_baseline_nums(self):
         """
@@ -4061,7 +4057,13 @@ class UVData(UVBase):
         ndarray of int
             Array of unique baselines with data associated with them.
         """
-        return np.unique(self.baseline_array)
+        if self.blts_are_rectangular:
+            if self.blt_order == ("baseline", "time"):
+                return self.baseline_array[:: self.Ntimes]
+            else:
+                return self.baseline_array[: self.Nbls]
+        else:
+            return np.unique(self.baseline_array)
 
     def get_antpairs(self):
         """
@@ -4327,7 +4329,11 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
-        return self.time_array[np.append(inds1, inds2)]
+        if inds1 is None:
+            inds1 = slice(0, 0)
+        if inds2 is None:
+            inds2 = slice(0, 0)
+        return np.append(self.time_array[inds1], self.time_array[inds2])
 
     def get_lsts(self, key1, key2=None, key3=None):
         """
@@ -4368,7 +4374,11 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
-        return self.lst_array[np.append(inds1, inds2)]
+        if inds1 is None:
+            inds1 = slice(0, 0)
+        if inds2 is None:
+            inds2 = slice(0, 0)
+        return np.append(self.lst_array[inds1], self.lst_array[inds2])
 
     def get_ENU_antpos(self, *, center=False, pick_data_ants=False):
         """
@@ -4466,16 +4476,18 @@ class UVData(UVBase):
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
-        if len(ind2) != 0:
+        if ind2 is not None:
             raise ValueError(
                 "the requested key is present on the object, but conjugated. Please "
                 "conjugate data and keys appropriately and try again"
             )
 
+        nbltinds = len(np.arange(self.Nblts)[ind1])
+        npolinds = len(np.arange(self.Npols)[indp[0]])
         if self.future_array_shapes:
-            expected_shape = (len(ind1), self.Nfreqs, len(indp[0]))
+            expected_shape = (nbltinds, self.Nfreqs, npolinds)
         else:
-            expected_shape = (len(ind1), 1, self.Nfreqs, len(indp[0]))
+            expected_shape = (nbltinds, 1, self.Nfreqs, npolinds)
         if dshape != expected_shape:
             raise ValueError(
                 "the input array is not compatible with the shape of the destination. "
@@ -4792,6 +4804,9 @@ class UVData(UVBase):
                 self.ant_1_array[index_array], self.ant_2_array[index_array]
             )
             self.Nbls = np.unique(self.baseline_array).size
+
+            self.__antpair2ind_cache = {}
+            self._key2ind_cache = {}
 
     def reorder_pols(
         self,
@@ -8472,6 +8487,7 @@ class UVData(UVBase):
                         # If we're working with an ndarray, use take to slice along
                         # the axis that we want to grab from.
                         attr.value = attr.value.take(ind_arr, axis=sel_axis)
+                        attr.setter(self)
                     elif isinstance(attr.value, list):
                         # If this is a list, it _should_ always have 1-dimension.
                         assert sel_axis == 0, (
@@ -8480,6 +8496,7 @@ class UVData(UVBase):
                             "issue in our GitHub issue log so that we can fix it."
                         )
                         attr.value = [attr.value[idx] for idx in ind_arr]
+                        attr.setter(self)
 
             if key == "Nblts":
                 # Process post blt-specific selection actions, including counting
@@ -10217,7 +10234,12 @@ class UVData(UVBase):
                     )[0]
 
                     if obj_time_ind.size == 1:
-                        this_obj_ind = obj_inds[obj_time_ind[0]]
+                        if isinstance(obj_inds, slice):
+                            this_obj_ind = (obj_inds.start or 0) + obj_time_ind[0] * (
+                                obj_inds.step or 1
+                            )
+                        else:
+                            this_obj_ind = obj_inds[obj_time_ind[0]]
                     else:
                         warnings.warn(
                             "Index baseline in the redundant group does not "
