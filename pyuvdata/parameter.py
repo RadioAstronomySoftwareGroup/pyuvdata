@@ -11,6 +11,8 @@ UVBase. This module also includes specialized subclasses for particular types
 of metadata.
 
 """
+from __future__ import annotations
+
 import builtins
 import warnings
 
@@ -157,7 +159,7 @@ def _param_dict_equal(this_dict, other_dict):
     return True, ""
 
 
-class UVParameter(object):
+class UVParameter:
     """
     Data and metadata objects for interferometric data sets.
 
@@ -204,6 +206,10 @@ class UVParameter(object):
         When True, the input expected_type is used exactly, otherwise a more
         generic type is found to allow changes in precisions or to/from numpy
         dtypes to not break checks.
+    setter : function, optional
+        An optional function to be called after the parameter is set.
+        The function should take a single argument, the instance of the class
+        to which the parameter is attached.
 
     Attributes
     ----------
@@ -265,6 +271,7 @@ class UVParameter(object):
         tols=(1e-05, 1e-08),
         strict_type_check=False,
         ignore_eq_none: bool = False,
+        setter: callable | None = None,
     ):
         """Init UVParameter object."""
         self.name = name
@@ -293,6 +300,7 @@ class UVParameter(object):
             self.tols = tols
 
         self.ignore_eq_none = ignore_eq_none and not required
+        self._setter = setter
 
     def __eq__(self, other, *, silent=False):
         """
@@ -701,6 +709,16 @@ class UVParameter(object):
         else:
             # Otherwise just default to checking equality
             return value == self.value
+
+    def setter(self, inst):
+        """Extra operations to perform on the parent instance when setting the param.
+
+        This can be used to do things like cache invalidation, for example,
+        if there is a cache of antpairs to blt indices, when the ant_1_array
+        or ant_2_array are set, this cache should be cleared here.
+        """
+        if self._setter is not None:
+            self._setter(inst)
 
 
 class AngleParameter(UVParameter):
