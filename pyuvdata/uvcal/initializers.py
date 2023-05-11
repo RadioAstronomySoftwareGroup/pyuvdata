@@ -37,7 +37,6 @@ def new_uvcal(
     antenna_numbers: list[int] | None = None,
     antname_format: str = "{0:03d}",
     ant_array: np.ndarray | None = None,
-    wide_band: bool = False,
     flex_spw_id_array: np.ndarray | None = None,
     ref_antenna_name: str | None = None,
     sky_catalog: str | None = None,
@@ -79,8 +78,8 @@ def new_uvcal(
         Array of delays in seconds. If cal_type is not provided, it will be set to
         'delay' if delay_array is provided.
     cal_type : str, optional
-        Calibration type. Options are 'delay', 'gain', or 'unknown'. Not required
-        if delay_array is provided (then it will be set to 'delay').
+        Calibration type. Options are 'delay', 'gain'. Forced to be 'gain' if
+        ``freq_array`` is given, and by *default* set to 'delay' if not.
     integration_time : float or ndarray of float, optional
         Integration time in seconds. If not provided, it will be set to the minimum
         time separation in time_array for all times.
@@ -101,8 +100,6 @@ def new_uvcal(
     ant_array : ndarray of int, optional
         Array of antenna numbers actually found in data (in the order of the data
         in gain_array etc.)
-    wide_band : bool, optional
-        Whether to use wide_band. Default is False, and Trie is not yet supported.
     flex_spw_id_array : ndarray of int, optional
         Array of spectral window IDs. If not provided, it will be set to an array of
         zeros and only one spw will be used.
@@ -282,7 +279,7 @@ def new_uvcal(
 
         # Flag array
         uvc.flag_array = data.get("flag_array", np.zeros(shape, dtype=bool))
-        uvc.input_flag_array = data.get("input_flag_array", np.zeros(shape, dtype=bool))
+        uvc.input_flag_array = data.get("input_flag_array", None)
 
         if cal_type == "delay":
             uvc.delay_array = data.get("delay_array", np.zeros(shape, dtype=float))
