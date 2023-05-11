@@ -9,13 +9,11 @@ import threading
 import warnings
 
 import numpy as np
-from astropy.coordinates import EarthLocation
 
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
-from ..uvdata import UVData
 from . import initializers
 
 __all__ = ["UVCal"]
@@ -572,35 +570,6 @@ class UVCal(UVBase):
         :func:`~pyuvdata.uvcal.initializers.new_uvcal` function.
         """
         return initializers.new_uvcal(**kwargs)
-
-    @classmethod
-    def from_uvdata(cls, uvd: UVData, **kwargs):
-        """
-        Create a new UVCal object from a UVData object.
-
-        All parameters are passed through to the
-        :func:`~pyuvdata.uvcal.initializers.new_uvdata` function, but those that can
-        be set from the UVData object directly are not required.
-        """
-        utimes, indx = np.unique(uvd.time_array, return_index=True)
-        return initializers.new_uvcal(
-            freq_array=uvd.freq_array,
-            time_array=utimes,
-            antenna_positions=uvd.antenna_positions,
-            antenna_names=uvd.antenna_names,
-            antenna_numbers=uvd.antenna_numbers,
-            telescope_location=EarthLocation.from_geodetic(
-                lat=uvd.telescope_location_lat_lon_alt_degrees[0],
-                lon=uvd.telescope_location_lat_lon_alt_degrees[1],
-                height=uvd.telescope_location_lat_lon_alt[2],
-            ),
-            telescope_name=uvd.telescope_name,
-            integration_time=uvd.integration_time[indx],
-            channel_width=uvd.channel_width,
-            flex_spw_id_array=uvd.flex_spw_id_array,
-            x_orientation=kwargs.get("x_orientation", uvd.x_orientation),
-            **kwargs,
-        )
 
     def _set_flex_spw(self):
         """
@@ -4449,20 +4418,6 @@ class UVCal(UVBase):
         kwargs : dict
             All other arguments are passed to :func:`new_uvcal_from_uvdata`, most of
             which are passed through to :func:`new_uvcal`.
-
-        Raises
-        ------
-        ValueError
-            If cal_style is 'sky' and ref_antenna_name, sky_catalog or sky_field are not
-            provided;
-            if freq_array is not None, flex_spw is True and flex_spw_id_array is None;
-            if freq_array and channel_width are None and the uvdata object does not use
-            flexible spectral windows and the uvdata channel width varies;
-            if time_array and integration_time are None and the uvdata integration
-            time varies;
-            if time_array is not None and integration_time is not specified or is the
-            wrong type;
-            if jones_array is None and uvdata is in psuedo-stokes.
 
         """
         if times is not None:
