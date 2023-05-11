@@ -1379,6 +1379,7 @@ def test_select_blts(paper_uvh5, future_shapes):
     # check that it also works with higher dimension array
     uv_object2 = uv_object.copy()
     uv_object2.select(blt_inds=blt_inds[np.newaxis, :])
+
     assert len(blt_inds) == uv_object2.Nblts
 
     assert uvutils._check_histories(

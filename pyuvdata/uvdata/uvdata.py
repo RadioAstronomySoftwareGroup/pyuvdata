@@ -8714,7 +8714,7 @@ class UVData(UVBase):
 
         # Update the rectangularity attributes
         if blt_inds is not None:
-            self.set_rectangularity(force=True)
+            uv_obj.set_rectangularity(force=True)
 
         # If we have a flex-pol data set, but we only have one pol, then this doesn't
         # need to be flex-pol anymore, and we can drop it here
