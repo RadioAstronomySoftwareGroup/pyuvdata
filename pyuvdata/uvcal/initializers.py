@@ -376,7 +376,9 @@ def new_uvcal_from_uvdata(
             # flatten
             freq_array = uvdata.freq_array.flatten()
             channel_width = uvdata.channel_width.flatten()
-            flex_spw_id_array = getattr(uvdata, "flex_spw_id_array", None)
+            flex_spw_id_array = getattr(
+                uvdata, "flex_spw_id_array", kwargs.get("flex_spw_id_array", None)
+            )
         freq_range = None
         if "freq_range" in kwargs:
             del kwargs["freq_range"]
@@ -385,15 +387,19 @@ def new_uvcal_from_uvdata(
         ):
             raise ValueError(
                 "spw_array must be the same length as the number of unique spws in the "
-                "UVData object."
+                f"UVData object. Got {spw_array} and {np.unique(flex_spw_id_array)}."
             )
     else:
         channel_width = None
         freq_array = None
         flex_spw_id_array = None
         _spwids = getattr(uvdata, "flex_spw_id_array", None)
+
         if spw_array is None:
-            spw_array = np.sort(np.unique(_spwids))
+            if _spwids is None:
+                spw_array = np.array([0])
+            else:
+                spw_array = np.sort(np.unique(_spwids))
 
         freq_range = kwargs.pop("freq_range", None)
         if freq_range is None:
@@ -434,8 +440,8 @@ def new_uvcal_from_uvdata(
                     i for i, v in enumerate(uvdata.antenna_names) if v in antenna_names
                 ]
 
-            antenna_numbers = uvdata.antenna_numbers[idx]
-            antenna_names = uvdata.antenna_names[idx]
+            antenna_numbers = np.asarray(uvdata.antenna_numbers)[idx]
+            antenna_names = np.asarray(uvdata.antenna_names)[idx]
             antenna_positions = uvdata.antenna_positions[idx]
         else:
             antenna_numbers = uvdata.antenna_numbers
