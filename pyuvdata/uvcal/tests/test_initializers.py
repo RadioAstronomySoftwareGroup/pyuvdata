@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 
+from pyuvdata.uvcal import UVCal
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
 
@@ -44,7 +45,7 @@ def uvc_kw(uvd_kw, uvc_only_kw):
 
 
 def test_new_uvcal_simplest(uvc_kw):
-    uvc = new_uvcal(**uvc_kw)
+    uvc = UVCal.new(**uvc_kw)
     assert uvc.Nants_data == 3
     assert uvc.Nants_telescope == 3
     assert uvc.Nfreqs == 10
@@ -71,7 +72,7 @@ def test_new_uvcal_bad_inputs(uvc_kw):
     with pytest.raises(
         ValueError, match="cal_style must be 'redundant' or 'sky'\\, got"
     ):
-        new_uvcal(
+        UVCal.new(
             cal_style="wrong",
             ref_antenna_name="mock",
             sky_catalog="mock",
@@ -178,3 +179,64 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
 
     assert np.all(uvc.antenna_positions[0] == uvd_kw["antenna_positions"][0])
     assert len(uvc.antenna_positions) == 2
+
+
+def test_new_uvcal_set_freq_range_for_gain_type(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+    uvc = new_uvcal_from_uvdata(uvd, freq_range=(150e6, 170e6), **uvc_only_kw)
+    assert uvc.freq_range is None
+
+
+def test_new_uvcal_set_spwarray_and_flexspwid(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+    uvc = new_uvcal_from_uvdata(uvd, spw_array=np.array([0]), **uvc_only_kw)
+    assert np.all(uvc.spw_array == np.array([0]))
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            "spw_array must be the same length as the number of unique spws "
+            "in the UVData object"
+        ),
+    ):
+        new_uvcal_from_uvdata(uvd, spw_array=np.array([0, 1]), **uvc_only_kw)
+
+
+def test_new_uvcal_get_freq_range_without_spwids(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+
+    uvc_only_kw["cal_type"] = "delay"
+    uvd.flex_spw_id_array = None
+
+    uvc = new_uvcal_from_uvdata(uvd, **uvc_only_kw)
+    assert uvc.freq_range.min() == uvd.freq_array.min()
+    assert uvc.freq_range.max() == uvd.freq_array.max()
+
+
+def test_new_uvcal_from_uvdata_specify_numbers_names(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+
+    with pytest.raises(
+        ValueError, match="Cannot specify both antenna_numbers and antenna_names"
+    ):
+        new_uvcal_from_uvdata(
+            uvd,
+            antenna_numbers=uvd.antenna_numbers,
+            antenna_names=uvd.antenna_names,
+            **uvc_only_kw
+        )
+
+    uvc = new_uvcal_from_uvdata(
+        uvd, antenna_numbers=uvd.antenna_numbers[:1], **uvc_only_kw
+    )
+    uvc2 = new_uvcal_from_uvdata(
+        uvd, antenna_names=uvd.antenna_names[:1], **uvc_only_kw
+    )
+    uvc.history = uvc2.history
+    assert uvc == uvc2
+
+
+def test_new_uvcal_with_history(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+    uvc = new_uvcal_from_uvdata(uvd, history="my substring", **uvc_only_kw)
+    assert "my substring" in uvc.history

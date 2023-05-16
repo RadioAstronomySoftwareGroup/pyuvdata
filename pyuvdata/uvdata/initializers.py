@@ -303,17 +303,18 @@ def get_spw_params(
     spw_array: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Configure spectral window parameters for new UVData object."""
-    if flex_spw_id_array is None and spw_array is None:
-        flex_spw_id_array = np.zeros(freq_array.shape[0], dtype=int)
-        spw_array = np.array([0])
-    elif spw_array is not None:
-        if len(spw_array) > 1:
-            raise ValueError(
-                "If spw_array has more than one entry, flex_spw_id_array must be "
-                "provided."
-            )
-        flex_spw_id_array = np.full(freq_array.shape[0], spw_array[0], dtype=int)
-    elif flex_spw_id_array is not None:
+    if flex_spw_id_array is None:
+        if spw_array is None:
+            flex_spw_id_array = np.zeros(freq_array.shape[0], dtype=int)
+            spw_array = np.array([0])
+        elif spw_array is not None:
+            if len(spw_array) > 1:
+                raise ValueError(
+                    "If spw_array has more than one entry, flex_spw_id_array must be "
+                    "provided."
+                )
+            flex_spw_id_array = np.full(freq_array.shape[0], spw_array[0], dtype=int)
+    elif spw_array is None:
         spw_array = np.sort(np.unique(flex_spw_id_array))
     else:
         if len(np.unique(spw_array)) != len(np.unique(flex_spw_id_array)):
