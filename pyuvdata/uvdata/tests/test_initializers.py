@@ -506,3 +506,41 @@ def test_get_spw_params():
     idarray = np.array([0, 0, 0, 0, 1])
     _id, spw = get_spw_params(idarray, freq)
     assert np.all(spw == [0, 1])
+
+    with pytest.raises(
+        ValueError,
+        match="If spw_array has more than one entry, flex_spw_id_array must be",
+    ):
+        get_spw_params(spw_array=np.array([0, 1]))
+
+    _id, spw = get_spw_params(spw_array=np.array([1]), freq_array=np.zeros(10))
+    assert len(_id) == 10
+    assert len(spw) == 1
+    assert np.all(_id) == 1
+
+    # Passing both spw_array and flex_spws, but getting them right
+    _id, spw = get_spw_params(
+        spw_array=np.array([0, 1]),
+        flex_spw_id_array=np.concatenate(
+            (np.zeros(10, dtype=int), np.ones(10, dtype=int))
+        ),
+    )
+    assert len(spw) == 2
+
+    # Passing both spw_array and flex_spws, but getting them wrong
+    with pytest.raises(
+        ValueError,
+        match="spw_array and flex_spw_id_array must have the same number of unique",
+    ):
+        _id, spw = get_spw_params(
+            spw_array=np.array([0, 1]), flex_spw_id_array=np.zeros(10, dtype=int)
+        )
+
+
+@pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
+def test_passing_xorient(simplest_working_params, xorient):
+    uvd = UVData.new(x_orientation=xorient, **simplest_working_params)
+    if xorient.lower().startswith("e"):
+        assert uvd.x_orientation == "east"
+    else:
+        assert uvd.x_orientation == "north"
