@@ -3959,10 +3959,24 @@ def test_init_from_uvdata_setfreqs(
         uvc.gain_convention,
         uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
-        frequencies=freqs_use,
+        freq_array=freqs_use,
         channel_width=channel_width,
         flex_spw_id_array=flex_spw_id_array,
     )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="The frequencies keyword is deprecated in favor of freq_array",
+    ):
+        UVCal.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            future_array_shapes=uvcal_future_shapes,
+            frequencies=freqs_use,
+            channel_width=channel_width,
+            flex_spw_id_array=flex_spw_id_array,
+        )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -4027,11 +4041,25 @@ def test_init_from_uvdata_settimes(
         uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
         metadata_only=metadata_only,
-        times=times_use,
+        time_array=times_use,
         integration_time=integration_time,
         time_range=uvc.time_range,
     )
 
+    with pytest.warns(
+        DeprecationWarning,
+        match="The times keyword is deprecated in favor of time_array",
+    ):
+        UVCal.initialize_from_uvdata(
+            uvd,
+            uvc.gain_convention,
+            uvc.cal_style,
+            future_array_shapes=uvcal_future_shapes,
+            metadata_only=metadata_only,
+            times=times_use,
+            integration_time=integration_time,
+            time_range=uvc.time_range,
+        )
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
@@ -4068,33 +4096,6 @@ def test_init_from_uvdata_settimes(
     assert uvc_new == uvc2
 
 
-# def test_init_from_uvdata_settimes_errors(uvcalibrate_data):
-#     uvd, uvc = uvcalibrate_data
-#     times_use = uvc.time_array[0:3]
-#     integration_time = np.full(times_use.size, np.mean(uvd.integration_time)).tolist()
-
-#     # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-#     # but that requirement is not enforced. Set it to None for this test
-#     uvc.time_range = None
-
-#     uvc2 = uvc.copy(metadata_only=True)
-
-#     uvc2.select(times=times_use)
-
-#     with pytest.raises(
-#         ValueError,
-#         match="integration_time must be scalar if future_array_shapes is False.",
-#     ):
-#         UVCal.initialize_from_uvdata(
-#             uvd,
-#             uvc.gain_convention,
-#             uvc.cal_style,
-#             future_array_shapes=False,
-#             times=times_use,
-#             integration_time=integration_time,
-#         )
-
-
 def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     uvc._set_flex_spw()
@@ -4105,8 +4106,16 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
-        uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6]
+        uvd, uvc.gain_convention, uvc.cal_style, jones_array=[-5, -6]
     )
+
+    with pytest.warns(
+        DeprecationWarning,
+        match="The jones keyword is deprecated in favor of jones_array",
+    ):
+        UVCal.initialize_from_uvdata(
+            uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6]
+        )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file

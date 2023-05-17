@@ -179,10 +179,11 @@ def new_uvcal(
     if cal_type not in ("gain", "delay"):
         raise ValueError(f"cal_type must be either 'gain' or 'delay', got {cal_type}")
 
-    if jones_array == "linear":
-        jones_array = np.array([-5, -6, -7, -8])
-    elif jones_array == "circular":
-        jones_array = np.array([-1, -2, -3, -4])
+    if isinstance(jones_array, str):
+        if jones_array == "linear":
+            jones_array = np.array([-5, -6, -7, -8])
+        elif jones_array == "circular":
+            jones_array = np.array([-1, -2, -3, -4])
     else:
         jones_array = np.array(jones_array)
 
