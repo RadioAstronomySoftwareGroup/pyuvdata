@@ -37,7 +37,7 @@ jobs:
       source ./ci/_activate_current_env.sh
       pip install --no-deps .
       cd ../hera_cal
-      pip install --no-deps .
+      pip install .
       mkdir test-reports
       python -m pytest hera_cal --junitxml=test-reports/xunit.xml
     displayName: run hera_cal tests
