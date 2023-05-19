@@ -68,8 +68,8 @@ def new_uvcal(
         Array of frequencies in Hz. If given, the freq_range parameter is ignored, and
         the cal type is assumed to be "gain".
     freq_range : ndarray of float, optional
-        Frequency ranges in Hz. If given, the freq_array parameter is ignored, and the
-        calibration is assumed to be wide band. The array shape should be (Nspws, 2).
+        Frequency ranges in Hz. Must be given if ``freq_array`` is not given. If given,
+        the calibration is assumed to be wide band. The array shape should be (Nspws, 2)
     gain_convention : str
         Gain convention. Options are 'divide' or 'multiply'.
     x_orientation : str
@@ -87,8 +87,7 @@ def new_uvcal(
         appended). If not provided and the number of unique times is one, then
         a warning will be raised and the integration time set to 1 second.
         If a float is provided, it will be used for all integrations.
-        If an ndarray is provided, it must have the same shape as time_array (or
-        unique_times, if that is what is provided).
+        If an ndarray is provided, it must have the same shape as time_array.
     channel_width : float or ndarray of float, optional
         Channel width in Hz. If not provided, it will be derived from the freq_array,
         as the difference between successive frequencies (with the last frequency-diff
@@ -127,7 +126,9 @@ def new_uvcal(
     data : dict of array_like, optional
         Dictionary containing optional data arrays. Possible keys are:
         'gain_array', 'delay_array', 'quality_array', 'flag_array',
-        and 'total_quality_array'.
+        and 'total_quality_array'. If any entry is provided, the output will contain
+        all necessary data-like arrays. Any key *not* provided in this case will be
+        set to default "empty" values (e.g. all ones for gains, all False for flags).
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
