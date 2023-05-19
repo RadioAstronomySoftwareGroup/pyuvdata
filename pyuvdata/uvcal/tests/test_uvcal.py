@@ -8,6 +8,7 @@
 import copy
 import itertools
 import os
+import re
 
 import numpy as np
 import pytest
@@ -4582,8 +4583,10 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
 
     with pytest.raises(
         ValueError,
-        match="UVParameter \\_freq\\_range is not expected shape\\. Parameter shape is "
-        "\\(1\\, 4\\)\\, expected shape is \\(1\\, 2\\)\\.",
+        match=re.escape(
+            "UVParameter _freq_range is not expected shape. Parameter shape is "
+            "(1, 4), expected shape is (1, 2)."
+        ),
     ):
         UVCal.initialize_from_uvdata(
             uvd,
@@ -4595,8 +4598,10 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
 
     with pytest.raises(
         ValueError,
-        match="UVParameter \\_spw\\_array is not expected shape\\. Parameter shape is "
-        "\\(1\\,\\)\\, expected shape is \\(2\\,\\)\\.",
+        match=re.escape(
+            "UVParameter _spw_array is not expected shape. Parameter shape is "
+            "(1,), expected shape is (2,)."
+        ),
     ):
         UVCal.initialize_from_uvdata(
             uvd,
