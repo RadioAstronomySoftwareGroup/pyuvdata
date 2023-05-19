@@ -4410,11 +4410,11 @@ class UVCal(UVBase):
             initializes the data-like arrays to zeros/ones as appropriate
             (or False for the flag_array) with the appropriate sizes.
         times : array_like of float, optional
-            Deprecated alias for ``time_array``. Will be removed in v3.
+            Deprecated alias for ``time_array``. Will be removed in v2.5.
         frequencies : array_like of float, optional
-            Deprecated alias for ``freq_array``. Will be removed in v3.
+            Deprecated alias for ``freq_array``. Will be removed in v2.5.
         jones : array_like of int, optional
-            Deprecated alias for ``jones_array``. Will be removed in v3.
+            Deprecated alias for ``jones_array``. Will be removed in v2.5.
         kwargs : dict
             All other arguments are passed to :func:`new_uvcal_from_uvdata`, most of
             which are passed through to :func:`new_uvcal`.
@@ -4423,21 +4423,21 @@ class UVCal(UVBase):
         if times is not None:
             warnings.warn(
                 "The times keyword is deprecated in favor of time_array and will be "
-                "removed in v3.",
+                "removed in v2.5.",
                 DeprecationWarning,
             )
             kwargs["time_array"] = np.array(times)
         if frequencies is not None:
             warnings.warn(
                 "The frequencies keyword is deprecated in favor of freq_array and will "
-                "be removed in v3.",
+                "be removed in v2.5.",
                 DeprecationWarning,
             )
             kwargs["freq_array"] = np.array(frequencies)
         if jones is not None:
             warnings.warn(
                 "The jones keyword is deprecated in favor of jones_array and will be "
-                "removed in v3.",
+                "removed in v2.5.",
                 DeprecationWarning,
             )
             kwargs["jones_array"] = jones

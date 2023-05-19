@@ -50,8 +50,6 @@ def new_uvcal(
 
     Parameters
     ----------
-    freq_array : ndarray of float
-        Array of frequencies in Hz.
     time_array : ndarray of float
         Array of times in Julian Date.
     antenna_positions : ndarray of float or dict of ndarray of float
@@ -66,6 +64,12 @@ def new_uvcal(
         Telescope name.
     cal_style : str
         Calibration style. Options are 'sky' or 'redundant'.
+    freq_array : ndarray of float, optional
+        Array of frequencies in Hz. If given, the freq_range parameter is ignored, and
+        the cal type is assumed to be "gain".
+    freq_range : ndarray of float, optional
+        Frequency ranges in Hz. If given, the freq_array parameter is ignored, and the
+        calibration is assumed to be wide band. The array shape should be (Nspws, 2).
     gain_convention : str
         Gain convention. Options are 'divide' or 'multiply'.
     x_orientation : str
@@ -74,18 +78,24 @@ def new_uvcal(
         Array of Jones polarization integers. If a string, options are 'linear' or
         'circular' (which will be converted to the appropriate Jones integers as
         length-4 arrays).
-    delay_array : ndarray of float, optional
-        Array of delays in seconds. If cal_type is not provided, it will be set to
-        'delay' if delay_array is provided.
     cal_type : str, optional
         Calibration type. Options are 'delay', 'gain'. Forced to be 'gain' if
         ``freq_array`` is given, and by *default* set to 'delay' if not.
     integration_time : float or ndarray of float, optional
-        Integration time in seconds. If not provided, it will be set to the minimum
-        time separation in time_array for all times.
+        Integration time in seconds. If not provided, it will be derived from the
+        time_array, as the difference between successive times (with the last time-diff
+        appended). If not provided and the number of unique times is one, then
+        a warning will be raised and the integration time set to 1 second.
+        If a float is provided, it will be used for all integrations.
+        If an ndarray is provided, it must have the same shape as time_array (or
+        unique_times, if that is what is provided).
     channel_width : float or ndarray of float, optional
-        Channel width in Hz. If not provided, it will be set to the difference
-        between channels in freq_array (with the last value repeated).
+        Channel width in Hz. If not provided, it will be derived from the freq_array,
+        as the difference between successive frequencies (with the last frequency-diff
+        appended). If a float is provided, it will be used for all channels.
+        If not provided and freq_array is length-one, the channel_width will be set to
+        1 Hz (and a warning issued). If an ndarray is provided, it must have the same
+        shape as freq_array.
     antenna_names : list of str, optional
         List of antenna names. If not provided, antenna numbers will be used to form
         the antenna_names, according to the antname_format. antenna_names need not be
@@ -114,6 +124,10 @@ def new_uvcal(
         gain_array). By default, this function creates a metadata-only object. You can
         pass in data arrays directly to the constructor if you want to create a
         fully-populated object.
+    data : dict of array_like, optional
+        Dictionary containing optional data arrays. Possible keys are:
+        'gain_array', 'delay_array', 'quality_array', 'flag_array',
+        and 'total_quality_array'.
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
@@ -251,14 +265,13 @@ def new_uvcal(
     uvc.Nants_data = len(ant_array)
     uvc.Nants_telescope = len(antenna_numbers)
     uvc.Nfreqs = len(freq_array) if freq_array is not None else 1
-    # uvc.Ndlys = len(delay_array) if delay_array is not None else 1
+
     uvc.Ntimes = len(time_array)
     uvc.Nspws = len(spw_array)
     uvc.Njones = len(jones_array)
 
     uvc.flex_spw_id_array = flex_spw_id_array
     uvc.spw_array = spw_array
-    # We always make the following true.
 
     if not wide_band:
         uvc._set_flex_spw()
@@ -373,10 +386,8 @@ def new_uvcal_from_uvdata(
             freq_array = kwargs.pop("freq_array", None)
             flex_spw_id_array = kwargs.pop("flex_spw_id_array", None)
         else:
-            # Just in case the input uvdata is not future_array_shapes compliant, we
-            # flatten
-            freq_array = uvdata.freq_array.flatten()
-            channel_width = uvdata.channel_width.flatten()
+            freq_array = uvdata.freq_array
+            channel_width = uvdata.channel_width
             flex_spw_id_array = getattr(
                 uvdata, "flex_spw_id_array", kwargs.get("flex_spw_id_array", None)
             )
