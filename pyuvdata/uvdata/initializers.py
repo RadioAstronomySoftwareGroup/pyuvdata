@@ -316,12 +316,11 @@ def get_spw_params(
             flex_spw_id_array = np.full(freq_array.shape[0], spw_array[0], dtype=int)
     elif spw_array is None:
         spw_array = np.sort(np.unique(flex_spw_id_array))
-    else:
-        if len(np.unique(spw_array)) != len(np.unique(flex_spw_id_array)):
-            raise ValueError(
-                "spw_array and flex_spw_id_array must have the same number of unique "
-                "values."
-            )
+    elif len(np.unique(spw_array)) != len(np.unique(flex_spw_id_array)):
+        raise ValueError(
+            "spw_array and flex_spw_id_array must have the same number of unique "
+            "values."
+        )
 
     return flex_spw_id_array, spw_array
 
