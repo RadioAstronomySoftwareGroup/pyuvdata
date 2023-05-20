@@ -4415,11 +4415,9 @@ class UVCal(UVBase):
             Deprecated alias for ``freq_array``. Will be removed in v2.5.
         jones : array_like of int, optional
             Deprecated alias for ``jones_array``. Will be removed in v2.5.
-        kwargs : dict
-            All other arguments are passed to :func:`new_uvcal_from_uvdata`, most of
-            which are passed through to :func:`new_uvcal`.
-
-        """
+        {new_uvcal_params}
+        {from_uvdata_params}
+        """  # noqa: D207,RST203
         if times is not None:
             warnings.warn(
                 "The times keyword is deprecated in favor of time_array and will be "
@@ -5115,3 +5113,11 @@ class UVCal(UVBase):
             clobber=clobber,
         )
         del calfits_obj
+
+
+UVCal.initialize_from_uvdata.__func__.__doc__ = (
+    UVCal.initialize_from_uvdata.__func__.__doc__.format(
+        new_uvcal_params=initializers.new_uvcal_params,
+        from_uvdata_params=initializers.from_uvdata_params,
+    )
+)
