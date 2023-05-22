@@ -8,6 +8,7 @@ from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
 from .. import __version__
+from ..docstrings import combine_docstrings
 from ..uvdata.initializers import (
     XORIENTMAP,
     Locations,
@@ -50,7 +51,88 @@ def new_uvcal(
 
     Parameters
     ----------
-    {new_uvcal_params}
+    time_array : ndarray of float
+        Array of times in Julian Date.
+    antenna_positions : ndarray of float or dict of ndarray of float
+        Array of antenna positions in ECEF coordinates in meters.
+        If a dict, keys can either be antenna numbers or antenna names, and values are
+        position arrays. Keys are interpreted as antenna numbers if they are integers,
+        otherwise they are interpreted as antenna names if strings. You cannot
+        provide a mix of different types of keys.
+    telescope_location : ndarray of float or str
+        Telescope location as an astropy EarthLocation object or MoonLocation object.
+    telescope_name : str
+        Telescope name.
+    cal_style : str
+        Calibration style. Options are 'sky' or 'redundant'.
+    freq_array : ndarray of float, optional
+        Array of frequencies in Hz. If given, the freq_range parameter is ignored, and
+        the cal type is assumed to be "gain".
+    freq_range : ndarray of float, optional
+        Frequency ranges in Hz. Must be given if ``freq_array`` is not given. If given,
+        the calibration is assumed to be wide band. The array shape should be (Nspws, 2)
+    gain_convention : str
+        Gain convention. Options are 'divide' or 'multiply'.
+    x_orientation : str
+        Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
+    jones_array : ndarray of int or str
+        Array of Jones polarization integers. If a string, options are 'linear' or
+        'circular' (which will be converted to the appropriate Jones integers as
+        length-4 arrays).
+    cal_type : str, optional
+        Calibration type. Options are 'delay', 'gain'. Forced to be 'gain' if
+        ``freq_array`` is given, and by *default* set to 'delay' if not.
+    integration_time : float or ndarray of float, optional
+        Integration time in seconds. If not provided, it will be derived from the
+        time_array, as the difference between successive times (with the last time-diff
+        appended). If not provided and the number of unique times is one, then
+        a warning will be raised and the integration time set to 1 second.
+        If a float is provided, it will be used for all integrations.
+        If an ndarray is provided, it must have the same shape as time_array.
+    channel_width : float or ndarray of float, optional
+        Channel width in Hz. If not provided, it will be derived from the freq_array,
+        as the difference between successive frequencies (with the last frequency-diff
+        appended). If a float is provided, it will be used for all channels.
+        If not provided and freq_array is length-one, the channel_width will be set to
+        1 Hz (and a warning issued). If an ndarray is provided, it must have the same
+        shape as freq_array.
+    antenna_names : list of str, optional
+        List of antenna names. If not provided, antenna numbers will be used to form
+        the antenna_names, according to the antname_format. antenna_names need not be
+        provided if antenna_positions is a dict with string keys.
+    antenna_numbers : list of int, optional
+        List of antenna numbers. If not provided, antenna names will be used to form
+        the antenna_numbers, but in this case the antenna_names must be strings that
+        can be converted to integers. antenna_numbers need not be provided if
+        antenna_positions is a dict with integer keys.
+    antname_format : str, optional
+        Format string for antenna names. Default is '{0:03d}'.
+    ant_array : ndarray of int, optional
+        Array of antenna numbers actually found in data (in the order of the data
+        in gain_array etc.)
+    flex_spw_id_array : ndarray of int, optional
+        Array of spectral window IDs. If not provided, it will be set to an array of
+        zeros and only one spw will be used.
+    ref_antenna_name : str, optional
+        Name of reference antenna. Only required for sky calibrations.
+    sky_catalog : str, optional
+        Name of sky catalog. Only required for sky calibrations.
+    sky_field : str, optional
+        Name of sky field. Only required for sky calibrations.
+    empty : bool, optional
+        If True, create an empty UVCal object, i.e. add initialized data arrays (eg.
+        gain_array). By default, this function creates a metadata-only object. You can
+        pass in data arrays directly to the constructor if you want to create a
+        fully-populated object.
+    data : dict of array_like, optional
+        Dictionary containing optional data arrays. Possible keys are:
+        'gain_array', 'delay_array', 'quality_array', 'flag_array',
+        and 'total_quality_array'. If any entry is provided, the output will contain
+        all necessary data-like arrays. Any key *not* provided in this case will be
+        set to default "empty" values (e.g. all ones for gains, all False for flags).
+    history : str, optional
+        History string to be added to the object. Default is a simple string
+        containing the date and time and pyuvdata version.
 
     Returns
     -------
@@ -229,6 +311,7 @@ def new_uvcal(
     return uvc
 
 
+@combine_docstrings(new_uvcal)
 def new_uvcal_from_uvdata(
     uvdata,
     *,
@@ -251,16 +334,27 @@ def new_uvcal_from_uvdata(
     ----------
     uvdata : UVData
         UVData object to use as a template.
-    cal_style : str
-        Calibration style. Must be 'sky' or 'redundant'.
-    gain_convention : str
-        Gain convention. Must be 'divide' or 'multiply'.
     cal_type : str
         Calibration type. Must be 'gain' or 'delay'. Default 'gain'.
         Note that in contrast to :func:`new_uvcal`, this function sets the default
         to 'gain', instead of trying to set it based on the input freq_range.
-    {from_uvdata_params}
-    {new_uvcal_params}
+    jones_array : array_like of int or str, optional
+        Array of Jones polarizations. Taken from UVData object is possible (i.e. it is
+        single-polarization data), otherwise must be specified. May be specified
+        as 'circular' or 'linear' to indicate all circular or all linear polarizations.
+    wide_band : bool
+        Whether the calibration is wide-band (i.e. one calibration parameter per
+        spectral window instead of per channel). Automatically set to True if cal_type
+        is 'delay', otherwise the default is False. Note that if wide_band is True,
+        the `freq_range` parameter is required.
+    include_uvdata_history : bool
+        Whether to include the UVData object's history in the UVCal object's history.
+        Default is True.
+    spw_array : array_like of int, optional
+        Array of spectral window numbers. This will be taken from the UVData object
+        if at all possible. The only time it is useful to pass this in explicitly is
+        if ``wide_band=True`` and the spectral windows desired are not just
+        ``(0, ..., Nspw-1)``.
     """  # noqa: RST203
     from ..uvdata import UVData
 
@@ -446,114 +540,3 @@ def new_uvcal_from_uvdata(
             new.use_current_array_shapes()
 
     return new
-
-
-from_uvdata_params = """
-    jones_array : array_like of int or str, optional
-        Array of Jones polarizations. Taken from UVData object is possible (i.e. it is
-        single-polarization data), otherwise must be specified. May be specified
-        as 'circular' or 'linear' to indicate all circular or all linear polarizations.
-    wide_band : bool
-        Whether the calibration is wide-band (i.e. one calibration parameter per
-        spectral window instead of per channel). Automatically set to True if cal_type
-        is 'delay', otherwise the default is False. Note that if wide_band is True,
-        the `freq_range` parameter is required.
-    include_uvdata_history : bool
-        Whether to include the UVData object's history in the UVCal object's history.
-        Default is True.
-    spw_array : array_like of int, optional
-        Array of spectral window numbers. This will be taken from the UVData object
-        if at all possible. The only time it is useful to pass this in explicitly is
-        if ``wide_band=True`` and the spectral windows desired are not just
-        ``(0, ..., Nspw-1)``.
-"""
-
-new_uvcal_params = """
-    time_array : ndarray of float
-        Array of times in Julian Date.
-    antenna_positions : ndarray of float or dict of ndarray of float
-        Array of antenna positions in ECEF coordinates in meters.
-        If a dict, keys can either be antenna numbers or antenna names, and values are
-        position arrays. Keys are interpreted as antenna numbers if they are integers,
-        otherwise they are interpreted as antenna names if strings. You cannot
-        provide a mix of different types of keys.
-    telescope_location : ndarray of float or str
-        Telescope location as an astropy EarthLocation object or MoonLocation object.
-    telescope_name : str
-        Telescope name.
-    cal_style : str
-        Calibration style. Options are 'sky' or 'redundant'.
-    freq_array : ndarray of float, optional
-        Array of frequencies in Hz. If given, the freq_range parameter is ignored, and
-        the cal type is assumed to be "gain".
-    freq_range : ndarray of float, optional
-        Frequency ranges in Hz. Must be given if ``freq_array`` is not given. If given,
-        the calibration is assumed to be wide band. The array shape should be (Nspws, 2)
-    gain_convention : str
-        Gain convention. Options are 'divide' or 'multiply'.
-    x_orientation : str
-        Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
-    jones_array : ndarray of int or str
-        Array of Jones polarization integers. If a string, options are 'linear' or
-        'circular' (which will be converted to the appropriate Jones integers as
-        length-4 arrays).
-    cal_type : str, optional
-        Calibration type. Options are 'delay', 'gain'. Forced to be 'gain' if
-        ``freq_array`` is given, and by *default* set to 'delay' if not.
-    integration_time : float or ndarray of float, optional
-        Integration time in seconds. If not provided, it will be derived from the
-        time_array, as the difference between successive times (with the last time-diff
-        appended). If not provided and the number of unique times is one, then
-        a warning will be raised and the integration time set to 1 second.
-        If a float is provided, it will be used for all integrations.
-        If an ndarray is provided, it must have the same shape as time_array.
-    channel_width : float or ndarray of float, optional
-        Channel width in Hz. If not provided, it will be derived from the freq_array,
-        as the difference between successive frequencies (with the last frequency-diff
-        appended). If a float is provided, it will be used for all channels.
-        If not provided and freq_array is length-one, the channel_width will be set to
-        1 Hz (and a warning issued). If an ndarray is provided, it must have the same
-        shape as freq_array.
-    antenna_names : list of str, optional
-        List of antenna names. If not provided, antenna numbers will be used to form
-        the antenna_names, according to the antname_format. antenna_names need not be
-        provided if antenna_positions is a dict with string keys.
-    antenna_numbers : list of int, optional
-        List of antenna numbers. If not provided, antenna names will be used to form
-        the antenna_numbers, but in this case the antenna_names must be strings that
-        can be converted to integers. antenna_numbers need not be provided if
-        antenna_positions is a dict with integer keys.
-    antname_format : str, optional
-        Format string for antenna names. Default is '{0:03d}'.
-    ant_array : ndarray of int, optional
-        Array of antenna numbers actually found in data (in the order of the data
-        in gain_array etc.)
-    flex_spw_id_array : ndarray of int, optional
-        Array of spectral window IDs. If not provided, it will be set to an array of
-        zeros and only one spw will be used.
-    ref_antenna_name : str, optional
-        Name of reference antenna. Only required for sky calibrations.
-    sky_catalog : str, optional
-        Name of sky catalog. Only required for sky calibrations.
-    sky_field : str, optional
-        Name of sky field. Only required for sky calibrations.
-    empty : bool, optional
-        If True, create an empty UVCal object, i.e. add initialized data arrays (eg.
-        gain_array). By default, this function creates a metadata-only object. You can
-        pass in data arrays directly to the constructor if you want to create a
-        fully-populated object.
-    data : dict of array_like, optional
-        Dictionary containing optional data arrays. Possible keys are:
-        'gain_array', 'delay_array', 'quality_array', 'flag_array',
-        and 'total_quality_array'. If any entry is provided, the output will contain
-        all necessary data-like arrays. Any key *not* provided in this case will be
-        set to default "empty" values (e.g. all ones for gains, all False for flags).
-    history : str, optional
-        History string to be added to the object. Default is a simple string
-        containing the date and time and pyuvdata version.
-"""
-
-new_uvcal.__doc__ = new_uvcal.__doc__.format(new_uvcal_params=new_uvcal_params)
-new_uvcal_from_uvdata.__doc__ = new_uvcal_from_uvdata.__doc__.format(
-    new_uvcal_params=new_uvcal_params, from_uvdata_params=from_uvdata_params
-)

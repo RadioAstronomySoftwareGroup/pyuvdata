@@ -9,10 +9,12 @@ import threading
 import warnings
 
 import numpy as np
+from docstring_parser import DocstringStyle
 
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..docstrings import combine_docstrings
 from ..uvbase import UVBase
 from . import initializers
 
@@ -562,12 +564,18 @@ class UVCal(UVBase):
         super(UVCal, self).__init__()
 
     @staticmethod
+    @combine_docstrings(initializers.new_uvcal, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):
         """
         Create a new UVCal object.
 
-        All parameters are passed through to the
-        :func:`~pyuvdata.uvcal.initializers.new_uvcal` function.
+        All parameters are passed through to
+        the :func:`~pyuvdata.uvcal.initializers.new_uvcal` function.
+
+        Returns
+        -------
+        UVCal
+            A new UVCal object.
         """
         return initializers.new_uvcal(**kwargs)
 
@@ -4376,6 +4384,7 @@ class UVCal(UVBase):
         return other_obj
 
     @classmethod
+    @combine_docstrings(initializers.new_uvcal_from_uvdata)
     def initialize_from_uvdata(
         cls,
         uvdata,
@@ -4395,12 +4404,6 @@ class UVCal(UVBase):
         ----------
         uvdata : UVData object
             The UVData object to initialize from.
-        gain_convention : str
-            What gain convention the UVCal object should be initialized to
-            ("multiply" or "divide").
-        cal_style : str
-            What calibration style the UVCal object should be initialized to
-            ("sky" or "redundant").
         future_array_shapes : bool
             Option to use the future array shapes (see `use_future_array_shapes`
             for details). Note that this option is deprecated and will be removed
@@ -4415,8 +4418,6 @@ class UVCal(UVBase):
             Deprecated alias for ``freq_array``. Will be removed in v2.5.
         jones : array_like of int, optional
             Deprecated alias for ``jones_array``. Will be removed in v2.5.
-        {new_uvcal_params}
-        {from_uvdata_params}
         """  # noqa: D207,RST203
         if times is not None:
             warnings.warn(
@@ -5113,11 +5114,3 @@ class UVCal(UVBase):
             clobber=clobber,
         )
         del calfits_obj
-
-
-UVCal.initialize_from_uvdata.__func__.__doc__ = (
-    UVCal.initialize_from_uvdata.__func__.__doc__.format(
-        new_uvcal_params=initializers.new_uvcal_params,
-        from_uvdata_params=initializers.from_uvdata_params,
-    )
-)
