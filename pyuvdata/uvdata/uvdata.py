@@ -18,6 +18,7 @@ from astropy import constants as const
 from astropy import coordinates as coord
 from astropy.coordinates import FK5, Angle, EarthLocation, SkyCoord
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
 
 from .. import parameter as uvp
@@ -773,7 +774,7 @@ class UVData(UVBase):
         super(UVData, self).__init__()
 
     @staticmethod
-    @combine_docstrings(new_uvdata)
+    @combine_docstrings(new_uvdata, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
 

@@ -363,9 +363,9 @@ def new_uvdata(
     polarization_array : sequence of int or str
         Array of polarization integers or strings (eg. 'xx' or 'ee')
     antenna_positions : ndarray of float or dict of ndarray of float
-        Array of antenna positions in ECEF coordinates in meters.
-        If a dict, keys are antenna names or numbers and values are
-        antenna positions in ECEF coordinates in meters.
+        Array of antenna positions in ECEF coordinates in meters. If a dict, keys are
+        antenna names or numbers and values are antenna positions in ECEF coordinates
+        in meters.
     telescope_location : astropy EarthLocation or MoonLocation
         Location of the telescope.
     telescope_name : str
