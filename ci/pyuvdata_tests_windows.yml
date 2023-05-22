@@ -20,6 +20,6 @@ dependencies:
   - cython
   - setuptools_scm<7.0|>=7.0.3
   - pip
-  - docstring-parser>=0.15
+  - docstring_parser>=0.15
   - pip:
       - lunarsky>=0.2.1

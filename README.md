@@ -147,6 +147,7 @@ Required:
 * pyerfa >= 2.0
 * scipy >= 1.5
 * setuptools_scm <7.0|>=7.0.3
+* docstring_parser>=0.15
 
 Optional:
 
