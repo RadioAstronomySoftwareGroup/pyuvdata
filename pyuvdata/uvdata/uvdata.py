@@ -23,6 +23,7 @@ from scipy import ndimage as nd
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..docstrings import combine_docstrings
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
@@ -772,8 +773,8 @@ class UVData(UVBase):
         super(UVData, self).__init__()
 
     @staticmethod
-    def new(**kwargs):
-        """Stand-in docstring for new method."""
+    @combine_docstrings(new_uvdata)
+    def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
 
     def _set_flex_spw(self):
@@ -14968,6 +14969,3 @@ class UVData(UVBase):
                 except KeyError:
                     # If no data found for this antenna, then flag the whole blt
                     flag_arr[grp_idx] = True
-
-
-UVData.new.__doc__ = new_uvdata.__doc__

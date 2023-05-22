@@ -83,17 +83,15 @@ def combine_docstrings(
             params[name] for name in sig.parameters if name in params
         ]
 
+        other_params = []
         if any(param.kind == param.VAR_KEYWORD for param in sig.parameters.values()):
             # We have **kwargs
             # We need to add all the parameters that are not in the signature
             # to the Other Parameters section
-            other_params = []
             for name, param in params.items():
                 if name not in sig.parameters:
                     param.args[0] = "other_param"
                     other_params.append(param)
-        else:
-            other_params = []
 
         comb_doc.meta = list(chain(*combined.values())) + other_params
 
