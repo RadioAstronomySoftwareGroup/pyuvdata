@@ -18,6 +18,7 @@ dependencies:
   - pytest-cov
   - cython
   - setuptools_scm<7.0|>=7.0.3
+  - docstring-parser>=0.15
   - pip
   - pip:
       - lunarsky>=0.1.2
