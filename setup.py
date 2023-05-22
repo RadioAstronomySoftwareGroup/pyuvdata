@@ -150,6 +150,7 @@ setup_args = {
         "pyerfa>=2.0",
         "scipy>=1.5",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
+        "docstring-parser>=0.15",
     ],
     "extras_require": {
         "astroquery": astroquery_reqs,
