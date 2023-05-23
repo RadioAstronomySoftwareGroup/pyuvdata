@@ -47,7 +47,7 @@ def new_uvcal(
     history: str = "",
     **kwargs,
 ):
-    """Create a new UVCal object with default parameters.
+    r"""Create a new UVCal object with default parameters.
 
     Parameters
     ----------
@@ -133,6 +133,8 @@ def new_uvcal(
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
+    \*\*kwargs
+        All other keyword arguments are added to the object as attributes.
 
     Returns
     -------
