@@ -93,6 +93,7 @@ class MirParser(object):
             "codes_data": self.codes_data,
             "antpos_data": self.antpos_data,
         }
+        self._stored_masks = {}
 
         self.filepath = ""
         self._file_dict = {}
@@ -1609,7 +1610,8 @@ class MirParser(object):
         Remove attributes related to autos.
 
         This method is an internal helper function, and not meant for general users. It
-        will clear out attributes related to the auto-correlations.
+        will clear out attributes related to the auto-correlations. It will also clear
+        and stored masks, if present.
         """
         self._has_auto = False
         self.auto_data = None
@@ -1619,6 +1621,7 @@ class MirParser(object):
             del self._metadata_attrs["ac_data"]
             for key in self._file_dict:
                 del self._file_dict[key]["auto"]
+            self._stored_masks = {}
         except KeyError:
             pass
 
@@ -1646,6 +1649,44 @@ class MirParser(object):
                     idict["chan_avg"] = 1
 
         self.unload_data()
+
+    def save_mask(self, mask_name: str, overwrite=False):
+        """Save masks for later use."""
+        if (mask_name in self._stored_masks) and not overwrite:
+            raise ValueError(
+                "There already exists a stored set of masks with the name %s, "
+                "either change the name or set overwrite=True" % mask_name
+            )
+
+        if not isinstance(mask_name, str):
+            raise ValueError("mask_name must be a string.")
+
+        for name in self._metadata_attrs:
+            self._metadata_attrs[name]
+
+        mask_dict = {}
+        for name, attr in self._metadata_attrs.items():
+            mask_dict[name] = attr._mask.copy()
+
+        self._stored_masks[mask_name] = mask_dict
+
+    def restore_mask(self, mask_name: str, run_update=True):
+        """Restore stored masks."""
+        if len(self._stored_masks) == 0:
+            raise ValueError("No stored masks for this object.")
+
+        if mask_name not in self._stored_masks:
+            raise ValueError(
+                "No stored set of masks with the name %s (options: %s)."
+                % (mask_name, list(self._stored_masks))
+            )
+
+        mask_dict = self._stored_masks[mask_name]
+        for name, attr in self._metadata_attrs.items():
+            attr._mask = mask_dict[name].copy()
+
+        if run_update:
+            self._update_filter()
 
     def _fix_acdata(self):
         """
@@ -2363,6 +2404,7 @@ class MirParser(object):
             new_obj = self if inplace else self.copy()
             new_obj.jypk = other.jypk
             new_obj.filepath += ";" + other.filepath
+            new_obj._stored_masks = {}
 
             # Start combining the metadata
             for item in other._metadata_attrs:
@@ -2459,7 +2501,8 @@ class MirParser(object):
         if self._has_auto != other._has_auto:
             warnings.warn(
                 "Both objects do not have auto-correlation data. Since force=True, "
-                "dropping auto-correlation data and metadata from the combined object."
+                "dropping auto-correlation data and metadata from the combined object. "
+                "Note that this will clear any stored masks."
             )
             new_obj._clear_auto()
         elif self.auto_data is None or other.auto_data is None:
