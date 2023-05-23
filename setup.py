@@ -145,12 +145,12 @@ setup_args = {
     "include_package_data": True,
     "install_requires": [
         "astropy>=5.0.4",
+        "docstring-parser>=0.15",
         "h5py>=3.1",
         "numpy>=1.20",
         "pyerfa>=2.0",
         "scipy>=1.5",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
-        "docstring-parser>=0.15",
     ],
     "extras_require": {
         "astroquery": astroquery_reqs,
