@@ -13,37 +13,27 @@ jobs:
       PYTHON: 3.9
     name: Warning Test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        # Adding -l {0} helps ensure conda can be found properly.
-        shell: bash -l {0}
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@main
         with:
           fetch-depth: 0
 
-      - name: Setup Minimamba
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          miniforge-variant: Mambaforge
-          miniforge-version: latest
-          use-mamba: true
           python-version: ${{ env.PYTHON }}
-          environment-file: ci/${{ env.ENV_NAME }}.yml
-          activate-environment: ${{ env.ENV_NAME }}
 
-      - name: Conda Info
+      - name: Install
         run: |
-          conda info -a
-          conda list
+          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[dev]
+
+      - name: Environment Info
+        run: |
+          pip list
           PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
           if [[ $PYVER != ${{ env.PYTHON }} ]]; then
             exit 1;
           fi
-
-      - name: Install
-        run: |
-          CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .
 
       - name: Run Tests
         run: |
