@@ -3,44 +3,34 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.9"
-    ENV_NAME: hera_cal_tests
     WITH_SUDO: true
 
   steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: "3.9"
+
   - bash: |
       cd ../
       git clone https://github.com/HERA-Team/hera_cal.git
       cd s
     displayName: clone hera_cal
 
-  - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
-    displayName: Install Micromamba
+  - bash: |
+      pip install .[dev]
+    displayName: install pyuvdata
 
   - bash: |
-      micromamba info
-      # need to add gxx and gcc to build novas and cython
-      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../hera_cal/ci/${ENV_NAME}.yml -yq
-    displayName: configure conda environment
-
-  - bash: |
-      source ./ci/_activate_current_env.sh
-      micromamba list -n ${ENV_NAME}
-      # check that the python version matches the desired one; exit immediately if not
-      PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
-      if [[ $PYVER != $PYTHON ]]; then
-        exit 1;
-      fi
-    displayName: Verify Mamba Config
-
-  - bash: |
-      source ./ci/_activate_current_env.sh
-      pip install --no-deps .
       cd ../hera_cal
-      pip install .
-      mkdir test-reports
-      python -m pytest hera_cal --junitxml=test-reports/xunit.xml
+      pip install .[dev]
+    displayName: install hera_cal
+
+  - bash: |
+      pip list
+    displayName: Environment Info
+
+  - bash: |
+      pytest -n auto --pyargs hera_cal
     displayName: run hera_cal tests
 
 - job: hera_qm
