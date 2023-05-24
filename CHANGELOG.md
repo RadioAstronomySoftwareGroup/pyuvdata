@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New dependency `docstring-parser` to enable dynamic docstring generation for
+methods that mostly wrap other methods.
 - A new `UVCal.new()` method (based on new function `new_uvcal`) that creates a new,
 self-consistent `UVCal` object from scratch from a set of flexible input parameters.
 - A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new, self-consistent `UVData` object from scratch from a set of flexible input parameters.
