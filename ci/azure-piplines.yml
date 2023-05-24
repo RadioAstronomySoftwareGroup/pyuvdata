@@ -19,8 +19,9 @@ jobs:
 
   - bash: |
       micromamba info
-      # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../hera_cal/ci/${ENV_NAME}.yml -yq
+      # need to add gxx and gcc to build novas and cython
+      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../hera_cal/ci/${ENV_NAME}.yml -yq
     displayName: configure conda environment
 
   - bash: |
@@ -62,8 +63,9 @@ jobs:
 
   - bash: |
       micromamba info
-      # need these to add gxx and gcc to build novas and cython
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../hera_qm/ci/${ENV_NAME}.yml -yq
+      # need to add gxx and gcc to build novas and cython
+      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../hera_qm/ci/${ENV_NAME}.yml -yq
     displayName: configure conda environment
 
   - bash: |
@@ -105,9 +107,10 @@ jobs:
 
   - bash: |
       micromamba info
-      # need these to add gxx and gcc to build novas and cython
+      # need to add gxx and gcc to build novas and cython
+      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
       # note different spelling of yaml extension
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyradiosky/ci/${ENV_NAME}.yaml -yq
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../pyradiosky/ci/${ENV_NAME}.yaml -yq
     displayName: configure conda environment
 
   - bash: |
@@ -149,9 +152,10 @@ jobs:
 
   - bash: |
       micromamba info
-      # need these to add gxx and gcc to build novas and cython
+      # need to add gxx and gcc to build novas and cython
+      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
       # note different spelling of yaml extension
-      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc -f ../pyuvsim/ci/${ENV_NAME}.yaml -yq
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../pyuvsim/ci/${ENV_NAME}.yaml -yq
     displayName: configure conda environment
 
   - bash: |
