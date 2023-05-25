@@ -1,6 +1,12 @@
 name: Warning Tests
 
-on: [push, pull_request]
+on:
+  push:
+    # This should disable running the workflow on tags, according to the
+    # on.<push|pull_request>.<branches|tags> GitHub Actions docs.
+    branches:
+      - "*"
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
