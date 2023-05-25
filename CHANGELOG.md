@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.3.3] - 2023-05-25
+
 ### Added
 - New dependency `docstring-parser` to enable dynamic docstring generation for
 methods that mostly wrap other methods.
