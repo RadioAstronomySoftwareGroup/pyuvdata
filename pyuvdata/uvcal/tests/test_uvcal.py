@@ -51,7 +51,6 @@ def uvcal_data():
         "integration_time",
         "gain_convention",
         "flag_array",
-        "quality_array",
         "cal_type",
         "cal_style",
         "x_orientation",
@@ -79,6 +78,7 @@ def uvcal_data():
         "observer",
         "git_origin_cal",
         "git_hash_cal",
+        "quality_array",
         "total_quality_array",
         "extra_keywords",
         "gain_scale",
@@ -301,14 +301,12 @@ def test_required_parameter_iter(uvcal_data):
     for prop in uv_cal_object.required():
         required.append(prop)
     expected_required = copy.copy(required_parameters)
-    expected_required.remove("_quality_array")
     expected_required.remove("_flag_array")
     for a in expected_required:
         assert a in required, (
             "expected attribute " + a + " not returned in required iterator"
         )
 
-    uv_cal_object.quality_array = 1
     uv_cal_object.flag_array = 1
     required = []
     for prop in uv_cal_object.required():
@@ -1705,17 +1703,25 @@ def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inpu
     assert calobj.total_quality_array is None
 
     if caltype == "delay":
-        # test for when input_flag_array is present in first file but not second
+        # test for when input_flag_array & quality array is present in first file but
+        # not in second
         calobj.select(antenna_nums=ants1)
         ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
+        qa = np.ones(calobj._quality_array.expected_shape(calobj))
+        qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2))
+
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        tot_qa = np.concatenate([qa, qa2], axis=0)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
+        calobj.quality_array = qa
+        calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
         # test for when input_flag_array is present in second file but not first
         calobj.select(antenna_nums=ants1)
@@ -1723,11 +1729,17 @@ def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inpu
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
+        qa = np.zeros(calobj._quality_array.expected_shape(calobj))
+        qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2))
         tot_ifa = np.concatenate([ifa, ifa2], axis=0)
+        tot_qa = np.concatenate([qa, qa2], axis=0)
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
+        calobj.quality_array = None
+        calobj2.quality_array = qa2
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
     # Out of order - antennas
     calobj = calobj_full.copy()
@@ -2253,9 +2265,13 @@ def test_add_different_sorting(
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_antennas_multispw(future_shapes, multi_spw_gain, method):
+@pytest.mark.parametrize("quality", [True, False])
+def test_add_antennas_multispw(future_shapes, multi_spw_gain, quality, method):
     """Test adding antennas between two UVCal objects"""
     calobj = multi_spw_gain
+
+    if not quality:
+        calobj.quality_array = None
 
     if not future_shapes:
         calobj.use_current_array_shapes()
@@ -2419,7 +2435,8 @@ def test_add_frequencies(future_shapes, gain_data, method):
         atol=calobj._total_quality_array.tols[1],
     )
 
-    # test for when input_flag_array is present in first file but not second
+    # test for when input_flag_array and quality_array is present in first file but not
+    # in second
     calobj = calobj_full.copy()
     calobj.input_flag_array = np.zeros(
         calobj._input_flag_array.expected_shape(calobj), dtype=bool
@@ -2427,29 +2444,46 @@ def test_add_frequencies(future_shapes, gain_data, method):
     calobj2 = calobj.copy()
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
+
     ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
     ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
+    qa = np.ones(calobj._quality_array.expected_shape(calobj))
+    qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2))
     if future_shapes:
-        tot_ifa = np.concatenate([ifa, ifa2], axis=1)
+        ax_num = 1
     else:
-        tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+        ax_num = 2
+
+    tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+    tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+
     calobj.input_flag_array = ifa
     calobj2.input_flag_array = None
+    calobj.quality_array = qa
+    calobj2.quality_array = None
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(calobj.input_flag_array, tot_ifa)
+    print(calobj.quality_array[2:4, :, 0, 0])
+    print(tot_qa[2:4, :, 0, 0])
+    assert np.allclose(calobj.quality_array, tot_qa)
 
     # test for when input_flag_array is present in second file but not first
     calobj.select(frequencies=freqs1)
     ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
     ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(np.bool_)
-    if future_shapes:
-        tot_ifa = np.concatenate([ifa, ifa2], axis=1)
-    else:
-        tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+    qa = np.zeros(calobj._quality_array.expected_shape(calobj))
+    qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2))
+
+    tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+    tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+
     calobj.input_flag_array = None
     calobj2.input_flag_array = ifa2
+    calobj.quality_array = None
+    calobj2.quality_array = qa2
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(calobj.input_flag_array, tot_ifa)
+    assert np.allclose(calobj.quality_array, tot_qa)
 
     # Out of order - freqs
     calobj = calobj_full.copy()
@@ -2795,20 +2829,29 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     )
 
     if caltype == "delay":
-        # test for when input_flag_array is present in first file but not second
+        # test for when input_flag_array & quality_array is present in first file but
+        # not in second
         calobj.select(times=times1)
         ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
+        qa = np.ones(calobj._quality_array.expected_shape(calobj), dtype=float)
+        qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2), dtype=float)
         if future_shapes:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=2)
+            ax_num = 2
         else:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+            ax_num = 3
+        tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
+        calobj.quality_array = qa
+        calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
         # test for when input_flag_array is present in second file but not first
         calobj.select(times=times1)
@@ -2816,14 +2859,18 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        if future_shapes:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=2)
-        else:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+        qa = np.zeros(calobj._quality_array.expected_shape(calobj), dtype=float)
+        qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2), dtype=float)
+        tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
+        calobj.quality_array = None
+        calobj2.quality_array = qa2
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
     # Out of order - times
     calobj = calobj_full.copy()
@@ -2841,9 +2888,13 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_times_multispw(future_shapes, method, multi_spw_gain):
+@pytest.mark.parametrize("quality", [True, False])
+def test_add_times_multispw(future_shapes, method, multi_spw_gain, quality):
     """Test adding times between two UVCal objects"""
     calobj = multi_spw_gain
+
+    if not quality:
+        calobj.quality_array = None
 
     if not future_shapes:
         calobj.use_current_array_shapes()
@@ -2959,20 +3010,28 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
     )
 
     if caltype == "delay":
-        # test for when input_flag_array is present in first file but not second
+        # test for when input_flag_array & quality array is present in first file but
+        # not in second
         calobj = calobj_original.copy()
         ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
+        qa = np.ones(calobj._quality_array.expected_shape(calobj), dtype=float)
+        qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2), dtype=float)
         if future_shapes:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
+            ax_num = 3
         else:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+            ax_num = 4
+        tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
         calobj.input_flag_array = ifa
         calobj2.input_flag_array = None
+        calobj.quality_array = qa
+        calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
         # test for when input_flag_array is present in second file but not first
         calobj = calobj_original.copy()
@@ -2980,14 +3039,19 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
         )
-        if future_shapes:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=3)
-        else:
-            tot_ifa = np.concatenate([ifa, ifa2], axis=4)
+        qa = np.zeros(calobj._quality_array.expected_shape(calobj), dtype=float)
+        qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2), dtype=float)
+
+        tot_ifa = np.concatenate([ifa, ifa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+
         calobj.input_flag_array = None
         calobj2.input_flag_array = ifa2
+        calobj.quality_array = None
+        calobj2.quality_array = qa2
         getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
+        assert np.allclose(calobj.quality_array, tot_qa)
 
     # Out of order - jones
     calobj = calobj_original.copy()
@@ -3007,9 +3071,13 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_jones_multispw(future_shapes, method, multi_spw_gain):
+@pytest.mark.parametrize("quality", [True, False])
+def test_add_jones_multispw(future_shapes, method, quality, multi_spw_gain):
     """Test adding Jones axes between two UVCal objects"""
     calobj = multi_spw_gain
+
+    if not quality:
+        calobj.quality_array = None
 
     if not future_shapes:
         calobj.use_current_array_shapes()
