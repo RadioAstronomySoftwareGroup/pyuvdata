@@ -3693,8 +3693,8 @@ def test_select_times(input_uvf, uvf_mode, future_shapes):
         uvf2.history,
     )
     # check for errors associated with times not included in data
+    bad_time = [np.min(unique_times) - 0.005]
     with pytest.raises(ValueError) as cm:
-        bad_time = [np.min(unique_times) - 0.005]
         uvf.select(times=bad_time)
     assert str(cm.value).startswith(
         "Time {t} is not present in" " the time_array".format(t=bad_time[0])
@@ -3763,8 +3763,8 @@ def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
     )
 
     # check for errors associated with frequencies not included in data
+    bad_freq = [np.max(uvf.freq_array) + 100]
     with pytest.raises(ValueError) as cm:
-        bad_freq = [np.max(uvf.freq_array) + 100]
         uvf.select(frequencies=bad_freq)
     assert str(cm.value).startswith(
         "Frequency {f} is not present in the freq_array".format(f=bad_freq[0])

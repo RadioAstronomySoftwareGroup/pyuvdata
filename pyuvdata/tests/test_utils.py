@@ -267,8 +267,8 @@ def test_no_moon():
     msg = "Need to install `lunarsky` package to work with MCMF frame."
     with pytest.raises(ValueError, match=msg):
         uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
+    lat, lon, alt = ref_latlonalt_moon
     with pytest.raises(ValueError, match=msg):
-        lat, lon, alt = ref_latlonalt_moon
         uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
         uvutils.get_lst_for_time([2451545.0], 0, 0, 0, frame="mcmf")
