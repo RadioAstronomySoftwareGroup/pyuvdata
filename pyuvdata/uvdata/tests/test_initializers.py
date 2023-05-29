@@ -57,12 +57,12 @@ def test_bad_inputs(simplest_working_params: dict[str, Any]):
 
 
 def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(
         ValueError, match="Either antenna_numbers or antenna_names must be provided"
     ):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(
             antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
             antenna_numbers=None,
@@ -70,6 +70,9 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
             **badp,
         )
 
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(
         ValueError,
         match=(
@@ -77,15 +80,12 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
             "or all type str"
         ),
     ):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(antenna_positions={1: [0, 1, 2], "2": [3, 4, 5]}, **badp)
 
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(ValueError, match="Antenna names must be integers"):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(
             antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
             antenna_numbers=None,
@@ -93,10 +93,10 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
             **badp,
         )
 
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(ValueError, match="antenna_positions must be a numpy array"):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(
             antenna_positions="foo",
             antenna_numbers=[0, 1, 2],
@@ -104,10 +104,10 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
             **badp,
         )
 
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(ValueError, match="antenna_positions must be a 2D array"):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(
             antenna_positions=np.array([0, 0, 0]), antenna_numbers=np.array([0]), **badp
         )
@@ -115,10 +115,10 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
     with pytest.raises(ValueError, match="Duplicate antenna names found"):
         UVData.new(antenna_names=["foo", "bar", "foo"], **simplest_working_params)
 
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
     with pytest.raises(ValueError, match="Duplicate antenna numbers found"):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-        }
         UVData.new(
             antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
             antenna_numbers=[0, 1, 0],
@@ -159,22 +159,18 @@ def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
 
 
 def test_bad_freq_inputs(simplest_working_params: dict[str, Any]):
+    badp = {k: v for k, v in simplest_working_params.items() if k != "freq_array"}
     with pytest.raises(ValueError, match="freq_array must be a numpy array"):
-        badp = {k: v for k, v in simplest_working_params.items() if k != "freq_array"}
         UVData.new(freq_array="hello this is a string", **badp)
 
+    badp = {k: v for k, v in simplest_working_params.items() if k != "channel_width"}
     with pytest.raises(TypeError, match="channel_width must be array_like of floats"):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "channel_width"
-        }
         UVData.new(channel_width={"a": "dict"}, **badp)
 
+    badp = {k: v for k, v in simplest_working_params.items() if k != "channel_width"}
     with pytest.raises(
         ValueError, match="channel_width must be the same shape as freq_array"
     ):
-        badp = {
-            k: v for k, v in simplest_working_params.items() if k != "channel_width"
-        }
         UVData.new(
             channel_width=np.ones(len(simplest_working_params["freq_array"]) + 1),
             **badp,
@@ -291,10 +287,8 @@ def test_alternate_time_inputs():
     with pytest.warns(
         UserWarning, match="integration_time not provided, and cannot be inferred"
     ):
-        times4, ints4 = get_time_params(
-            time_array=time_array[:1], telescope_location=loc
-        )
-        assert np.allclose(ints4, 1.0)
+        _, ints4 = get_time_params(time_array=time_array[:1], telescope_location=loc)
+    assert np.allclose(ints4, 1.0)
 
 
 def test_alternate_freq_inputs():
@@ -317,8 +311,8 @@ def test_alternate_freq_inputs():
     with pytest.warns(
         UserWarning, match="channel_width not provided, and cannot be inferred"
     ):
-        freqs4, widths4 = get_freq_params(freq_array=freq_array[:1])
-        assert np.allclose(widths4, 1.0)
+        _, widths4 = get_freq_params(freq_array=freq_array[:1])
+    assert np.allclose(widths4, 1.0)
 
 
 def test_empty(simplest_working_params: dict[str, Any]):

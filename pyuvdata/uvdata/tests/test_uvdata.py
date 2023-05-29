@@ -12859,10 +12859,10 @@ def test_setting_time_axis_wrongly(casa_uvfits):
 
     casa_uvfits.reorder_blts(order="time", minor_order="baseline")
     casa_uvfits.blts_are_rectangular = True
+    casa_uvfits.time_axis_faster_than_bls = True
     with pytest.raises(
         ValueError, match="time_axis_faster_than_bls is True but time_array"
     ):
-        casa_uvfits.time_axis_faster_than_bls = True
         casa_uvfits.check()
 
     casa_uvfits.reorder_blts(order="baseline", minor_order="time")
