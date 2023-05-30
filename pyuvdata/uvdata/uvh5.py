@@ -982,7 +982,6 @@ class UVH5(UVData):
             "integration_time",
             "freq_array",
             "spw_array",
-            "channel_width",
             "polarization_array",
             "uvw_array",
             "channel_width",
@@ -1095,9 +1094,10 @@ class UVH5(UVData):
 
         Parameters
         ----------
-        header : h5py datagroup
-            A reference to an h5py data group that contains the header
-            information. Should be "/Header" for UVH5 files conforming to spec.
+        filename : string, path, FastUVH5Meta, h5py.File or h5py.Group
+            A file name or path or a FastUVH5Meta or h5py File or Group object that
+            contains the header information. Should be called "/Header" for UVH5 files
+            conforming to spec.
 
         Other Parameters
         ----------------
