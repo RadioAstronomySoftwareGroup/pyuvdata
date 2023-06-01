@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Compatibility with Python 3.11
+
 ## [2.3.3] - 2023-05-25
 
 ### Added
