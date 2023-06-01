@@ -1484,9 +1484,8 @@ class MWACorrFITS(UVData):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            self.instrument = meta_hdr["TELESCOP"]
+            self.instrument = meta_hdr.pop["INSTRUME"]
             self.telescope_name = meta_hdr.pop("TELESCOP")
-            self.Nants_telescope = int(meta_hdr.pop("INSTRUME")[0:3])
             object_name = meta_hdr.pop("FILENAME")
 
             # if not mwax, remove mwax-specific keys
@@ -1536,6 +1535,7 @@ class MWACorrFITS(UVData):
         dig_gains = dig_gains[reordered_inds, :]
 
         # set parameters from other parameters
+        self.Nants_telescope = len(self.antenna_numbers)
         self.Nants_data = len(self.antenna_numbers)
         self.Nbls = int(
             len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
