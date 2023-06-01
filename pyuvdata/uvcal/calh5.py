@@ -8,18 +8,12 @@ import os
 import warnings
 from functools import cached_property
 from pathlib import Path
-from typing import Any
 
 import h5py
 import numpy as np
 
+from .. import hdf5_utils
 from .. import utils as uvutils
-from ..uvdata.uvh5 import (
-    _check_uvh5_dtype,
-    _get_compression,
-    _read_complex_astype,
-    _write_complex_astype,
-)
 from .uvcal import UVCal, _future_array_shapes_warning, radian_tol
 
 hdf5plugin_present = True
@@ -30,7 +24,7 @@ except ImportError as error:
     hdf5plugin_error = error
 
 
-class FastCalH5Meta:
+class FastCalH5Meta(hdf5_utils.HDF5Meta):
     """
     A fast read-only interface to CalH5 file metadata that makes some assumptions.
 
@@ -96,165 +90,6 @@ class FastCalH5Meta:
     )
 
     _bool_attrs = frozenset(("wide_band",))
-
-    def __init__(self, path: str | Path | h5py.File | h5py.Group):
-        self.__file = None
-
-        if isinstance(path, h5py.File):
-            self.path = Path(path.filename)
-            self.__file = path
-            self.__header = path["/Header"]
-            self.__datagrp = path["/Data"]
-        elif isinstance(path, h5py.Group):
-            self.path = Path(path.file.filename)
-            self.__file = path.file
-            self.__header = path
-            self.__datagrp = self.__file["/Data"]
-        elif isinstance(path, (str, Path)):
-            self.path = Path(path)
-
-    def is_open(self) -> bool:
-        """Whether the file is open."""
-        return bool(self.__file)
-
-    def __del__(self):
-        """Close the file when the object is deleted."""
-        if self.__file:
-            self.__file.close()
-
-    def __getstate__(self):
-        """Get the state of the object."""
-        return {
-            k: v
-            for k, v in self.__dict__.items()
-            if k
-            not in (
-                "_FastCalH5Meta__file",
-                "_FastCalH5Meta__header",
-                "_FastCalH5Meta__datagrp",
-                "header",
-                "datagrp",
-            )
-        }
-
-    def __setstate__(self, state):
-        """Set the state of the object."""
-        self.__dict__.update(state)
-        self.__file = None
-
-    def __eq__(self, other):
-        """Check equality of two FastCalH5Meta objects."""
-        if not isinstance(other, FastCalH5Meta):
-            return False
-
-        return self.path == other.path
-
-    def __hash__(self):
-        """Get a unique hash for the object."""
-        return hash(self.path)
-
-    def close(self):
-        """Close the file."""
-        self.__header = None
-        self.__datagrp = None
-
-        try:
-            del self.header  # need to refresh these
-        except AttributeError:
-            pass
-
-        try:
-            del self.datagrp
-        except AttributeError:
-            pass
-
-        if self.__file:
-            self.__file.close()
-        self.__file = None
-
-    def open(self):  # noqa: A003
-        """Open the file."""
-        if not self.__file:
-            self.__file = h5py.File(self.path, "r")
-            self.__header = self.__file["/Header"]
-            self.__datagrp = self.__file["/Data"]
-
-    @cached_property
-    def header(self) -> h5py.Group:
-        """Get the header group."""
-        if not self.__file:
-            self.open()
-        return self.__header
-
-    @cached_property
-    def datagrp(self) -> h5py.Group:
-        """Get the header group."""
-        if not self.__file:
-            self.open()
-        return self.__datagrp
-
-    def get_transactional(self, item: str, cache: bool = True) -> Any:
-        """Get an attribute from the metadata but close the file object afterwards.
-
-        Using this method is safer than direct attribute access when dealing with
-        many files.
-
-        Parameters
-        ----------
-        item
-            The attribute to get.
-        cache
-            Whether to cache the attribute in the object so that the next access is
-            faster.
-        """
-        try:
-            val = getattr(self, item)
-        finally:
-            self.close()
-
-            if not cache:
-                if item in self.__dict__:
-                    del self.__dict__[item]
-
-        return val
-
-    def __getattr__(self, name: str) -> Any:
-        """Get attribute directly from header group."""
-        try:
-            x = self.header[name][()]
-            if name in self._string_attrs:
-                x = bytes(x).decode("utf8")
-            elif name in self._int_attrs:
-                x = int(x)
-
-            self.__dict__[name] = x
-            return x
-        except KeyError:
-            try:
-                return self._defaults[name]
-            except KeyError as e:
-                raise AttributeError(f"{name} not found in {self.path}") from e
-
-    @cached_property
-    def extra_keywords(self) -> dict:
-        """The extra_keywords from the file."""
-        header = self.header
-        if "extra_keywords" not in header:
-            return {}
-
-        extra_keywords = {}
-        for key in header["extra_keywords"].keys():
-            if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
-                    "utf8"
-                )
-            else:
-                # special handling for empty datasets == python `None` type
-                if header["extra_keywords"][key].shape is None:
-                    extra_keywords[key] = None
-                else:
-                    extra_keywords[key] = header["extra_keywords"][key][()]
-        return extra_keywords
 
     def check_lsts_against_times(self):
         """Check that LSTs consistent with the time_array and telescope location."""
@@ -554,7 +389,7 @@ class CalH5(UVCal):
             # cast to floats
             caldata_dtype = dgrp["gains"].dtype
             if caldata_dtype not in ("complex64", "complex128"):
-                _check_uvh5_dtype(caldata_dtype)
+                hdf5_utils._check_uvh5_dtype(caldata_dtype)
                 if gain_array_dtype not in (np.complex64, np.complex128):
                     raise ValueError(
                         "gain_array_dtype must be np.complex64 or np.complex128"
@@ -577,7 +412,7 @@ class CalH5(UVCal):
             inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
             if self.cal_type == "gain":
                 if custom_dtype:
-                    self.gain_array = _read_complex_astype(
+                    self.gain_array = hdf5_utils._read_complex_astype(
                         dgrp["gains"], inds, gain_array_dtype
                     )
                 else:
@@ -691,7 +526,9 @@ class CalH5(UVCal):
 
             # index datasets
             if custom_dtype:
-                cal_data = _read_complex_astype(caldata_dset, inds, gain_array_dtype)
+                cal_data = hdf5_utils._read_complex_astype(
+                    caldata_dset, inds, gain_array_dtype
+                )
             else:
                 cal_data = uvutils._index_dset(caldata_dset, inds)
             flags = uvutils._index_dset(flags_dset, inds)
@@ -1093,7 +930,9 @@ class CalH5(UVCal):
             revert_fas = True
             self.use_future_array_shapes()
 
-        data_compression, data_compression_opts = _get_compression(data_compression)
+        data_compression, data_compression_opts = hdf5_utils._get_compression(
+            data_compression
+        )
 
         # open file for writing
         with h5py.File(filename, "w") as f:
@@ -1110,7 +949,7 @@ class CalH5(UVCal):
                     else:
                         gain_write_dtype = "c16"
                 if gain_write_dtype not in ("c8", "c16"):
-                    _check_uvh5_dtype(gain_write_dtype)
+                    hdf5_utils._check_uvh5_dtype(gain_write_dtype)
                     gaindata = dgrp.create_dataset(
                         "gains",
                         self.gain_array.shape,
@@ -1120,7 +959,7 @@ class CalH5(UVCal):
                         dtype=gain_write_dtype,
                     )
                     indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
-                    _write_complex_astype(self.gain_array, gaindata, indices)
+                    hdf5_utils._write_complex_astype(self.gain_array, gaindata, indices)
                 else:
                     gaindata = dgrp.create_dataset(
                         "gains",
