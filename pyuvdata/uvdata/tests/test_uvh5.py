@@ -19,6 +19,7 @@ import pytest
 from astropy.time import Time
 from packaging import version
 
+import pyuvdata.hdf5_utils as hdf5_utils
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
@@ -2681,7 +2682,7 @@ def test_read_complex_astype(tmp_path):
     indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
     with h5py.File(test_file, "r") as h5f:
         dset = h5f["Data/testdata"]
-        file_data = uvh5._read_complex_astype(dset, indices, np.complex64)
+        file_data = hdf5_utils._read_complex_astype(dset, indices, np.complex64)
 
     assert np.allclose(file_data, test_data)
 
@@ -2711,7 +2712,7 @@ def test_read_complex_astype_errors(tmp_path):
     with h5py.File(test_file, "r") as h5f:
         dset = h5f["Data/testdata"]
         with pytest.raises(ValueError) as cm:
-            uvh5._read_complex_astype(dset, indices, np.int32)
+            hdf5_utils._read_complex_astype(dset, indices, np.int32)
         assert str(cm.value).startswith("output datatype must be one of (complex")
 
     # clean up
@@ -2733,7 +2734,7 @@ def test_write_complex_astype(tmp_path):
             "testdata", test_data_shape, dtype=uvh5._hera_corr_dtype
         )
         inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
-        uvh5._write_complex_astype(test_data, dset, inds)
+        hdf5_utils._write_complex_astype(test_data, dset, inds)
 
     # read the data back in to confirm it's right
     with h5py.File(test_file, "r") as h5f:
@@ -2750,19 +2751,19 @@ def test_write_complex_astype(tmp_path):
 def test_check_uvh5_dtype_errors():
     # test passing in something that's not a dtype
     with pytest.raises(ValueError) as cm:
-        uvh5._check_uvh5_dtype("hi")
+        hdf5_utils._check_complex_dtype("hi")
     assert str(cm.value).startswith("dtype in a uvh5 file must be a numpy dtype")
 
     # test using a dtype with bad field names
     dtype = np.dtype([("a", "<i4"), ("b", "<i4")])
     with pytest.raises(ValueError) as cm:
-        uvh5._check_uvh5_dtype(dtype)
+        hdf5_utils._check_complex_dtype(dtype)
     assert str(cm.value).startswith("dtype must be a compound datatype")
 
     # test having different types for 'r' and 'i' fields
     dtype = np.dtype([("r", "<i4"), ("i", "<f4")])
     with pytest.raises(ValueError) as cm:
-        uvh5._check_uvh5_dtype(dtype)
+        hdf5_utils._check_complex_dtype(dtype)
     assert str(cm.value).startswith("dtype must have the same kind")
 
     return
