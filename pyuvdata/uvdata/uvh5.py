@@ -11,12 +11,13 @@ import os
 import warnings
 from functools import cached_property
 from pathlib import Path
-from typing import Any, Literal
+from typing import Literal
 
 import h5py
 import numpy as np
 from docstring_parser import DocstringStyle
 
+from .. import hdf5_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
@@ -36,168 +37,7 @@ except ImportError as error:
     hdf5plugin_error = error
 
 
-def _check_uvh5_dtype(dtype):
-    """
-    Check that a specified custom datatype conforms to UVH5 standards.
-
-    According to the UVH5 spec, the data type for the data array must be a
-    compound datatype with an "r" field and an "i" field. Additionally, both
-    datatypes must be the same (e.g., "<i4", "<r8", etc.).
-
-    Parameters
-    ----------
-    dtype : numpy dtype
-        A numpy dtype object with an "r" field and an "i" field.
-
-    Returns
-    -------
-    None
-
-    Raises
-    ------
-    ValueError
-        This is raised if dtype is not a numpy dtype, if the dtype does not have
-        an "r" field and an "i" field, or if the "r" field and "i" fields have
-        different types.
-    """
-    if not isinstance(dtype, np.dtype):
-        raise ValueError("dtype in a uvh5 file must be a numpy dtype")
-    if "r" not in dtype.names or "i" not in dtype.names:
-        raise ValueError(
-            "dtype must be a compound datatype with an 'r' field and an 'i' field"
-        )
-    rkind = dtype["r"].kind
-    ikind = dtype["i"].kind
-    if rkind != ikind:
-        raise ValueError(
-            "dtype must have the same kind ('i4', 'r8', etc.) for both real "
-            "and imaginary fields"
-        )
-    return
-
-
-def _read_complex_astype(dset, indices, dtype_out=np.complex64):
-    """
-    Read the given data set of a specified type to floating point complex data.
-
-    Parameters
-    ----------
-    dset : h5py dataset
-        A reference to an HDF5 dataset on disk.
-    indices : tuple
-        The indices to extract. Should be either lists of indices or numpy
-        slice objects.
-    dtype_out : str or numpy dtype
-        The datatype of the output array. One of (complex, np.complex64,
-        np.complex128). Default is np.complex64 (single-precision real and
-        imaginary floats).
-
-    Returns
-    -------
-    output_array : ndarray
-        The array referenced in the dataset cast to complex values.
-
-    Raises
-    ------
-    ValueError
-        This is raised if dtype_out is not an acceptable value.
-    """
-    if dtype_out not in (complex, np.complex64, np.complex128):
-        raise ValueError(
-            "output datatype must be one of (complex, np.complex64, np.complex128)"
-        )
-    dset_shape, indices = uvutils._get_dset_shape(dset, indices)
-    output_array = np.empty(dset_shape, dtype=dtype_out)
-    # dset is indexed in native dtype, but is upcast upon assignment
-
-    if dtype_out == np.complex64:
-        compound_dtype = [("r", "f4"), ("i", "f4")]
-    else:
-        compound_dtype = [("r", "f8"), ("i", "f8")]
-
-    output_array.view(compound_dtype)[:, :] = uvutils._index_dset(dset, indices)[:, :]
-
-    return output_array
-
-
-def _write_complex_astype(data, dset, indices):
-    """
-    Write floating point complex data as a specified type.
-
-    Parameters
-    ----------
-    data : ndarray
-        The data array to write out. Should be a complex-valued array that
-        supports the .real and .imag attributes for accessing real and imaginary
-        components.
-    dset : h5py dataset
-        A reference to an HDF5 dataset on disk.
-    indices : tuple
-        A 3-tuple representing indices to write data to. Should be either lists
-        of indices or numpy slice objects. For data arrays with 4 dimensions, the second
-        dimension (the old spw axis) should not be included because it can only be
-        length one.
-
-    Returns
-    -------
-    None
-    """
-    # get datatype from dataset
-    dtype_out = dset.dtype
-
-    if data.dtype == np.complex64:
-        compound_dtype = [("r", "f4"), ("i", "f4")]
-    else:
-        compound_dtype = [("r", "f8"), ("i", "f8")]
-
-    # make doubly sure dtype is valid; should be unless user is pathological
-    _check_uvh5_dtype(dtype_out)
-    if len(dset.shape) == 3:
-        # this is the future array shape
-        dset[indices[0], indices[1], indices[2]] = data.view(compound_dtype).astype(
-            dtype_out, copy=False
-        )
-    else:
-        dset[indices[0], np.s_[:], indices[1], indices[2]] = data.view(
-            compound_dtype
-        ).astype(dtype_out, copy=False)
-
-    return
-
-
-def _get_compression(compression):
-    """
-    Get the HDF5 compression and compression options to use.
-
-    Parameters
-    ----------
-    compression : str
-        HDF5 compression specification or "bitshuffle".
-
-    Returns
-    -------
-    compression_use : str
-        HDF5 compression specification
-    compression_opts : tuple
-        HDF5 compression options
-    """
-    if compression == "bitshuffle":
-        if not hdf5plugin_present:  # pragma: no cover
-            raise ImportError(
-                "The hdf5plugin package is not installed but is required to use "
-                "bitshuffle compression."
-            ) from hdf5plugin_error
-
-        compression_use = 32008
-        compression_opts = (0, 2)
-    else:
-        compression_use = compression
-        compression_opts = None
-
-    return compression_use, compression_opts
-
-
-class FastUVH5Meta:
+class FastUVH5Meta(hdf5_utils.HDF5Meta):
     """
     A fast read-only interface to UVH5 file metadata that makes some assumptions.
 
@@ -311,55 +151,13 @@ class FastUVH5Meta:
         recompute_nbls: bool | None = None,
         astrometry_library: str | None = None,
     ):
-        self.__file = None
-
-        if isinstance(path, h5py.File):
-            self.path = Path(path.filename)
-            self.__file = path
-            self.__header = path["/Header"]
-            self.__datagrp = path["/Data"]
-        elif isinstance(path, h5py.Group):
-            self.path = Path(path.file.filename)
-            self.__file = path.file
-            self.__header = path
-            self.__datagrp = self.__file["/Data"]
-        elif isinstance(path, (str, Path)):
-            self.path = Path(path)
+        super().__init__(path)
 
         self.__blts_are_rectangular = blts_are_rectangular
         self.__time_first = time_axis_faster_than_bls
         self.__blt_order = blt_order
         self._recompute_nbls = recompute_nbls
         self._astrometry_library = astrometry_library
-
-    def is_open(self) -> bool:
-        """Whether the file is open."""
-        return bool(self.__file)
-
-    def __del__(self):
-        """Close the file when the object is deleted."""
-        if self.__file:
-            self.__file.close()
-
-    def __getstate__(self):
-        """Get the state of the object."""
-        return {
-            k: v
-            for k, v in self.__dict__.items()
-            if k
-            not in (
-                "_FastUVH5Meta__file",
-                "_FastUVH5Meta__header",
-                "_FastUVH5Meta__datagrp",
-                "header",
-                "datagrp",
-            )
-        }
-
-    def __setstate__(self, state):
-        """Set the state of the object."""
-        self.__dict__.update(state)
-        self.__file = None
 
     def __eq__(self, other):
         """Check equality of two FastUVH5Meta objects."""
@@ -380,91 +178,7 @@ class FastUVH5Meta:
 
     def __hash__(self):
         """Get a unique hash for the object."""
-        return hash(self.path)
-
-    def close(self):
-        """Close the file."""
-        self.__header = None
-        self.__datagrp = None
-
-        try:
-            del self.header  # need to refresh these
-        except AttributeError:
-            pass
-
-        try:
-            del self.datagrp
-        except AttributeError:
-            pass
-
-        if self.__file:
-            self.__file.close()
-        self.__file = None
-
-    def open(self):  # noqa: A003
-        """Open the file."""
-        if not self.__file:
-            self.__file = h5py.File(self.path, "r")
-            self.__header = self.__file["/Header"]
-            self.__datagrp = self.__file["/Data"]
-
-    @cached_property
-    def header(self) -> h5py.Group:
-        """Get the header group."""
-        if not self.__file:
-            self.open()
-        return self.__header
-
-    @cached_property
-    def datagrp(self) -> h5py.Group:
-        """Get the header group."""
-        if not self.__file:
-            self.open()
-        return self.__datagrp
-
-    def get_transactional(self, item: str, cache: bool = True) -> Any:
-        """Get an attribute from the metadata but close the file object afterwards.
-
-        Using this method is safer than direct attribute access when dealing with
-        many files.
-
-        Parameters
-        ----------
-        item
-            The attribute to get.
-        cache
-            Whether to cache the attribute in the object so that the next access is
-            faster.
-        """
-        try:
-            val = getattr(self, item)
-        finally:
-            self.close()
-
-            if not cache:
-                if item in self.__dict__:
-                    del self.__dict__[item]
-
-        return val
-
-    def __getattr__(self, name: str) -> Any:
-        """Get attribute directly from header group."""
-        try:
-            x = self.header[name][()]
-            if name in self._string_attrs:
-                x = bytes(x).decode("utf8")
-            elif name in self._int_attrs:
-                x = int(x)
-            elif name in self._float_attrs:
-                x = float(x)
-
-            self.__dict__[name] = x
-            return x
-        except KeyError:
-            try:
-                return self._defaults[name]
-            except KeyError as e:
-                raise AttributeError(f"{name} not found in {self.path}") from e
+        return super().__hash__()
 
     @cached_property
     def Nbls(self) -> int:  # noqa: N802
@@ -1217,7 +931,7 @@ class UVH5(UVData):
         # cast to floats
         visdata_dtype = dgrp["visdata"].dtype
         if visdata_dtype not in ("complex64", "complex128"):
-            _check_uvh5_dtype(visdata_dtype)
+            hdf5_utils._check_complex_dtype(visdata_dtype)
             if data_array_dtype not in (np.complex64, np.complex128):
                 raise ValueError(
                     "data_array_dtype must be np.complex64 or np.complex128"
@@ -1230,7 +944,7 @@ class UVH5(UVData):
             # no select, read in all the data
             inds = (np.s_[:], np.s_[:], np.s_[:])
             if custom_dtype:
-                self.data_array = _read_complex_astype(
+                self.data_array = hdf5_utils._read_complex_astype(
                     dgrp["visdata"], inds, data_array_dtype
                 )
             else:
@@ -1307,7 +1021,9 @@ class UVH5(UVData):
 
                 # index datasets
                 if custom_dtype:
-                    visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
+                    visdata = hdf5_utils._read_complex_astype(
+                        visdata_dset, inds, data_array_dtype
+                    )
                 else:
                     visdata = uvutils._index_dset(visdata_dset, inds)
                 flags = uvutils._index_dset(flags_dset, inds)
@@ -1353,7 +1069,9 @@ class UVH5(UVData):
 
                 # index datasets
                 if custom_dtype:
-                    visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
+                    visdata = hdf5_utils._read_complex_astype(
+                        visdata_dset, inds, data_array_dtype
+                    )
                 else:
                     visdata = uvutils._index_dset(visdata_dset, inds)
                 flags = uvutils._index_dset(flags_dset, inds)
@@ -1395,7 +1113,9 @@ class UVH5(UVData):
 
                 # index datasets
                 if custom_dtype:
-                    visdata = _read_complex_astype(visdata_dset, inds, data_array_dtype)
+                    visdata = hdf5_utils._read_complex_astype(
+                        visdata_dset, inds, data_array_dtype
+                    )
                 else:
                     visdata = uvutils._index_dset(visdata_dset, inds)
                 flags = uvutils._index_dset(flags_dset, inds)
@@ -1825,7 +1545,9 @@ class UVH5(UVData):
             revert_fas = True
             self.use_future_array_shapes()
 
-        data_compression, data_compression_opts = _get_compression(data_compression)
+        data_compression, data_compression_opts = hdf5_utils._get_compression(
+            data_compression
+        )
 
         # open file for writing
         with h5py.File(filename, "w") as f:
@@ -1841,7 +1563,7 @@ class UVH5(UVData):
                 else:
                     data_write_dtype = "c16"
             if data_write_dtype not in ("c8", "c16"):
-                _check_uvh5_dtype(data_write_dtype)
+                hdf5_utils._check_complex_dtype(data_write_dtype)
                 visdata = dgrp.create_dataset(
                     "visdata",
                     self.data_array.shape,
@@ -1851,7 +1573,7 @@ class UVH5(UVData):
                     dtype=data_write_dtype,
                 )
                 indices = (np.s_[:], np.s_[:], np.s_[:])
-                _write_complex_astype(self.data_array, visdata, indices)
+                hdf5_utils._write_complex_astype(self.data_array, visdata, indices)
             else:
                 visdata = dgrp.create_dataset(
                     "visdata",
@@ -1967,7 +1689,9 @@ class UVH5(UVData):
             else:
                 raise IOError("File exists; skipping")
 
-        data_compression, data_compression_opts = _get_compression(data_compression)
+        data_compression, data_compression_opts = hdf5_utils._get_compression(
+            data_compression
+        )
 
         revert_fas = False
         if not self.future_array_shapes:
@@ -1990,7 +1714,7 @@ class UVH5(UVData):
                 data_write_dtype = "c16"
             if data_write_dtype not in ("c8", "c16"):
                 # make sure the data type is correct
-                _check_uvh5_dtype(data_write_dtype)
+                hdf5_utils._check_complex_dtype(data_write_dtype)
             dgrp.create_dataset(
                 "visdata",
                 data_size,
@@ -2378,7 +2102,7 @@ class UVH5(UVData):
             if n_reg_spaced >= 2:
                 if custom_dtype:
                     indices = (blt_inds, freq_inds, pol_inds)
-                    _write_complex_astype(data_array, visdata_dset, indices)
+                    hdf5_utils._write_complex_astype(data_array, visdata_dset, indices)
                 else:
                     visdata_dset[blt_inds, freq_inds, pol_inds] = data_array
                 flags_dset[blt_inds, freq_inds, pol_inds] = flag_array
@@ -2390,7 +2114,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_inds, freq_idx, pol_idx)
-                                _write_complex_astype(
+                                hdf5_utils._write_complex_astype(
                                     data_array[:, ifreq, ipol], visdata_dset, indices
                                 )
                             else:
@@ -2408,7 +2132,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_inds, pol_idx)
-                                _write_complex_astype(
+                                hdf5_utils._write_complex_astype(
                                     data_array[iblt, :, ipol], visdata_dset, indices
                                 )
                             else:
@@ -2426,7 +2150,7 @@ class UVH5(UVData):
                         for ifreq, freq_idx in enumerate(freq_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_idx, pol_inds)
-                                _write_complex_astype(
+                                hdf5_utils._write_complex_astype(
                                     data_array[iblt, ifreq, :], visdata_dset, indices
                                 )
                             else:
@@ -2447,7 +2171,7 @@ class UVH5(UVData):
                         for ipol, pol_idx in enumerate(pol_inds):
                             if custom_dtype:
                                 indices = (blt_idx, freq_idx, pol_idx)
-                                _write_complex_astype(
+                                hdf5_utils._write_complex_astype(
                                     data_array[iblt, ifreq, ipol], visdata_dset, indices
                                 )
                             else:
