@@ -1484,7 +1484,7 @@ class MWACorrFITS(UVData):
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
-            self.instrument = meta_hdr.pop["INSTRUME"]
+            self.instrument = meta_hdr.pop("INSTRUME")
             self.telescope_name = meta_hdr.pop("TELESCOP")
             object_name = meta_hdr.pop("FILENAME")
 
