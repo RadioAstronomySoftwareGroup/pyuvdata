@@ -21,7 +21,6 @@ from ..uvdata.initializers import (
 
 def new_uvcal(
     *,
-    time_array: np.ndarray,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray],
     telescope_location: Locations,
     telescope_name: str,
@@ -29,6 +28,8 @@ def new_uvcal(
     gain_convention: Literal["divide", "multiply"],
     jones_array: np.ndarray | str,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"],
+    time_array: np.ndarray | None = None,
+    time_range: np.ndarray | None = None,
     freq_array: np.ndarray | None = None,
     freq_range: np.ndarray | None = None,
     cal_type: Literal["delay", "gain"] | None = None,
@@ -52,7 +53,13 @@ def new_uvcal(
     Parameters
     ----------
     time_array : ndarray of float
-        Array of times in Julian Date.
+        Array of times of the center of the integrations, in Julian Date. Only
+        one of time_array or time_range should be supplied.
+    time_range : ndarray of float
+        Array of start and stop times for calibrations solutions, in Julian Date. A
+        two-dimensional array with shape (Ntimes, 2) where the second axis gives
+        the start time and stop time (in that order). Only one of time_array or
+        time_range should be supplied.
     antenna_positions : ndarray of float or dict of ndarray of float
         Array of antenna positions in ECEF coordinates in meters.
         If a dict, keys can either be antenna numbers or antenna names, and values are
@@ -84,11 +91,14 @@ def new_uvcal(
         ``freq_array`` is given, and by *default* set to 'delay' if not.
     integration_time : float or ndarray of float, optional
         Integration time in seconds. If not provided, it will be derived from the
-        time_array, as the difference between successive times (with the last time-diff
-        appended). If not provided and the number of unique times is one, then
-        a warning will be raised and the integration time set to 1 second.
+        time_array or time_range. If derived from the time_array, it will be the
+        difference between successive times (with the last time-diff appended), if
+        the number of unique times is one, then a warning will be raised and
+        the integration time set to 1 second. If derived from the time_range it will be
+        the difference between the start and stop times for each range.
         If a float is provided, it will be used for all integrations.
-        If an ndarray is provided, it must have the same shape as time_array.
+        If an ndarray is provided, it must have the same shape as time_array or the
+        first axis of time_range.
     channel_width : float or ndarray of float, optional
         Channel width in Hz. If not provided, it will be derived from the freq_array,
         as the difference between successive frequencies (with the last frequency-diff
@@ -165,12 +175,20 @@ def new_uvcal(
                 f"The following ants are not in antenna_numbers: {missing}"
             )
 
-    lst_array, integration_time = get_time_params(
-        telescope_location,
-        time_array,
-        integration_time,
-        astrometry_library=astrometry_library,
-    )
+    if time_array is not None:
+        lst_array, integration_time = get_time_params(
+            telescope_location,
+            time_array,
+            integration_time,
+            astrometry_library=astrometry_library,
+        )
+    if time_range is not None:
+        lst_range, integration_time = get_time_params(
+            telescope_location,
+            time_range,
+            integration_time,
+            astrometry_library=astrometry_library,
+        )
 
     if (freq_range is not None) and (
         freq_array is not None
@@ -240,8 +258,14 @@ def new_uvcal(
         ]
     )
     uvc.telescope_name = telescope_name
-    uvc.time_array = time_array
-    uvc.lst_array = lst_array
+    if time_array is not None:
+        uvc.time_array = time_array
+        uvc.lst_array = lst_array
+        uvc.Ntimes = len(time_array)
+    if time_range is not None:
+        uvc.time_range = time_range
+        uvc.lst_range = lst_range
+        uvc.Ntimes = time_range.shape[0]
     uvc.integration_time = integration_time
     uvc.channel_width = channel_width
     uvc.antenna_names = antenna_names
@@ -275,7 +299,6 @@ def new_uvcal(
     uvc.Nants_telescope = len(antenna_numbers)
     uvc.Nfreqs = len(freq_array) if freq_array is not None else 1
 
-    uvc.Ntimes = len(time_array)
     uvc.Nspws = len(spw_array)
     uvc.Njones = len(jones_array)
 
@@ -374,9 +397,10 @@ def new_uvcal_from_uvdata(
         wide_band = True
 
     # If any time-length params are in kwargs, we can't use ANY of them from the UVData
-    if "integration_time" in kwargs or "time_array" in kwargs:
+    if "integration_time" in kwargs or "time_array" or "time_range" in kwargs:
         integration_time = kwargs.pop("integration_time", None)
         time_array = kwargs.pop("time_array", None)
+        time_range = kwargs.pop("time_range", None)
     else:
         indx = np.unique(uvdata.time_array, return_index=True)[1]
         integration_time = uvdata.integration_time[indx]
@@ -518,6 +542,7 @@ def new_uvcal_from_uvdata(
         freq_range=freq_range,
         cal_type=cal_type,
         time_array=time_array,
+        time_range=time_range,
         antenna_positions=antenna_positions,
         antenna_names=antenna_names,
         antenna_numbers=antenna_numbers,
