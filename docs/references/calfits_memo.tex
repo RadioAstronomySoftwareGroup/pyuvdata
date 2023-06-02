@@ -53,14 +53,18 @@ These axes, in order, represent
 \begin{enumerate}
 	\item{Data --- varies between ``delay''- and ``gain''-type calibrations as follows:}
 	\begin{itemize}
-	\item Delay-type: this axis stores the concatenation of the two UVCal arrays [delay\_array, quality\_array], in that order.
-	Correspondingly, this axis will be of length 2.
-	These arrays both have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones), where these variables take the values stored in the corresponding UVCal object. 
+	\item Delay-type: this axis stores the concatenation of one or two UVCal arrays [delay\_array, quality\_array], in that order.
+	Correspondingly, this axis will be of length 1 or 2, depending on whether the quality\_array is present.
+	These arrays both have the shape (Nants\_data, 1, Nfreqs, Ntimes, Njones), where these variables take the values stored in the corresponding UVCal object. 
 	Note that in a ``delay''-type calibration, Nfreqs always $=1$.
-	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array], in that order.
-	If there is no input\_flag\_array for this calibration, then it is \emph{not} appended to the axis.
-	Correspondingly, in a ``gain''-type calibration, this axis may be of length 3 or 4, depending on the inclusion of an input\_flag\_array.
-	These arrays all have the shape (Nants\_data, Nspws, Nfreqs, Ntimes, Njones).
+	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array, quality\_array], in that order.
+	If there is no input\_flag\_array or no quality\_array for this calibration, they are \emph{not} appended to the axis.
+	Correspondingly, in a ``gain''-type calibration, this axis may be of length 3 to 5, depending on the inclusion of the input\_flag\_array and quality\_array.
+	In older files, the quality\_array is always present. In newer files it can be absent but a boolean header item \textbf{HASQLTY} will be present to
+	make it clear which array is present in the even that the axis is length 4. So if the axis is length 4 and there is no \textbf{HASQLTY} header keyword,
+	the fourth array is the quality\_array and there is no input\_flag\_array. If the axis is length 4 and the \textbf{HASQLTY} header keyword is present, then
+	if \textbf{HASQLTY} is True, the fourth array is the quality\_array, otherwise it is the input\_flag\_array.
+	These arrays all have the shape (Nants\_data, 1, Nfreqs, Ntimes, Njones).
 	\end{itemize}
 	\item{An integer representing polarization values.}
 	\item{Time.}
