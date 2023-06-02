@@ -24,9 +24,14 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
+@pytest.mark.parametrize("quality", [True, False])
+@pytest.mark.parametrize("input_flag_array", [True, False])
+def test_readwriteread(
+    future_shapes, caltype, quality, input_flag_array, gain_data, delay_data, tmp_path
+):
     """
     Omnical/Firstcal fits loopback test.
 
@@ -41,15 +46,30 @@ def test_readwriteread(future_shapes, caltype, gain_data, delay_data, tmp_path):
     if not future_shapes:
         cal_in.use_current_array_shapes()
 
+    if not quality:
+        cal_in.quality_array = None
+    if input_flag_array:
+        cal_in.input_flag_array = cal_in.flag_array
+
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
     if not future_shapes:
-        warn_type = DeprecationWarning
-        warn_msg = _future_array_shapes_warning
+        warn_type = [DeprecationWarning]
+        warn_msg = [_future_array_shapes_warning]
     elif caltype == "delay":
-        warn_type = UserWarning
-        warn_msg = "When converting a delay-style cal to future array shapes the"
+        warn_type = [UserWarning]
+        warn_msg = ["When converting a delay-style cal to future array shapes the"]
     else:
+        warn_type = []
+        warn_msg = []
+
+    if input_flag_array:
+        warn_type.append(DeprecationWarning)
+        warn_msg.append(
+            "The input_flag_array is deprecated and will be removed in version 2.5"
+        )
+
+    if len(warn_type) == 0:
         warn_type = None
         warn_msg = ""
 

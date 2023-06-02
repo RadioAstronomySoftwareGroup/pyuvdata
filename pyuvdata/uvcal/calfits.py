@@ -242,9 +242,14 @@ class CALFITS(UVCal):
         if self.git_hash_cal:
             prihdr["HASHCAL"] = self.git_hash_cal
 
+        if self.quality_array is not None:
+            prihdr["HASQLTY"] = True
+        else:
+            prihdr["HASQLTY"] = False
+
         if self.cal_type == "unknown":
             raise ValueError(
-                "unknown calibration type. Do not know how to " "store parameters"
+                "unknown calibration type. Do not know how to store parameters"
             )
 
         # Define primary header values
@@ -330,37 +335,34 @@ class CALFITS(UVCal):
                 self.Njones,
                 1,
             )
+            pridata = np.concatenate(
+                [
+                    np.reshape(self.gain_array.real, calfits_data_shape),
+                    np.reshape(self.gain_array.imag, calfits_data_shape),
+                    np.reshape(self.flag_array, calfits_data_shape),
+                ],
+                axis=-1,
+            )
             if self.input_flag_array is not None:
                 pridata = np.concatenate(
-                    [
-                        np.reshape(self.gain_array.real, calfits_data_shape),
-                        np.reshape(self.gain_array.imag, calfits_data_shape),
-                        np.reshape(self.flag_array, calfits_data_shape),
-                        np.reshape(self.input_flag_array, calfits_data_shape),
-                        np.reshape(self.quality_array, calfits_data_shape),
-                    ],
+                    [pridata, np.reshape(self.input_flag_array, calfits_data_shape)],
                     axis=-1,
                 )
-            else:
+
+            if self.quality_array is not None:
                 pridata = np.concatenate(
-                    [
-                        np.reshape(self.gain_array.real, calfits_data_shape),
-                        np.reshape(self.gain_array.imag, calfits_data_shape),
-                        np.reshape(self.flag_array, calfits_data_shape),
-                        np.reshape(self.quality_array, calfits_data_shape),
-                    ],
+                    [pridata, np.reshape(self.quality_array, calfits_data_shape)],
                     axis=-1,
                 )
 
         elif self.cal_type == "delay":
             calfits_data_shape = (self.Nants_data, 1, 1, self.Ntimes, self.Njones, 1)
-            pridata = np.concatenate(
-                [
-                    np.reshape(self.delay_array, calfits_data_shape),
-                    np.reshape(self.quality_array, calfits_data_shape),
-                ],
-                axis=-1,
-            )
+            pridata = np.reshape(self.delay_array, calfits_data_shape)
+            if self.quality_array is not None:
+                pridata = np.concatenate(
+                    [pridata, np.reshape(self.quality_array, calfits_data_shape)],
+                    axis=-1,
+                )
 
             # Set headers for the second hdu containing the flags. Only in
             # cal_type=delay
@@ -714,6 +716,7 @@ class CALFITS(UVCal):
                     )
 
             # get data.
+            has_quality = hdr.pop("HASQLTY", True)
             if read_data:
                 data = fname[0].data
                 if self.cal_type == "gain":
@@ -721,15 +724,22 @@ class CALFITS(UVCal):
                         data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
                     )
                     self.flag_array = data[:, :, :, :, :, 2].astype("bool")
-                    if hdr.pop("NAXIS1") == 5:
+                    n_arrays = hdr.pop("NAXIS1")
+                    if n_arrays == 5:
                         self.input_flag_array = data[:, :, :, :, :, 3].astype("bool")
                         self.quality_array = data[:, :, :, :, :, 4]
-                    else:
-                        self.quality_array = data[:, :, :, :, :, 3]
+                    elif n_arrays == 4:
+                        if has_quality:
+                            self.quality_array = data[:, :, :, :, :, 3]
+                        else:
+                            self.input_flag_array = data[:, :, :, :, :, 3].astype(
+                                "bool"
+                            )
 
                 if self.cal_type == "delay":
                     self.delay_array = data[:, :, :, :, :, 0]
-                    self.quality_array = data[:, :, :, :, :, 1]
+                    if has_quality:
+                        self.quality_array = data[:, :, :, :, :, 1]
 
                     flag_data = sechdu.data
                     if sechdu.header["NAXIS1"] == 2:
