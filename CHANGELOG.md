@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 ### Added
 - Compatibility with Python 3.11
 
+### Fixed
+- Error when reading `mwa_corr_fits` files from the new MWAX correlator
+
 ## [2.3.3] - 2023-05-25
 
 ### Added
