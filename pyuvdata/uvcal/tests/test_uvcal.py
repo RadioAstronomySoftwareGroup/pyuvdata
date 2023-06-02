@@ -4148,9 +4148,9 @@ def test_init_from_uvdata_settimes(
 
     if not metadata_only:
         uvc2.gain_array[:] = 1.0
-        uvc2.quality_array *= 0.0
+        uvc2.quality_array = None
         uvc2.flag_array[:] = False
-        uvc2.total_quality_array = uvc2.quality_array[0]
+        uvc2.total_quality_array = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences

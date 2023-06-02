@@ -129,7 +129,9 @@ def new_uvcal(
         'gain_array', 'delay_array', 'quality_array', 'flag_array',
         and 'total_quality_array'. If any entry is provided, the output will contain
         all necessary data-like arrays. Any key *not* provided in this case will be
-        set to default "empty" values (e.g. all ones for gains, all False for flags).
+        set to default "empty" values (e.g. all ones for gains, all False for flags) if
+        they are required or `None` if they are not required (i.e. input_flag_array,
+        quality_array, total_quality_array).
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
@@ -304,10 +306,8 @@ def new_uvcal(
         else:
             uvc.gain_array = data.get("gain_array", np.ones(shape, dtype=complex))
 
-        uvc.quality_array = data.get("quality_array", np.zeros(shape, dtype=float))
-        uvc.total_quality_array = data.get(
-            "total_quality_array", np.zeros(shape[1:], dtype=float)
-        )
+        uvc.quality_array = data.get("quality_array", None)
+        uvc.total_quality_array = data.get("total_quality_array", None)
 
     uvc.check()
     return uvc

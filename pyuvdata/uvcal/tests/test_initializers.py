@@ -148,7 +148,8 @@ def test_new_uvcal_set_delay(uvc_kw):
         **uvc
     )
     assert new.cal_type == "delay"
-    assert new.quality_array.shape[1] == new.Nspws
+    assert new.delay_array.shape[1] == new.Nspws
+    assert new.quality_array is None
 
 
 def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
