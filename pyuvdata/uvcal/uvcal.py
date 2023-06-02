@@ -353,8 +353,6 @@ class UVCal(UVBase):
         )
 
         # TODO:
-        #  - consider allowing a time_array even if you have a time_range to carry the
-        #     center of times? Talk to Dara.
         #  - update uvcalibrate to handle multiple time ranges
         #  - consider using python_ranges package
 
@@ -1767,6 +1765,20 @@ class UVCal(UVBase):
         return self._slice_array(
             self._parse_key(ant, jpol=jpol), self.quality_array, squeeze_pol=squeeze_pol
         )
+
+    def get_time_array(self):
+        """
+        Get a time array of calibration solution times.
+
+        Times are for the center of the integration, shape (Ntimes), units in Julian
+        Date. If a time_range is defined on the object, the times are the mean of the
+        start and stop times for each range. Otherwise return the time_array (which can
+        be None).
+        """
+        if self.time_range is not None:
+            return np.mean(self.time_range, axis=1)
+        else:
+            return self.time_array
 
     def reorder_antennas(
         self,
@@ -4777,9 +4789,6 @@ class UVCal(UVBase):
             param = getattr(self, p)
             setattr(other_obj, p, param)
         return other_obj
-
-    # TODO: update the initializers module and read methods for proper time_range
-    # handling.
 
     @classmethod
     @combine_docstrings(initializers.new_uvcal_from_uvdata)

@@ -119,27 +119,39 @@ def get_time_params(
     )
 
     if integration_time is None:
-        utimes = np.sort(list(set(time_array)))
-        if len(utimes) > 1:
-            integration_time = np.diff(utimes) * 86400
-            integration_time = np.concatenate([integration_time, integration_time[-1:]])
+        if time_array.ndim == 2:
+            np.diff(time_array, axis=1)
         else:
-            warnings.warn(
-                "integration_time not provided, and cannot be inferred from time_array,"
-                " setting to 1 second"
-            )
-            integration_time = np.array([1.0])
+            utimes = np.sort(list(set(time_array)))
+            if len(utimes) > 1:
+                integration_time = np.diff(utimes) * 86400
+                integration_time = np.concatenate(
+                    [integration_time, integration_time[-1:]]
+                )
+            else:
+                warnings.warn(
+                    "integration_time not provided, and cannot be inferred from "
+                    "time_array, setting to 1 second"
+                )
+                integration_time = np.array([1.0])
 
     if np.isscalar(integration_time):
-        integration_time = np.full_like(time_array, integration_time)
+        if time_array.ndim == 2:
+            integration_time = np.full_like(time_array[:, 0], integration_time)
+        else:
+            integration_time = np.full_like(time_array, integration_time)
 
     try:
         integration_time = np.asarray(integration_time, dtype=float)
     except TypeError as e:
         raise TypeError("integration_time must be array_like of floats") from e
 
-    if integration_time.shape != time_array.shape:
-        raise ValueError("integration_time must be the same shape as time_array.")
+    if time_array.ndim == 2:
+        if integration_time.size != time_array.shape[0]:
+            raise ValueError("integration_time must be the same shape as time_array.")
+    else:
+        if integration_time.shape != time_array.shape:
+            raise ValueError("integration_time must be the same shape as time_array.")
 
     return lst_array, integration_time
 
