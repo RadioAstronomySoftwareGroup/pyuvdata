@@ -138,6 +138,11 @@ class CALFITS(UVCal):
                         ),
                     )
                     time_spacing = rounded_spacing[0]
+            if self.time_range is not None:
+                raise ValueError(
+                    "The calfits file format does not support time_range when there is "
+                    "more than one time."
+                )
             else:
                 if np.isclose(
                     time_spacing[0], self.integration_time / (24.0 * 60.0**2)

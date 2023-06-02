@@ -114,8 +114,6 @@ class FHDCal(UVCal):
         self.Ntimes = 1
         time_array = bl_info["jdate"][0]
 
-        self.time_array = np.array([np.mean(time_array)])
-
         # this is generated in FHD by subtracting the JD of neighboring
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
