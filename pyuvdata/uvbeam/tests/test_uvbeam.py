@@ -1233,6 +1233,12 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
             az_array=az_interp_vals, za_array=za_interp_vals, freq_array=np.array([100])
         )
 
+    # test errors if frequency interp values outside range
+    with pytest.raises(
+        ValueError,
+        match="If az_za_grid is set to True, az_array and za_array must be provided.",
+    ):
+        uvbeam.interp(az_za_grid=True, freq_array=freq_interp_vals)
     # test errors if positions outside range
     with pytest.raises(
         ValueError,

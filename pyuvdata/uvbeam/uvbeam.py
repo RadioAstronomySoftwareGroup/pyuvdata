@@ -2311,6 +2311,11 @@ class UVBeam(UVBase):
                 kind_use = "nearest"
 
         if az_za_grid:
+            if az_array is None or za_array is None:
+                raise ValueError(
+                    "If az_za_grid is set to True, az_array and za_array must be "
+                    "provided."
+                )
             az_array_use, za_array_use = np.meshgrid(az_array, za_array)
             az_array_use = az_array_use.flatten()
             za_array_use = za_array_use.flatten()
