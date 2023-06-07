@@ -2468,11 +2468,11 @@ class UVBeam(UVBase):
                 new_uvb.ordering = "ring"
 
             history_update_string += (
-                " using pyuvdata with interpolation_function = " + interp_func_name
+                f" using pyuvdata with interpolation_function = {interp_func_name}"
             )
             if freq_array is not None:
                 history_update_string += (
-                    " and freq_interp_kind = " + new_uvb.freq_interp_kind
+                    f" and freq_interp_kind = {new_uvb.freq_interp_kind}"
                 )
             history_update_string += "."
             new_uvb.history = new_uvb.history + history_update_string

@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 - Compatibility with Python 3.11
 
 ### Fixed
+- Error when setting `UVBeam.freq_interp_kind` to an integer.
 - Error when reading `mwa_corr_fits` files from the new MWAX correlator
 
 ## [2.3.3] - 2023-05-25
