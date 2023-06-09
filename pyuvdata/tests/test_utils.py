@@ -3501,7 +3501,12 @@ def test_uvcalibrate_apply_gains_oldfiles():
 
     uvc.select(times=uvc.time_array[0])
 
-    with uvtest.check_warnings(UserWarning, match=ants_expected):
+    time_expected = [
+        "Times do not match between UVData and UVCal but time_check is False, so "
+        "calibration will be applied anyway."
+    ]
+
+    with uvtest.check_warnings(UserWarning, match=ants_expected + time_expected):
         with pytest.raises(ValueError, match=freq_expected):
             uvutils.uvcalibrate(
                 uvd, uvc, prop_flags=True, ant_check=False, time_check=False
@@ -3548,6 +3553,8 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
         "All antenna names with data on UVData are missing "
         "on UVCal. Since ant_check is False, calibration will "
         "proceed but all data will be flagged.",
+        "Times do not match between UVData and UVCal but time_check is False, so "
+        "calibration will be applied anyway.",
         r"UVData object does not have `x_orientation` specified but UVCal does",
     ]
     with uvtest.check_warnings(UserWarning, match=ant_expected):
@@ -3570,12 +3577,14 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
+@pytest.mark.parametrize("time_range", [True, False])
 def test_uvcalibrate(
     uvcalibrate_data,
     uvc_future_shapes,
     uvd_future_shapes,
     flip_gain_conj,
     gain_convention,
+    time_range,
 ):
     uvd, uvc = uvcalibrate_data
 
@@ -3583,6 +3592,14 @@ def test_uvcalibrate(
         uvd.use_current_array_shapes()
     if not uvc_future_shapes:
         uvc.use_current_array_shapes()
+
+    if time_range:
+        tstarts = uvc.time_array - uvc.integration_time / (86400 * 2)
+        tends = uvc.time_array + uvc.integration_time / (86400 * 2)
+        uvc.time_range = np.stack((tstarts, tends), axis=1)
+        uvc.time_array = None
+        uvc.lst_array = None
+        uvc.set_lsts_from_time_array()
 
     uvc.gain_convention = gain_convention
 
@@ -3809,21 +3826,44 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data, future_shapes
     assert np.all(uvdcal.flag_array)  # assert completely flagged
 
 
-def test_uvcalibrate_time_mismatch(uvcalibrate_data):
+@pytest.mark.parametrize("time_range", [True, False])
+def test_uvcalibrate_time_mismatch(uvcalibrate_data, time_range):
     uvd, uvc = uvcalibrate_data
 
+    if time_range:
+        tstarts = uvc.time_array - uvc.integration_time / (86400 * 2)
+        tends = uvc.time_array + uvc.integration_time / (86400 * 2)
+        original_time_range = np.stack((tstarts, tends), axis=1)
+        uvc.time_range = original_time_range
+        uvc.time_array = None
+        uvc.lst_array = None
+        uvc.set_lsts_from_time_array()
+
     # change times to get warnings
-    uvc.time_array = uvc.time_array + 1
-    uvc.set_lsts_from_time_array()
+    if time_range:
+        uvc.time_range = uvc.time_range + 1
+        expected_err = "Time_ranges on UVCal do not cover all UVData times."
+        with pytest.raises(ValueError, match=expected_err):
+            uvutils.uvcalibrate(uvd, uvc, inplace=False)
+    else:
+        uvc.time_array = uvc.time_array + 1
+        expected_err = {
+            f"Time {this_time} exists on UVData but not on UVCal."
+            for this_time in np.unique(uvd.time_array)
+        }
 
-    expected_err = {
-        f"Time {this_time} exists on UVData but not on UVCal."
-        for this_time in np.unique(uvd.time_array)
-    }
+        with pytest.raises(ValueError) as errinfo:
+            uvutils.uvcalibrate(uvd, uvc, inplace=False)
+        assert str(errinfo.value) in expected_err
 
-    with pytest.raises(ValueError) as errinfo:
-        uvutils.uvcalibrate(uvd, uvc, inplace=False)
-    assert str(errinfo.value) in expected_err
+    # for time_range, make the time ranges not cover some UVData times
+    if time_range:
+        uvc.time_range = original_time_range
+        uvc.time_range[0, 1] = uvc.time_range[0, 0] + uvc.integration_time[0] / (
+            86400 * 4
+        )
+        with pytest.raises(ValueError, match=expected_err):
+            uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
 
 def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
@@ -3839,16 +3879,20 @@ def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
 
-@pytest.mark.parametrize("len_time_range", [0, 1])
-def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
+@pytest.mark.filterwarnings("ignore:The time_array and time_range attributes")
+@pytest.mark.filterwarnings("ignore:The lst_array and lst_range attributes")
+@pytest.mark.parametrize("time_range", [True, False])
+def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
     uvd, uvc = uvcalibrate_data
 
     # only one time
     uvc.select(times=uvc.time_array[0])
-    if len_time_range == 0:
-        uvc.time_range = None
-    else:
+    if time_range:
         # check cal runs fine with a good time range
+        uvc.time_range = np.reshape(
+            np.array([np.min(uvd.time_array), np.max(uvd.time_array)]), (1, 2)
+        )
+        uvc.set_lsts_from_time_array()
         uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
         key = (1, 13, "xx")
@@ -3863,24 +3907,29 @@ def test_uvcalibrate_time_types(uvcalibrate_data, len_time_range):
         # then change time_range to get warnings
         uvc.time_range = np.array(uvc.time_range) + 1
 
-    with pytest.raises(
-        ValueError,
-        match=(
-            "Times do not match between UVData and UVCal. "
-            "Set time_check=False to apply calibration anyway."
-        ),
-    ):
+    if time_range:
+        msg_start = "Time_range on UVCal does not cover all UVData times"
+    else:
+        msg_start = "Times do not match between UVData and UVCal"
+    err_msg = msg_start + ". Set time_check=False to apply calibration anyway."
+    warn_msg = [
+        msg_start + " but time_check is False, so calibration will be applied anyway."
+    ]
+
+    with pytest.raises(ValueError, match=err_msg):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
     # set time_check=False to test the user warning
-    with uvtest.check_warnings(
-        UserWarning,
-        match=(
-            "Times do not match between UVData and UVCal "
-            "but time_check is False, so calibration "
-            "will be applied anyway."
-        ),
-    ):
+    warn = [UserWarning]
+    if time_range:
+        warn += [DeprecationWarning] * 2
+        warn_msg += [
+            "The time_array and time_range attributes are both set, but only one "
+            "should be set. This will become an error in version 2.5.",
+            "The lst_array and lst_range attributes are both set, but only one "
+            "should be set. This will become an error in version 2.5.",
+        ]
+    with uvtest.check_warnings(warn, match=warn_msg):
         uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
 
     key = (1, 13, "xx")
