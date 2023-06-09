@@ -397,7 +397,7 @@ def new_uvcal_from_uvdata(
         wide_band = True
 
     # If any time-length params are in kwargs, we can't use ANY of them from the UVData
-    if "integration_time" in kwargs or "time_array" or "time_range" in kwargs:
+    if "integration_time" in kwargs or "time_array" in kwargs or "time_range" in kwargs:
         integration_time = kwargs.pop("integration_time", None)
         time_array = kwargs.pop("time_array", None)
         time_range = kwargs.pop("time_range", None)
@@ -405,6 +405,7 @@ def new_uvcal_from_uvdata(
         indx = np.unique(uvdata.time_array, return_index=True)[1]
         integration_time = uvdata.integration_time[indx]
         time_array = uvdata.time_array[indx]
+        time_range = None
 
     # Get frequency-type info from kwargs and uvdata
     if cal_type == "gain" and not wide_band:
