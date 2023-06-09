@@ -52,6 +52,28 @@ def test_new_uvcal_simplest(uvc_kw):
     assert uvc.Ntimes == 12
 
 
+def test_new_uvcal_time_range(uvc_kw):
+    tdiff = np.mean(np.diff(uvc_kw["time_array"]))
+    tstarts = uvc_kw["time_array"] - tdiff / 2
+    tends = uvc_kw["time_array"] + tdiff / 2
+    uvc_kw["time_range"] = np.stack((tstarts, tends), axis=1)
+    del uvc_kw["time_array"]
+
+    UVCal.new(**uvc_kw)
+
+    uvc_kw["integration_time"] = tdiff * 86400
+    uvc = UVCal.new(**uvc_kw)
+    assert uvc.Ntimes == 12
+
+    uvc_kw["integration_time"] = np.full((5,), tdiff * 86400)
+    with pytest.raises(
+        ValueError,
+        match="integration_time must be the same length as the first axis of "
+        "time_range.",
+    ):
+        uvc = UVCal.new(**uvc_kw)
+
+
 def test_new_uvcal_bad_inputs(uvc_kw):
     with pytest.raises(
         ValueError, match="The following ants are not in antenna_numbers"

@@ -15,6 +15,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvcal.tests import time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
@@ -29,8 +30,16 @@ pytestmark = pytest.mark.filterwarnings(
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("quality", [True, False])
 @pytest.mark.parametrize("input_flag_array", [True, False])
+@pytest.mark.parametrize("time_range", [True, False])
 def test_readwriteread(
-    future_shapes, caltype, quality, input_flag_array, gain_data, delay_data, tmp_path
+    future_shapes,
+    caltype,
+    quality,
+    input_flag_array,
+    time_range,
+    gain_data,
+    delay_data,
+    tmp_path,
 ):
     """
     Omnical/Firstcal fits loopback test.
@@ -43,6 +52,11 @@ def test_readwriteread(
     else:
         cal_in = delay_data
 
+    if time_range:
+        # can only have a calfits with time_range for one time
+        cal_in.select(times=cal_in.time_array[0], inplace=True)
+        cal_in = time_array_to_time_range(cal_in)
+
     if not future_shapes:
         cal_in.use_current_array_shapes()
 
@@ -50,6 +64,10 @@ def test_readwriteread(
         cal_in.quality_array = None
     if input_flag_array:
         cal_in.input_flag_array = cal_in.flag_array
+    # add total_quality_array so that can be tested as well
+    cal_in.total_quality_array = np.ones(
+        cal_in._total_quality_array.expected_shape(cal_in)
+    )
 
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)

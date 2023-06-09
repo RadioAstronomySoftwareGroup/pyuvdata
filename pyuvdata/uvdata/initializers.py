@@ -111,7 +111,7 @@ def get_time_params(
 
     if integration_time is None:
         if time_array.ndim == 2:
-            np.diff(time_array, axis=1)
+            integration_time = np.squeeze(np.diff(time_array, axis=1) * 86400)
         else:
             utimes = np.sort(list(set(time_array)))
             if len(utimes) > 1:
@@ -139,7 +139,10 @@ def get_time_params(
 
     if time_array.ndim == 2:
         if integration_time.size != time_array.shape[0]:
-            raise ValueError("integration_time must be the same shape as time_array.")
+            raise ValueError(
+                "integration_time must be the same length as the first axis of "
+                "time_range."
+            )
     else:
         if integration_time.shape != time_array.shape:
             raise ValueError("integration_time must be the same shape as time_array.")

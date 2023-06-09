@@ -19,6 +19,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.uvcal.tests import time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
@@ -47,7 +48,6 @@ def uvcal_data():
         "spw_array",
         "flex_spw",
         "jones_array",
-        "time_array",
         "integration_time",
         "gain_convention",
         "flag_array",
@@ -63,6 +63,7 @@ def uvcal_data():
         "telescope_location",
         "antenna_positions",
         "lst_array",
+        "lst_range",
         "gain_array",
         "delay_array",
         "sky_field",
@@ -73,6 +74,7 @@ def uvcal_data():
         "diffuse_model",
         "input_flag_array",
         "time_range",
+        "time_array",
         "freq_range",
         "flex_spw_id_array",
         "observer",
@@ -390,6 +392,53 @@ def test_check_flag_array(gain_data):
         gain_data.check()
 
 
+def test_check_time_range_errors(gain_data):
+    calobj = time_array_to_time_range(gain_data)
+    original_range = copy.copy(calobj.time_range)
+
+    calobj.time_range[1, 1] = calobj.time_range[0, 0]
+    print(calobj.time_range[:, 1] - calobj.time_range[:, 0])
+    with pytest.raises(
+        ValueError,
+        match="The time ranges are not well-formed, some stop times are after start "
+        "times.",
+    ):
+        calobj.check()
+
+    calobj.time_range = original_range
+    calobj.time_range[0, 1] = calobj.time_range[1, 1]
+    with pytest.raises(ValueError, match="Some time_ranges overlap"):
+        calobj.check()
+
+
+@pytest.mark.parametrize("time_range", [True, False])
+def test_check_lst(gain_data, time_range):
+    gain_time_range = time_array_to_time_range(gain_data)
+    if time_range:
+        calobj = gain_time_range
+        tparam = "time_range"
+        lst_param = "lst_range"
+        calobj.lst_range = None
+    else:
+        calobj = gain_data
+        tparam = "time_array"
+        lst_param = "lst_array"
+        calobj.lst_array = None
+
+    with pytest.raises(ValueError, match="Either lst_array or lst_range must be set."):
+        calobj.check()
+
+    if time_range:
+        calobj.lst_array = gain_data.lst_array
+    else:
+        calobj.lst_range = gain_time_range.lst_range
+
+    with pytest.raises(
+        ValueError, match=f"If {tparam} is present, {lst_param} must also be present."
+    ):
+        calobj.check()
+
+
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
@@ -544,6 +593,18 @@ def test_future_array_shape_errors(
 
         with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
             calobj2._check_freq_spacing()
+
+
+def test_get_time_array(gain_data):
+    calobj = gain_data
+    orig_time_array = copy.copy(calobj.time_array)
+
+    time_array = calobj.get_time_array()
+    assert np.allclose(time_array, orig_time_array)
+
+    calobj = time_array_to_time_range(calobj)
+    time_array = calobj.get_time_array()
+    assert np.allclose(time_array, orig_time_array)
 
 
 def test_unknown_telescopes(gain_data, tmp_path):
@@ -1055,13 +1116,21 @@ def test_select_antennas(
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("time_range", [True, False])
 def test_select_times(
-    future_shapes, caltype, gain_data, delay_data_inputflag, tmp_path
+    future_shapes, caltype, time_range, gain_data, delay_data_inputflag, tmp_path
 ):
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
+
+    orig_time_array = calobj.time_array
+    times_to_keep = orig_time_array[2:5]
+    time_range_to_keep = [np.min(times_to_keep), np.max(times_to_keep)]
+
+    if time_range:
+        calobj = time_array_to_time_range(calobj)
 
     if not future_shapes:
         calobj.use_current_array_shapes()
@@ -1069,45 +1138,89 @@ def test_select_times(
     calobj2 = calobj.copy()
 
     old_history = calobj.history
-    times_to_keep = calobj.time_array[2:5]
 
     calobj2.select(times=times_to_keep)
 
     assert len(times_to_keep) == calobj2.Ntimes
-    for t in times_to_keep:
-        assert t in calobj2.time_array
-    for t in np.unique(calobj2.time_array):
-        assert t in times_to_keep
+    if time_range:
+        for t in times_to_keep:
+            time_in_range = np.nonzero(
+                np.logical_and(
+                    (calobj2.time_range[:, 0] <= t), (calobj2.time_range[:, 1] >= t)
+                )
+            )[0]
+            assert time_in_range.size > 0
+    else:
+        for t in times_to_keep:
+            assert t in calobj2.time_array
+        for t in np.unique(calobj2.time_array):
+            assert t in times_to_keep
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
         calobj2.history,
     )
 
+    # check same answer with time_range parameter
+    calobj3 = calobj.copy()
+    calobj3.select(time_range=time_range_to_keep)
+    assert calobj2 == calobj3
+
     write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one time
     calobj2 = calobj.copy()
-    times_to_keep = calobj.time_array[[1]]
+    times_to_keep = times_to_keep[0]
+    time_range_to_keep = [np.min(times_to_keep), np.max(times_to_keep)]
     calobj2.select(times=times_to_keep)
+
+    # check same answer with time_range parameter
+    calobj3 = calobj.copy()
+    calobj3.select(time_range=time_range_to_keep)
+    assert calobj2 == calobj3
+
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with times not included in data
-    pytest.raises(
-        ValueError,
-        calobj.select,
-        times=[np.min(calobj.time_array) - calobj.integration_time],
-    )
+    early_time = np.min(orig_time_array) - np.max(calobj.integration_time)
+    if time_range:
+        msg = "No times or time_ranges matching requested times."
+    else:
+        msg = f"Time {early_time} is not present in the time_array"
+    with pytest.raises(ValueError, match=msg):
+        calobj.select(times=[early_time])
+
+    with pytest.raises(
+        ValueError, match="Only one of times and time_range can be provided."
+    ):
+        calobj.select(times=times_to_keep, time_range=time_range_to_keep)
 
     # check for warnings and errors associated with unevenly spaced times
     calobj2 = calobj.copy()
-    warn_type = [UserWarning]
-    msg = ["Selected times are not evenly spaced"]
+    warn_type = []
+    msg = []
+    if not time_range:
+        warn_type += [UserWarning]
+        msg += ["Selected times are not evenly spaced"]
     if caltype == "delay":
         warn_type += [DeprecationWarning]
         msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+    if len(warn_type) == 0:
+        warn_type = None
+        msg = ""
     with uvtest.check_warnings(warn_type, match=msg):
-        calobj2.select(times=calobj2.time_array[[0, 2, 3]])
-    pytest.raises(ValueError, calobj2.write_calfits, write_file_calfits)
+        calobj2.select(times=orig_time_array[[0, 2, 3]])
+    if time_range:
+        msg = (
+            "The calfits file format does not support time_range when there is more "
+            "than one time."
+        )
+    else:
+        msg = (
+            "The times are not evenly spaced (probably because of a select operation). "
+            "The calfits format does not support unevenly spaced times."
+        )
+    with pytest.raises(ValueError, match=re.escape(msg)):
+        calobj2.write_calfits(write_file_calfits)
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -1976,8 +2089,9 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
+@pytest.mark.parametrize("time_range", [True, False])
 def test_reorder_times(
-    future_shapes, caltype, metadata_only, gain_data, delay_data_inputflag
+    future_shapes, caltype, metadata_only, time_range, gain_data, delay_data_inputflag
 ):
     if caltype == "gain":
         calobj = gain_data
@@ -1989,6 +2103,9 @@ def test_reorder_times(
         calobj.check()
     else:
         calobj = delay_data_inputflag
+
+    if time_range:
+        calobj = time_array_to_time_range(calobj)
 
     if not future_shapes:
         calobj.use_current_array_shapes()
@@ -2002,7 +2119,10 @@ def test_reorder_times(
     assert calobj == calobj2
 
     calobj2.reorder_times(order="-time")
-    time_diff = np.diff(calobj2.time_array)
+    if time_range:
+        time_diff = np.diff(calobj2.time_range[:, 0])
+    else:
+        time_diff = np.diff(calobj2.time_array)
     assert np.all(time_diff < 0)
 
     if caltype == "gain" and not metadata_only:
@@ -2037,6 +2157,15 @@ def test_reorder_times_errors(gain_data):
         "without duplicates.",
     ):
         gain_data.reorder_times(order=np.arange(7))
+
+    gain_data = time_array_to_time_range(gain_data, keep_time_array=True)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The time_array and time_range attributes are both set. "
+        "Defaulting to using time_range to determine sorting. This will "
+        "become an error in version 2.5.",
+    ):
+        gain_data.reorder_times()
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -2737,13 +2866,24 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputflag):
+def test_add_times(
+    future_shapes, caltype, time_range, method, gain_data, delay_data_inputflag
+):
     """Test adding times between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
+
+    n_times2 = calobj.Ntimes // 2
+    times1 = calobj.time_array[:n_times2]
+    times2 = calobj.time_array[n_times2:]
+
+    if time_range:
+        keep_time_array = caltype == "gain"
+        calobj = time_array_to_time_range(calobj, keep_time_array=keep_time_array)
 
     if not future_shapes:
         calobj.use_current_array_shapes()
@@ -2751,17 +2891,58 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
-    n_times2 = calobj.Ntimes // 2
-    times1 = calobj.time_array[:n_times2]
-    times2 = calobj.time_array[n_times2:]
-    calobj.select(times=times1)
-    calobj2.select(times=times2)
+    if time_range and caltype == "gain":
+        check_warn = [DeprecationWarning] * 2
+        check_msg = [
+            "The time_array and time_range attributes are both set, but only one "
+            "should be set. This will become an error in version 2.5.",
+            "The lst_array and lst_range attributes are both set, but only one should "
+            "be set. This will become an error in version 2.5.",
+        ]
+        select_warn = check_warn + [DeprecationWarning]
+        select_msg = check_msg + [
+            "The time_array and time_range attributes are both set. "
+            "Defaulting to using time_range to determine time selection. "
+            "This will become an error in version 2.5."
+        ]
+
+        add_warn = check_warn * 3
+        add_msg = check_msg * 3
+        if method != "fast_concat":
+            add_warn += [DeprecationWarning]
+            add_msg += [
+                "The time_array and time_range attributes are both set. Defaulting to "
+                "using time_range to determine time matching between objects. "
+                "This will become an error in version 2.5."
+            ]
+    elif caltype == "delay":
+        check_warn = [DeprecationWarning]
+        check_msg = [
+            "The input_flag_array is deprecated and will be removed in version 2.5"
+        ]
+        select_warn = check_warn
+        select_msg = check_msg
+        add_warn = check_warn * 3
+        add_msg = check_msg * 3
+    else:
+        check_warn = None
+        check_msg = ""
+        select_warn = None
+        select_msg = ""
+        add_warn = None
+        add_msg = ""
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj.select(time_range=[np.min(times1), np.max(times1)])
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj2.select(time_range=[np.min(times2), np.max(times2)])
 
     if method == "fast_concat":
         kwargs = {"axis": "time", "inplace": True}
     else:
         kwargs = {}
-    getattr(calobj, method)(calobj2, **kwargs)
+
+    with uvtest.check_warnings(add_warn, match=add_msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
@@ -2773,7 +2954,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
-    calobj.select(times=times1)
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj.select(time_range=[np.min(times1), np.max(times1)])
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     if future_shapes:
@@ -2781,7 +2963,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     else:
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
-    getattr(calobj, method)(calobj2, **kwargs)
+    with uvtest.check_warnings(add_warn, match=add_msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2790,7 +2973,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     )
 
     # test for when total_quality_array is present in second file but not first
-    calobj.select(times=times1)
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj.select(time_range=[np.min(times1), np.max(times1)])
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     if future_shapes:
@@ -2799,7 +2983,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
-    getattr(calobj, method)(calobj2, **kwargs)
+    with uvtest.check_warnings(add_warn, match=add_msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2808,7 +2993,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     )
 
     # test for when total_quality_array is present in both
-    calobj.select(times=times1)
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj.select(time_range=[np.min(times1), np.max(times1)])
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
@@ -2818,7 +3004,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
         tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
-    getattr(calobj, method)(calobj2, **kwargs)
+    with uvtest.check_warnings(add_warn, match=add_msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
         tot_tqa,
@@ -2829,7 +3016,8 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
     if caltype == "delay":
         # test for when input_flag_array & quality_array is present in first file but
         # not in second
-        calobj.select(times=times1)
+        with uvtest.check_warnings(select_warn, match=select_msg):
+            calobj.select(time_range=[np.min(times1), np.max(times1)])
         ifa = np.zeros(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.ones(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
@@ -2847,12 +3035,14 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
         calobj2.input_flag_array = None
         calobj.quality_array = qa
         calobj2.quality_array = None
-        getattr(calobj, method)(calobj2, **kwargs)
+        with uvtest.check_warnings(add_warn[1:], match=add_msg[1:]):
+            getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
         assert np.allclose(calobj.quality_array, tot_qa)
 
         # test for when input_flag_array is present in second file but not first
-        calobj.select(times=times1)
+        with uvtest.check_warnings(select_warn, match=select_msg):
+            calobj.select(time_range=[np.min(times1), np.max(times1)])
         ifa = np.ones(calobj._input_flag_array.expected_shape(calobj)).astype(np.bool_)
         ifa2 = np.zeros(calobj2._input_flag_array.expected_shape(calobj2)).astype(
             np.bool_
@@ -2866,20 +3056,34 @@ def test_add_times(future_shapes, caltype, method, gain_data, delay_data_inputfl
         calobj2.input_flag_array = ifa2
         calobj.quality_array = None
         calobj2.quality_array = qa2
-        getattr(calobj, method)(calobj2, **kwargs)
+        with uvtest.check_warnings(add_warn[1:], match=add_msg[1:]):
+            getattr(calobj, method)(calobj2, **kwargs)
         assert np.allclose(calobj.input_flag_array, tot_ifa)
         assert np.allclose(calobj.quality_array, tot_qa)
 
     # Out of order - times
     calobj = calobj_full.copy()
     calobj2 = calobj.copy()
-    calobj.select(times=times2)
-    calobj2.select(times=times1)
-    getattr(calobj, method)(calobj2, **kwargs)
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj.select(time_range=[np.min(times2), np.max(times2)])
+    with uvtest.check_warnings(select_warn, match=select_msg):
+        calobj2.select(time_range=[np.min(times1), np.max(times1)])
+    with uvtest.check_warnings(add_warn, match=add_msg):
+        getattr(calobj, method)(calobj2, **kwargs)
     calobj.history = calobj_full.history
     if method == "fast_concat":
         # need to sort object first
-        calobj.reorder_times()
+        warn = check_warn
+        warn_msg = check_msg
+        if time_range and caltype == "gain":
+            warn += [DeprecationWarning]
+            warn_msg += [
+                "The time_array and time_range attributes are both set. Defaulting to "
+                "using time_range to determine sorting. This will become an error in "
+                "version 2.5."
+            ]
+        with uvtest.check_warnings(warn, match=warn_msg):
+            calobj.reorder_times()
     assert calobj == calobj_full
 
 
@@ -3296,15 +3500,19 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
 def test_add_errors(
-    caltype, method, gain_data, delay_data, multi_spw_gain, wideband_gain
+    caltype, time_range, method, gain_data, delay_data, multi_spw_gain, wideband_gain
 ):
     """Test behavior that will raise errors"""
     if caltype == "gain":
-        calobj = gain_data
+        calobj = gain_data.copy()
     else:
-        calobj = delay_data
+        calobj = delay_data.copy()
+
+    if time_range:
+        calobj = time_array_to_time_range(calobj)
 
     calobj2 = calobj.copy()
 
@@ -3325,10 +3533,12 @@ def test_add_errors(
 
     else:
         # test addition of two identical objects
-        with pytest.raises(
-            ValueError,
-            match="These objects have overlapping data and cannot be combined.",
-        ):
+        if time_range:
+            msg = "A time_range overlaps in the two objects."
+        else:
+            msg = "These objects have overlapping data and cannot be combined."
+
+        with pytest.raises(ValueError, match=msg):
             calobj + calobj2
 
     # test addition of UVCal and non-UVCal object
@@ -3369,6 +3579,29 @@ def test_add_errors(
         match="To combine these data, wide_band must be set to the same value",
     ):
         getattr(gain_data, method)(wideband_gain, **kwargs)
+
+    # test time_range, time_array mismatch
+    calobj2 = calobj.copy()
+    if time_range:
+        calobj2.time_array = gain_data.time_array
+        calobj2.time_range = None
+        calobj2.lst_range = None
+    else:
+        calobj2 = time_array_to_time_range(calobj2)
+
+    calobj2.set_lsts_from_time_array()
+
+    if method == "fast_concat":
+        kwargs = {"axis": "time", "inplace": True}
+    else:
+        kwargs = {}
+
+    with pytest.raises(
+        ValueError,
+        match="Some objects have a time_array while others do not. All objects must "
+        "either have or not have a time_array.",
+    ):
+        getattr(calobj, method)(calobj2, **kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -3959,10 +4192,6 @@ def test_init_from_uvdata(
     if not uvcal_future_shapes:
         uvc.use_current_array_shapes()
 
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
-
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
@@ -4014,10 +4243,6 @@ def test_init_from_uvdata_setfreqs(
 
     if not uvcal_future_shapes:
         uvc.use_current_array_shapes()
-
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -4131,7 +4356,6 @@ def test_init_from_uvdata_settimes(
         metadata_only=metadata_only,
         time_array=times_use,
         integration_time=integration_time,
-        time_range=uvc.time_range,
     )
 
     with pytest.warns(
@@ -4146,7 +4370,6 @@ def test_init_from_uvdata_settimes(
             metadata_only=metadata_only,
             times=times_use,
             integration_time=integration_time,
-            time_range=uvc.time_range,
         )
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -4187,9 +4410,6 @@ def test_init_from_uvdata_settimes(
 def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     uvc._set_flex_spw()
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -4239,10 +4459,6 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
 def test_init_single_pol(uvcalibrate_data, pol):
     uvd, uvc = uvcalibrate_data
     uvc._set_flex_spw()
-
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     if pol in ["ll", "rr"]:
         # convert to circular pol
@@ -4295,10 +4511,6 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     uvd.polarization_array = np.array([-1, -2, -3, -4])
     uvc.jones_array = np.array([-1, -2])
 
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
-
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
@@ -4348,10 +4560,6 @@ def test_init_from_uvdata_sky(
 
     if not uvcal_future_shapes:
         uvc.use_current_array_shapes()
-
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     # make cal object be a sky cal type
     uvc._set_sky()
@@ -4437,10 +4645,6 @@ def test_init_from_uvdata_delay(
 
     if not uvdata_future_shapes:
         uvd.use_current_array_shapes()
-
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     # make cal object be a delay cal type
     uvc2 = uvc.copy(metadata_only=True)
@@ -4549,10 +4753,6 @@ def test_init_from_uvdata_wideband(
     if not uvdata_future_shapes:
         uvd.use_current_array_shapes()
 
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
-
     # make cal object be a wide-band cal
     uvc2 = uvc.copy(metadata_only=True)
     uvc2._set_wide_band()
@@ -4641,9 +4841,6 @@ def test_init_from_uvdata_wideband(
 def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     uvc._set_flex_spw()
-    # uvc has a time_range which it shouldn't really have because Ntimes > 1,
-    # but that requirement is not enforced. Set it to None for this test
-    uvc.time_range = None
 
     with pytest.raises(ValueError, match="uvdata must be a UVData object."):
         UVCal.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
