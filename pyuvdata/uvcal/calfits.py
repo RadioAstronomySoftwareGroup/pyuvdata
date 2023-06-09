@@ -113,6 +113,11 @@ class CALFITS(UVCal):
                 delta_freq_array = 1.0
 
         if self.Ntimes > 1:
+            if self.time_range is not None:
+                raise ValueError(
+                    "The calfits file format does not support time_range when there is "
+                    "more than one time."
+                )
             if not uvutils._test_array_constant_spacing(self._time_array):
                 raise ValueError(
                     "The times are not evenly spaced (probably "
@@ -140,11 +145,6 @@ class CALFITS(UVCal):
                         ),
                     )
                     time_spacing = rounded_spacing[0]
-            if self.time_range is not None:
-                raise ValueError(
-                    "The calfits file format does not support time_range when there is "
-                    "more than one time."
-                )
             else:
                 if np.isclose(
                     time_spacing[0], self.integration_time / (24.0 * 60.0**2)
@@ -166,6 +166,10 @@ class CALFITS(UVCal):
                 time_spacing = self.integration_time[0] / (24.0 * 60.0**2)
             else:
                 time_spacing = self.integration_time / (24.0 * 60.0**2)
+        if self.time_array is None:
+            time_zero = np.mean(self.time_range)
+        else:
+            time_zero = self.time_array[0]
 
         if self.Njones > 1:
             if not uvutils._test_array_constant_spacing(self._jones_array):
@@ -240,7 +244,7 @@ class CALFITS(UVCal):
             prihdr["FRQRANGE"] = ",".join(map(str, freq_range_use))
 
         if self.time_range is not None:
-            prihdr["TMERANGE"] = ",".join(map(str, self.time_range))
+            prihdr["TMERANGE"] = ",".join(map(str, self.time_range[0, :]))
 
         if self.observer:
             prihdr["OBSERVER"] = self.observer
@@ -282,7 +286,7 @@ class CALFITS(UVCal):
         prihdr["CTYPE3"] = ("TIME", "Time axis.")
         prihdr["CUNIT3"] = ("JD", "Time in julian date format")
         prihdr["CRPIX3"] = 1
-        prihdr["CRVAL3"] = self.time_array[0]
+        prihdr["CRVAL3"] = time_zero
         prihdr["CDELT3"] = time_spacing
 
         # freq axis
@@ -391,7 +395,7 @@ class CALFITS(UVCal):
             sechdr["CTYPE3"] = ("TIME", "Time axis.")
             sechdr["CUNIT3"] = ("JD", "Time in julian date format")
             sechdr["CRPIX3"] = 1
-            sechdr["CRVAL3"] = self.time_array[0]
+            sechdr["CRVAL3"] = time_zero
             sechdr["CDELT3"] = time_spacing
 
             sechdr["CTYPE4"] = ("FREQS", "Valid frequencies to apply delay.")
@@ -461,7 +465,7 @@ class CALFITS(UVCal):
             totqualhdr["CTYPE2"] = ("TIME", "Time axis.")
             totqualhdr["CUNIT2"] = ("JD", "Time in julian date format")
             totqualhdr["CRPIX2"] = 1
-            totqualhdr["CRVAL2"] = self.time_array[0]
+            totqualhdr["CRVAL2"] = time_zero
             totqualhdr["CDELT2"] = time_spacing
 
             totqualhdr["CTYPE3"] = ("FREQS", "Valid frequencies to apply delay.")
@@ -590,11 +594,6 @@ class CALFITS(UVCal):
 
                 self.history += self.pyuvdata_version_str
 
-            time_range = hdr.pop("TMERANGE", None)
-            if time_range is not None:
-                self.time_range = np.asarray(
-                    list(map(np.float64, time_range.split(",")))
-                )
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop("XORIENT")
@@ -629,7 +628,17 @@ class CALFITS(UVCal):
             self.Njones = hdr.pop("NAXIS2")
             self.jones_array = uvutils._fits_gethduaxis(fname[0], 2)
             self.Ntimes = hdr.pop("NAXIS3")
-            self.time_array = uvutils._fits_gethduaxis(fname[0], 3)
+            main_hdr_time_array = uvutils._fits_gethduaxis(fname[0], 3)
+
+            # needs to come after Ntimes is defined.
+            time_range = hdr.pop("TMERANGE", None)
+            if time_range is not None and self.Ntimes == 1:
+                self.time_range = np.asarray(
+                    list(map(np.float64, time_range.split(",")))
+                )
+                self.time_range = self.time_range[np.newaxis, :]
+            else:
+                self.time_array = main_hdr_time_array
 
             if self.telescope_location is not None:
                 proc = self.set_lsts_from_time_array(
@@ -681,7 +690,7 @@ class CALFITS(UVCal):
                 time_array = uvutils._fits_gethduaxis(sechdu, 3)
                 if not np.allclose(
                     time_array,
-                    self.time_array,
+                    main_hdr_time_array,
                     rtol=self._time_array.tols[0],
                     atol=self._time_array.tols[0],
                 ):
@@ -767,7 +776,7 @@ class CALFITS(UVCal):
                     time_array = uvutils._fits_gethduaxis(totqualhdu, 2)
                     if not np.allclose(
                         time_array,
-                        self.time_array,
+                        main_hdr_time_array,
                         rtol=self._time_array.tols[0],
                         atol=self._time_array.tols[0],
                     ):
