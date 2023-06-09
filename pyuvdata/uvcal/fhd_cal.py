@@ -130,7 +130,9 @@ class FHDCal(UVCal):
         time_use = bl_info["time_use"][0]
 
         time_array_use = time_array[np.where(time_use > 0)]
-        self.time_range = np.asarray([np.min(time_array_use), np.max(time_array_use)])
+        self.time_range = np.reshape(
+            np.asarray([np.min(time_array_use), np.max(time_array_use)]), (1, 2)
+        )
 
         self.telescope_name = obs_data["instrument"][0].decode("utf8")
         latitude = np.deg2rad(float(obs_data["LAT"][0]))

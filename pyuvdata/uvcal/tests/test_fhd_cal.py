@@ -375,10 +375,19 @@ def test_read_multi(tmp_path, concat_method, read_method):
                 use_future_array_shapes=True,
             )
 
+    # calfits doesn't support multiple time ranges, so this errors
+    # TODO: add back a roundtrip check when we have an hdf5 file format
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
-    fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
-    assert fhd_cal == calfits_cal
+    with pytest.raises(
+        ValueError,
+        match=(
+            "The calfits file format does not support time_range when there is more "
+            "than one time."
+        ),
+    ):
+        fhd_cal.write_calfits(outfile, clobber=True)
+    # calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    # assert fhd_cal == calfits_cal
 
 
 @pytest.mark.parametrize(
