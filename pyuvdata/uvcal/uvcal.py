@@ -66,20 +66,20 @@ def _check_range_overlap(val_range, range_type="time"):
 
 def _time_param_check(this, other):
     """Check if any time parameter is defined in this but not in other or vice-versa."""
-    if not isinstance(other):
+    if not isinstance(other, list):
         other = [other]
     time_params = ["time_array", "time_range"]
     for param in time_params:
-        if getattr(this, time_params) is not None:
+        if getattr(this, param) is not None:
             for obj in other:
-                if obj.time_array is None:
+                if getattr(obj, param) is None:
                     raise ValueError(
                         f"Some objects have a {param} while others do not. All "
                         f"objects must either have or not have a {param}."
                     )
         else:
             for obj in other:
-                if obj.time_array is not None:
+                if getattr(obj, param) is not None:
                     raise ValueError(
                         f"Some objects have a {param} while others do not. All "
                         f"objects must either have or not have a {param}."
@@ -1371,7 +1371,13 @@ class UVCal(UVBase):
                 "2.5",
                 DeprecationWarning,
             )
+        # first run the basic check from UVBase
+        super(UVCal, self).check(
+            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+        )
+
         # deprecate having both time_array and time_range set
+        # check that corresponding lst parameters are set
         time_like_pairs = [("time_array", "time_range"), ("lst_array", "lst_range")]
         for pair in time_like_pairs:
             if (
@@ -1386,30 +1392,19 @@ class UVCal(UVBase):
             elif getattr(self, pair[0]) is None and getattr(self, pair[1]) is None:
                 raise ValueError(f"Either {pair[0]} or {pair[1]} must be set.")
 
-        # this can go away in version 2.5
-        if self.time_array is not None:
-            if self.lst_array is None:
+        for tp_ind, param in enumerate(time_like_pairs[0]):
+            lst_param = time_like_pairs[1][tp_ind]
+            if getattr(self, param) is not None and getattr(self, lst_param) is None:
                 raise ValueError(
-                    "If time_array is present, lst_array must also be present."
+                    f"If {param} is present, {lst_param} must also be present."
                 )
 
         # check that time ranges are well formed and do not overlap
         if self.time_range is not None:
-            if self.lst_range is None:
-                raise ValueError(
-                    "If time_range is present, lst_range must also be present."
-                )
             if _check_range_overlap(self.time_range):
                 raise ValueError("Some time_ranges overlap.")
-
-        if self.lst_range is not None:
-            if _check_range_overlap(self.lst_range, range_type="lst"):
-                raise ValueError("Some lst_range overlap.")
-
-        # first run the basic check from UVBase
-        super(UVCal, self).check(
-            check_extra=check_extra, run_check_acceptability=run_check_acceptability
-        )
+            # note: do not check lst range overlap because of branch cut.
+            # Assume they are ok if time_ranges are ok.
 
         # require that all entries in ant_array exist in antenna_numbers
         if not all(ant in self.antenna_numbers for ant in self.ant_array):
@@ -3442,7 +3437,10 @@ class UVCal(UVBase):
         if not self.metadata_only:
             jones_t2o = np.nonzero(np.in1d(this.jones_array, other.jones_array))[0]
             if this.time_range is not None:
-                times_t2o = np.nonzero(np.in1d(this.time_range, other.time_range))[0]
+                times_t2o = np.nonzero(
+                    (np.in1d(this.time_range[:, 0], other.time_range[:, 0]))
+                    & (np.in1d(this.time_range[:, 1], other.time_range[:, 1]))
+                )[0]
             else:
                 times_t2o = np.nonzero(np.in1d(this.time_array, other.time_array))[0]
             if self.wide_band:
@@ -4323,7 +4321,7 @@ class UVCal(UVBase):
                     cal_object.total_quality_array = None
 
         if times is not None and time_range is not None:
-            raise ValueError("Cannot set both `times` and `time_range`.")
+            raise ValueError("Only one of times and time_range can be provided.")
 
         if (times is not None or time_range is not None) and (
             cal_object.time_array is not None and cal_object.time_range is not None
@@ -4354,13 +4352,13 @@ class UVCal(UVBase):
                                     (cal_object.time_range[:, 0] <= jd),
                                     (cal_object.time_range[:, 1] >= jd),
                                 )
-                            ),
+                            )[0],
                         )
                 else:
                     for jd in times:
                         if jd in cal_object.time_array:
                             time_inds = np.append(
-                                time_inds, np.where(cal_object.time_array == jd)[0]
+                                time_inds, np.nonzero(cal_object.time_array == jd)[0]
                             )
                         else:
                             raise ValueError(
@@ -4372,23 +4370,26 @@ class UVCal(UVBase):
                         if _check_range_overlap(np.stack((trange, time_range), axis=0)):
                             time_inds = np.append(time_inds, tind)
                 else:
-                    time_inds = (
-                        np.nonzero(
-                            np.logical_and(
-                                (cal_object.time_array >= time_range[0]),
-                                (cal_object.time_array <= time_range[1]),
-                            )
-                        ),
-                    )
+                    time_inds = np.nonzero(
+                        np.logical_and(
+                            (cal_object.time_array >= time_range[0]),
+                            (cal_object.time_array <= time_range[1]),
+                        )
+                    )[0]
 
-            time_inds = sorted(set(time_inds))
-            cal_object.Ntimes = len(time_inds)
+            if time_inds.size == 0:
+                raise ValueError("No times or time_ranges matching requested times.")
+
+            time_inds = np.array(sorted(set(time_inds.tolist())))
+            cal_object.Ntimes = time_inds.size
             if cal_object.time_array is not None:
                 cal_object.time_array = cal_object.time_array[time_inds]
             if cal_object.time_range is not None:
                 cal_object.time_range = cal_object.time_range[time_inds]
             if cal_object.lst_array is not None:
                 cal_object.lst_array = cal_object.lst_array[time_inds]
+            if cal_object.lst_range is not None:
+                cal_object.lst_range = cal_object.lst_range[time_inds]
             if self.future_array_shapes:
                 cal_object.integration_time = cal_object.integration_time[time_inds]
 
