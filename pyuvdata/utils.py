@@ -4193,6 +4193,8 @@ def get_lst_for_time(
         # Convert from hours back to rad
         lst_array *= np.pi / 12.0
 
+    lst_array = np.reshape(lst_array, jd_array.shape)
+
     return lst_array
 
 
@@ -5268,10 +5270,44 @@ def uvcalibrate(
                         "flag the data from missing antennas, set ant_check=False."
                     )
 
-    uvdata_times = np.unique(uvdata.time_array)
+    uvdata_times, uvd_time_ri = np.unique(uvdata.time_array, return_inverse=True)
     downselect_cal_times = False
-    if uvcal.Ntimes > 1:
-        if uvcal.Ntimes < uvdata.Ntimes:
+    # time_range supercedes time_array.
+    if uvcal.time_range is not None:
+        if np.min(uvdata_times) < np.min(uvcal.time_range[:, 0]) or np.max(
+            uvdata_times
+        ) > np.max(uvcal.time_range[:, 1]):
+            if not time_check and uvcal.Ntimes == 1:
+                warnings.warn(
+                    "Time_range on UVCal does not cover all UVData times "
+                    "but time_check is False, so calibration "
+                    "will be applied anyway."
+                )
+            else:
+                msg = "Time_ranges on UVCal do not cover all UVData times."
+                if uvcal.Ntimes == 1:
+                    msg = (
+                        "Time_range on UVCal does not cover all UVData times. "
+                        "Set time_check=False to apply calibration anyway."
+                    )
+                else:
+                    msg = "Time_ranges on UVCal do not cover all UVData times."
+                raise ValueError(msg)
+
+        # now check in detail that all UVData times fall in a UVCal time range.
+        # also create the indexing array to match UVData blts to UVCal time inds
+        if uvcal.Ntimes > 1:
+            trange_ind_arr = np.full_like(uvdata.time_array, -1, dtype=int)
+            for tr_ind, trange in enumerate(uvcal.time_range):
+                time_inds = np.nonzero(
+                    (uvdata_times >= trange[0]) & (uvdata_times <= trange[1])
+                )[0]
+                for tind in time_inds:
+                    trange_ind_arr[np.nonzero(uvd_time_ri == tind)[0]] = tr_ind
+            if np.any(trange_ind_arr < 0):
+                raise ValueError("Time_ranges on UVCal do not cover all UVData times.")
+    else:
+        if uvcal.Ntimes > 1 and uvcal.Ntimes < uvdata.Ntimes:
             raise ValueError(
                 "The uvcal object has more than one time but fewer than the "
                 "number of unique times on the uvdata object."
@@ -5288,64 +5324,38 @@ def uvcalibrate(
             time_arr_match = False
 
         if not time_arr_match:
-            # check more carefully
-            uvcal_times_to_keep = []
-            for this_time in uvdata_times:
-                wh_time_match = np.nonzero(
-                    np.isclose(
-                        uvcal.time_array - this_time,
-                        0,
-                        atol=uvdata._time_array.tols[1],
-                        rtol=uvdata._time_array.tols[0],
+            if uvcal.Ntimes == 1:
+                if not time_check:
+                    warnings.warn(
+                        "Times do not match between UVData and UVCal "
+                        "but time_check is False, so calibration "
+                        "will be applied anyway."
                     )
-                )
-                if wh_time_match[0].size > 0:
-                    uvcal_times_to_keep.append(uvcal.time_array[wh_time_match][0])
                 else:
                     raise ValueError(
-                        f"Time {this_time} exists on UVData but not on UVCal."
+                        "Times do not match between UVData and UVCal. "
+                        "Set time_check=False to apply calibration anyway. "
                     )
-            if len(uvcal_times_to_keep) < uvcal.Ntimes:
-                downselect_cal_times = True
-
-    elif uvcal.time_range is None:
-        # only one UVCal time, no time_range.
-        # This cannot match if UVData.Ntimes > 1.
-        # If they are both NTimes = 1, then check if they're close.
-        if uvdata.Ntimes > 1 or not np.isclose(
-            uvdata_times,
-            uvcal.time_array,
-            atol=uvdata._time_array.tols[1],
-            rtol=uvdata._time_array.tols[0],
-        ):
-            if not time_check:
-                warnings.warn(
-                    "Times do not match between UVData and UVCal "
-                    "but time_check is False, so calibration "
-                    "will be applied anyway."
-                )
             else:
-                raise ValueError(
-                    "Times do not match between UVData and UVCal. "
-                    "Set time_check=False to apply calibration anyway."
-                )
-    else:
-        # time_array is length 1 and time_range exists: check uvdata_times in time_range
-        if (
-            np.min(uvdata_times) < uvcal.time_range[0]
-            or np.max(uvdata_times) > uvcal.time_range[1]
-        ):
-            if not time_check:
-                warnings.warn(
-                    "Times do not match between UVData and UVCal "
-                    "but time_check is False, so calibration "
-                    "will be applied anyway."
-                )
-            else:
-                raise ValueError(
-                    "Times do not match between UVData and UVCal. "
-                    "Set time_check=False to apply calibration anyway. "
-                )
+                # check more carefully
+                uvcal_times_to_keep = []
+                for this_time in uvdata_times:
+                    wh_time_match = np.nonzero(
+                        np.isclose(
+                            uvcal.time_array - this_time,
+                            0,
+                            atol=uvdata._time_array.tols[1],
+                            rtol=uvdata._time_array.tols[0],
+                        )
+                    )
+                    if wh_time_match[0].size > 0:
+                        uvcal_times_to_keep.append(uvcal.time_array[wh_time_match][0])
+                    else:
+                        raise ValueError(
+                            f"Time {this_time} exists on UVData but not on UVCal."
+                        )
+                if len(uvcal_times_to_keep) < uvcal.Ntimes:
+                    downselect_cal_times = True
 
     downselect_cal_freq = False
     if uvcal.freq_array is not None:
@@ -5509,6 +5519,10 @@ def uvcalibrate(
                     * np.conj(uvcal_use.get_gains(uvcal_key2))
                 ).T  # tranpose to match uvdata shape
             flag = (uvcal_use.get_flags(uvcal_key1) | uvcal_use.get_flags(uvcal_key2)).T
+
+            if uvcal.time_range is not None and uvcal.Ntimes > 1:
+                gain = gain[trange_ind_arr[blt_inds], :]
+                flag = flag[trange_ind_arr[blt_inds], :]
 
             # propagate flags
             if prop_flags:
