@@ -768,6 +768,12 @@ c) Resampling a BDA dataset in time
 
 d) Averaging in frequency
 *************************
+The :meth:`pyuvdata.UVData.frequency_average` method takes a number of channels to
+average together. Use the `keep_ragged` parameter to control the handling if the
+number of frequencies in each spectral window does not divide evenly by the number of
+channels to be averaged together. Use the `respect_spws` parameter to control whether
+averaging will be done over spectral window boundaries.
+
 .. code-block:: python
 
   >>> import os
@@ -780,7 +786,7 @@ d) Averaging in frequency
   Channel width:  [122070.3125 122070.3125 122070.3125 122070.3125]
 
   >>> # Average by a factor of 2 in frequency
-  >>> uvd.frequency_average(2)
+  >>> uvd.frequency_average(n_chan_to_avg=2, keep_ragged=True)
   >>> print("Channel width after frequency averaging: ", uvd.channel_width)
   Channel width after frequency averaging:  [244140.625 244140.625]
 
@@ -789,8 +795,7 @@ UVData: Plotting
 Making a simple waterfall plot.
 
 Note: there is now support for reading in only part of a uvfits, uvh5 or miriad file
-(see :ref:`large_files`), so you need not read in the
-entire file to plot one waterfall.
+(see :ref:`large_files`), so you need not read in the entire file to plot one waterfall.
 
 .. code-block:: python
 
@@ -802,7 +807,6 @@ entire file to plot one waterfall.
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
 
-  >>> # Note that the length of the array along axis=1 is always 1.
   >>> print(uvd.data_array.shape)
   (1360, 64, 4)
   >>> print(uvd.Ntimes)
