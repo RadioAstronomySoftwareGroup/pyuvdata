@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for multiple spectral windows in `UVData.frequency_average`, including a new
+parameter `respect_spws` for controlling whether averaging crosses spectral window
+boundaries.
+- Better handling in `UVData.frequency_average` when averaging by a number of channels
+that does not divide evenly into the number of channels in each spectral window.
 - Compatibility with Python 3.11
 
 ### Changed
@@ -20,7 +25,8 @@ All notable changes to this project will be documented in this file.
 methods that mostly wrap other methods.
 - A new `UVCal.new()` method (based on new function `new_uvcal`) that creates a new,
 self-consistent `UVCal` object from scratch from a set of flexible input parameters.
-- A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new, self-consistent `UVData` object from scratch from a set of flexible input parameters.
+- A new `UVData.new()` method (based on new function `new_uvdata`) that creates a new,
+self-consistent `UVData` object from scratch from a set of flexible input parameters.
 - A new `fast_concat` method on `UVCal`.
 - A new generic `read` method on `UVCal` that, like the `read` methods on our other
 objects, supports all file types and a new `from_file` class method to allow one-line
