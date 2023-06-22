@@ -1112,10 +1112,10 @@ class UVFITS(UVData):
         # a common practice is to set the PZERO to the JD at midnight of the first time
         jd_midnight = np.floor(self.time_array[0] - 0.5) + 0.5
         if write_precision == 32:
-            time_array1 = np.float32(self.time_array - jd_midnight)
-            time_array2 = np.float32(
-                self.time_array - jd_midnight - np.float64(time_array1)
-            )
+            time_array1 = (self.time_array - jd_midnight).astype(np.float32)
+            time_array2 = (
+                self.time_array - jd_midnight - time_array1.astype(np.float64)
+            ).astype(np.float32)
 
         else:
             time_array1 = self.time_array - jd_midnight
@@ -1177,8 +1177,10 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so first convert to degrees
             lst_array_deg = np.rad2deg(self.lst_array)
             if write_precision == 32:
-                lst_array_1 = np.float32(lst_array_deg)
-                lst_array_2 = np.float32(lst_array_deg - np.float64(lst_array_1))
+                lst_array_1 = lst_array_deg.astype(np.float32)
+                lst_array_2 = (lst_array_deg - lst_array_1.astype(np.float64)).astype(
+                    np.float32
+                )
             else:
                 lst_array_1 = lst_array_deg
             group_parameter_dict["LST     "] = lst_array_1
@@ -1549,7 +1551,7 @@ class UVFITS(UVData):
             # coordinate frame, although nothing in phase_center_catalog forces
             # objects to share the same frame. So we want to make sure that
             # everything lines up with the coordinate frame listed.
-            ra_arr[idx], dec_arr[idx] = uvutils.transform_sidereal_coords(
+            new_ra, new_dec = uvutils.transform_sidereal_coords(
                 phase_dict["cat_lon"],
                 phase_dict["cat_lat"],
                 phase_dict["cat_frame"],
@@ -1558,6 +1560,8 @@ class UVFITS(UVData):
                 out_coord_epoch=phase_dict.get("cat_epoch"),
                 time_array=np.mean(self.time_array),
             )
+            ra_arr[idx] = new_ra[0]
+            dec_arr[idx] = new_dec[0]
 
             epo_arr[idx] = (
                 phase_dict["cat_epoch"]

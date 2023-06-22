@@ -3101,7 +3101,9 @@ class MirAcData(MirMetaData):
         if (file_size % (rec_size + hdr_dtype.itemsize)) != 0:
             # If the file size doesn't go in evenly, then read in just the first
             # record and try to figure it out.
-            nchunks = int(np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nChunks"])
+            nchunks = int(
+                np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nChunks"][0]
+            )
             rec_size = 4 * 16384 * nchunks * 2
             assert (
                 file_size % (rec_size + hdr_dtype.itemsize)

@@ -452,9 +452,9 @@ class Mir(UVData):
             assert len(spw_nchan) == 1
 
             # Get the data in the right units and dtype
-            spw_fsky = float(spw_fsky * 1e9)  # GHz -> Hz
-            spw_fres = float(spw_fres * 1e6)  # MHz -> Hz
-            spw_nchan = int(spw_nchan)
+            spw_fsky = float(spw_fsky[0] * 1e9)  # GHz -> Hz
+            spw_fres = float(spw_fres[0] * 1e6)  # MHz -> Hz
+            spw_nchan = int(spw_nchan[0])
 
             # We need to do a some extra handling here, because a single correlator
             # can produce multiple spectral windows (e.g., LSB/USB). The scheme below
