@@ -950,7 +950,7 @@ class UVBeam(UVBase):
                     self.data_array[:, :, pol_screen]
                 )
 
-    def _check_auto_power(self, fix_auto_power=False):
+    def _check_auto_power(self, fix_auto_power=False, warn_tols=(0, 0)):
         """
         Check for complex auto polarization power beams.
 
@@ -959,6 +959,11 @@ class UVBeam(UVBase):
         fix_auto_power : bool
             If auto polarization power beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
+        warn_tols : tuple of float
+            Tolerances (relative, absolute) to use in comparing max imaginary part of
+            auto polarization power beams to zero (passed to numpy.isclose). If the max
+            imaginary part is close to zero within the tolerances and fix_auto_power is
+            True, silently fix them to be zero and do not warn.
 
         """
         if self.beam_type != "power" or self.polarization_array is None:
@@ -988,11 +993,12 @@ class UVBeam(UVBase):
                 np.abs(np.imag(np.rollaxis(self.data_array, pol_axis)[pol_screen]))
             )
             if fix_auto_power:
-                warnings.warn(
-                    "Fixing auto polarization power beams to be be real-only, "
-                    "after some imaginary values were detected in data_array. "
-                    f"Largest imaginary component was {max_imag}."
-                )
+                if not np.isclose(max_imag, 0, rtol=warn_tols[0], atol=warn_tols[1]):
+                    warnings.warn(
+                        "Fixing auto polarization power beams to be be real-only, "
+                        "after some imaginary values were detected in data_array. "
+                        f"Largest imaginary component was {max_imag}."
+                    )
                 self._fix_auto_power()
             else:
                 raise ValueError(
@@ -1277,8 +1283,11 @@ class UVBeam(UVBase):
 
         if calc_cross_pols:
             # Sometimes the auto pol beams can have a small complex part due to
-            # numerical precision errors. Fix that (with warnings).
-            beam_object._check_auto_power(fix_auto_power=True)
+            # numerical precision errors. Fix that (with warnings if it's larger than
+            # the tolerances).
+            beam_object._check_auto_power(
+                fix_auto_power=True, warn_tols=beam_object._data_array.tols
+            )
 
         history_update_string = " Converted from efield to power using pyuvdata."
 
