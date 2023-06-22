@@ -243,7 +243,7 @@ class FHDCal(UVCal):
                 self.history += "\n" + self.pyuvdata_version_str
 
         if not read_data:
-            n_pols = int(obs_data["N_POL"])
+            n_pols = int(obs_data["N_POL"][0])
             # FHD only has the diagonal elements (jxx, jyy), so limit to 2
             self.Njones = int(np.min([n_pols, 2]))
 

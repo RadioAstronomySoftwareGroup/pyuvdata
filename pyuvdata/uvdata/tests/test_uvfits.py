@@ -1675,10 +1675,14 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
     sma_mir._set_app_coords_helper()
     filename = os.path.join(tmp_path, "spoof.uvfits" if spoof else "no_spoof.uvfits")
 
-    with uvtest.check_warnings(
-        DeprecationWarning if spoof else None,
-        "UVFITS-required metadata are now set automatically to " if spoof else None,
-    ):
+    if spoof:
+        warn_type = DeprecationWarning
+        warn_msg = "UVFITS-required metadata are now set automatically to "
+    else:
+        warn_type = None
+        warn_msg = ""
+
+    with uvtest.check_warnings(warn_type, match=warn_msg):
         sma_mir.write_uvfits(filename, spoof_nonessential=spoof)
 
     sma_uvfits = UVData.from_file(filename, use_future_array_shapes=True)

@@ -2768,23 +2768,38 @@ def transform_icrs_to_app(
         for idx in range(len(app_ra)):
             if multi_coord or (idx == 0):
                 # Create a catalog entry for the source in question
+                if pm_ra is None:
+                    pm_ra_use = 0.0
+                else:
+                    pm_ra_use = pm_ra_coord.to_value("mas/yr") * np.cos(
+                        dec_coord[idx].to_value("rad")
+                    )
+
+                if pm_dec is None:
+                    pm_dec_use = 0.0
+                else:
+                    pm_dec_use = pm_dec_coord.to_value("mas/yr")
+
+                if dist is None or np.any(dist == 0.0):
+                    parallax = 0.0
+                else:
+                    parallax = d_coord[idx].kiloparsec ** -1.0
+
+                if vrad is None:
+                    vrad_use = 0.0
+                else:
+                    vrad_use = v_coord[idx].to_value("km/s")
+
                 cat_entry = novas.make_cat_entry(
                     "dummy_name",  # Dummy source name
                     "GKK",  # Catalog ID, fixed for now
                     156,  # Star ID number, fixed for now
                     ra_coord[idx].to_value("hourangle"),
                     dec_coord[idx].to_value("deg"),
-                    0.0
-                    if pm_ra is None
-                    else (
-                        pm_ra_coord.to_value("mas/yr")
-                        * np.cos(dec_coord[idx].to_value("rad"))
-                    ),
-                    0.0 if pm_dec is None else pm_dec_coord.to_value("mas/yr"),
-                    0.0
-                    if (dist is None or np.any(dist == 0.0))
-                    else (d_coord.kiloparsec**-1.0),
-                    0.0 if (vrad is None) else v_coord.to_value("km/s"),
+                    pm_ra_use,
+                    pm_dec_use,
+                    parallax,
+                    vrad_use,
                 )
 
             # Update polar wobble parameters for a given timestamp
@@ -2810,13 +2825,34 @@ def transform_icrs_to_app(
         # liberfa wants things in radians
         pm_x_array *= np.pi / (3600.0 * 180.0)
         pm_y_array *= np.pi / (3600.0 * 180.0)
+
+        if pm_ra is None:
+            pm_ra_use = 0.0
+        else:
+            pm_ra_use = pm_ra_coord.to_value("rad/yr")
+
+        if pm_dec is None:
+            pm_dec_use = 0.0
+        else:
+            pm_dec_use = pm_dec_coord.to_value("rad/yr")
+
+        if dist is None or np.any(dist == 0.0):
+            parallax = 0.0
+        else:
+            parallax = d_coord.pc**-1.0
+
+        if vrad is None:
+            vrad_use = 0
+        else:
+            vrad_use = v_coord.to_value("km/s")
+
         [_, _, _, app_dec, app_ra, eqn_org] = erfa.atco13(
             ra_coord.to_value("rad"),
             dec_coord.to_value("rad"),
-            0.0 if (pm_ra is None) else pm_ra_coord.to_value("rad/yr"),
-            0.0 if (pm_dec is None) else pm_dec_coord.to_value("rad/yr"),
-            0.0 if (dist is None or np.any(dist == 0.0)) else (d_coord.pc**-1.0),
-            0.0 if (vrad is None) else v_coord.to_value("km/s"),
+            pm_ra_use,
+            pm_dec_use,
+            parallax,
+            vrad_use,
             time_obj_array.utc.jd,
             0.0,
             time_obj_array.delta_ut1_utc,

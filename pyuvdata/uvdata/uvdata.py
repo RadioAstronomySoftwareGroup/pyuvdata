@@ -2777,7 +2777,7 @@ class UVData(UVBase):
                             this_spw = np.array(spw_set["spws"])[spw_set["pols"] == pol]
                             spw_order[this_ind] = np.nonzero(
                                 self.spw_array == this_spw
-                            )[0]
+                            )[0][0]
                 else:
                     spw_order = None
 
@@ -5220,7 +5220,7 @@ class UVData(UVBase):
             if self.flex_spw_polarization_array is not None:
                 spw_sort_inds = np.zeros_like(self.spw_array)
                 for idx, spw in enumerate(new_spw_array):
-                    spw_sort_inds[idx] = np.nonzero(self.spw_array == spw)[0]
+                    spw_sort_inds[idx] = np.nonzero(self.spw_array == spw)[0][0]
                 self.flex_spw_polarization_array = self.flex_spw_polarization_array[
                     spw_sort_inds
                 ]

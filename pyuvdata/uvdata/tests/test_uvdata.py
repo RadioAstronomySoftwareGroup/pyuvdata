@@ -12426,7 +12426,7 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
             spw_final_order = [1, 4, 5, 0, 3, 2, 6, 7, 8, 9, 10, 11]
             spw_order = np.zeros_like(uvd.spw_array)
             for idx, spw in enumerate(spw_final_order):
-                spw_order[idx] = np.nonzero(uvd.spw_array == spw)[0]
+                spw_order[idx] = np.nonzero(uvd.spw_array == spw)[0][0]
             uvd.reorder_freqs(spw_order=spw_order)
 
     uvd.check(check_autos=True)

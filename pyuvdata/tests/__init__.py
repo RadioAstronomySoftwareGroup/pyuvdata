@@ -150,14 +150,27 @@ class WarningsChecker(warnings.catch_warnings):
         # only check if we're not currently handling an exception
         if exc_type is None and exc_val is None and exc_tb is None:
             if self.expected_warning is None:
-                assert len(self) == 0
+                expected_length = 0
             else:
-                assert len(self) == len(self.expected_warning), (
-                    f"{len(self.expected_warning)} warnings expected, "
-                    f"{len(self)} warnings issued. The list of emitted warnings is: "
-                    f"{[each.message for each in self]}."
-                )
+                expected_length = len(self.expected_warning)
 
+            if len(self) != expected_length:
+                warn_file_line = []
+                msg_list = []
+                for each in self:
+                    warn_file_line.append(f"{each.filename}: {each.lineno}")
+                    msg_list.append([each.message for each in self])
+                if self.expected_warning is None:
+                    err_msg = "No warnings expected, "
+                else:
+                    err_msg = f"{len(self.expected_warning)} warnings expected, "
+                err_msg += (
+                    f"{len(self)} warnings issued. The list of emitted warnings is: "
+                    f"{msg_list}. The filenames and line numbers are: {warn_file_line}"
+                )
+                raise AssertionError(err_msg)
+
+            if expected_length > 0:
                 for warn_i, exp_warn in enumerate(self.expected_warning):
                     if not any(issubclass(r.category, exp_warn) for r in self):
                         __tracebackhide__ = True
