@@ -1851,7 +1851,8 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded 4 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "utcut1" yielded 2 of')
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded 1 of')
-def test_astrometry_icrs_to_app(astrometry_args):
+@pytest.mark.parametrize("use_extra", [True, False])
+def test_astrometry_icrs_to_app(astrometry_args, use_extra):
     """
     Check for consistency beteen astrometry libraries when converting ICRS -> TOPP
 
@@ -1881,6 +1882,15 @@ def test_astrometry_icrs_to_app(astrometry_args):
 
     coord_results[3] = (precalc_ra, precalc_dec)
 
+    kwargs = {}
+    extra_args = ["pm_ra", "pm_dec", "vrad", "dist"]
+    if use_extra:
+        for key in extra_args:
+            kwargs[key] = astrometry_args[key]
+    else:
+        # don't compre to precalc if not using extra arguments
+        coord_results = coord_results[:-1]
+
     for idx, name in enumerate(astrometry_list):
         coord_results[idx] = uvutils.transform_icrs_to_app(
             astrometry_args["time_array"],
@@ -1888,11 +1898,8 @@ def test_astrometry_icrs_to_app(astrometry_args):
             astrometry_args["icrs_dec"],
             astrometry_args["telescope_loc"],
             epoch=astrometry_args["epoch"],
-            pm_ra=astrometry_args["pm_ra"],
-            pm_dec=astrometry_args["pm_dec"],
-            vrad=astrometry_args["vrad"],
-            dist=astrometry_args["dist"],
             astrometry_library=name,
+            **kwargs,
         )
 
     for idx in range(len(coord_results) - 1):
