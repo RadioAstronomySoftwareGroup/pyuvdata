@@ -36,6 +36,8 @@ jobs:
         run: |
           if [[ "${{ runner.os }}" = "Windows" ]]; then
             echo "::set-output name=ENV_NAME::pyuvdata_tests_windows"
+          elif [[ "${{ matrix.python-version }}" == "3.11" ]]; then
+            echo "::set-output name=ENV_NAME::pyuvdata_tests_311"
           else
             echo "::set-output name=ENV_NAME::pyuvdata_tests"
           fi
