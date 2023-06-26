@@ -9422,37 +9422,74 @@ def test_resample_in_time_warning():
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average(casa_uvfits, future_shapes):
+@pytest.mark.parametrize("flex_spw", [True, False])
+@pytest.mark.parametrize("sum_corr", [True, False])
+def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
     """Test averaging in frequency."""
     uvobj = casa_uvfits
 
     if not future_shapes:
         uvobj.use_current_array_shapes()
+
+    if flex_spw:
+        # Make multiple spws
+        uvobj._set_flex_spw()
+        spw_nchan = int(uvobj.Nfreqs / 4)
+        uvobj.flex_spw_id_array = np.concatenate(
+            (
+                np.full(spw_nchan, 0, dtype=int),
+                np.full(spw_nchan, 1, dtype=int),
+                np.full(spw_nchan, 2, dtype=int),
+                np.full(spw_nchan, 3, dtype=int),
+            )
+        )
+        uvobj.spw_array = np.arange(4)
+        uvobj.Nspws = 4
+        if not future_shapes:
+            uvobj.channel_width = np.full(uvobj.Nfreqs, uvobj.channel_width)
+
     uvobj2 = uvobj.copy()
 
     eq_coeffs = np.tile(
         np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1)
     )
     uvobj.eq_coeffs = eq_coeffs
-    uvobj.check()
 
     # check that there's no flagging
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
+    n_chan_to_avg = 2
     with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
-        uvobj.frequency_average(2),
+        uvobj.frequency_average(
+            n_chan_to_avg=2, keep_ragged=True, summing_correlator_mode=sum_corr
+        )
 
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
+    assert uvobj.Nfreqs == (uvobj2.Nfreqs / n_chan_to_avg)
 
-    if future_shapes:
-        expected_freqs = uvobj2.freq_array.reshape(int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=1
+    input_freqs = np.squeeze(uvobj2.freq_array)
+
+    expected_freqs = input_freqs[
+        np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+    ]
+    expected_freqs = expected_freqs.reshape(
+        int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+    ).mean(axis=1)
+
+    input_chan_width = uvobj2.channel_width
+
+    if future_shapes or flex_spw:
+        expected_chan_widths = np.full(
+            int(uvobj2.Nfreqs // n_chan_to_avg),
+            input_chan_width[0] * n_chan_to_avg,
+            dtype=float,
         )
     else:
-        expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=2
-        )
+        expected_chan_widths = input_chan_width * n_chan_to_avg
+
+        expected_freqs = expected_freqs[np.newaxis, :]
+
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
+    assert np.max(np.abs(uvobj.channel_width - expected_chan_widths)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
         uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2
@@ -9460,25 +9497,16 @@ def test_frequency_average(casa_uvfits, future_shapes):
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    if future_shapes:
-        reshape_tuple = (
-            expected_data.shape[0],
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
+    expected_data = uvobj2.get_data(1, 2)
+    reshape_tuple = (expected_data.shape[0], int(uvobj2.Nfreqs / 2), 2, uvobj2.Npols)
+    if sum_corr:
+        expected_data = expected_data.reshape(reshape_tuple).sum(axis=2)
+    else:
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
 
-    else:
-        reshape_tuple = (
-            expected_data.shape[0],
-            1,
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+    if not future_shapes:
+        expected_data = expected_data[:, np.newaxis]
+
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
@@ -9489,64 +9517,247 @@ def test_frequency_average(casa_uvfits, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_uneven(casa_uvfits, future_shapes):
+@pytest.mark.parametrize(["future_shapes", "sum_corr"], [[True, True], [False, False]])
+@pytest.mark.parametrize(
+    ["flex_spw", "respect_spws"], [[True, True], [True, False], [False, False]]
+)
+@pytest.mark.parametrize("keep_ragged", [True, False])
+def test_frequency_average_uneven(
+    casa_uvfits, future_shapes, keep_ragged, sum_corr, flex_spw, respect_spws
+):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
     uvobj = casa_uvfits
 
     if not future_shapes:
         uvobj.use_current_array_shapes()
+
+    eq_coeffs = np.tile(
+        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1)
+    )
+    uvobj.eq_coeffs = eq_coeffs
+
+    if flex_spw:
+        # Make multiple spws
+        uvobj._set_flex_spw()
+        spw_nchan = int(uvobj.Nfreqs / 4)
+        uvobj.flex_spw_id_array = np.concatenate(
+            (
+                np.full(spw_nchan, 0, dtype=int),
+                np.full(spw_nchan, 1, dtype=int),
+                np.full(spw_nchan, 2, dtype=int),
+                np.full(spw_nchan, 3, dtype=int),
+            )
+        )
+        uvobj.spw_array = np.arange(4)
+        uvobj.Nspws = 4
+        if not future_shapes:
+            uvobj.channel_width = np.full(uvobj.Nfreqs, uvobj.channel_width)
+
     uvobj2 = uvobj.copy()
 
     # check that there's no flagging
     assert np.nonzero(uvobj.flag_array)[0].size == 0
+    n_chan_to_avg = 7
 
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Nfreqs does not divide by `n_chan_to_avg` evenly. The final 1 "
-            "frequencies will be excluded, to control which frequencies to exclude, "
-            "use a select to control.",
-            "The uvw_array does not match the expected values",
-        ],
-    ):
-        uvobj.frequency_average(7)
-
-    assert uvobj2.Nfreqs % 7 != 0
-
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs // 7)
-
-    if future_shapes:
-        expected_freqs = uvobj2.freq_array[np.arange((uvobj2.Nfreqs // 7) * 7)]
-        expected_freqs = expected_freqs.reshape(int(uvobj2.Nfreqs // 7), 7).mean(axis=1)
-    else:
-        expected_freqs = uvobj2.freq_array[:, np.arange((uvobj2.Nfreqs // 7) * 7)]
-        expected_freqs = expected_freqs.reshape(1, int(uvobj2.Nfreqs // 7), 7).mean(
-            axis=2
+    warn = [UserWarning]
+    msg = [
+        re.escape(
+            "eq_coeffs vary by frequency. They should be applied to the data using "
+            "`remove_eq_coeffs` before frequency averaging"
         )
+    ]
+    if keep_ragged and not future_shapes:
+        warn.append(UserWarning)
+        msg.append(
+            "Ragged frequencies will result in varying channel widths, so "
+            "this object will have future array shapes after averaging. "
+            "Use keep_ragged=False to avoid this."
+        )
+    with uvtest.check_warnings(warn, match=msg):
+        uvobj.frequency_average(
+            n_chan_to_avg,
+            keep_ragged=keep_ragged,
+            summing_correlator_mode=sum_corr,
+            respect_spws=respect_spws,
+        )
+
+    assert uvobj2.Nfreqs % n_chan_to_avg != 0
+
+    input_freqs = np.squeeze(uvobj2.freq_array)
+
+    input_chan_width = uvobj2.channel_width
+
+    if flex_spw and respect_spws:
+        expected_freqs = np.array([])
+        expected_chan_widths = np.array([])
+        for spw_ind in range(uvobj2.Nspws):
+            start_chan = spw_ind * spw_nchan
+            n_reg_chan = (spw_nchan // n_chan_to_avg) * n_chan_to_avg
+            this_expected = input_freqs[start_chan : (start_chan + n_reg_chan)]
+            this_expected = this_expected.reshape(
+                int(spw_nchan // n_chan_to_avg), n_chan_to_avg
+            ).mean(axis=1)
+            this_expected_cw = input_chan_width[start_chan : (start_chan + n_reg_chan)]
+            this_expected_cw = this_expected_cw.reshape(
+                int(spw_nchan // n_chan_to_avg), n_chan_to_avg
+            ).sum(axis=1)
+            if keep_ragged:
+                this_expected = np.append(
+                    this_expected,
+                    np.mean(
+                        input_freqs[
+                            (start_chan + n_reg_chan) : (spw_ind + 1) * spw_nchan
+                        ]
+                    ),
+                )
+                this_expected_cw = np.append(
+                    this_expected_cw,
+                    np.sum(
+                        input_chan_width[
+                            (start_chan + n_reg_chan) : (spw_ind + 1) * spw_nchan
+                        ]
+                    ),
+                )
+            expected_freqs = np.append(expected_freqs, this_expected)
+            expected_chan_widths = np.append(expected_chan_widths, this_expected_cw)
+        if keep_ragged:
+            assert uvobj.Nfreqs == (spw_nchan // n_chan_to_avg + 1) * uvobj2.Nspws
+        else:
+            assert uvobj.Nfreqs == (spw_nchan // n_chan_to_avg) * uvobj2.Nspws
+    else:
+        expected_freqs = input_freqs[
+            np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+        ]
+        expected_freqs = expected_freqs.reshape(
+            int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+        ).mean(axis=1)
+
+        if not future_shapes and not uvobj.flex_spw:
+            if not keep_ragged:
+                expected_chan_widths = input_chan_width * n_chan_to_avg
+            else:
+                expected_chan_widths = np.full(
+                    (uvobj2.Nfreqs // n_chan_to_avg),
+                    input_chan_width * n_chan_to_avg,
+                    dtype=float,
+                )
+        else:
+            expected_chan_widths = input_chan_width[
+                np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+            ]
+            expected_chan_widths = expected_chan_widths.reshape(
+                int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+            ).sum(axis=1)
+
+        if keep_ragged:
+            assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg + 1)
+            expected_freqs = np.append(
+                expected_freqs,
+                np.mean(
+                    input_freqs[(uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :]
+                ),
+            )
+            if not future_shapes and not uvobj.flex_spw:
+                nch_ragged = (
+                    uvobj2.Nfreqs - (uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg
+                )
+                expected_chan_widths = np.append(
+                    expected_chan_widths, input_chan_width * nch_ragged
+                )
+            else:
+                expected_chan_widths = np.append(
+                    expected_chan_widths,
+                    np.sum(
+                        input_chan_width[
+                            (uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :
+                        ]
+                    ),
+                )
+        else:
+            assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
+
+    if not future_shapes and not keep_ragged:
+        expected_freqs = expected_freqs[np.newaxis, :]
+
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
+    assert np.max(np.abs(uvobj.channel_width - expected_chan_widths)) == 0
 
     # no flagging, so the following is true
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    if future_shapes:
-        expected_data = expected_data[:, 0 : ((uvobj2.Nfreqs // 7) * 7), :]
+    initial_data = uvobj2.get_data(1, 2)
+    if flex_spw and respect_spws:
         reshape_tuple = (
-            expected_data.shape[0],
-            int(uvobj2.Nfreqs // 7),
-            7,
+            initial_data.shape[0],
+            int(spw_nchan // n_chan_to_avg),
+            n_chan_to_avg,
             uvobj2.Npols,
         )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
+        for spw_ind in range(uvobj2.Nspws):
+            start_chan = spw_ind * spw_nchan
+            n_reg_chan = (spw_nchan // n_chan_to_avg) * n_chan_to_avg
+
+            this_expected = initial_data[:, start_chan : (start_chan + n_reg_chan)]
+            if sum_corr:
+                this_expected = this_expected.reshape(reshape_tuple).sum(axis=2)
+            else:
+                this_expected = this_expected.reshape(reshape_tuple).mean(axis=2)
+
+            if keep_ragged:
+                if sum_corr:
+                    this_expected = np.append(
+                        this_expected,
+                        initial_data[
+                            :, (start_chan + n_reg_chan) : (spw_ind + 1) * spw_nchan
+                        ].sum(axis=1, keepdims=True),
+                        axis=1,
+                    )
+                else:
+                    this_expected = np.append(
+                        this_expected,
+                        initial_data[
+                            :, (start_chan + n_reg_chan) : (spw_ind + 1) * spw_nchan
+                        ].mean(axis=1, keepdims=True),
+                        axis=1,
+                    )
+            if spw_ind == 0:
+                expected_data = this_expected
+            else:
+                expected_data = np.append(expected_data, this_expected, axis=1)
     else:
-        expected_data = expected_data[:, :, 0 : ((uvobj2.Nfreqs // 7) * 7), :]
+        expected_data = initial_data[
+            :, 0 : ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+        ]
         reshape_tuple = (
-            expected_data.shape[0],
-            1,
-            int(uvobj2.Nfreqs // 7),
-            7,
+            initial_data.shape[0],
+            int(uvobj2.Nfreqs // n_chan_to_avg),
+            n_chan_to_avg,
             uvobj2.Npols,
         )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+        if sum_corr:
+            expected_data = expected_data.reshape(reshape_tuple).sum(axis=2)
+        else:
+            expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
+
+        if keep_ragged:
+            if sum_corr:
+                expected_data = np.append(
+                    expected_data,
+                    initial_data[
+                        :, ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg) :
+                    ].sum(axis=1, keepdims=True),
+                    axis=1,
+                )
+            else:
+                expected_data = np.append(
+                    expected_data,
+                    initial_data[
+                        :, ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg) :
+                    ].mean(axis=1, keepdims=True),
+                    axis=1,
+                )
+
+    if not future_shapes and not keep_ragged:
+        expected_data = expected_data[:, np.newaxis]
+
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
@@ -9555,7 +9766,11 @@ def test_frequency_average_uneven(casa_uvfits, future_shapes):
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_flagging(casa_uvfits, future_shapes):
+@pytest.mark.parametrize("keep_ragged", [True, False])
+@pytest.mark.parametrize("fully_flagged", [True, False])
+def test_frequency_average_flagging(
+    casa_uvfits, future_shapes, keep_ragged, fully_flagged
+):
     """Test averaging in frequency with flagging all samples averaged."""
     uvobj = casa_uvfits
 
@@ -9566,91 +9781,102 @@ def test_frequency_average_flagging(casa_uvfits, future_shapes):
     # check that there's no flagging
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
+    n_chan_to_avg = 3
+
     # apply some flagging for testing
     inds01 = uvobj.antpair2ind(1, 2)
-    if future_shapes:
-        uvobj.flag_array[inds01[0], 0:2, :] = True
+    if fully_flagged:
+        if future_shapes:
+            uvobj.flag_array[inds01[0], 0:n_chan_to_avg, :] = True
+        else:
+            uvobj.flag_array[inds01[0], :, 0:n_chan_to_avg, :] = True
+        assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * n_chan_to_avg
     else:
-        uvobj.flag_array[inds01[0], :, 0:2, :] = True
-    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * 2
+        if future_shapes:
+            uvobj.flag_array[inds01[0], 1:n_chan_to_avg, :] = True
+        else:
+            uvobj.flag_array[inds01[0], 0, 1:n_chan_to_avg, :] = True
+        assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg - 1)
 
-    uvobj.frequency_average(2)
+    if keep_ragged and not future_shapes:
+        warn = UserWarning
+        msg = [
+            "Ragged frequencies will result in varying channel widths, so "
+            "this object will have future array shapes after averaging. "
+            "Use keep_ragged=False to avoid this."
+        ]
+    else:
+        warn = None
+        msg = ""
+    with uvtest.check_warnings(warn, match=msg):
+        uvobj.frequency_average(n_chan_to_avg, keep_ragged=keep_ragged)
 
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
+    input_freqs = np.squeeze(uvobj2.freq_array)
 
-    if future_shapes:
-        expected_freqs = uvobj2.freq_array.reshape(int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=1
+    expected_freqs = input_freqs[
+        np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+    ]
+    expected_freqs = expected_freqs.reshape(
+        int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+    ).mean(axis=1)
+
+    if keep_ragged:
+        assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg + 1)
+        expected_freqs = np.append(
+            expected_freqs,
+            np.mean(input_freqs[(uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :]),
         )
     else:
-        expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=2
-        )
+        assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
+
+    if not future_shapes and not keep_ragged:
+        expected_freqs = expected_freqs[np.newaxis, :]
+
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    if future_shapes:
-        reshape_tuple = (
-            expected_data.shape[0],
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
-    else:
-        reshape_tuple = (
-            expected_data.shape[0],
-            1,
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
-
-    if future_shapes:
-        assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
-    else:
-        assert np.sum(uvobj.flag_array[inds01[0], :, 0, :]) == 4
-    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
-    if future_shapes:
-        assert np.nonzero(uvobj.flag_array[inds01[1:], 0, :])[0].size == 0
-    else:
-        assert np.nonzero(uvobj.flag_array[inds01[1:], :, 0, :])[0].size == 0
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_frequency_average_flagging_partial(casa_uvfits):
-    """Test averaging in frequency with flagging only one sample averaged."""
-    uvobj = casa_uvfits
-    uvobj2 = uvobj.copy()
-    # check that there's no flagging
-    assert np.nonzero(uvobj.flag_array)[0].size == 0
-
-    # apply some flagging for testing
-    inds01 = uvobj.antpair2ind(1, 2)
-    uvobj.flag_array[inds01[0], 0, :] = True
-    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
-
-    uvobj.frequency_average(2)
-
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
-
-    # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-        axis=2
+    initial_data = uvobj2.get_data(1, 2)
+    expected_data = initial_data[
+        :, 0 : ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+    ]
+    reshape_tuple = (
+        initial_data.shape[0],
+        int(uvobj2.Nfreqs // n_chan_to_avg),
+        n_chan_to_avg,
+        uvobj2.Npols,
     )
-    assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
-
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    # TODO: Spw axis to be collapsed in future release
-    reshape_tuple = (expected_data.shape[0], int(uvobj2.Nfreqs / 2), 2, uvobj2.Npols)
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
-    expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 1, :]
+
+    if keep_ragged:
+        expected_data = np.append(
+            expected_data,
+            initial_data[:, ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg) :].mean(
+                axis=1, keepdims=True
+            ),
+            axis=1,
+        )
+    if not fully_flagged:
+        if future_shapes:
+            expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, :]
+        else:
+            expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, 0, :]
+
+    if not future_shapes and not keep_ragged:
+        expected_data = expected_data[:, np.newaxis]
+
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
-    # check that there's no flagging
-    assert np.nonzero(uvobj.flag_array)[0].size == 0
+    if fully_flagged:
+        if future_shapes or keep_ragged:
+            assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
+        else:
+            assert np.sum(uvobj.flag_array[inds01[0], :, 0, :]) == 4
+        assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
+        if future_shapes or keep_ragged:
+            assert np.nonzero(uvobj.flag_array[inds01[1:], 0, :])[0].size == 0
+        else:
+            assert np.nonzero(uvobj.flag_array[inds01[1:], :, 0, :])[0].size == 0
+    else:
+        assert np.nonzero(uvobj.flag_array)[0].size == 0
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -9669,7 +9895,7 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
     uvobj.flag_array[inds01[0], 0:3, :] = True
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * 3
 
-    uvobj.frequency_average(2)
+    uvobj.frequency_average(n_chan_to_avg=2)
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
@@ -9706,10 +9932,10 @@ def test_frequency_average_flagging_partial_twostage(casa_uvfits):
 
     uv_object3 = uvobj.copy()
 
-    uvobj.frequency_average(2)
-    uvobj.frequency_average(2)
+    uvobj.frequency_average(n_chan_to_avg=2)
+    uvobj.frequency_average(n_chan_to_avg=2)
 
-    uv_object3.frequency_average(4)
+    uv_object3.frequency_average(n_chan_to_avg=4)
 
     assert uvobj == uv_object3
 
@@ -9717,61 +9943,8 @@ def test_frequency_average_flagging_partial_twostage(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_summing_corr_mode(casa_uvfits, future_shapes):
-    """Test averaging in frequency."""
-    # check that there's no flagging
-    uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
-    uvobj2 = uvobj.copy()
-
-    assert np.nonzero(uvobj.flag_array)[0].size == 0
-
-    uvobj.frequency_average(2, summing_correlator_mode=True)
-
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
-
-    if future_shapes:
-        expected_freqs = uvobj2.freq_array.reshape(int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=1
-        )
-    else:
-        expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=2
-        )
-    assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
-
-    # no flagging, so the following is true
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    if future_shapes:
-        reshape_tuple = (
-            expected_data.shape[0],
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).sum(axis=2)
-    else:
-        reshape_tuple = (
-            expected_data.shape[0],
-            1,
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).sum(axis=3)
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
-
-    assert np.nonzero(uvobj.flag_array)[0].size == 0
-    assert not isinstance(uvobj.data_array, np.ma.MaskedArray)
-    assert not isinstance(uvobj.nsample_array, np.ma.MaskedArray)
-
-
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
+@pytest.mark.parametrize("keep_ragged", [True, False])
+def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragged):
     """
     Test averaging in frequency with flagging all of one and only one of
     another sample averaged, and propagating flags. Data should be identical,
@@ -9787,51 +9960,86 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes):
     # check that there's no flagging
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
+    n_chan_to_avg = 3
+
     # apply some flagging for testing
     inds01 = uvobj.antpair2ind(1, 2)
     if future_shapes:
-        uvobj.flag_array[inds01[0], 0:3, :] = True
+        uvobj.flag_array[inds01[0], 0 : (n_chan_to_avg * 2 - 1), :] = True
     else:
-        uvobj.flag_array[inds01[0], :, 0:3, :] = True
+        uvobj.flag_array[inds01[0], :, 0 : (n_chan_to_avg * 2 - 1), :] = True
 
-    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * 3
+    assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg * 2 - 1)
 
-    uvobj.frequency_average(2, propagate_flags=True)
+    if keep_ragged and not future_shapes:
+        warn = UserWarning
+        msg = [
+            "Ragged frequencies will result in varying channel widths, so "
+            "this object will have future array shapes after averaging. "
+            "Use keep_ragged=False to avoid this."
+        ]
+    else:
+        warn = None
+        msg = ""
+    with uvtest.check_warnings(warn, match=msg):
+        uvobj.frequency_average(
+            n_chan_to_avg, propagate_flags=True, keep_ragged=keep_ragged
+        )
 
-    assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
+    input_freqs = np.squeeze(uvobj2.freq_array)
 
-    if future_shapes:
-        expected_freqs = uvobj2.freq_array.reshape(int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=1
+    expected_freqs = input_freqs[
+        np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+    ]
+    expected_freqs = expected_freqs.reshape(
+        int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+    ).mean(axis=1)
+
+    if keep_ragged:
+        assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg + 1)
+        expected_freqs = np.append(
+            expected_freqs,
+            np.mean(input_freqs[(uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :]),
         )
     else:
-        expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-            axis=2
-        )
+        assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
+
+    if not future_shapes and not keep_ragged:
+        expected_freqs = expected_freqs[np.newaxis, :]
+
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
-    expected_data = uvobj2.get_data(1, 2, squeeze="none")
+    initial_data = uvobj2.get_data(1, 2)
+    expected_data = initial_data[
+        :, 0 : ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+    ]
+    reshape_tuple = (
+        initial_data.shape[0],
+        int(uvobj2.Nfreqs // n_chan_to_avg),
+        n_chan_to_avg,
+        uvobj2.Npols,
+    )
+    expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
+
     if future_shapes:
-        reshape_tuple = (
-            expected_data.shape[0],
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
-
-        expected_data[0, 1, :] = uvobj2.data_array[inds01[0], 3, :]
+        freq_axis = 0
     else:
-        reshape_tuple = (
-            expected_data.shape[0],
-            1,
-            int(uvobj2.Nfreqs / 2),
-            2,
-            uvobj2.Npols,
-        )
-        expected_data = expected_data.reshape(reshape_tuple).mean(axis=3)
+        freq_axis = 1
+    expected_data[0, 1, :] = np.take(
+        uvobj2.data_array[inds01[0]], n_chan_to_avg * 2 - 1, axis=freq_axis
+    )
 
-        expected_data[0, :, 1, :] = uvobj2.data_array[inds01[0], :, 3, :]
+    if keep_ragged:
+        expected_data = np.append(
+            expected_data,
+            initial_data[:, ((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg) :].mean(
+                axis=1, keepdims=True
+            ),
+            axis=1,
+        )
+
+    if not future_shapes and not keep_ragged:
+        expected_data = expected_data[:, np.newaxis]
 
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
     # Twice as many flags should exist compared to test of previous name.
@@ -9856,7 +10064,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     uvobj.nsample_array = uvobj.nsample_array.astype(np.float16)
 
     with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
-        uvobj.frequency_average(2),
+        uvobj.frequency_average(n_chan_to_avg=2),
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
@@ -9886,44 +10094,40 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert uvobj.nsample_array.dtype.type is np.float16
 
 
-def test_frequency_average_flex_spw(sma_mir, casa_uvfits):
-    """
-    Test that freq averaging works correctly when called on a flex_spw data set
-    (currently not implented).
-    """
-    with pytest.raises(
-        NotImplementedError,
-        match=re.escape(
-            "Frequency averaging not (yet) available for multiple spectral windows"
-        ),
-    ):
-        sma_mir.frequency_average(2)
-
-    # also test errors with varying freq spacing but with one spw
+def test_frequency_average_warnings(casa_uvfits):
+    # test errors with varying freq spacing but with one spw
     uvd = casa_uvfits.copy()
     uvd.use_future_array_shapes()
     uvd.freq_array[-1] += uvd.channel_width[0]
-    with pytest.raises(
-        NotImplementedError,
-        match=re.escape(
-            "Frequency averaging not (yet) available for unevenly spaced "
-            "frequencies or varying channel widths."
-        ),
+    with uvtest.check_warnings(
+        [DeprecationWarning, UserWarning],
+        match=[
+            re.escape(
+                "Some spectral windows do not divide evenly by `n_chan_to_avg` and the "
+                "keep_ragged parameter was not set. The current default is False, but "
+                "that will be changing to True in version 2.5. Set `keep_ragged` to "
+                "True or False to silence this warning."
+            ),
+            re.escape(
+                "Frequencies spacing and/or channel widths vary, so after averaging "
+                "they will also vary."
+            ),
+        ],
     ):
-        uvd.frequency_average(2)
+        uvd.frequency_average(n_chan_to_avg=3)
 
     # also test errors with varying channel widths but with one spw
     uvd = casa_uvfits.copy()
     uvd.use_future_array_shapes()
     uvd.channel_width[-1] *= 2
-    with pytest.raises(
-        NotImplementedError,
+    with uvtest.check_warnings(
+        UserWarning,
         match=re.escape(
-            "Frequency averaging not (yet) available for unevenly spaced "
-            "frequencies or varying channel widths."
+            "Frequencies spacing and/or channel widths vary, so after averaging "
+            "they will also vary."
         ),
     ):
-        uvd.frequency_average(2)
+        uvd.frequency_average(n_chan_to_avg=2)
 
     # test warning with freq spacing not equal to channel width
     uvd = casa_uvfits.copy()
@@ -9936,7 +10140,7 @@ def test_frequency_average_flex_spw(sma_mir, casa_uvfits):
             "spacing."
         ),
     ):
-        uvd.frequency_average(2)
+        uvd.frequency_average(n_chan_to_avg=2)
 
     spacing_error, chanwidth_error = uvd._check_freq_spacing(raise_errors=False)
     assert not spacing_error
