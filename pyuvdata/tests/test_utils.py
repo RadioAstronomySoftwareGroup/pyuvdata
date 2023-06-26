@@ -1888,7 +1888,7 @@ def test_astrometry_icrs_to_app(astrometry_args, use_extra):
         for key in extra_args:
             kwargs[key] = astrometry_args[key]
     else:
-        # don't compre to precalc if not using extra arguments
+        # don't compare to precalc if not using extra arguments
         coord_results = coord_results[:-1]
 
     for idx, name in enumerate(astrometry_list):

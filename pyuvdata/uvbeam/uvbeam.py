@@ -1283,8 +1283,8 @@ class UVBeam(UVBase):
 
         if calc_cross_pols:
             # Sometimes the auto pol beams can have a small complex part due to
-            # numerical precision errors. Fix that (with warnings if it's larger than
-            # the tolerances).
+            # numerical precision errors. Fix that (with warnings if the complex part
+            # is larger than the tolerances).
             beam_object._check_auto_power(
                 fix_auto_power=True, warn_tols=beam_object._data_array.tols
             )
