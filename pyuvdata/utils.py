@@ -544,20 +544,16 @@ def _check_freq_spacing(
                 chanwidth_error = True
     if raise_errors and spacing_error:
         raise ValueError(
-            "The frequencies are not evenly spaced (probably "
-            "because of a select operation) or has differing "
-            "values of channel widths. Some file formats "
-            "(e.g. uvfits, miriad) and methods (frequency_average) "
-            "do not support unevenly spaced frequencies."
+            "The frequencies are not evenly spaced (probably because of a select "
+            "operation) or has differing values of channel widths. Some file formats "
+            "(e.g. uvfits, miriad) do not support unevenly spaced frequencies."
         )
     if raise_errors and chanwidth_error:
         raise ValueError(
-            "The frequencies are separated by more than their "
-            "channel width (probably because of a select operation). "
-            "Some file formats (e.g. uvfits, miriad) and "
-            "methods (frequency_average) do not support "
-            "frequencies that are spaced by more than their "
-            "channel width."
+            "The frequencies are separated by more than their channel width (probably "
+            "because of a select operation). Some file formats (e.g. uvfits, miriad) "
+            "do not support frequencies that are spaced by more than their channel "
+            "width."
         )
 
     return spacing_error, chanwidth_error
