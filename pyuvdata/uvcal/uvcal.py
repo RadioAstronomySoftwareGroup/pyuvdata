@@ -422,8 +422,8 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "Required if cal_style = 'sky'. Short string describing field "
-            "center or dominant source."
+            "Deprecated, will be removed in version 2.5. Only used if cal_style is "
+            "'sky'. Short string describing field center or dominant source."
         )
         self._sky_field = uvp.UVParameter(
             "sky_field", form="str", required=False, expected_type=str, description=desc
@@ -715,14 +715,12 @@ class UVCal(UVBase):
     def _set_sky(self):
         """Set cal_style to 'sky' and adjust required parameters."""
         self.cal_style = "sky"
-        self._sky_field.required = True
         self._sky_catalog.required = True
         self._ref_antenna_name.required = True
 
     def _set_redundant(self):
         """Set cal_style to 'redundant' and adjust required parameters."""
         self.cal_style = "redundant"
-        self._sky_field.required = False
         self._sky_catalog.required = False
         self._ref_antenna_name.required = False
 
@@ -1232,6 +1230,14 @@ class UVCal(UVBase):
         if self.cal_type == "unknown":
             warnings.warn(
                 "The 'unknown' cal_type is deprecated and will be removed in version "
+                "2.5",
+                DeprecationWarning,
+            )
+
+        # deprecate sky_field
+        if self.sky_field is not None:
+            warnings.warn(
+                "The sky_field parameter is deprecated and will be removed in version "
                 "2.5",
                 DeprecationWarning,
             )

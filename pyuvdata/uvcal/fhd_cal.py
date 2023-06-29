@@ -205,9 +205,6 @@ class FHDCal(UVCal):
             proc = self.set_lsts_from_time_array(background=background_lsts)
 
         self._set_sky()
-        self.sky_field = "phase center (RA, Dec): ({ra}, {dec})".format(
-            ra=obs_data["orig_phasera"][0], dec=obs_data["orig_phasedec"][0]
-        )
         self.gain_convention = "divide"
         self.x_orientation = "east"
 

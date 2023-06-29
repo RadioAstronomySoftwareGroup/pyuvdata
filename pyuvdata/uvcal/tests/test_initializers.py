@@ -61,8 +61,7 @@ def test_new_uvcal_bad_inputs(uvc_kw):
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field must "
-            "all be provided"
+            "If cal_style is 'sky', ref_antenna_name and sky_catalog must be provided."
         ),
     ):
         new_uvcal(
@@ -114,17 +113,11 @@ def test_new_uvcal_jones_array(uvc_kw):
 
 def test_new_uvcal_set_sky(uvc_kw):
     uvc = {k: v for k, v in uvc_kw.items() if k != "cal_style"}
-    sk = new_uvcal(
-        cal_style="sky",
-        ref_antenna_name="mock",
-        sky_catalog="mock",
-        sky_field="mock",
-        **uvc
-    )
+
+    sk = new_uvcal(cal_style="sky", ref_antenna_name="mock", sky_catalog="mock", **uvc)
     assert sk.cal_style == "sky"
     assert sk.ref_antenna_name == "mock"
     assert sk.sky_catalog == "mock"
-    assert sk.sky_field == "mock"
 
 
 def test_new_uvcal_set_extra_keywords(uvc_kw):
