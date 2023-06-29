@@ -60,8 +60,9 @@ These axes, in order, represent
 	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array, quality\_array], in that order.
 	If there is no input\_flag\_array or no quality\_array for this calibration, they are \emph{not} appended to the axis.
 	Correspondingly, in a ``gain''-type calibration, this axis may be of length 3 to 5, depending on the inclusion of the input\_flag\_array and quality\_array.
-	In older files, the quality\_array is always present. In newer files it can be absent but a boolean header item \textbf{HASQLTY} will be present to
-	make it clear which array is present in the even that the axis is length 4. So if the axis is length 4 and there is no \textbf{HASQLTY} header keyword,
+	In older files, the quality\_array is always present while the input\_flag\_array was optional. In newer files, the input\_flag\_array is generally
+	not present while the quality\_array can be present or absent and a boolean header item \textbf{HASQLTY} will be present to indicate its presence
+	(to make it clear which array is present if the axis is length 4). So if the axis is length 4 and there is no \textbf{HASQLTY} header keyword,
 	the fourth array is the quality\_array and there is no input\_flag\_array. If the axis is length 4 and the \textbf{HASQLTY} header keyword is present, then
 	if \textbf{HASQLTY} is True, the fourth array is the quality\_array, otherwise it is the input\_flag\_array.
 	These arrays all have the shape (Nants\_data, 1, Nfreqs, Ntimes, Njones).
@@ -120,12 +121,13 @@ Mathematically this indicates the alpha exponent in the equation:
 \item{\textbf{INTTIME:} \emph{float} Integration time of a time bin, in units of seconds. (integration\_time)}
 \item{\textbf{TMERANGE:} (minimum: \emph{float}, maximum: \emph{float}) Time range (in JD) that cal solutions are valid for. (time\_range)}
 \item{\textbf{XORIENT:} \emph{string} Orientation of the physical dipole corresponding to what is labeled as the x polarization. Possible values are are ``east'' (indicating east/west orientation) or ``north'' (indicating north/south orientation). (x\_orientation)}
+\item{\textbf{HASQLTY}} \emph{boolean} Indication of whether or not the quality\_array is present. Only in newer files, in older files the
+quality\_array was always present, so if this keyword is missing it can be treated as True.
 \end{itemize}
 
 	\subsubsection{Required if CALSTYLE = ``sky''}
 	\begin{itemize}
 	\item{\textbf{CATALOG}: \emph{string} (Required if CALSTYLE = ``sky''.) Name of the calibration catalog. (sky\_catalog)}
-	\item{\textbf{FIELD}: \emph{string} (Required if CALSTYLE = ``sky''.) A short string describing the field center or dominant source. (sky\_field)}
 	\item{\textbf{REFANT}: \emph{string} (Required if CALSTYLE = ``sky''.) Phase reference antenna. (ref\_antenna\_name)}
 	\end{itemize}
 	
@@ -139,6 +141,9 @@ Mathematically this indicates the alpha exponent in the equation:
 \subsection{Optional Keywords}
 \begin{itemize}
 \item{\textbf{BL\_RANGE:} \emph{float} Range of baselines used for calibration. (baseline\_range)}
+\item{\textbf{FIELD}: \emph{string} A short string describing the field center or dominant source. 
+This used to be required if CALSTYLE = ``sky'', but it is no longer used (deprecated as
+of pyuvdata v2.3.3, removed in version 2.5). (sky\_field)}
 \item{\textbf{DIFFUSE:} \emph{string} Name of diffuse model used for sky model. (diffuse\_model)}
 \item{\textbf{GNSCALE:} \emph{string} The gain scale of the calibration, which indicates the units of the calibrated visibilities. For example, Jy or K. (gain\_scale)}
 \item{\textbf{HASHCAL:} \emph{string} Commit hash of calibration software (from ORIGCAL) used to generate solutions. (git\_hash\_cal)}

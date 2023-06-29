@@ -655,14 +655,12 @@ def test_set_unknown(gain_data):
 
 def test_set_sky(gain_data):
     gain_data._set_sky()
-    assert gain_data._sky_field.required
     assert gain_data._sky_catalog.required
     assert gain_data._ref_antenna_name.required
 
 
 def test_set_redundant(gain_data):
     gain_data._set_redundant()
-    assert not gain_data._sky_field.required
     assert not gain_data._sky_catalog.required
     assert not gain_data._ref_antenna_name.required
 
@@ -3712,11 +3710,21 @@ def test_write_read_optional_attrs(gain_data, tmp_path):
 
     # write
     write_file_calfits = str(tmp_path / "test.calfits")
-    cal_in.write_calfits(write_file_calfits, clobber=True)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The sky_field parameter is deprecated and will be removed in version "
+        "2.5",
+    ):
+        cal_in.write_calfits(write_file_calfits, clobber=True)
 
     # read and compare
     # also check that passing a single file in a list works properly
-    cal_in2 = UVCal.from_file([write_file_calfits], use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The sky_field parameter is deprecated and will be removed in version "
+        "2.5",
+    ):
+        cal_in2 = UVCal.from_file([write_file_calfits], use_future_array_shapes=True)
     assert cal_in == cal_in2
 
 
@@ -4636,8 +4644,8 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
 
     with pytest.raises(
         ValueError,
-        match="If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field "
-        "must all be provided.",
+        match="If cal_style is 'sky', ref_antenna_name and sky_catalog must be "
+        "provided.",
     ):
         UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, "sky")
 

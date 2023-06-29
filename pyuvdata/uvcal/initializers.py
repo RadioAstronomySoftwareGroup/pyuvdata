@@ -41,7 +41,6 @@ def new_uvcal(
     flex_spw_id_array: np.ndarray | None = None,
     ref_antenna_name: str | None = None,
     sky_catalog: str | None = None,
-    sky_field: str | None = None,
     empty: bool = False,
     data: dict[str, np.ndarray] | None = None,
     history: str = "",
@@ -117,8 +116,6 @@ def new_uvcal(
         Name of reference antenna. Only required for sky calibrations.
     sky_catalog : str, optional
         Name of sky catalog. Only required for sky calibrations.
-    sky_field : str, optional
-        Name of sky field. Only required for sky calibrations.
     empty : bool, optional
         If True, create an empty UVCal object, i.e. add initialized data arrays (eg.
         gain_array). By default, this function creates a metadata-only object. You can
@@ -217,12 +214,9 @@ def new_uvcal(
     if cal_style not in ("redundant", "sky"):
         raise ValueError(f"cal_style must be 'redundant' or 'sky', got {cal_style}")
 
-    if cal_style == "sky" and (
-        ref_antenna_name is None or sky_catalog is None or sky_field is None
-    ):
+    if cal_style == "sky" and (ref_antenna_name is None or sky_catalog is None):
         raise ValueError(
-            "If cal_style is 'sky', ref_antenna_name, sky_catalog and sky_field must "
-            "all be provided."
+            "If cal_style is 'sky', ref_antenna_name and sky_catalog must be provided."
         )
 
     # Now set all the metadata
@@ -251,7 +245,6 @@ def new_uvcal(
     uvc.x_orientation = x_orientation
     uvc.ref_antenna_name = ref_antenna_name
     uvc.sky_catalog = sky_catalog
-    uvc.sky_field = sky_field
     uvc.jones_array = jones_array
     uvc.freq_range = freq_range
 

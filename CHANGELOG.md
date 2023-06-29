@@ -9,6 +9,9 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - The `quality_array` on UVCal objects is no longer required.
 
+### Deprecated
+- The `sky_field` attribute on `UVCal`.
+
 ### Fixed
 - Error when setting `UVBeam.freq_interp_kind` to an integer.
 - Error when reading `mwa_corr_fits` files from the new MWAX correlator
