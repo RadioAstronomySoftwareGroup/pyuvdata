@@ -10414,8 +10414,7 @@ class UVData(UVBase):
         Does a simple average over an integer number of input channels, leaving
         flagged samples out of the average.
 
-        In the future, this method will support non-equally spaced channels
-        and varying channel widths. It will also support setting the frequency
+        In the future, this method will support setting the frequency
         to the true mean of the averaged non-flagged frequencies rather than
         the simple mean of the input channel frequencies. For now it does not.
 
@@ -10446,12 +10445,18 @@ class UVData(UVBase):
             combined into a smaller frequency bin (keep_ragged=True). Note that if
             ragged frequencies are kept, the final averaged object will have
             future_array_shapes=True because it will have varying channel widths.
+
         """
+        # The default will be changing soon, so it's currently set to None in the
+        # function signature so we can detect that it's not set and warn about the
+        # changing default.
         kr_use_default = False
         if keep_ragged is None:
             kr_use_default = True
             keep_ragged = False
 
+        # All the logic with future array shapes.
+        # Test to see if we need to restore it to current shapes at the end.
         reset_cs = False
         if not self.future_array_shapes:
             self.use_future_array_shapes()
@@ -10485,9 +10490,15 @@ class UVData(UVBase):
                     "before frequency averaging."
                 )
 
+        # Figure out how many channels are in each spw so we can tell if we have a
+        # ragged situation (indicated by the some_uneven variable).
+        # While we're at it, build up some useful dicts for later, keyed on spw
         nchans_spw = np.zeros(self.Nspws, dtype=int)
+        # final_nchan will hold the number of Nfreqs after averaging.
         final_nchan = 0
+        # spw_chans will hold the original channel indices for each spw
         spw_chans = {}
+        # final_spw_chans will hold the final channel indices for each spw
         final_spw_chans = {}
         some_uneven = False
         for spw_ind, spw in enumerate(self.spw_array):
@@ -10505,6 +10516,7 @@ class UVData(UVBase):
             )
             final_nchan += this_final_nchan
 
+        # Warn about changing keep_ragged default if it applies
         if some_uneven and kr_use_default:
             warnings.warn(
                 "Some spectral windows do not divide evenly by `n_chan_to_avg` and the "
@@ -10513,6 +10525,8 @@ class UVData(UVBase):
                 "True or False to silence this warning.",
                 DeprecationWarning,
             )
+        # Cannot go back to current array shapes if we have ragged channels that we're
+        # keeping
         if some_uneven and keep_ragged and reset_cs:
             warnings.warn(
                 "Ragged frequencies will result in varying channel widths, so "
@@ -10520,6 +10534,9 @@ class UVData(UVBase):
                 "Use keep_ragged=False to avoid this."
             )
 
+        # Since we have to loop through the spws, we cannot do the averaging with a
+        # simple reshape and average. So we need to create arrays to hold the
+        # various metadata & data after averaging
         final_freq_array = np.zeros(final_nchan, dtype=float)
         final_channel_width = np.zeros(final_nchan, dtype=float)
         final_flex_spw_id_array = np.zeros(final_nchan, dtype=int)
@@ -10534,7 +10551,15 @@ class UVData(UVBase):
                 final_shape_tuple, dtype=self.nsample_array.dtype
             )
 
+        # Now loop through the spws to actually do the averaging
         for spw_ind, spw in enumerate(self.spw_array):
+            # n_final_chan_reg is the number of regular (non-ragged) channels after
+            # averaging in this spw.
+            # For the regular channels, we can average more quickly by reshaping the
+            # frequency axis into two axes of lengths (n_final_chan_reg, n_chan_to_avg)
+            # followed by an average (or sum) over the axis of length n_chan_to_avg.
+            # Then we just have to do one more calculation for the remaining input
+            # channels if there are ragged channels.
             n_final_chan_reg = int(np.floor(nchans_spw[spw_ind] / n_chan_to_avg))
             nfreq_mod_navg = nchans_spw[spw_ind] % n_chan_to_avg
             these_inds = spw_chans[spw]
@@ -10546,23 +10571,28 @@ class UVData(UVBase):
                 # not an even number of final channels
                 regular_inds = these_inds[0 : n_final_chan_reg * n_chan_to_avg]
                 if not keep_ragged:
+                    # only use the non-ragged inds
                     these_inds = regular_inds
                 else:
+                    # find the irregular inds for this spw
                     this_ragged = True
                     irregular_inds = these_inds[n_final_chan_reg * n_chan_to_avg :]
                     this_final_reg_inds = this_final_reg_inds[:-1]
 
+            # Now do the reshaping and combining across the n_chan_to_avg length axis
             final_freq_array[this_final_reg_inds] = (
                 self.freq_array[regular_inds]
                 .reshape((n_final_chan_reg, n_chan_to_avg))
                 .mean(axis=1)
             )
+            # take a sum here rather to get final channel width
             final_channel_width[this_final_reg_inds] = (
                 self.channel_width[regular_inds]
                 .reshape((n_final_chan_reg, n_chan_to_avg))
                 .sum(axis=1)
             )
             if this_ragged:
+                # deal with the final ragged channel
                 final_freq_array[final_spw_chans[spw][-1]] = np.mean(
                     self.freq_array[irregular_inds]
                 )
@@ -10612,6 +10642,10 @@ class UVData(UVBase):
 
                 # need to update mask if a downsampled visibility will be flagged
                 # so that we don't set it to zero
+                # This is a common radio astronomy convention that when averaging over
+                # entirely flagged channels, you include the flagged channels in the
+                # result (so it's not zero) whereas you exclude flagged channels if
+                # there are any unflagged channels in the average.
                 for chan_ind in np.arange(n_final_chan_reg):
                     this_chan = final_spw_chans[spw][chan_ind]
                     if (final_flag_array[:, this_chan]).any():
@@ -10636,6 +10670,9 @@ class UVData(UVBase):
                     ff_inds = np.nonzero(fully_flagged)
                     irreg_mask[ax0_inds[ff_inds], :, ax2_inds[ff_inds]] = False
 
+                # create a masked data array from the data_array and mask_array
+                # (based on the flag_array).
+                # This lets numpy handle the averaging with flags.
                 masked_reg_data = np.ma.masked_array(
                     self.data_array[:, regular_inds].reshape(shape_tuple), mask=reg_mask
                 )
@@ -10650,6 +10687,7 @@ class UVData(UVBase):
                     masked_nsample_dtype = np.float32
                 else:
                     masked_nsample_dtype = nsample_dtype
+                # create a masked nsample array from the data_array and mask_array
                 masked_reg_nsample = np.ma.masked_array(
                     self.nsample_array[:, regular_inds].reshape(shape_tuple),
                     mask=reg_mask,
@@ -10663,6 +10701,7 @@ class UVData(UVBase):
                     )
 
                 if summing_correlator_mode:
+                    # sum rather than average
                     final_data_array[:, this_final_reg_inds] = np.sum(
                         masked_reg_data, axis=2
                     ).data
@@ -10671,7 +10710,7 @@ class UVData(UVBase):
                             masked_irreg_data, axis=1
                         ).data
                 else:
-                    # need to weight by the nsample_array
+                    # do a weighted average with the weights given by the nsample_array
                     final_data_array[:, this_final_reg_inds] = (
                         np.sum(masked_reg_data * masked_reg_nsample, axis=2)
                         / np.sum(masked_reg_nsample, axis=2)
@@ -10684,6 +10723,8 @@ class UVData(UVBase):
 
                 # nsample array is the fraction of data that we actually kept,
                 # relative to the amount that went into the sum or average.
+                # So it's a sum over the averaged channels divided by the number of
+                # averaged channels
                 # Need to take care to return precision back to original value.
                 final_nsample_array[:, this_final_reg_inds] = (
                     np.sum(masked_reg_nsample, axis=2) / float(n_chan_to_avg)
@@ -10693,6 +10734,7 @@ class UVData(UVBase):
                         np.sum(masked_irreg_nsample, axis=1) / irregular_inds.size
                     ).data.astype(nsample_dtype)
 
+        # Put the final arrays on the object
         self.freq_array = final_freq_array
         self.channel_width = final_channel_width
         self.flex_spw_id_array = final_flex_spw_id_array
@@ -10704,8 +10746,10 @@ class UVData(UVBase):
             self.data_array = final_data_array
             self.nsample_array = final_nsample_array
 
+        # update Nfreqs
         self.Nfreqs = final_nchan
 
+        # return to current shapes if needed and possible
         if reset_cs and not (some_uneven and keep_ragged):
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore", "This method will be removed")
