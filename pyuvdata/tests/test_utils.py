@@ -2112,6 +2112,45 @@ def test_astrometry_lst(astrometry_args):
             assert np.all(np.abs(alpha_time - beta_time).to_value("mas") < 1.0)
 
 
+@pytest.mark.parametrize("astrometry_lib", ["astropy", "novas", "erfa"])
+def test_lst_for_time_smooth(astrometry_lib):
+    """
+    Test that LSTs are smooth and do not have large discontinuities.
+
+    Inspired by a bug found by the HERA validation team in our original implemenatation
+    using the erfa library.
+    """
+    hera_loc = EarthLocation.from_geodetic(
+        lat=-30.72152612068957, lon=21.428303826863015, height=1051.6900000218302
+    )
+
+    start_time = 2458101.5435486115
+    n_times = 28728
+    integration_time = 1.0
+
+    daysperhour = 1 / 24.0
+    hourspersec = 1 / 60.0**2
+    dayspersec = daysperhour * hourspersec
+    inttime_days = integration_time * dayspersec
+    duration = inttime_days * n_times
+    end_time = start_time + duration - inttime_days
+    times = np.linspace(start_time, end_time + inttime_days, n_times, endpoint=False)
+
+    uv_lsts = uvutils.get_lst_for_time(
+        times,
+        latitude=hera_loc.lat.deg,
+        longitude=hera_loc.lon.deg,
+        altitude=hera_loc.height.value,
+        astrometry_library=astrometry_lib,
+        frame="itrs",
+    )
+
+    dtimes = times - int(times[0])
+    poly_fit = np.poly1d(np.polyfit(dtimes, uv_lsts, 2))
+    diff_poly = uv_lsts - poly_fit(dtimes)
+    assert np.max(np.abs(diff_poly)) < 1e-10
+
+
 def test_lst_for_time_float_vs_array(astrometry_args):
     """
     Test for equality when passing a single float vs an ndarray (of length 1) when
