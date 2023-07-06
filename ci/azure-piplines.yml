@@ -82,7 +82,7 @@ jobs:
     vmImage: "ubuntu-latest"
   variables:
     PYTHON: "3.9"
-    ENV_NAME: tests
+    ENV_NAME: full_deps
     WITH_SUDO: true
 
   steps:
@@ -119,7 +119,7 @@ jobs:
       cd ../pyradiosky
       pip install --no-deps .
       mkdir test-reports
-      python -m pytest pyradiosky --junitxml=test-reports/xunit.xml
+      python -m pytest --junitxml=test-reports/xunit.xml
     displayName: run pyradiosky tests
 
 - job: pyuvsim
