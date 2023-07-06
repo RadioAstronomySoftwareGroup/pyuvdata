@@ -52,6 +52,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${{ steps.env_name.outputs.ENV_NAME }}.yml
           activate-environment: ${{ steps.env_name.outputs.ENV_NAME }}
+          run-post: false
 
       - name: Conda Info
         run: |
