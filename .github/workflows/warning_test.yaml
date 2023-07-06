@@ -15,7 +15,6 @@ concurrency:
 jobs:
   warning_test:
     env:
-      ENV_NAME: pyuvdata_warning_test
       PYTHON: 3.9
     name: Warning Test
     runs-on: ubuntu-latest
