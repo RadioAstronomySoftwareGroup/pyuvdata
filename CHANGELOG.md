@@ -13,6 +13,8 @@ All notable changes to this project will be documented in this file.
 - The `sky_field` attribute on `UVCal`.
 
 ### Fixed
+- A bug in LST calculation that led to small discontinuities in LSTs calculated using
+the `erfa` or `novas` astrometry libraries.
 - Error when setting `UVBeam.freq_interp_kind` to an integer.
 - Error when reading `mwa_corr_fits` files from the new MWAX correlator
 
