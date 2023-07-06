@@ -3903,7 +3903,10 @@ def get_lst_for_time(
     if astrometry_library == "erfa":
         # This appears to be what astropy is using under the hood,
         # so it _should_ be totally consistent.
-        gast_array = erfa.gst06a(times.ut1.jd, 0.0, times.tt.jd, 0.0)
+        gast_array = erfa.gst06a(
+            times.ut1.jd1, times.ut1.jd2, times.tt.jd1, times.tt.jd2
+        )
+
         lst_array = np.mod(gast_array + (longitude * (np.pi / 180.0)), 2.0 * np.pi)[
             reverse_inds
         ]
@@ -3924,7 +3927,9 @@ def get_lst_for_time(
         jd_start, jd_end, number = eph_manager.ephem_open()
 
         tt_time_array = times.tt.value
-        ut1_time_array = times.ut1.value
+        ut1_high_time_array = times.ut1.jd1
+        ut1_low_time_array = times.ut1.jd2
+        full_ut1_time_array = ut1_high_time_array + ut1_low_time_array
         polar_motion_data = iers.earth_orientation_table.get()
 
         delta_x_array = np.interp(
@@ -3955,9 +3960,9 @@ def get_lst_for_time(
             # The NOVAS routine will return Greenwich Apparent Sidereal Time (GAST),
             # in units of hours
             lst_array[reverse_inds == idx] = novas.sidereal_time(
-                ut1_time_array[idx],
-                0.0,
-                (tt_time_array[idx] - ut1_time_array[idx]) * 86400.0,
+                ut1_high_time_array[idx],
+                ut1_low_time_array[idx],
+                (tt_time_array[idx] - full_ut1_time_array[idx]) * 86400.0,
             )
 
         # Add the telescope lon to convert from GAST to LAST (local)
