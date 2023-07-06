@@ -2120,6 +2120,10 @@ def test_lst_for_time_smooth(astrometry_lib):
     Inspired by a bug found by the HERA validation team in our original implemenatation
     using the erfa library.
     """
+    if astrometry_lib == "novas":
+        pytest.importorskip("novas")
+        pytest.importorskip("novas_de405")
+
     hera_loc = EarthLocation.from_geodetic(
         lat=-30.72152612068957, lon=21.428303826863015, height=1051.6900000218302
     )
