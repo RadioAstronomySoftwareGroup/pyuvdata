@@ -3879,9 +3879,24 @@ def get_lst_for_time(
             times.ut1.jd1, times.ut1.jd2, times.tt.jd1, times.tt.jd2
         )
 
-        lst_array = np.mod(gast_array + (longitude * (np.pi / 180.0)), 2.0 * np.pi)[
-            reverse_inds
-        ]
+        # Correct for TIO
+        from astropy.coordinates.builtin_frames.utils import get_polar_motion
+        from astropy.coordinates.matrix_utilities import rotation_matrix
+
+        sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
+        xp, yp = get_polar_motion(times)
+        # Form the rotation matrix, CIRS to apparent [HA,Dec].
+        r = (
+            rotation_matrix(longitude, "z")
+            @ rotation_matrix(-yp, "x", unit=units.radian)
+            @ rotation_matrix(-xp, "y", unit=units.radian)
+            @ rotation_matrix(gast_array + sp, "z", unit=units.radian)
+        )
+        # Solve for angle.
+        angle = np.arctan2(r[..., 0, 1], r[..., 0, 0]) << units.radian
+
+        lst_array = np.mod(angle.value, 2.0 * np.pi)[reverse_inds]
+
     elif astrometry_library == "astropy":
         lst_array = times.sidereal_time("apparent").radian[reverse_inds]
     elif astrometry_library == "novas":
