@@ -1242,25 +1242,6 @@ def test_small_sigs(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_deprecated_keywords():
-    """Test warnings for deprecated keywords"""
-    uv = UVData()
-    messages = ["Use `use_aoflagger_flags`"]
-    messages.append("Use `flag_small_auto_ants`")
-    messages.append("some coarse channel files were not submitted")
-    messages.append("cable length correction is now defaulted to True")
-    with uvtest.check_warnings(
-        [DeprecationWarning, DeprecationWarning, UserWarning, UserWarning], messages
-    ):
-        uv.read(
-            filelist[0:2],
-            use_cotter_flags=False,
-            flag_small_sig_ants=True,
-            use_future_array_shapes=True,
-        )
-
-
-@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_bscale(tmp_path):

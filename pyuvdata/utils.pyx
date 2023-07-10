@@ -389,7 +389,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_from_ENU(
 # inital_uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _phase_uvw(
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _old_uvw_calc(
     numpy.float64_t ra,
     numpy.float64_t dec,
     numpy.float64_t[:, ::1] initial_uvw
@@ -429,7 +429,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _phase_uvw(
 # uvw is a memoryviewed array as an input
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _unphase_uvw(
+cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _undo_old_uvw_calc(
     numpy.float64_t ra,
     numpy.float64_t dec,
     numpy.float64_t[:, ::1] uvw

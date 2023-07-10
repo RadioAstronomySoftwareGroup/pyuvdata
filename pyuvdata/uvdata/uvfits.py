@@ -889,7 +889,6 @@ class UVFITS(UVData):
     def write_uvfits(
         self,
         filename,
-        spoof_nonessential=False,
         write_lst=True,
         force_phase=False,
         run_check=True,
@@ -912,9 +911,6 @@ class UVFITS(UVData):
         ----------
         filename : str
             The uvfits file to write to.
-        spoof_nonessential : bool
-            Deprecated and has no effect. Values are automatically set to their best
-            known values if not previously set.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
         force_phase : bool
@@ -959,17 +955,6 @@ class UVFITS(UVData):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 check_autos=check_autos,
                 fix_autos=fix_autos,
-            )
-
-        if spoof_nonessential:
-            warnings.warn(
-                (
-                    "UVFITS-required metadata are now set automatically to their "
-                    'best known values, and no longer need to be "spoofed". As such, '
-                    "the spoof_nonessential parameter is deprecated, and will be "
-                    "removed in version 2.4."
-                ),
-                DeprecationWarning,
             )
 
         if np.any(~self._check_for_cat_type(["sidereal"])):

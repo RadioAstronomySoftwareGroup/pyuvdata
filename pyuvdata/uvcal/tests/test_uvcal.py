@@ -3372,13 +3372,24 @@ def test_add_errors(
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
-@pytest.mark.parametrize("axis", ["antenna", "freq", "time", "jones", "spw"])
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
+# write it out this way because cannot combine along the freq axis with old delay types
+@pytest.mark.parametrize(
+    ["axis", "caltype"],
+    [
+        ["antenna", "gain"],
+        ["antenna", "delay"],
+        ["freq", "gain"],
+        ["time", "gain"],
+        ["time", "delay"],
+        ["jones", "gain"],
+        ["jones", "delay"],
+        ["spw", "gain"],
+        ["spw", "delay"],
+    ],
+)
 def test_fast_concat_multiple_files(
     gain_data, delay_data, wideband_gain, multi_spw_delay, axis, caltype
 ):
-    if caltype == "delay" and axis == "freq":
-        pytest.skip("Cannot combine along the freq axis with old delay types")
     if axis == "spw":
         if caltype == "gain":
             calobj_full = wideband_gain
@@ -4415,13 +4426,13 @@ def test_init_from_uvdata_sky(
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
-@pytest.mark.parametrize("flex_spw", [True, False])
+@pytest.mark.parametrize(
+    ["uvcal_future_shapes", "flex_spw"], [[True, False], [True, True], [False, False]]
+)
 @pytest.mark.parametrize("set_frange", [True, False])
 def test_init_from_uvdata_delay(
     uvdata_future_shapes, uvcal_future_shapes, flex_spw, set_frange, uvcalibrate_data
 ):
-    pytest.skip("I don't think this test makes sense...")
     uvd, uvc = uvcalibrate_data
 
     if not uvdata_future_shapes:

@@ -47,8 +47,8 @@ __all__ = [
     "ECEF_from_rotECEF",
     "ENU_from_ECEF",
     "ECEF_from_ENU",
-    "phase_uvw",
-    "unphase_uvw",
+    "undo_old_uvw_calc",
+    "old_uvw_calc",
     "uvcalibrate",
     "apply_uvflag",
     "get_lst_for_time",
@@ -1580,19 +1580,16 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
     return xyz
 
 
-def phase_uvw(ra, dec, initial_uvw):
+def old_uvw_calc(ra, dec, initial_uvw):
     """
-    Calculate phased uvws/positions from unphased ones in an icrs or gcrs frame.
+    Calculate old uvws from unphased ones in an icrs or gcrs frame.
 
-    This method is deprecated because it is associated with the old style of phasing,
-    which is less correct than the way we do it now.
+    This method should not be used and is only retained for testing the
+    undo_old_uvw_calc method, which is needed for fixing phases.
 
     This code expects input uvws or positions relative to the telescope
     location in the same frame that ra/dec are in (e.g. icrs or gcrs) and
     returns phased ones in the same frame.
-
-    Note that this code is nearly identical to ENU_from_ECEF, except that it
-    uses an arbitrary phasing center rather than a coordinate center.
 
     Parameters
     ----------
@@ -1610,27 +1607,19 @@ def phase_uvw(ra, dec, initial_uvw):
         uvw array in the same frame as initial_uvws, ra and dec.
 
     """
-    warnings.warn(
-        "This function supports the old phasing method and will be removed along with "
-        "the old phasing code in version 2.4",
-        DeprecationWarning,
-    )
     if initial_uvw.ndim == 1:
         initial_uvw = initial_uvw[np.newaxis, :]
 
-    return _utils._phase_uvw(
+    return _utils._old_uvw_calc(
         np.float64(ra),
         np.float64(dec),
         np.ascontiguousarray(initial_uvw.T, dtype=np.float64),
     ).T
 
 
-def unphase_uvw(ra, dec, uvw):
+def undo_old_uvw_calc(ra, dec, uvw):
     """
-    Calculate unphased uvws/positions from phased ones in an icrs or gcrs frame.
-
-    This method is deprecated because it is associated with the old style of phasing,
-    which is less correct than the way we do it now.
+    Undo the old phasing calculation on uvws in an icrs or gcrs frame.
 
     This code expects phased uvws or positions in the same frame that ra/dec
     are in (e.g. icrs or gcrs) and returns unphased ones in the same frame.
@@ -1652,15 +1641,10 @@ def unphase_uvw(ra, dec, uvw):
         shape (Nlocs, 3).
 
     """
-    warnings.warn(
-        "This function supports the old phasing method and will be removed along with "
-        "the old phasing code in version 2.4",
-        DeprecationWarning,
-    )
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
-    return _utils._unphase_uvw(
+    return _utils._undo_old_uvw_calc(
         np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw.T, dtype=np.float64)
     ).T
 
@@ -3631,14 +3615,6 @@ def calc_app_coords(
     else:
         unique_time_array, unique_mask = np.unique(time_array, return_index=True)
 
-    if coord_type == "unphased":
-        warnings.warn(
-            "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
-            "unprojected for now, this warning will become an error in version 2.4",
-            DeprecationWarning,
-        )
-        coord_type = "unprojected"
-
     if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
             unique_lst = get_lst_for_time(
@@ -4060,7 +4036,7 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, include_conjugates=False, with_conjugates=False
+    baselines, baseline_vecs, tol=1.0, include_conjugates=False
 ):
     """
     Find redundant baseline groups.
@@ -4075,9 +4051,6 @@ def get_baseline_redundancies(
         Absolute tolerance of redundancy, in meters.
     include_conjugates : bool
         Option to include baselines that are redundant when flipped.
-    with_conjugates : bool
-        Deprecated, use `include_conjugates` instead. Option to include baselines that
-        are redundant when flipped.
 
     Returns
     -------
@@ -4098,14 +4071,6 @@ def get_baseline_redundancies(
         raise ValueError("Baseline vectors must be shape (Nbls, 3)")
 
     baseline_vecs = copy.copy(baseline_vecs)  # Protect the vectors passed in.
-
-    if with_conjugates:
-        warnings.warn(
-            "The with_conjugates keyword is deprecated and will be removed in "
-            "version 2.4. Use include_conjugates instead.",
-            DeprecationWarning,
-        )
-        include_conjugates = True
 
     if include_conjugates:
         conjugates = []

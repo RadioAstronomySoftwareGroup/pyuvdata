@@ -1841,7 +1841,7 @@ class MWACorrFITS(UVData):
         self._set_app_coords_helper()
 
         # create self.uvw_array
-        self.set_uvws_from_antenna_positions(allow_phasing=False)
+        self.set_uvws_from_antenna_positions()
 
         # remove bad antennas
         # select must be called after lst thread is re-joined
