@@ -982,13 +982,7 @@ def test_phase_unphase_hera(uv1_2_set_uvws, future_shapes, phase_kwargs, partial
     if partial:
         uv1.unproject_phase(select_mask=mask)
     else:
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="This method is deprecated in favor of `unproject_phase`, which "
-            "better describes what is being done. This method will be removed in "
-            "version 2.4.",
-        ):
-            uv1.unphase_to_drift()
+        uv1.unproject_phase()
     if partial:
         uv1.merge_phase_centers(
             catalog_identifier=list(uv1.phase_center_catalog.keys()), ignore_name=True
@@ -1005,12 +999,7 @@ def test_phase_unphase_hera_one_bl(uv1_2_set_uvws):
     # check that phase + unphase work with one baseline
     uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
     uv_phase_small = uv_raw_small.copy()
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="No cat_name provided, this will become an error in pyuvdata v2.4. "
-        "Defaulting to naming based on lat/lon.",
-    ):
-        uv_phase_small.phase(Angle("23h").rad, Angle("15d").rad)
+    uv_phase_small.phase(Angle("23h").rad, Angle("15d").rad, cat_name="foo")
     uv_phase_small.unproject_phase(cat_name="zenith")
     assert uv_raw_small == uv_phase_small
 
@@ -1104,20 +1093,7 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
         uv_drift.use_current_array_shapes()
         sma_mir.use_current_array_shapes()
 
-    with pytest.raises(ValueError, match="Data are already unprojected."):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4.",
-        ):
-            uv_drift.unproject_phase(use_old_proj=True)
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `use_old_proj` option is deprecated and will be removed in "
-        "version 2.4.",
-    ):
-        uv_phase.phase(ra=0.0, dec=0.0, cat_name="foo", use_old_proj=True)
+    uv_phase.phase(ra=0.0, dec=0.0, cat_name="foo")
 
     with pytest.raises(IndexError, match="Selection mask must be of length Nblts."):
         uv_phase.unproject_phase(select_mask=np.full(uv_phase.Nblts // 2, True))
@@ -1125,56 +1101,8 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
     with pytest.raises(ValueError, match="Selection mask must be a boolean array"):
         uv_phase.unproject_phase(select_mask=np.full(uv_phase.Nblts, 5.3))
 
-    # Now make sure the old proj method works with unphasing
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `use_old_proj` option is deprecated and will be removed in "
-        "version 2.4.",
-    ):
-        uv_phase.unproject_phase(use_old_proj=True, cat_name="zenith")
+    uv_phase.unproject_phase(cat_name="zenith")
     assert uv_drift == uv_phase
-
-    with pytest.raises(
-        ValueError, match="Objects with fk5 phase frames are not compatible"
-    ):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4.",
-        ):
-            sma_mir.unproject_phase(use_old_proj=True)
-
-    orig_frame = sma_mir.phase_center_catalog[1]["cat_frame"]
-    orig_type = sma_mir.phase_center_catalog[1]["cat_type"]
-    sma_mir.phase_center_catalog[1]["cat_frame"] = "icrs"
-    sma_mir.phase_center_catalog[1]["cat_type"] = "ephem"
-
-    with pytest.raises(
-        ValueError, match="Objects with ephem phase centers are not compatible"
-    ):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4.",
-        ):
-            sma_mir.unproject_phase(use_old_proj=True)
-
-    sma_mir.phase_center_catalog[1]["cat_frame"] = orig_frame
-    sma_mir.phase_center_catalog[1]["cat_type"] = orig_type
-
-    mask = np.full((uv_phase.Nblts), False, dtype=bool)
-    mask[: uv_phase.Nblts // 2] = True
-    uv_phase.phase(ra=0.0, dec=0.0, cat_name="foo", select_mask=mask)
-
-    with pytest.raises(
-        ValueError, match="Objects with multiple phase centers are not compatible"
-    ):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4.",
-        ):
-            uv_phase.unproject_phase(use_old_proj=True)
 
     # Check to make sure that wa can unphase w/o an error getting thrown. The new
     # unphase method does not throw an error when being called twice, but it does warn
@@ -1185,46 +1113,8 @@ def test_unphase_drift_data_error(uv1_2_set_uvws, sma_mir, future_shapes):
         sma_mir.unproject_phase()
 
 
-@pytest.mark.filterwarnings("ignore:The `use_old_proj` option is deprecated")
-@pytest.mark.filterwarnings("ignore:The `allow_rephase` option is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    "phase_func,phase_kwargs,err_msg",
-    [
-        (
-            "phase",
-            {
-                "ra": 0,
-                "dec": 0,
-                "epoch": "J2000",
-                "allow_rephase": False,
-                "cat_name": "bar",
-                "use_old_proj": True,
-            },
-            "Visibilities are already phased; set allow_rephase to True",
-        ),
-        (
-            "phase",
-            {
-                "lon": 0,
-                "lat": 0,
-                "epoch": "J2000",
-                "cat_type": "driftscan",
-                "allow_rephase": True,
-                "cat_name": "bar",
-                "use_old_proj": True,
-            },
-            "Old phasing only supports sidereal catalog types, "
-            "please change the cat_type or use_old_proj=False.",
-        ),
-        (
-            "phase_to_time",
-            {"time": 0, "allow_rephase": False, "use_old_proj": True},
-            "Visibilities are already phased; set allow_rephase to True",
-        ),
-    ],
-)
-def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err_msg):
+def test_phase_rephase_hera_errors(uv1_2_set_uvws):
     uv_phase, _ = uv1_2_set_uvws
 
     with pytest.raises(
@@ -1236,35 +1126,6 @@ def test_phase_rephase_hera_errors(uv1_2_set_uvws, phase_func, phase_kwargs, err
         ValueError, match="lat parameter must be set if cat_type is not 'unprojected'"
     ):
         uv_phase.phase(ra=0.0, epoch="J2000", cat_name="foo")
-
-    uv_phase.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo")
-    # if this is phase_to_time, use this index set in the dictionary and
-    # assign the value of the time_array associated with that index
-    # this is a little hacky, but we cannot acces uv_phase.time_array in the
-    # parametrize
-    if phase_func == "phase_to_time":
-        phase_kwargs["time"] = uv_phase.time_array[int(phase_kwargs["time"])]
-
-    with pytest.raises(ValueError, match=err_msg):
-        getattr(uv_phase, phase_func)(**phase_kwargs)
-
-
-@pytest.mark.filterwarnings("ignore:The `use_old_proj` option is deprecated")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_unphase_hera_bad_frame(uv1_2_set_uvws):
-    uv_phase, _ = uv1_2_set_uvws
-    # check errors when trying to phase to an unsupported frame
-    with pytest.raises(
-        ValueError, match="Old phasing only supports 'icrs' and 'gcrs' phase_frames"
-    ):
-        uv_phase.phase(
-            ra=0.0,
-            dec=0.0,
-            cat_name="cirs0",
-            epoch="J2000",
-            phase_frame="cirs",
-            use_old_proj=True,
-        )
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -1279,8 +1140,8 @@ def test_unphasing(uv_phase_comp, future_shapes, use_ant_pos1, use_ant_pos2):
         uvd1.use_current_array_shapes()
         uvd2.use_current_array_shapes()
 
-    uvd1.unproject_phase(phase_frame="fk5", use_ant_pos=use_ant_pos1)
-    uvd2.unproject_phase(phase_frame="fk5", use_ant_pos=use_ant_pos2)
+    uvd1.unproject_phase(use_ant_pos=use_ant_pos1)
+    uvd2.unproject_phase(use_ant_pos=use_ant_pos2)
 
     if use_ant_pos1 and use_ant_pos2:
         atol = 1e-12
@@ -1348,11 +1209,6 @@ def test_phasing(uv_phase_comp, future_shapes, unphase_first, use_ant_pos):
     "arg_dict,err_type,msg",
     [
         [
-            {"name": "abc", "oldproj": True},
-            ValueError,
-            "Objects with fk5 phase frames are not compatible",
-        ],
-        [
             {"name": "abc", "mask": [True] * 2},
             IndexError,
             "Selection mask must be of length Nblts.",
@@ -1369,27 +1225,16 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
     print(sma_mir.Nblts)
     with pytest.raises(err_type, match=msg):
         sma_mir.phase(
-            ra=0,
-            dec=0,
-            cat_name=arg_dict.get("name"),
-            use_old_proj=arg_dict.get("oldproj"),
-            select_mask=arg_dict.get("mask"),
+            ra=0, dec=0, cat_name=arg_dict.get("name"), select_mask=arg_dict.get("mask")
         )
 
 
-# We're using the old phase method here since these values were all derived using that
-# method, so we'll just filter out those warnings now.
-# TODO I don't think the statement above is correct. These files were phased by
-# Cotter (I believe), not by pyvudata...
-@pytest.mark.filterwarnings("ignore:The `use_old_proj` option is deprecated")
-@pytest.mark.filterwarnings("ignore:The `phase_frame` parameter is deprecated")
-@pytest.mark.filterwarnings("ignore:The `allow_rephase` option is deprecated")
+@pytest.mark.filterwarnings("ignore:The provided name UVCeti is already used")
 @pytest.mark.filterwarnings("ignore:The entry name UVCeti is not unique")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_old_phasing(future_shapes):
+def test_cotter_phasing(future_shapes):
     """Use MWA files phased to 2 different places to test phasing."""
     file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
     file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
@@ -1398,29 +1243,18 @@ def test_old_phasing(future_shapes):
     uvd1.read_uvfits(file1, use_future_array_shapes=future_shapes)
     uvd2.read_uvfits(file2, use_future_array_shapes=future_shapes)
 
-    # change from fk5 to icrs so we can use old phasing (this is what was assumed)
-    uvd1.phase_center_catalog[0]["cat_frame"] = "icrs"
-    uvd2.phase_center_catalog[0]["cat_frame"] = "icrs"
-
     uvd1_drift = uvd1.copy()
-    uvd1_drift.unproject_phase(phase_frame="gcrs", use_old_proj=True, use_ant_pos=False)
-    uvd1_drift_antpos = uvd1.copy()
-    uvd1_drift_antpos.unproject_phase(
-        phase_frame="gcrs", use_ant_pos=True, use_old_proj=True
-    )
+    uvd1_drift.unproject_phase()
 
     uvd2_drift = uvd2.copy()
-    uvd2_drift.unproject_phase(phase_frame="gcrs", use_old_proj=True, use_ant_pos=False)
-    uvd2_drift_antpos = uvd2.copy()
-    uvd2_drift_antpos.unproject_phase(
-        phase_frame="gcrs", use_ant_pos=True, use_old_proj=True
-    )
+    uvd2_drift.unproject_phase()
 
-    # the tolerances here are empirical -- based on what was seen in the
-    # external phasing test. See the phasing memo in docs/references for
-    # details.
-    assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array, atol=2e-2)
-    assert np.allclose(uvd1_drift_antpos.uvw_array, uvd2_drift_antpos.uvw_array)
+    assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array)
+    # the tolerances here are empirical -- this just makes sure they don't get worse.
+    # TODO: more investigation here needed!
+    print(np.max(np.abs(np.real(uvd1_drift.data_array - uvd2_drift.data_array))))
+    print(np.max(np.abs(np.imag(uvd1_drift.data_array - uvd2_drift.data_array))))
+    assert np.allclose(uvd1_drift.data_array, uvd2_drift.data_array, atol=3e-2)
 
     uvd1_phase_dict = list(uvd1.phase_center_catalog.values())[0]
     uvd2_rephase = uvd2.copy()
@@ -1429,28 +1263,15 @@ def test_old_phasing(future_shapes):
         lat=uvd1_phase_dict["cat_lat"],
         epoch=uvd1_phase_dict["cat_epoch"],
         cat_name=uvd1_phase_dict["cat_name"],
-        orig_phase_frame="gcrs",
-        phase_frame="gcrs",
-        use_ant_pos=False,
-        use_old_proj=True,
-    )
-    uvd2_rephase_antpos = uvd2.copy()
-    uvd2_rephase_antpos.phase(
-        lon=uvd1_phase_dict["cat_lon"],
-        lat=uvd1_phase_dict["cat_lat"],
-        epoch=uvd1_phase_dict["cat_epoch"],
-        cat_name=uvd1_phase_dict["cat_name"],
-        orig_phase_frame="gcrs",
-        phase_frame="gcrs",
+        phase_frame=uvd1_phase_dict["cat_frame"],
+        cat_type="sidereal",
         use_ant_pos=True,
-        use_old_proj=True,
     )
 
-    # the tolerances here are empirical -- based on what was seen in the
-    # external phasing test. See the phasing memo in docs/references for
-    # details.
-    assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=2e-2)
-    assert np.allclose(uvd1.uvw_array, uvd2_rephase_antpos.uvw_array, atol=5e-3)
+    # the tolerances here are empirical -- this just makes sure they don't get worse.
+    # TODO: more investigation here needed!
+    print(np.max(np.abs(uvd1.uvw_array - uvd2_rephase.uvw_array)))
+    assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=5e-2)
 
     # rephase the drift objects to the original pointing and verify that they
     # match
@@ -1459,26 +1280,17 @@ def test_old_phasing(future_shapes):
         lat=uvd1_phase_dict["cat_lat"],
         epoch=uvd1_phase_dict["cat_epoch"],
         cat_name=uvd1_phase_dict["cat_name"],
-        phase_frame="gcrs",
-        use_ant_pos=False,
-        use_old_proj=True,
-    )
-    uvd1_drift_antpos.phase(
-        lon=uvd1_phase_dict["cat_lon"],
-        lat=uvd1_phase_dict["cat_lat"],
-        epoch=uvd1_phase_dict["cat_epoch"],
-        cat_name=uvd1_phase_dict["cat_name"],
-        phase_frame="gcrs",
+        phase_frame=uvd1_phase_dict["cat_frame"],
         use_ant_pos=True,
-        use_old_proj=True,
     )
 
-    # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the
-    # external phasing test. See the phasing memo in docs/references for
-    # details.
-    assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=1e-4)
-    assert np.allclose(uvd1.uvw_array, uvd1_drift_antpos.uvw_array, atol=5e-3)
+    # the tolerances here are empirical -- this just makes sure they don't get worse.
+    # TODO: more investigation here needed!
+    print(np.max(np.abs(uvd1.uvw_array - uvd1_drift.uvw_array)))
+    assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=5e-2)
+    print(np.max(np.abs(np.real(uvd1.data_array - uvd1_drift.data_array))))
+    print(np.max(np.abs(np.imag(uvd1.data_array - uvd1_drift.data_array))))
+    assert np.allclose(uvd1.data_array, uvd1_drift.data_array, atol=4)
 
     uvd2_phase_dict = list(uvd2.phase_center_catalog.values())[0]
     uvd2_drift.phase(
@@ -1486,46 +1298,31 @@ def test_old_phasing(future_shapes):
         lat=uvd2_phase_dict["cat_lat"],
         epoch=uvd2_phase_dict["cat_epoch"],
         cat_name=uvd2_phase_dict["cat_name"],
-        phase_frame="gcrs",
-        use_ant_pos=False,
-        use_old_proj=True,
-    )
-    uvd2_drift_antpos.phase(
-        lon=uvd2_phase_dict["cat_lon"],
-        lat=uvd2_phase_dict["cat_lat"],
-        epoch=uvd2_phase_dict["cat_epoch"],
-        cat_name=uvd2_phase_dict["cat_name"],
-        phase_frame="gcrs",
         use_ant_pos=True,
-        use_old_proj=True,
     )
 
-    # the tolerances here are empirical -- caused by one unphase/phase cycle.
-    # the antpos-based phasing differences are based on what was seen in the
-    # external phasing test. See the phasing memo in docs/references for
-    # details.
-    assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=1e-4)
-    assert np.allclose(uvd2.uvw_array, uvd2_drift_antpos.uvw_array, atol=2e-2)
+    # the tolerances here are empirical -- this just makes sure they don't get worse.
+    # TODO: more investigation here needed!
+    print(np.max(np.abs(uvd2.uvw_array - uvd2_drift.uvw_array)))
+    assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=5e-3)
+    print(np.max(np.abs(np.real(uvd2.data_array - uvd2_drift.data_array))))
+    print(np.max(np.abs(np.imag(uvd2.data_array - uvd2_drift.data_array))))
+    assert np.allclose(uvd2.data_array, uvd2_drift.data_array, atol=5)
 
-    # Check to make sure that the old errors work
-    with pytest.raises(ValueError, match="Visibilities are already phased;"):
-        uvd1_drift.phase(
-            ra=0, dec=0, cat_name="foo", use_old_proj=True, allow_rephase=False
-        )
-
+    # TODO: not sure the rest of this is useful...
     uvd1_drift = uvd1.copy()
     # Move the time ~1 µsec off from J2000
     epoch_val = Time(Time(2000, format="jyear").mjd - 1e-11, format="mjd")
     # Unlike in the new phasing system, this should produce different results (since one
     # is FK5, and the other is ICRS)
-    uvd1_drift.phase(ra=0, dec=0, cat_name="fk50", epoch=epoch_val, use_old_proj=True)
-    uvd1.phase(ra=0, dec=0, cat_name="icrs0", epoch="J2000", use_old_proj=True)
+    uvd1_drift.phase(ra=0, dec=0, cat_name="fk50", epoch=epoch_val)
+    uvd1.phase(ra=0, dec=0, cat_name="icrs0", epoch="J2000")
     assert uvd1_drift != uvd1
     uvd1_drift = uvd1.copy()
 
     # Make sure the old default works for reverting to ICRS if no coord frame is found
-    uvd1.unproject_phase(use_old_proj=True)
-    uvd1_drift.unproject_phase(use_old_proj=True)
+    uvd1.unproject_phase()
+    uvd1_drift.unproject_phase()
     assert uvd1 == uvd1_drift
 
 
@@ -4514,252 +4311,6 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
         uv1 += uv2
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:The `unphase_to_drift` option is deprecated")
-@pytest.mark.filterwarnings("ignore:The `phase_center_radec` parameter is deprecated")
-@pytest.mark.parametrize(
-    "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
-)
-def test_add_error_drift_and_rephase(casa_uvfits, test_func, extra_kwargs):
-    uv_full = casa_uvfits
-
-    with pytest.raises(
-        ValueError,
-        match="phase_center_radec cannot be set if unphase_to_drift is True.",
-    ):
-        getattr(uv_full, test_func)(
-            uv_full, phase_center_radec=(0, 45), unphase_to_drift=True, **extra_kwargs
-        )
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
-)
-def test_add_this_phased_unproject_phase(uv_phase_time_split, test_func, extra_kwargs):
-    (uv_phase_1, _, _, _, uv_raw_2, uv_raw) = uv_phase_time_split
-    func_kwargs = {"unphase_to_drift": True, "inplace": False, "ignore_name": True}
-    func_kwargs.update(extra_kwargs)
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        [
-            "The `unphase_to_drift` option is deprecated",
-            "Unprojecting this UVData object.",
-        ],
-    ):
-        uv_out = getattr(uv_phase_1, test_func)(uv_raw_2, **func_kwargs)
-    assert uv_out.Nphase == 1
-    # the histories will be different here
-    # but everything else should match.
-    uv_out.history = copy.deepcopy(uv_raw.history)
-    # ensure baseline time order is the same
-    # because fast_concat will not order for us
-    uv_out.reorder_blts(order="time", minor_order="baseline")
-    assert np.all(uv_out._check_for_cat_type("unprojected"))
-    assert uv_out == uv_raw
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
-)
-def test_add_other_phased_unproject_phase(uv_phase_time_split, test_func, extra_kwargs):
-    (_, uv_phase_2, _, uv_raw_1, _, uv_raw) = uv_phase_time_split
-
-    func_kwargs = {"unphase_to_drift": True, "inplace": False, "ignore_name": True}
-    func_kwargs.update(extra_kwargs)
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        [
-            "The `unphase_to_drift` option is deprecated",
-            "Unprojecting other UVData object.",
-        ],
-    ):
-        uv_out = getattr(uv_raw_1, test_func)(uv_phase_2, **func_kwargs)
-
-    # the histories will be different here
-    # but everything else should match.
-    uv_out.history = copy.deepcopy(uv_raw.history)
-    # ensure baseline time order is the same
-    # because fast_concat will not order for us
-    uv_out.reorder_blts(order="time", minor_order="baseline")
-    uv_out.rename_phase_center(0, new_name="zenith")
-    assert np.all(uv_out._check_for_cat_type("unprojected"))
-    assert uv_out == uv_raw
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    ["test_func", "extra_kwargs", "phase_kwargs"],
-    [
-        ("__add__", {}, {"dec": Angle("-30d").rad}),
-        ("__add__", {}, {"frame": "fk4"}),
-        ("fast_concat", {"axis": "blt"}, {"ra": Angle("30d").rad}),
-        ("fast_concat", {"axis": "blt"}, {"type": "ephem"}),
-    ],
-)
-@pytest.mark.parametrize("rephase_obj", ["this", "other"])
-def test_add_rephase_new_phase_center(
-    uv_phase_time_split, test_func, extra_kwargs, phase_kwargs, rephase_obj
-):
-    (_, _, _, uv_raw_1, uv_raw_2, uv_raw) = uv_phase_time_split
-
-    phase_center_radec = [Angle("0d").rad, Angle("0d").rad]
-    if "ra" in phase_kwargs:
-        phase_center_radec[0] = phase_kwargs["ra"]
-    if "dec" in phase_kwargs:
-        phase_center_radec[1] = phase_kwargs["dec"]
-
-    rephase_frame = "icrs"
-    if "frame" in phase_kwargs:
-        final_frame = phase_kwargs["frame"]
-    else:
-        final_frame = rephase_frame
-
-    # phase each half to different spots
-    rephase_ra = Angle("30d").rad
-    rephase_dec = Angle("30d").rad
-    rephase_name = "bar"
-    final_ra = phase_center_radec[0]
-    final_dec = phase_center_radec[1]
-    final_name = "foo"
-
-    rephase_type = "sidereal"
-    if "type" in phase_kwargs:
-        final_type = phase_kwargs["type"]
-        final_times = [np.min(uv_raw.time_array) * 0.9, np.max(uv_raw.time_array) * 1.1]
-        final_ra = [final_ra] * 2
-        final_dec = [final_dec] * 2
-    else:
-        final_type = rephase_type
-        final_times = None
-
-    if rephase_obj == "this":
-        this_ra = rephase_ra
-        this_dec = rephase_dec
-        this_name = rephase_name
-        this_frame = rephase_frame
-        this_type = rephase_type
-        this_times = None
-        other_ra = final_ra
-        other_dec = final_dec
-        other_name = final_name
-        other_frame = final_frame
-        other_type = final_type
-        other_times = final_times
-    else:
-        this_ra = final_ra
-        this_dec = final_dec
-        this_name = final_name
-        this_frame = final_frame
-        this_type = final_type
-        this_times = final_times
-        other_ra = rephase_ra
-        other_dec = rephase_dec
-        other_name = rephase_name
-        other_frame = rephase_frame
-        other_type = rephase_type
-        other_times = None
-    uv_raw_1.phase(
-        ra=this_ra,
-        dec=this_dec,
-        use_ant_pos=True,
-        cat_name=this_name,
-        phase_frame=this_frame,
-        cat_type=this_type,
-        ephem_times=this_times,
-    )
-    uv_raw_2.phase(
-        ra=other_ra,
-        dec=other_dec,
-        cat_name=other_name,
-        use_ant_pos=True,
-        phase_frame=other_frame,
-        cat_type=other_type,
-        ephem_times=other_times,
-    )
-    # phase original to phase_center_radec
-    uv_raw.phase(
-        ra=final_ra,
-        dec=final_dec,
-        cat_name=final_name,
-        use_ant_pos=True,
-        phase_frame=final_frame,
-        cat_type=final_type,
-        ephem_times=final_times,
-    )
-
-    warn_types = [DeprecationWarning] * 4 + [UserWarning]
-    msg = [
-        "The `use_ant_pos` option is deprecated",
-        "The `phase_center_radec` parameter is deprecated",
-        "The `phase_frame` parameter is deprecated",
-        "The `orig_phase_frame` option is deprecated",
-        f"Phasing {rephase_obj} UVData object to {phase_center_radec}",
-    ]
-    func_kwargs = {
-        "inplace": False,
-        "phase_center_radec": phase_center_radec,
-        "use_ant_pos": True,
-        "phase_frame": "icrs",
-        "orig_phase_frame": "icrs",
-    }
-    if "frame" in phase_kwargs or "type" in phase_kwargs:
-        if "frame" in phase_kwargs:
-            func_kwargs["phase_frame"] = phase_kwargs["frame"]
-        warn_types.append(UserWarning)
-        msg.append("Phasing")
-    func_kwargs.update(extra_kwargs)
-    with uvtest.check_warnings(warn_types, match=msg):
-        uv_out = getattr(uv_raw_1, test_func)(uv_raw_2, **func_kwargs)
-
-    # the histories will be different here
-    # but everything else should match.
-    uv_out.history = copy.deepcopy(uv_raw.history)
-    # ensure baseline time order is the same
-    # because fast_concat will not order for us
-    uv_out.reorder_blts(order="time", minor_order="baseline")
-
-    if "type" in phase_kwargs:
-        uv_out.phase(
-            ra=final_ra,
-            dec=final_dec,
-            cat_name=final_name,
-            use_ant_pos=True,
-            phase_frame=final_frame,
-            cat_type=final_type,
-            ephem_times=final_times,
-        )
-    else:
-        # update catalog to make them match
-        if uv_out.Nphase == 2:
-            uv_out.merge_phase_centers([0, 1], ignore_name=True)
-        uv_out._consolidate_phase_center_catalogs(other=uv_raw, ignore_name=True)
-        assert uv_out.Nphase == 1
-        assert [
-            uv_out.phase_center_catalog[1]["cat_lon"],
-            uv_out.phase_center_catalog[1]["cat_lat"],
-        ] == phase_center_radec
-    assert uv_out == uv_raw
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(
-    "test_func,extra_kwargs", [("__add__", {}), ("fast_concat", {"axis": "blt"})]
-)
-def test_add_error_too_long_phase_center(uv_phase_time_split, test_func, extra_kwargs):
-    (uv_phase_1, uv_phase_2, _, _, _, _) = uv_phase_time_split
-    phase_center_radec = (Angle("0d").rad, Angle("-30d").rad, 7)
-    func_kwargs = {"inplace": False, "phase_center_radec": phase_center_radec}
-    func_kwargs.update(extra_kwargs)
-    with pytest.raises(ValueError, match="phase_center_radec should have length 2."):
-        with uvtest.check_warnings(
-            DeprecationWarning, match="The `phase_center_radec` parameter is deprecated"
-        ):
-            getattr(uv_phase_1, test_func)(uv_phase_2, **func_kwargs)
-
-
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -6664,113 +6215,6 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
 
     with pytest.raises(ValueError, match=message):
         uv.select(**kwargs)
-
-
-@pytest.mark.filterwarnings("ignore:The `use_old_proj` option is deprecated")
-@pytest.mark.filterwarnings("ignore:Data will be unphased")
-@pytest.mark.parametrize(
-    "arg_dict,msg",
-    [
-        [
-            {"out": "icrs", "oldproj": True},
-            "UVW calculation with `use_old_proj` requires unprojected data",
-        ],
-        [
-            {"allow": True, "orig": "gcrs", "out": "xyz", "oldproj": True},
-            "Invalid parameter output_phase_frame.",
-        ],
-        [
-            {"allow": True, "orig": "xyz", "out": "hcrs", "oldproj": True},
-            "Invalid parameter orig_phase_frame.",
-        ],
-    ],
-)
-def test_set_uvws_from_antenna_pos_errs(casa_uvfits, arg_dict, msg):
-    """
-    Verify that set_uvws_from_antenna_pos throws appropriate errors when being
-    provided with bad combinations are arguments.
-    """
-    if arg_dict.get("oldproj"):
-        casa_uvfits.phase_center_catalog[0]["cat_frame"] = "icrs"
-    with pytest.raises(ValueError, match=msg):
-        casa_uvfits.set_uvws_from_antenna_positions(
-            allow_phasing=arg_dict.get("allow"),
-            orig_phase_frame=arg_dict.get("orig"),
-            output_phase_frame=arg_dict.get("out"),
-            use_old_proj=arg_dict.get("oldproj"),
-        )
-
-
-def test_set_uvws_from_antenna_pos_old(uv_phase_comp):
-    uv_object, _ = uv_phase_comp
-    orig_uvw_array = uv_object.uvw_array.copy()
-
-    uv_object.phase_center_catalog[0]["cat_frame"] = "icrs"
-    with uvtest.check_warnings(
-        [UserWarning, DeprecationWarning],
-        [
-            "Data will be unphased and rephased to calculate UVWs",
-            "The `use_old_proj` option is deprecated",
-        ],
-    ):
-        uv_object.set_uvws_from_antenna_positions(allow_phasing=True, use_old_proj=True)
-    max_diff = np.amax(np.absolute(np.subtract(orig_uvw_array, uv_object.uvw_array)))
-    assert np.isclose(max_diff, 0.0, atol=2)
-
-
-def test_set_uvws_multi_phase_error(uv_phase_comp):
-    """
-    Verify that we can't use the old proj method with multi-phase-ctr objects when
-    calling set_uvws_from_antenna_positions.
-    """
-    uv_object, _ = uv_phase_comp
-
-    with pytest.raises(
-        ValueError, match="Objects with fk5 phase frames are not compatible"
-    ):
-        uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
-
-    uv_object.phase_center_catalog[0]["cat_type"] = "ephem"
-    with pytest.raises(
-        ValueError, match="Objects with ephem phase centers are not compatible"
-    ):
-        uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
-
-    mask = np.full((uv_object.Nblts), False, dtype=bool)
-    mask[: uv_object.Nblts // 2] = True
-    uv_object.phase(ra=0, dec=0, phase_frame="icrs", cat_name="npol", select_mask=mask)
-
-    with pytest.raises(
-        ValueError, match="Objects with multiple phase centers are not compatible"
-    ):
-        uv_object.set_uvws_from_antenna_positions(use_old_proj=True)
-
-
-@pytest.mark.parametrize(
-    "rephase,warn,msg",
-    [
-        [
-            False,
-            [DeprecationWarning, UserWarning],
-            [
-                "The `require_phasing` option is deprecated",
-                "Recalculating uvw_array without adjusting visibility phases",
-            ],
-        ],
-        [True, DeprecationWarning, "The `require_phasing` option is deprecated"],
-    ],
-)
-def test_set_uvws_from_antenna_pos(sma_mir, sma_mir_main, rephase, warn, msg):
-    # Now do this operation w/ SMA data, whose uvws are known good.
-    with uvtest.check_warnings(warn, match=msg):
-        sma_mir.set_uvws_from_antenna_positions(
-            allow_phasing=rephase, require_phasing=rephase
-        )
-    max_diff = np.amax(np.absolute(sma_mir_main.uvw_array - sma_mir.uvw_array))
-    assert np.isclose(max_diff, 0.0, atol=1e-5)
-    # Verify that the data array is untouched if not rephased, otherwise that
-    # the data are in fact different
-    assert np.all(sma_mir_main.data_array == sma_mir.data_array) != rephase
 
 
 def test_get_antenna_redundancies(pyuvsim_redundant):
@@ -10302,23 +9746,13 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
-        uv.read(
-            fileList,
-            skip_bad_files=True,
-            allow_rephase=False,
-            use_future_array_shapes=True,
-        )
+        uv.read(fileList, skip_bad_files=True, use_future_array_shapes=True)
     assert uv == uv_true
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
-        uv.read(
-            fileList,
-            skip_bad_files=True,
-            allow_rephase=False,
-            use_future_array_shapes=True,
-        )
+        uv.read(fileList, skip_bad_files=True, use_future_array_shapes=True)
     # Check that the uncorrupted file was still read in
     assert uv == uv_true
 
@@ -10329,35 +9763,12 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
         uv.read(
             fileList,
             skip_bad_files=True,
-            allow_rephase=False,
             freq_chans=np.arange(uv_true.Nfreqs // 2),
             use_future_array_shapes=True,
         )
     # Check that the uncorrupted file was still read in and selection is applied
     assert uv == uv_true2
 
-    # Test that phasing happens when there's only one good file in a list
-    uv_true2 = uv_true.copy()
-    uv_true2.phase_to_time(np.median(uv_true2.time_array))
-    phase_center_radec = [
-        uv_true2.phase_center_catalog[1]["cat_lon"],
-        uv_true2.phase_center_catalog[1]["cat_lat"],
-    ]
-    with uvtest.check_warnings(
-        [UserWarning, UserWarning, DeprecationWarning, DeprecationWarning],
-        match=[
-            "Failed to read",
-            "Phasing this UVData object",
-            "The `phase_center_radec` parameter is deprecated",
-            "The default behavior is to rephase data from the files",
-        ],
-    ):
-        uv.read(
-            fileList,
-            skip_bad_files=True,
-            phase_center_radec=phase_center_radec,
-            use_future_array_shapes=True,
-        )
     # Check that the uncorrupted file was still read in and phased properly
     uv._consolidate_phase_center_catalogs(
         reference_catalog=uv_true2.phase_center_catalog, ignore_name=True
@@ -10970,7 +10381,7 @@ def test_look_in_catalog_phase_dict(sma_mir):
     "name,stype,arg_dict,msg",
     (
         [-1, "drift", {}, "cat_name must be a string."],
-        ["zenith", "drift", {}, "Only sidereal, ephem, driftscan or unprojected may"],
+        ["zenith", "drift", {}, "cat_type must be one of"],
         ["zenith", "driftscan", {"pm_ra": 0, "pm_dec": 0}, "Non-zero proper motion"],
         [
             "unprojected",
@@ -11055,26 +10466,6 @@ def test_add_phase_center_known_source(sma_mir):
     )
 
     assert return_id == 1
-
-
-def test_unphased_deprecation(sma_mir):
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
-        "unprojected for now, this warning will become an error in version 2.4",
-    ):
-        new_id = sma_mir._add_phase_center("unphased", cat_type="unphased")
-    assert new_id == 0
-    assert sma_mir.phase_center_catalog[new_id]["cat_type"] == "unprojected"
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
-        "unprojected for now, this warning will become an error in version 2.4",
-    ):
-        lookup_id, _ = sma_mir._look_in_catalog("unphased")
-
-    assert new_id == lookup_id
 
 
 def test_remove_phase_center_arg_errs(sma_mir):
@@ -11624,10 +11015,11 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos", [True, False])
-def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
+@pytest.mark.parametrize("phase_frame", ["icrs", "gcrs"])
+def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos, phase_frame):
     """
     Test the phase fixing method fix_phase
     """
@@ -11644,26 +11036,19 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
     phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
 
     # Do the improved phasing on the dat set.
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `fix_old_proj` parameter is deprecated and will be removed",
-    ):
-        uv_in.phase(phase_ra, phase_dec, fix_old_proj=True, cat_name="foo")
+    uv_in.phase(phase_ra, phase_dec, phase_frame=phase_frame, cat_name="foo")
 
-    # First test the case where we are using the old phase method with the uvws
-    # calculated from the antenna positions. Using fix phase here should be "perfect",
-    # since the uvws are completely recalculated from scratch.
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `use_old_proj` option is deprecated and will be removed",
-    ):
-        uv_in_bad.phase(
-            phase_ra,
-            phase_dec,
-            use_old_proj=True,
-            use_ant_pos=use_ant_pos,
-            cat_name="foo",
-        )
+    if use_ant_pos:
+        antpos_str = "_antpos"
+    else:
+        antpos_str = ""
+    bad_data_path = os.path.join(
+        DATA_PATH, f"zen.2458661.23480.HH_oldproj{antpos_str}_{phase_frame}.uvh5"
+    )
+
+    uv_in_bad = UVData.from_file(
+        bad_data_path, fix_old_proj=False, use_future_array_shapes=future_shapes
+    )
 
     if use_ant_pos:
         warn_msg = "Fixing phases using antenna positions."
@@ -11682,11 +11067,16 @@ def test_fix_phase(hera_uvh5, future_shapes, use_ant_pos):
     # Once we know the data are okay, copy over data array and check for equality btw
     # the other attributes of the two objects.
     uv_in_bad.data_array = uv_in.data_array
+    uv_in_bad.history = uv_in.history
     assert uv_in == uv_in_bad
 
 
 def test_fix_phase_error(hera_uvh5):
     uv_in = hera_uvh5
+    with pytest.raises(
+        ValueError, match="Data are unprojected, no phase fixing required."
+    ):
+        uv_in.fix_phase()
     uv_in.phase(
         lon=0, lat=np.pi / 2, cat_type="driftscan", phase_frame="altaz", cat_name="foo"
     )
@@ -11804,11 +11194,7 @@ def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
             uv2._update_phase_center_id(pc_id, catid)
 
     # Add the objects together
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `make_multi_phase` option is deprecated and has no effect",
-    ):
-        uv3 = uv1.__add__(uv2, make_multi_phase=True)
+    uv3 = uv1.__add__(uv2)
     uv3.reorder_blts()
 
     # Separately phase both halves of the full data set
@@ -12850,21 +12236,7 @@ def test_split_write_comb_read(tmp_path, multi_phase):
     ]
     uvd2 = UVData()
 
-    warn_type = [DeprecationWarning] + [UserWarning] * 12
-    msg = (
-        ["The default behavior is to rephase data from the files"]
-        + ["Telescope EVLA is not in known_telescopes."] * 3
-        + ["The uvw_array does not match the expected values given the antenna"] * 9
-    )
-    if multi_phase:
-        warn_type.append(UserWarning)
-        msg.append(
-            "Allow_rephase is True but `phase_center_radec` is not set and "
-            "the first file has multiple phase centers, so no rephasing "
-            "will be done."
-        )
-    with uvtest.check_warnings(warn_type, match=msg):
-        uvd2.read(filenames, use_future_array_shapes=True)
+    uvd2.read(filenames, use_future_array_shapes=True)
 
     uvd2._consolidate_phase_center_catalogs(other=uvd)
 

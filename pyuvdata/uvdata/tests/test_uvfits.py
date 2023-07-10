@@ -1353,173 +1353,6 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
-def test_multi_unphase_on_read(casa_uvfits, tmp_path):
-    uv_full = casa_uvfits
-    uv_full2 = UVData()
-    testfile1 = str(tmp_path / "uv1.uvfits")
-    testfile2 = str(tmp_path / "uv2.uvfits")
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
-    uv1.write_uvfits(testfile1)
-    uv2.write_uvfits(testfile2)
-    with uvtest.check_warnings(
-        [UserWarning] * 6 + [DeprecationWarning] * 2,
-        ["Telescope EVLA is not"] * 2
-        + [
-            "The uvw_array does not match the expected values given the "
-            "antenna positions."
-        ]
-        * 2
-        + ["Unprojecting this UVData object."] * 2
-        + ["The `unphase_to_drift` option is deprecated"] * 2,
-    ):
-        uv1.read(
-            np.array([testfile1, testfile2]),
-            unphase_to_drift=True,
-            use_future_array_shapes=True,
-        )
-
-    # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific frequencies using pyuvdata. "
-        "Combined data along frequency axis "
-        "using pyuvdata.",
-        uv1.history,
-    )
-
-    uv_full.unproject_phase()
-
-    uv1.history = uv_full.history
-
-    # make sure filenames are what we expect
-    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
-    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
-    uv1.filename = uv_full.filename
-    uv1._filename.form = (1,)
-
-    uv1._consolidate_phase_center_catalogs(
-        reference_catalog=uv_full.phase_center_catalog
-    )
-    assert uv1 == uv_full
-
-    # check unphasing when reading only one file
-    with uvtest.check_warnings(
-        [UserWarning] * 3 + [DeprecationWarning],
-        [
-            "Telescope EVLA is not",
-            "The uvw_array does not match the expected values given the "
-            "antenna positions.",
-            "Unprojecting this UVData object.",
-            "The `unphase_to_drift` option is deprecated",
-        ],
-    ):
-        uv_full2.read(
-            casa_tutorial_uvfits, unphase_to_drift=True, use_future_array_shapes=True
-        )
-    assert uv_full2 == uv_full
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-@pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
-@pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
-@pytest.mark.filterwarnings("ignore:The older phase attributes")
-def test_multi_phase_on_read(casa_uvfits, tmp_path):
-    uv_full = casa_uvfits
-    uv_full2 = UVData()
-    testfile1 = str(tmp_path / "uv1.uvfits")
-    testfile2 = str(tmp_path / "uv2.uvfits")
-    phase_center_radec = [
-        uv_full.phase_center_catalog[0]["cat_lon"] + 0.01,
-        uv_full.phase_center_catalog[0]["cat_lat"] + 0.01,
-    ]
-    uv1 = uv_full.copy()
-    uv2 = uv_full.copy()
-    uv1.select(freq_chans=np.arange(0, 32))
-    uv2.select(freq_chans=np.arange(32, 64))
-    uv1.write_uvfits(testfile1)
-    uv2.write_uvfits(testfile2)
-    with uvtest.check_warnings(
-        [UserWarning] * 6 + [DeprecationWarning] * 2,
-        ["Telescope EVLA is not"] * 2
-        + [
-            "The uvw_array does not match the expected values given the "
-            "antenna positions."
-        ]
-        * 2
-        + ["Phasing this UVData object to"] * 2
-        + ["The `allow_rephase` option is deprecated"]
-        + ["The `phase_center_radec` parameter is deprecated"],
-    ):
-        uv1.read(
-            np.array([testfile1, testfile2]),
-            phase_center_radec=phase_center_radec,
-            allow_rephase=True,
-            use_future_array_shapes=True,
-        )
-
-    # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
-        "specific frequencies using pyuvdata. "
-        "Combined data along frequency axis "
-        "using pyuvdata.",
-        uv1.history,
-    )
-
-    uv_full.phase(*phase_center_radec, cat_name=uv1.phase_center_catalog[0]["cat_name"])
-    uv1.history = uv_full.history
-
-    # make sure filenames are what we expect
-    assert set(uv1.filename) == {"uv1.uvfits", "uv2.uvfits"}
-    assert uv_full.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
-    uv1.filename = uv_full.filename
-    uv1._filename.form = (1,)
-
-    uv_full._consolidate_phase_center_catalogs(
-        reference_catalog=uv1.phase_center_catalog
-    )
-    assert uv1 == uv_full
-
-    # check phasing when reading only one file
-    with uvtest.check_warnings(
-        [UserWarning] * 3 + [DeprecationWarning],
-        [
-            "Telescope EVLA is not",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
-            "Phasing this UVData object to",
-            "The `phase_center_radec` parameter is deprecated",
-        ],
-    ):
-        uv_full2.read(
-            casa_tutorial_uvfits,
-            phase_center_radec=phase_center_radec,
-            use_future_array_shapes=True,
-        )
-
-    uv_full2._consolidate_phase_center_catalogs(
-        reference_catalog=uv_full.phase_center_catalog
-    )
-    assert uv_full2 == uv_full
-
-    with pytest.raises(ValueError, match="phase_center_radec should have length 2."):
-        with uvtest.check_warnings(
-            DeprecationWarning, match="The `phase_center_radec` parameter is deprecated"
-        ):
-            uv_full2.read(
-                casa_tutorial_uvfits,
-                phase_center_radec=phase_center_radec[0],
-                use_future_array_shapes=True,
-            )
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_ms_write_uvfits_casa_history(tmp_path):
     """
     read in .ms file.
@@ -1664,26 +1497,16 @@ def test_mwax_missing_frame_comment(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
-@pytest.mark.parametrize("spoof", [False, True])
-def test_no_spoof(sma_mir, tmp_path, spoof):
+def test_uvfits_extra_params(sma_mir, tmp_path):
     """
     Verify that option UVParameters are correctly generated when writing to a UVFITS
-    file if not previously set, and that spoof_nonessential throws the correct warning
-    message if used.
+    file if not previously set.
     """
     sma_uvfits = UVData()
     sma_mir._set_app_coords_helper()
-    filename = os.path.join(tmp_path, "spoof.uvfits" if spoof else "no_spoof.uvfits")
+    filename = os.path.join(tmp_path, "test.uvfits")
 
-    if spoof:
-        warn_type = DeprecationWarning
-        warn_msg = "UVFITS-required metadata are now set automatically to "
-    else:
-        warn_type = None
-        warn_msg = ""
-
-    with uvtest.check_warnings(warn_type, match=warn_msg):
-        sma_mir.write_uvfits(filename, spoof_nonessential=spoof)
+    sma_mir.write_uvfits(filename)
 
     sma_uvfits = UVData.from_file(filename, use_future_array_shapes=True)
 
@@ -1716,7 +1539,7 @@ def test_no_spoof(sma_mir, tmp_path, spoof):
         assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
     sma_uvfits.phase_center_catalog = sma_mir.phase_center_catalog
 
-    # Finally, move on to the "non-spoofed paramters"
+    # Finally, move on to the uvfits extra parameters
     exp_dict = {
         "dut1": -0.2137079,
         "earth_omega": 360.9856438593,
@@ -1743,55 +1566,3 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
         ValueError, match="The data are not all phased to a sidereal source"
     ):
         hera_uvh5.write_uvfits(tmp_path)
-
-
-@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
-@pytest.mark.parametrize("use_ant_pos", [True, False])
-def test_fix_phase(hera_uvh5, tmpdir, use_ant_pos):
-    """
-    Test the phase fixing method fix_phase
-    """
-    # Make some copies of the data
-    uv_in = hera_uvh5
-    uv_in.extra_keywords = {}
-
-    # These values could be anything -- we're just picking something that we know should
-    # be visible from the telescope at the time of obs (ignoring horizon limits).
-    phase_ra = uv_in.lst_array[-1]
-    phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The `use_old_proj` option is deprecated and will be removed",
-    ):
-        uv_in.phase(
-            phase_ra,
-            phase_dec,
-            use_old_proj=True,
-            use_ant_pos=use_ant_pos,
-            cat_name="foo",
-        )
-
-    write_file = tmpdir + "oldphase_test.uvfits"
-
-    uv_in.write_uvfits(write_file)
-    if use_ant_pos:
-        warn_msg = "Fixing phases using antenna positions."
-    else:
-        warn_msg = "Attempting to fix residual phasing errors from the old `phase`"
-
-    with uvtest.check_warnings(UserWarning, warn_msg):
-        uv_fixed = UVData.from_file(
-            write_file,
-            fix_old_proj=True,
-            fix_use_ant_pos=use_ant_pos,
-            use_future_array_shapes=True,
-        )
-
-    with uvtest.check_warnings(UserWarning, warn_msg):
-        uv_in.fix_phase(use_ant_pos=use_ant_pos)
-
-    uv_fixed._consolidate_phase_center_catalogs(
-        reference_catalog=uv_in.phase_center_catalog
-    )
-
-    assert uv_fixed.__eq__(uv_in, check_extra=False)

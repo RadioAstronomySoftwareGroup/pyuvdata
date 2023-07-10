@@ -19,7 +19,7 @@ from ..uvbase import UVBase
 from ..uvcal import UVCal
 from ..uvdata import UVData
 
-__all__ = ["UVFlag", "flags2waterfall", "and_rows_cols", "lst_from_uv"]
+__all__ = ["UVFlag", "flags2waterfall", "and_rows_cols"]
 
 
 _future_array_shapes_warning = (
@@ -53,36 +53,6 @@ def and_rows_cols(waterfall):
     wf[:, (np.sum(waterfall, axis=0) / Ntimes) == 1] = True
     wf[(np.sum(waterfall, axis=1) / Nfreqs) == 1] = True
     return wf
-
-
-def lst_from_uv(uv):
-    """Calculate the lst_array for a UVData or UVCal object.
-
-    Parameters
-    ----------
-    uv : a UVData or UVCal object.
-        Object from which lsts are calculated
-
-    Returns
-    -------
-    lst_array: array of float
-        lst_array corresponding to time_array and at telescope location.
-        Units are radian.
-
-    """
-    warnings.warn(
-        "The lst_from_uv function is deprecated. Use the `set_lsts_from_time_array` "
-        "method on the input object. This will become an error in version 2.4.",
-        category=DeprecationWarning,
-    )
-
-    if not isinstance(uv, (UVCal, UVData)):
-        raise ValueError(
-            "Function lst_from_uv can only operate on UVCal or UVData object."
-        )
-
-    uv.set_lsts_from_time_array()
-    return copy.deepcopy(uv.lst_array)
 
 
 def flags2waterfall(uv, flag_array=None, keep_pol=False):
@@ -289,7 +259,6 @@ class UVFlag(UVBase):
             description="Number of spectral windows "
             "(ie non-contiguous spectral chunks).",
             expected_type=int,
-            required=False,  # will be required starting in version 2.4
         )
         self._Nfreqs = uvp.UVParameter(
             "Nfreqs", description="Number of frequency channels", expected_type=int
@@ -459,7 +428,6 @@ class UVFlag(UVBase):
             form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
-            required=False,  # will be required starting in version 2.4
         )  # 1 mHz
 
         self._spw_array = uvp.UVParameter(
@@ -467,7 +435,6 @@ class UVFlag(UVBase):
             description="Array of spectral window numbers, shape (Nspws).",
             form=("Nspws",),
             expected_type=int,
-            required=False,  # will be required starting in version 2.4
         )
 
         desc = (
@@ -507,7 +474,6 @@ class UVFlag(UVBase):
             description="Name of telescope or array (string).",
             form="str",
             expected_type=str,
-            required=False,  # will be required starting in version 2.4
         )
 
         self._telescope_location = uvp.LocationParameter(
@@ -515,7 +481,6 @@ class UVFlag(UVBase):
             description=desc,
             acceptable_range=(6.35e6, 6.39e6),
             tols=1e-3,
-            required=False,  # will be required starting in version 2.4
         )
 
         self._history = uvp.UVParameter(
@@ -575,7 +540,6 @@ class UVFlag(UVBase):
             description=desc,
             form=("Nants_telescope",),
             expected_type=str,
-            required=False,  # will be required starting in version 2.4
         )
 
         desc = (
@@ -591,7 +555,6 @@ class UVFlag(UVBase):
             description=desc,
             form=("Nants_telescope",),
             expected_type=int,
-            required=False,  # will be required starting in version 2.4
         )
 
         desc = (
@@ -606,7 +569,6 @@ class UVFlag(UVBase):
             form=("Nants_telescope", 3),
             expected_type=float,
             tols=1e-3,  # 1 mm
-            required=False,  # will be required starting in version 2.4
         )
 
         #  --extra information ---
@@ -896,7 +858,6 @@ class UVFlag(UVBase):
         self._Nants_data.required = True
         self._Nbls.required = False
         self._Nblts.required = False
-        self._Nspws.required = True  # this should be removed in version 2.4
 
         if self.future_array_shapes:
             self._metric_array.form = ("Nants_data", "Nfreqs", "Ntimes", "Npols")
@@ -922,7 +883,6 @@ class UVFlag(UVBase):
         self._Nants_data.required = True
         self._Nbls.required = True
         self._Nblts.required = True
-        self._Nspws.required = True  # this should be removed in version 2.4
 
         if self.time_array is not None:
             self.Nblts = len(self.time_array)
@@ -952,7 +912,6 @@ class UVFlag(UVBase):
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nblts.required = False
-        self._Nspws.required = False  # this should be removed in version 2.4
 
         self._metric_array.form = ("Ntimes", "Nfreqs", "Npols")
         self._flag_array.form = ("Ntimes", "Nfreqs", "Npols")
@@ -996,26 +955,6 @@ class UVFlag(UVBase):
         else:
             self._flex_spw_id_array.required = False
 
-        # Issue a deprecation warnings for parameters that are not set but will be
-        # required in v2.4
-        params_to_warn = [
-            "telescope_name",
-            "telescope_location",
-            "channel_width",
-            "spw_array",
-            "Nspws",
-            "antenna_names",
-            "antenna_numbers",
-            "antenna_positions",
-        ]
-        for param in params_to_warn:
-            if getattr(self, param) is None:
-                warnings.warn(
-                    f"The {param} is not set. It will be a required "
-                    "parameter starting in pyuvdata version 2.4",
-                    category=DeprecationWarning,
-                )
-
         # first run the basic check from UVBase
         super().check(check_extra, run_check_acceptability)
 
@@ -1054,6 +993,8 @@ class UVFlag(UVBase):
         elif self.type == "antenna":
             if self.antenna_numbers is not None:
                 if not all(ant in self.antenna_numbers for ant in self.ant_array):
+                    print(self.antenna_numbers)
+                    print(np.unique(self.ant_array))
                     raise ValueError(
                         "All antennas in ant_array must be in antenna_numbers."
                     )
@@ -1673,23 +1614,20 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    warnings.warn(
+                    raise ValueError(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
-                        f"uv is {uv.channel_width}. This will become an error in "
-                        "version 2.4.",
-                        DeprecationWarning,
+                        f"uv is {uv.channel_width}."
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    warnings.warn(
+                    raise ValueError(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}. This will become an error in version 2.4.",
-                        DeprecationWarning,
+                        f"{uv_param.value}."
                     )
 
         # Deal with polarization
@@ -1966,23 +1904,20 @@ class UVFlag(UVBase):
                     rtol=self._channel_width.tols[0],
                     atol=self._channel_width.tols[1],
                 ):
-                    warnings.warn(
+                    raise ValueError(
                         "channel_width is not the same this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
-                        f"uv is {uv.channel_width}. This will become an error in "
-                        "version 2.4.",
-                        DeprecationWarning,
+                        f"uv is {uv.channel_width}."
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
                 this_param = getattr(self, "_" + param)
                 uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    warnings.warn(
+                    raise ValueError(
                         f"{param} is not the same this object and on uv. The value on "
                         f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}. This will become an error in version 2.4.",
-                        DeprecationWarning,
+                        f"{uv_param.value}."
                     )
 
         # Deal with polarization
@@ -2314,13 +2249,7 @@ class UVFlag(UVBase):
 
         ax = axis_nums[axis][type_nums[self.type]]
 
-        warn_compatibility_params = [
-            "telescope_name",
-            "telescope_location",
-            "antenna_names",
-            "antenna_numbers",
-            "antenna_positions",
-        ]
+        warn_compatibility_params = ["telescope_name", "telescope_location"]
 
         if axis != "frequency":
             warn_compatibility_params.extend(
@@ -2334,26 +2263,31 @@ class UVFlag(UVBase):
         if axis != "time":
             warn_compatibility_params.extend(["time_array", "lst_array"])
         if axis != "antenna" and self.type == "antenna":
-            warn_compatibility_params.extend(["ant_array"])
+            warn_compatibility_params.extend(
+                ["ant_array", "antenna_names", "antenna_numbers", "antenna_positions"]
+            )
         if axis != "baseline" and self.type == "baseline":
             warn_compatibility_params.extend(
-                ["baseline_array", "ant_1_array", "ant_2_array"]
+                [
+                    "baseline_array",
+                    "ant_1_array",
+                    "ant_2_array",
+                    "antenna_names",
+                    "antenna_numbers",
+                    "antenna_positions",
+                ]
             )
 
-        nants_telescope_unmatched = []
         for param in warn_compatibility_params:
             # compare the UVParameter objects to properly handle tolerances
             this_param = getattr(self, "_" + param)
             other_param = getattr(other, "_" + param)
             if this_param.value is not None and this_param != other_param:
-                warnings.warn(
+                raise ValueError(
                     f"{param} is not the same the two objects. The value on this "
                     f"object is {this_param.value}; the value on the other object is "
-                    f"{other_param.value}. This will become an error in version 2.4.",
-                    DeprecationWarning,
+                    f"{other_param.value}."
                 )
-                if param in ["antenna_numbers", "antenna_names", "antenna_positions"]:
-                    nants_telescope_unmatched.append(param)
 
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -2397,6 +2331,20 @@ class UVFlag(UVBase):
                 )
             this.ant_array = np.concatenate([this.ant_array, other.ant_array])
             this.Nants_data = len(this.ant_array)
+            temp_ant_nums = np.concatenate(
+                [this.antenna_numbers, other.antenna_numbers]
+            )
+            temp_ant_names = np.concatenate([this.antenna_names, other.antenna_names])
+            temp_ant_pos = np.concatenate(
+                [this.antenna_positions, other.antenna_positions], axis=0
+            )
+            this.antenna_numbers, unique_inds = np.unique(
+                temp_ant_nums, return_index=True
+            )
+            this.antenna_names = temp_ant_names[unique_inds]
+            this.antenna_positions = temp_ant_pos[unique_inds]
+            this.Nants_telescope = len(this.antenna_numbers)
+
         elif axis == "frequency":
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array], axis=-1
@@ -2406,11 +2354,9 @@ class UVFlag(UVBase):
                     [this.channel_width, other.channel_width]
                 )
             elif this.channel_width is not None or other.channel_width is not None:
-                warnings.warn(
+                raise ValueError(
                     "channel_width is None on one object and an array on the other. "
-                    "It will be set to None on the combined object. This will become "
-                    "an error in version 2.4",
-                    DeprecationWarning,
+                    "It will be set to None on the combined object."
                 )
                 this.channel_width = None
 
@@ -2456,38 +2402,6 @@ class UVFlag(UVBase):
                 [this.polarization_array, other.polarization_array]
             )
             this.Npols = len(this.polarization_array)
-
-        if len(nants_telescope_unmatched) > 0 and (
-            axis in ["baseline", "antenna"]
-            or (axis == "time" and self.type == "baseline", "antenna")
-        ):
-            # this handles the case where antenna_numbers/names/positions do not match
-            # but we added objects across related axes. The following code ensures we
-            # at least have all the unique values so that the check doesn't error
-            warnings.warn(
-                f"Parameters {nants_telescope_unmatched} are different on the two "
-                "objects but are related to the axis they are being combined along. "
-                "We will keep the unique antenna_numbers, but if there are different "
-                "names or positions for those numbers on the two objects we will keep "
-                "the values from the first object. This will become an error in "
-                "version 2.4",
-                DeprecationWarning,
-            )
-            this.antenna_numbers = np.concatenate(
-                (this.antenna_numbers, other.antenna_numbers)
-            )
-            this.antenna_names = np.concatenate(
-                (this.antenna_names, other.antenna_names)
-            )
-            this.antenna_positions = np.concatenate(
-                (this.antenna_positions, other.antenna_positions), axis=0
-            )
-            this.antenna_numbers, ri = np.unique(
-                this.antenna_numbers, return_index=True
-            )
-            this.antenna_names = this.antenna_names[ri]
-            this.antenna_positions = this.antenna_positions[ri]
-            this.Nants_telescope = this.antenna_numbers.size
 
         for attr in this._data_params:
             # Check that 'other' also has the attribute filled
@@ -3649,7 +3563,9 @@ class UVFlag(UVBase):
                 if self.telescope_name is None:
                     warnings.warn(
                         "telescope_name not available in file, so telescope related "
-                        "parameters cannot be set."
+                        "parameters cannot be set. This will result in errors when the "
+                        "object is checked. To avoid the errors, use `run_check=False` "
+                        "to turn off the check."
                     )
                 elif (
                     self.telescope_location is None
@@ -3683,16 +3599,17 @@ class UVFlag(UVBase):
                             msg += ", setting based on ant_array."
                             self.antenna_numbers = np.unique(self.ant_array)
                     else:
+                        msg += ", cannot be set based on "
                         if self.type == "baseline":
-                            msg += (
-                                ", cannot be set based on ant_1_array and ant_2_array "
-                                "because Nants_telescope is greater than Nants_data."
-                            )
+                            msg += "ant_1_array and ant_2_array"
                         else:
-                            msg += (
-                                ", cannot be set based on ant_array because "
-                                "Nants_telescope is greater than Nants_data."
-                            )
+                            msg += "ant_array"
+                        msg += (
+                            " because Nants_telescope is greater than Nants_data. This "
+                            "will result in errors when the object is checked. To "
+                            "avoid the errors, use `run_check=False` to turn off the "
+                            "check."
+                        )
                     warnings.warn(msg)
 
                 if self.antenna_names is None and self.antenna_numbers is not None:

@@ -954,15 +954,6 @@ def test_spatial_interpolation_samepoints(
         )
         assert np.allclose(uvbeam.basis_vector_array, interp_basis_vector)
 
-    # test error if invalid interpolation_function is set on the object
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "interpolation_function must be one of ['az_za_simple', 'healpix_simple']"
-        ),
-    ):
-        uvbeam.interpolation_function = "foo"
-
     # test error with using an incompatible interpolation function
     with pytest.raises(
         ValueError,
@@ -980,28 +971,15 @@ def test_spatial_interpolation_samepoints(
 
     # test warning if interpolation_function is set differently on object and in
     # function call and error if not set to known function
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The interpolation_function attribute on UVBeam objects is "
-        "deprecated and support for it will be removed in version 2.4. Instead, pass "
-        "the desired function to the `interp` or `to_healpix` methods. ",
-    ):
-        uvbeam.interpolation_function = "az_za_simple"
     with pytest.raises(
         ValueError, match="interpolation_function not recognized, must be one of "
     ):
-        with uvtest.check_warnings(
-            UserWarning,
-            match="The interpolation_function parameter was set but it does not "
-            "match the interpolation_function attribute on the object. Using "
-            "the one passed to this method.",
-        ):
-            interp_data_array, interp_basis_vector = uvbeam.interp(
-                az_array=az_orig_vals,
-                za_array=za_orig_vals,
-                freq_array=freq_orig_vals,
-                interpolation_function="foo",
-            )
+        interp_data_array, interp_basis_vector = uvbeam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            interpolation_function="foo",
+        )
 
     # test that new object from interpolation is identical
     optional_freq_params = [

@@ -4474,7 +4474,7 @@ class UVCal(UVBase):
             **kwargs,
         )
 
-        if future_array_shapes != uvdata.future_array_shapes:
+        if future_array_shapes != new.future_array_shapes:
             if future_array_shapes:
                 new.use_future_array_shapes()
             else:

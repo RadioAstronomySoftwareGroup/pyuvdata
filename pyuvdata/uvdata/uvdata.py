@@ -16,7 +16,7 @@ import astropy.units as units
 import numpy as np
 from astropy import constants as const
 from astropy import coordinates as coord
-from astropy.coordinates import FK5, Angle, EarthLocation, SkyCoord
+from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 # standard angle tolerance: 1 mas in radians.
 radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
+
+allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
 
 reporting_request = (
     " Please report this in our issue log, we have not been able to find a file with "
@@ -963,15 +965,8 @@ class UVData(UVBase):
                 )
             cat_name = phase_dict["cat_name"]
 
-        if cat_type == "unphased" or cat_name == "unphased":
-            warnings.warn(
-                "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
-                "unprojected for now, this warning will become an error in version 2.4",
-                DeprecationWarning,
-            )
-            cat_type = "unprojected"
-            if cat_name == "unphased":
-                cat_name = "unprojected"
+        if cat_type is not None and cat_type not in allowed_cat_types:
+            raise ValueError(f"If set, cat_type must be one of {allowed_cat_types}")
 
         # Emulate the defaults that are set if None is detected for
         # unprojected and driftscan types.
@@ -1172,23 +1167,10 @@ class UVData(UVBase):
         if not isinstance(cat_name, str):
             raise ValueError("cat_name must be a string.")
 
-        if cat_type == "unphased":
-            warnings.warn(
-                "The 'unphased' catalog type has been renamed to 'unprojected'. Using "
-                "unprojected for now, this warning will become an error in version 2.4",
-                DeprecationWarning,
-            )
-            cat_type = "unprojected"
-            if cat_name == "unphased":
-                cat_name = "unprojected"
-
         # We currently only have 4 supported types -- make sure the user supplied
         # one of those
-        if cat_type not in ["sidereal", "ephem", "driftscan", "unprojected"]:
-            raise ValueError(
-                "Only sidereal, ephem, driftscan or unprojected may be used "
-                "for cat_type."
-            )
+        if cat_type not in allowed_cat_types:
+            raise ValueError(f"cat_type must be one of {allowed_cat_types}.")
 
         # Both proper motion parameters need to be set together
         if (cat_pm_ra is None) != (cat_pm_dec is None):
@@ -5396,50 +5378,8 @@ class UVData(UVBase):
                     (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
                 )
 
-    def unphase_to_drift(self, phase_frame=None, use_ant_pos=True, use_old_proj=False):
-        """
-        Undo phasing to get back to an `unprojected` state.
-
-        Deprecated. Use "unproject_phase" instead.
-        See the phasing memo under docs/references for more documentation.
-
-        Parameters
-        ----------
-        phase_frame : str
-            Deprecated, will be removed in version 2.4. Only used if use_old_proj is
-            True. The astropy frame to phase from Either 'icrs' or 'gcrs'. 'gcrs'
-            accounts for precession & nutation, 'icrs' also includes abberation.
-            Defaults to using the "cat_frame" value in the `phase_center_catalog`.
-        use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions
-            rather than from the existing uvws. Default is True.
-        use_old_proj : bool
-            Deprecates, will be removed in version 2.4. If True, uses the 'old' way of
-            calculating baseline projections. In the future, if a dataset is known to
-            be phased using the old way, use the `fix_phase` method to fix the phasing
-            before calling this method.
-
-        Raises
-        ------
-        ValueError
-            If the object is alread unprojected.
-        """
-        warnings.warn(
-            "This method is deprecated in favor of `unproject_phase`, which better "
-            "describes what is being done. This method will be removed in version 2.4.",
-            DeprecationWarning,
-        )
-        self.unproject_phase(
-            phase_frame=phase_frame, use_ant_pos=use_ant_pos, use_old_proj=use_old_proj
-        )
-
     def unproject_phase(
-        self,
-        phase_frame=None,
-        use_ant_pos=True,
-        use_old_proj=False,
-        select_mask=None,
-        cat_name="unprojected",
+        self, use_ant_pos=True, select_mask=None, cat_name="unprojected"
     ):
         """
         Undo phasing to get back to an `unprojected` state.
@@ -5448,22 +5388,12 @@ class UVData(UVBase):
 
         Parameters
         ----------
-        phase_frame : str
-            Deprecated, will be removed in version 2.4. Only used if use_old_proj is
-            True. The astropy frame to phase from, either 'icrs' or 'gcrs'. 'gcrs'
-            accounts for precession & nutation, 'icrs' also includes abberation.
-            Defaults to using the "cat_frame" value in the `phase_center_catalog`.
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws. Default is True.
-        use_old_proj : bool
-            Deprecated, will be removed in version 2.4. If True, uses the 'old' way of
-            calculating baseline projections. If a dataset is known to be phased using
-            the old way, use the `fix_phase` method to fix the phasing before calling
-            this method.
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis.
-            Shape is (Nblts,). Ignored if `use_old_proj` is True.
+            Shape is (Nblts,).
         cat_name : str
             Name for the newly unprojected entry in the phase_center_catalog.
 
@@ -5472,224 +5402,59 @@ class UVData(UVBase):
         ValueError
             If the object is alread unprojected.
         """
-        if not use_old_proj:
-            # select_mask_use is length Nblts, True means should be unprojected
-            # only select blts that are actually phased.
-            if select_mask is not None:
-                if len(select_mask) != self.Nblts:
-                    raise IndexError("Selection mask must be of length Nblts.")
-                if not isinstance(select_mask[0], (bool, np.bool_)):
-                    raise ValueError("Selection mask must be a boolean array")
-                select_mask_use = ~self._check_for_cat_type("unprojected") & select_mask
-            else:
-                select_mask_use = ~self._check_for_cat_type("unprojected")
-
-            if np.all(~select_mask_use):
-                warnings.warn("No selected baselines are projected, doing nothing")
-
-            new_uvw = uvutils.calc_uvw(
-                lst_array=self.lst_array,
-                use_ant_pos=use_ant_pos,
-                uvw_array=self.uvw_array,
-                antenna_positions=self.antenna_positions,
-                antenna_numbers=self.antenna_numbers,
-                ant_1_array=self.ant_1_array,
-                ant_2_array=self.ant_2_array,
-                old_app_ra=self.phase_center_app_ra,
-                old_app_dec=self.phase_center_app_dec,
-                old_frame_pa=self.phase_center_frame_pa,
-                telescope_lat=self.telescope_location_lat_lon_alt[0],
-                telescope_lon=self.telescope_location_lat_lon_alt[1],
-                to_enu=True,
-            )
-
-            self._apply_w_proj(0.0, self.uvw_array[select_mask_use, 2], select_mask_use)
-            self.uvw_array = new_uvw
-
-            # remove/update phase center
-            match_id, match_diffs = self._look_in_catalog(
-                cat_name=cat_name, cat_type="unprojected"
-            )
-            if match_diffs == 0:
-                self.phase_center_id_array[select_mask_use] = match_id
-            else:
-                self.phase_center_id_array[select_mask_use] = self._add_phase_center(
-                    cat_name, cat_type="unprojected"
-                )
-            self._clear_unused_phase_centers()
-            self.phase_center_app_ra[select_mask_use] = self.lst_array[
-                select_mask_use
-            ].copy()
-            self.phase_center_app_dec[
-                select_mask_use
-            ] = self.telescope_location_lat_lon_alt[0]
-            self.phase_center_frame_pa[select_mask_use] = 0
-
-            return
-
-        warnings.warn(
-            "The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4. In the future, if a dataset is known to be phased using the "
-            "old way, use the `fix_phase` method to fix the phasing before calling "
-            "this method.",
-            DeprecationWarning,
-        )
-
-        if phase_frame is not None:
-            warnings.warn(
-                "The `phase_frame` parameter is deprecated and will be removed in "
-                "version 2.4 because it only applies if `use_old_proj` is True.",
-                DeprecationWarning,
-            )
-
-        # If you are a new phase style data set, there's no valid reason to be going
-        # back to the old phase method. Time to bail!
-        compatible, reason = self._old_phase_attributes_compatible()
-        if not compatible:
-            raise ValueError(
-                "Objects with " + reason + " are not compatible with the old phasing "
-                "method, please set use_old_proj=False."
-            )
-
-        # TODO the following code needs to be moved to `fix_phase` in version 2.4
-        # when the `use_old_proj` parameter is removed
-        phase_dict = list(self.phase_center_catalog.values())[0]
-
-        if phase_dict["cat_type"] == "unprojected":
-            raise ValueError("Data are already unprojected.")
-
-        if phase_frame is None:
-            phase_frame = phase_dict["cat_frame"]
-
-        icrs_coord = SkyCoord(
-            ra=phase_dict["cat_lon"],
-            dec=phase_dict["cat_lat"],
-            unit="radian",
-            frame="icrs",
-        )
-        if phase_frame == "icrs":
-            frame_phase_center = icrs_coord
+        # select_mask_use is length Nblts, True means should be unprojected
+        # only select blts that are actually phased.
+        if select_mask is not None:
+            if len(select_mask) != self.Nblts:
+                raise IndexError("Selection mask must be of length Nblts.")
+            if not isinstance(select_mask[0], (bool, np.bool_)):
+                raise ValueError("Selection mask must be a boolean array")
+            select_mask_use = ~self._check_for_cat_type("unprojected") & select_mask
         else:
-            # use center of observation for obstime for gcrs
-            center_time = np.mean([np.max(self.time_array), np.min(self.time_array)])
-            icrs_coord.obstime = Time(center_time, format="jd")
-            frame_phase_center = icrs_coord.transform_to("gcrs")
+            select_mask_use = ~self._check_for_cat_type("unprojected")
 
-        # This promotion is REQUIRED to get the right answer when we
-        # add in the telescope location for ICRS
-        # In some cases, the uvws are already float64, but sometimes they're not
-        self.uvw_array = np.float64(self.uvw_array)
+        if np.all(~select_mask_use):
+            warnings.warn("No selected baselines are projected, doing nothing")
 
-        # apply -w phasor
-        if not self.metadata_only:
-            w_lambda = (
-                self.uvw_array[:, 2].reshape(self.Nblts, 1)
-                / const.c.to("m/s").value
-                * self.freq_array.reshape(1, self.Nfreqs)
-            )
-            if self.future_array_shapes:
-                phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, :, None])
-            else:
-                phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
-            self.data_array *= phs
-
-        unique_times, _ = np.unique(self.time_array, return_index=True)
-
-        telescope_location = EarthLocation.from_geocentric(
-            *self.telescope_location, unit=units.m
+        new_uvw = uvutils.calc_uvw(
+            lst_array=self.lst_array,
+            use_ant_pos=use_ant_pos,
+            uvw_array=self.uvw_array,
+            antenna_positions=self.antenna_positions,
+            antenna_numbers=self.antenna_numbers,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            old_app_ra=self.phase_center_app_ra,
+            old_app_dec=self.phase_center_app_dec,
+            old_frame_pa=self.phase_center_frame_pa,
+            telescope_lat=self.telescope_location_lat_lon_alt[0],
+            telescope_lon=self.telescope_location_lat_lon_alt[1],
+            to_enu=True,
         )
-        obs_times = Time(unique_times, format="jd")
-        itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
-        itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
-        # just calling transform_to(coord.GCRS) will delete the obstime information
-        # need to re-add obstimes for a GCRS transformation
 
-        if phase_frame == "gcrs":
-            frame_telescope_locations = itrs_telescope_locations.transform_to(
-                getattr(coord, f"{phase_frame}".upper())(obstime=obs_times)
-            )
+        self._apply_w_proj(0.0, self.uvw_array[select_mask_use, 2], select_mask_use)
+        self.uvw_array = new_uvw
+
+        # remove/update phase center
+        match_id, match_diffs = self._look_in_catalog(
+            cat_name=cat_name, cat_type="unprojected"
+        )
+        if match_diffs == 0:
+            self.phase_center_id_array[select_mask_use] = match_id
         else:
-            frame_telescope_locations = itrs_telescope_locations.transform_to(
-                getattr(coord, f"{phase_frame}".upper())
+            self.phase_center_id_array[select_mask_use] = self._add_phase_center(
+                cat_name, cat_type="unprojected"
             )
-
-        frame_telescope_locations.representation_type = "cartesian"
-
-        for ind, jd in enumerate(unique_times):
-            inds = np.where(self.time_array == jd)[0]
-
-            obs_time = obs_times[ind]
-
-            if use_ant_pos:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "This function supports the old phasing method"
-                    )
-                    ant_uvw = uvutils.phase_uvw(
-                        self.telescope_location_lat_lon_alt[1],
-                        self.telescope_location_lat_lon_alt[0],
-                        self.antenna_positions,
-                    )
-                # instead of looping through every ind, find the spot in antenna number
-                # array where ant_num <= ant1 < ant_number and similarly for ant2
-                # for all baselines in inds
-                # then find the uvw coordinate for all at the same time
-
-                # antenna_numbers does not necessarily need to be in order on the object
-                # but needs to be in order for the searchsorted to work.
-                # ant1_index and ant2_index arrays will preserve the order of blts
-                ant_sort = np.argsort(self.antenna_numbers)
-                ant1_index = np.searchsorted(
-                    self.antenna_numbers[ant_sort], self.ant_1_array[inds]
-                )
-                ant2_index = np.searchsorted(
-                    self.antenna_numbers[ant_sort], self.ant_2_array[inds]
-                )
-                self.uvw_array[inds] = (
-                    ant_uvw[ant_sort][ant2_index, :] - ant_uvw[ant_sort][ant1_index, :]
-                )
-
-            else:
-                frame_telescope_location = frame_telescope_locations[ind]
-                itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
-
-                uvws_use = self.uvw_array[inds, :]
-
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "This function supports the old phasing method"
-                    )
-                    uvw_rel_positions = uvutils.unphase_uvw(
-                        frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
-                    )
-
-                frame_uvw_coord = SkyCoord(
-                    x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
-                    y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
-                    z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
-                    frame=phase_frame,
-                    obstime=obs_time,
-                    representation_type="cartesian",
-                )
-
-                itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
-
-                # now convert them to ENU, which is the space uvws are in
-                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(
-                    itrs_uvw_coord.cartesian.get_xyz().value.T, *itrs_lat_lon_alt
-                )
-
-        # remove/add phase center
-        self.phase_center_id_array[:] = self._add_phase_center(
-            cat_name, cat_type="unprojected"
-        )
         self._clear_unused_phase_centers()
+        self.phase_center_app_ra[select_mask_use] = self.lst_array[
+            select_mask_use
+        ].copy()
+        self.phase_center_app_dec[
+            select_mask_use
+        ] = self.telescope_location_lat_lon_alt[0]
+        self.phase_center_frame_pa[select_mask_use] = 0
 
-        self.phase_center_app_ra = self.lst_array.copy()
-        self.phase_center_app_dec[:] = (
-            np.zeros(self.Nblts) + self.telescope_location_lat_lon_alt[0]
-        )
-        self.phase_center_frame_pa = np.zeros(self.Nblts)
+        return
 
     def _phase_dict_helper(
         self,
@@ -5912,12 +5677,8 @@ class UVData(UVBase):
         cat_name=None,
         lookup_name=False,
         use_ant_pos=True,
-        allow_rephase=None,
-        orig_phase_frame=None,
         select_mask=None,
         cleanup_old_sources=True,
-        use_old_proj=False,
-        fix_old_proj=None,
     ):
         """
         Phase data to a new direction, supports sidereal, ephemeris and driftscan types.
@@ -5986,59 +5747,20 @@ class UVData(UVBase):
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
-        allow_rephase : bool
-            Deprecated, will be removed in version 2.4. Only used if  `use_old_proj` is
-            True. If this parameter is True, allow unphasing and rephasing if this
-            object is already phased.
-        orig_phase_frame : str
-            Deprecated, will be removed in version 2.4. The original phase frame of
-            this object (to use in unphasing). Only used if `use_old_proj` is True,
-            object is already phased, `allow_rephase` is True and the
-            phase_center_ra/dec of the object does not match `ra` and `dec`.
-            Defaults to using the "cat_frame" value in the `phase_center_catalog`.
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis.
             Shape is (Nblts,). Ignored if `use_old_proj` is True.
-        use_old_proj : bool
-            Deprecated, will be removed in version 2.4. If True, use the "old" method
-            for calculating baseline uvw-coordinates, which involved using astropy to
-            move antenna positions (in ITRF) into the requested reference frame
-            (either GCRS or ICRS). Default is False.
-        fix_old_proj : bool
-            Deprecated and has no effect. Detection of old phasing is really only
-            possible for uvh5 files, and those are now fixed on read by default. If the
-            object is known to have been phased with the old phasing, use the
-            `fix_phase` method to correct the phasing.
 
         Raises
         ------
         ValueError
-            If the `use_old_proj` is True, the object is already phased, and
-            allow_rephase is False.
+            If the `cat_name` is None.
+
         """
-        if fix_old_proj is not None:
-            warnings.warn(
-                "The `fix_old_proj` parameter is deprecated and will be removed in "
-                "version 2.4. If the object is known to have been phased with the old "
-                "phasing, use the `fix_phase` method to correct the phasing.",
-                DeprecationWarning,
-            )
-
+        # TODO: move this up to a required (non-defaulted) parameter in function
+        # signature when we require keywords to be passed by name in version 3.0
         if cat_name is None:
-            warnings.warn(
-                "No cat_name provided, this will become an error in pyuvdata v2.4. "
-                "Defaulting to naming based on lat/lon.",
-                DeprecationWarning,
-            )
-
-        # If you are a new phase style data set, there's no valid reason to be going
-        # back to the old phase method. Time to bail!
-        compatible, reason = self._old_phase_attributes_compatible()
-        if use_old_proj and not compatible:
-            raise ValueError(
-                "Objects with " + reason + " are not compatible with the old phasing "
-                "method, please set use_old_proj=False."
-            )
+            raise ValueError("The cat_name must be provided.")
 
         if cat_type != "unprojected":
             if lon is None:
@@ -6096,377 +5818,131 @@ class UVData(UVBase):
                     f"{phase_dict['cat_type']}"
                 )
 
-        # Right up front, we're gonna split off the piece of the code that
-        # does the phasing using the "new" method, since its a lot more flexible
-        # and because I think at some point, everything outside of this loop
-        # can be deprecated
-        if not use_old_proj:
-            # Grab all the meta-data we need for the rotations
-            time_array = self.time_array
-            lst_array = self.lst_array
-            uvw_array = self.uvw_array
-            ant_1_array = self.ant_1_array
-            ant_2_array = self.ant_2_array
-            old_w_vals = self.uvw_array[:, 2].copy()
-            old_w_vals[self._check_for_cat_type("unprojected")] = 0.0
-            old_app_ra = self.phase_center_app_ra
-            old_app_dec = self.phase_center_app_dec
-            old_frame_pa = self.phase_center_frame_pa
-            # Check and see if we have any unprojected objects, in which case
-            # their w-values should be zeroed out.
+        # Grab all the meta-data we need for the rotations
+        time_array = self.time_array
+        lst_array = self.lst_array
+        uvw_array = self.uvw_array
+        ant_1_array = self.ant_1_array
+        ant_2_array = self.ant_2_array
+        old_w_vals = self.uvw_array[:, 2].copy()
+        old_w_vals[self._check_for_cat_type("unprojected")] = 0.0
+        old_app_ra = self.phase_center_app_ra
+        old_app_dec = self.phase_center_app_dec
+        old_frame_pa = self.phase_center_frame_pa
+        # Check and see if we have any unprojected objects, in which case
+        # their w-values should be zeroed out.
 
-            if select_mask is not None:
-                if len(select_mask) != self.Nblts:
-                    raise IndexError("Selection mask must be of length Nblts.")
-                if not isinstance(select_mask[0], (bool, np.bool_)):
-                    raise ValueError("Selection mask must be a boolean array")
-                time_array = time_array[select_mask]
-                lst_array = lst_array[select_mask]
-                uvw_array = uvw_array[select_mask, :]
-                ant_1_array = ant_1_array[select_mask]
-                ant_2_array = ant_2_array[select_mask]
-                if isinstance(old_w_vals, np.ndarray):
-                    old_w_vals = old_w_vals[select_mask]
+        if select_mask is not None:
+            if len(select_mask) != self.Nblts:
+                raise IndexError("Selection mask must be of length Nblts.")
+            if not isinstance(select_mask[0], (bool, np.bool_)):
+                raise ValueError("Selection mask must be a boolean array")
+            time_array = time_array[select_mask]
+            lst_array = lst_array[select_mask]
+            uvw_array = uvw_array[select_mask, :]
+            ant_1_array = ant_1_array[select_mask]
+            ant_2_array = ant_2_array[select_mask]
+            if isinstance(old_w_vals, np.ndarray):
+                old_w_vals = old_w_vals[select_mask]
 
-            # We got the meta-data, now handle calculating the apparent coordinates.
-            # First, check if we need to look up the phase center in question
-            new_app_ra, new_app_dec = uvutils.calc_app_coords(
-                phase_dict["cat_lon"],
-                phase_dict["cat_lat"],
-                coord_frame=phase_dict["cat_frame"],
-                coord_epoch=phase_dict["cat_epoch"],
-                coord_times=phase_dict["cat_times"],
-                coord_type=phase_dict["cat_type"],
-                time_array=time_array,
-                lst_array=lst_array,
-                pm_ra=phase_dict["cat_pm_ra"],
-                pm_dec=phase_dict["cat_pm_dec"],
-                vrad=phase_dict["cat_vrad"],
-                dist=phase_dict["cat_dist"],
-                telescope_loc=self.telescope_location_lat_lon_alt,
-            )
-
-            # Now calculate position angles.
-            if not phase_frame == "altaz":
-                new_frame_pa = uvutils.calc_frame_pos_angle(
-                    time_array,
-                    new_app_ra,
-                    new_app_dec,
-                    self.telescope_location_lat_lon_alt,
-                    phase_frame,
-                    ref_epoch=epoch,
-                )
-            else:
-                new_frame_pa = np.zeros(time_array.shape, dtype=float)
-
-            # Now its time to do some rotations and calculate the new coordinates
-            new_uvw = uvutils.calc_uvw(
-                app_ra=new_app_ra,
-                app_dec=new_app_dec,
-                frame_pa=new_frame_pa,
-                lst_array=lst_array,
-                use_ant_pos=use_ant_pos,
-                uvw_array=uvw_array,
-                antenna_positions=self.antenna_positions,
-                antenna_numbers=self.antenna_numbers,
-                ant_1_array=ant_1_array,
-                ant_2_array=ant_2_array,
-                old_app_ra=old_app_ra,
-                old_app_dec=old_app_dec,
-                old_frame_pa=old_frame_pa,
-                telescope_lat=self.telescope_location_lat_lon_alt[0],
-                telescope_lon=self.telescope_location_lat_lon_alt[1],
-            )
-
-            # With all operations complete, we now start manipulating the UVData object
-            cat_id = self._add_phase_center(
-                phase_dict["cat_name"],
-                phase_dict["cat_type"],
-                cat_lon=phase_dict["cat_lon"],
-                cat_lat=phase_dict["cat_lat"],
-                cat_frame=phase_dict["cat_frame"],
-                cat_epoch=phase_dict["cat_epoch"],
-                cat_times=phase_dict["cat_times"],
-                cat_pm_ra=phase_dict["cat_pm_ra"],
-                cat_pm_dec=phase_dict["cat_pm_dec"],
-                cat_dist=phase_dict["cat_dist"],
-                cat_vrad=phase_dict["cat_vrad"],
-                info_source=phase_dict["info_source"],
-                cat_id=phase_dict["cat_id"],
-                force_update=True,
-            )
-
-            # Now its time to update the raw data. This will return empty if
-            # metadata_only is set to True.
-            new_w_vals = 0.0 if (cat_type == "unprojected") else new_uvw[:, 2]
-            self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
-
-            # Finally, we now take it upon ourselves to update some metadata. What we
-            # do here will depend a little bit on whether or not we have a selection
-            # mask active, since most everything is affected by that.
-            if select_mask is not None:
-                self.uvw_array[select_mask] = new_uvw
-                self.phase_center_app_ra[select_mask] = new_app_ra
-                self.phase_center_app_dec[select_mask] = new_app_dec
-                self.phase_center_frame_pa[select_mask] = new_frame_pa
-                self.phase_center_id_array[select_mask] = cat_id
-            else:
-                self.uvw_array = new_uvw
-                self.phase_center_app_ra = new_app_ra
-                self.phase_center_app_dec = new_app_dec
-                self.phase_center_frame_pa = new_frame_pa
-                self.phase_center_id_array[:] = cat_id
-
-            # If not multi phase center, make sure to update the ra/dec values, since
-            # otherwise we'll have no record of source properties.
-            if cleanup_old_sources:
-                self._clear_unused_phase_centers()
-            # All done w/ the new phase method
-            return
-
-        # use the old method
-        warnings.warn(
-            "The `use_old_proj` option is deprecated and will be removed in "
-            "version 2.4. Note that the old and new phase methods are NOT compatible "
-            "with one another, so if you have phased using the old method, you should "
-            "call the `fix_phase` method to undo the old corrections before using the "
-            "new version of the phase method.",
-            DeprecationWarning,
+        # We got the meta-data, now handle calculating the apparent coordinates.
+        # First, check if we need to look up the phase center in question
+        new_app_ra, new_app_dec = uvutils.calc_app_coords(
+            phase_dict["cat_lon"],
+            phase_dict["cat_lat"],
+            coord_frame=phase_dict["cat_frame"],
+            coord_epoch=phase_dict["cat_epoch"],
+            coord_times=phase_dict["cat_times"],
+            coord_type=phase_dict["cat_type"],
+            time_array=time_array,
+            lst_array=lst_array,
+            pm_ra=phase_dict["cat_pm_ra"],
+            pm_dec=phase_dict["cat_pm_dec"],
+            vrad=phase_dict["cat_vrad"],
+            dist=phase_dict["cat_dist"],
+            telescope_loc=self.telescope_location_lat_lon_alt,
         )
 
-        if allow_rephase is not None:
-            warnings.warn(
-                "The `allow_rephase` option is deprecated, and will be removed in "
-                "version 2.4. It is only used if `use_old_proj` is True.",
-                DeprecationWarning,
+        # Now calculate position angles.
+        if not phase_frame == "altaz":
+            new_frame_pa = uvutils.calc_frame_pos_angle(
+                time_array,
+                new_app_ra,
+                new_app_dec,
+                self.telescope_location_lat_lon_alt,
+                phase_frame,
+                ref_epoch=epoch,
             )
         else:
-            # default it to True if it is not set
-            allow_rephase = True
+            new_frame_pa = np.zeros(time_array.shape, dtype=float)
 
-        if orig_phase_frame is not None:
-            warnings.warn(
-                "The `allow_rephase` option is deprecated, and will be removed in "
-                "version 2.4. It is only used if `use_old_proj` is True.",
-                DeprecationWarning,
-            )
+        # Now its time to do some rotations and calculate the new coordinates
+        new_uvw = uvutils.calc_uvw(
+            app_ra=new_app_ra,
+            app_dec=new_app_dec,
+            frame_pa=new_frame_pa,
+            lst_array=lst_array,
+            use_ant_pos=use_ant_pos,
+            uvw_array=uvw_array,
+            antenna_positions=self.antenna_positions,
+            antenna_numbers=self.antenna_numbers,
+            ant_1_array=ant_1_array,
+            ant_2_array=ant_2_array,
+            old_app_ra=old_app_ra,
+            old_app_dec=old_app_dec,
+            old_frame_pa=old_frame_pa,
+            telescope_lat=self.telescope_location_lat_lon_alt[0],
+            telescope_lon=self.telescope_location_lat_lon_alt[1],
+        )
 
-        if phase_dict["cat_type"] != "sidereal":
-            raise ValueError(
-                "Old phasing only supports sidereal catalog types, "
-                "please change the cat_type or use_old_proj=False."
-            )
-
-        if phase_dict["cat_frame"] not in ["icrs", "gcrs"]:
-            raise ValueError(
-                "Old phasing only supports 'icrs' and 'gcrs' phase_frames. Either use "
-                "one of those frames or set use_old_proj=False."
-            )
-
-        ra = lon
-        dec = lat
-
-        # To get here there can only be one phase center
-        old_phase_dict = list(self.phase_center_catalog.values())[0]
-
-        if old_phase_dict["cat_type"] != "unprojected":
-            if not allow_rephase:
-                raise ValueError(
-                    "Visibilities are already phased; set allow_rephase to True to "
-                    "unphase and rephase."
-                )
-
-            # To get to this point, allow_rephase has to be true
-            if old_phase_dict["cat_lon"] != lon or old_phase_dict["cat_lat"] != lat:
-                self.unproject_phase(
-                    phase_frame=orig_phase_frame,
-                    use_ant_pos=use_ant_pos,
-                    use_old_proj=True,
-                )
-
-        if epoch == "J2000" or epoch == 2000:
-            icrs_coord = SkyCoord(ra=ra, dec=dec, unit="radian", frame="icrs")
-        else:
-            assert isinstance(epoch, Time)
-            phase_center_coord = SkyCoord(
-                ra=ra, dec=dec, unit="radian", equinox=epoch, frame=FK5
-            )
-            # convert to icrs (i.e. J2000) to write to object
-            icrs_coord = phase_center_coord.transform_to("icrs")
-
-        # This feels yucky, but it is what was done in old phasing because we defined
-        # ra/dec as being in ICRS
-        phase_dict["cat_lon"] = icrs_coord.ra.radian
-        phase_dict["cat_lat"] = icrs_coord.dec.radian
-        phase_dict["cat_epoch"] = 2000.0
-
+        # With all operations complete, we now start manipulating the UVData object
         cat_id = self._add_phase_center(
-            cat_name,
-            cat_type="sidereal",
+            phase_dict["cat_name"],
+            phase_dict["cat_type"],
             cat_lon=phase_dict["cat_lon"],
             cat_lat=phase_dict["cat_lat"],
             cat_frame=phase_dict["cat_frame"],
             cat_epoch=phase_dict["cat_epoch"],
+            cat_times=phase_dict["cat_times"],
+            cat_pm_ra=phase_dict["cat_pm_ra"],
+            cat_pm_dec=phase_dict["cat_pm_dec"],
+            cat_dist=phase_dict["cat_dist"],
+            cat_vrad=phase_dict["cat_vrad"],
+            info_source=phase_dict["info_source"],
+            cat_id=phase_dict["cat_id"],
+            force_update=True,
         )
-        self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
-        self._clear_unused_phase_centers()
 
-        self.phase_center_app_ra = None
-        self.phase_center_app_dec = None
-        self.phase_center_frame_pa = None
+        # Now its time to update the raw data. This will return empty if
+        # metadata_only is set to True.
+        new_w_vals = 0.0 if (cat_type == "unprojected") else new_uvw[:, 2]
+        self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
 
-        if phase_dict["cat_frame"] == "icrs":
-            frame_phase_center = icrs_coord
+        # Finally, we now take it upon ourselves to update some metadata. What we
+        # do here will depend a little bit on whether or not we have a selection
+        # mask active, since most everything is affected by that.
+        if select_mask is not None:
+            self.uvw_array[select_mask] = new_uvw
+            self.phase_center_app_ra[select_mask] = new_app_ra
+            self.phase_center_app_dec[select_mask] = new_app_dec
+            self.phase_center_frame_pa[select_mask] = new_frame_pa
+            self.phase_center_id_array[select_mask] = cat_id
         else:
-            # use center of observation for obstime for gcrs
-            center_time = np.mean([np.max(self.time_array), np.min(self.time_array)])
-            icrs_coord.obstime = Time(center_time, format="jd")
-            frame_phase_center = icrs_coord.transform_to("gcrs")
+            self.uvw_array = new_uvw
+            self.phase_center_app_ra = new_app_ra
+            self.phase_center_app_dec = new_app_dec
+            self.phase_center_frame_pa = new_frame_pa
+            self.phase_center_id_array[:] = cat_id
 
-        # This promotion is REQUIRED to get the right answer when we
-        # add in the telescope location for ICRS
-        self.uvw_array = np.float64(self.uvw_array)
-
-        unique_times, unique_inds = np.unique(self.time_array, return_index=True)
-
-        telescope_location = EarthLocation.from_geocentric(
-            *self.telescope_location, unit=units.m
-        )
-        obs_times = Time(unique_times, format="jd")
-
-        itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
-        itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
-        # just calling transform_to(coord.GCRS) will delete the obstime information
-        # need to re-add obstimes for a GCRS transformation
-        if phase_dict["cat_frame"] == "gcrs":
-            frame_telescope_locations = itrs_telescope_locations.transform_to(
-                getattr(coord, f"{phase_dict['cat_frame']}".upper())(obstime=obs_times)
-            )
-        else:
-            frame_telescope_locations = itrs_telescope_locations.transform_to(
-                getattr(coord, f"{phase_dict['cat_frame']}".upper())
-            )
-        # set the representation_type to cartensian to get xyz later
-        frame_telescope_locations.representation_type = "cartesian"
-
-        for ind, jd in enumerate(unique_times):
-            inds = np.where(self.time_array == jd)[0]
-
-            obs_time = obs_times[ind]
-
-            itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
-
-            frame_telescope_location = frame_telescope_locations[ind]
-
-            if use_ant_pos:
-                # This promotion is REQUIRED to get the right answer when we
-                # add in the telescope location for ICRS
-                ecef_ant_pos = (
-                    np.float64(self.antenna_positions) + self.telescope_location
-                )
-
-                itrs_ant_coord = SkyCoord(
-                    x=ecef_ant_pos[:, 0] * units.m,
-                    y=ecef_ant_pos[:, 1] * units.m,
-                    z=ecef_ant_pos[:, 2] * units.m,
-                    frame="itrs",
-                    obstime=obs_time,
-                )
-
-                frame_ant_coord = itrs_ant_coord.transform_to(phase_dict["cat_frame"])
-
-                frame_ant_rel = (
-                    (frame_ant_coord.cartesian - frame_telescope_location.cartesian)
-                    .get_xyz()
-                    .T.value
-                )
-
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "This function supports the old phasing method"
-                    )
-                    frame_ant_uvw = uvutils.phase_uvw(
-                        frame_phase_center.ra.rad,
-                        frame_phase_center.dec.rad,
-                        frame_ant_rel,
-                    )
-                # instead of looping through every ind, find the spot in antenna number
-                # array where ant_num <= ant1 < ant_number and similarly for ant2
-                # for all baselines in inds
-                # then find the uvw coordinate for all at the same time
-
-                # antenna_numbers does not necessarily need to be in order on the object
-                # but needs to be in order for the searchsorted to work.
-                # ant1_index and ant2_index arrays will preserve the order of blts
-                ant_sort = np.argsort(self.antenna_numbers)
-                ant1_index = np.searchsorted(
-                    self.antenna_numbers[ant_sort], self.ant_1_array[inds]
-                )
-                ant2_index = np.searchsorted(
-                    self.antenna_numbers[ant_sort], self.ant_2_array[inds]
-                )
-                self.uvw_array[inds] = (
-                    frame_ant_uvw[ant_sort][ant2_index, :]
-                    - frame_ant_uvw[ant_sort][ant1_index, :]
-                )
-            else:
-                # Also, uvws should be thought of like ENU, not ECEF (or rotated ECEF)
-                # convert them to ECEF to transform between frames
-                uvws_use = self.uvw_array[inds, :]
-
-                uvw_ecef = uvutils.ECEF_from_ENU(uvws_use, *itrs_lat_lon_alt)
-
-                itrs_uvw_coord = SkyCoord(
-                    x=uvw_ecef[:, 0] * units.m,
-                    y=uvw_ecef[:, 1] * units.m,
-                    z=uvw_ecef[:, 2] * units.m,
-                    frame="itrs",
-                    obstime=obs_time,
-                )
-                frame_uvw_coord = itrs_uvw_coord.transform_to(phase_dict["cat_frame"])
-
-                # this takes out the telescope location in the new frame,
-                # so these are vectors again
-                frame_rel_uvw = (
-                    frame_uvw_coord.cartesian.get_xyz().value.T
-                    - frame_telescope_location.cartesian.get_xyz().value
-                )
-
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "This function supports the old phasing method"
-                    )
-                    self.uvw_array[inds, :] = uvutils.phase_uvw(
-                        frame_phase_center.ra.rad,
-                        frame_phase_center.dec.rad,
-                        frame_rel_uvw,
-                    )
-
-        # calculate data and apply phasor
-        if not self.metadata_only:
-            w_lambda = (
-                self.uvw_array[:, 2].reshape(self.Nblts, 1)
-                / const.c.to("m/s").value
-                * self.freq_array.reshape(1, self.Nfreqs)
-            )
-            if self.future_array_shapes:
-                phs = np.exp(-1j * 2 * np.pi * w_lambda[:, :, None])
-            else:
-                phs = np.exp(-1j * 2 * np.pi * w_lambda[:, None, :, None])
-            self.data_array *= phs
-
-        # make sure apparent coords are properly set.
-        self._set_app_coords_helper()
+        # If not multi phase center, make sure to update the ra/dec values, since
+        # otherwise we'll have no record of source properties.
+        if cleanup_old_sources:
+            self._clear_unused_phase_centers()
+        # All done w/ the new phase method
+        return
 
     def phase_to_time(
-        self,
-        time,
-        phase_frame="icrs",
-        use_ant_pos=True,
-        use_old_proj=False,
-        allow_rephase=True,
-        orig_phase_frame=None,
-        select_mask=None,
+        self, time, phase_frame="icrs", use_ant_pos=True, select_mask=None
     ):
         """
         Phase to the ra/dec of zenith at a particular time.
@@ -6485,21 +5961,6 @@ class UVData(UVBase):
         use_ant_pos : bool
             If True, calculate the uvws directly from the antenna positions
             rather than from the existing uvws.
-        use_old_proj : bool
-            Deprecated, will be removed in version 2.4. If True, use the "old" method
-            for calculating baseline uvw-coordinates, which involved using astropy to
-            move antenna positions (in ITRF) into the requested reference frame
-            (either GCRS or ICRS). Default is False.
-        allow_rephase : bool
-            Deprecated, will be removed in version 2.4. Only used if  `use_old_proj` is
-            True. If this parameter is True, allow unphasing and rephasing if this
-            object is already phased.
-        orig_phase_frame : str
-            Deprecated, will be removed in version 2.4. The original phase frame of
-            this object (to use in unphasing). Only used if `use_old_proj` is True,
-            object is already phased, `allow_rephase` is True and the
-            phase_center_ra/dec of the object does not match `ra` and `dec`.
-            Defaults to using the "cat_frame" value in the `phase_center_catalog`.
         select_mask : array_like
             Selection mask for which data should be rephased. Any array-like able to be
             used as an index is suitable -- the most typical is an array of bool with
@@ -6507,9 +5968,6 @@ class UVData(UVBase):
 
         Raises
         ------
-        ValueError
-            If the `use_old_proj` is True, the object is already phased, and
-            allow_rephase is False.
         TypeError
             If time is not an astropy.time.Time object or Julian Date as a float
 
@@ -6544,22 +6002,11 @@ class UVData(UVBase):
             epoch="J2000",
             phase_frame=phase_frame,
             use_ant_pos=use_ant_pos,
-            use_old_proj=use_old_proj,
-            allow_rephase=allow_rephase,
-            orig_phase_frame=orig_phase_frame,
             select_mask=select_mask,
             cat_name=("zenith_at_jd%f" % time.jd),
         )
 
-    def set_uvws_from_antenna_positions(
-        self,
-        update_vis=True,
-        allow_phasing=False,
-        require_phasing=None,
-        orig_phase_frame=None,
-        output_phase_frame="icrs",
-        use_old_proj=False,
-    ):
+    def set_uvws_from_antenna_positions(self, update_vis=True):
         """
         Calculate UVWs based on antenna_positions.
 
@@ -6569,174 +6016,42 @@ class UVData(UVBase):
             Option to update visibilities when recalculating uvws to correct for
             phasing errors from using the `old` method. This should only be set to False
             in limited circumstances (e.g., when certain metadata like exact times are
-            not trusted), as misuse can significantly corrupt data. Ignored if
-            `use_old_proj` is True.
-        allow_phasing : bool
-            Option for phased data, only applies if `use_old_proj` is True. If data is
-            phased and allow_phasing=True, UVWs will be calculated and the visibilities
-            will be rephased. Default is False. This option is deprecated and will be
-            removed in version 2.4 with `use_old_proj`.
-        require_phasing : bool
-            Deprecated. Use `update_vis` instead. This parameter will be removed in
-            version 2.4
-        orig_phase_frame : str
-            The astropy frame to phase from. Either 'icrs' or 'gcrs'.
-            Defaults to using the phase_center_catalog["cat_frame"]. Only used if
-            allow_phasing is True and use_old_proj is True. This option is deprecated
-            and will be removed in version 2.4 with `use_old_proj`.
-        output_phase_frame : str
-            The astropy frame to phase to. Either 'icrs' or 'gcrs'. Only used if
-            allow_phasing is True, and use_old_proj is True. This option is deprecated
-            and will be removed in version 2.4 with `use_old_proj`.
-        use_old_proj : bool
-            If set to True, uses the 'old' method of calculating baseline vectors.
-            Default is False, which will instead use the 'new' method. This option is
-            deprecated and will be removed in version 2.4 after which only the 'new'
-            method will be supported (because it is more accurate).
-
-        Raises
-        ------
-        ValueError
-            If use_old_proj is True, all data is phased and allow_phasing is False.
+            not trusted), as misuse can significantly corrupt data.
 
         """
-        if require_phasing is not None:
-            warnings.warn(
-                "The `require_phasing` option is deprecated, and will be removed in "
-                "pyuvdata v2.4. Use `update_vis` instead",
-                DeprecationWarning,
-            )
-            update_vis = require_phasing
+        telescope_location = self.telescope_location_lat_lon_alt
+        unprojected_blts = self._check_for_cat_type("unprojected")
 
-        if not use_old_proj:
-            telescope_location = self.telescope_location_lat_lon_alt
-            unprojected_blts = self._check_for_cat_type("unprojected")
-
-            new_uvw = uvutils.calc_uvw(
-                app_ra=self.phase_center_app_ra,
-                app_dec=self.phase_center_app_dec,
-                frame_pa=self.phase_center_frame_pa,
-                lst_array=self.lst_array,
-                use_ant_pos=True,
-                antenna_positions=self.antenna_positions,
-                antenna_numbers=self.antenna_numbers,
-                ant_1_array=self.ant_1_array,
-                ant_2_array=self.ant_2_array,
-                telescope_lat=telescope_location[0],
-                telescope_lon=telescope_location[1],
-            )
-            if np.any(~unprojected_blts):
-                # At least some are phased
-                if update_vis:
-                    old_w_vals = self.uvw_array[:, 2].copy()
-                    old_w_vals[unprojected_blts] = 0.0
-                    self._apply_w_proj(new_uvw[:, 2], old_w_vals)
-                else:
-                    warnings.warn(
-                        "Recalculating uvw_array without adjusting visibility "
-                        "phases -- this can introduce significant errors if used "
-                        "incorrectly."
-                    )
-
-            # If the data are phased, we've already adjusted the phases. Now we just
-            # need to update the uvw's and we are home free.
-            self.uvw_array = new_uvw
-            return
-
-        # datasets phased with new phasing should not use the "old" method
-        compatible, reason = self._old_phase_attributes_compatible()
-        if use_old_proj and not compatible:
-            raise ValueError(
-                "Objects with " + reason + " are not compatible with the old phasing "
-                "method, please set use_old_proj=False."
-            )
-
-        # if we got here, there's only one phase center
-        phase_dict = list(self.phase_center_catalog.values())[0]
-
-        # use the old method
-        warnings.warn(
-            "The `use_old_proj` option is deprecated, and will be removed in "
-            "pyuvdata 2.4. Note that the old and new phase methods are NOT compatible "
-            "with one another, so if you have phased using the old method, you should "
-            "call the `fix_phase` method or use the unproject_phase method with "
-            "use_old_proj=True to undo the old corrections before using the new "
-            "version of the phase method.",
-            DeprecationWarning,
+        new_uvw = uvutils.calc_uvw(
+            app_ra=self.phase_center_app_ra,
+            app_dec=self.phase_center_app_dec,
+            frame_pa=self.phase_center_frame_pa,
+            lst_array=self.lst_array,
+            use_ant_pos=True,
+            antenna_positions=self.antenna_positions,
+            antenna_numbers=self.antenna_numbers,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            telescope_lat=telescope_location[0],
+            telescope_lon=telescope_location[1],
         )
-
-        if phase_dict["cat_type"] != "unprojected":
-            if allow_phasing:
-                if not self.metadata_only:
-                    warnings.warn(
-                        "Data will be unphased and rephased "
-                        "to calculate UVWs, which might introduce small "
-                        "inaccuracies to the data."
-                    )
-                if orig_phase_frame not in [None, "icrs", "gcrs"]:
-                    raise ValueError(
-                        "Invalid parameter orig_phase_frame. "
-                        'Options are "icrs", "gcrs", or None.'
-                    )
-                if output_phase_frame not in ["icrs", "gcrs"]:
-                    raise ValueError(
-                        "Invalid parameter output_phase_frame. "
-                        'Options are "icrs" or "gcrs".'
-                    )
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "The `use_old_proj` option is deprecated"
-                    )
-                    self.unproject_phase(
-                        phase_frame=orig_phase_frame, use_old_proj=True
-                    )
+        if np.any(~unprojected_blts):
+            # At least some are phased
+            if update_vis:
+                old_w_vals = self.uvw_array[:, 2].copy()
+                old_w_vals[unprojected_blts] = 0.0
+                self._apply_w_proj(new_uvw[:, 2], old_w_vals)
             else:
-                raise ValueError(
-                    "UVW calculation with `use_old_proj` requires unprojected data. "
-                    "Use `unproject_phase` or set allow_phasing=True."
+                warnings.warn(
+                    "Recalculating uvw_array without adjusting visibility "
+                    "phases -- this can introduce significant errors if used "
+                    "incorrectly."
                 )
-        antenna_locs_ENU, _ = self.get_ENU_antpos(center=False)
-        # this code used to loop through every bl in the unique,
-        # find the index into self.antenna_array of ant1 and ant2
-        # and fill out the self.uvw_array for all matching bls.
 
-        # instead, find the indices and reverse inds from the unique,
-        # create the unique ant1 and ant2 arrays
-        # use searchsorted to find the index of the antenna numbers into ant1 and ant2
-        # create the unique uvw array then broadcast to self.uvw_array
-        bls, unique_inds, reverse_inds = np.unique(
-            self.baseline_array, return_index=True, return_inverse=True
-        )
-
-        # antenna_numbers does not necessarily need to be in order on the object
-        # but needs to be in order for the searchsorted to work.
-        # ant1_index and ant2_index arrays will preserve the order of blts
-        ant_sort = np.argsort(self.antenna_numbers)
-        ant1_index = np.searchsorted(
-            self.antenna_numbers[ant_sort], self.ant_1_array[unique_inds]
-        )
-        ant2_index = np.searchsorted(
-            self.antenna_numbers[ant_sort], self.ant_2_array[unique_inds]
-        )
-        _uvw_array = np.zeros((bls.size, 3))
-        _uvw_array = (
-            antenna_locs_ENU[ant_sort][ant2_index, :]
-            - antenna_locs_ENU[ant_sort][ant1_index, :]
-        )
-        self.uvw_array = _uvw_array[reverse_inds]
-        if phase_dict["cat_type"] != "unprojected":
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", "The `use_old_proj` option is deprecated"
-                )
-                self.phase(
-                    lon=phase_dict["cat_lon"],
-                    lat=phase_dict["cat_lat"],
-                    epoch=phase_dict["cat_epoch"],
-                    phase_frame=phase_dict["cat_frame"],
-                    cat_name=phase_dict["cat_name"],
-                    use_old_proj=True,
-                )
+        # If the data are phased, we've already adjusted the phases. Now we just
+        # need to update the uvw's and we are home free.
+        self.uvw_array = new_uvw
+        return
 
     def fix_phase(self, use_ant_pos=True):
         """
@@ -6760,6 +6075,14 @@ class UVData(UVBase):
                 "method, so no fixing is required."
             )
 
+        # Record the old values
+        # if we get here, we can only have one phase center
+        phase_dict = list(self.phase_center_catalog.values())[0]
+
+        # unprojected data were not phased at all, no need to fix them!
+        if phase_dict["cat_type"] == "unprojected":
+            raise ValueError("Data are unprojected, no phase fixing required.")
+
         # If we are just using the antenna positions, we don't actually need to do
         # anything, since the new baseline vectors will be unaffected by the prior
         # phasing method, and the delta_w values get correctly corrected for in
@@ -6771,27 +6094,112 @@ class UVData(UVBase):
         else:
             warnings.warn(
                 "Attempting to fix residual phasing errors from the old `phase` method "
-                "using the `unproject_phase` with use_old_proj set to True. This "
-                "can result in closure errors if the data were not actually phased "
-                "using the old method -- caution is advised."
+                "without using the antenna positions. This can result in closure "
+                "errors if the data were not actually phased using the old method -- "
+                "caution is advised."
             )
-            # Record the old values
-            # if we get here, we can only have one phase center
-            phase_dict = list(self.phase_center_catalog.values())[0]
-
             # Bring the UVWs back to ENU/unprojected
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", "The `use_old_proj` option is deprecated"
+            # This is the code that used to be in `unproject_phase` for the
+            # old method without using antenna positions
+            phase_frame = phase_dict["cat_frame"]
+
+            icrs_coord = SkyCoord(
+                ra=phase_dict["cat_lon"],
+                dec=phase_dict["cat_lat"],
+                unit="radian",
+                frame="icrs",
+            )
+            if phase_frame == "icrs":
+                frame_phase_center = icrs_coord
+            else:
+                # use center of observation for obstime for gcrs
+                center_time = np.mean(
+                    [np.max(self.time_array), np.min(self.time_array)]
                 )
-                warnings.filterwarnings(
-                    "ignore", "The `phase_frame` parameter is deprecated"
+                icrs_coord.obstime = Time(center_time, format="jd")
+                frame_phase_center = icrs_coord.transform_to("gcrs")
+
+            # This promotion is REQUIRED to get the right answer when we
+            # add in the telescope location for ICRS
+            # In some cases, the uvws are already float64, but sometimes they're not
+            self.uvw_array = np.float64(self.uvw_array)
+
+            # apply -w phasor
+            if not self.metadata_only:
+                w_lambda = (
+                    self.uvw_array[:, 2].reshape(self.Nblts, 1)
+                    / const.c.to("m/s").value
+                    * self.freq_array.reshape(1, self.Nfreqs)
                 )
-                self.unproject_phase(
-                    phase_frame=phase_dict["cat_frame"],
-                    use_ant_pos=False,
-                    use_old_proj=True,
+                if self.future_array_shapes:
+                    phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, :, None])
+                else:
+                    phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+                self.data_array *= phs
+
+            unique_times, _ = np.unique(self.time_array, return_index=True)
+
+            telescope_location = EarthLocation.from_geocentric(
+                *self.telescope_location, unit=units.m
+            )
+            obs_times = Time(unique_times, format="jd")
+            itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+            itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
+            # just calling transform_to(coord.GCRS) will delete the obstime information
+            # need to re-add obstimes for a GCRS transformation
+
+            if phase_frame == "gcrs":
+                frame_telescope_locations = itrs_telescope_locations.transform_to(
+                    getattr(coord, f"{phase_frame}".upper())(obstime=obs_times)
                 )
+            else:
+                frame_telescope_locations = itrs_telescope_locations.transform_to(
+                    getattr(coord, f"{phase_frame}".upper())
+                )
+
+            frame_telescope_locations.representation_type = "cartesian"
+
+            for ind, jd in enumerate(unique_times):
+                inds = np.where(self.time_array == jd)[0]
+
+                obs_time = obs_times[ind]
+
+                frame_telescope_location = frame_telescope_locations[ind]
+                itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
+
+                uvws_use = self.uvw_array[inds, :]
+
+                uvw_rel_positions = uvutils.undo_old_uvw_calc(
+                    frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
+                )
+
+                frame_uvw_coord = SkyCoord(
+                    x=uvw_rel_positions[:, 0] * units.m + frame_telescope_location.x,
+                    y=uvw_rel_positions[:, 1] * units.m + frame_telescope_location.y,
+                    z=uvw_rel_positions[:, 2] * units.m + frame_telescope_location.z,
+                    frame=phase_frame,
+                    obstime=obs_time,
+                    representation_type="cartesian",
+                )
+
+                itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
+
+                # now convert them to ENU, which is the space uvws are in
+                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(
+                    itrs_uvw_coord.cartesian.get_xyz().value.T, *itrs_lat_lon_alt
+                )
+
+            # remove/add phase center
+            self.phase_center_id_array[:] = self._add_phase_center(
+                "unprojected", cat_type="unprojected"
+            )
+            self._clear_unused_phase_centers()
+
+            self.phase_center_app_ra = self.lst_array.copy()
+            self.phase_center_app_dec[:] = (
+                np.zeros(self.Nblts) + self.telescope_location_lat_lon_alt[0]
+            )
+            self.phase_center_frame_pa = np.zeros(self.Nblts)
 
             # Check for any autos, since their uvws get potentially corrupted
             # by the above operation
@@ -6809,169 +6217,15 @@ class UVData(UVBase):
                 use_ant_pos=False,
             )
 
-    def _deprecated_phase_helper(
-        self,
-        other,
-        phase_center_radec,
-        unphase_to_drift,
-        phase_frame,
-        orig_phase_frame,
-        use_ant_pos,
-        make_multi_phase,
-    ):
-        """
-        Handle deprecation warnings and phasing for deprecated parameters.
-
-        This is a helper method for `__add__`, `fast_concat` and `read` that should be
-        removed in version 2.4 when all the phase-related deprecated parameters are
-        removed.
-
-        Parameters
-        ----------
-        other : UVData object or list of UVData objects
-            UVData object or list of UVData objects. Can be an empty list.
-        phase_center_radec : array_like of float
-            The phase center to phase the objects to in radians.
-        unphase_to_drift : bool
-            Unproject the objects before combining them.
-        phase_frame : str
-            The astropy frame to phase to. Only used if `phase_center_radec` is set.
-        orig_phase_frame : str
-            Has no effect.
-        use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws.
-        make_multi_phase : bool
-            Has no effect.
-
-        """
-        if unphase_to_drift is not None:
-            warnings.warn(
-                "The `unphase_to_drift` option is deprecated, and will be removed in "
-                "pyuvdata v2.4. instead call `unproject_phase` on the combined object "
-                "after this method.",
-                DeprecationWarning,
-            )
-        if unphase_to_drift is None:
-            unphase_to_drift = False
-
-        if phase_frame is not None:
-            warnings.warn(
-                "The `phase_frame` parameter is deprecated, and will be removed in "
-                "pyuvdata v2.4 along with the `phase_center_radec` parameter.",
-                DeprecationWarning,
-            )
-
-        if use_ant_pos is not None:
-            warnings.warn(
-                "The `use_ant_pos` option is deprecated, and will be removed in "
-                "pyuvdata v2.4 along with the `phase_center_radec` parameter.",
-                DeprecationWarning,
-            )
-        else:
-            use_ant_pos = True
-
-        if phase_center_radec is not None:
-            warnings.warn(
-                "The `phase_center_radec` parameter is deprecated, and will be removed "
-                "in pyuvdata v2.4. instead call `phase` on the combined object "
-                "after this method.",
-                DeprecationWarning,
-            )
-            if phase_frame is None:
-                phase_frame = "icrs"
-
-        if orig_phase_frame is not None:
-            warnings.warn(
-                "The `orig_phase_frame` option is deprecated and has no effect. It "
-                "will be removed in pyuvdata v2.4.",
-                DeprecationWarning,
-            )
-
-        if make_multi_phase is not None:
-            warnings.warn(
-                "The `make_multi_phase` option is deprecated and has no effect. It "
-                "will be removed in pyuvdata v2.4.",
-                DeprecationWarning,
-            )
-
-        if phase_center_radec is not None and unphase_to_drift:
-            raise ValueError(
-                "phase_center_radec cannot be set if unphase_to_drift is True."
-            )
-
-        if unphase_to_drift:
-            if not isinstance(other, (list, tuple, np.ndarray)):
-                # if this is a UVData object already, stick it in a list
-                other = [other]
-            if np.any(~self._check_for_cat_type("unprojected")):
-                warnings.warn("Unprojecting this UVData object.")
-                self.unproject_phase(use_ant_pos=use_ant_pos)
-            for obj in other:
-                if np.any(~obj._check_for_cat_type("unprojected")):
-                    warnings.warn("Unprojecting other UVData object.")
-                    obj.unproject_phase(use_ant_pos=use_ant_pos)
-
-        if phase_center_radec is not None:
-            if np.array(phase_center_radec).size != 2:
-                raise ValueError("phase_center_radec should have length 2.")
-
-            if not isinstance(other, (list, tuple, np.ndarray)):
-                # if this is a UVData object already, stick it in a list
-                other = [other]
-
-            # If this object is not phased or has multiple phase centers or one that
-            # is not phased close to phase_center_radec, (re)phase it.
-            # Close is defined using the phase_center_ra/dec tolerances.
-            obj_names = ["this"] + ["other"] * len(other)
-            for obj_ind, obj in enumerate([self] + other):
-                rephase = False
-                if obj.Nphase > 1 or np.any(obj._check_for_cat_type("unprojected")):
-                    rephase = True
-                else:
-                    # this only has one phase center and is projected
-                    phase_dict = list(obj.phase_center_catalog.values())[0]
-                    if phase_dict["cat_type"] != "sidereal":
-                        rephase = True
-                    elif phase_dict["cat_frame"] not in ["icrs", "gcrs"]:
-                        rephase = True
-                    elif phase_dict["cat_lon"] != phase_center_radec[0]:
-                        rephase = True
-                    elif phase_dict["cat_lat"] != phase_center_radec[1]:
-                        rephase = True
-
-                obj_name = obj_names[obj_ind]
-                if rephase:
-                    warnings.warn(
-                        f"Phasing {obj_name} UVData object to {phase_center_radec}"
-                    )
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", "No cat_name provided, this will become an error"
-                        )
-                        obj.phase(
-                            phase_center_radec[0],
-                            phase_center_radec[1],
-                            phase_frame=phase_frame,
-                            use_ant_pos=use_ant_pos,
-                            allow_rephase=True,
-                        )
-
     def __add__(
         self,
         other,
         inplace=False,
-        phase_center_radec=None,
-        unphase_to_drift=None,
-        phase_frame=None,
-        orig_phase_frame=None,
-        use_ant_pos=None,
         verbose_history=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        make_multi_phase=None,
         ignore_name=False,
     ):
         """
@@ -6984,24 +6238,6 @@ class UVData(UVBase):
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
-        phase_center_radec : array_like of float
-            Deprecated and will be removed in version 2.4, instead call `phase` on the
-            combined object after this method. The phase center to phase the files to
-            before adding the objects in radians.
-        unphase_to_drift : bool
-            Deprecated, instead call `unproject_phase` on the combined object after
-            this method. Default is False.
-        phase_frame : str
-            The astropy frame to phase to. Only used if `phase_center_radec` is set.
-            Default is "icrs".
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        orig_phase_frame : str
-            Deprecated, has no effect. Will be removed in version 2.4.
-        use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws. Only used if `unphase_to_drift` or
-            `phase_center_radec` are set. Deprecated and will be removed in version 2.4
-            with `unphase_to_drift` and `phase_center_radec`. Default is True.
         verbose_history : bool
             Option to allow more verbose history. If True and if the histories for the
             two objects are different, the combined object will keep all the history of
@@ -7021,8 +6257,6 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-        make_multi_phase : bool
-            Deprecated and has no effect. Will be removed in version 2.4.
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
             `phase_center_catalog`) when combining two UVData objects. If set to True,
@@ -7036,7 +6270,6 @@ class UVData(UVBase):
         ValueError
             If other is not a UVData object, self and other are not compatible
             or if data in self and other overlap.
-            If `phase_center_radec` is not None and is not length 2.
 
         """
         if inplace:
@@ -7084,16 +6317,6 @@ class UVData(UVBase):
                 "Use the `use_future_array_shapes` or `use_current_array_shapes` "
                 "methods to convert them."
             )
-
-        this._deprecated_phase_helper(
-            other,
-            phase_center_radec,
-            unphase_to_drift,
-            phase_frame,
-            orig_phase_frame,
-            use_ant_pos,
-            make_multi_phase,
-        )
 
         # Define parameters that must be the same to add objects
         compatibility_params = [
@@ -7778,16 +7001,10 @@ class UVData(UVBase):
     def __iadd__(
         self,
         other,
-        phase_center_radec=None,
-        unphase_to_drift=None,
-        phase_frame=None,
-        orig_phase_frame=None,
-        use_ant_pos=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
-        make_multi_phase=None,
         ignore_name=False,
     ):
         """
@@ -7797,24 +7014,6 @@ class UVData(UVBase):
         ----------
         other : UVData object
             Another UVData object which will be added to self.
-        phase_center_radec : array_like of float
-            Deprecated and will be removed in version 2.4, instead call `phase` on the
-            combined object after this method. The phase center to phase the files to
-            before adding the objects in radians.
-        unphase_to_drift : bool
-            Deprecated, instead call `unproject_phase` on the combined object after
-            this method. Default is False.
-        phase_frame : str
-            The astropy frame to phase to. Only used if `phase_center_radec` is set.
-            Default is "icrs".
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        orig_phase_frame : str
-            Deprecated, has no effect. Will be removed in version 2.4.
-        use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws. Only used if `unphase_to_drift` or
-            `phase_center_radec` are set. Deprecated and will be removed in version 2.4
-            with `unphase_to_drift` and `phase_center_radec`.
         verbose_history : bool
             Option to allow more verbose history. If True and if the histories for the
             two objects are different, the combined object will keep all the history of
@@ -7834,8 +7033,6 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
-        make_multi_phase : bool
-            Deprecated and has no effect. Will be removed in version 2.4.
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
             `phase_center_catalog`) when combining two UVData objects. If set to True,
@@ -7855,16 +7052,10 @@ class UVData(UVBase):
         self.__add__(
             other,
             inplace=True,
-            phase_center_radec=phase_center_radec,
-            unphase_to_drift=unphase_to_drift,
-            phase_frame=phase_frame,
-            orig_phase_frame=orig_phase_frame,
-            use_ant_pos=use_ant_pos,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
-            make_multi_phase=make_multi_phase,
             ignore_name=ignore_name,
         )
         return self
@@ -7874,11 +7065,6 @@ class UVData(UVBase):
         other,
         axis,
         inplace=False,
-        phase_center_radec=None,
-        unphase_to_drift=None,
-        phase_frame=None,
-        orig_phase_frame=None,
-        use_ant_pos=None,
         verbose_history=False,
         run_check=True,
         check_extra=True,
@@ -7910,23 +7096,6 @@ class UVData(UVBase):
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
-        phase_center_radec : array_like of float
-            Deprecated and will be removed in version 2.4, instead call `phase` on the
-            combined object after this method. The phase center to phase the files to
-            before concatenating the objects in radians.
-        unphase_to_drift : bool
-            Deprecated, instead call `unproject_phase` on the combined object after
-            this method. Unproject the objects before combining them.
-        phase_frame : str
-            The astropy frame to phase to. Only used if `phase_center_radec` is set.
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        orig_phase_frame : str
-            Deprecated, has no effect. Will be removed in version 2.4.
-        use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws. Only used if `unphase_to_drift` or
-            `phase_center_radec` are set. Deprecated and will be removed in version 2.4
-            with `unphase_to_drift` and `phase_center_radec`.
         verbose_history : bool
             Option to allow more verbose history. If True and if the histories for the
             objects are different, the combined object will keep all the history of
@@ -8018,16 +7187,6 @@ class UVData(UVBase):
                     "Use the `use_future_array_shapes` or `use_current_array_shapes` "
                     "methods to convert them."
                 )
-
-        this._deprecated_phase_helper(
-            other,
-            phase_center_radec,
-            unphase_to_drift,
-            phase_frame,
-            orig_phase_frame,
-            use_ant_pos,
-            None,
-        )
 
         # update the phase_center_catalog to make them consistent across objects
         # Doing this as a binary tree merge
@@ -9556,7 +8715,7 @@ class UVData(UVBase):
         uv_temp = self.copy(metadata_only=True)
 
         # properly calculate the UVWs self-consistently
-        uv_temp.set_uvws_from_antenna_positions(allow_phasing=True)
+        uv_temp.set_uvws_from_antenna_positions()
         self.uvw_array = uv_temp.uvw_array
 
         return
@@ -11769,14 +10928,12 @@ class UVData(UVBase):
         self,
         filelist,
         use_aoflagger_flags=None,
-        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
-        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -11815,8 +10972,6 @@ class UVData(UVBase):
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
-        use_cotter_flags : bool
-            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -11835,8 +10990,6 @@ class UVData(UVBase):
             threshold used is 0.5 * integration_time * channel_width. If set to False,
             only the times and frequencies at which the auto is below the
             threshold will be flagged for the antenna.
-        flag_small_sig_ants : bool
-            Being replaced with flag_small_auto_ants and will be removed in v2.4.
         propagate_coarse_flags : bool
             Option to propagate flags for missing coarse channel integrations
             across frequency.
@@ -11927,22 +11080,6 @@ class UVData(UVBase):
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
                 "Use the generic `uvdata.read` function instead."
-            )
-        if use_cotter_flags is not None:
-            use_aoflagger_flags = use_cotter_flags
-            warnings.warn(
-                "Use `use_aoflagger_flags` instead of `use_cotter_flags`."
-                "`use_cotter_flags` is deprecated, and will be removed in "
-                "pyuvdata v2.4.",
-                DeprecationWarning,
-            )
-        if flag_small_sig_ants is not None:
-            flag_small_auto_ants = flag_small_sig_ants
-            warnings.warn(
-                "Use `flag_small_auto_ants` instead of `flag_small_sig_ants`."
-                "`flag_small_sig_ants` is deprecated, and will be removed in "
-                "pyuvdata v2.4.",
-                DeprecationWarning,
             )
 
         corr_obj = mwa_corr_fits.MWACorrFITS()
@@ -12455,12 +11592,6 @@ class UVData(UVBase):
         use_future_array_shapes=False,
         # phasing parameters
         allow_rephase=None,
-        phase_center_radec=None,
-        unphase_to_drift=None,
-        phase_frame=None,
-        phase_epoch=None,
-        orig_phase_frame=None,
-        phase_use_ant_pos=None,
         fix_old_proj=None,
         fix_use_ant_pos=True,
         make_multi_phase=False,
@@ -12513,14 +11644,12 @@ class UVData(UVBase):
         data_array_dtype=np.complex128,
         # mwa_corr_fits
         use_aoflagger_flags=None,
-        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
-        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -12594,38 +11723,7 @@ class UVData(UVBase):
         Phasing
         -------
         allow_rephase :  bool
-            Deprecated, will have no effect starting in version 2.4 and will be removed
-            in version 2.6 because data with different phasing can now be combined.
-            Allow rephasing of phased file data. Currently defaults to True, which will
-            cause data to be rephased (to preserve the previous behavior). Set to False
-            to prevent rephasing and mimic the future behavior.
-        phase_center_radec : array_like of float
-            Deprecated and will be removed in version 2.4, instead call `phase` on the
-            combined object after this method. The phase center to phase the files to
-            before combining the objects in radians (in the ICRS frame). If set to None
-            and allow_rephase is True and multiple files are read with different phase
-            centers, the phase center of the first file will be used.
-        unphase_to_drift : bool
-            Deprecated, instead call `unproject_phase` on the combined object after
-            this method. Unproject the data from the files before combining them.
-        phase_frame : str
-            The astropy frame to phase to.Only used if `phase_center_radec` is set.
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        phase_epoch : astropy.time.Time object or str
-            The epoch to use for phasing. Either an astropy Time object or the
-            string "J2000" (which is the default).
-            Note that the epoch is only used to evaluate the ra & dec values,
-            if the epoch is not J2000, the ra & dec values are interpreted
-            as FK5 ra/dec values and transformed to J2000, the data are then
-            phased to the J2000 ra/dec values.
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        orig_phase_frame : str
-            Deprecated, has no effect. Will be removed in version 2.4.
-        phase_use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws. Only used if `unphase_to_drift` or
-            `phase_center_radec` are set. Deprecated and will be removed in version 2.4
-            with `unphase_to_drift` and `phase_center_radec`.
+            Deprecated, and has no effect. Will be removed in version 2.6.
         fix_old_proj : bool
             Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
             method was used prior to writing the data, which had errors of the order of
@@ -12638,10 +11736,7 @@ class UVData(UVBase):
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
         make_multi_phase : bool
-            Deprecated, will be removed in version 2.4. Since all objects now support
-            multiple phase centers, this has no effect if set to False. The only effect
-            of setting this to True is to prevent rephasing. A better approach is to set
-            `allow_rephase=False`.
+            Deprecated, and has no effect. Will be removed in version 2.6.
 
         Selecting
         ---------
@@ -12856,8 +11951,6 @@ class UVData(UVBase):
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
-        use_cotter_flags : bool
-            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -12877,8 +11970,6 @@ class UVData(UVBase):
             If set to False, only the times and frequencies at which the auto is below
             the threshold will be flagged for the antenna.
             Only used if correct_van_vleck is True.
-        flag_small_sig_ants : bool
-            Deprecated, replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
             across frequency.
@@ -12968,22 +12059,15 @@ class UVData(UVBase):
         """
         if allow_rephase:
             warnings.warn(
-                "The `allow_rephase` option is deprecated. It will have no effect "
-                "starting in pyuvdata v2.4 and will be removed in pyuvdata v2.6."
-                "It is no longer needed as data with different phase centers can now "
-                "be combined on one object. Starting in version 2.4, the data will be "
-                "combined on one object without rephasing. To get that behavior now, "
-                "set `allow_rephase=False`. The final object can be rephased if "
-                "desired by calling `phase` after this method.",
+                "The `allow_rephase` option is deprecated and has no effect. It will "
+                "be removed in pyuvdata v2.6.",
                 DeprecationWarning,
             )
 
         if make_multi_phase:
             warnings.warn(
-                "The `make_multi_phase` option is deprecated. Since all objects now "
-                "support multiple phase centers, the only effect of setting this to "
-                "True is to prevent rephasing. A better approach is to set "
-                "`allow_rephase=False`. This will become an error in version 3.0.",
+                "The `make_multi_phase` option is deprecated and has no effect. It "
+                "will be removed in pyuvdata v2.6.",
                 DeprecationWarning,
             )
 
@@ -13069,15 +12153,127 @@ class UVData(UVBase):
             f = filename[file_num]
             while unread and file_num < len(filename):
                 try:
-                    with warnings.catch_warnings():
-                        warnings.filterwarnings(
-                            "ignore", "The `allow_rephase` option is deprecated"
-                        )
-                        warnings.filterwarnings(
-                            "ignore", "The `make_multi_phase` option is deprecated"
-                        )
-                        self.read(
-                            filename[file_num],
+                    self.read(
+                        filename[file_num],
+                        file_type=file_type,
+                        read_data=read_data,
+                        skip_bad_files=skip_bad_files,
+                        background_lsts=background_lsts,
+                        use_future_array_shapes=use_future_array_shapes,
+                        # phasing parameters
+                        fix_old_proj=fix_old_proj,
+                        fix_use_ant_pos=fix_use_ant_pos,
+                        # selecting parameters
+                        antenna_nums=antenna_nums,
+                        antenna_names=antenna_names,
+                        ant_str=ant_str,
+                        bls=bls,
+                        frequencies=frequencies,
+                        freq_chans=freq_chans,
+                        times=times,
+                        time_range=time_range,
+                        lsts=lsts,
+                        lst_range=lst_range,
+                        polarizations=polarizations,
+                        blt_inds=blt_inds,
+                        phase_center_ids=phase_center_ids,
+                        keep_all_metadata=keep_all_metadata,
+                        # checking parameters
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        strict_uvw_antpos_check=strict_uvw_antpos_check,
+                        check_autos=check_autos,
+                        fix_autos=fix_autos,
+                        # file-type specific parameters
+                        # miriad
+                        phase_type=phase_type,
+                        projected=projected,
+                        correct_lat_lon=correct_lat_lon,
+                        calc_lst=calc_lst,
+                        # FHD
+                        use_model=use_model,
+                        # MS
+                        data_column=data_column,
+                        pol_order=pol_order,
+                        ignore_single_chan=ignore_single_chan,
+                        raise_error=raise_error,
+                        read_weights=read_weights,
+                        # MS & MIR
+                        allow_flex_pol=allow_flex_pol,
+                        # uvh5
+                        multidim_index=multidim_index,
+                        remove_flex_pol=remove_flex_pol,
+                        # uvh5 & mwa_corr_fits
+                        data_array_dtype=data_array_dtype,
+                        # mwa_corr_fits
+                        use_aoflagger_flags=use_aoflagger_flags,
+                        remove_dig_gains=remove_dig_gains,
+                        remove_coarse_band=remove_coarse_band,
+                        correct_cable_len=correct_cable_len,
+                        correct_van_vleck=correct_van_vleck,
+                        cheby_approx=cheby_approx,
+                        flag_small_auto_ants=flag_small_auto_ants,
+                        propagate_coarse_flags=propagate_coarse_flags,
+                        flag_init=flag_init,
+                        edge_width=edge_width,
+                        start_flag=start_flag,
+                        end_flag=end_flag,
+                        flag_dc_offset=flag_dc_offset,
+                        remove_flagged_ants=remove_flagged_ants,
+                        phase_to_pointing_center=phase_to_pointing_center,
+                        nsample_array_dtype=nsample_array_dtype,
+                        corrchunk=corrchunk,
+                        receivers=receivers,
+                        sidebands=sidebands,
+                        mir_select_where=mir_select_where,
+                        apply_tsys=apply_tsys,
+                        apply_flags=apply_flags,
+                        apply_dedoppler=apply_dedoppler,
+                        pseudo_cont=pseudo_cont,
+                        rechunk=rechunk,
+                        recompute_nbls=recompute_nbls,
+                        time_axis_faster_than_bls=time_axis_faster_than_bls,
+                        blts_are_rectangular=blts_are_rectangular,
+                    )
+                    unread = False
+                except KeyError as err:
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to KeyError: {err}\n"
+                    )
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
+                except ValueError as err:
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to ValueError: {err}\n"
+                    )
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
+                except OSError as err:  # pragma: nocover
+                    file_warnings = (
+                        file_warnings + f"Failed to read {f} due to OSError: {err}\n"
+                    )
+                    file_num += 1
+                    if skip_bad_files is False:
+                        raise
+
+            if unread is True:
+                warnings.warn(
+                    "########################################################\n"
+                    "ALL FILES FAILED ON READ - NO READABLE FILES IN FILENAME\n"
+                    "########################################################"
+                )
+                return
+
+            uv_list = []
+            if len(filename) > file_num + 1:
+                for f in filename[file_num + 1 :]:
+                    uv2 = UVData()
+                    try:
+                        uv2.read(
+                            f,
                             file_type=file_type,
                             read_data=read_data,
                             skip_bad_files=skip_bad_files,
@@ -13087,17 +12283,12 @@ class UVData(UVBase):
                             fix_old_proj=fix_old_proj,
                             fix_use_ant_pos=fix_use_ant_pos,
                             make_multi_phase=make_multi_phase,
-                            allow_rephase=allow_rephase,
-                            phase_center_radec=phase_center_radec,
-                            phase_frame=phase_frame,
-                            phase_epoch=phase_epoch,
-                            phase_use_ant_pos=phase_use_ant_pos,
-                            unphase_to_drift=unphase_to_drift,
                             # selecting parameters
                             antenna_nums=antenna_nums,
                             antenna_names=antenna_names,
                             ant_str=ant_str,
                             bls=bls,
+                            catalog_names=catalog_names,
                             frequencies=frequencies,
                             freq_chans=freq_chans,
                             times=times,
@@ -13134,18 +12325,19 @@ class UVData(UVBase):
                             # uvh5
                             multidim_index=multidim_index,
                             remove_flex_pol=remove_flex_pol,
+                            blts_are_rectangular=blts_are_rectangular,
+                            time_axis_faster_than_bls=time_axis_faster_than_bls,
+                            recompute_nbls=recompute_nbls,
                             # uvh5 & mwa_corr_fits
                             data_array_dtype=data_array_dtype,
                             # mwa_corr_fits
                             use_aoflagger_flags=use_aoflagger_flags,
-                            use_cotter_flags=use_cotter_flags,
                             remove_dig_gains=remove_dig_gains,
                             remove_coarse_band=remove_coarse_band,
                             correct_cable_len=correct_cable_len,
                             correct_van_vleck=correct_van_vleck,
                             cheby_approx=cheby_approx,
                             flag_small_auto_ants=flag_small_auto_ants,
-                            flag_small_sig_ants=flag_small_sig_ants,
                             propagate_coarse_flags=propagate_coarse_flags,
                             flag_init=flag_init,
                             edge_width=edge_width,
@@ -13155,208 +12347,11 @@ class UVData(UVBase):
                             remove_flagged_ants=remove_flagged_ants,
                             phase_to_pointing_center=phase_to_pointing_center,
                             nsample_array_dtype=nsample_array_dtype,
+                            # MIR
                             corrchunk=corrchunk,
-                            receivers=receivers,
-                            sidebands=sidebands,
-                            mir_select_where=mir_select_where,
-                            apply_tsys=apply_tsys,
-                            apply_flags=apply_flags,
-                            apply_dedoppler=apply_dedoppler,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
-                            recompute_nbls=recompute_nbls,
-                            time_axis_faster_than_bls=time_axis_faster_than_bls,
-                            blts_are_rectangular=blts_are_rectangular,
                         )
-                    unread = False
-                except KeyError as err:
-                    file_warnings = (
-                        file_warnings + f"Failed to read {f} due to KeyError: {err}\n"
-                    )
-                    file_num += 1
-                    if skip_bad_files is False:
-                        raise
-                except ValueError as err:
-                    file_warnings = (
-                        file_warnings + f"Failed to read {f} due to ValueError: {err}\n"
-                    )
-                    file_num += 1
-                    if skip_bad_files is False:
-                        raise
-                except OSError as err:  # pragma: nocover
-                    file_warnings = (
-                        file_warnings + f"Failed to read {f} due to OSError: {err}\n"
-                    )
-                    file_num += 1
-                    if skip_bad_files is False:
-                        raise
-
-            if unread is True:
-                warnings.warn(
-                    "########################################################\n"
-                    "ALL FILES FAILED ON READ - NO READABLE FILES IN FILENAME\n"
-                    "########################################################"
-                )
-                return
-
-            any_unprojected = np.any(~self._check_for_cat_type("unprojected"))
-            phase_dict = None
-            if allow_rephase is None and not make_multi_phase and any_unprojected:
-                warnings.warn(
-                    "The default behavior is to rephase data from the files to make "
-                    "them have the same phasing. This is no longer needed as data with "
-                    "different phase centers can now be combined on one object. "
-                    "Starting in version 2.4, the data will be combined on one object "
-                    "without rephasing. To get that behavior now, set "
-                    "`allow_rephase=False`. The final object can be rephased if "
-                    "desired by calling `phase` after this method.",
-                    DeprecationWarning,
-                )
-                allow_rephase = True
-
-            if (
-                allow_rephase
-                and phase_center_radec is None
-                and not unphase_to_drift
-                and any_unprojected
-                and not make_multi_phase
-            ):
-                if self.Nphase > 1:
-                    warnings.warn(
-                        "Allow_rephase is True but `phase_center_radec` is not set and "
-                        "the first file has multiple phase centers, so no rephasing "
-                        "will be done."
-                    )
-                else:
-                    phase_dict = list(self.phase_center_catalog.values())[0]
-
-            uv_list = []
-            if len(filename) > file_num + 1:
-                for f in filename[file_num + 1 :]:
-                    uv2 = UVData()
-                    try:
-                        with warnings.catch_warnings():
-                            warnings.filterwarnings(
-                                "ignore", "The `allow_rephase` option is deprecated"
-                            )
-                            warnings.filterwarnings(
-                                "ignore", "The `make_multi_phase` option is deprecated"
-                            )
-                            warnings.filterwarnings(
-                                "ignore",
-                                "The `phase_center_radec` parameter is deprecated",
-                            )
-                            warnings.filterwarnings(
-                                "ignore",
-                                "The `unphase_to_drift` parameter is deprecated",
-                            )
-                            warnings.filterwarnings(
-                                "ignore", "The `allow_rephase` option is deprecated"
-                            )
-                            uv2.read(
-                                f,
-                                file_type=file_type,
-                                allow_rephase=allow_rephase,
-                                read_data=read_data,
-                                skip_bad_files=skip_bad_files,
-                                background_lsts=background_lsts,
-                                use_future_array_shapes=use_future_array_shapes,
-                                # phasing parameters
-                                fix_old_proj=fix_old_proj,
-                                fix_use_ant_pos=fix_use_ant_pos,
-                                make_multi_phase=make_multi_phase,
-                                phase_center_radec=phase_center_radec,
-                                phase_frame=phase_frame,
-                                phase_epoch=phase_epoch,
-                                phase_use_ant_pos=phase_use_ant_pos,
-                                unphase_to_drift=unphase_to_drift,
-                                # selecting parameters
-                                antenna_nums=antenna_nums,
-                                antenna_names=antenna_names,
-                                ant_str=ant_str,
-                                bls=bls,
-                                catalog_names=catalog_names,
-                                frequencies=frequencies,
-                                freq_chans=freq_chans,
-                                times=times,
-                                time_range=time_range,
-                                lsts=lsts,
-                                lst_range=lst_range,
-                                polarizations=polarizations,
-                                blt_inds=blt_inds,
-                                phase_center_ids=phase_center_ids,
-                                keep_all_metadata=keep_all_metadata,
-                                # checking parameters
-                                run_check=run_check,
-                                check_extra=check_extra,
-                                run_check_acceptability=run_check_acceptability,
-                                strict_uvw_antpos_check=strict_uvw_antpos_check,
-                                check_autos=check_autos,
-                                fix_autos=fix_autos,
-                                # file-type specific parameters
-                                # miriad
-                                phase_type=phase_type,
-                                projected=projected,
-                                correct_lat_lon=correct_lat_lon,
-                                calc_lst=calc_lst,
-                                # FHD
-                                use_model=use_model,
-                                # MS
-                                data_column=data_column,
-                                pol_order=pol_order,
-                                ignore_single_chan=ignore_single_chan,
-                                raise_error=raise_error,
-                                read_weights=read_weights,
-                                # MS & MIR
-                                allow_flex_pol=allow_flex_pol,
-                                # uvh5
-                                multidim_index=multidim_index,
-                                remove_flex_pol=remove_flex_pol,
-                                blts_are_rectangular=blts_are_rectangular,
-                                time_axis_faster_than_bls=time_axis_faster_than_bls,
-                                recompute_nbls=recompute_nbls,
-                                # uvh5 & mwa_corr_fits
-                                data_array_dtype=data_array_dtype,
-                                # mwa_corr_fits
-                                use_aoflagger_flags=use_aoflagger_flags,
-                                use_cotter_flags=use_cotter_flags,
-                                remove_dig_gains=remove_dig_gains,
-                                remove_coarse_band=remove_coarse_band,
-                                correct_cable_len=correct_cable_len,
-                                correct_van_vleck=correct_van_vleck,
-                                cheby_approx=cheby_approx,
-                                flag_small_auto_ants=flag_small_auto_ants,
-                                flag_small_sig_ants=flag_small_sig_ants,
-                                propagate_coarse_flags=propagate_coarse_flags,
-                                flag_init=flag_init,
-                                edge_width=edge_width,
-                                start_flag=start_flag,
-                                end_flag=end_flag,
-                                flag_dc_offset=flag_dc_offset,
-                                remove_flagged_ants=remove_flagged_ants,
-                                phase_to_pointing_center=phase_to_pointing_center,
-                                nsample_array_dtype=nsample_array_dtype,
-                                # MIR
-                                corrchunk=corrchunk,
-                                pseudo_cont=pseudo_cont,
-                                rechunk=rechunk,
-                            )
-                        if phase_dict is not None:
-                            uv2.phase(
-                                lon=phase_dict.get("cat_lon"),
-                                lat=phase_dict.get("cat_lat"),
-                                epoch=phase_dict.get("cat_epoch"),
-                                phase_frame=phase_dict.get("cat_frame"),
-                                cat_type=phase_dict.get("cat_type"),
-                                ephem_times=phase_dict.get("cat_times"),
-                                pm_ra=phase_dict.get("cat_pm_ra"),
-                                pm_dec=phase_dict.get("cat_pm_dec"),
-                                dist=phase_dict.get("cat_dist"),
-                                vrad=phase_dict.get("cat_vrad"),
-                                cat_name=phase_dict.get("cat_name"),
-                                use_ant_pos=phase_use_ant_pos,
-                                allow_rephase=allow_rephase,
-                            )
 
                         uv_list.append(uv2)
                     except KeyError as err:
@@ -13409,7 +12404,6 @@ class UVData(UVBase):
                     for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
                         uv1.__iadd__(
                             uv2,
-                            use_ant_pos=phase_use_ant_pos,
                             run_check=run_check,
                             check_extra=check_extra,
                             run_check_acceptability=run_check_acceptability,
@@ -13644,14 +12638,12 @@ class UVData(UVBase):
                 self.read_mwa_corr_fits(
                     filename,
                     use_aoflagger_flags=use_aoflagger_flags,
-                    use_cotter_flags=use_cotter_flags,
                     remove_dig_gains=remove_dig_gains,
                     remove_coarse_band=remove_coarse_band,
                     correct_cable_len=correct_cable_len,
                     correct_van_vleck=correct_van_vleck,
                     cheby_approx=cheby_approx,
                     flag_small_auto_ants=flag_small_auto_ants,
-                    flag_small_sig_ants=flag_small_sig_ants,
                     propagate_coarse_flags=propagate_coarse_flags,
                     flag_init=flag_init,
                     edge_width=edge_width,
@@ -13767,16 +12759,6 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                 )
 
-            self._deprecated_phase_helper(
-                [],
-                phase_center_radec,
-                unphase_to_drift,
-                phase_frame,
-                orig_phase_frame,
-                phase_use_ant_pos,
-                None,
-            )
-
     @classmethod
     def from_file(
         cls,
@@ -13790,12 +12772,6 @@ class UVData(UVBase):
         use_future_array_shapes=False,
         # phasing parameters
         allow_rephase=None,
-        phase_center_radec=None,
-        unphase_to_drift=None,
-        phase_frame=None,
-        phase_epoch=None,
-        orig_phase_frame=None,
-        phase_use_ant_pos=None,
         fix_old_proj=None,
         fix_use_ant_pos=True,
         make_multi_phase=False,
@@ -13849,14 +12825,12 @@ class UVData(UVBase):
         data_array_dtype=np.complex128,
         # mwa_corr_fits
         use_aoflagger_flags=None,
-        use_cotter_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
         correct_cable_len=None,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,
-        flag_small_sig_ants=None,
         propagate_coarse_flags=True,
         flag_init=True,
         edge_width=80e3,
@@ -13929,38 +12903,7 @@ class UVData(UVBase):
         Phasing
         -------
         allow_rephase :  bool
-            Deprecated, will have no effect starting in version 2.4 and will be removed
-            in version 2.6 because data with different phasing can now be combined.
-            Allow rephasing of phased file data. Currently defaults to True, which will
-            cause data to be rephased (to preserve the previous behavior). Set to False
-            to prevent rephasing and mimic the future behavior.
-        phase_center_radec : array_like of float
-            Deprecated and will be removed in version 2.4, instead call `phase` on the
-            combined object after this method. The phase center to phase the files to
-            before combining the objects in radians (in the ICRS frame). If set to None
-            and allow_rephase is True and multiple files are read with different phase
-            centers, the phase center of the first file will be used.
-        unphase_to_drift : bool
-            Deprecated, instead call `unproject_phase` on the combined object after
-            this method. Unproject the data from the files before combining them.
-        phase_frame : str
-            The astropy frame to phase to.Only used if `phase_center_radec` is set.
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        phase_epoch : astropy.time.Time object or str
-            The epoch to use for phasing. Either an astropy Time object or the
-            string "J2000" (which is the default).
-            Note that the epoch is only used to evaluate the ra & dec values,
-            if the epoch is not J2000, the ra & dec values are interpreted
-            as FK5 ra/dec values and transformed to J2000, the data are then
-            phased to the J2000 ra/dec values.
-            Deprecated and will be removed in version 2.4 with `phase_center_radec`.
-        orig_phase_frame : str
-            Deprecated, has no effect. Will be removed in version 2.4.
-        phase_use_ant_pos : bool
-            If True, calculate the uvws directly from the antenna positions rather than
-            from the existing uvws. Only used if `unphase_to_drift` or
-            `phase_center_radec` are set. Deprecated and will be removed in version 2.4
-            with `unphase_to_drift` and `phase_center_radec`.
+            Deprecated, and has no effect. Will be removed in version 2.6.
         fix_old_proj : bool
             Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
             method was used prior to writing the data, which had errors of the order of
@@ -13973,10 +12916,7 @@ class UVData(UVBase):
             correct uvw-coordinates rather than using the baseline vectors. Default is
             True.
         make_multi_phase : bool
-            Deprecated, will be removed in version 2.4. Since all objects now support
-            multiple phase centers, this has no effect if set to False. The only effect
-            of setting this to True is to prevent rephasing. A better approach is to set
-            `allow_rephase=False`.
+            Deprecated, and has no effect. Will be removed in version 2.6.
 
         Selecting
         ---------
@@ -14191,8 +13131,6 @@ class UVData(UVBase):
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
-        use_cotter_flags : bool
-            Being replaced by use_aoflagger_flags and will be removed in v2.4.
         remove_dig_gains : bool
             Option to divide out digital gains.
         remove_coarse_band : bool
@@ -14212,8 +13150,6 @@ class UVData(UVBase):
             If set to False, only the times and frequencies at which the auto is below
             the threshold will be flagged for the antenna.
             Only used if correct_van_vleck is True.
-        flag_small_sig_ants : bool
-            Deprecated, replaced by flag_small_auto_ants and will be removed in v2.4.
         propogate_coarse_flags : bool
             Option to propogate flags for missing coarse channel integrations
             across frequency.
@@ -14313,12 +13249,6 @@ class UVData(UVBase):
             use_future_array_shapes=use_future_array_shapes,
             # phasing parameters
             allow_rephase=allow_rephase,
-            phase_center_radec=phase_center_radec,
-            unphase_to_drift=unphase_to_drift,
-            phase_frame=phase_frame,
-            phase_epoch=phase_epoch,
-            orig_phase_frame=orig_phase_frame,
-            phase_use_ant_pos=phase_use_ant_pos,
             fix_old_proj=fix_old_proj,
             fix_use_ant_pos=fix_use_ant_pos,
             make_multi_phase=make_multi_phase,
@@ -14373,14 +13303,12 @@ class UVData(UVBase):
             recompute_nbls=recompute_nbls,
             # mwa_corr_fits
             use_aoflagger_flags=use_aoflagger_flags,
-            use_cotter_flags=use_cotter_flags,
             remove_dig_gains=remove_dig_gains,
             remove_coarse_band=remove_coarse_band,
             correct_cable_len=correct_cable_len,
             correct_van_vleck=correct_van_vleck,
             cheby_approx=cheby_approx,
             flag_small_auto_ants=flag_small_auto_ants,
-            flag_small_sig_ants=flag_small_sig_ants,
             propagate_coarse_flags=propagate_coarse_flags,
             flag_init=flag_init,
             edge_width=edge_width,
@@ -14588,7 +13516,6 @@ class UVData(UVBase):
     def write_uvfits(
         self,
         filename,
-        spoof_nonessential=False,
         write_lst=True,
         force_phase=False,
         run_check=True,
@@ -14611,9 +13538,6 @@ class UVData(UVBase):
         ----------
         filename : str
             The uvfits file to write to.
-        spoof_nonessential : bool
-            Deprecated and has no effect. Values are automatically set to their best
-            known values if not previously set.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
         force_phase:  : bool
@@ -14670,7 +13594,6 @@ class UVData(UVBase):
 
         uvfits_obj.write_uvfits(
             filename,
-            spoof_nonessential=spoof_nonessential,
             write_lst=write_lst,
             force_phase=force_phase,
             run_check=run_check,

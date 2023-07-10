@@ -623,39 +623,6 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
-    def __setattr__(self, __name: str, __value) -> None:
-        """Raise DeprecationWarnings for setting interpolation_function."""
-        if __name == "interpolation_function":
-            if __value not in self.interpolation_function_dict.keys():
-                raise ValueError(
-                    "interpolation_function must be one of "
-                    f"{list(self.interpolation_function_dict.keys())}"
-                )
-            else:
-                warnings.warn(
-                    "The interpolation_function attribute on UVBeam objects is "
-                    "deprecated and support for it will be removed in version 2.4. "
-                    "Instead, pass the desired function to the `interp` or "
-                    "`to_healpix` methods. ",
-                    DeprecationWarning,
-                )
-        return super().__setattr__(__name, __value)
-
-    def __getattr__(self, __name: str):
-        """Raise DeprecationWarnings for interpolation_function."""
-        if __name == "interpolation_function":
-            warnings.warn(
-                "The interpolation_function attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.4. "
-                "Instead, pass the desired function to the `interp` or "
-                "`to_healpix` methods. ",
-                DeprecationWarning,
-            )
-            return None
-
-        # Error if attribute not found
-        return self.__getattribute__(__name)
-
     def _freq_params(self):
         """List of strings giving the parameters shaped like the freq_array."""
         form = self._freq_array.form
@@ -2145,11 +2112,9 @@ class UVBeam(UVBase):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
 
-        Uses the function specified in `interpolation_function`, which defaults first
-        to the `interpolation_function` attribute on the object if it is set (setting
-        it is deprecated) or to the "az_za_simple" for objects with the "az_za"
-        pixel_coordinate_system and "healpix_simple" for objects with the "healpix"
-        pixel_coordinate_system.
+        Uses the function specified in `interpolation_function`, which to the
+        "az_za_simple" for objects with the "az_za" pixel_coordinate_system and
+        "healpix_simple" for objects with the "healpix" pixel_coordinate_system.
         Currently supported interpolation functions include:
 
         - "az_za_simple": Uses scipy RectBivariate spline interpolation, can only be
@@ -2168,11 +2133,9 @@ class UVBeam(UVBase):
             zenith positions for every interpolation point or specifying the
             zenith vector for a meshgrid if az_za_grid is True.
         interpolation_function : str, optional
-            Specify the interpolation function to use. Defaults to the
-            interpolation_function attribute on the object if it is set (setting it is
-            deprecated), otherwise it defaults to: "az_za_simple" for objects with the
-            "az_za" pixel_coordinate_system and "healpix_simple" for objects with the
-            "healpix" pixel_coordinate_system.
+            Specify the interpolation function to use. Defaults to: "az_za_simple" for
+            objects with the "az_za" pixel_coordinate_system and "healpix_simple" for
+            objects with the "healpix" pixel_coordinate_system.
         az_za_grid : bool
             Option to treat the `az_array` and `za_array` as the input vectors
             for points on a mesh grid.
@@ -2246,30 +2209,16 @@ class UVBeam(UVBase):
             future_array_shapes is True.
 
         """
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", "The interpolation_function attribute on UVBeam objects"
-            )
-            if interpolation_function is None and self.interpolation_function is None:
-                if self.pixel_coordinate_system == "az_za":
-                    interpolation_function = "az_za_simple"
-                elif self.pixel_coordinate_system == "healpix":
-                    interpolation_function = "healpix_simple"
-                else:
-                    raise ValueError(
-                        "There is no default interpolation function for objects with "
-                        f"pixel_coordinate_system: {self.pixel_coordinate_system}"
-                    )
-            elif (
-                interpolation_function is not None
-                and self.interpolation_function is not None
-            ):
-                if interpolation_function != self.interpolation_function:
-                    warnings.warn(
-                        "The interpolation_function parameter was set but it does not "
-                        "match the interpolation_function attribute on the object. "
-                        "Using the one passed to this method."
-                    )
+        if interpolation_function is None:
+            if self.pixel_coordinate_system == "az_za":
+                interpolation_function = "az_za_simple"
+            elif self.pixel_coordinate_system == "healpix":
+                interpolation_function = "healpix_simple"
+            else:
+                raise ValueError(
+                    "There is no default interpolation function for objects with "
+                    f"pixel_coordinate_system: {self.pixel_coordinate_system}"
+                )
 
         if self.freq_interp_kind is None:
             raise ValueError("freq_interp_kind must be set on object first")
@@ -2287,26 +2236,14 @@ class UVBeam(UVBase):
                     "for frequency only interpolation."
                 )
 
-        if interpolation_function is not None:
-            allowed_interp_funcs = list(self.interpolation_function_dict.keys())
-            if interpolation_function not in allowed_interp_funcs:
-                raise ValueError(
-                    "interpolation_function not recognized, must be one of "
-                    f"{allowed_interp_funcs}"
-                )
-            interp_func_name = interpolation_function
-            interp_func = self.interpolation_function_dict[interpolation_function][
-                "func"
-            ]
-        else:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore", "The interpolation_function attribute on UVBeam objects"
-                )
-                interp_func_name = self.interpolation_function
-                interp_func = self.interpolation_function_dict[
-                    self.interpolation_function
-                ]["func"]
+        allowed_interp_funcs = list(self.interpolation_function_dict.keys())
+        if interpolation_function not in allowed_interp_funcs:
+            raise ValueError(
+                "interpolation_function not recognized, must be one of "
+                f"{allowed_interp_funcs}"
+            )
+        interp_func_name = interpolation_function
+        interp_func = self.interpolation_function_dict[interpolation_function]["func"]
 
         kind_use = self.freq_interp_kind
         if freq_array is not None:
@@ -2521,10 +2458,8 @@ class UVBeam(UVBase):
         and then converting to power gives a different result than converting
         to power and then interpolating at about a 5% level.
 
-        Uses the function specified in `interpolation_function`, which defaults first
-        to the `interpolation_function` attribute on the object if it is set (setting
-        it is deprecated) or to the "az_za_simple" for objects with the "az_za"
-        pixel_coordinate_system.
+        Uses the function specified in `interpolation_function`, defaults to the
+        "az_za_simple" for objects with the "az_za" pixel_coordinate_system.
         Currently supported interpolation functions for beams that are not already in
         a healpix coordinate system include:
 
@@ -2538,10 +2473,8 @@ class UVBeam(UVBase):
             the nside that gives the closest resolution that is higher than the
             input resolution.
         interpolation_function : str, optional
-            Specify the interpolation function to use. Defaults to the
-            interpolation_function attribute on the object if it is set (setting it is
-            deprecated), otherwise it defaults to: "az_za_simple" for objects with the
-            "az_za" pixel_coordinate_system.
+            Specify the interpolation function to use. Defaults to to: "az_za_simple"
+            for objects with the "az_za" pixel_coordinate_system.
         run_check : bool
             Option to check for the existence and proper shapes of required
             parameters after converting to healpix.
