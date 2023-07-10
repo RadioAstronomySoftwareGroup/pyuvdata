@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.4] - 2023-07-10
+
 ### Added
 - Support for multiple spectral windows in `UVData.frequency_average`, including a new
 parameter `respect_spws` for controlling whether averaging crosses spectral window
@@ -22,6 +24,26 @@ that does not divide evenly into the number of channels in each spectral window.
 the `erfa` or `novas` astrometry libraries.
 - Error when setting `UVBeam.freq_interp_kind` to an integer.
 - Error when reading `mwa_corr_fits` files from the new MWAX correlator
+
+### Removed
+- The `phase_uvw` and `unphase_uvw` utility methods associated with old style phasing.
+- The `with_conjugates` option to the `get_baseline_redundancies` utility method in
+favor of the `include_conjugates` option.
+- Support for the the `interpolation_function` attribute on UVBeams.
+- Support for the "unphased" catalog type in UVData.phase_center_catalog in favor of
+the "unprojected" catalog type.
+- The `UVData.unphase_to_drift` method in favor of `UVData.unproject_phase` method.
+- Support for using old style phasing on UVData objects (the `UVData.fix_phase` method
+to fix datasets that were phased with the old style of phasing remains).
+- Phasing related keywords in the following `UVData` methods: `__add__`, `__iadd__`,
+`fast_concat`, `read` and `from_file`. Multiple phase centers are now fully supported
+so datasets can always be combined without phasing. If desired, the full object can be
+rephased to a single phase center afterwards.
+- The `use_cotter_flags` and `flag_small_sig_ants` options to the `UVData.read` and
+`UVData.from_file` methods for MWA correlator fits files in favor of the
+`use_aoflagger_flags` and `flag_small_auto_ants` options respectively.
+- The `spoof_nonessential` option to `UVData.write_uvfits` method as the previously
+spoofed parameters are now properly calculated.
 
 ## [2.3.3] - 2023-05-25
 
