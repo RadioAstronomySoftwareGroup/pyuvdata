@@ -24,7 +24,7 @@ from scipy import ndimage as nd
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-from ..docstrings import combine_docstrings
+from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
@@ -5777,14 +5777,6 @@ class UVData(UVBase):
                     )
                 else:
                     lat = dec
-            if cat_name is None:
-                cat_name = (
-                    "lon_"
-                    + str(np.rad2deg(lon))
-                    + "deg_lat_"
-                    + str(np.rad2deg(lat))
-                    + "_deg"
-                )
 
         # Before moving forward with the heavy calculations, we need to do some
         # basic housekeeping to make sure that we've got the coordinate data that
@@ -11592,8 +11584,6 @@ class UVData(UVBase):
         use_future_array_shapes=False,
         # phasing parameters
         allow_rephase=None,
-        fix_old_proj=None,
-        fix_use_ant_pos=True,
         make_multi_phase=False,
         # selecting parameters
         antenna_nums=None,
@@ -11624,6 +11614,9 @@ class UVData(UVBase):
         projected=None,
         correct_lat_lon=True,
         calc_lst=True,
+        # Miriad, UVFITS & UVH5
+        fix_old_proj=None,
+        fix_use_ant_pos=True,
         # FHD
         use_model=False,
         # MS
@@ -11724,17 +11717,6 @@ class UVData(UVBase):
         -------
         allow_rephase :  bool
             Deprecated, and has no effect. Will be removed in version 2.6.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
-            and `phase_center_app_dec` attributes (as these were introduced at the same
-            time as the new `phase` method), in which case the default is True.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
         make_multi_phase : bool
             Deprecated, and has no effect. Will be removed in version 2.6.
 
@@ -11857,6 +11839,27 @@ class UVData(UVBase):
             Recalculate the LST values that are present within the file, useful in
             cases where the "online" calculate values have precision or value errors.
             Default is True.
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
+
+        UVFITS
+        ------
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
 
         FHD
         ---
@@ -11944,7 +11947,17 @@ class UVData(UVBase):
             rectify it. Old HERA files (< March 2023) may have this issue, but in this
             case the correct number of baselines can be computed more quickly than by
             fully re=computing, and so we do this.
-
+        fix_old_proj : bool
+            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
+            method was used prior to writing the data, which had errors of the order of
+            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
+            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
+            and `phase_center_app_dec` attributes (as these were introduced at the same
+            time as the new `phase` method), in which case the default is True.
+        fix_use_ant_pos : bool
+            If setting `fix_old_proj` to True, use the antenna positions to derive the
+            correct uvw-coordinates rather than using the baseline vectors. Default is
+            True.
 
         MWA FITS
         --------
@@ -12057,7 +12070,7 @@ class UVData(UVBase):
             If phase_center_radec is not None and is not length 2.
 
         """
-        if allow_rephase:
+        if allow_rephase is not None:
             warnings.warn(
                 "The `allow_rephase` option is deprecated and has no effect. It will "
                 "be removed in pyuvdata v2.6.",
@@ -12760,574 +12773,11 @@ class UVData(UVBase):
                 )
 
     @classmethod
-    def from_file(
-        cls,
-        filename,
-        axis=None,
-        file_type=None,
-        read_data=True,
-        skip_bad_files=False,
-        background_lsts=True,
-        ignore_name=False,
-        use_future_array_shapes=False,
-        # phasing parameters
-        allow_rephase=None,
-        fix_old_proj=None,
-        fix_use_ant_pos=True,
-        make_multi_phase=False,
-        # selecting parameters
-        antenna_nums=None,
-        antenna_names=None,
-        ant_str=None,
-        bls=None,
-        catalog_names=None,
-        frequencies=None,
-        freq_chans=None,
-        times=None,
-        time_range=None,
-        lsts=None,
-        lst_range=None,
-        polarizations=None,
-        blt_inds=None,
-        phase_center_ids=None,
-        keep_all_metadata=True,
-        # checking parameters
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=True,
-        # file-type specific parameters
-        # miriad
-        phase_type=None,
-        projected=None,
-        correct_lat_lon=True,
-        calc_lst=True,
-        # FHD
-        use_model=False,
-        # MS
-        data_column="DATA",
-        pol_order="AIPS",
-        ignore_single_chan=True,
-        raise_error=True,
-        read_weights=True,
-        # MS & MIR
-        allow_flex_pol=True,
-        # uvh5
-        multidim_index=False,
-        remove_flex_pol=True,
-        blt_order=None,
-        time_axis_faster_than_bls=None,
-        blts_are_rectangular=None,
-        recompute_nbls: bool | None = None,
-        # uvh5 & mwa_corr_fits
-        data_array_dtype=np.complex128,
-        # mwa_corr_fits
-        use_aoflagger_flags=None,
-        remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=None,
-        correct_van_vleck=False,
-        cheby_approx=True,
-        flag_small_auto_ants=True,
-        propagate_coarse_flags=True,
-        flag_init=True,
-        edge_width=80e3,
-        start_flag="goodtime",
-        end_flag=0.0,
-        flag_dc_offset=True,
-        remove_flagged_ants=True,
-        phase_to_pointing_center=False,
-        nsample_array_dtype=np.float32,
-        # MIR
-        corrchunk=None,
-        receivers=None,
-        sidebands=None,
-        mir_select_where=None,
-        apply_tsys=True,
-        apply_flags=True,
-        apply_dedoppler=False,
-        pseudo_cont=False,
-        rechunk=None,
-    ):
-        """
-        Initialize a new UVData object by reading the input file.
-
-        This method supports a number of different types of files.
-        Universal parameters (required and optional) are listed directly below,
-        followed by parameters used by all file types related to phasing, selecting on
-        read (partial read) and checking. Each file type also has its own set of
-        optional parameters that are listed at the end of this docstring.
-
-        Parameters
-        ----------
-        filename : str or array_like of str
-            The file(s) or list(s) (or array(s)) of files to read from.
-        file_type : str
-            One of ['uvfits', 'miriad', 'ms', 'uvh5', 'fhd', 'mwa_corr_fits', 'mir']
-            or None. If None, the code attempts to guess what the file type is.
-            For miriad and ms types, this is based on the standard directory
-            structure. For FHD, uvfits and uvh5 files it's based on file
-            extensions (FHD: .sav, .txt; uvfits: .uvfits; uvh5: .uvh5).
-            Note that if a list of datasets is passed, the file type is
-            determined from the first dataset.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
-        read_data : bool
-            Read in the data. Not used if file_type is 'ms' or 'mir'.
-            If set to False, only the metadata will be read in. Setting read_data to
-            False results in a metdata only object.
-        skip_bad_files : bool
-            Option when reading multiple files to catch read errors such that
-            the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed. Default is False (files will
-            not be skipped).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        ignore_name : bool
-            Only relevant when reading in multiple files, which are concatenated into a
-            single UVData object. Option to ignore the name of the phase center when
-            combining multiple files, which would otherwise result in an error being
-            raised because of attributes not matching. Doing so effectively adopts the
-            name found in the first file read in. Default is False.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Phasing
-        -------
-        allow_rephase :  bool
-            Deprecated, and has no effect. Will be removed in version 2.6.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False, unless reading a UVH5 file that is missing the `phase_center_app_ra`
-            and `phase_center_app_dec` attributes (as these were introduced at the same
-            time as the new `phase` method), in which case the default is True.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        make_multi_phase : bool
-            Deprecated, and has no effect. Will be removed in version 2.6.
-
-        Selecting
-        ---------
-        antenna_nums : array_like of int, optional
-            The antennas numbers to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided.
-        antenna_names : array_like of str, optional
-            The antennas names to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided.
-        ant_str : str, optional
-            A string containing information about what antenna numbers
-            and polarizations to include when reading data into the object.
-            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
-            examples of valid strings and the behavior of different forms for ant_str.
-            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1, 2) and (2, 3) to return a valid
-            pyuvdata object.
-            An ant_str cannot be passed in addition to any of `antenna_nums`,
-            `antenna_names`, `bls` args or the `polarizations` parameters,
-            if it is a ValueError will be raised.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
-        frequencies : array_like of float, optional
-            The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array.
-        freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
-        times : array_like of float, optional
-            The times to include when reading data into the object, each value
-            passed here should exist in the time_array in the file.
-            Cannot be used with `time_range`.
-        time_range : array_like of float, optional
-            The time range in Julian Date to include when reading data into
-            the object, must be length 2. Some of the times in the file should
-            fall between the first and last elements.
-            Cannot be used with `times`.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
-            The polarizations numbers to include when reading data into the
-            object, each value passed here should exist in the polarization_array.
-        blt_inds : array_like of int, optional
-            The baseline-time indices to include when reading data into the
-            object. This is not commonly used.
-        phase_center_ids : array_like of int, optional
-            Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times). Cannot be used with catalog_names.
-        catalog_names : str or array-like of str, optional
-            The names of the phase centers (sources) to include when reading data into
-            the object, which should match exactly in spelling and capitalization.
-            Cannot be used with phase_center_ids.
-        keep_all_metadata : bool
-            Option to keep all the metadata associated with antennas, even those
-            that do not have data associated with them after the select option.
-
-        Checking
-        --------
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-
-        Miriad
-        ------
-        phase_type : str, optional
-            Deprecated, use the `projected` parameter insted. Option to specify the
-            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
-            is the same as setting the projected parameter to False, 'phased' is the
-            same as setting the projected parameter to True. Ignored if `projected`
-            is set.
-        projected : bool or None
-            Option to force the dataset to be labelled as projected or unprojected
-            regardless of the evidence in the file. The default is None which means that
-            the projection will be set based on the file contents. Be careful setting
-            this keyword unless you are confident about the contents of the file.
-        correct_lat_lon : bool
-            Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
-        calc_lst : bool
-            Recalculate the LST values that are present within the file, useful in
-            cases where the "online" calculate values have precision or value errors.
-            Default is True.
-
-        FHD
-        ---
-        use_model : bool
-            Option to read in the model visibilities rather than the dirty
-            visibilities (the default is False, meaning the dirty visibilities
-            will be read).
-
-        MS
-        --
-        data_column : str
-            name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'.
-        pol_order : str
-            Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'.
-        ignore_single_chan : bool
-            Option to ignore single channel spectral windows in measurement sets to
-            limit object size. Some measurement sets (e.g., those from ALMA) use single
-            channel spectral windows for recording pseudo-continuum channels or storing
-            other metadata in the track when the telescopes are not on source. Because
-            of the way the object is strutured (where all spectral windows are assumed
-            to be simultaneously recorded), this can significantly inflate the size and
-            memory footprint of UVData objects. By default, single channel windows are
-            ignored to avoid this issue, they can be included by setting this parameter
-            to True.
-        raise_error : bool
-            The measurement set format allows for different spectral windows and
-            polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. It also allows for timescales that
-            are not supported by astropy. If any of these problems are detected, by
-            default the reader will throw an error. However, if set to False, the reader
-            will simply give a warning and try to do the best it can. If the problem is
-            with differing metadata, it will use the first value read in the file as the
-            "correct" metadata in the UVData object. If the problem is with the
-            timescale, it will just assume UTC.
-        read_weights : bool
-            Read in the weights from the MS file. If false, the method
-            will set the `nsamples_array` to the same uniform value (namely 1.0).
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Default is True.
-
-        UVH5
-        ----
-        multidim_index : bool
-            If True, attempt to index the HDF5 dataset simultaneously along all data
-            axes. Otherwise index one axis at-a-time. This only works if data selection
-            is sliceable along all but one axis. If indices are not well-matched to
-            data chunks, this can be slow.
-        remove_flex_pol : bool
-            If True and if the file is a flex_pol file, convert back to a standard
-            UVData object.
-        data_array_dtype : numpy dtype
-            Datatype to store the output data_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-            precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'.
-        blt_order : tuple of str or "determine", optional
-            The order of the baseline-time axis *in the file*. This can be determined,
-            or read directly from file, however since it has been optional in the past,
-            many existing files do not contain it in the metadata.
-            Some reading operations are significantly faster if this is known, so
-            providing it here can provide a speedup. Default is to try and read it from
-            file, and if not there, just leave it as None. Set to "determine" to
-            auto-detect the blt_order from the metadata (takes extra time to do so).
-        blts_are_rectangular : bool, optional
-            Whether the baseline-time axis is rectangular. This can be read from
-            metadata in new files, but many old files do not contain it. If not
-            provided, the rectangularity will be determined from the data. This is a
-            non-negligible operation, so if you know it, it can be provided here to
-            speed up reading.
-        time_axis_faster_than_bls : bool, optional
-            If blts are rectangular, this variable specifies whether the time axis is
-            the fastest-moving virtual axis. Various reading functions benefit from
-            knowing this, so if it is known, it can be provided here to speed up
-            reading. It will be determined from the data if not provided.
-        recompute_nbls : bool, optional
-            Whether to recompute the number of unique baselines from the data. Before
-            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
-            baselines in the header without error, so this provides an opportunity to
-            rectify it. Old HERA files (< March 2023) may have this issue, but in this
-            case the correct number of baselines can be computed more quickly than by
-            fully re=computing, and so we do this.
-
-
-        MWA FITS
-        --------
-        use_aoflagger_flags : bool
-            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
-            flag files are submitted.
-        remove_dig_gains : bool
-            Option to divide out digital gains.
-        remove_coarse_band : bool
-            Option to divide out coarse band shape.
-        correct_cable_len : bool
-            Flag to apply cable length correction.
-        correct_van_vleck : bool
-            Flag to apply a van vleck correction.
-        cheby_approx : bool
-            Option to implement the van vleck correction with a chebyshev polynomial
-            approximation. Set to False to run the integral version of the correction.
-            Only used if correct_van_vleck is True.
-        flag_small_auto_ants : bool
-            Option to completely flag any antenna for which the autocorrelation falls
-            below a threshold found by the Van Vleck correction to indicate bad data.
-            Specifically, the threshold used is 0.5 * integration_time * channel_width.
-            If set to False, only the times and frequencies at which the auto is below
-            the threshold will be flagged for the antenna.
-            Only used if correct_van_vleck is True.
-        propogate_coarse_flags : bool
-            Option to propogate flags for missing coarse channel integrations
-            across frequency.
-        flag_init: bool
-            Set to True in order to do routine flagging of coarse channel edges, start
-            or end integrations, or the center fine channel of each coarse
-            channel. See associated keywords below.
-        edge_width: float
-            Only used if flag_init is True. Set to the width to flag on the edge of
-            each coarse channel, in hz. Errors if not equal to integer multiple of
-            channel_width. Set to 0 for no edge flagging.
-        start_flag: float or str
-            Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Set to 0 for no flagging. Default is
-            'goodtime', which uses information in the metafits file to determine
-            the length of time that should be flagged. Errors if input is not a
-            float or 'goodtime'. Errors if float input is not equal to an
-            integer multiple of the integration time.
-        end_flag: floats
-            Only used if flag_init is True. Set to the number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging. Errors if not an integer
-            multiple of the integration time.
-        flag_dc_offset: bool
-            Only used if flag_init is True. Set to True to flag the center fine channel
-            of each coarse channel.
-        remove_flagged_ants : bool
-            Option to perform a select to remove antennas flagged in the metafits
-            file. If correct_van_vleck and flag_small_auto_ants are both True then
-            antennas flagged by the Van Vleck correction are also removed.
-        phase_to_pointing_center : bool
-            Flag to phase to the pointing center.  Cannot be set if phase_center_radec
-            is set to a value.
-        data_array_dtype : numpy dtype
-            Datatype to store the output data_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-            precision real and imaginary).
-        nsample_array_dtype : numpy dtype
-            Datatype to store the output nsample_array as. Must be either
-            np.float64 (double-precision), np.float32 (single-precision), or
-            np.float16 (half-precision). Half-precision is only recommended for
-            cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3).
-
-        MIR
-        ---
-        corrchunk : int or array-like of int
-            Correlator "chunk" (spectral window) to include when reading data into the
-            object, where 0 corresponds to the pseudo-continuum channel.
-        receivers : str or array-like of str
-            The names of the receivers ("230", "240", "345", "400") to include when
-            reading data into the object.
-        sidebands : str or array-like of str
-            The names of the sidebands ("l" for lower, "u" for upper) to include when
-            reading data into the object.
-        mir_select_where : tuple or list of tuples, optional
-            Argument to pass to the `MirParser.select` method, which will downselect
-            which data is read into the object.
-        apply_flags : bool
-            If set to True, apply "wideband" flags to the visibilities, which are
-            recorded by the realtime system to denote when data are expected to be bad
-            (e.g., antennas not on source, dewar warm). Default it true.
-        apply_tsys : bool
-            If set to False, data are returned as correlation coefficients (normalized
-            by the auto-correlations). Default is True, which instead scales the raw
-            visibilities and forward-gain of the antenna to produce values in Jy
-            (uncalibrated).
-        apply_dedoppler : bool
-            If set to True, data will be corrected for any doppler-tracking performed
-            during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Default is True.
-
-        Raises
-        ------
-        ValueError
-            If the file_type is not set and cannot be determined from the file name.
-            If incompatible select keywords are set (e.g. `ant_str` with other
-            antenna selectors, `times` and `time_range`) or select keywords
-            exclude all data or if keywords are set to the wrong type.
-            If phase_center_radec is not None and is not length 2.
-
-        """
+    @copy_replace_short_description(read, style=DocstringStyle.NUMPYDOC)
+    def from_file(cls, filename, **kwargs):
+        """Initialize a new UVData object by reading the input file."""
         uvd = cls()
-        uvd.read(
-            filename,
-            axis=axis,
-            file_type=file_type,
-            read_data=read_data,
-            skip_bad_files=skip_bad_files,
-            background_lsts=background_lsts,
-            ignore_name=ignore_name,
-            use_future_array_shapes=use_future_array_shapes,
-            # phasing parameters
-            allow_rephase=allow_rephase,
-            fix_old_proj=fix_old_proj,
-            fix_use_ant_pos=fix_use_ant_pos,
-            make_multi_phase=make_multi_phase,
-            # select parameters
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            ant_str=ant_str,
-            bls=bls,
-            catalog_names=catalog_names,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            time_range=time_range,
-            lsts=lsts,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            phase_center_ids=phase_center_ids,
-            keep_all_metadata=keep_all_metadata,
-            # checking parameters
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            # start file-type specific parameters
-            # miriad
-            phase_type=phase_type,
-            projected=projected,
-            correct_lat_lon=correct_lat_lon,
-            calc_lst=calc_lst,
-            # FHD
-            use_model=use_model,
-            # MS
-            data_column=data_column,
-            pol_order=pol_order,
-            ignore_single_chan=ignore_single_chan,
-            raise_error=raise_error,
-            read_weights=read_weights,
-            # MS & MIR
-            allow_flex_pol=allow_flex_pol,
-            # uvh5
-            multidim_index=multidim_index,
-            remove_flex_pol=remove_flex_pol,
-            # uvh5 & mwa_corr_fits
-            data_array_dtype=data_array_dtype,
-            nsample_array_dtype=nsample_array_dtype,
-            blt_order=blt_order,
-            time_axis_faster_than_bls=time_axis_faster_than_bls,
-            blts_are_rectangular=blts_are_rectangular,
-            recompute_nbls=recompute_nbls,
-            # mwa_corr_fits
-            use_aoflagger_flags=use_aoflagger_flags,
-            remove_dig_gains=remove_dig_gains,
-            remove_coarse_band=remove_coarse_band,
-            correct_cable_len=correct_cable_len,
-            correct_van_vleck=correct_van_vleck,
-            cheby_approx=cheby_approx,
-            flag_small_auto_ants=flag_small_auto_ants,
-            propagate_coarse_flags=propagate_coarse_flags,
-            flag_init=flag_init,
-            edge_width=edge_width,
-            start_flag=start_flag,
-            end_flag=end_flag,
-            flag_dc_offset=flag_dc_offset,
-            remove_flagged_ants=remove_flagged_ants,
-            phase_to_pointing_center=phase_to_pointing_center,
-            # MIR
-            corrchunk=corrchunk,
-            receivers=receivers,
-            sidebands=sidebands,
-            mir_select_where=mir_select_where,
-            apply_tsys=apply_tsys,
-            apply_flags=apply_flags,
-            apply_dedoppler=apply_dedoppler,
-            pseudo_cont=pseudo_cont,
-            rechunk=rechunk,
-        )
+        uvd.read(filename, **kwargs)
         return uvd
 
     def write_miriad(

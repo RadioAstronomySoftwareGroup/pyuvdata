@@ -526,7 +526,6 @@ def test_multi_files(fhd_model):
         np.array([test1, test2]),
         use_model=True,
         file_type="fhd",
-        allow_rephase=False,
         use_future_array_shapes=True,
     )
 
@@ -557,7 +556,6 @@ def test_multi_files_axis(fhd_model):
         np.array([test1, test2]),
         use_model=True,
         axis="polarization",
-        allow_rephase=False,
         use_future_array_shapes=True,
     )
 

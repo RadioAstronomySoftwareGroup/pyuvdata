@@ -389,10 +389,7 @@ def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
     uv1.read(
-        np.array([testfile1, testfile2]),
-        file_type="uvh5",
-        allow_rephase=False,
-        use_future_array_shapes=True,
+        np.array([testfile1, testfile2]), file_type="uvh5", use_future_array_shapes=True
     )
 
     # Check history is correct, before replacing and doing a full object check
@@ -438,12 +435,7 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
     uvfits_filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv_full = UVData()
     uv_full.read_uvfits(uvfits_filename, read_data=False, use_future_array_shapes=True)
-    uv1.read(
-        [testfile1, testfile2],
-        read_data=False,
-        allow_rephase=False,
-        use_future_array_shapes=True,
-    )
+    uv1.read([testfile1, testfile2], read_data=False, use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -483,12 +475,7 @@ def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1.write_uvh5(testfile1, clobber=True)
     uv2.write_uvh5(testfile2, clobber=True)
-    uv1.read(
-        [testfile1, testfile2],
-        axis="freq",
-        allow_rephase=False,
-        use_future_array_shapes=True,
-    )
+    uv1.read([testfile1, testfile2], axis="freq", use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_in.history + "  Downselected to "

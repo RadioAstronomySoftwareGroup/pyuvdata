@@ -93,8 +93,6 @@ Functions
 
 .. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols
 
-.. autofunction:: pyuvdata.uvflag.uvflag.lst_from_uv
-
 .. autofunction:: pyuvdata.uvflag.uvflag.flags2waterfall
 
 
