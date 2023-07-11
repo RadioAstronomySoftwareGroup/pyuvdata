@@ -1343,7 +1343,7 @@ will result in a self-consistent object after concatenation. Basic checking is
 done, but time-consuming robust checks are eschewed for the sake of speed. The
 data will also *not* be reordered or sorted as part of the concatenation, and so
 this must be done manually by the user if a reordering is desired
-(see :ref:`sorting_data`).
+(see :ref:`uvdata_sorting_data`).
 
 The :meth:`pyuvdata.UVData.fast_concat` method is significantly faster than
 :meth:`pyuvdata.UVData.__add__`, especially for large UVData objects.
@@ -1532,7 +1532,7 @@ are written to the appropriate parts of the file on disk.
   >>> uvd.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
 
 
-.. _sorting_data:
+.. _uvdata_sorting_data:
 
 UVData: Sorting data along various axes
 ---------------------------------------

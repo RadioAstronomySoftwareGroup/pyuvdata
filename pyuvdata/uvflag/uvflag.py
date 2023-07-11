@@ -992,11 +992,14 @@ class UVFlag(UVBase):
                     )
         elif self.type == "antenna":
             if self.antenna_numbers is not None:
-                if not all(ant in self.antenna_numbers for ant in self.ant_array):
-                    print(self.antenna_numbers)
-                    print(np.unique(self.ant_array))
+                missing_ants = self.ant_array[
+                    ~np.isin(self.ant_array, self.antenna_numbers)
+                ]
+                if missing_ants.size > 0:
                     raise ValueError(
-                        "All antennas in ant_array must be in antenna_numbers."
+                        "All antennas in ant_array must be in antenna_numbers. "
+                        "The antennas in ant_array that are missing in antenna_numbers "
+                        f"are: {missing_ants}"
                     )
 
         if self.flex_spw_id_array is None:
@@ -2349,16 +2352,9 @@ class UVFlag(UVBase):
             this.freq_array = np.concatenate(
                 [this.freq_array, other.freq_array], axis=-1
             )
-            if this.channel_width is not None and other.channel_width is not None:
-                this.channel_width = np.concatenate(
-                    [this.channel_width, other.channel_width]
-                )
-            elif this.channel_width is not None or other.channel_width is not None:
-                raise ValueError(
-                    "channel_width is None on one object and an array on the other. "
-                    "It will be set to None on the combined object."
-                )
-                this.channel_width = None
+            this.channel_width = np.concatenate(
+                [this.channel_width, other.channel_width]
+            )
 
             # handle multiple spws
             if this.Nspws > 1 or other.Nspws > 1 or this._spw_array != other._spw_array:

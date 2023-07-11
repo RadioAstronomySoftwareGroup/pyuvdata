@@ -1,4 +1,5 @@
 """Functions for dealing with merging docstrings."""
+import copy
 import typing as tp
 from collections import ChainMap
 from inspect import Signature
@@ -96,6 +97,26 @@ def combine_docstrings(
         comb_doc.meta = list(chain(*combined.values())) + other_params
 
         func.__doc__ = compose(comb_doc, rendering_style=rendering_style, style=style)
+        return func
+
+    return wrapper
+
+
+def copy_replace_short_description(
+    other: _Func,
+    style: DocstringStyle = DocstringStyle.AUTO,
+    rendering_style: RenderingStyle = RenderingStyle.COMPACT,
+):
+    """Copy the long description and parameters section(s) from another docstring."""
+
+    def wrapper(func: _Func) -> _Func:
+        this_doc = parse(func.__doc__ or "", style=style)
+        other_doc = parse(other.__doc__ or "", style=style)
+
+        new_doc = copy.deepcopy(other_doc)
+        new_doc.short_description = this_doc.short_description
+
+        func.__doc__ = compose(new_doc, rendering_style=rendering_style, style=style)
         return func
 
     return wrapper

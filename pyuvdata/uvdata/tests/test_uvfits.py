@@ -1230,7 +1230,6 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read(
         np.array([testfile1, testfile2]),
         file_type="uvfits",
-        allow_rephase=False,
         use_future_array_shapes=True,
     )
 
@@ -1273,12 +1272,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
 
-    uv1.read(
-        [testfile1, testfile2],
-        axis="freq",
-        allow_rephase=False,
-        use_future_array_shapes=True,
-    )
+    uv1.read([testfile1, testfile2], axis="freq", use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         uv_full.history + "  Downselected to "
@@ -1321,12 +1315,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     # check with metadata_only
     uv_full = uv_full.copy(metadata_only=True)
     uv1 = UVData()
-    uv1.read(
-        [testfile1, testfile2],
-        read_data=False,
-        allow_rephase=False,
-        use_future_array_shapes=True,
-    )
+    uv1.read([testfile1, testfile2], read_data=False, use_future_array_shapes=True)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(

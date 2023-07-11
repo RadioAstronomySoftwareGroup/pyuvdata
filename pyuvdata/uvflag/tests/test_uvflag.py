@@ -1688,7 +1688,14 @@ def test_add_frequency():
     uv2 = uv1.copy()
     uv2.freq_array += 1e4  # Arbitrary
 
-    uv3 = uv1.__add__(uv2, axis="frequency")
+    uv1.flex_spw_id_array = None
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="One object has the flex_spw_id_array set and one does not. Combined "
+        "object will have it set.",
+    ):
+        uv3 = uv1.__add__(uv2, axis="frequency")
     assert np.array_equal(
         np.concatenate((uv1.freq_array, uv2.freq_array), axis=-1), uv3.freq_array
     )
@@ -1868,6 +1875,15 @@ def test_add_errors(uvdata_obj, uvcal_obj):
     with pytest.raises(
         ValueError,
         match="Both objects must have the same `future_array_shapes` parameter",
+    ):
+        uv1.__add__(uv3)
+
+    uv3 = uv1.copy()
+    uv3.telescope_name = "foo"
+    with pytest.raises(
+        ValueError,
+        match="telescope_name is not the same the two objects. The value on this "
+        "object is HERA; the value on the other object is foo.",
     ):
         uv1.__add__(uv3)
 

@@ -148,7 +148,12 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
     testfile = os.path.join(tmp_path, "outtest_mir.ms")
     ms_uv = UVData()
 
-    warn_msg = ["The `make_multi_phase` option is deprecated"]
+    warn_msg = [
+        "The `make_multi_phase` option is deprecated and has no effect. It will be "
+        "removed in pyuvdata v2.6.",
+        "The `allow_rephase` option is deprecated and has no effect. It will be "
+        "removed in pyuvdata v2.6.",
+    ]
     if not future_shapes:
         sma_mir.use_current_array_shapes()
         warn_msg.append(_future_array_shapes_warning)
@@ -313,9 +318,7 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # Write out our modified data set
     mir_uv.write_ms(testfile, clobber=True)
-    ms_uv = UVData.from_file(
-        testfile, allow_rephase=False, use_future_array_shapes=True
-    )
+    ms_uv = UVData.from_file(testfile, use_future_array_shapes=True)
 
     # fix up the phase center info to match the mir dataset
     cat_id = list(mir_uv.phase_center_catalog.keys())[0]

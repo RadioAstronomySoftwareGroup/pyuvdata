@@ -521,7 +521,7 @@ will result in a self-consistent object after concatenation. Basic checking is
 done, but time-consuming robust checks are eschewed for the sake of speed. The
 data will also *not* be reordered or sorted as part of the concatenation, and so
 this must be done manually by the user if a reordering is desired
-(see :ref:`sorting_data`).
+(see :ref:`uvcal_sorting_data`).
 
 
 .. code-block:: python
@@ -543,7 +543,7 @@ this must be done manually by the user if a reordering is desired
   >>> cal.read(filenames, axis="freq", use_future_array_shapes=True)
 
 
-.. _sorting_data:
+.. _uvcal_sorting_data:
 
 UVCal: Sorting data along various axes
 ---------------------------------------

@@ -366,9 +366,7 @@ def test_multi_files(casa_uvfits, axis):
     if axis is None:
         filesread = np.array(filesread)
 
-    uv_multi.read(
-        filesread, axis=axis, allow_rephase=False, use_future_array_shapes=True
-    )
+    uv_multi.read(filesread, axis=axis, use_future_array_shapes=True)
 
     # histories are different because of combining along freq. axis
     # replace the history
