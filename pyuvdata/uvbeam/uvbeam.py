@@ -2112,7 +2112,7 @@ class UVBeam(UVBase):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
 
-        Uses the function specified in `interpolation_function`, which to the
+        Uses the function specified in `interpolation_function`, which defaults to
         "az_za_simple" for objects with the "az_za" pixel_coordinate_system and
         "healpix_simple" for objects with the "healpix" pixel_coordinate_system.
         Currently supported interpolation functions include:
