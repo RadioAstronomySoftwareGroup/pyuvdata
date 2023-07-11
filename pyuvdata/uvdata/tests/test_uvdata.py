@@ -11046,15 +11046,16 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
         DATA_PATH, f"zen.2458661.23480.HH_oldproj{antpos_str}_{phase_frame}.uvh5"
     )
 
-    warn_type = [UserWarning]
     if use_ant_pos:
         warn_msg = ["Fixing phases using antenna positions."]
     else:
         warn_msg = ["Attempting to fix residual phasing errors from the old `phase`"]
 
+    read_warn_msg = copy.deepcopy(warn_msg)
+    read_warn_type = [UserWarning]
     if not future_shapes:
-        warn_msg.append(_future_array_shapes_warning)
-        warn_type.append(DeprecationWarning)
+        read_warn_msg.append(_future_array_shapes_warning)
+        read_warn_type.append(DeprecationWarning)
 
     # need to test uvfits & miriad read options, but only in one run so set the
     # file_type here (rather than in a parametrize)
@@ -11067,56 +11068,63 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
             if hasmiriad:
                 file_type = "miriad"
 
+    uv_in_bad = UVData.from_file(
+        bad_data_path, fix_old_proj=False, use_future_array_shapes=future_shapes
+    )
+    uv_in_bad_copy = uv_in_bad.copy()
     if file_type == "uvh5":
         outfile = bad_data_path
     else:
-        uv_in_bad = UVData.from_file(
-            bad_data_path, fix_old_proj=False, use_future_array_shapes=future_shapes
-        )
         if file_type == "uvfits":
             outfile = os.path.join(tmp_path, "test_bad_phase.uvfits")
-            uv_in_bad.write_uvfits(outfile)
+            uv_in_bad_copy.write_uvfits(outfile)
         elif file_type == "miriad":
             outfile = os.path.join(tmp_path, "test_bad_phase.uv")
-            uv_in_bad.write_miriad(outfile)
+            uv_in_bad_copy.write_miriad(outfile)
 
-    with uvtest.check_warnings(warn_type, warn_msg):
+    with uvtest.check_warnings(read_warn_type, match=read_warn_msg):
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", "Fixing auto-correlations to be be real-only"
             )
-            uv_in_bad = UVData.from_file(
+            uv_in_bad2 = UVData.from_file(
                 outfile,
                 fix_old_proj=True,
                 fix_use_ant_pos=use_ant_pos,
                 use_future_array_shapes=future_shapes,
             )
 
+    with uvtest.check_warnings(UserWarning, match=warn_msg):
+        uv_in_bad.fix_phase(use_ant_pos=use_ant_pos)
+
+    uv_in_bad_copy = uv_in_bad.copy()
+    if file_type == "miriad":
+        uv_in_bad_copy.conjugate_bls(convention="ant1<ant2")
+        uv_in_bad_copy.reorder_blts()
+        uv_in_bad2.reorder_blts()
+        uv_in_bad2._update_phase_center_id(0, new_id=1)
+    elif file_type == "uvfits":
+        uv_in_bad2.dut1 = None
+        uv_in_bad2.earth_omega = None
+        uv_in_bad2.gst0 = None
+        uv_in_bad2.rdate = None
+        uv_in_bad2.timesys = None
+    uv_in_bad2.phase_center_catalog[1][
+        "info_source"
+    ] = uv_in_bad_copy.phase_center_catalog[1]["info_source"]
+    uv_in_bad2.extra_keywords = uv_in_bad_copy.extra_keywords
+    assert uv_in_bad2 == uv_in_bad_copy
+
     # We have to handle this case a little carefully, because since the old
     # unproject_phase was _mostly_ accurate, although it does seem to intoduce errors
     # on the order of a part in 1e5, which translates to about a tenth of a degree phase
     # error in the test data set used here. Check that first, make sure it's good
-    if file_type == "miriad":
-        uv_in.conjugate_bls(convention="ant1<ant2")
-        uv_in.reorder_blts()
-        uv_in_bad.reorder_blts()
-        uv_in_bad._update_phase_center_id(0, new_id=1)
-    elif file_type == "uvfits":
-        uv_in_bad.dut1 = None
-        uv_in_bad.earth_omega = None
-        uv_in_bad.gst0 = None
-        uv_in_bad.rdate = None
-        uv_in_bad.timesys = None
     assert np.allclose(uv_in.data_array, uv_in_bad.data_array, rtol=3e-4)
 
     # Once we know the data are okay, copy over data array and check for equality btw
     # the other attributes of the two objects.
     uv_in_bad.data_array = uv_in.data_array
     uv_in_bad.history = uv_in.history
-    uv_in_bad.phase_center_catalog[1]["info_source"] = uv_in.phase_center_catalog[1][
-        "info_source"
-    ]
-    uv_in_bad.extra_keywords = uv_in.extra_keywords
     assert uv_in == uv_in_bad
 
 
