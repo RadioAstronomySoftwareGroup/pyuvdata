@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [2.4] - 2023-07-10
+## [2.4] - 2023-07-11
 
 ### Added
 - Support for multiple spectral windows in `UVData.frequency_average`, including a new
@@ -14,6 +14,9 @@ that does not divide evenly into the number of channels in each spectral window.
 - Compatibility with Python 3.11
 
 ### Changed
+- The following `UVFlag` parameters are now required: `Nspws`, `channel_width`,
+`spw_array`, `telescope_name`, `telescope_location`, `antenna_names`, `antenna_numbers`,
+and `antenna_positions`.
 - The `quality_array` on UVCal objects is no longer required.
 
 ### Deprecated
@@ -34,7 +37,8 @@ favor of the `include_conjugates` option.
 the "unprojected" catalog type.
 - The `UVData.unphase_to_drift` method in favor of `UVData.unproject_phase` method.
 - Support for using old style phasing on UVData objects (the `UVData.fix_phase` method
-to fix datasets that were phased with the old style of phasing remains).
+to fix datasets that were phased with the old style of phasing remains as well as the
+`fix_old_proj` option on read for uvfits, miriad and uvh5 file types).
 - Phasing related keywords in the following `UVData` methods: `__add__`, `__iadd__`,
 `fast_concat`, `read` and `from_file`. Multiple phase centers are now fully supported
 so datasets can always be combined without phasing. If desired, the full object can be
