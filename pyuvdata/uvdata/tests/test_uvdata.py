@@ -26,6 +26,13 @@ from pyuvdata.uvdata.tests.test_fhd import testfiles as fhd_files
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning, old_phase_attrs
 
+try:
+    import pyuvdata._miriad  # noqa F401
+
+    hasmiriad = True
+except ImportError:
+    hasmiriad = False
+
 
 @pytest.fixture(scope="function")
 def uvdata_props():
@@ -2381,13 +2388,9 @@ def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
     with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
         uv_object2.write_uvfits(write_file_uvfits)
 
-    try:
-        import pyuvdata._miriad
-
+    if hasmiriad:
         with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
             uv_object2.write_miriad(write_file_miriad)
-    except ImportError:
-        pass
 
     uv_object2 = uv_object.copy()
     with uvtest.check_warnings(
@@ -11060,7 +11063,9 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
         if future_shapes:
             file_type = "uvfits"
         else:
-            file_type = "miriad"
+            # test miriad if it's installed
+            if hasmiriad:
+                file_type = "miriad"
 
     if file_type == "uvh5":
         outfile = bad_data_path
@@ -11111,6 +11116,7 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
     uv_in_bad.phase_center_catalog[1]["info_source"] = uv_in.phase_center_catalog[1][
         "info_source"
     ]
+    uv_in_bad.extra_keywords = uv_in.extra_keywords
     assert uv_in == uv_in_bad
 
 

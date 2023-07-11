@@ -1325,7 +1325,7 @@ and combined with the previous file(s).
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd = UVData.from_file(filenames, allow_rephase=False, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filenames, use_future_array_shapes=True)
 
 e) Fast concatenation
 *********************
@@ -1368,7 +1368,7 @@ stored in the uvh5 format.
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd = UVData.from_file(filenames, axis='freq', allow_rephase=False, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filenames, axis='freq', use_future_array_shapes=True)
 
 
 UVData: Summing and differencing visibilities
