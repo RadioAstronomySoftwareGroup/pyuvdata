@@ -32,7 +32,7 @@ the `erfa` or `novas` astrometry libraries.
 - The `phase_uvw` and `unphase_uvw` utility methods associated with old style phasing.
 - The `with_conjugates` option to the `get_baseline_redundancies` utility method in
 favor of the `include_conjugates` option.
-- Support for the the `interpolation_function` attribute on UVBeams.
+- Support for the `interpolation_function` attribute on UVBeams.
 - Support for the "unphased" catalog type in UVData.phase_center_catalog in favor of
 the "unprojected" catalog type.
 - The `UVData.unphase_to_drift` method in favor of `UVData.unproject_phase` method.
