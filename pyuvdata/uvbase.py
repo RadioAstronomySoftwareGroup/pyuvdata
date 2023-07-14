@@ -392,7 +392,7 @@ class UVBase(object):
             yield a
 
     def __eq__(
-        self, other, check_extra=True, allowed_failures=("filename",), silent=False
+        self, other, *, check_extra=True, allowed_failures=("filename",), silent=False
     ):
         """
         Test if classes match and parameters are equal.
@@ -503,7 +503,7 @@ class UVBase(object):
             return False
 
     def __ne__(
-        self, other, check_extra=True, allowed_failures=("filename",), silent=True
+        self, other, *, check_extra=True, allowed_failures=("filename",), silent=True
     ):
         """
         Test if classes match and parameters are not equal.
@@ -538,7 +538,11 @@ class UVBase(object):
         )
 
     def check(
-        self, check_extra=True, run_check_acceptability=True, ignore_requirements=False
+        self,
+        *,
+        check_extra=True,
+        run_check_acceptability=True,
+        ignore_requirements=False,
     ):
         """
         Check that required parameters exist and have the correct shapes.
