@@ -656,7 +656,7 @@ class UVBeam(UVBase):
         )
         self.future_array_shapes = True
 
-    def use_future_array_shapes(self, unset_spw_params=True):
+    def use_future_array_shapes(self, *, unset_spw_params=True):
         """
         Change the array shapes of this object to match the planned future shapes.
 
@@ -690,7 +690,7 @@ class UVBeam(UVBase):
             self.spw_array = None
             self.Nspws = None
 
-    def use_current_array_shapes(self, set_spw_params=True):
+    def use_current_array_shapes(self, *, set_spw_params=True):
         """
         Change the array shapes of this object to match the current future shapes.
 
@@ -917,7 +917,7 @@ class UVBeam(UVBase):
                     self.data_array[:, :, pol_screen]
                 )
 
-    def _check_auto_power(self, fix_auto_power=False, warn_tols=(0, 0)):
+    def _check_auto_power(self, *, fix_auto_power=False, warn_tols=(0, 0)):
         """
         Check for complex auto polarization power beams.
 
@@ -976,6 +976,7 @@ class UVBeam(UVBase):
 
     def check(
         self,
+        *,
         check_extra=True,
         run_check_acceptability=True,
         check_auto_power=False,
@@ -1072,6 +1073,7 @@ class UVBeam(UVBase):
 
     def efield_to_power(
         self,
+        *,
         calc_cross_pols=True,
         keep_basis_vector=False,
         run_check=True,
@@ -1341,6 +1343,7 @@ class UVBeam(UVBase):
 
     def efield_to_pstokes(
         self,
+        *,
         inplace=True,
         run_check=True,
         check_extra=True,
@@ -1464,7 +1467,7 @@ class UVBeam(UVBase):
         if not inplace:
             return beam_object
 
-    def _interp_freq(self, freq_array, kind="linear", tol=1.0):
+    def _interp_freq(self, freq_array, *, kind="linear", tol=1.0):
         """
         Interpolate function along frequency axis.
 
@@ -1589,6 +1592,7 @@ class UVBeam(UVBase):
 
     def _interp_az_za_rect_spline(
         self,
+        *,
         az_array,
         za_array,
         freq_array,
@@ -1881,6 +1885,7 @@ class UVBeam(UVBase):
 
     def _interp_healpix_bilinear(
         self,
+        *,
         az_array,
         za_array,
         freq_array,
@@ -2090,6 +2095,7 @@ class UVBeam(UVBase):
 
     def interp(
         self,
+        *,
         az_array=None,
         za_array=None,
         interpolation_function=None,
@@ -2444,6 +2450,7 @@ class UVBeam(UVBase):
 
     def to_healpix(
         self,
+        *,
         nside=None,
         interpolation_function=None,
         run_check=True,
@@ -2677,6 +2684,7 @@ class UVBeam(UVBase):
     def __add__(
         self,
         other,
+        *,
         verbose_history=False,
         inplace=False,
         run_check=True,
@@ -3343,6 +3351,7 @@ class UVBeam(UVBase):
 
     def select(
         self,
+        *,
         axis1_inds=None,
         axis2_inds=None,
         pixels=None,
@@ -3775,6 +3784,7 @@ class UVBeam(UVBase):
     def read_beamfits(
         self,
         filename,
+        *,
         use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
@@ -3915,6 +3925,7 @@ class UVBeam(UVBase):
     def read_cst_beam(
         self,
         filename,
+        *,
         beam_type="power",
         use_future_array_shapes=False,
         feed_pol=None,
@@ -4317,6 +4328,7 @@ class UVBeam(UVBase):
     def read_mwa_beam(
         self,
         h5filepath,
+        *,
         use_future_array_shapes=False,
         delays=None,
         amplitudes=None,
@@ -4395,6 +4407,7 @@ class UVBeam(UVBase):
     def read(
         self,
         filename,
+        *,
         file_type=None,
         skip_bad_files=False,
         use_future_array_shapes=False,
@@ -4809,6 +4822,7 @@ class UVBeam(UVBase):
     def from_file(
         cls,
         filename,
+        *,
         file_type=None,
         skip_bad_files=False,
         use_future_array_shapes=False,
@@ -5053,6 +5067,7 @@ class UVBeam(UVBase):
     def write_beamfits(
         self,
         filename,
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,

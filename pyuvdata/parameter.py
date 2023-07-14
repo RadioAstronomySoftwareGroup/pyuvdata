@@ -253,6 +253,7 @@ class UVParameter(object):
     def __init__(
         self,
         name,
+        *,
         required=True,
         value=None,
         spoof_val=None,
@@ -293,7 +294,7 @@ class UVParameter(object):
 
         self.ignore_eq_none = ignore_eq_none and not required
 
-    def __eq__(self, other, silent=False):
+    def __eq__(self, other, *, silent=False):
         """
         Test if classes match and values are within tolerances.
 
@@ -562,7 +563,7 @@ class UVParameter(object):
 
         return True
 
-    def __ne__(self, other, silent=True):
+    def __ne__(self, other, *, silent=True):
         """
         Test if classes do not match or values are not within tolerances.
 
@@ -900,6 +901,7 @@ class LocationParameter(UVParameter):
     def __init__(
         self,
         name,
+        *,
         required=True,
         value=None,
         spoof_val=None,
@@ -960,7 +962,10 @@ class LocationParameter(UVParameter):
             self.value = None
         else:
             self.value = utils.XYZ_from_LatLonAlt(
-                lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2], frame=self.frame
+                latitude=lat_lon_alt[0],
+                longitude=lat_lon_alt[1],
+                altitude=lat_lon_alt[2],
+                frame=self.frame,
             )
 
     def lat_lon_alt_degrees(self):
@@ -987,9 +992,9 @@ class LocationParameter(UVParameter):
         else:
             latitude, longitude, altitude = lat_lon_alt_degree
             self.value = utils.XYZ_from_LatLonAlt(
-                latitude * np.pi / 180.0,
-                longitude * np.pi / 180.0,
-                altitude,
+                latitude=latitude * np.pi / 180.0,
+                longitude=longitude * np.pi / 180.0,
+                altitude=altitude,
                 frame=self.frame,
             )
 
@@ -1095,6 +1100,7 @@ class SkyCoordParameter(UVParameter):
     def __init__(
         self,
         name,
+        *,
         required=True,
         value=None,
         spoof_val=None,
@@ -1116,7 +1122,7 @@ class SkyCoordParameter(UVParameter):
             tols=(0, radian_tol),
         )
 
-    def __eq__(self, other, silent=False):
+    def __eq__(self, other, *, silent=False):
         if not issubclass(self.value.__class__, SkyCoord) or not issubclass(
             other.value.__class__, SkyCoord
         ):
