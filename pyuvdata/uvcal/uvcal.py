@@ -158,7 +158,11 @@ class UVCal(UVBase):
             "telescope_location_lat_lon_alt_degrees properties"
         )
         self._telescope_location = uvp.LocationParameter(
-            "telescope_location", description=desc, tols=1e-3, required=True
+            "telescope_location",
+            description=desc,
+            tols=1e-3,
+            frame="itrs",
+            required=True,
         )
 
         desc = (
@@ -1101,7 +1105,7 @@ class UVCal(UVBase):
         else:
             self.freq_range = [np.min(self.freq_array), np.max(self.freq_array)]
 
-    def set_telescope_params(self, overwrite=False):
+    def set_telescope_params(self, *, overwrite=False):
         """
         Set telescope related parameters.
 
@@ -1214,7 +1218,7 @@ class UVCal(UVBase):
             )
         return
 
-    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
+    def set_lsts_from_time_array(self, *, background=False, astrometry_library=None):
         """Set the lst_array or lst_range from the time_array or time_range.
 
         Parameters
@@ -1259,7 +1263,7 @@ class UVCal(UVBase):
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
 
-    def _check_freq_spacing(self, raise_errors=True):
+    def _check_freq_spacing(self, *, raise_errors=True):
         """
         Check if frequencies are evenly spaced and separated by their channel width.
 
@@ -1281,19 +1285,20 @@ class UVCal(UVBase):
         if self.freq_array is None and self.Nfreqs == 1:
             return False, False
         return uvutils._check_freq_spacing(
-            self.freq_array,
-            self._freq_array.tols,
-            self.channel_width,
-            self._channel_width.tols,
-            self.flex_spw,
-            self.future_array_shapes,
-            self.spw_array,
-            self.flex_spw_id_array,
+            freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            channel_width=self.channel_width,
+            channel_width_tols=self._channel_width.tols,
+            flex_spw=self.flex_spw,
+            future_array_shapes=self.future_array_shapes,
+            spw_array=self.spw_array,
+            flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
 
     def check(
         self,
+        *,
         check_extra=True,
         run_check_acceptability=True,
         check_freq_spacing=False,
@@ -1481,7 +1486,7 @@ class UVCal(UVBase):
                 )
         return True
 
-    def copy(self, metadata_only=False):
+    def copy(self, *, metadata_only=False):
         """
         Make and return a copy of the UVCal object.
 
@@ -1513,7 +1518,7 @@ class UVCal(UVBase):
 
             return uv
 
-    def _has_key(self, antnum=None, jpol=None):
+    def _has_key(self, *, antnum=None, jpol=None):
         """
         Check if this UVCal has the requested antenna or polarization.
 
@@ -1582,7 +1587,7 @@ class UVCal(UVBase):
 
         return np.argmin(np.abs(self.jones_array - jpol))
 
-    def _slice_array(self, key, data_array, squeeze_pol=True):
+    def _slice_array(self, key, data_array, *, squeeze_pol=True):
         """
         Slice a data array given a data key.
 
@@ -1622,7 +1627,7 @@ class UVCal(UVBase):
                 ]
             return output
 
-    def _parse_key(self, ant, jpol=None):
+    def _parse_key(self, ant, *, jpol=None):
         """
         Parse key inputs and return a standard antenna-polarization key.
 
@@ -1654,7 +1659,7 @@ class UVCal(UVBase):
 
         return key
 
-    def get_gains(self, ant, jpol=None, squeeze_pol=True):
+    def get_gains(self, ant, *, jpol=None, squeeze_pol=True):
         """
         Get the gain associated with an antenna and/or polarization.
 
@@ -1682,7 +1687,7 @@ class UVCal(UVBase):
             self._parse_key(ant, jpol=jpol), self.gain_array, squeeze_pol=squeeze_pol
         )
 
-    def get_flags(self, ant, jpol=None, squeeze_pol=True):
+    def get_flags(self, ant, *, jpol=None, squeeze_pol=True):
         """
         Get the flags associated with an antenna and/or polarization.
 
@@ -1707,7 +1712,7 @@ class UVCal(UVBase):
             self._parse_key(ant, jpol=jpol), self.flag_array, squeeze_pol=squeeze_pol
         )
 
-    def get_quality(self, ant, jpol=None, squeeze_pol=True):
+    def get_quality(self, ant, *, jpol=None, squeeze_pol=True):
         """
         Get the qualities associated with an antenna and/or polarization.
 
@@ -1748,6 +1753,7 @@ class UVCal(UVBase):
 
     def reorder_antennas(
         self,
+        *,
         order="number",
         run_check=True,
         check_extra=True,
@@ -1830,6 +1836,7 @@ class UVCal(UVBase):
 
     def reorder_freqs(
         self,
+        *,
         spw_order=None,
         channel_order=None,
         select_spw=None,
@@ -1929,16 +1936,16 @@ class UVCal(UVBase):
 
         else:
             index_array = uvutils._sort_freq_helper(
-                self.Nfreqs,
-                self.freq_array,
-                self.Nspws,
-                self.spw_array,
-                self.flex_spw,
-                self.flex_spw_id_array,
-                self.future_array_shapes,
-                spw_order,
-                channel_order,
-                select_spw,
+                Nfreqs=self.Nfreqs,
+                freq_array=self.freq_array,
+                Nspws=self.Nspws,
+                spw_array=self.spw_array,
+                flex_spw=self.flex_spw,
+                flex_spw_id_array=self.flex_spw_id_array,
+                future_array_shapes=self.future_array_shapes,
+                spw_order=spw_order,
+                channel_order=channel_order,
+                select_spw=select_spw,
             )
 
             if index_array is None:
@@ -1991,6 +1998,7 @@ class UVCal(UVBase):
 
     def reorder_times(
         self,
+        *,
         order="time",
         run_check=True,
         check_extra=True,
@@ -2093,6 +2101,7 @@ class UVCal(UVBase):
 
     def reorder_jones(
         self,
+        *,
         order="name",
         run_check=True,
         check_extra=True,
@@ -2183,6 +2192,7 @@ class UVCal(UVBase):
 
     def convert_to_gain(
         self,
+        *,
         freq_array=None,
         channel_width=None,
         delay_convention="minus",
@@ -2408,6 +2418,7 @@ class UVCal(UVBase):
     def __add__(
         self,
         other,
+        *,
         verbose_history=False,
         run_check=True,
         check_extra=True,
@@ -3604,7 +3615,7 @@ class UVCal(UVBase):
             return this
 
     def __iadd__(
-        self, other, run_check=True, check_extra=True, run_check_acceptability=True
+        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
     ):
         """
         Combine two UVCal objects in place.
@@ -3637,6 +3648,7 @@ class UVCal(UVBase):
         self,
         other,
         axis,
+        *,
         inplace=False,
         verbose_history=False,
         run_check=True,
@@ -4140,6 +4152,7 @@ class UVCal(UVBase):
 
     def select(
         self,
+        *,
         antenna_nums=None,
         antenna_names=None,
         frequencies=None,
@@ -4748,6 +4761,7 @@ class UVCal(UVBase):
     def initialize_from_uvdata(
         cls,
         uvdata,
+        *,
         gain_convention,
         cal_style,
         future_array_shapes=True,
@@ -4877,7 +4891,7 @@ class UVCal(UVBase):
             del calfits_obj
 
     def read_fhd_cal(
-        self, cal_file, obs_file, layout_file=None, settings_file=None, **kwargs
+        self, *, cal_file, obs_file, layout_file=None, settings_file=None, **kwargs
     ):
         """
         Read data from an FHD cal.sav file.
@@ -5388,6 +5402,7 @@ class UVCal(UVBase):
     def write_calfits(
         self,
         filename,
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
