@@ -56,7 +56,7 @@ def and_rows_cols(waterfall):
     return wf
 
 
-def flags2waterfall(uv, flag_array=None, keep_pol=False):
+def flags2waterfall(uv, *, flag_array=None, keep_pol=False):
     """Convert a flag array to a 2D waterfall of dimensions (Ntimes, Nfreqs).
 
     Averages over baselines and polarizations (in the case of visibility data),
@@ -197,6 +197,7 @@ class UVFlag(UVBase):
 
     def __init__(
         self,
+        *,
         indata=None,
         mode="metric",
         copy_flags=False,
@@ -482,7 +483,7 @@ class UVFlag(UVBase):
         )
 
         self._telescope_location = uvp.LocationParameter(
-            "telescope_location", description=desc, tols=1e-3
+            "telescope_location", description=desc, tols=1e-3, frame="itrs"
         )
 
         self._history = uvp.UVParameter(
@@ -929,6 +930,7 @@ class UVFlag(UVBase):
 
     def check(
         self,
+        *,
         check_extra=True,
         run_check_acceptability=True,
         lst_tol=uvutils.LST_RAD_TOL,
@@ -1089,7 +1091,7 @@ class UVFlag(UVBase):
                 attr.value = None
                 setattr(self, p, attr)
 
-    def __eq__(self, other, check_history=True, check_extra=True):
+    def __eq__(self, other, *, check_history=True, check_extra=True):
         """Check Equality of two UVFlag objects.
 
         Parameters
@@ -1125,7 +1127,7 @@ class UVFlag(UVBase):
                 print("Classes do not match")
                 return False
 
-    def __ne__(self, other, check_history=True, check_extra=True):
+    def __ne__(self, other, *, check_history=True, check_extra=True):
         """Not Equal."""
         return not self.__eq__(
             other, check_history=check_history, check_extra=check_extra
@@ -1143,7 +1145,7 @@ class UVFlag(UVBase):
         )
         return
 
-    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
+    def set_lsts_from_time_array(self, *, background=False, astrometry_library=None):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -1170,7 +1172,7 @@ class UVFlag(UVBase):
             proc.start()
             return proc
 
-    def set_telescope_params(self, overwrite=False, warn=True):
+    def set_telescope_params(self, *, overwrite=False, warn=True):
         """
         Set telescope related parameters.
 
@@ -1301,7 +1303,7 @@ class UVFlag(UVBase):
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
-    def antnums_to_baseline(self, ant1, ant2, attempt256=False):
+    def antnums_to_baseline(self, ant1, ant2, *, attempt256=False):
         """
         Get the baseline number corresponding to two given antenna numbers.
 
@@ -1364,7 +1366,7 @@ class UVFlag(UVBase):
             self.polarization_array, x_orientation=self.x_orientation
         )
 
-    def parse_ants(self, ant_str, print_toggle=False):
+    def parse_ants(self, ant_str, *, print_toggle=False):
         """
         Get antpair and polarization from parsing an aipy-style ant string.
 
@@ -1412,6 +1414,7 @@ class UVFlag(UVBase):
 
     def collapse_pol(
         self,
+        *,
         method="quadmean",
         run_check=True,
         check_extra=True,
@@ -1485,6 +1488,7 @@ class UVFlag(UVBase):
 
     def to_waterfall(
         self,
+        *,
         method="quadmean",
         keep_pol=True,
         run_check=True,
@@ -1650,6 +1654,7 @@ class UVFlag(UVBase):
     def to_baseline(
         self,
         uv,
+        *,
         force_pol=False,
         run_check=True,
         check_extra=True,
@@ -1943,6 +1948,7 @@ class UVFlag(UVBase):
     def to_antenna(
         self,
         uv,
+        *,
         force_pol=False,
         run_check=True,
         check_extra=True,
@@ -2148,6 +2154,7 @@ class UVFlag(UVBase):
 
     def to_flag(
         self,
+        *,
         threshold=np.inf,
         run_check=True,
         check_extra=True,
@@ -2194,6 +2201,7 @@ class UVFlag(UVBase):
 
     def to_metric(
         self,
+        *,
         convert_wgts=False,
         run_check=True,
         check_extra=True,
@@ -2277,6 +2285,7 @@ class UVFlag(UVBase):
     def __add__(
         self,
         other,
+        *,
         inplace=False,
         axis="time",
         run_check=True,
@@ -2559,6 +2568,7 @@ class UVFlag(UVBase):
     def __iadd__(
         self,
         other,
+        *,
         axis="time",
         run_check=True,
         check_extra=True,
@@ -2595,6 +2605,7 @@ class UVFlag(UVBase):
     def __or__(
         self,
         other,
+        *,
         inplace=False,
         run_check=True,
         check_extra=True,
@@ -2649,7 +2660,7 @@ class UVFlag(UVBase):
             return this
 
     def __ior__(
-        self, other, run_check=True, check_extra=True, run_check_acceptability=True
+        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
     ):
         """Perform an inplace logical or.
 
@@ -2679,6 +2690,7 @@ class UVFlag(UVBase):
     def combine_metrics(
         self,
         others,
+        *,
         method="quadmean",
         inplace=True,
         run_check=True,
@@ -2747,6 +2759,7 @@ class UVFlag(UVBase):
 
     def _select_preprocess(
         self,
+        *,
         antenna_nums,
         ant_str,
         bls,
@@ -3120,7 +3133,7 @@ class UVFlag(UVBase):
         return blt_inds, ant_inds, freq_inds, pol_inds, history_update_string
 
     def _select_metadata(
-        self, blt_inds, ant_inds, freq_inds, pol_inds, history_update_string
+        self, *, blt_inds, ant_inds, freq_inds, pol_inds, history_update_string
     ):
         """Perform select on everything except the data-sized arrays.
 
@@ -3183,6 +3196,7 @@ class UVFlag(UVBase):
 
     def select(
         self,
+        *,
         antenna_nums=None,
         ant_inds=None,
         bls=None,
@@ -3303,7 +3317,11 @@ class UVFlag(UVBase):
         # do select operations on everything except data_array, flag_array
         # and nsample_array
         uv_object._select_metadata(
-            blt_inds, ant_inds, freq_inds, pol_inds, history_update_string
+            blt_inds=blt_inds,
+            ant_inds=ant_inds,
+            freq_inds=freq_inds,
+            pol_inds=pol_inds,
+            history_update_string=history_update_string,
         )
 
         if blt_inds is not None:
@@ -3405,6 +3423,7 @@ class UVFlag(UVBase):
     def read(
         self,
         filename,
+        *,
         history="",
         mwa_metafits_file=None,
         telescope_name=None,
@@ -3846,7 +3865,7 @@ class UVFlag(UVBase):
                     run_check_acceptability=run_check_acceptability,
                 )
 
-    def write(self, filename, clobber=False, data_compression="lzf"):
+    def write(self, filename, *, clobber=False, data_compression="lzf"):
         """Write a UVFlag object to a hdf5 file.
 
         Parameters
@@ -3980,6 +3999,7 @@ class UVFlag(UVBase):
     def from_uvdata(
         self,
         indata,
+        *,
         mode="metric",
         copy_flags=False,
         waterfall=False,
@@ -4172,6 +4192,7 @@ class UVFlag(UVBase):
     def from_uvcal(
         self,
         indata,
+        *,
         mode="metric",
         copy_flags=False,
         waterfall=False,
