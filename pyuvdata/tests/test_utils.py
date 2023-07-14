@@ -1948,6 +1948,7 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame, selenoid):
         time_array=astrometry_args["time_array"],
         lst_array=lst_array,
     )
+
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
     if telescope_frame == "itrs":
@@ -2469,7 +2470,7 @@ def test_lst_for_time_moon(astrometry_args):
         assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-4)
 
 
-def test_old_phasing_funcs():
+def test_phasing_funcs():
     # these tests are based on a notebook where I tested against the mwa_tools
     # phasing code
     ra_hrs = 12.1
@@ -2516,9 +2517,14 @@ def test_old_phasing_funcs():
         (gcrs_from_itrs_coord.cartesian - gcrs_array_center.cartesian).get_xyz().T
     )
 
-    gcrs_uvw = uvutils.old_uvw_calc(
-        gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value
-    )
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="This function supports the old phasing method and will be removed along "
+        "with the old phasing code in version 2.4",
+    ):
+        gcrs_uvw = uvutils.phase_uvw(
+            gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value
+        )
 
     mwa_tools_calcuvw_u = -97.122828
     mwa_tools_calcuvw_v = 50.388281
@@ -2528,11 +2534,15 @@ def test_old_phasing_funcs():
     assert np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3)
     assert np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
 
-    # also test old unphasing
-    # this is all that is actually used in our code, it's used in the fix_phase method
-    temp2 = uvutils.undo_old_uvw_calc(
-        gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
-    )
+    # also test unphasing
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="This function supports the old phasing method and will be removed along "
+        "with the old phasing code in version 2.4",
+    ):
+        temp2 = uvutils.unphase_uvw(
+            gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
+        )
     assert np.allclose(gcrs_rel.value, temp2)
 
 
@@ -4699,7 +4709,7 @@ def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
 
 def test_determine_pol_order_err():
     with pytest.raises(ValueError, match='order must be either "AIPS" or "CASA".'):
-        uvutils.determine_pol_order([], "ABC")
+        uvutils.determine_pol_order([], order="ABC")
 
 
 @pytest.mark.parametrize(
