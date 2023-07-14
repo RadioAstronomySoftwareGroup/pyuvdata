@@ -854,6 +854,7 @@ class UVData(UVBase):
     def _look_in_catalog(
         self,
         cat_name=None,
+        *,
         cat_type=None,
         cat_lon=None,
         cat_lat=None,
@@ -1055,6 +1056,7 @@ class UVData(UVBase):
     def _add_phase_center(
         self,
         cat_name,
+        *,
         cat_type=None,
         cat_lon=None,
         cat_lat=None,
@@ -1481,6 +1483,7 @@ class UVData(UVBase):
     def split_phase_center(
         self,
         catalog_identifier,
+        *,
         new_name=None,
         select_mask=None,
         new_id=None,
@@ -1629,7 +1632,7 @@ class UVData(UVBase):
             self.phase_center_id_array[select_mask] = cat_id
 
     def merge_phase_centers(
-        self, catalog_identifier, force_merge=False, ignore_name=False
+        self, catalog_identifier, *, force_merge=False, ignore_name=False
     ):
         """
         Merge two differently named objects into one within a multi-phase-ctr data set.
@@ -1656,10 +1659,14 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            If catname1 or catname2 are not found in the UVData object, of if their
+            If catalog_identifiers are not found in the UVData object, of if their
             properties differ (and `force_merge` is not set to True).
+
+        Warns
+        -----
         UserWarning
             If forcing the merge of two objects with different properties.
+
         """
         if isinstance(catalog_identifier, (str, int)):
             pass
@@ -1733,6 +1740,7 @@ class UVData(UVBase):
     def print_phase_center_info(
         self,
         catalog_identifier=None,
+        *,
         hms_format=None,
         return_str=False,
         print_table=True,
@@ -2006,7 +2014,7 @@ class UVData(UVBase):
         if return_str:
             return info_str
 
-    def _update_phase_center_id(self, cat_id, new_id=None, reserved_ids=None):
+    def _update_phase_center_id(self, cat_id, *, new_id=None, reserved_ids=None):
         """
         Update a phase center with a new catalog ID number.
 
@@ -2054,7 +2062,7 @@ class UVData(UVBase):
         self.phase_center_catalog[new_id] = self.phase_center_catalog.pop(cat_id)
 
     def _consolidate_phase_center_catalogs(
-        self, reference_catalog=None, other=None, ignore_name=False
+        self, *, reference_catalog=None, other=None, ignore_name=False
     ):
         """
         Consolidate phase center catalogs with a reference or another object.
@@ -2349,7 +2357,7 @@ class UVData(UVBase):
         """
         return uvtel.known_telescopes()
 
-    def set_telescope_params(self, overwrite=False, warn=True):
+    def set_telescope_params(self, *, overwrite=False, warn=True):
         """
         Set telescope related parameters.
 
@@ -2447,16 +2455,17 @@ class UVData(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         # the utility function is efficient -- it only calculates unique times
         self.lst_array = uvutils.get_lst_for_time(
-            self.time_array,
-            latitude,
-            longitude,
-            altitude,
+            jd_array=self.time_array,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            astrometry_lib=astrometry_library,
             frame=self._telescope_location.frame,
             astrometry_library=astrometry_library,
         )
         return
 
-    def _set_app_coords_helper(self, pa_only=False):
+    def _set_app_coords_helper(self, *, pa_only=False):
         """
         Set values for the apparent coordinate arrays.
 
@@ -2530,7 +2539,7 @@ class UVData(UVBase):
         self.phase_center_app_dec = app_dec
         self.phase_center_frame_pa = frame_pa
 
-    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
+    def set_lsts_from_time_array(self, *, background=False, astrometry_library=None):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -2576,7 +2585,7 @@ class UVData(UVBase):
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
 
-    def _check_freq_spacing(self, raise_errors=True):
+    def _check_freq_spacing(self, *, raise_errors=True):
         """
         Check if frequencies are evenly spaced and separated by their channel width.
 
@@ -2596,18 +2605,18 @@ class UVData(UVBase):
 
         """
         return uvutils._check_freq_spacing(
-            self.freq_array,
-            self._freq_array.tols,
-            self.channel_width,
-            self._channel_width.tols,
-            self.flex_spw,
-            self.future_array_shapes,
-            self.spw_array,
-            self.flex_spw_id_array,
+            freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            channel_width=self.channel_width,
+            channel_width_tols=self._channel_width.tols,
+            flex_spw=self.flex_spw,
+            future_array_shapes=self.future_array_shapes,
+            spw_array=self.spw_array,
+            flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
 
-    def remove_flex_pol(self, combine_spws=True):
+    def remove_flex_pol(self, *, combine_spws=True):
         """
         Convert a flex-pol UVData object into one with a standard polarization axis.
 
@@ -2867,7 +2876,7 @@ class UVData(UVBase):
         # Finally, remove the flex-pol attribute
         self.flex_spw_polarization_array = None
 
-    def _make_flex_pol(self, raise_error=False, raise_warning=True):
+    def _make_flex_pol(self, *, raise_error=False, raise_warning=True):
         """
         Convert a regular UVData object into one with flex-polarization enabled.
 
@@ -3197,6 +3206,7 @@ class UVData(UVBase):
 
     def check(
         self,
+        *,
         check_extra=True,
         run_check_acceptability=True,
         check_freq_spacing=False,
@@ -3550,7 +3560,7 @@ class UVData(UVBase):
 
         return True
 
-    def copy(self, metadata_only=False):
+    def copy(self, *, metadata_only=False):
         """
         Make and return a copy of the UVData object.
 
@@ -3605,7 +3615,7 @@ class UVData(UVBase):
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
     def antnums_to_baseline(
-        self, ant1, ant2, attempt256=False, use_miriad_convention=False
+        self, ant1, ant2, *, attempt256=False, use_miriad_convention=False
     ):
         """
         Get the baseline number corresponding to two given antenna numbers.
@@ -3640,7 +3650,7 @@ class UVData(UVBase):
             use_miriad_convention=use_miriad_convention,
         )
 
-    def antpair2ind(self, ant1, ant2=None, ordered=True):
+    def antpair2ind(self, ant1, ant2=None, *, ordered=True):
         """
         Get indices along the baseline-time axis for a given antenna pair.
 
@@ -3860,7 +3870,7 @@ class UVData(UVBase):
         return (blt_ind1, blt_ind2, pol_ind)
 
     def _smart_slicing(
-        self, data, ind1, ind2, indp, squeeze="default", force_copy=False
+        self, data, ind1, ind2, indp, *, squeeze="default", force_copy=False
     ):
         """
         Quickly get the relevant section of a data-like array.
@@ -4121,7 +4131,9 @@ class UVData(UVBase):
         else:
             return list(set("".join(self.get_pols())))
 
-    def get_data(self, key1, key2=None, key3=None, squeeze="default", force_copy=False):
+    def get_data(
+        self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
+    ):
         """
         Get the data corresonding to a baseline and/or polarization.
 
@@ -4174,7 +4186,7 @@ class UVData(UVBase):
         return out
 
     def get_flags(
-        self, key1, key2=None, key3=None, squeeze="default", force_copy=False
+        self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
     ):
         """
         Get the flags corresonding to a baseline and/or polarization.
@@ -4232,7 +4244,7 @@ class UVData(UVBase):
         return out
 
     def get_nsamples(
-        self, key1, key2=None, key3=None, squeeze="default", force_copy=False
+        self, key1, key2=None, key3=None, *, squeeze="default", force_copy=False
     ):
         """
         Get the nsamples corresonding to a baseline and/or polarization.
@@ -4367,7 +4379,7 @@ class UVData(UVBase):
         inds1, inds2, indp = self._key2inds(key)
         return self.lst_array[np.append(inds1, inds2)]
 
-    def get_ENU_antpos(self, center=False, pick_data_ants=False):
+    def get_ENU_antpos(self, *, center=False, pick_data_ants=False):
         """
         Get antenna positions in ENU (topocentric) coordinates in units of meters.
 
@@ -4631,7 +4643,7 @@ class UVData(UVBase):
 
         return
 
-    def antpairpol_iter(self, squeeze="default"):
+    def antpairpol_iter(self, *, squeeze="default"):
         """
         Iterate the data for each antpair, polarization combination.
 
@@ -4654,7 +4666,7 @@ class UVData(UVBase):
         for key in antpairpols:
             yield (key, self.get_data(key, squeeze=squeeze))
 
-    def conjugate_bls(self, convention="ant1<ant2", use_enu=True, uvw_tol=0.0):
+    def conjugate_bls(self, *, convention="ant1<ant2", use_enu=True, uvw_tol=0.0):
         """
         Conjugate baselines according to one of the supported conventions.
 
@@ -4789,6 +4801,7 @@ class UVData(UVBase):
 
     def reorder_pols(
         self,
+        *,
         order="AIPS",
         run_check=True,
         check_extra=True,
@@ -4868,7 +4881,7 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
-    def set_rectangularity(self, force: bool = False) -> None:
+    def set_rectangularity(self, *, force: bool = False) -> None:
         """
         Set the rectangularity attributes of the object.
 
@@ -4899,6 +4912,7 @@ class UVData(UVBase):
 
     def reorder_blts(
         self,
+        *,
         order="time",
         minor_order=None,
         autos_first=False,
@@ -5134,6 +5148,7 @@ class UVData(UVBase):
 
     def reorder_freqs(
         self,
+        *,
         spw_order=None,
         channel_order=None,
         select_spw=None,
@@ -5198,16 +5213,16 @@ class UVData(UVBase):
 
         """
         index_array = uvutils._sort_freq_helper(
-            self.Nfreqs,
-            self.freq_array,
-            self.Nspws,
-            self.spw_array,
-            self.flex_spw,
-            self.flex_spw_id_array,
-            self.future_array_shapes,
-            spw_order,
-            channel_order,
-            select_spw,
+            Nfreqs=self.Nfreqs,
+            freq_array=self.freq_array,
+            Nspws=self.Nspws,
+            spw_array=self.spw_array,
+            flex_spw=self.flex_spw,
+            flex_spw_id_array=self.flex_spw_id_array,
+            future_array_shapes=self.future_array_shapes,
+            spw_order=spw_order,
+            channel_order=channel_order,
+            select_spw=select_spw,
         )
 
         if index_array is None:
@@ -5317,7 +5332,7 @@ class UVData(UVBase):
 
         return
 
-    def _apply_w_proj(self, new_w_vals, old_w_vals, select_mask=None):
+    def _apply_w_proj(self, new_w_vals, old_w_vals, *, select_mask=None):
         """
         Apply corrections based on changes to w-coord.
 
@@ -5403,7 +5418,7 @@ class UVData(UVBase):
             )
 
     def unproject_phase(
-        self, use_ant_pos=True, select_mask=None, cat_name="unprojected"
+        self, *, use_ant_pos=True, select_mask=None, cat_name="unprojected"
     ):
         """
         Undo phasing to get back to an `unprojected` state.
@@ -5482,6 +5497,7 @@ class UVData(UVBase):
 
     def _phase_dict_helper(
         self,
+        *,
         lon,
         lat,
         epoch,
@@ -5798,19 +5814,19 @@ class UVData(UVBase):
         # basic housekeeping to make sure that we've got the coordinate data that
         # we need in order to proceed.
         phase_dict = self._phase_dict_helper(
-            lon,
-            lat,
-            epoch,
-            phase_frame,
-            ephem_times,
-            cat_type,
-            pm_ra,
-            pm_dec,
-            dist,
-            vrad,
-            cat_name,
-            lookup_name,
-            self.time_array,
+            lon=lon,
+            lat=lat,
+            epoch=epoch,
+            phase_frame=phase_frame,
+            ephem_times=ephem_times,
+            cat_type=cat_type,
+            pm_ra=pm_ra,
+            pm_dec=pm_dec,
+            dist=dist,
+            vrad=vrad,
+            cat_name=cat_name,
+            lookup_name=lookup_name,
+            time_array=self.time_array,
         )
 
         if phase_dict["cat_type"] not in ["ephem", "unprojected"]:
@@ -5952,7 +5968,7 @@ class UVData(UVBase):
             self._clear_unused_phase_centers()
 
     def phase_to_time(
-        self, time, phase_frame="icrs", use_ant_pos=True, select_mask=None
+        self, time, *, phase_frame="icrs", use_ant_pos=True, select_mask=None
     ):
         """
         Phase to the ra/dec of zenith at a particular time.
@@ -6016,7 +6032,7 @@ class UVData(UVBase):
             cat_name=("zenith_at_jd%f" % time.jd),
         )
 
-    def set_uvws_from_antenna_positions(self, update_vis=True):
+    def set_uvws_from_antenna_positions(self, *, update_vis=True):
         """
         Calculate UVWs based on antenna_positions.
 
@@ -6149,7 +6165,7 @@ class UVData(UVBase):
             self.antenna_positions = new_antpos
             self.set_uvws_from_antenna_positions(update_vis=update_vis)
 
-    def fix_phase(self, use_ant_pos=True):
+    def fix_phase(self, *, use_ant_pos=True):
         """
         Fix the data to be consistent with the new phasing method.
 
@@ -6317,6 +6333,7 @@ class UVData(UVBase):
     def __add__(
         self,
         other,
+        *,
         inplace=False,
         verbose_history=False,
         run_check=True,
@@ -7097,6 +7114,7 @@ class UVData(UVBase):
     def __iadd__(
         self,
         other,
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -7160,6 +7178,7 @@ class UVData(UVBase):
         self,
         other,
         axis,
+        *,
         inplace=False,
         verbose_history=False,
         run_check=True,
@@ -7536,6 +7555,7 @@ class UVData(UVBase):
     def sum_vis(
         self,
         other,
+        *,
         inplace=False,
         difference=False,
         verbose_history=False,
@@ -7719,6 +7739,7 @@ class UVData(UVBase):
     def diff_vis(
         self,
         other,
+        *,
         inplace=False,
         run_check=True,
         check_extra=True,
@@ -7792,7 +7813,7 @@ class UVData(UVBase):
                 override_params=override_params,
             )
 
-    def parse_ants(self, ant_str, print_toggle=False):
+    def parse_ants(self, ant_str, *, print_toggle=False):
         """
         Get antpair and polarization from parsing an aipy-style ant string.
 
@@ -7834,6 +7855,7 @@ class UVData(UVBase):
 
     def _select_preprocess(
         self,
+        *,
         antenna_nums,
         antenna_names,
         ant_str,
@@ -8708,20 +8730,20 @@ class UVData(UVBase):
         # Figure out which index positions we want to hold on to.
         (blt_inds, freq_inds, pol_inds, history_update_string) = (
             uv_obj._select_preprocess(
-                antenna_nums,
-                antenna_names,
-                ant_str,
-                bls,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                polarizations,
-                blt_inds,
-                phase_center_ids,
-                catalog_names,
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
             )
         )
 
@@ -8753,6 +8775,7 @@ class UVData(UVBase):
 
     def _harmonize_resample_arrays(
         self,
+        *,
         inds_to_keep,
         temp_baseline,
         temp_id_array,
@@ -9019,14 +9042,14 @@ class UVData(UVBase):
         # harmonize temporary arrays with existing ones
         inds_to_keep = np.nonzero(self.integration_time <= max_int_time)
         self._harmonize_resample_arrays(
-            inds_to_keep,
-            temp_baseline,
-            temp_id_array,
-            temp_time,
-            temp_int_time,
-            temp_data,
-            temp_flag,
-            temp_nsample,
+            inds_to_keep=inds_to_keep,
+            temp_baseline=temp_baseline,
+            temp_id_array=temp_id_array,
+            temp_time=temp_time,
+            temp_int_time=temp_int_time,
+            temp_data=temp_data,
+            temp_flag=temp_flag,
+            temp_nsample=temp_nsample,
             astrometry_library=astrometry_library,
         )
 
@@ -9518,14 +9541,14 @@ class UVData(UVBase):
         else:
             inds_to_keep = np.array([], dtype=bool)
         self._harmonize_resample_arrays(
-            inds_to_keep,
-            temp_baseline,
-            temp_id_array,
-            temp_time,
-            temp_int_time,
-            temp_data,
-            temp_flag,
-            temp_nsample,
+            inds_to_keep=inds_to_keep,
+            temp_baseline=temp_baseline,
+            temp_id_array=temp_id_array,
+            temp_time=temp_time,
+            temp_int_time=temp_int_time,
+            temp_data=temp_data,
+            temp_flag=temp_flag,
+            temp_nsample=temp_nsample,
             astrometry_library=astrometry_library,
         )
 
@@ -9586,6 +9609,7 @@ class UVData(UVBase):
     def resample_in_time(
         self,
         target_time,
+        *,
         only_downsample=False,
         only_upsample=False,
         blt_order="time",
@@ -9685,6 +9709,7 @@ class UVData(UVBase):
 
     def frequency_average(
         self,
+        *,
         n_chan_to_avg,
         summing_correlator_mode=False,
         propagate_flags=False,
@@ -10040,6 +10065,7 @@ class UVData(UVBase):
 
     def get_redundancies(
         self,
+        *,
         tol=1.0,
         use_antpos=False,
         include_conjugates=False,
@@ -10114,7 +10140,7 @@ class UVData(UVBase):
         )
 
     def compress_by_redundancy(
-        self, method="select", tol=1.0, inplace=True, keep_all_metadata=True
+        self, *, method="select", tol=1.0, inplace=True, keep_all_metadata=True
     ):
         """
         Downselect or average to only have one baseline per redundant group.
@@ -10354,7 +10380,7 @@ class UVData(UVBase):
                 bls=bl_ants, inplace=inplace, keep_all_metadata=keep_all_metadata
             )
 
-    def inflate_by_redundancy(self, tol=1.0, blt_order="time", blt_minor_order=None):
+    def inflate_by_redundancy(self, *, tol=1.0, blt_order="time", blt_minor_order=None):
         """
         Expand data to full size, copying data among redundant baselines.
 
@@ -11420,6 +11446,7 @@ class UVData(UVBase):
     def read(
         self,
         filename,
+        *,
         axis=None,
         file_type=None,
         read_data=True,
@@ -12673,6 +12700,7 @@ class UVData(UVBase):
     def write_miriad(
         self,
         filepath,
+        *,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -12788,6 +12816,7 @@ class UVData(UVBase):
     def write_ms(
         self,
         filename,
+        *,
         force_phase=False,
         flip_conj=False,
         clobber=False,
@@ -12865,6 +12894,7 @@ class UVData(UVBase):
     def write_uvfits(
         self,
         filename,
+        *,
         write_lst=True,
         force_phase=False,
         run_check=True,
@@ -12967,6 +12997,7 @@ class UVData(UVBase):
     def write_uvh5(
         self,
         filename,
+        *,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -13066,6 +13097,7 @@ class UVData(UVBase):
     def initialize_uvh5_file(
         self,
         filename,
+        *,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -13128,6 +13160,7 @@ class UVData(UVBase):
     def write_uvh5_part(
         self,
         filename,
+        *,
         data_array,
         flags_array,
         nsample_array,
@@ -13281,7 +13314,7 @@ class UVData(UVBase):
         )
         del uvh5_obj
 
-    def normalize_by_autos(self, skip_autos=True, invert=False):
+    def normalize_by_autos(self, *, skip_autos=True, invert=False):
         """
         Normalize cross-correlations by auto-correlation data.
 

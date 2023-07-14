@@ -190,7 +190,7 @@ def _fits_indexhdus(hdulist):
     return tablenames
 
 
-def _get_fits_extra_keywords(header, keywords_to_skip=None):
+def _get_fits_extra_keywords(header, *, keywords_to_skip=None):
     """
     Get any extra keywords and return as dict.
 
@@ -312,7 +312,7 @@ def _combine_history_addition(history1, history2):
     return add_hist
 
 
-def _test_array_constant(array, tols=None):
+def _test_array_constant(array, *, tols=None):
     """
     Check if an array contains constant values to some tolerance.
 
@@ -358,7 +358,7 @@ def _test_array_constant(array, tols=None):
     )
 
 
-def _test_array_constant_spacing(array, tols=None):
+def _test_array_constant_spacing(array, *, tols=None):
     """
     Check if an array is constantly spaced to some tolerance.
 
@@ -437,6 +437,7 @@ def _check_flex_spw_contiguous(spw_array, flex_spw_id_array):
 
 
 def _check_freq_spacing(
+    *,
     freq_array,
     freq_tols,
     channel_width,
@@ -577,6 +578,7 @@ def _check_freq_spacing(
 
 
 def _sort_freq_helper(
+    *,
     Nfreqs,
     freq_array,
     Nspws,
@@ -804,7 +806,7 @@ def baseline_to_antnums(baseline, Nants_telescope):
 
 
 def antnums_to_baseline(
-    ant1, ant2, Nants_telescope, attempt256=False, use_miriad_convention=False
+    ant1, ant2, Nants_telescope, *, attempt256=False, use_miriad_convention=False
 ):
     """
     Get the baseline number corresponding to two given antenna numbers.
@@ -906,7 +908,7 @@ def np_cache(function):
 
 
 @np_cache
-def polstr2num(pol: str | IterableType[str], x_orientation: str | None = None):
+def polstr2num(pol: str | IterableType[str], *, x_orientation: str | None = None):
     """
     Convert polarization str to number according to AIPS Memo 117.
 
@@ -964,7 +966,7 @@ def polstr2num(pol: str | IterableType[str], x_orientation: str | None = None):
 
 
 @np_cache
-def polnum2str(num, x_orientation=None):
+def polnum2str(num, *, x_orientation=None):
     """
     Convert polarization number to str according to AIPS Memo 117.
 
@@ -1018,7 +1020,7 @@ def polnum2str(num, x_orientation=None):
 
 
 @np_cache
-def jstr2num(jstr, x_orientation=None):
+def jstr2num(jstr, *, x_orientation=None):
     """
     Convert jones polarization str to number according to calfits memo.
 
@@ -1071,7 +1073,7 @@ def jstr2num(jstr, x_orientation=None):
 
 
 @np_cache
-def jnum2str(jnum, x_orientation=None):
+def jnum2str(jnum, *, x_orientation=None):
     """
     Convert jones polarization number to str according to calfits memo.
 
@@ -1123,7 +1125,7 @@ def jnum2str(jnum, x_orientation=None):
 
 
 @np_cache
-def parse_polstr(polstr, x_orientation=None):
+def parse_polstr(polstr, *, x_orientation=None):
     """
     Parse a polarization string and return pyuvdata standard polarization string.
 
@@ -1161,7 +1163,7 @@ def parse_polstr(polstr, x_orientation=None):
 
 
 @np_cache
-def parse_jpolstr(jpolstr, x_orientation=None):
+def parse_jpolstr(jpolstr, *, x_orientation=None):
     """
     Parse a Jones polarization string and return pyuvdata standard jones string.
 
@@ -1262,7 +1264,7 @@ def reorder_conj_pols(pols):
     return conj_order
 
 
-def determine_pol_order(pols, order="AIPS"):
+def determine_pol_order(pols, *, order="AIPS"):
     """
     Determine order of input polarization numbers.
 
@@ -1298,7 +1300,7 @@ def determine_pol_order(pols, order="AIPS"):
     return index_array
 
 
-def LatLonAlt_from_XYZ(xyz, frame="ITRS", check_acceptability=True):
+def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
 
@@ -1490,7 +1492,7 @@ def ECEF_from_rotECEF(xyz, longitude):
     return rot_matrix.dot(xyz.T).T
 
 
-def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
+def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS"):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
 
@@ -1567,7 +1569,7 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
     return enu
 
 
-def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
+def ECEF_from_ENU(enu, *, latitude, longitude, altitude, frame="ITRS"):
     """
     Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
 
@@ -1698,7 +1700,7 @@ def undo_old_uvw_calc(ra, dec, uvw):
     ).T
 
 
-def polar2_to_cart3(lon_array, lat_array):
+def polar2_to_cart3(*, lon_array, lat_array):
     """
     Convert 2D polar coordinates into 3D cartesian coordinates.
 
@@ -2056,6 +2058,7 @@ def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
 
 
 def calc_uvw(
+    *,
     app_ra=None,
     app_dec=None,
     frame_pa=None,
@@ -2342,6 +2345,7 @@ def calc_uvw(
 
 
 def transform_sidereal_coords(
+    *,
     lon,
     lat,
     in_coord_frame,
@@ -2481,6 +2485,7 @@ def transform_sidereal_coords(
 
 
 def transform_icrs_to_app(
+    *,
     time_array,
     ra,
     dec,
@@ -2862,7 +2867,7 @@ def transform_icrs_to_app(
                 tt_time, (tt_time - ut1_time) * 86400.0, cat_entry, site_loc, accuracy=0
             )
             xyz_array = polar2_to_cart3(
-                temp_ra * (np.pi / 12.0), temp_dec * (np.pi / 180.0)
+                lon_array=temp_ra * (np.pi / 12.0), lat_array=temp_dec * (np.pi / 180.0)
             )
             xyz_array = novas.wobble(tt_time, pm_x, pm_y, xyz_array, 1)
 
@@ -3236,11 +3241,11 @@ def calc_frame_pos_angle(
     # Run the set of offset coordinates through the "reverse" transform. The two offset
     # positions are concat'd together to help reduce overheads
     ref_ra, ref_dec = calc_sidereal_coords(
-        np.tile(unique_time, 2),
-        np.concatenate((dn_ra, up_ra)),
-        np.concatenate((dn_dec, up_dec)),
-        telescope_loc,
-        ref_frame,
+        time_array=np.tile(unique_time, 2),
+        app_ra=np.concatenate((dn_ra, up_ra)),
+        app_dec=np.concatenate((dn_dec, up_dec)),
+        telescope_loc=telescope_loc,
+        coord_frame=ref_frame,
         telescope_frame=telescope_frame,
         coord_epoch=ref_epoch,
     )
@@ -3722,9 +3727,9 @@ def calc_app_coords(
         if lst_array is None:
             unique_lst = get_lst_for_time(
                 unique_time_array,
-                site_loc.lat.deg,
-                site_loc.lon.deg,
-                site_loc.height.to_value("m"),
+                latitude=site_loc.lat.deg,
+                longitude=site_loc.lon.deg,
+                altitude=site_loc.height.to_value("m"),
                 frame=frame,
             )
         else:
@@ -3734,10 +3739,10 @@ def calc_app_coords(
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
-                lon_coord,
-                lat_coord,
-                coord_frame,
-                "icrs",
+                lon=lon_coord,
+                lat=lat_coord,
+                in_coord_frame=coord_frame,
+                out_coord_frame="icrs",
                 in_coord_epoch=coord_epoch,
                 time_array=unique_time_array,
             )
@@ -3745,10 +3750,10 @@ def calc_app_coords(
             icrs_ra = lon_coord
             icrs_dec = lat_coord
         unique_app_ra, unique_app_dec = transform_icrs_to_app(
-            unique_time_array,
-            icrs_ra,
-            icrs_dec,
-            site_loc,
+            time_array=unique_time_array,
+            ra=icrs_ra,
+            dec=icrs_dec,
+            telescope_loc=site_loc,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             vrad=vrad,
@@ -3771,10 +3776,10 @@ def calc_app_coords(
         )
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
-                interp_ra,
-                interp_dec,
-                coord_frame,
-                "icrs",
+                lon=interp_ra,
+                lat=interp_dec,
+                in_coord_frame=coord_frame,
+                out_coord_frame="icrs",
                 in_coord_epoch=coord_epoch,
                 time_array=unique_time_array,
             )
@@ -3784,7 +3789,12 @@ def calc_app_coords(
         # TODO: Vel and distance handling to be integrated here, once they are are
         # needed for velocity frame tracking
         unique_app_ra, unique_app_dec = transform_icrs_to_app(
-            unique_time_array, icrs_ra, icrs_dec, site_loc, pm_ra=pm_ra, pm_dec=pm_dec
+            time_array=unique_time_array,
+            ra=icrs_ra,
+            dec=icrs_dec,
+            telescope_loc=site_loc,
+            pm_ra=pm_ra,
+            pm_dec=pm_dec,
         )
     elif coord_type == "unprojected":
         # This is the easiest one - this is just supposed to be ENU, so set the
@@ -3808,6 +3818,7 @@ def calc_app_coords(
 
 
 def calc_sidereal_coords(
+    *,
     time_array,
     app_ra,
     app_dec,
@@ -3880,10 +3891,10 @@ def calc_sidereal_coords(
         ref_ra, ref_dec = (icrs_ra, icrs_dec)
     else:
         ref_ra, ref_dec = transform_sidereal_coords(
-            icrs_ra,
-            icrs_dec,
-            "icrs",
-            coord_frame,
+            lon=icrs_ra,
+            lat=icrs_dec,
+            in_coord_frame="icrs",
+            out_coord_frame=coord_frame,
             out_coord_epoch=epoch,
             time_array=time_array,
         )
@@ -3892,6 +3903,7 @@ def calc_sidereal_coords(
 
 
 def get_lst_for_time(
+    *,
     jd_array=None,
     latitude=None,
     longitude=None,
@@ -4495,7 +4507,7 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, include_conjugates=False
+    baselines, baseline_vecs, *, tol=1.0, include_conjugates=False
 ):
     """
     Find redundant baseline groups.
@@ -4568,7 +4580,7 @@ def get_baseline_redundancies(
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, tol=1.0, include_autos=False
+    antenna_numbers, antenna_positions, *, tol=1.0, include_autos=False
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -4640,7 +4652,7 @@ def get_antenna_redundancies(
 
 
 def mean_collapse(
-    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr, *, weights=None, axis=None, return_weights=False, return_weights_square=False
 ):
     """
     Collapse by averaging data.
@@ -4690,7 +4702,7 @@ def mean_collapse(
 
 
 def absmean_collapse(
-    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr, *, weights=None, axis=None, return_weights=False, return_weights_square=False
 ):
     """
     Collapse by averaging absolute value of data.
@@ -4720,7 +4732,7 @@ def absmean_collapse(
 
 
 def quadmean_collapse(
-    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr, *, weights=None, axis=None, return_weights=False, return_weights_square=False
 ):
     """
     Collapse by averaging in quadrature.
@@ -4756,7 +4768,7 @@ def quadmean_collapse(
 
 
 def or_collapse(
-    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr, *, weights=None, axis=None, return_weights=False, return_weights_square=False
 ):
     """
     Collapse using OR operation.
@@ -4788,7 +4800,7 @@ def or_collapse(
 
 
 def and_collapse(
-    arr, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr, *, weights=None, axis=None, return_weights=False, return_weights_square=False
 ):
     """
     Collapse using AND operation.
@@ -4820,7 +4832,13 @@ def and_collapse(
 
 
 def collapse(
-    arr, alg, weights=None, axis=None, return_weights=False, return_weights_square=False
+    arr,
+    alg,
+    *,
+    weights=None,
+    axis=None,
+    return_weights=False,
+    return_weights_square=False,
 ):
     """
     Parent function to collapse an array with a given algorithm.
@@ -4871,6 +4889,7 @@ def collapse(
 def uvcalibrate(
     uvdata,
     uvcal,
+    *,
     inplace=True,
     prop_flags=True,
     Dterm_cal=False,
@@ -5294,7 +5313,7 @@ def uvcalibrate(
 
 
 def apply_uvflag(
-    uvd, uvf, inplace=True, unflag_first=False, flag_missing=True, force_pol=True
+    uvd, uvf, *, inplace=True, unflag_first=False, flag_missing=True, force_pol=True
 ):
     """
     Apply flags from a UVFlag to a UVData instantiation.
@@ -5412,7 +5431,7 @@ def apply_uvflag(
         return uvd
 
 
-def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
+def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
     """
     Get antpair and polarization from parsing an aipy-style ant string.
 
@@ -5897,7 +5916,7 @@ def _get_slice_len(s, axlen):
     return ((stop - 1 - start) // step) + 1
 
 
-def _index_dset(dset, indices, input_array=None):
+def _index_dset(dset, indices, *, input_array=None):
     """
     Index a UVH5 data, flags or nsamples h5py dataset.
 
@@ -6003,7 +6022,7 @@ def _index_dset(dset, indices, input_array=None):
 
 
 def determine_blt_order(
-    time_array, ant_1_array, ant_2_array, baseline_array, Nbls, Ntimes
+    *, time_array, ant_1_array, ant_2_array, baseline_array, Nbls, Ntimes
 ) -> tuple[str] | None:
     """Get the blt order from analysing metadata."""
     times = time_array
@@ -6144,6 +6163,7 @@ def determine_blt_order(
 
 
 def determine_rectangularity(
+    *,
     time_array: np.ndarray,
     baseline_array: np.ndarray,
     nbls: int,
