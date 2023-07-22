@@ -26,6 +26,16 @@ guaranteed to have calibration solutions associated with them in the ``gain_arra
 calibration solution is held in the ``ant_array`` attribute (which has the same length
 as the ``gain_array`` or ``delay_array`` along the antenna axis).
 
+Calibration solutions can be described as either applying at a particular time (when
+calibrations were calculated for each integration), in which case the ``time_array``
+attribute will be set, or over a time range (when one solution was calculated over a
+range of integration times), in which case the ``time_range`` attribute will be set.
+Only one of ``time_array`` and ``time_range`` should be set on a UVCal object. If set,
+the ``time_range`` attribute should have shape (``Ntimes``, 2) where the second axis
+gives the beginning and end of the time range. The local sidereal times follow a similar
+pattern, UVCal objects should have either an ``lst_array`` or an ``lst_range`` attribute
+set.
+
 For most users, the convenience methods for quick data access (see
 `UVCal: Quick data access`_) are the easiest way to get data for particular antennas.
 Those methods take the antenna numbers (i.e. numbers listed in ``antenna_numbers``)
@@ -253,8 +263,9 @@ a) Calibration of UVData by UVCal
 UVCal: Selecting data
 ---------------------
 The :meth:`pyuvdata.UVCal.select` method lets you select specific antennas
-(by number or name), frequencies (in Hz or by channel number), times or jones components
-(by number or string) to keep in the object while removing others.
+(by number or name), frequencies (in Hz or by channel number), times (either exact
+times or times covered by a time range) or jones components (by number or string) to keep
+in the object while removing others.
 
 a) Select antennas to keep on UVCal object using the antenna number.
 ********************************************************************
@@ -315,6 +326,7 @@ d) Select times
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
   >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+  >>> cal2 = cal.copy()
 
   >>> # print all the times in the original file
   >>> print(cal.time_array)
@@ -326,6 +338,11 @@ d) Select times
   >>> cal.select(times=cal.time_array[0:3])
 
   >>> print(cal.time_array)
+  [2458098.45677626 2458098.45690053 2458098.45702481]
+
+  >>> # Or select using a time range
+  >>> cal2.select(time_range=[2458098.4567, 2458098.4571])
+  >>> print(cal2.time_array)
   [2458098.45677626 2458098.45690053 2458098.45702481]
 
 d) Select Jones components
