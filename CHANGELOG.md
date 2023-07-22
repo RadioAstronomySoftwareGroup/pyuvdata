@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A `UVCal.get_time_array` method that either returns the mean of the start and stop
+time for each time range or the time_array (if there's a time_array and no time_range).
 - Added a brief tutorial on how to convert SMA MIR data into MS format (with some notes
 on SMA specific keywords than can be used).
 - Added the `Mir.generate_sma_antpos_dict` method for reading in SMA-formatted antenna
@@ -36,6 +38,11 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Only one of `time_array` and `time_range` (and similarly `lst_array` and `lst_range`)
+can be set on a UVCal object.
+- If `time_range` is set it must be 2D with a shape of (Ntimes, 2) where the first axis
+gives the number of different time solutions and the second axis gives the start/stop
+times for those solutions.
 - Made `MirParser` more robust against metadata indexing errors.
 - Made `MirParser` handling of autocorrelation data more robust.
 - Improved hooks for handling and loading of COMPASS solutions into `MirParser` objects.
