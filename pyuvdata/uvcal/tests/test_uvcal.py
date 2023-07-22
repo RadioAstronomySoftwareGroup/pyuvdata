@@ -2184,7 +2184,7 @@ def test_reorder_times_errors(gain_data):
         DeprecationWarning,
         match="The time_array and time_range attributes are both set. "
         "Defaulting to using time_range to determine sorting. This will "
-        "become an error in version 2.5.",
+        "become an error in version 3.0.",
     ):
         gain_data.reorder_times()
 
@@ -2966,15 +2966,15 @@ def test_add_times(
         check_warn = [DeprecationWarning] * 2
         check_msg = [
             "The time_array and time_range attributes are both set, but only one "
-            "should be set. This will become an error in version 2.5.",
+            "should be set. This will become an error in version 3.0.",
             "The lst_array and lst_range attributes are both set, but only one should "
-            "be set. This will become an error in version 2.5.",
+            "be set. This will become an error in version 3.0.",
         ]
         select_warn = check_warn + [DeprecationWarning]
         select_msg = check_msg + [
             "The time_array and time_range attributes are both set. "
             "Defaulting to using time_range to determine time selection. "
-            "This will become an error in version 2.5."
+            "This will become an error in version 3.0."
         ]
 
         add_warn = check_warn * 3
@@ -2984,7 +2984,7 @@ def test_add_times(
             add_msg += [
                 "The time_array and time_range attributes are both set. Defaulting to "
                 "using time_range to determine time matching between objects. "
-                "This will become an error in version 2.5."
+                "This will become an error in version 3.0."
             ]
     elif caltype == "delay":
         check_warn = [DeprecationWarning]
@@ -3151,7 +3151,7 @@ def test_add_times(
             warn_msg += [
                 "The time_array and time_range attributes are both set. Defaulting to "
                 "using time_range to determine sorting. This will become an error in "
-                "version 2.5."
+                "version 3.0."
             ]
         with uvtest.check_warnings(warn, match=warn_msg):
             calobj.reorder_times()
