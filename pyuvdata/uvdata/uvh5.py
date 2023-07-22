@@ -699,7 +699,7 @@ class FastUVH5Meta:
             warnings.warn(
                 f"LST values stored in {self.path} are not self-consistent "
                 "with time_array and telescope location. Consider "
-                "recomputing with utils.get_lst_for_time."
+                "recomputing with UVData.set_lsts_from_time_array."
             )
 
     @cached_property

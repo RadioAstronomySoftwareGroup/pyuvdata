@@ -33,13 +33,7 @@ ref_xyz_moon = (1581421.16194946, 718462.9979381, 20843.20350155)
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions is not set. Using known values",
-)
-
-
-pytestmark = pytest.mark.filterwarnings(
-    "ignore:telescope_location is not set. Using known values for HERA.",
-    "ignore:antenna_positions is not set. Using known values for HERA.",
+    "ignore:antenna_positions are not set or are being overwritten. Using known values",
 )
 
 
@@ -3413,8 +3407,6 @@ def test_uvcalibrate_flag_propagation(
         uvd.get_data(0, 12, "xx"), uvdcal.get_data(0, 12, "xx")
     )
 
-    uvc.set_telescope_params(overwrite=True)
-
     uvc_sub = uvc.select(antenna_nums=[1, 12], inplace=False)
 
     uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
@@ -3548,6 +3540,7 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data):
 
     # change times to get warnings
     uvc.time_array = uvc.time_array + 1
+    uvc.set_lsts_from_time_array()
 
     expected_err = {
         f"Time {this_time} exists on UVData but not on UVCal."
@@ -3632,6 +3625,7 @@ def test_uvcalibrate_extra_cal_times(uvcalibrate_data):
 
     uvc2 = uvc.copy()
     uvc2.time_array = uvc.time_array + 1
+    uvc2.set_lsts_from_time_array()
     uvc_use = uvc + uvc2
 
     uvdcal = uvutils.uvcalibrate(uvd, uvc_use, inplace=False)

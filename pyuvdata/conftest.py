@@ -5,12 +5,12 @@
 """Testing environment setup and teardown for pytest."""
 import os
 
-import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from astropy.utils import iers
 
+import pyuvdata.tests as uvtest
 from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
 
@@ -76,10 +76,25 @@ def uvcalibrate_data_main(uvcalibrate_init_data_main):
     uvdata = uvdata_in.copy()
     uvcal = uvcal_in.copy()
 
-    # fix the antenna names in the uvcal object to match the uvdata object
-    uvcal.antenna_names = np.array(
-        [name.replace("ant", "HH") for name in uvcal.antenna_names]
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "telescope_location is not set. Using known values for HERA.",
+            "antenna_positions, antenna_names, antenna_numbers, Nants_telescope are "
+            "not set or are being overwritten. Using known values for HERA.",
+        ],
+    ):
+        uvcal.set_telescope_params(overwrite=True)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
+            "antenna_positions, telescope_location, telescope_name are not set or are "
+            "being overwritten. Using known values for HERA."
+        ],
+    ):
+        uvdata.set_telescope_params(overwrite=True)
 
     yield uvdata, uvcal
 

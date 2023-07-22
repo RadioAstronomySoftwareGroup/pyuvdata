@@ -29,7 +29,7 @@ pyuvdata_version_str = "  Read/written with pyuvdata version: " + __version__ + 
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values for HERA.",
-    "ignore:antenna_positions is not set. Using known values for HERA.",
+    "ignore:antenna_positions are not set or are being overwritten. Using known values",
     "ignore:The uvw_array does not match the expected values",
     "ignore:Fixing auto-correlations to be be real-only",
 )
@@ -79,9 +79,10 @@ def uvdata_obj(uvdata_obj_main):
             "ignore",
             message="Nants_telescope, antenna_diameters, antenna_names, "
             "antenna_numbers, antenna_positions, telescope_location, telescope_name "
-            "are not set or being overwritten. Using known values for HERA.",
+            "are not set or are being overwritten. Using known values for HERA.",
         )
         uvdata_object.set_telescope_params(overwrite=True)
+    uvdata_object.set_lsts_from_time_array()
 
     yield uvdata_object
 
@@ -114,9 +115,9 @@ def uvcal_obj(uvcal_obj_main):
     with warnings.catch_warnings():
         warnings.filterwarnings(
             "ignore",
-            message="Nants_telescope, antenna_diameters, antenna_names, "
-            "antenna_numbers, antenna_positions, telescope_location, telescope_name "
-            "are not set or being overwritten. Using known values for HERA.",
+            message="antenna_positions, antenna_names, antenna_numbers, "
+            "Nants_telescope are not set or are being overwritten. Using known values "
+            "for HERA.",
         )
         uvc.set_telescope_params(overwrite=True)
     yield uvc
@@ -772,7 +773,8 @@ def test_from_uvcal_error(uvdata_obj):
         UserWarning,
         match=[
             "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions is not set. Using known values for HERA.",
+            "antenna_positions are not set or are being overwritten. Using known "
+            "values for HERA.",
             "When converting a delay-style cal to future array shapes",
         ],
     ):
@@ -921,28 +923,28 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["telescope_location"],
             UserWarning,
-            "telescope_location are not set or being overwritten. Using known values",
+            "telescope_location are not set or are being overwritten. Using known",
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_names"],
             UserWarning,
-            "antenna_names are not set or being overwritten. Using known values",
+            "antenna_names are not set or are being overwritten. Using known values",
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_numbers"],
             UserWarning,
-            "antenna_numbers are not set or being overwritten. Using known values",
+            "antenna_numbers are not set or are being overwritten. Using known values",
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_positions"],
             UserWarning,
-            "antenna_positions are not set or being overwritten. Using known values",
+            "antenna_positions are not set or are being overwritten. Using known",
             "reset_telescope_params",
         ),
         ("baseline", ["Nants_telescope"], None, "", "reset_telescope_params"),
@@ -990,7 +992,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_names", "antenna_numbers", "antenna_positions"],
             UserWarning,
             "Nants_telescope, antenna_names, antenna_numbers, antenna_positions are "
-            "not set or being overwritten. Using known values for HERA.",
+            "not set or are being overwritten. Using known values for HERA.",
             "reset_telescope_params",
         ),
         (
@@ -1382,6 +1384,7 @@ def test_read_write_extra_keywords(uvdata_obj, test_outfile):
 def test_init_list(uvdata_obj):
     uv = uvdata_obj
     uv.time_array -= 1
+    uv.set_lsts_from_time_array()
     uvf = UVFlag([uv, test_f_file], use_future_array_shapes=True)
     uvf1 = UVFlag(uv, use_future_array_shapes=True)
     uvf2 = UVFlag(test_f_file, use_future_array_shapes=True)
@@ -1422,6 +1425,7 @@ def test_read_multiple_files(
 ):
     uv = uvdata_obj
     uv.time_array -= 1
+    uv.set_lsts_from_time_array()
     uvf = UVFlag(uv, use_future_array_shapes=write_future_shapes)
     uvf.write(test_outfile, clobber=True)
 
@@ -1572,6 +1576,15 @@ def test_add(future_shapes):
     uv1 = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
     uv2 = copy.copy(uv1)
     uv2.time_array += 1  # Add a day
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The lst_array is not self-consistent with the time_array and "
+        "telescope location. Consider recomputing with the "
+        "`set_lsts_from_time_array` method.",
+    ):
+        uv2.check()
+
+    uv2.set_lsts_from_time_array()
     uv3 = uv1 + uv2
     assert np.array_equal(
         np.concatenate((uv1.time_array, uv2.time_array)), uv3.time_array
@@ -1609,6 +1622,7 @@ def test_add_collapsed_pols():
     uvf.collapse_pol()
     uvf3 = uvf.copy()
     uvf3.time_array += 1  # increment the time array
+    uvf3.set_lsts_from_time_array()
     uvf4 = uvf + uvf3
     assert uvf4.Ntimes == 2 * uvf.Ntimes
     uvf4.check()
@@ -1622,6 +1636,7 @@ def test_add_add_version_str():
 
     uv2 = uv1.copy()
     uv2.time_array += 1  # Add a day
+    uv2.set_lsts_from_time_array()
     uv3 = uv1 + uv2
     assert pyuvdata_version_str in uv3.history
 
@@ -1824,6 +1839,7 @@ def test_add_flag(uvdata_obj):
     uv1 = UVFlag(uv, mode="flag", use_future_array_shapes=True)
     uv2 = uv1.copy()
     uv2.time_array += 1  # Add a day
+    uv2.set_lsts_from_time_array()
     uv3 = uv1 + uv2
     assert np.array_equal(
         np.concatenate((uv1.time_array, uv2.time_array)), uv3.time_array
@@ -1902,6 +1918,7 @@ def test_inplace_add():
     uv1b = uv1a.copy()
     uv2 = uv1a.copy()
     uv2.time_array += 1
+    uv2.set_lsts_from_time_array()
     uv1a += uv2
     assert uv1a.__eq__(uv1b + uv2)
 
@@ -2395,6 +2412,7 @@ def test_to_baseline_from_antenna(
     # hack in the exact times so we can compare some values later
     uv2.select(bls=old_baseline)
     uv2.time_array[: uvf2.time_array.size] = uvf.time_array
+    uv2.set_lsts_from_time_array()
 
     uvf.to_baseline(uv, force_pol=True)
     uvf2.to_baseline(uv2, force_pol=True)

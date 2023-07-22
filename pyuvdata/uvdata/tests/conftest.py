@@ -104,7 +104,13 @@ def sma_mir_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(testfile, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The lst_array is not self-consistent with the time_array and telescope "
+        "location. Consider recomputing with the `set_lsts_from_time_array` method.",
+    ):
+        uv_object.read(testfile, use_future_array_shapes=True)
+    uv_object.set_lsts_from_time_array()
 
     yield uv_object
 
