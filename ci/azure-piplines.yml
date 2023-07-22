@@ -127,7 +127,7 @@ jobs:
     vmImage: "ubuntu-latest"
   variables:
     PYTHON: "3.9"
-    ENV_NAME: tests
+    ENV_NAME: pyuvsim_tests
     WITH_SUDO: true
 
   steps:
