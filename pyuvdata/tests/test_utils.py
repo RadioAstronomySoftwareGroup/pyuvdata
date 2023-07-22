@@ -3947,9 +3947,9 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
         warn += [DeprecationWarning] * 2
         warn_msg += [
             "The time_array and time_range attributes are both set, but only one "
-            "should be set. This will become an error in version 2.5.",
+            "should be set. This will become an error in version 3.0.",
             "The lst_array and lst_range attributes are both set, but only one "
-            "should be set. This will become an error in version 2.5.",
+            "should be set. This will become an error in version 3.0.",
         ]
     with uvtest.check_warnings(warn, match=warn_msg):
         uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
