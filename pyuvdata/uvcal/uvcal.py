@@ -1386,7 +1386,7 @@ class UVCal(UVBase):
             ):
                 warnings.warn(
                     f"The {pair[0]} and {pair[1]} attributes are both set, but only "
-                    "one should be set. This will become an error in version 2.5.",
+                    "one should be set. This will become an error in version 3.0.",
                     DeprecationWarning,
                 )
             elif getattr(self, pair[0]) is None and getattr(self, pair[1]) is None:
@@ -2075,7 +2075,7 @@ class UVCal(UVBase):
                 warnings.warn(
                     "The time_array and time_range attributes are both set. "
                     "Defaulting to using time_range to determine sorting. This will "
-                    "become an error in version 2.5.",
+                    "become an error in version 3.0.",
                     DeprecationWarning,
                 )
 
@@ -2577,7 +2577,7 @@ class UVCal(UVBase):
             warnings.warn(
                 "The time_array and time_range attributes are both set. "
                 "Defaulting to using time_range to determine time matching between "
-                "objects. This will become an error in version 2.5.",
+                "objects. This will become an error in version 3.0.",
                 DeprecationWarning,
             )
         if this.time_range is not None:
@@ -4329,7 +4329,7 @@ class UVCal(UVBase):
             warnings.warn(
                 "The time_array and time_range attributes are both set. "
                 "Defaulting to using time_range to determine time selection. "
-                "This will become an error in version 2.5.",
+                "This will become an error in version 3.0.",
                 DeprecationWarning,
             )
 
