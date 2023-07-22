@@ -69,10 +69,9 @@ class UVFITS(UVData):
                     )
                 ):
                     warnings.warn(
-                        "LST values stored in this file are not "
-                        "self-consistent with time_array and telescope "
-                        "location. Consider recomputing with "
-                        "utils.get_lst_for_time."
+                        "LST values stored in this file are not self-consistent with "
+                        "time_array and telescope location. Consider recomputing with "
+                        "the `set_lsts_from_time_array` method."
                     )
 
         else:

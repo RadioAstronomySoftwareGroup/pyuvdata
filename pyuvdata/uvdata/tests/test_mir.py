@@ -26,9 +26,14 @@ from ..uvdata import _future_array_shapes_warning
 def sma_mir_filt_main():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_object.read(
-        testfile, pseudo_cont=True, corrchunk=0, use_future_array_shapes=True
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The lst_array is not self-consistent with the time_array and telescope "
+        "location. Consider recomputing with the `set_lsts_from_time_array` method.",
+    ):
+        uv_object.read(
+            testfile, pseudo_cont=True, corrchunk=0, use_future_array_shapes=True
+        )
 
     uv_object.flag_array[:, : uv_object.Nfreqs // 2, 0] = True
     uv_object.flag_array[:, uv_object.Nfreqs // 2 :, 1] = True
@@ -254,13 +259,19 @@ def test_mir_partial_read(sma_mir):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     with uvtest.check_warnings(
         UserWarning,
-        "Warning: a select on read keyword is set that is "
-        "not supported by read_mir. This select will be done after reading the file.",
+        match=[
+            "Warning: a select on read keyword is set that is not supported by "
+            "read_mir. This select will be done after reading the file.",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        ],
     ):
         uv3 = UVData.from_file(
             testfile, freq_chans=freq_chans_to_keep, use_future_array_shapes=True
         )
-
+    uv3.set_lsts_from_time_array()
     assert uv3 == uv2
 
 
@@ -286,13 +297,20 @@ def test_multi_nchan_spw_read(tmp_path):
     """
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
-    uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The lst_array is not self-consistent with the time_array and telescope "
+        "location. Consider recomputing with the `set_lsts_from_time_array` method.",
+    ):
+        uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+    uv_in.set_lsts_from_time_array()
 
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
     with pytest.raises(IndexError):
         uv_in.write_uvfits(dummyfile)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent with the.")
 def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     """
     Mir to MS loopback test with flex-pol.
@@ -369,12 +387,13 @@ def test_inconsistent_sp_records(mir_data, sma_mir):
     mir_data.sp_data._data["ipq"][1] = 0
     mir_data.load_data()
 
+    mir_uv = UVData()
+    mir_obj = Mir()
     with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):
-        mir_uv = UVData()
-        mir_obj = Mir()
         mir_obj._init_from_mir_parser(mir_data)
-        mir_uv._convert_from_filetype(mir_obj)
-        mir_uv.use_future_array_shapes()
+    mir_uv._convert_from_filetype(mir_obj)
+    mir_uv.use_future_array_shapes()
+    mir_uv.set_lsts_from_time_array()
 
     assert mir_uv == sma_mir
 
@@ -386,13 +405,14 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
     mir_data.select(where=("iband", "ne", 0))
     mir_data.bl_data._data["u"][0] = 0.0
     mir_data.load_data()
+    mir_uv = UVData()
+    mir_obj = Mir()
     with uvtest.check_warnings(UserWarning, "Per-baseline metadata differ."):
-        mir_uv = UVData()
-        mir_obj = Mir()
         mir_obj._init_from_mir_parser(mir_data)
-        mir_uv._convert_from_filetype(mir_obj)
-        mir_uv.use_future_array_shapes()
+    mir_uv._convert_from_filetype(mir_obj)
+    mir_uv.use_future_array_shapes()
 
+    mir_uv.set_lsts_from_time_array()
     assert mir_uv == sma_mir
 
 
@@ -410,7 +430,7 @@ def test_multi_ipol(mir_data, sma_mir):
     mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
     mir_uv.use_future_array_shapes()
-
+    mir_uv.set_lsts_from_time_array()
     assert mir_uv == sma_mir
 
 
@@ -620,6 +640,7 @@ def test_bad_pol_code(mir_data):
     mir_obj._init_from_mir_parser(mir_data)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_rechunk_on_read():
     """Test that rechunking on read works as expected."""
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
@@ -630,6 +651,7 @@ def test_rechunk_on_read():
     assert np.all(uv_data.channel_width == 2.288e09)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize(
     "select_kwargs",
     [
@@ -649,6 +671,7 @@ def test_select_on_read(select_kwargs, sma_mir):
     testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_data = UVData.from_file(testfile, use_future_array_shapes=True, **select_kwargs)
     uv_data.history = sma_mir.history
+    uv_data.set_lsts_from_time_array()
     assert sma_mir == uv_data
 
 
@@ -695,6 +718,7 @@ def test_dedoppler_data(mir_data, sma_mir):
     # Complete the initialization of the UVData object
     mir_obj._init_from_mir_parser(mir_data, apply_dedoppler=True)
     mir_uv._convert_from_filetype(mir_obj)
+    mir_uv.set_lsts_from_time_array()
 
     # Make sure things differ
     assert sma_mir != mir_uv

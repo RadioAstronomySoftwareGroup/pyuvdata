@@ -23,7 +23,7 @@ from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions is not set. Using known values",
+    "ignore:antenna_positions are not set or are being overwritten. Using known values",
 )
 
 
@@ -3825,7 +3825,9 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
         hdulist.close()
 
     with uvtest.check_warnings(
-        UserWarning, "antenna_positions is not set. Using known values for HERA."
+        UserWarning,
+        match="antenna_positions are not set or are being overwritten. Using known "
+        "values for HERA.",
     ):
         gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
 
@@ -3967,10 +3969,6 @@ def test_init_from_uvdata(
         uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=uvcal_future_shapes
     )
 
-    # antenna positions are different by ~6cm or less. The ones in the uvcal file
-    # derive from info on our telescope object while the ones in the uvdata file
-    # derive from the HERA correlator. I'm not sure why they're different, but it may be
-    # because the data are a little old
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
     uvc_new.antenna_positions = uvc2.antenna_positions
 
@@ -3992,6 +3990,14 @@ def test_init_from_uvdata(
     # of precision in the processing pipeline.
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
+    with uvtest.check_warnings(
+        UserWarning,
+        match="The lst_array is not self-consistent with the time_array and "
+        "telescope location. Consider recomputing with the "
+        "`set_lsts_from_time_array` method.",
+    ):
+        uvc_new.check()
+
     uvc_new.set_lsts_from_time_array()
 
     assert uvc_new == uvc2

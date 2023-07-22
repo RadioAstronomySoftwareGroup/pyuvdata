@@ -874,7 +874,8 @@ def test_hera_diameters(paper_uvh5):
     uv_in.telescope_name = "HERA"
     with uvtest.check_warnings(
         UserWarning,
-        match="antenna_diameters are not set or being overwritten. Using known values",
+        match="antenna_diameters are not set or are being overwritten. Using known "
+        "values for HERA.",
     ):
         uv_in.set_telescope_params()
 
@@ -2086,7 +2087,7 @@ def test_select_lsts_out_of_range_error(casa_uvfits):
     return
 
 
-def test_select_lsts_too_big(casa_uvfits):
+def test_select_lsts_too_big(casa_uvfits, tmp_path):
     uv_object = casa_uvfits
     # replace one LST with bogus value larger than 2*pi; otherwise we'll get an
     # error that the value isn't actually in the LST array
@@ -2106,6 +2107,8 @@ def test_select_lsts_too_big(casa_uvfits):
         [
             "The lsts parameter contained a value greater than 2*pi",
             "The uvw_array does not match the expected values",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
         ],
     ):
         uv_object2.select(lsts=lsts_to_keep)
@@ -2116,6 +2119,28 @@ def test_select_lsts_too_big(casa_uvfits):
         assert lst in uv_object2.lst_array
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
+
+    # check that it's detected in the uvfits reader
+    test_filename = os.path.join(tmp_path, "test_bad_lsts.uvfits")
+    warn_msg = [
+        "The lst_array is not self-consistent with the time_array and telescope "
+        "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        "The uvw_array does not match the expected values given the antenna "
+        "positions.",
+    ]
+    with uvtest.check_warnings(UserWarning, match=warn_msg):
+        uv_object2.write_uvfits(test_filename)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=warn_msg
+        + [
+            "Telescope EVLA is not in known_telescopes.",
+            "LST values stored in this file are not self-consistent with "
+            "time_array and telescope location. Consider recomputing with "
+            "the `set_lsts_from_time_array` method.",
+        ],
+    ):
+        UVData.from_file(test_filename, use_future_array_shapes=True)
 
     return
 
@@ -8213,7 +8238,14 @@ def test_downsample_in_time_errors(hera_uvh5):
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     times_01 = uv_object.get_times(0, 1)
     assert np.unique(np.diff(times_01)).size > 1
-    with uvtest.check_warnings(UserWarning, "There is a gap in the times of baseline"):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "There is a gap in the times of baseline",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        ],
+    ):
         uv_object.downsample_in_time(min_int_time=min_integration_time)
 
     # Should have half the size of the data array and all the new integration time
@@ -8299,13 +8331,14 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     # time array is in jd, integration time is in sec
     uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
     uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.set_lsts_from_time_array()
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     # check that there are no warnings about inconsistencies between
     # integration_time & time_array
-    with uvtest.check_warnings(None):
-        uv_object.downsample_in_time(min_int_time=min_integration_time)
+    uv_object.check()
+    uv_object.downsample_in_time(min_int_time=min_integration_time)
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
@@ -8356,6 +8389,7 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
     # time array is in jd, integration time is in sec
     uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
     uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.set_lsts_from_time_array()
     uv_object.integration_time[inds01[-2:]] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
 
@@ -11778,27 +11812,42 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
-@pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
-@pytest.mark.filterwarnings("ignore:using known location values for SZA.")
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected")
-@pytest.mark.filterwarnings("ignore:pamatten in extra_keywords is a list, array")
-@pytest.mark.filterwarnings("ignore:psys in extra_keywords is a list, array or dict")
-@pytest.mark.filterwarnings("ignore:psysattn in extra_keywords is a list, array or")
-@pytest.mark.filterwarnings("ignore:ambpsys in extra_keywords is a list, array or dict")
-@pytest.mark.filterwarnings("ignore:bfmask in extra_keywords is a list, array or dict")
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
-    "filename",
+    ["filename", "msg"],
     [
-        "zen.2458661.23480.HH.uvh5",
-        "sma_test.mir",
-        "carma_miriad",
-        "1133866760.uvfits",
-        fhd_files,
+        ["zen.2458661.23480.HH.uvh5", ""],
+        [
+            "sma_test.mir",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        ],
+        [
+            "carma_miriad",
+            [
+                "Altitude is not present in Miriad file, using known location values "
+                "for SZA.",
+                "The uvw_array does not match the expected values given the antenna "
+                "positions.",
+            ]
+            + [
+                f"{extra_key} in extra_keywords is a list, array or dict, which will "
+                "raise an error when writing uvfits or miriad file types"
+                for extra_key in ["pamatten", "psys", "psysattn", "ambpsys", "bfmask"]
+            ],
+        ],
+        [
+            "1133866760.uvfits",
+            "Fixing auto-correlations to be be real-only, after some imaginary values "
+            "were detected in data_array.",
+        ],
+        [
+            fhd_files,
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file.",
+        ],
     ],
 )
-def test_from_file(filename):
+def test_from_file(filename, msg):
     if "miriad" in filename:
         pytest.importorskip("pyuvdata._miriad")
     if isinstance(filename, str):
@@ -11806,8 +11855,16 @@ def test_from_file(filename):
     else:
         testfile = filename
     uvd = UVData()
-    uvd.read(testfile, use_future_array_shapes=True)
-    uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
+
+    if len(msg) == 0:
+        warn = None
+    else:
+        warn = UserWarning
+
+    with uvtest.check_warnings(warn, match=msg):
+        uvd.read(testfile, use_future_array_shapes=True)
+    with uvtest.check_warnings(warn, match=msg):
+        uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
     assert uvd == uvd2
 
 

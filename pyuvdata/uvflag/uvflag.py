@@ -923,6 +923,24 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self._freq_array.form = ("Nfreqs",)
 
+    def check_lsts_against_times(self):
+        """Check that LSTs consistent with the time_array and telescope location."""
+        lsts = uvutils.get_lst_for_time(
+            self.time_array, *self.telescope_location_lat_lon_alt_degrees
+        )
+
+        if not np.allclose(
+            self.lst_array,
+            lsts,
+            rtol=self._lst_array.tols[0],
+            atol=self._lst_array.tols[1],
+        ):
+            warnings.warn(
+                "The lst_array is not self-consistent with the time_array and "
+                "telescope location. Consider recomputing with the "
+                "`set_lsts_from_time_array` method."
+            )
+
     def check(self, check_extra=True, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1014,6 +1032,10 @@ class UVFlag(UVBase):
                 raise ValueError(
                     "All values in the flex_spw_id_array must exist in the spw_array."
                 )
+
+        if run_check_acceptability:
+            self.check_lsts_against_times()
+
         return True
 
     def clear_unused_attributes(self):
@@ -1176,11 +1198,12 @@ class UVFlag(UVBase):
                         )
 
             if len(params_set) > 0:
-                params_set_str = ", ".join(params_set)
                 if warn:
+                    params_set_str = ", ".join(params_set)
                     warnings.warn(
-                        f"{params_set_str} are not set or being overwritten. Using "
-                        f"known values for {telescope_obj.telescope_name}."
+                        f"{params_set_str} are not set or are being "
+                        "overwritten. Using known values for "
+                        f"{telescope_obj.telescope_name}."
                     )
         else:
             raise ValueError(

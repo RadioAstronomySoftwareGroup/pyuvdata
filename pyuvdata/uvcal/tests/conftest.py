@@ -18,7 +18,15 @@ from pyuvdata.data import DATA_PATH
 def gain_data_main():
     """Read in gain calfits file."""
     gainfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")
-    gain_object = UVCal.from_file(gainfile, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "telescope_location is not set. Using known values for HERA.",
+            "antenna_positions are not set or are being overwritten. Using known "
+            "values for HERA.",
+        ],
+    ):
+        gain_object = UVCal.from_file(gainfile, use_future_array_shapes=True)
     gain_object.freq_range = None
 
     yield gain_object
@@ -44,7 +52,8 @@ def delay_data_main():
         UserWarning,
         match=[
             "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions is not set. Using known values for HERA.",
+            "antenna_positions are not set or are being overwritten. Using known "
+            "values for HERA.",
             "When converting a delay-style cal to future array shapes the flag_array"
             " (and input_flag_array if it exists) must drop the frequency axis",
         ],

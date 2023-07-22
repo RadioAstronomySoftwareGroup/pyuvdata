@@ -2420,14 +2420,12 @@ class UVData(UVBase):
                         setattr(self, prop_name, array_val)
 
             if len(params_set) > 0:
-                params_set_str = ", ".join(params_set)
                 if warn:
+                    params_set_str = ", ".join(params_set)
                     warnings.warn(
-                        "{params} are not set or being overwritten. Using known values "
-                        "for {telescope_name}.".format(
-                            params=params_set_str,
-                            telescope_name=telescope_obj.telescope_name,
-                        )
+                        f"{params_set_str} are not set or are being "
+                        "overwritten. Using known values for "
+                        f"{telescope_obj.telescope_name}."
                     )
         else:
             raise ValueError(
@@ -2454,15 +2452,14 @@ class UVData(UVBase):
 
     def _set_lsts_helper(self):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
-        unique_lst_array = uvutils.get_lst_for_time(
-            unique_times,
+        # the utility function is efficient -- it only calculates unique times
+        self.lst_array = uvutils.get_lst_for_time(
+            self.time_array,
             latitude,
             longitude,
             altitude,
             frame=self._telescope_location.frame,
         )
-        self.lst_array = unique_lst_array[inverse_inds]
         return
 
     def _set_app_coords_helper(self, pa_only=False):
@@ -2606,6 +2603,24 @@ class UVData(UVBase):
             self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
+
+    def check_lsts_against_times(self):
+        """Check that LSTs consistent with the time_array and telescope location."""
+        lsts = uvutils.get_lst_for_time(
+            self.time_array, *self.telescope_location_lat_lon_alt_degrees
+        )
+
+        if not np.allclose(
+            self.lst_array,
+            lsts,
+            rtol=self._lst_array.tols[0],
+            atol=self._lst_array.tols[1],
+        ):
+            warnings.warn(
+                "The lst_array is not self-consistent with the time_array and "
+                "telescope location. Consider recomputing with the "
+                "`set_lsts_from_time_array` method."
+            )
 
     def remove_flex_pol(self, combine_spws=True):
         """
@@ -3370,6 +3385,8 @@ class UVData(UVBase):
             # check that the uvws make sense given the antenna positions
             # make a metadata only copy of this object to properly calculate uvws
             temp_obj = self.copy(metadata_only=True)
+
+            self.check_lsts_against_times()
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")

@@ -19,7 +19,7 @@ from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions is not set. Using known values",
+    "ignore:antenna_positions are not set or are being overwritten. Using known values",
 )
 
 

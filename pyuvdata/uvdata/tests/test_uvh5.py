@@ -1979,6 +1979,8 @@ def test_uvh5_lst_array(casa_uvfits, tmp_path):
             f"LST values stored in {testfile} are not self-consistent",
             "The uvw_array does not match the expected values given the antenna "
             "positions.",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
         ],
     ):
         uv_out.read_uvh5(testfile, use_future_array_shapes=True)

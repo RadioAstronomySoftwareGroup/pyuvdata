@@ -1082,20 +1082,29 @@ class UVCal(UVBase):
                         "Not setting antenna_positions."
                     )
                 else:
-                    warnings.warn(
-                        "antenna_positions is not set. Using known values "
-                        f"for {telescope_obj.telescope_name}."
-                    )
+                    params_set = ["antenna_positions"]
                     if overwrite:
                         self.antenna_names = telescope_obj.antenna_names
                         self.antenna_numbers = telescope_obj.antenna_numbers
                         self.antenna_positions = telescope_obj.antenna_positions
                         self.Nants_telescope = telescope_obj.Nants_telescope
+                        params_set += [
+                            "antenna_names",
+                            "antenna_numbers",
+                            "Nants_telescope",
+                        ]
                     else:
                         telescope_ant_inds = np.array(telescope_ant_inds)
                         self.antenna_positions = telescope_obj.antenna_positions[
                             telescope_ant_inds, :
                         ]
+                    params_set_str = ", ".join(params_set)
+                    warnings.warn(
+                        f"{params_set_str} are not set or are being "
+                        "overwritten. Using known values for "
+                        f"{telescope_obj.telescope_name}."
+                    )
+
         else:
             raise ValueError(
                 f"Telescope {self.telescope_name} is not in known_telescopes."
@@ -1178,6 +1187,24 @@ class UVCal(UVBase):
             self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
+
+    def check_lsts_against_times(self):
+        """Check that LSTs consistent with the time_array and telescope location."""
+        lsts = uvutils.get_lst_for_time(
+            self.time_array, *self.telescope_location_lat_lon_alt_degrees
+        )
+
+        if not np.allclose(
+            self.lst_array,
+            lsts,
+            rtol=self._lst_array.tols[0],
+            atol=self._lst_array.tols[1],
+        ):
+            warnings.warn(
+                "The lst_array is not self-consistent with the time_array and "
+                "telescope location. Consider recomputing with the "
+                "`set_lsts_from_time_array` method."
+            )
 
     def check(
         self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
@@ -1293,6 +1320,9 @@ class UVCal(UVBase):
 
         if check_freq_spacing:
             self._check_freq_spacing()
+
+        if run_check_acceptability:
+            self.check_lsts_against_times()
 
         return True
 
