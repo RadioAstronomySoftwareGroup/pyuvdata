@@ -96,8 +96,17 @@ class FHDCal(UVCal):
         time_use = bl_info["time_use"][0]
 
         time_array_use = time_array[np.where(time_use > 0)]
+        # extend the range by half the integration time in each direction
+        # to make sure that the original data times are covered by the range.
+        intime_jd = self.integration_time / (24.0 * 3600.0)
         self.time_range = np.reshape(
-            np.asarray([np.min(time_array_use), np.max(time_array_use)]), (1, 2)
+            np.asarray(
+                [
+                    np.min(time_array_use) - intime_jd / 2.0,
+                    np.max(time_array_use) + intime_jd / 2.0,
+                ]
+            ),
+            (1, 2),
         )
 
         self.telescope_name = obs_data["instrument"][0].decode("utf8")
