@@ -12684,6 +12684,23 @@ def test_set_rectangularity(casa_uvfits, hera_uvh5):
     assert hera_uvh5.time_axis_faster_than_bls is False
 
 
+def test_determine_blt_order(hera_uvh5):
+    # test that the blt order is determined correctly
+    hera_uvh5.reorder_blts(order="time", minor_order="baseline")
+    assert hera_uvh5.blt_order == ("time", "baseline")
+
+    # Run determine with order already set -- should short-circuit.
+    order = hera_uvh5.determine_blt_order()
+    assert order == ("time", "baseline")
+
+    # woops, forgot the blt_order!
+    hera_uvh5.blt_order = None
+
+    # lets find it again....
+    order = hera_uvh5.determine_blt_order()
+    assert order == ("time", "baseline")
+
+
 def test_select_catalog_name_errs(hera_uvh5):
     with pytest.raises(
         ValueError, match="Cannot set both phase_center_ids and catalog_names."
@@ -12739,3 +12756,21 @@ def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
         sma_mir.data_array = sma_copy.data_array
 
     assert sma_mir == sma_copy
+
+
+def test_antpair2ind_rect_not_ordered(hera_uvh5):
+    hera_uvh5.reorder_blts(order="baseline", minor_order="time")
+
+    assert hera_uvh5.blts_are_rectangular
+    inds = hera_uvh5.antpair2ind((0, 1), ordered=False)
+
+    assert inds == hera_uvh5.antpair2ind((1, 0), ordered=True)
+
+
+def test_antpair2ind_not_rect_not_ordered(hera_uvh5):
+    hera_uvh5.reorder_blts(order="ant1")
+
+    assert not hera_uvh5.blts_are_rectangular
+    inds = hera_uvh5.antpair2ind((0, 1), ordered=False)
+
+    assert inds == hera_uvh5.antpair2ind((1, 0), ordered=True)
