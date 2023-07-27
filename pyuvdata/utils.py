@@ -3611,9 +3611,9 @@ def calc_app_coords(
     # Time objects and unique don't seem to play well together, so we break apart
     # their handling here
     if isinstance(time_array, Time):
-        unique_time_array, unique_mask = np.unique(time_array.utc.jd, return_index=True)
-    else:
-        unique_time_array, unique_mask = np.unique(time_array, return_index=True)
+        time_array = time_array.utc.jd
+
+    unique_time_array, unique_mask = np.unique(time_array, return_index=True)
 
     if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
@@ -3696,9 +3696,6 @@ def calc_app_coords(
     app_ra = np.zeros(np.array(time_array).shape)
     app_dec = np.zeros(np.array(time_array).shape)
 
-    # Need this promotion in order to match entries
-    if isinstance(time_array, Time):
-        unique_time_array = Time(unique_time_array, format="jd", scale="utc")
     for idx, unique_time in enumerate(unique_time_array):
         select_mask = time_array == unique_time
         app_ra[select_mask] = unique_app_ra[idx]

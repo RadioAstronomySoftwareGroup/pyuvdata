@@ -10,6 +10,7 @@ import re
 import numpy as np
 import pytest
 from astropy import units
+from astropy import units as un
 from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 
@@ -4100,3 +4101,39 @@ def test_determine_rect_time_first():
 
     is_rect, time_first = uvutils.determine_rectangularity(TIME, BLS, nbls=2, ntimes=2)
     assert not is_rect
+
+
+@pytest.mark.parametrize("lat", [-1.0, -0.5, 0, 0.5, 1.0])
+@pytest.mark.parametrize("time_past_zenith", [-1 * un.hour, 0 * un.hour, 1 * un.hour])
+def test_calc_app_coords(lat, time_past_zenith):
+    # Generate ra/dec of zenith at time in the phase_frame coordinate system
+    # to use for phasing
+    telescope_location = EarthLocation.from_geodetic(lon=0, lat=lat * un.rad)
+
+    # JD is arbitrary
+    jd = 2454600
+
+    zenith_coord = SkyCoord(
+        alt=90 * un.deg,
+        az=0 * un.deg,
+        obstime=Time(jd, format="jd"),
+        frame="altaz",
+        location=telescope_location,
+    )
+    zenith_coord = zenith_coord.transform_to("icrs")
+
+    obstime = zenith_coord.obstime + time_past_zenith
+
+    ra = zenith_coord.ra.to_value("rad")
+    dec = zenith_coord.dec.to_value("rad")
+    app_ra, app_dec = uvutils.calc_app_coords(
+        ra, dec, time_array=obstime, telescope_loc=telescope_location
+    )
+    print(app_ra)
+    print(app_dec)
+    print(ra)
+    print(dec)
+    print(obstime)
+    print(telescope_location)
+    assert np.isclose(app_ra, ra, atol=0.02)  # give it 1 degree wiggle room.
+    assert np.isclose(app_dec, dec, atol=0.02)
