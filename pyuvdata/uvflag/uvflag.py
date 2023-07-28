@@ -275,7 +275,7 @@ class UVFlag(UVBase):
             "future_array_shapes=True. For 'antenna' type objects, the shape is "
             "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
             "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
-            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
+            "For 'waterfall' type objects, the shape is (Ntimes, Nfreq, Npols)."
         )
         self._metric_array = uvp.UVParameter(
             "metric_array",
@@ -293,7 +293,7 @@ class UVFlag(UVBase):
             "future_array_shapes=True. For 'antenna' type objects, the shape is "
             "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
             "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
-            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
+            "For 'waterfall' type objects, the shape is (Ntimes, Nfreq, Npols)."
         )
         self._flag_array = uvp.UVParameter(
             "flag_array",
@@ -311,7 +311,7 @@ class UVFlag(UVBase):
             "future_array_shapes=True. For 'antenna' type objects, the shape is "
             "(Nants_data, 1, Nfreqs, Ntimes, Npols) or "
             "(Nants_data, Nfreqs, Ntimes, Npols) if future_array_shapes=True. "
-            "For 'waterfall' type objects, the shape is (Nfreq, Ntimes, Npols)."
+            "For 'waterfall' type objects, the shape is (Ntimes, Nfreq, Npols)."
         )
         self._weights_array = uvp.UVParameter(
             "weights_array",
