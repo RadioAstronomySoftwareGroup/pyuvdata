@@ -94,6 +94,7 @@ def get_time_params(
     telescope_location: Locations,
     time_array: np.ndarray,
     integration_time: float | np.ndarray | None = None,
+    astrometry_library: str | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Configure time parameters for new UVData object."""
     if not isinstance(time_array, np.ndarray):
@@ -105,6 +106,7 @@ def get_time_params(
         longitude=telescope_location.lon.deg,
         altitude=telescope_location.height.to_value("m"),
         frame="itrs" if isinstance(telescope_location, EarthLocation) else "mcmf",
+        astrometry_library=astrometry_library,
     )
 
     if integration_time is None:
@@ -352,6 +354,7 @@ def new_uvdata(
     phase_center_catalog: dict[str, Any] | None = None,
     phase_center_id_array: np.ndarray | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
+    astrometry_library: str | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -461,6 +464,12 @@ def new_uvdata(
         id found in ``phase_center_catalog``. It must have shape ``(Nblts,)``.
     x_orientation : str
         Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
+    astrometry_library : str
+        Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+        the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+        (which uses the astropy utilities). Default is erfa unless the
+        telescope_location frame is MCMF (on the moon), in which case the default
+        is astropy.
 
     Other Parameters
     ----------------
@@ -481,7 +490,10 @@ def new_uvdata(
     )
 
     lst_array, integration_time = get_time_params(
-        telescope_location, times, integration_time
+        telescope_location,
+        times,
+        integration_time,
+        astrometry_library=astrometry_library,
     )
 
     if antpairs is None:

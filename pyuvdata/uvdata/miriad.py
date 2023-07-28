@@ -13,9 +13,11 @@ import scipy
 from astropy import constants as const
 from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
 
 __all__ = ["Miriad"]
@@ -714,6 +716,7 @@ class Miriad(UVData):
             check_variables,
         )
 
+    @copy_replace_short_description(UVData.read_miriad, style=DocstringStyle.NUMPYDOC)
     def read_miriad(
         self,
         filepath,
@@ -737,111 +740,9 @@ class Miriad(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in data from a miriad file.
-
-        Parameters
-        ----------
-        filepath : str
-            The miriad root directory to read from.
-        antenna_nums : array_like of int, optional
-            The antennas numbers to read into the object.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
-        ant_str : str, optional
-            A string containing information about what antenna numbers
-            and polarizations to include when reading data into the object.
-            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
-            examples of valid strings and the behavior of different forms for ant_str.
-            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1, 2) and (2, 3) to return a valid
-            pyuvdata object.
-            An ant_str cannot be passed in addition to any of `antenna_nums`,
-            `bls` or `polarizations` parameters, if it is a ValueError will be raised.
-        polarizations : array_like of int or str, optional
-            List of polarization integers or strings to read-in. e.g. ['xx', 'yy', ...]
-        time_range : list of float, optional
-            len-2 list containing min and max range of times in Julian Date to
-            include when reading data into the object. e.g. [2458115.20, 2458115.40]
-        read_data : bool
-            Read in the uvws, times, visibility and flag data. If set to False,
-            only the metadata that can be read quickly (without reading the data)
-            will be read in. For Miriad, some of the normally required metadata
-            are not fast to read in (e.g. uvws, times) so will not be read in
-            if this keyword is False. Therefore, setting read_data to False
-            results in an incompletely defined object (check will not pass).
-        phase_type : str, optional
-            Deprecated, use the `projected` parameter insted. Option to specify the
-            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
-            is the same as setting the projected parameter to False, 'phased' is the
-            same as setting the projected parameter to True. Ignored if `projected`
-            is set.
-        projected : bool or None
-            Option to force the dataset to be labelled as projected or unprojected
-            regardless of the evidence in the file. The default is None which means that
-            the projection will be set based on the file contents. Be careful setting
-            this keyword unless you are confident about the contents of the file.
-        correct_lat_lon : bool
-            Option to update the latitude and longitude from the known_telescopes
-            list if the altitude is missing.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        calc_lst : bool
-            Recalculate the LST values that are present within the file, useful in
-            cases where the "online" calculate values have precision or value errors.
-            Default is True.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Raises
-        ------
-        IOError
-            If root file directory doesn't exist.
-        ValueError
-            If incompatible select keywords are set (e.g. `ant_str` with other
-            antenna selectors, `times` and `time_range`) or select keywords
-            exclude all data or if keywords are set to the wrong type.
-            If the metadata are not internally consistent.
-
-        """
+        """Read in data from a miriad file."""
         from . import aipy_extracts
 
         if not os.path.exists(filepath):
@@ -1324,7 +1225,9 @@ class Miriad(UVData):
         # The differences are of order 5 seconds.
         proc = None
         if (self.telescope_location is not None) and calc_lst:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
         self.nsample_array = np.ones(self.data_array.shape, dtype=np.float64)
 
         # Temporary arrays to hold polarization axis, which will be collapsed

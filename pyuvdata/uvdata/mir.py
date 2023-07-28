@@ -9,9 +9,11 @@ import warnings
 import numpy as np
 from astropy.coordinates import angular_separation
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 
 from .. import get_telescope
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from . import mir_parser
 from .uvdata import UVData
 
@@ -27,6 +29,7 @@ class Mir(UVData):
     instead use the read_mir and write_mir methods on the UVData class.
     """
 
+    @copy_replace_short_description(UVData.read_mir, style=DocstringStyle.NUMPYDOC)
     def read_mir(
         self,
         filepath,
@@ -52,102 +55,9 @@ class Mir(UVData):
         strict_uvw_antpos_check=False,
         allow_flex_pol=True,
         check_autos=True,
-        fix_autos=False,
+        fix_autos=True,
     ):
-        """
-        Read in data from an SMA MIR file, and map to a UVData object.
-
-        Note that with the exception of filename, most of the remaining parameters are
-        used to sub-select a range of data.
-
-        Parameters
-        ----------
-        filepath : str
-            The file path to the MIR folder to read from.
-        antenna_nums : array_like of int, optional
-            The antennas numbers to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided.
-        antenna_names : array_like of str, optional
-            The antennas names to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) specifying baselines
-            to include when reading data in to the object.
-        time_range : array_like of float, optional
-            The time range in Julian Date to include when reading data into
-            the object, must be length 2. Some of the times in the file should
-            fall between the first and last elements.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
-            The polarizations numbers to include when reading data into the
-            object, each value passed here should exist in the polarization_array.
-        catalog_names : str or array-like of str
-            The names of the phase centers (sources) to include when reading data into
-            the object, which should match exactly in spelling and capitalization.
-        corrchunk : int or array-like of int
-            Correlator "chunk" (spectral window) to include when reading data into the
-            object, where 0 corresponds to the pseudo-continuum channel.
-        receivers : str or array-like of str
-            The names of the receivers ("230", "240", "345", "400") to include when
-            reading data into the object.
-        sidebands : str or array-like of str
-            The names of the sidebands ("l" for lower, "u" for upper) to include when
-            reading data into the object.
-        select_where : tuple or list of tuples, optional
-            Argument to pass to the `MirParser.select` method, which will downselect
-            which data is read into the object.
-        apply_flags : bool
-            If set to True, apply "wideband" flags to the visibilities, which are
-            recorded by the realtime system to denote when data are expected to be bad
-            (e.g., antennas not on source, dewar warm). Default it true.
-        apply_tsys : bool
-            If set to False, data are returned as correlation coefficients (normalized
-            by the auto-correlations). Default is True, which instead scales the raw
-            visibilities and forward-gain of the antenna to produce values in Jy
-            (uncalibrated).
-        apply_dedoppler : bool
-            If set to True, data will be corrected for any doppler-tracking performed
-            during observations, and brought into the topocentric rest frame (default
-            for UVData objects). Default is False.
-        pseudo_cont : boolean
-            Read in only pseudo-continuum values. Default is false.
-        rechunk : int
-            Number of channels to average over when reading in the dataset. Optional
-            argument, typically required to be a power of 2.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvw coordinates match antenna positions does not pass.
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window. Default is True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-        """
+        """Read in data from an SMA MIR file, and map to a UVData object."""
         # Use the mir_parser to read in metadata, which can be used to select data.
         mir_data = mir_parser.MirParser(filepath)
 

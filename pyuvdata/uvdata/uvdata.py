@@ -2447,7 +2447,7 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def _set_lsts_helper(self):
+    def _set_lsts_helper(self, astrometry_library=None):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         # the utility function is efficient -- it only calculates unique times
         self.lst_array = uvutils.get_lst_for_time(
@@ -2456,6 +2456,7 @@ class UVData(UVBase):
             longitude,
             altitude,
             frame=self._telescope_location.frame,
+            astrometry_library=astrometry_library,
         )
         return
 
@@ -2533,7 +2534,7 @@ class UVData(UVBase):
         self.phase_center_app_dec = app_dec
         self.phase_center_frame_pa = frame_pa
 
-    def set_lsts_from_time_array(self, background=False):
+    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -2541,6 +2542,12 @@ class UVData(UVBase):
         background : bool, False
             When set to True, start the calculation on a threading.Thread in the
             background and return the thread to the user.
+        astrometry_library : str
+            Library used for calculating the LSTs. Allowed options are
+            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
 
         Returns
         -------
@@ -2550,10 +2557,13 @@ class UVData(UVBase):
 
         """
         if not background:
-            self._set_lsts_helper()
+            self._set_lsts_helper(astrometry_library=astrometry_library)
             return
         else:
-            proc = threading.Thread(target=self._set_lsts_helper)
+            proc = threading.Thread(
+                target=self._set_lsts_helper,
+                kwargs={"astrometry_library": astrometry_library},
+            )
             proc.start()
             return proc
 
@@ -3198,6 +3208,7 @@ class UVData(UVBase):
         allow_flip_conj=False,
         check_autos=False,
         fix_autos=False,
+        astrometry_library=None,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -3229,7 +3240,13 @@ class UVData(UVBase):
             data_array (which should not mathematically exist). Default is False.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
+            that they are real-only in data_array. Default is True.
+        astrometry_library : str
+            Library used for running the LST acceptability check. Allowed options are
+            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
 
         Returns
         -------
@@ -3373,6 +3390,7 @@ class UVData(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols,
+                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 
@@ -8532,7 +8550,8 @@ class UVData(UVBase):
             The frequency channel numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
-            exist in the time_array. Cannot be used with `time_range`.
+            exist in the time_array. Cannot be used with `time_range`, `lsts`, or
+            `lst_array`.
         time_range : array_like of float, optional
             The time range in Julian Date to keep in the object, must be
             length 2. Some of the times in the object should fall between the
@@ -8662,6 +8681,7 @@ class UVData(UVBase):
         temp_data,
         temp_flag,
         temp_nsample,
+        astrometry_library=None,
     ):
         """
         Make a self-consistent object after up/downsampling.
@@ -8703,7 +8723,7 @@ class UVData(UVBase):
         self.uvw_array = np.zeros((self.Nblts, 3))
 
         # set lst array
-        self.set_lsts_from_time_array()
+        self.set_lsts_from_time_array(astrometry_library=astrometry_library)
 
         # update app source coords to new times
         self._set_app_coords_helper()
@@ -8724,6 +8744,7 @@ class UVData(UVBase):
         minor_order="baseline",
         summing_correlator_mode=False,
         allow_drift=False,
+        astrometry_library=None,
     ):
         """
         Resample to a shorter integration time.
@@ -8752,6 +8773,12 @@ class UVData(UVBase):
             before resampling and then unprojected or rephased to a driftscan after
             resampling. Note that resampling unprojected or driftscan phased data may
             result in unexpected behavior.
+        astrometry_library : str
+            Library to use for calculating the LSTs after upsampling. Allowed options
+            are 'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location is a MoonLocation object, in which case the
+            default is astropy.
 
         Returns
         -------
@@ -8920,6 +8947,7 @@ class UVData(UVBase):
             temp_data,
             temp_flag,
             temp_nsample,
+            astrometry_library=astrometry_library,
         )
 
         if phased:
@@ -8978,6 +9006,7 @@ class UVData(UVBase):
         keep_ragged=True,
         summing_correlator_mode=False,
         allow_drift=False,
+        astrometry_library=None,
     ):
         """
         Average to a longer integration time.
@@ -9022,6 +9051,12 @@ class UVData(UVBase):
             before resampling and then unprojected or rephased to a driftscan after
             resampling. Note that resampling unprojected or driftscan phased data may
             result in unexpected behavior.
+        astrometry_library : str
+            Library to use for calculating the LSTs after downsampling. Allowed options
+            are 'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location is a MoonLocation object, in which case the
+            default is astropy.
 
         Returns
         -------
@@ -9410,6 +9445,7 @@ class UVData(UVBase):
             temp_data,
             temp_flag,
             temp_nsample,
+            astrometry_library=astrometry_library,
         )
 
         if phased:
@@ -9475,6 +9511,7 @@ class UVData(UVBase):
         keep_ragged=True,
         summing_correlator_mode=False,
         allow_drift=False,
+        astrometry_library=None,
     ):
         """
         Intelligently upsample or downsample a UVData object to the target time.
@@ -9508,6 +9545,12 @@ class UVData(UVBase):
             before resampling and then unprojected or rephased to a driftscan after
             resampling. Note that resampling unprojected or driftscan phased data may
             result in unexpected behavior.
+        astrometry_library : str
+            Library to use for calculating the LSTs after resampling. Allowed options
+            are 'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location is a MoonLocation object, in which case the
+            default is astropy.
 
         Returns
         -------
@@ -9544,6 +9587,7 @@ class UVData(UVBase):
                 keep_ragged=keep_ragged,
                 summing_correlator_mode=summing_correlator_mode,
                 allow_drift=allow_drift,
+                astrometry_library=astrometry_library,
             )
         if upsample:
             self.upsample_in_time(
@@ -9552,6 +9596,7 @@ class UVData(UVBase):
                 minor_order=minor_order,
                 summing_correlator_mode=summing_correlator_mode,
                 allow_drift=allow_drift,
+                astrometry_library=astrometry_library,
             )
 
         return
@@ -10386,20 +10431,7 @@ class UVData(UVBase):
                         setattr(other_obj, attr, attr_val)
         return other_obj
 
-    def read_fhd(
-        self,
-        filelist,
-        use_model=False,
-        read_data=True,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-    ):
+    def read_fhd(self, filelist, **kwargs):
         """
         Read in data from a list of FHD files.
 
@@ -10413,13 +10445,16 @@ class UVData(UVBase):
             Option to read in the model visibilities rather than the dirty
             visibilities (the default is False, meaning the dirty visibilities
             will be read).
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         read_data : bool
             Read in the visibility, nsample and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
             a metadata only object. If read_data is False, an obs file must be
-            included in the filelist.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
+            included in the filelist. Note that if read_data is False, Npols is
+            derived from the obs file and reflects the number of polarizations
+            used in the FHD run. If read_data is True, Npols is given by the
+            number of visibility data files provided in `filelist`.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -10443,9 +10478,17 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Raises
         ------
+        IOError
+            If root file directory doesn't exist.
         ValueError
             If required files are missing or multiple files for any polarization
             are included in filelist.
@@ -10462,53 +10505,15 @@ class UVData(UVBase):
             )
 
         fhd_obj = fhd.FHD()
-        fhd_obj.read_fhd(
-            filelist,
-            use_model=use_model,
-            background_lsts=background_lsts,
-            read_data=read_data,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-        )
+        fhd_obj.read_fhd(filelist, **kwargs)
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
-    def read_mir(
-        self,
-        filepath,
-        antenna_nums=None,
-        antenna_names=None,
-        bls=None,
-        time_range=None,
-        lst_range=None,
-        polarizations=None,
-        catalog_names=None,
-        corrchunk=None,
-        receivers=None,
-        sidebands=None,
-        select_where=None,
-        apply_tsys=True,
-        apply_flags=True,
-        apply_dedoppler=False,
-        pseudo_cont=False,
-        rechunk=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        allow_flex_pol=True,
-        check_autos=True,
-        fix_autos=True,
-    ):
+    def read_mir(self, filepath, **kwargs):
         """
         Read in data from an SMA MIR file.
 
-        Note that with the exception of filepath, the rest of the parameters are
+        Note that with the exception of filepath, most of the remaining parameters are
         used to sub-select a range of data.
 
         Parameters
@@ -10597,64 +10602,17 @@ class UVData(UVBase):
             data_array (which should not mathematically exist). Default is True.
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
+            that they are real-only in data_array.  Default is True.
+
         """
         from . import mir
 
         mir_obj = mir.Mir()
-        mir_obj.read_mir(
-            filepath,
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            bls=bls,
-            time_range=time_range,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            catalog_names=catalog_names,
-            corrchunk=corrchunk,
-            receivers=receivers,
-            sidebands=sidebands,
-            select_where=select_where,
-            apply_tsys=apply_tsys,
-            apply_flags=apply_flags,
-            apply_dedoppler=apply_dedoppler,
-            pseudo_cont=pseudo_cont,
-            rechunk=rechunk,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            allow_flex_pol=allow_flex_pol,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-        )
+        mir_obj.read_mir(filepath, **kwargs)
         self._convert_from_filetype(mir_obj)
         del mir_obj
 
-    def read_miriad(
-        self,
-        filepath,
-        antenna_nums=None,
-        ant_str=None,
-        bls=None,
-        polarizations=None,
-        time_range=None,
-        read_data=True,
-        phase_type=None,
-        projected=None,
-        correct_lat_lon=True,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        calc_lst=True,
-        fix_old_proj=False,
-        fix_use_ant_pos=True,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-    ):
+    def read_miriad(self, filepath, **kwargs):
         """
         Read in data from a miriad file.
 
@@ -10689,8 +10647,11 @@ class UVData(UVBase):
             len-2 list containing min and max range of times in Julian Date to
             include when reading data into the object. e.g. [2458115.20, 2458115.40]
         read_data : bool
-            Read in the visibility and flag data. If set to false,
-            only the metadata will be read in. Setting read_data to False
+            Read in the uvws, times, visibility and flag data. If set to False,
+            only the metadata that can be read quickly (without reading the data)
+            will be read in. For Miriad, some of the normally required metadata
+            are not fast to read in (e.g. uvws, times) so will not be read in
+            if this keyword is False. Therefore, setting read_data to False
             results in an incompletely defined object (check will not pass).
         phase_type : str, optional
             Deprecated, use the `projected` parameter insted. Option to specify the
@@ -10730,8 +10691,7 @@ class UVData(UVBase):
         fix_old_proj : bool
             Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
             method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False.
+            one part in 1e4 - 1e5. See the phasing memo for more details.
         fix_use_ant_pos : bool
             If setting `fix_old_proj` to True, use the antenna positions to derive the
             correct uvw-coordinates rather than using the baseline vectors. Default is
@@ -10745,6 +10705,12 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Raises
         ------
@@ -10754,8 +10720,6 @@ class UVData(UVBase):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source or have multiple
-            spectral windows.
             If the metadata are not internally consistent.
 
         """
@@ -10769,52 +10733,13 @@ class UVData(UVBase):
             )
 
         miriad_obj = miriad.Miriad()
-        miriad_obj.read_miriad(
-            filepath,
-            correct_lat_lon=correct_lat_lon,
-            read_data=read_data,
-            phase_type=phase_type,
-            projected=projected,
-            antenna_nums=antenna_nums,
-            ant_str=ant_str,
-            bls=bls,
-            polarizations=polarizations,
-            time_range=time_range,
-            background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            calc_lst=calc_lst,
-            fix_old_proj=fix_old_proj,
-            fix_use_ant_pos=fix_use_ant_pos,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-        )
+        miriad_obj.read_miriad(filepath, **kwargs)
         self._convert_from_filetype(miriad_obj)
         del miriad_obj
 
-    def read_ms(
-        self,
-        filepath,
-        data_column="DATA",
-        pol_order="AIPS",
-        background_lsts=True,
-        ignore_single_chan=True,
-        raise_error=True,
-        read_weights=True,
-        allow_flex_pol=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-    ):
+    def read_ms(self, filepath, **kwargs):
         """
-        Read in data from a measurement set.
+        Read in a casa measurement set.
 
         Parameters
         ----------
@@ -10828,6 +10753,20 @@ class UVData(UVBase):
             'CASA' or 'AIPS'.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run).
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done).
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass.
         ignore_single_chan : bool
             Some measurement sets (e.g., those from ALMA) use single channel spectral
             windows for recording pseudo-continuum channels or storing other metadata
@@ -10856,20 +10795,6 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window.  Default is True.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
         check_autos : bool
             Check whether any auto-correlations have non-zero imaginary values in
             data_array (which should not mathematically exist). Default is True.
@@ -10879,6 +10804,12 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Raises
         ------
@@ -10901,56 +10832,11 @@ class UVData(UVBase):
         from . import ms
 
         ms_obj = ms.MS()
-        ms_obj.read_ms(
-            filepath,
-            data_column=data_column,
-            pol_order=pol_order,
-            background_lsts=background_lsts,
-            ignore_single_chan=ignore_single_chan,
-            raise_error=raise_error,
-            read_weights=read_weights,
-            allow_flex_pol=allow_flex_pol,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-        )
+        ms_obj.read_ms(filepath, **kwargs)
         self._convert_from_filetype(ms_obj)
         del ms_obj
 
-    def read_mwa_corr_fits(
-        self,
-        filelist,
-        use_aoflagger_flags=None,
-        remove_dig_gains=True,
-        remove_coarse_band=True,
-        correct_cable_len=None,
-        correct_van_vleck=False,
-        cheby_approx=True,
-        flag_small_auto_ants=True,
-        propagate_coarse_flags=True,
-        flag_init=True,
-        edge_width=80e3,
-        start_flag="goodtime",
-        end_flag=0.0,
-        flag_dc_offset=True,
-        remove_flagged_ants=True,
-        phase_to_pointing_center=False,
-        read_data=True,
-        data_array_dtype=np.complex64,
-        nsample_array_dtype=np.float32,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-    ):
+    def read_mwa_corr_fits(self, filelist, **kwargs):
         """
         Read in MWA correlator gpu box files.
 
@@ -10987,6 +10873,8 @@ class UVData(UVBase):
             threshold used is 0.5 * integration_time * channel_width. If set to False,
             only the times and frequencies at which the auto is below the
             threshold will be flagged for the antenna.
+        phase_to_pointing_center : bool
+            Option to phase to the observation pointing center.
         propagate_coarse_flags : bool
             Option to propagate flags for missing coarse channel integrations
             across frequency.
@@ -10995,9 +10883,9 @@ class UVData(UVBase):
             start or end integrations, or the center fine channel of each coarse
             channel. See associated keywords.
         edge_width: float
-            Only used if flag_init is True. Set to the width to flag on the edge
-            of each coarse channel, in hz. Errors if not equal to integer
-            multiple of channel_width. Set to 0 for no edge flagging.
+            Only used if flag_init is True. The width to flag on the edge of
+            each coarse channel, in hz. Errors if not equal to integer multiple
+            of channel_width. Set to 0 for no edge flagging.
         start_flag: float or str
             Only used if flag_init is True. The number of seconds to flag at the
             beginning of the observation. Set to 0 for no flagging. Default is
@@ -11006,23 +10894,22 @@ class UVData(UVBase):
             float or 'goodtime'. Errors if float input is not equal to an
             integer multiple of the integration time.
         end_flag: floats
-            Only used if flag_init is True. Set to the number of seconds to flag
-            at the end of the observation. Set to 0 for no flagging. Errors if
-            not an integer multiple of the integration time.
+            Only used if flag_init is True. The number of seconds to flag at the
+            end of the observation. Set to 0 for no flagging. Errors if not
+            equal to an integer multiple of the integration time.
         flag_dc_offset: bool
             Only used if flag_init is True. Set to True to flag the center fine
-            channel of each coarse channel. Only used if file_type is
-            'mwa_corr_fits'.
+            channel of each coarse channel.
         remove_flagged_ants : bool
             Option to perform a select to remove antennas flagged in the metafits
             file. If correct_van_vleck and flag_small_auto_ants are both True then
             antennas flagged by the Van Vleck correction are also removed.
-        phase_to_pointing_center : bool
-            Option to phase to the observation pointing center.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         read_data : bool
-            Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata read in. Setting read_data to False
-            results in a metdata only object.
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128
@@ -11033,8 +10920,6 @@ class UVData(UVBase):
             np.float16 (half-precision). Half-precision is only recommended for
             cases where no sampling or averaging of baselines will occur,
             because round-off errors can be quite large (~1e-3).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after after reading in the file (the default is True,
@@ -11058,6 +10943,12 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Raises
         ------
@@ -11080,70 +10971,13 @@ class UVData(UVBase):
             )
 
         corr_obj = mwa_corr_fits.MWACorrFITS()
-        corr_obj.read_mwa_corr_fits(
-            filelist,
-            use_aoflagger_flags=use_aoflagger_flags,
-            remove_dig_gains=remove_dig_gains,
-            remove_coarse_band=remove_coarse_band,
-            correct_cable_len=correct_cable_len,
-            correct_van_vleck=correct_van_vleck,
-            cheby_approx=cheby_approx,
-            flag_small_auto_ants=flag_small_auto_ants,
-            propagate_coarse_flags=propagate_coarse_flags,
-            flag_init=flag_init,
-            edge_width=edge_width,
-            start_flag=start_flag,
-            end_flag=end_flag,
-            flag_dc_offset=flag_dc_offset,
-            remove_flagged_ants=remove_flagged_ants,
-            phase_to_pointing_center=phase_to_pointing_center,
-            read_data=read_data,
-            data_array_dtype=data_array_dtype,
-            nsample_array_dtype=nsample_array_dtype,
-            background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-        )
+        corr_obj.read_mwa_corr_fits(filelist, **kwargs)
         self._convert_from_filetype(corr_obj)
         del corr_obj
 
-    def read_uvfits(
-        self,
-        filename,
-        antenna_nums=None,
-        antenna_names=None,
-        ant_str=None,
-        bls=None,
-        frequencies=None,
-        freq_chans=None,
-        times=None,
-        time_range=None,
-        lsts=None,
-        lst_range=None,
-        polarizations=None,
-        blt_inds=None,
-        phase_center_ids=None,
-        catalog_names=None,
-        keep_all_metadata=True,
-        read_data=True,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        fix_old_proj=False,
-        fix_use_ant_pos=True,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-    ):
+    def read_uvfits(self, filename, **kwargs):
         """
-        Read in header, metadata and data from a single uvfits file.
+        Read in header, metadata and data from a uvfits file.
 
         Parameters
         ----------
@@ -11181,20 +11015,18 @@ class UVData(UVBase):
             if it is a ValueError will be raised. Ignored if read_data is False.
         frequencies : array_like of float, optional
             The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array. Ignored if
-            read_data is False.
+            value passed here should exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to include when reading data into the
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array in the file.
-            Cannot be used with `time_range`.
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
         time_range : array_like of float, optional
-            The time range in Julian Date to include when reading data into
-            the object, must be length 2. Some of the times in the file should
-            fall between the first and last elements.
-            Cannot be used with `times`.
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
         lsts : array_like of float, optional
             The local sidereal times (LSTs) to keep in the object, each value
             passed here should exist in the lst_array. Cannot be used with
@@ -11224,9 +11056,9 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
         read_data : bool
-            Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata read in. Setting read_data to False
-            results in a metdata only object.
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -11262,6 +11094,12 @@ class UVData(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Raises
         ------
@@ -11271,8 +11109,6 @@ class UVData(UVBase):
             If incompatible select keywords are set (e.g. `ant_str` with other
             antenna selectors, `times` and `time_range`) or select keywords
             exclude all data or if keywords are set to the wrong type.
-            If the data are multi source or have multiple
-            spectral windows.
             If the metadata are not internally consistent or missing.
 
         """
@@ -11286,77 +11122,13 @@ class UVData(UVBase):
             )
 
         uvfits_obj = uvfits.UVFITS()
-        uvfits_obj.read_uvfits(
-            filename,
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            ant_str=ant_str,
-            bls=bls,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            time_range=time_range,
-            lsts=lsts,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            catalog_names=catalog_names,
-            phase_center_ids=phase_center_ids,
-            keep_all_metadata=keep_all_metadata,
-            read_data=read_data,
-            background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            fix_old_proj=fix_old_proj,
-            fix_use_ant_pos=fix_use_ant_pos,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-        )
+        uvfits_obj.read_uvfits(filename, **kwargs)
         self._convert_from_filetype(uvfits_obj)
         del uvfits_obj
 
-    def read_uvh5(
-        self,
-        filename,
-        antenna_nums=None,
-        antenna_names=None,
-        ant_str=None,
-        bls=None,
-        frequencies=None,
-        freq_chans=None,
-        times=None,
-        time_range=None,
-        lsts=None,
-        lst_range=None,
-        polarizations=None,
-        blt_inds=None,
-        phase_center_ids=None,
-        catalog_names=None,
-        keep_all_metadata=True,
-        read_data=True,
-        data_array_dtype=np.complex128,
-        multidim_index=False,
-        remove_flex_pol=True,
-        background_lsts=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        fix_old_proj=None,
-        fix_use_ant_pos=True,
-        check_autos=True,
-        fix_autos=True,
-        use_future_array_shapes=False,
-        time_axis_faster_than_bls=None,
-        blts_are_rectangular=None,
-        blt_order=None,
-        recompute_nbls: bool | None = None,
-    ):
+    def read_uvh5(self, filename, **kwargs):
         """
-        Read a UVH5 file.
+        Read in data from a UVH5 file.
 
         Parameters
         ----------
@@ -11401,8 +11173,8 @@ class UVData(UVBase):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array in the file.
-            Cannot be used with `time_range`.
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
         time_range : array_like of float, optional
             The time range in Julian Date to include when reading data into
             the object, must be length 2. Some of the times in the file should
@@ -11437,16 +11209,16 @@ class UVData(UVBase):
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
         read_data : bool
-            Read in the visibility and flag data. If set to false, only the
-            basic header info and metadata will be read in. Setting read_data to
-            False results in an incompletely defined object (check will not pass).
+            Read in the visibility, nsample and flag data. If set to False, only
+            the metadata will be read in. Setting read_data to False results in
+            a metadata only object.
         data_array_dtype : numpy dtype
             Datatype to store the output data_array as. Must be either
             np.complex64 (single-precision real and imaginary) or np.complex128 (double-
             precision real and imaginary). Only used if the datatype of the visibility
             data on-disk is not 'c8' or 'c16'.
         multidim_index : bool
-            [Only for HDF5] If True, attempt to index the HDF5 dataset
+            If True, attempt to index the HDF5 dataset
             simultaneously along all data axes. Otherwise index one axis at-a-time.
             This only works if data selection is sliceable along all but one axis.
             If indices are not well-matched to data chunks, this can be slow.
@@ -11516,6 +11288,16 @@ class UVData(UVBase):
             rectify it. Old HERA files (< March 2023) may have this issue, but in this
             case the correct number of baselines can be computed more quickly than by
             fully re=computing, and so we do this.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
+
+        Returns
+        -------
+        None
 
         Raises
         ------
@@ -11538,42 +11320,7 @@ class UVData(UVBase):
             )
 
         uvh5_obj = uvh5.UVH5()
-        uvh5_obj.read_uvh5(
-            filename,
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            ant_str=ant_str,
-            bls=bls,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            time_range=time_range,
-            lsts=lsts,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            phase_center_ids=phase_center_ids,
-            catalog_names=catalog_names,
-            data_array_dtype=data_array_dtype,
-            keep_all_metadata=keep_all_metadata,
-            read_data=read_data,
-            multidim_index=multidim_index,
-            remove_flex_pol=remove_flex_pol,
-            background_lsts=background_lsts,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            fix_old_proj=fix_old_proj,
-            fix_use_ant_pos=fix_use_ant_pos,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_future_array_shapes=use_future_array_shapes,
-            recompute_nbls=recompute_nbls,
-            blt_order=blt_order,
-            blts_are_rectangular=blts_are_rectangular,
-            time_axis_faster_than_bls=time_axis_faster_than_bls,
-        )
+        uvh5_obj.read_uvh5(filename, **kwargs)
         self._convert_from_filetype(uvh5_obj)
         del uvh5_obj
 
@@ -11585,6 +11332,7 @@ class UVData(UVBase):
         read_data=True,
         skip_bad_files=False,
         background_lsts=True,
+        astrometry_library=None,
         ignore_name=False,
         use_future_array_shapes=False,
         # phasing parameters
@@ -11708,6 +11456,12 @@ class UVData(UVBase):
             not be skipped).
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
         ignore_name : bool
             Only relevant when reading in multiple files, which are concatenated into a
             single UVData object. Option to ignore the name of the phase center when
@@ -11769,8 +11523,8 @@ class UVData(UVBase):
             object. Ignored if read_data is False.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
-            passed here should exist in the time_array in the file.
-            Cannot be used with `time_range`.
+            passed here should exist in the time_array in the file. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
         time_range : array_like of float, optional
             The time range in Julian Date to include when reading data into
             the object, must be length 2. Some of the times in the file should
@@ -12177,6 +11931,7 @@ class UVData(UVBase):
                         read_data=read_data,
                         skip_bad_files=skip_bad_files,
                         background_lsts=background_lsts,
+                        astrometry_library=astrometry_library,
                         use_future_array_shapes=use_future_array_shapes,
                         # phasing parameters
                         fix_old_proj=fix_old_proj,
@@ -12296,6 +12051,7 @@ class UVData(UVBase):
                             read_data=read_data,
                             skip_bad_files=skip_bad_files,
                             background_lsts=background_lsts,
+                            astrometry_library=astrometry_library,
                             use_future_array_shapes=use_future_array_shapes,
                             # phasing parameters
                             fix_old_proj=fix_old_proj,
@@ -12598,6 +12354,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "mir":
@@ -12650,6 +12407,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "mwa_corr_fits":
@@ -12681,6 +12439,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "fhd":
@@ -12696,6 +12455,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "ms":
@@ -12715,6 +12475,7 @@ class UVData(UVBase):
                     check_autos=check_autos,
                     fix_autos=fix_autos,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "uvh5":
@@ -12752,6 +12513,7 @@ class UVData(UVBase):
                     time_axis_faster_than_bls=time_axis_faster_than_bls,
                     blts_are_rectangular=blts_are_rectangular,
                     recompute_nbls=recompute_nbls,
+                    astrometry_library=astrometry_library,
                 )
                 select = False
 
@@ -13304,7 +13066,8 @@ class UVData(UVBase):
             The frequency channel numbers to include writing data into the file.
         times : array_like of float, optional
             The times to include when writing data into the file, each value
-            passed here should exist in the time_array.
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
         time_range : array_like of float, optional
             The time range in Julian Date to include when writing data to the
             file, must be length 2. Some of the times in the object should fall
