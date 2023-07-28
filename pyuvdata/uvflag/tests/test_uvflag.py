@@ -804,6 +804,7 @@ def test_from_uvdata_error():
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("read_future_shapes", [True, False])
 @pytest.mark.parametrize("write_future_shapes", [True, False])
@@ -832,6 +833,7 @@ def test_init_list_files_weights(read_future_shapes, write_future_shapes, tmpdir
     assert np.all(uvf2.weights_array == np.concatenate([wts1, wts2], axis=0))
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_init_posix():
     # Test that weights are preserved when reading list of files
     testfile_posix = pathlib.Path(test_f_file)
@@ -905,6 +907,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
     assert uvf2.filename == [os.path.basename(test_outfile)]
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize(
     ["uvf_type", "param_list", "warn_type", "msg", "uv_mod"],
     [
@@ -923,31 +926,49 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["telescope_location"],
             UserWarning,
-            "telescope_location are not set or are being overwritten. Using known",
+            [
+                "telescope_location are not set or are being overwritten. Using known",
+                "The lst_array is not self-consistent with the time_array",
+            ],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_names"],
             UserWarning,
-            "antenna_names are not set or are being overwritten. Using known values",
+            [
+                "antenna_names are not set or are being overwritten. Using known",
+                "The lst_array is not self-consistent with the time_array",
+            ],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_numbers"],
             UserWarning,
-            "antenna_numbers are not set or are being overwritten. Using known values",
+            [
+                "antenna_numbers are not set or are being overwritten. Using known",
+                "The lst_array is not self-consistent with the time_array",
+            ],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_positions"],
             UserWarning,
-            "antenna_positions are not set or are being overwritten. Using known",
+            [
+                "antenna_positions are not set or are being overwritten. Using known",
+                "The lst_array is not self-consistent with the time_array",
+            ],
             "reset_telescope_params",
         ),
-        ("baseline", ["Nants_telescope"], None, "", "reset_telescope_params"),
+        (
+            "baseline",
+            ["Nants_telescope"],
+            UserWarning,
+            "The lst_array is not self-consistent with the time_array",
+            "reset_telescope_params",
+        ),
         (
             "waterfall",
             ["Nants_telescope", "telescope_name", "antenna_numbers"],
@@ -991,8 +1012,11 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["antenna_names", "antenna_numbers", "antenna_positions"],
             UserWarning,
-            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions are "
-            "not set or are being overwritten. Using known values for HERA.",
+            [
+                "Nants_telescope, antenna_names, antenna_numbers, antenna_positions "
+                "are not set or are being overwritten. Using known values for HERA.",
+                "The lst_array is not self-consistent with the time_array",
+            ],
             "reset_telescope_params",
         ),
         (
@@ -1214,6 +1238,7 @@ def test_read_write_loop_waterfall(uvdata_obj, test_outfile, spw_axis):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_read_write_loop_ret_wt_sq(test_outfile):
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = 2 * np.ones_like(uvf.weights_array)
@@ -1381,6 +1406,7 @@ def test_read_write_extra_keywords(uvdata_obj, test_outfile):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_init_list(uvdata_obj):
     uv = uvdata_obj
     uv.time_array -= 1
@@ -1418,6 +1444,7 @@ def test_init_list(uvdata_obj):
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("write_future_shapes", [True, False])
 @pytest.mark.parametrize("read_future_shapes", [True, False])
 def test_read_multiple_files(
@@ -1429,11 +1456,14 @@ def test_read_multiple_files(
     uvf = UVFlag(uv, use_future_array_shapes=write_future_shapes)
     uvf.write(test_outfile, clobber=True)
 
-    warn_msg = []
-    warn_type = None
+    warn_msg = [
+        "The lst_array is not self-consistent with the time_array and telescope "
+        "location. Consider recomputing with the `set_lsts_from_time_array` method."
+    ] * 2
+    warn_type = [UserWarning] * 2
     if not read_future_shapes:
-        warn_msg = [_future_array_shapes_warning] * 2
-        warn_type = DeprecationWarning
+        warn_msg += [_future_array_shapes_warning] * 2
+        warn_type += [DeprecationWarning] * 2
 
     with uvtest.check_warnings(warn_type, match=warn_msg):
         uvf.read(
@@ -1474,6 +1504,7 @@ def test_read_error():
         UVFlag("foo")
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_read_change_type(uvcal_obj, test_outfile):
     uvc = uvcal_obj
     uvf = UVFlag(uvc, use_future_array_shapes=True)
@@ -1498,6 +1529,7 @@ def test_read_change_type(uvcal_obj, test_outfile):
     assert uvf.ant_2_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_read_change_mode(uvdata_obj, test_outfile):
     uv = uvdata_obj
     uvf = UVFlag(uv, mode="flag", use_future_array_shapes=True)
@@ -1515,6 +1547,7 @@ def test_read_change_mode(uvdata_obj, test_outfile):
     assert uvf.metric_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_write_no_clobber():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     with pytest.raises(ValueError, match=re.escape("File " + test_f_file + " exists")):
@@ -1571,6 +1604,7 @@ def test_set_telescope_params(uvdata_obj):
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_add(future_shapes):
     uv1 = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
@@ -1613,6 +1647,7 @@ def test_add(future_shapes):
     assert "Data combined along time axis. " in uv3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_collapsed_pols():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -1628,6 +1663,7 @@ def test_add_collapsed_pols():
     uvf4.check()
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_add_version_str():
     uv1 = UVFlag(test_f_file, use_future_array_shapes=True)
     uv1.history = uv1.history.replace(pyuvdata_version_str, "")
@@ -1641,6 +1677,7 @@ def test_add_add_version_str():
     assert pyuvdata_version_str in uv3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_baseline():
     uv1 = UVFlag(test_f_file, use_future_array_shapes=True)
     uv2 = uv1.copy()
@@ -1698,6 +1735,7 @@ def test_add_antenna(uvcal_obj):
     assert "Data combined along antenna axis. " in uv3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency():
     uv1 = UVFlag(test_f_file, use_future_array_shapes=True)
     uv2 = uv1.copy()
@@ -1707,8 +1745,12 @@ def test_add_frequency():
 
     with uvtest.check_warnings(
         UserWarning,
-        match="One object has the flex_spw_id_array set and one does not. Combined "
-        "object will have it set.",
+        match=[
+            "One object has the flex_spw_id_array set and one does not. Combined "
+            "object will have it set.",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        ],
     ):
         uv3 = uv1.__add__(uv2, axis="frequency")
     assert np.array_equal(
@@ -1732,6 +1774,7 @@ def test_add_frequency():
     assert "Data combined along frequency axis. " in uv3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("split_spw", [True, False])
 def test_add_frequency_multi_spw(split_spw):
     uv1 = UVFlag(test_f_file, use_future_array_shapes=True)
@@ -1760,10 +1803,13 @@ def test_add_frequency_multi_spw(split_spw):
         assert uv2.Nfreqs == uv_full.Nfreqs // 2
 
         with uvtest.check_warnings(
-            DeprecationWarning,
+            [DeprecationWarning, UserWarning] * 2,
             match=[
                 "flex_spw_id_array is not set. It will be required starting in "
-                "version 3.0"
+                "version 3.0",
+                "The lst_array is not self-consistent with the time_array and "
+                "telescope location. Consider recomputing with the "
+                "`set_lsts_from_time_array` method.",
             ]
             * 2,
         ):
@@ -1777,6 +1823,7 @@ def test_add_frequency_multi_spw(split_spw):
     assert uv3 == uv_full
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency_with_weights_square():
     # Same test as above, just checking an optional parameter (also in waterfall mode)
     uvf1 = UVFlag(test_f_file, use_future_array_shapes=True)
@@ -1791,6 +1838,7 @@ def test_add_frequency_with_weights_square():
     )
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_frequency_mix_weights_square():
     # Same test as above, checking some error handling
     uvf1 = UVFlag(test_f_file, use_future_array_shapes=True)
@@ -1806,6 +1854,7 @@ def test_add_frequency_mix_weights_square():
         uvf1.__add__(uvf2, axis="frequency", inplace=True)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_add_pol():
     uv1 = UVFlag(test_f_file, use_future_array_shapes=True)
     uv2 = uv1.copy()
@@ -1913,6 +1962,7 @@ def test_add_errors(uvdata_obj, uvcal_obj):
         uv2.__add__(uv2, axis="baseline")
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_inplace_add():
     uv1a = UVFlag(test_f_file, use_future_array_shapes=True)
     uv1b = uv1a.copy()
@@ -1923,6 +1973,7 @@ def test_inplace_add():
     assert uv1a.__eq__(uv1b + uv2)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_clear_unused_attributes():
     uv = UVFlag(test_f_file, use_future_array_shapes=True)
     assert hasattr(uv, "baseline_array")
@@ -1956,6 +2007,7 @@ def test_clear_unused_attributes():
     assert uv.flag_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_not_equal():
     uvf1 = UVFlag(test_f_file, use_future_array_shapes=True)
     # different class
@@ -1978,6 +2030,7 @@ def test_not_equal():
     assert not uvf1.__eq__(uvf2, check_history=True)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -1991,6 +2044,7 @@ def test_to_waterfall_bl():
     assert uvf.weights_array.shape == uvf.metric_array.shape
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_add_version_str():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -2002,6 +2056,7 @@ def test_to_waterfall_add_version_str():
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_to_waterfall_bl_multi_pol(future_shapes):
     uvf = UVFlag(test_f_file, use_future_array_shapes=future_shapes)
@@ -2030,6 +2085,7 @@ def test_to_waterfall_bl_multi_pol(future_shapes):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_ret_wt_sq():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     Nbls = uvf.Nbls
@@ -2042,6 +2098,7 @@ def test_to_waterfall_bl_ret_wt_sq():
     assert uvf.weights_square_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol(test_outfile):
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -2074,6 +2131,7 @@ def test_collapse_pol(test_outfile):
     os.remove(test_outfile)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_add_pol_axis():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -2087,6 +2145,7 @@ def test_collapse_pol_add_pol_axis():
     assert str(cm.value).startswith("Two UVFlag objects with their")
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_or():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2106,6 +2165,7 @@ def test_collapse_pol_or():
     assert uvf2.metric_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_add_version_str():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2123,6 +2183,7 @@ def test_collapse_pol_add_version_str():
     assert pyuvdata_version_str in uvf2.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_single_pol():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -2132,6 +2193,7 @@ def test_collapse_single_pol():
     assert uvf == uvf2
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_collapse_pol_flag():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2151,6 +2213,7 @@ def test_collapse_pol_flag():
     assert uvf2.flag_array is None
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_flags():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2166,6 +2229,7 @@ def test_to_waterfall_bl_flags():
     assert len(uvf.lst_array) == len(uvf.time_array)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_bl_flags_or():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2209,6 +2273,7 @@ def test_to_waterfall_ant(uvcal_obj, future_shapes):
     assert len(uvf.lst_array) == len(uvf.time_array)
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_waterfall_waterfall():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.weights_array = np.ones_like(uvf.weights_array)
@@ -2442,6 +2507,7 @@ def test_to_baseline_from_antenna(
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("uv_future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["to_antenna", "to_baseline"])
 def test_to_baseline_antenna_errors(uvdata_obj, uvcal_obj, method, uv_future_shapes):
@@ -2747,6 +2813,7 @@ def test_to_antenna_metric_force_pol(uvcal_obj):
     )
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_copy():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf2 = uvf.copy()
@@ -2756,6 +2823,7 @@ def test_copy():
     assert uvf != uvf2
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2770,6 +2838,7 @@ def test_or():
     assert np.all(uvf3.flag_array[2:])
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_add_version_str():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2786,6 +2855,7 @@ def test_or_add_version_str():
     assert pyuvdata_version_str in uvf3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_error():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf2 = uvf.copy()
@@ -2795,6 +2865,7 @@ def test_or_error():
     assert str(cm.value).startswith('UVFlag object must be in "flag" mode')
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_or_add_history():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2806,6 +2877,7 @@ def test_or_add_history():
     assert "Flags OR'd with:" in uvf3.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_ior():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2820,6 +2892,7 @@ def test_ior():
     assert np.all(uvf.flag_array[2:])
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2830,6 +2903,7 @@ def test_to_flag():
     assert 'Converted to mode "flag"' in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_add_version_str():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
@@ -2839,6 +2913,7 @@ def test_to_flag_add_version_str():
     assert pyuvdata_version_str in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_threshold():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.metric_array = np.zeros_like(uvf.metric_array)
@@ -2853,6 +2928,7 @@ def test_to_flag_threshold():
     assert 'Converted to mode "flag"' in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_flag_to_flag():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2861,6 +2937,7 @@ def test_flag_to_flag():
     assert uvf == uvf2
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_flag_unknown_mode():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.mode = "foo"
@@ -2869,6 +2946,7 @@ def test_to_flag_unknown_mode():
     assert str(cm.value).startswith("Unknown UVFlag mode: foo")
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_to_metric_baseline(future_shapes):
@@ -2897,6 +2975,7 @@ def test_to_metric_baseline(future_shapes):
         assert np.isclose(uvf.weights_array[:, :, 10], 0.0).all()
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_add_version_str():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_flag()
@@ -2914,6 +2993,7 @@ def test_to_metric_add_version_str():
     assert pyuvdata_version_str in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_waterfall():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_waterfall()
@@ -2945,6 +3025,7 @@ def test_to_metric_antenna(uvcal_obj, future_shapes):
         assert np.isclose(uvf.weights_array[15, :, 3, :, :], 0.0).all()
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_metric_to_metric():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf2 = uvf.copy()
@@ -2952,6 +3033,7 @@ def test_metric_to_metric():
     assert uvf == uvf2
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_to_metric_unknown_mode():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.mode = "foo"
@@ -2960,6 +3042,7 @@ def test_to_metric_unknown_mode():
     assert str(cm.value).startswith("Unknown UVFlag mode: foo")
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_antpair2ind():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     ind = uvf.antpair2ind(uvf.ant_1_array[0], uvf.ant_2_array[0])
@@ -2967,6 +3050,7 @@ def test_antpair2ind():
     assert np.all(uvf.ant_2_array[ind] == uvf.ant_2_array[0])
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_antpair2ind_nonbaseline():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_waterfall()
@@ -2980,6 +3064,7 @@ def test_antpair2ind_nonbaseline():
     )
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_baseline_to_antnums():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     a1, a2 = uvf.baseline_to_antnums(uvf.baseline_array[0])
@@ -2987,12 +3072,14 @@ def test_baseline_to_antnums():
     assert a2 == uvf.ant_2_array[0]
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_baseline_nums():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     bls = uvf.get_baseline_nums()
     assert np.array_equal(bls, np.unique(uvf.baseline_array))
 
 
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_get_antpairs():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     antpairs = uvf.get_antpairs()

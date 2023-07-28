@@ -33,9 +33,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-# standard angle tolerance: 1 mas in radians.
-radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
-
 allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
 
 reporting_request = (
@@ -254,7 +251,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=np.float64,
             strict_type_check=True,
-            tols=radian_tol,
+            tols=uvutils.RADIAN_TOL,
         )
 
         desc = (
@@ -495,7 +492,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=float,
             description=desc,
-            tols=radian_tol,
+            tols=uvutils.RADIAN_TOL,
         )
 
         desc = (
@@ -507,7 +504,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=float,
             description=desc,
-            tols=radian_tol,
+            tols=uvutils.RADIAN_TOL,
         )
 
         desc = (
@@ -953,7 +950,7 @@ class UVData(UVBase):
             `cat_diffs=0`.
         """
         # 1 marcsec tols
-        radian_tols = (0, radian_tol)
+        radian_tols = (0, uvutils.RADIAN_TOL)
         default_tols = (1e-5, 1e-8)
         match_id = None
         match_diffs = 99999
@@ -2604,24 +2601,6 @@ class UVData(UVBase):
             raise_errors=raise_errors,
         )
 
-    def check_lsts_against_times(self):
-        """Check that LSTs consistent with the time_array and telescope location."""
-        lsts = uvutils.get_lst_for_time(
-            self.time_array, *self.telescope_location_lat_lon_alt_degrees
-        )
-
-        if not np.allclose(
-            self.lst_array,
-            lsts,
-            rtol=self._lst_array.tols[0],
-            atol=self._lst_array.tols[1],
-        ):
-            warnings.warn(
-                "The lst_array is not self-consistent with the time_array and "
-                "telescope location. Consider recomputing with the "
-                "`set_lsts_from_time_array` method."
-            )
-
     def remove_flex_pol(self, combine_spws=True):
         """
         Convert a flex-pol UVData object into one with a standard polarization axis.
@@ -3386,7 +3365,16 @@ class UVData(UVBase):
             # make a metadata only copy of this object to properly calculate uvws
             temp_obj = self.copy(metadata_only=True)
 
-            self.check_lsts_against_times()
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                lst_tols=self._lst_array.tols,
+                frame=self._telescope_location.frame,
+            )
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")

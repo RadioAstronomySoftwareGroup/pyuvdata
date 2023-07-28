@@ -57,22 +57,15 @@ class UVFITS(UVData):
                     longitude,
                     altitude,
                 ) = self.telescope_location_lat_lon_alt_degrees
-                lst_array = uvutils.get_lst_for_time(
-                    self.time_array, latitude, longitude, altitude
-                )
-                if not np.all(
-                    np.isclose(
-                        self.lst_array,
-                        lst_array,
-                        rtol=self._lst_array.tols[0],
-                        atol=self._lst_array.tols[1],
-                    )
-                ):
-                    warnings.warn(
-                        "LST values stored in this file are not self-consistent with "
-                        "time_array and telescope location. Consider recomputing with "
-                        "the `set_lsts_from_time_array` method."
-                    )
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                lst_tols=self._lst_array.tols,
+                frame=self._telescope_location.frame,
+            )
 
         else:
             proc = self.set_lsts_from_time_array(background=background_lsts)

@@ -16,7 +16,7 @@ import h5py
 import numpy as np
 
 from .. import utils as uvutils
-from .uvdata import UVData, _future_array_shapes_warning, radian_tol
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["UVH5", "FastUVH5Meta"]
 
@@ -689,19 +689,6 @@ class FastUVH5Meta:
                     extra_keywords[key] = header["extra_keywords"][key][()]
         return extra_keywords
 
-    def check_lsts_against_times(self):
-        """Check that LSTs consistent with the time_array and telescope location."""
-        lsts = uvutils.get_lst_for_time(
-            self.times, *self.telescope_location_lat_lon_alt_degrees
-        )
-
-        if not np.all(np.isclose(self.lsts, lsts, rtol=0, atol=radian_tol)):
-            warnings.warn(
-                f"LST values stored in {self.path} are not self-consistent "
-                "with time_array and telescope location. Consider "
-                "recomputing with UVData.set_lsts_from_time_array."
-            )
-
     @cached_property
     def unique_antpair_1_array(self) -> np.ndarray:
         """The unique antenna 1 indices in the file."""
@@ -996,7 +983,15 @@ class UVH5(UVData):
             warnings.warn(str(ve))
 
         if run_check_acceptability:
-            obj.check_lsts_against_times()
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                lst_tols=(0, uvutils.RADIAN_TOL),
+            )
 
         if self.freq_array.ndim == 1:
             arr_shape_msg = (

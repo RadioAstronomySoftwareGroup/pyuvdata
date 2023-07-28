@@ -2135,9 +2135,8 @@ def test_select_lsts_too_big(casa_uvfits, tmp_path):
         match=warn_msg
         + [
             "Telescope EVLA is not in known_telescopes.",
-            "LST values stored in this file are not self-consistent with "
-            "time_array and telescope location. Consider recomputing with "
-            "the `set_lsts_from_time_array` method.",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
         ],
     ):
         UVData.from_file(test_filename, use_future_array_shapes=True)

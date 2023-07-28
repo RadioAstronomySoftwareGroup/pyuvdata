@@ -73,6 +73,9 @@ __all__ = [
     "and_collapse",
 ]
 
+# standard angle tolerance: 1 mas in radians.
+RADIAN_TOL = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
+
 # fmt: off
 # polarization constants
 # maps polarization strings to polarization integers
@@ -3941,6 +3944,35 @@ def get_lst_for_time(
         lst_array *= np.pi / 12.0
 
     return lst_array
+
+
+def check_lsts_against_times(
+    *,
+    jd_array,
+    lst_array,
+    latitude,
+    longitude,
+    altitude,
+    lst_tols,
+    astrometry_library=None,
+    frame="itrs",
+):
+    """Check that LSTs consistent with the time_array and telescope location."""
+    lsts = get_lst_for_time(
+        jd_array=jd_array,
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        astrometry_library=astrometry_library,
+        frame=frame,
+    )
+
+    if not np.allclose(lst_array, lsts, rtol=lst_tols[0], atol=lst_tols[1]):
+        warnings.warn(
+            "The lst_array is not self-consistent with the time_array and "
+            "telescope location. Consider recomputing with the "
+            "`set_lsts_from_time_array` method."
+        )
 
 
 def _adj_list(vecs, tol, n_blocks=None):
