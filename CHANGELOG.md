@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Fixed a bug in `utils.calc_app_coords` that occurred when supplying an astropy `Time`
+object for the `time_array` argument.
+
 ## [2.4] - 2023-07-12
 
 ### Added
