@@ -202,10 +202,6 @@ class UVFlag(UVBase):
         run_check_acceptability=True,
     ):
         """Initialize the object."""
-        # standard angle tolerance: 10 mas in radians.
-        # Should perhaps be decreased to 1 mas in the future
-        radian_tol = 10 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
-
         desc = (
             "The mode determines whether the object has a "
             "floating point metric_array or a boolean flag_array. "
@@ -358,7 +354,7 @@ class UVFlag(UVBase):
             description=desc,
             form=("Nblts",),
             expected_type=float,
-            tols=radian_tol,
+            tols=uvutils.RADIAN_TOL,
         )
 
         desc = (
@@ -923,24 +919,6 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self._freq_array.form = ("Nfreqs",)
 
-    def check_lsts_against_times(self):
-        """Check that LSTs consistent with the time_array and telescope location."""
-        lsts = uvutils.get_lst_for_time(
-            self.time_array, *self.telescope_location_lat_lon_alt_degrees
-        )
-
-        if not np.allclose(
-            self.lst_array,
-            lsts,
-            rtol=self._lst_array.tols[0],
-            atol=self._lst_array.tols[1],
-        ):
-            warnings.warn(
-                "The lst_array is not self-consistent with the time_array and "
-                "telescope location. Consider recomputing with the "
-                "`set_lsts_from_time_array` method."
-            )
-
     def check(self, check_extra=True, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1034,7 +1012,16 @@ class UVFlag(UVBase):
                 )
 
         if run_check_acceptability:
-            self.check_lsts_against_times()
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                lst_tols=self._lst_array.tols,
+                frame=self._telescope_location.frame,
+            )
 
         return True
 

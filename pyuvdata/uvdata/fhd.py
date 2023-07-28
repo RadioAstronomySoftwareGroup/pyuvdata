@@ -13,7 +13,6 @@ from scipy.io import readsav
 from .. import telescopes as uvtel
 from .. import utils as uvutils
 from .uvdata import UVData, _future_array_shapes_warning
-from .uvdata import radian_tol as default_radian_tol
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
@@ -592,7 +591,7 @@ class FHD(UVData):
                 latitude,
                 longitude,
                 altitude,
-                default_radian_tol,
+                uvutils.RADIAN_TOL,
                 self._telescope_location.tols,
                 obs_tile_names,
                 run_check_acceptability=True,

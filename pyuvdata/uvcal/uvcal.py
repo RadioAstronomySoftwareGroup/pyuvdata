@@ -258,14 +258,13 @@ class UVCal(UVBase):
         )
 
         # standard angle tolerance: 1 mas in radians.
-        radian_tol = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
         desc = "Array of lsts, center of integration, shape (Ntimes), units radians"
         self._lst_array = uvp.UVParameter(
             "lst_array",
             description=desc,
             form=("Ntimes",),
             expected_type=float,
-            tols=radian_tol,
+            tols=uvutils.RADIAN_TOL,
             required=True,
         )
 
@@ -1114,7 +1113,11 @@ class UVCal(UVBase):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
         unique_lst_array = uvutils.get_lst_for_time(
-            unique_times, latitude, longitude, altitude
+            jd_array=unique_times,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            frame=self._telescope_location.frame,
         )
         self.lst_array = unique_lst_array[inverse_inds]
         return
@@ -1187,24 +1190,6 @@ class UVCal(UVBase):
             self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
-
-    def check_lsts_against_times(self):
-        """Check that LSTs consistent with the time_array and telescope location."""
-        lsts = uvutils.get_lst_for_time(
-            self.time_array, *self.telescope_location_lat_lon_alt_degrees
-        )
-
-        if not np.allclose(
-            self.lst_array,
-            lsts,
-            rtol=self._lst_array.tols[0],
-            atol=self._lst_array.tols[1],
-        ):
-            warnings.warn(
-                "The lst_array is not self-consistent with the time_array and "
-                "telescope location. Consider recomputing with the "
-                "`set_lsts_from_time_array` method."
-            )
 
     def check(
         self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
@@ -1322,7 +1307,16 @@ class UVCal(UVBase):
             self._check_freq_spacing()
 
         if run_check_acceptability:
-            self.check_lsts_against_times()
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                lst_tols=self._lst_array.tols,
+                frame=self._telescope_location.frame,
+            )
 
         return True
 
