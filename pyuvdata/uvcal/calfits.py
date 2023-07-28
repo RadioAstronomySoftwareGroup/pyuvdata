@@ -7,8 +7,10 @@ import warnings
 
 import numpy as np
 from astropy.io import fits
+from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvcal import UVCal, _future_array_shapes_warning
 
 __all__ = ["CALFITS"]
@@ -510,6 +512,7 @@ class CALFITS(UVCal):
         hdulist.writeto(filename, overwrite=clobber)
         hdulist.close()
 
+    @copy_replace_short_description(UVCal.read_calfits, style=DocstringStyle.NUMPYDOC)
     def read_calfits(
         self,
         filename,
@@ -519,33 +522,9 @@ class CALFITS(UVCal):
         check_extra=True,
         run_check_acceptability=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read data from a calfits file.
-
-        Parameters
-        ----------
-        filename : str
-            The calfits file to read from.
-        read_data : bool
-            Read in the gains or delays, quality arrays and flag arrays.
-            If set to False, only the metadata will be read in. Setting read_data to
-            False results in a metadata only object.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters after reading in the file.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        """
+        """Read data from a calfits file."""
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]
@@ -649,7 +628,9 @@ class CALFITS(UVCal):
             self.time_array = uvutils._fits_gethduaxis(fname[0], 3)
 
             if self.telescope_location is not None:
-                proc = self.set_lsts_from_time_array(background=background_lsts)
+                proc = self.set_lsts_from_time_array(
+                    background=background_lsts, astrometry_library=astrometry_library
+                )
             else:
                 proc = None
 

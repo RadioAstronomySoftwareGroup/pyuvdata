@@ -919,7 +919,9 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self._freq_array.form = ("Nfreqs",)
 
-    def check(self, check_extra=True, run_check_acceptability=True):
+    def check(
+        self, check_extra=True, run_check_acceptability=True, astrometry_library=None
+    ):
         """
         Add some extra checks on top of checks on UVBase class.
 
@@ -932,6 +934,12 @@ class UVFlag(UVBase):
             If true, check all parameters, otherwise only check required parameters.
         run_check_acceptability : bool
             Option to check if values in parameters are acceptable.
+        astrometry_library : str
+            Library used for running the LST acceptability check. Allowed options are
+            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
 
         Returns
         -------
@@ -1020,6 +1028,7 @@ class UVFlag(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols,
+                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 
@@ -1101,16 +1110,19 @@ class UVFlag(UVBase):
             other, check_history=check_history, check_extra=check_extra
         )
 
-    def _set_lsts_helper(self):
+    def _set_lsts_helper(self, astrometry_library=None):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
-        unique_lst_array = uvutils.get_lst_for_time(
-            unique_times, latitude, longitude, altitude
+        self.lst_array = uvutils.get_lst_for_time(
+            jd_array=self.time_array,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            astrometry_library=astrometry_library,
+            frame=self._telescope_location.frame,
         )
-        self.lst_array = unique_lst_array[inverse_inds]
         return
 
-    def set_lsts_from_time_array(self, background=False):
+    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -1127,10 +1139,13 @@ class UVFlag(UVBase):
 
         """
         if not background:
-            self._set_lsts_helper()
+            self._set_lsts_helper(astrometry_library=astrometry_library)
             return
         else:
-            proc = threading.Thread(target=self._set_lsts_helper)
+            proc = threading.Thread(
+                target=self._set_lsts_helper,
+                kwargs={"astrometry_library": astrometry_library},
+            )
             proc.start()
             return proc
 

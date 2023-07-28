@@ -12,8 +12,10 @@ import warnings
 
 import numpy as np
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
 
 __all__ = ["MS"]
@@ -1879,6 +1881,7 @@ class MS(UVData):
 
         return spw_list, field_list, pol_list, flex_pol
 
+    @copy_replace_short_description(UVData.read_ms, style=DocstringStyle.NUMPYDOC)
     def read_ms(
         self,
         filepath,
@@ -1896,85 +1899,9 @@ class MS(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in a casa measurement set.
-
-        Parameters
-        ----------
-        filepath : str
-            The measurement set root directory to read from.
-        data_column : str
-            name of CASA data column to read into data_array. Options are:
-            'DATA', 'MODEL', or 'CORRECTED_DATA'
-        pol_order : str
-            Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        ignore_single_chan : bool
-            Some measurement sets (e.g., those from ALMA) use single channel spectral
-            windows for recording pseudo-continuum channels or storing other metadata
-            in the track when the telescopes are not on source. Because of the way
-            the object is strutured (where all spectral windows are assumed to be
-            simultaneously recorded), this can significantly inflate the size and memory
-            footprint of UVData objects. By default, single channel windows are ignored
-            to avoid this issue, although they can be included if setting this parameter
-            equal to True.
-        raise_error : bool
-            The measurement set format allows for different spectral windows and
-            polarizations to have different metdata for the same time-baseline
-            combination, but UVData objects do not. It also allows for timescales that
-            are not supported by astropy. If any of these problems are detected, by
-            default the reader will throw an error. However, if set to False, the reader
-            will simply give a warning and try to do the best it can. If the problem is
-            with differing metadata, it will use the first value read in the file as the
-            "correct" metadata in the UVData object. If the problem is with the
-            timescale, it will just assume UTC.
-        read_weights : bool
-            Read in the weights from the MS file, default is True. If false, the method
-            will set the `nsamples_array` to the same uniform value (namely 1.0).
-        allow_flex_pol : bool
-            If only one polarization per spectral window is read (and the polarization
-            differs from window to window), allow for the `UVData` object to use
-            "flexible polarization", which compresses the polarization-axis of various
-            attributes to be of length 1, sets the `flex_spw_polarization_array`
-            attribute to define the polarization per spectral window.  Default is True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Raises
-        ------
-        IOError
-            If root file directory doesn't exist.
-        ValueError
-            If the `data_column` is not set to an allowed value.
-            If the data are have multiple subarrays or are multi source or have
-            multiple spectral windows.
-            If the data have multiple data description ID values.
-
-        """
+        """Read in a casa measurement set."""
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
@@ -2180,7 +2107,9 @@ class MS(UVData):
         tb_ant.close()
 
         # set LST array from times and itrf
-        proc = self.set_lsts_from_time_array(background=background_lsts)
+        proc = self.set_lsts_from_time_array(
+            background=background_lsts, astrometry_library=astrometry_library
+        )
 
         tb_field = tables.table(filepath + "/FIELD", ack=False)
 

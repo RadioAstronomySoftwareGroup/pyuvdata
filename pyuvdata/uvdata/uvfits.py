@@ -11,8 +11,10 @@ import numpy as np
 from astropy import constants as const
 from astropy.io import fits
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["UVFITS"]
@@ -27,7 +29,12 @@ class UVFITS(UVData):
     """
 
     def _get_parameter_data(
-        self, vis_hdu, read_source, run_check_acceptability, background_lsts=True
+        self,
+        vis_hdu,
+        read_source,
+        run_check_acceptability,
+        background_lsts=True,
+        astrometry_library=None,
     ):
         """
         Read just the random parameters portion of the uvfits file ("metadata").
@@ -64,11 +71,14 @@ class UVFITS(UVData):
                 longitude=longitude,
                 altitude=altitude,
                 lst_tols=self._lst_array.tols,
+                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 
         else:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
 
         # if antenna arrays are present, use them. otherwise use baseline array
         if "ANTENNA1" in vis_hdu.data.parnames and "ANTENNA2" in vis_hdu.data.parnames:
@@ -335,6 +345,7 @@ class UVFITS(UVData):
         if fix_old_proj:
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
 
+    @copy_replace_short_description(UVData.read_uvfits, style=DocstringStyle.NUMPYDOC)
     def read_uvfits(
         self,
         filename,
@@ -364,140 +375,9 @@ class UVFITS(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in header, metadata and data from a uvfits file.
-
-        Supports reading only selected portions of the data.
-
-        Parameters
-        ----------
-        filename : str
-            The uvfits file to read from.
-        antenna_nums : array_like of int, optional
-            The antennas numbers to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided. Ignored if read_data is False.
-        antenna_names : array_like of str, optional
-            The antennas names to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided. Ignored if read_data is False.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None. Ignored if read_data is False.
-        ant_str : str, optional
-            A string containing information about what antenna numbers
-            and polarizations to include when reading data into the object.
-            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
-            examples of valid strings and the behavior of different forms for ant_str.
-            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1, 2) and (2, 3) to return a valid
-            pyuvdata object.
-            An ant_str cannot be passed in addition to any of `antenna_nums`,
-            `antenna_names`, `bls` args or the `polarizations` parameters,
-            if it is a ValueError will be raised. Ignored if read_data is False.
-        frequencies : array_like of float, optional
-            The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array. Ignored if
-            read_data is False.
-        freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
-        times : array_like of float, optional
-            The times to include when reading data into the object, each value
-            passed here should exist in the time_array.
-        time_range : array_like of float, optional
-            The time range in Julian Date to keep in the object, must be
-            length 2. Some of the times in the object should fall between the
-            first and last elements. Cannot be used with `times`.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
-            The polarizations numbers to include when reading data into the
-            object, each value passed here should exist in the polarization_array.
-            Ignored if read_data is False.
-        blt_inds : array_like of int, optional
-            The baseline-time indices to include when reading data into the
-            object. This is not commonly used. Ignored if read_data is False.
-        phase_center_ids : array_like of int, optional
-            Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times). Cannot be used with catalog_names.
-        catalog_names : str or array-like of str
-            The names of the phase centers (sources) to include when reading data into
-            the object, which should match exactly in spelling and capitalization.
-            Cannot be used with phase_center_ids.
-        keep_all_metadata : bool
-            Option to keep all the metadata associated with antennas, even those
-            that do not have data associated with them after the select option.
-        read_data : bool
-            Read in the visibility, nsample and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            False.
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Raises
-        ------
-        IOError
-            If filename doesn't exist.
-        ValueError
-            If incompatible select keywords are set (e.g. `ant_str` with other
-            antenna selectors, `times` and `time_range`) or select keywords
-            exclude all data or if keywords are set to the wrong type.
-            If the data have multi spw with different channel widths.
-            If the metadata are not internally consistent or missing.
-
-        """
+        """Read in header, metadata and data from a uvfits file."""
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]
@@ -778,6 +658,7 @@ class UVFITS(UVData):
                 read_source,
                 run_check_acceptability,
                 background_lsts=background_lsts,
+                astrometry_library=astrometry_library,
             )
 
             if read_source:

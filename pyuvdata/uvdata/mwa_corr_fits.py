@@ -13,6 +13,7 @@ import numpy as np
 from astropy import constants as const
 from astropy.io import fits
 from astropy.time import Time
+from docstring_parser import DocstringStyle
 from scipy.integrate import simps
 from scipy.special import erf
 
@@ -20,6 +21,7 @@ from pyuvdata.data import DATA_PATH
 
 from .. import _corr_fits
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
@@ -1073,6 +1075,9 @@ class MWACorrFITS(UVData):
 
         return flagged_ant_inds
 
+    @copy_replace_short_description(
+        UVData.read_mwa_corr_fits, style=DocstringStyle.NUMPYDOC
+    )
     def read_mwa_corr_fits(
         self,
         filelist,
@@ -1102,133 +1107,9 @@ class MWACorrFITS(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in MWA correlator gpu box files.
-
-        The default settings remove some of the instrumental effects in the bandpass
-        by dividing out the coarse band shape (for legacy data only) and the digital
-        gains, and applying a cable length correction.
-        If the desired output is raw correlator data, set remove_dig_gains=False,
-        remove_coarse_band=False, correct_cable_len=False, and
-        phase_to_pointing_center=False.
-
-        Parameters
-        ----------
-        filelist : list of str
-            The list of MWA correlator files to read from. Must include at
-            least one fits file and only one metafits file per data set.
-            Can also be a list of lists to read multiple data sets.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'blt', 'freq', 'polarization'. Only used if
-            multiple files are passed.
-        use_aoflagger_flags : bool
-            Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
-            flag files are submitted.
-        remove_dig_gains : bool
-            Option to divide out digital gains.
-        remove_coarse_band : bool
-            Option to divide out coarse band shape.
-        correct_cable_len : bool
-            Option to apply a cable delay correction.
-        correct_van_vleck : bool
-            Option to apply a van vleck correction.
-        cheby_approx : bool
-            Only used if correct_van_vleck is True. Option to implement the van
-            vleck correction with a chebyshev polynomial approximation.
-        flag_small_auto_ants : bool
-            Only used if correct_van_vleck is True. Option to completely flag any
-            antenna for which the autocorrelation falls below a threshold found by
-            the Van Vleck correction to indicate bad data. Specifically, the
-            threshold used is 0.5 * integration_time * channel_width. If set to False,
-            only the times and frequencies at which the auto is below the
-            threshold will be flagged for the antenna.
-        phase_to_pointing_center : bool
-            Option to phase to the observation pointing center.
-        propagate_coarse_flags : bool
-            Option to propagate flags for missing coarse channel integrations
-            across frequency.
-        flag_init: bool
-            Set to True in order to do routine flagging of coarse channel edges,
-            start or end integrations, or the center fine channel of each coarse
-            channel. See associated keywords.
-        edge_width: float
-            Only used if flag_init is True. The width to flag on the edge of
-            each coarse channel, in hz. Errors if not equal to integer multiple
-            of channel_width. Set to 0 for no edge flagging.
-        start_flag: float or str
-            Only used if flag_init is True. The number of seconds to flag at the
-            beginning of the observation. Set to 0 for no flagging. Default is
-            'goodtime', which uses information in the metafits file to determine
-            the length of time that should be flagged. Errors if input is not a
-            float or 'goodtime'. Errors if float input is not equal to an
-            integer multiple of the integration time.
-        end_flag: floats
-            Only used if flag_init is True. The number of seconds to flag at the
-            end of the observation. Set to 0 for no flagging. Errors if not
-            equal to an integer multiple of the integration time.
-        flag_dc_offset: bool
-            Only used if flag_init is True. Set to True to flag the center fine
-            channel of each coarse channel.
-        remove_flagged_ants : bool
-            Option to perform a select to remove antennas flagged in the metafits
-            file. If correct_van_vleck and flag_small_auto_ants are both True then
-            antennas flagged by the Van Vleck correction are also removed.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        read_data : bool
-            Read in the visibility, nsample and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object.
-        data_array_dtype : numpy dtype
-            Datatype to store the output data_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128
-            (double-precision real and imaginary).
-        nsample_array_dtype : numpy dtype
-            Datatype to store the output nsample_array as. Must be either
-            np.float64 (double-precision), np.float32 (single-precision), or
-            np.float16 (half-precision). Half-precision is only recommended for
-            cases where no sampling or averaging of baselines will occur,
-            because round-off errors can be quite large (~1e-3).
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Raises
-        ------
-        ValueError
-            If required files are missing or multiple files metafits files are
-            included in filelist.
-            If files from different observations are included in filelist.
-            If files in fileslist have different fine channel widths
-            If file types other than fits, metafits, and mwaf files are included
-            in filelist.
-
-        """
+        """Read in MWA correlator gpu box files."""
         metafits_file = None
         ppds_file = None
         obs_id = None
@@ -1566,7 +1447,9 @@ class MWACorrFITS(UVData):
         self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         # convert times to lst
-        proc = self.set_lsts_from_time_array(background=background_lsts)
+        proc = self.set_lsts_from_time_array(
+            background=background_lsts, astrometry_library=astrometry_library
+        )
 
         self.integration_time = np.full((self.Nblts), int_time)
 

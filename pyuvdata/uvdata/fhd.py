@@ -8,10 +8,12 @@ import warnings
 
 import numpy as np
 from astropy import constants as const
+from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
 from .. import telescopes as uvtel
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
@@ -311,6 +313,7 @@ class FHD(UVData):
     method on the UVData class.
     """
 
+    @copy_replace_short_description(UVData.read_fhd, style=DocstringStyle.NUMPYDOC)
     def read_fhd(
         self,
         filelist,
@@ -324,64 +327,9 @@ class FHD(UVData):
         check_autos=True,
         fix_autos=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in data from a list of FHD files.
-
-        Parameters
-        ----------
-        filelist : array_like of str
-            The list/array of FHD save files to read from. Must include at
-            least one polarization file, a params file, a layout file and a flag file.
-            An obs file is also required if `read_data` is False.
-        use_model : bool
-            Option to read in the model visibilities rather than the dirty
-            visibilities (the default is False, meaning the dirty visibilities
-            will be read).
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        read_data : bool
-            Read in the visibility, nsample and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object. If read_data is False, an obs file must be
-            included in the filelist. Note that if read_data is False, Npols is
-            derived from the obs file and reflects the number of polarizations
-            used in the FHD run. If read_data is True, Npols is given by the
-            number of visibility data files provided in `filelist`.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Raises
-        ------
-        IOError
-            If root file directory doesn't exist.
-        ValueError
-            If required files are missing or multiple files for any polarization
-            are included in filelist.
-            If there is no recognized key for visibility weights in the flags_file.
-
-        """
+        """Read in data from a list of FHD files."""
         datafiles = {}
         params_file = None
         obs_file = None
@@ -617,7 +565,9 @@ class FHD(UVData):
             self.Nants_telescope = len(self.antenna_names)
 
         # need to make sure telescope location is defined properly before this call
-        proc = self.set_lsts_from_time_array(background=background_lsts)
+        proc = self.set_lsts_from_time_array(
+            background=background_lsts, astrometry_library=astrometry_library
+        )
 
         if not np.isclose(obs["OBSRA"][0], obs["PHASERA"][0]) or not np.isclose(
             obs["OBSDEC"][0], obs["PHASEDEC"][0]

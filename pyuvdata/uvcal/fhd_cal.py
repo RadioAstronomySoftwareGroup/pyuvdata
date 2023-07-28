@@ -7,9 +7,11 @@ import os
 import warnings
 
 import numpy as np
+from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from ..uvdata.fhd import get_fhd_history, get_fhd_layout_info
 from .uvcal import UVCal, _future_array_shapes_warning
 
@@ -25,6 +27,7 @@ class FHDCal(UVCal):
 
     """
 
+    @copy_replace_short_description(UVCal.read_fhd_cal, style=DocstringStyle.NUMPYDOC)
     def read_fhd_cal(
         self,
         cal_file,
@@ -39,46 +42,9 @@ class FHDCal(UVCal):
         check_extra=True,
         run_check_acceptability=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read data from an FHD cal.sav file.
-
-        Parameters
-        ----------
-        cal_file : str
-            The cal.sav file to read from.
-        obs_file : str
-            The obs.sav file to read from.
-        layout_file : str
-            The FHD layout file. Required for antenna_positions to be set.
-        settings_file : str, optional
-            The settings_file to read from. Optional, but very useful for provenance.
-        raw : bool
-            Option to use the raw (per antenna, per frequency) solution or
-            to use the fitted (polynomial over phase/amplitude) solution.
-            Default is True (meaning use the raw solutions).
-        read_data : bool
-            Read in the gains, quality array and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object. If read_data is False, a settings file must be
-            provided.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        extra_history : str or list of str, optional
-            String(s) to add to the object's history parameter.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters after reading in the file.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        """
+        """Read data from an FHD cal.sav file."""
         if not read_data and settings_file is None:
             raise ValueError("A settings_file must be provided if read_data is False.")
 
@@ -202,7 +168,9 @@ class FHDCal(UVCal):
 
         # need to make sure telescope location is defined properly before this call
         if self.telescope_location is not None:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
 
         self._set_sky()
         self.gain_convention = "divide"

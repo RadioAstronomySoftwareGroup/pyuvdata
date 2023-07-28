@@ -1109,20 +1109,19 @@ class UVCal(UVBase):
                 f"Telescope {self.telescope_name} is not in known_telescopes."
             )
 
-    def _set_lsts_helper(self):
+    def _set_lsts_helper(self, astrometry_library=None):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
-        unique_lst_array = uvutils.get_lst_for_time(
-            jd_array=unique_times,
+        self.lst_array = uvutils.get_lst_for_time(
+            jd_array=self.time_array,
             latitude=latitude,
             longitude=longitude,
             altitude=altitude,
+            astrometry_library=astrometry_library,
             frame=self._telescope_location.frame,
         )
-        self.lst_array = unique_lst_array[inverse_inds]
         return
 
-    def set_lsts_from_time_array(self, background=False):
+    def set_lsts_from_time_array(self, background=False, astrometry_library=None):
         """Set the lst_array based from the time_array.
 
         Parameters
@@ -1139,10 +1138,13 @@ class UVCal(UVBase):
 
         """
         if not background:
-            self._set_lsts_helper()
+            self._set_lsts_helper(astrometry_library=astrometry_library)
             return
         else:
-            proc = threading.Thread(target=self._set_lsts_helper)
+            proc = threading.Thread(
+                target=self._set_lsts_helper,
+                kwargs={"astrometry_library": astrometry_library},
+            )
             proc.start()
             return proc
 
@@ -1158,7 +1160,7 @@ class UVCal(UVBase):
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
 
-    def _check_freq_spacing(self, raise_errors=True):
+    def _check_freq_spacing(self, raise_errors=True, astrometry_library="erfa"):
         """
         Check if frequencies are evenly spaced and separated by their channel width.
 
@@ -1192,7 +1194,11 @@ class UVCal(UVBase):
         )
 
     def check(
-        self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
+        self,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_freq_spacing=False,
+        astrometry_library=None,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1210,6 +1216,12 @@ class UVCal(UVBase):
             Option to check if frequencies are evenly spaced and the spacing is
             equal to their channel_width. This is not required for UVCal
             objects in general but is required to write to calfits files.
+        astrometry_library : str
+            Library used for running the LST acceptability check. Allowed options are
+            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
 
         Returns
         -------
@@ -1315,6 +1327,7 @@ class UVCal(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols,
+                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 
@@ -4506,26 +4519,20 @@ class UVCal(UVBase):
 
         return new
 
-    def read_calfits(
-        self,
-        filename,
-        read_data=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        use_future_array_shapes=False,
-    ):
+    def read_calfits(self, filename, **kwargs):
         """
         Read in data from calfits file(s).
 
         Parameters
         ----------
-        filename : str or list of str
-            The calfits file(s) to read from.
+        filename : str
+            The calfits file to read from.
         read_data : bool
             Read in the gains or delays, quality arrays and flag arrays.
             If set to False, only the metadata will be read in. Setting read_data to
             False results in a metadata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         run_check : bool
             Option to check for the existence and proper shapes of
             parameters after reading in the file.
@@ -4537,6 +4544,12 @@ class UVCal(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         """
         from . import calfits
@@ -4552,53 +4565,21 @@ class UVCal(UVBase):
             # cannot just call `read` here and let it handle the recursion because we
             # can get a max recursion depth error. So leave the old handling for
             # recursion until v2.5
-            self.read_calfits(
-                filename[0],
-                read_data=read_data,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                use_future_array_shapes=use_future_array_shapes,
-            )
+            self.read_calfits(filename[0], **kwargs)
             if len(filename) > 1:
                 for f in filename[1:]:
                     uvcal2 = UVCal()
-                    uvcal2.read_calfits(
-                        f,
-                        read_data=read_data,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        use_future_array_shapes=use_future_array_shapes,
-                    )
+                    uvcal2.read_calfits(f, **kwargs)
                     self += uvcal2
                 del uvcal2
         else:
             calfits_obj = calfits.CALFITS()
-            calfits_obj.read_calfits(
-                filename,
-                read_data=read_data,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                use_future_array_shapes=use_future_array_shapes,
-            )
+            calfits_obj.read_calfits(filename, **kwargs)
             self._convert_from_filetype(calfits_obj)
             del calfits_obj
 
     def read_fhd_cal(
-        self,
-        cal_file,
-        obs_file,
-        layout_file=None,
-        settings_file=None,
-        raw=True,
-        read_data=True,
-        extra_history=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        use_future_array_shapes=False,
+        self, cal_file, obs_file, layout_file=None, settings_file=None, **kwargs
     ):
         """
         Read data from an FHD cal.sav file.
@@ -4621,9 +4602,10 @@ class UVCal(UVBase):
         read_data : bool
             Read in the gains, quality array and flag data. If set to False, only
             the metadata will be read in. Setting read_data to False results in
-            a metadata only object. Note that if read_data is False, metadata is
-            derived entirely from the obs_file, which may result in slightly different
-            values than if it is derived from the cal file.
+            a metadata only object. If read_data is False, a settings file must be
+            provided.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         extra_history : str or list of str, optional
             String(s) to add to the object's history parameter.
         run_check : bool
@@ -4637,6 +4619,12 @@ class UVCal(UVBase):
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         """
         from . import fhd_cal
@@ -4699,13 +4687,7 @@ class UVCal(UVBase):
                 obs_file[0],
                 layout_file=layout_file_use,
                 settings_file=settings_file_use,
-                raw=raw,
-                read_data=read_data,
-                extra_history=extra_history,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                use_future_array_shapes=use_future_array_shapes,
+                **kwargs,
             )
             if len(cal_file) > 1:
                 for ind, f in enumerate(cal_file[1:]):
@@ -4719,13 +4701,7 @@ class UVCal(UVBase):
                         obs_file[ind + 1],
                         layout_file=layout_file_use,
                         settings_file=settings_file_use,
-                        raw=raw,
-                        read_data=read_data,
-                        extra_history=extra_history,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        use_future_array_shapes=use_future_array_shapes,
+                        **kwargs,
                     )
 
                     self += uvcal2
@@ -4750,13 +4726,7 @@ class UVCal(UVBase):
                 obs_file,
                 layout_file=layout_file,
                 settings_file=settings_file,
-                raw=raw,
-                read_data=read_data,
-                extra_history=extra_history,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                use_future_array_shapes=use_future_array_shapes,
+                **kwargs,
             )
             self._convert_from_filetype(fhd_cal_obj)
             del fhd_cal_obj

@@ -14,8 +14,10 @@ from typing import Any, Literal
 
 import h5py
 import numpy as np
+from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
+from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["UVH5", "FastUVH5Meta"]
@@ -629,7 +631,7 @@ class FastUVH5Meta:
             return np.unique(self.time_array)
 
     @cached_property
-    def lsts(self) -> np.ndarray:
+    def lsts(self, astrometry_library: str | None = None) -> np.ndarray:
         """The unique LSTs in the file."""
         h = self.header
         if "lst_array" in h and self.blts_are_rectangular:
@@ -641,15 +643,21 @@ class FastUVH5Meta:
             return np.unique(self.lst_array)
 
     @cached_property
-    def lst_array(self) -> np.ndarray:
+    def lst_array(self, astrometry_library: str | None = None) -> np.ndarray:
         """The LSTs corresponding to each baseline-time."""
         h = self.header
         if "lst_array" in h:
             return h["lst_array"][:]
         else:
-            return uvutils.get_lst_for_time(
-                self.time_array, *self.telescope_location_lat_lon_alt_degrees
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            lst_array = uvutils.get_lst_for_time(
+                jd_array=self.time_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                astrometry_library=astrometry_library,
             )
+            return lst_array
 
     @cached_property
     def channel_width(self) -> float:
@@ -808,10 +816,25 @@ class FastUVH5Meta:
             vis_units = "uncalib"
         return vis_units
 
-    def to_uvdata(self, check_lsts: bool = False) -> UVData:
+    def to_uvdata(
+        self, check_lsts: bool = False, astrometry_library: str | None = None
+    ) -> UVData:
         """Convert the file to a UVData object.
 
         The object will be metadata-only.
+
+        Parameters
+        ----------
+        check_lsts : bool
+            Option to check that the LSTs match the expected values for the telescope
+            location and times.
+        astrometry_library : str
+            Library used for running the LST check. Allowed options are
+            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+            library), and 'astropy' (which uses the astropy utilities). Default is erfa
+            unless the telescope_location frame is MCMF (on the moon), in which case the
+            default is astropy.
+
         """
         uvd = UVH5()
         uvd.read_uvh5(
@@ -819,6 +842,7 @@ class FastUVH5Meta:
             read_data=False,
             run_check_acceptability=check_lsts,
             use_future_array_shapes=True,
+            astrometry_library=astrometry_library,
         )
         return uvd
 
@@ -841,6 +865,7 @@ class UVH5(UVData):
         time_axis_faster_than_bls: bool | None = None,
         background_lsts: bool = True,
         recompute_nbls: bool | None = None,
+        astrometry_library: str | None = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
             obj = FastUVH5Meta(
@@ -864,7 +889,9 @@ class UVH5(UVData):
             self.lst_array = obj.header["lst_array"][:]
             proc = None
         else:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
             # This only checks the LSTs, which is not necessary if they are being
             # computed now
             run_check_acceptability = False
@@ -1345,6 +1372,9 @@ class UVH5(UVData):
 
         return
 
+    @copy_replace_short_description(
+        UVData.read_mwa_corr_fits, style=DocstringStyle.NUMPYDOC
+    )
     def read_uvh5(
         self,
         filename,
@@ -1381,183 +1411,9 @@ class UVH5(UVData):
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
         recompute_nbls: bool | None = None,
+        astrometry_library: str | None = None,
     ):
-        """
-        Read in data from a UVH5 file.
-
-        Parameters
-        ----------
-        filename : str
-             The UVH5 file to read from.
-        antenna_nums : array_like of int, optional
-            The antennas numbers to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided. Ignored if read_data is False.
-        antenna_names : array_like of str, optional
-            The antennas names to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided. Ignored if read_data is False.
-        bls : list of tuple, optional
-            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
-            baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
-            to include when reading data into the object. For length-2 tuples,
-            the ordering of the numbers within the tuple does not matter. For
-            length-3 tuples, the polarization string is in the order of the two
-            antennas. If length-3 tuples are provided, `polarizations` must be
-            None. Ignored if read_data is False.
-        ant_str : str, optional
-            A string containing information about what antenna numbers
-            and polarizations to include when reading data into the object.
-            Can be 'auto', 'cross', 'all', or combinations of antenna numbers
-            and polarizations (e.g. '1', '1_2', '1x_2y').  See tutorial for more
-            examples of valid strings and the behavior of different forms for ant_str.
-            If '1x_2y,2y_3y' is passed, both polarizations 'xy' and 'yy' will
-            be kept for both baselines (1, 2) and (2, 3) to return a valid
-            pyuvdata object.
-            An ant_str cannot be passed in addition to any of `antenna_nums`,
-            `antenna_names`, `bls` args or the `polarizations` parameters,
-            if it is a ValueError will be raised. Ignored if read_data is False.
-        frequencies : array_like of float, optional
-            The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array. Ignored if
-            read_data is False.
-        freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
-        times : array_like of float, optional
-            The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Cannot be used with
-            `time_range`.
-        time_range : array_like of float, optional
-            The time range in Julian Date to keep in the object, must be
-            length 2. Some of the times in the object should fall between the
-            first and last elements. Cannot be used with `times`.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        polarizations : array_like of int, optional
-            The polarizations numbers to include when reading data into the
-            object, each value passed here should exist in the polarization_array.
-            Ignored if read_data is False.
-        blt_inds : array_like of int, optional
-            The baseline-time indices to include when reading data into the
-            object. This is not commonly used. Ignored if read_data is False.
-        phase_center_ids : array_like of int, optional
-            Phase center IDs to include when reading data into the object (effectively
-            a selection on baseline-times). Cannot be used with catalog_names.
-        catalog_names : str or array-like of str
-            The names of the phase centers (sources) to include when reading data into
-            the object, which should match exactly in spelling and capitalization.
-            Cannot be used with phase_center_ids.
-        keep_all_metadata : bool
-            Option to keep all the metadata associated with antennas, even those
-            that do not have data associated with them after the select option.
-        read_data : bool
-            Read in the visibility, nsample and flag data. If set to False, only
-            the metadata will be read in. Setting read_data to False results in
-            a metadata only object.
-        data_array_dtype : numpy dtype
-            Datatype to store the output data_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-            precision real and imaginary). Only used if the datatype of the visibility
-            data on-disk is not 'c8' or 'c16'.
-        multidim_index : bool
-            If True, attempt to index the HDF5 dataset
-            simultaneously along all data axes. Otherwise index one axis at-a-time.
-            This only works if data selection is sliceable along all but one axis.
-            If indices are not well-matched to data chunks, this can be slow.
-        remove_flex_pol : bool
-            If True and if the file is a flex_pol file, convert back to a standard
-            UVData object.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        fix_old_proj : bool
-            Applies a fix to uvw-coordinates and phasing, assuming that the old `phase`
-            method was used prior to writing the data, which had errors of the order of
-            one part in 1e4 - 1e5. See the phasing memo for more details. Default is
-            to apply the correction if the attributes `phase_center_app_ra` and
-            `phase_center_app_dec` are missing (as they were introduced alongside the
-            new phasing method).
-        fix_use_ant_pos : bool
-            If setting `fix_old_proj` to True, use the antenna positions to derive the
-            correct uvw-coordinates rather than using the baseline vectors. Default is
-            True.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is True.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-        blt_order : tuple of str or "determine", optional
-            The order of the baseline-time axis. This can be determined, or read
-            directly from file, however since it has been optional in the past, many
-            existing files do not contain it in the metadata.
-            Some reading operations are significantly faster if this is known, so
-            providing it here can provide a speedup. Default is to try and read it from
-            file, and if not there, just leave it as None. Set to "determine" to
-            auto-detect the blt_order from the metadata (takes extra time to do so).
-        blts_are_rectangular : bool, optional
-            Whether the baseline-time axis is rectangular. This can be read from
-            metadata in new files, but many old files do not contain it. If not
-            provided, the rectangularity will be determined from the data. This is a
-            non-negligible operation, so if you know it, it can be provided here to
-            speed up reading.
-        time_axis_faster_than_bls : bool, optional
-            If blts are rectangular, this variable specifies whether the time axis is
-            the fastest-moving virtual axis. Various reading functions benefit from
-            knowing this, so if it is known, it can be provided here to speed up
-            reading. It will be determined from the data if not provided.
-        recompute_nbls : bool, optional
-            Whether to recompute the number of unique baselines from the data. Before
-            v1.2 of the UVH5 spec, it was possible to have an incorrect number of
-            baselines in the header without error, so this provides an opportunity to
-            rectify it. Old HERA files (< March 2023) may have this issue, but in this
-            case the correct number of baselines can be computed more quickly than by
-            fully re=computing, and so we do this.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        IOError
-            If filename doesn't exist.
-        ValueError
-            If the data_array_dtype is not a complex dtype.
-            If incompatible select keywords are set (e.g. `ant_str` with other
-            antenna selectors, `times` and `time_range`) or select keywords
-            exclude all data or if keywords are set to the wrong type.
-
-        """
+        """Read in data from a UVH5 file."""
         if isinstance(filename, FastUVH5Meta):
             meta = filename
             filename = str(meta.path)
@@ -1580,6 +1436,7 @@ class UVH5(UVData):
             meta,
             run_check_acceptability=run_check_acceptability,
             background_lsts=background_lsts,
+            astrometry_library=astrometry_library,
         )
 
         if read_data:
@@ -2102,7 +1959,11 @@ class UVH5(UVData):
         return
 
     def _check_header(
-        self, filename, run_check_acceptability=True, background_lsts=True
+        self,
+        filename,
+        run_check_acceptability=True,
+        background_lsts=True,
+        astrometry_library=None,
     ):
         """
         Check that the metadata in a file header matches the object's metadata.
@@ -2137,6 +1998,7 @@ class UVH5(UVData):
                 header,
                 run_check_acceptability=run_check_acceptability,
                 background_lsts=background_lsts,
+                astrometry_library=astrometry_library,
             )
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata

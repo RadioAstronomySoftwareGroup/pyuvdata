@@ -43,6 +43,7 @@ def new_uvcal(
     sky_catalog: str | None = None,
     empty: bool = False,
     data: dict[str, np.ndarray] | None = None,
+    astrometry_library: str | None = None,
     history: str = "",
     **kwargs,
 ):
@@ -132,6 +133,12 @@ def new_uvcal(
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.
+    astrometry_library : str
+        Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+        the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+        (which uses the astropy utilities). Default is erfa unless the
+        telescope_location frame is MCMF (on the moon), in which case the default
+        is astropy.
     \*\*kwargs
         All other keyword arguments are added to the object as attributes.
 
@@ -159,7 +166,10 @@ def new_uvcal(
             )
 
     lst_array, integration_time = get_time_params(
-        telescope_location, time_array, integration_time
+        telescope_location,
+        time_array,
+        integration_time,
+        astrometry_library=astrometry_library,
     )
 
     if (freq_range is not None) and (
