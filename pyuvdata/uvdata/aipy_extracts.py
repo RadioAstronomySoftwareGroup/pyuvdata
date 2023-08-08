@@ -155,7 +155,7 @@ def parse_ants(ant_str, nants):
                     ajs = m[6].split(",")
 
             for i in ais:
-                if type(i) == str and i.startswith("-"):
+                if isinstance(i, str) and i.startswith("-"):
                     i = i[1:]  # nibble the - off the string
                     include_i = 0
                 else:
@@ -164,7 +164,7 @@ def parse_ants(ant_str, nants):
                 for j in ajs:
                     include = None
 
-                    if type(j) == str and j.startswith("-"):
+                    if isinstance(j, str) and j.startswith("-"):
                         j = j[1:]
                         include_j = 0
                     else:
@@ -217,7 +217,7 @@ def uv_selector(uv, ants=-1, pol_str=-1):
     None
     """
     if ants != -1:
-        if type(ants) == str:
+        if isinstance(ants, str):
             ants = parse_ants(ants, uv["nants"])
 
         for cnt, (bl, include, pol) in enumerate(ants):
@@ -421,7 +421,7 @@ class UV(_miriad.UV):
 
         if len(rv) == 1:
             return rv[0]
-        elif type(rv) == str:
+        elif isinstance(rv, str):
             return rv
         else:
             return np.array(rv)

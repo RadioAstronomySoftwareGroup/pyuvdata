@@ -670,7 +670,7 @@ class Miriad(UVData):
 
         # keep all single valued extra_variables as extra_keywords
         for key in check_variables.keys():
-            if type(check_variables[key]) == str:
+            if isinstance(check_variables[key], str):
                 value = check_variables[key].replace("\x00", "")
                 # check for booleans encoded as strings
                 if value == "True":
@@ -690,7 +690,7 @@ class Miriad(UVData):
                 key not in ["vartable", "history", "obstype"]
                 and key not in other_miriad_variables
             ):
-                if type(uv[key]) == str:
+                if isinstance(uv[key], str):
                     value = uv[key].replace("\x00", "")
                     value = uv[key].replace("\x01", "")
                     if value == "True":
@@ -1988,7 +1988,7 @@ class Miriad(UVData):
                     value = float(value)
                 elif issubclass(value.dtype.type, np.complexfloating):
                     raise_type_error = True
-            elif type(value) == bool:
+            elif isinstance(value, bool):
                 value = str(value)
             elif type(value) not in types.keys():
                 raise_type_error = True

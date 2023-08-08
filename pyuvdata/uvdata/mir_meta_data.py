@@ -727,7 +727,7 @@ class MirMetaData(object):
             If attempting to combine this object with another of a different type.
         """
         # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
+        if not isinstance(other, self.__class__):
             raise ValueError("Both objects must be of the same type.")
 
         if other._data is None:
@@ -1584,7 +1584,7 @@ class MirMetaData(object):
             If the two objects are not of the same type.
         """
         # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
+        if not isinstance(other, self.__class__):
             raise ValueError("Both objects must be of the same type.")
 
         # If no data are loaded, or if there is no header key, then this is basically
@@ -1917,7 +1917,7 @@ class MirMetaData(object):
             but the header keys (and their respective index positions) are different.
         """
         # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
+        if not isinstance(other, self.__class__):
             raise ValueError("Both objects must be of the same type.")
 
         if merge and discard_flagged:
@@ -2927,7 +2927,7 @@ class MirCodesData(MirMetaData):
             If the two objects are not of the same type.
         """
         # First up, make sure we have two objects of the same dtype
-        if type(self) != type(other):
+        if not isinstance(other, self.__class__):
             raise ValueError("Both objects must be of the same type.")
 
         index_dict = {}
