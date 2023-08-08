@@ -5061,13 +5061,13 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
 
             for ant_i in ant_i_list:
                 include_i = True
-                if type(ant_i) == str and ant_i.startswith("-"):
+                if isinstance(ant_i, str) and ant_i.startswith("-"):
                     ant_i = ant_i[1:]  # nibble the - off the string
                     include_i = False
 
                 for ant_j in ant_j_list:
                     include_j = True
-                    if type(ant_j) == str and ant_j.startswith("-"):
+                    if isinstance(ant_j, str) and ant_j.startswith("-"):
                         ant_j = ant_j[1:]
                         include_j = False
 
