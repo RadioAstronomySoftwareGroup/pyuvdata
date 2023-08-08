@@ -871,6 +871,20 @@ class UVH5(UVData):
             proc = None
         else:
             proc = self.set_lsts_from_time_array(background=background_lsts)
+            # This only checks the LSTs, which is not necessary if they are being
+            # computed now
+            run_check_acceptability = False
+
+        if run_check_acceptability:
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            uvutils.check_lsts_against_times(
+                jd_array=self.time_array,
+                lst_array=self.lst_array,
+                latitude=lat,
+                longitude=lon,
+                altitude=alt,
+                lst_tols=(0, uvutils.RADIAN_TOL),
+            )
 
         # Required parameters
         for attr in [
@@ -906,6 +920,18 @@ class UVH5(UVData):
                 setattr(self, attr, getattr(obj, attr))
             except AttributeError as e:
                 raise KeyError(str(e)) from e
+
+        # check this as soon as we have the inputs
+        if self.freq_array.ndim == 1:
+            arr_shape_msg = (
+                "The size of arrays in this file are not internally consistent, "
+                "which should not happen. Please file an issue in our GitHub issue "
+                "log so that we can fix it."
+            )
+            assert (
+                np.asarray(self.channel_width).size == self.freq_array.size
+            ), arr_shape_msg
+            self._set_future_array_shapes()
 
         # For now, only set the rectangularity parameters if they exist in the header of
         # the file. These could be set automatically later on, but for now we'll leave
@@ -982,28 +1008,7 @@ class UVH5(UVData):
         except ValueError as ve:
             warnings.warn(str(ve))
 
-        if run_check_acceptability:
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
-            uvutils.check_lsts_against_times(
-                jd_array=self.time_array,
-                lst_array=self.lst_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
-                lst_tols=(0, uvutils.RADIAN_TOL),
-            )
-
-        if self.freq_array.ndim == 1:
-            arr_shape_msg = (
-                "The size of arrays in this file are not internally consistent, "
-                "which should not happen. Please file an issue in our GitHub issue "
-                "log so that we can fix it."
-            )
-            assert (
-                np.asarray(self.channel_width).size == self.freq_array.size
-            ), arr_shape_msg
-            self._set_future_array_shapes()
-
+        # wait for the LST computation if needed
         if proc is not None:
             proc.join()
 
