@@ -3988,6 +3988,7 @@ def test_read_slicing():
         ("ant1",),
         ("ant2",),
         (),
+        ([0, 2, 6, 4, 8, 10, 12, 14, 16, 1, 3, 5, 7, 9, 11, 13, 15, 17]),
     ],
 )
 def test_determine_blt_order(blt_order):
@@ -4017,7 +4018,9 @@ def test_determine_blt_order(blt_order):
         BASELINE = getbl(ANT1, ANT2)
 
         lc = locals()
-        if blt_order:
+        if isinstance(blt_order, list):
+            inds = np.array(blt_order)
+        elif blt_order:
             inds = np.lexsort(tuple(lc[k.upper()] for k in blt_order[::-1]))
         else:
             inds = np.arange(len(TIME))
@@ -4026,15 +4029,12 @@ def test_determine_blt_order(blt_order):
 
     # time, bl
     TIME, ANT1, ANT2, BL = gettimebls(blt_order)
-    print(blt_order)
-    print("TIME: ", TIME)
-    print("ANT1: ", ANT1)
-    print("ANT2: ", ANT2)
-    print("BL: ", BL)
     order = uvutils.determine_blt_order(
         TIME, ANT1, ANT2, BL, Nbls=nant**2, Ntimes=ntime
     )
-    if blt_order:
+    if isinstance(blt_order, list):
+        assert order is None
+    elif blt_order:
         assert order == blt_order
     else:
         assert order is None
@@ -4045,6 +4045,9 @@ def test_determine_blt_order(blt_order):
     if blt_order in [("ant1", "time"), ("ant2", "time")]:
         # sorting by ant1/ant2 then time means we split the other ant into a
         # separate group
+        assert not is_rect
+        assert not time_first
+    elif isinstance(blt_order, list):
         assert not is_rect
         assert not time_first
     else:

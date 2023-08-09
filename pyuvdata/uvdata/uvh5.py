@@ -632,19 +632,13 @@ class FastUVH5Meta:
     def lsts(self) -> np.ndarray:
         """The unique LSTs in the file."""
         h = self.header
-        if "lst_array" in h:
-            if self.blts_are_rectangular:
-                if self.time_axis_faster_than_bls:
-                    return h["lst_array"][: self.Ntimes]
-                else:
-                    return h["lst_array"][:: self.Nbls]
+        if "lst_array" in h and self.blts_are_rectangular:
+            if self.time_axis_faster_than_bls:
+                return h["lst_array"][: self.Ntimes]
             else:
-                return np.unique(self.lst_array)
-
-        # If lst_array not there, compute ourselves.
-        return uvutils.get_lst_for_time(
-            self.times, *self.telescope_location_lat_lon_alt_degrees
-        )
+                return h["lst_array"][:: self.Nbls]
+        else:
+            return np.unique(self.lst_array)
 
     @cached_property
     def lst_array(self) -> np.ndarray:

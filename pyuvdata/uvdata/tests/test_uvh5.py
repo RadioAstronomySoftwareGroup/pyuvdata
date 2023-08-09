@@ -3477,10 +3477,14 @@ class TestFastUVH5Meta:
 
         self.tmp_path = tempfile.TemporaryDirectory("fastuvh5meta")
 
-        uvd = UVData()
-        uvd.read(self.fl, bls=[(26, 26)], use_future_array_shapes=True)
+        uvd = UVData.from_file(self.fl, bls=[(26, 26)], use_future_array_shapes=True)
         self.fl_singlebl = os.path.join(self.tmp_path.name, "singlebl.uvh5")
         uvd.write_uvh5(self.fl_singlebl)
+
+        time_keep = np.min(uvd.time_array)
+        uvd2 = UVData.from_file(self.fl, times=time_keep)
+        self.fl_singletime = os.path.join(self.tmp_path.name, "singletime.uvh5")
+        uvd2.write_uvh5(self.fl_singletime)
 
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
@@ -3537,6 +3541,11 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=None)
         assert meta.blts_are_rectangular
 
+        meta = uvh5.FastUVH5Meta(
+            self.fl, blts_are_rectangular=None, blt_order=("time", "baseline")
+        )
+        assert meta.blts_are_rectangular
+
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=True)
         assert meta.blts_are_rectangular
 
@@ -3559,6 +3568,9 @@ class TestFastUVH5Meta:
         meta1 = uvh5.FastUVH5Meta(self.fltime_axis_faster_than_bls)
         assert np.all(meta1.times == meta.times)
         assert meta1.time_axis_faster_than_bls
+
+        meta = uvh5.FastUVH5Meta(self.fl_singletime, blts_are_rectangular=True)
+        assert not meta.time_axis_faster_than_bls
 
     def test_phase_type_with_pcc(self):
         meta = uvh5.FastUVH5Meta(self.fl)
@@ -3605,6 +3617,8 @@ class TestFastUVH5Meta:
             assert meta.unique_ants == set(
                 np.concatenate([meta.ant_1_array, meta.ant_2_array])
             )
+            assert set(meta.times) == set(meta.time_array)
+            assert set(meta.lsts) == set(meta.lst_array)
 
         meta = uvh5.FastUVH5Meta(self.fl, blts_are_rectangular=False)
         uvd = meta.to_uvdata()
