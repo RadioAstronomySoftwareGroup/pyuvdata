@@ -804,7 +804,11 @@ class MS(UVData):
             }
             pol_types = [pol.lower() for pol in sorted(feed_pols)]
             pol_tuples = np.asarray(
-                [(pol_types.index(i), pol_types.index(j)) for i, j in pol_str],
+                [
+                    (pol_types.index(i.lower()), pol_types.index(j.lower()))
+                    for pol in self.polarization_array
+                    for i, j in [uvutils.POL_TO_FEED_DICT[uvutils.polnum2str(pol)]]
+                ],
                 dtype=np.int32,
             )
 
