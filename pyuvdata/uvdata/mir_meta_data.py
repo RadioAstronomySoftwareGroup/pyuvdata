@@ -1624,7 +1624,13 @@ class MirMetaData(object):
         self._set_header_key_index_dict()
 
     def group_by(
-        self, group_fields, use_mask=True, return_index=False, assume_unique=False
+        self,
+        group_fields,
+        use_mask=True,
+        where=None,
+        header_key=None,
+        return_index=None,
+        assume_unique=False,
     ):
         """
         Create groups of index positions based on particular field(s) in the metadata.
@@ -1664,6 +1670,10 @@ class MirMetaData(object):
             object only has a pseudo-index), which correspond to the metadata entries
             that match the unique key.
         """
+        # Check to make sure arguments are compatible
+        if (header_key is not None) and return_index:
+            raise ValueError("Cannot specify header_key and set return_index=True.")
+
         # Make this a list just to make it easier to program against.
         if isinstance(group_fields, str):
             group_fields = [group_fields]
@@ -1671,7 +1681,11 @@ class MirMetaData(object):
         # Get the data we want to group by and then use lexsort to arrange the data
         # in order. This turns out to make extracting the index positions much faster.
         group_data = self.get_value(
-            group_fields, use_mask=use_mask, return_tuples=False
+            group_fields,
+            use_mask=use_mask,
+            where=where,
+            header_key=header_key,
+            return_tuples=False,
         )
         index_arr = np.lexsort(group_data)
         if not np.all(index_arr[1:] > index_arr[:-1]):
@@ -1682,11 +1696,10 @@ class MirMetaData(object):
             return {}
 
         # Otherwise, if we don't want the index array, fill in the header keys now.
-        if not return_index:
-            if use_mask and not np.all(self._mask):
-                index_arr = np.where(self._mask)[0][index_arr]
-
-            index_arr = self.get_header_keys(index=index_arr)
+        if header_key is not None:
+            index_arr = header_key[index_arr]
+        elif not return_index:
+            index_arr = self.get_header_keys(use_mask=use_mask, where=where)[index_arr]
 
         if assume_unique:
             if len(group_fields) == 1:
