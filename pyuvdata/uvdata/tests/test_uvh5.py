@@ -3482,7 +3482,7 @@ class TestFastUVH5Meta:
         uvd.write_uvh5(self.fl_singlebl)
 
         time_keep = np.min(uvd.time_array)
-        uvd2 = UVData.from_file(self.fl, times=time_keep)
+        uvd2 = UVData.from_file(self.fl, times=time_keep, use_future_array_shapes=True)
         self.fl_singletime = os.path.join(self.tmp_path.name, "singletime.uvh5")
         uvd2.write_uvh5(self.fl_singletime)
 
