@@ -3920,7 +3920,7 @@ def get_lst_for_time(
         # which nudges the Earth rotation angle of order 47 uas per century.
         sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
 
-        lst_array = np.mod(gast_array + sp + np.deg2rad(longitude), 2.0 * np.pi)[
+        lst_array = np.mod(gast_array + sp + site_loc.lon.rad, 2.0 * np.pi)[
             reverse_inds
         ]
     elif astrometry_library == "astropy":
@@ -4020,11 +4020,13 @@ def uvw_track_generator(
     coord_type="sidereal",
     time_array=None,
     telescope_loc=None,
-    antenna_frame=None,
+    antenna_frame="itrs",
     antenna_positions=None,
     antenna_numbers=None,
     ant_1_array=None,
     ant_2_array=None,
+    uvw_array=None,
+    force_postive_u=False,
 ):
     """
     Calculate uvw coordinates (among other values) for a given position on the sky.
@@ -4080,6 +4082,14 @@ def uvw_track_generator(
         Required if not providing `uvw_array`, shape is (Nblts,). If not supplied, then
         the method will automatically fill in ant_2_array with all unique antenna
         pairings for each time/position.
+    uvw_array : ndarray of float, optional
+        Array of baseline coordinates (in ENU), required if not deriving new coordinates
+        from antenna positions. Setting this value will will cause antenna positions to
+        be ignored. Shape is (Nblts, 3).
+    force_positive_u : bool, optional
+        If set to true, then forces the conjugation of each individual baseline to be
+        set such that the uvw coordinates land on the positive-u side of the uv-plane.
+        Default is False.
 
     Returns
     -------
@@ -4123,25 +4133,25 @@ def uvw_track_generator(
         time_array = time_array.reshape(1)
 
     Ntimes = len(time_array)
+    if uvw_array is None:
+        if all(item is None for item in [antenna_numbers, ant_1_array, ant_2_array]):
+            antenna_numbers = np.arange(1, 1 + len(antenna_positions))
+            ant_1_array = []
+            ant_2_array = []
+            for idx in range(len(antenna_positions)):
+                for jdx in range(idx + 1, len(antenna_positions)):
+                    ant_1_array.append(idx + 1)
+                    ant_2_array.append(jdx + 1)
 
-    if all([item is None for item in [antenna_numbers, ant_1_array, ant_2_array]]):
-        antenna_numbers = np.arange(1, 1 + len(antenna_positions))
-        ant_1_array = []
-        ant_2_array = []
-        for idx in range(len(antenna_positions)):
-            for jdx in range(idx + 1, len(antenna_positions)):
-                ant_1_array.append(idx + 1)
-                ant_2_array.append(jdx + 1)
+            Nbase = len(ant_1_array)
 
-        Nbase = len(ant_1_array)
+            ant_1_array = np.tile(ant_1_array, Ntimes)
+            ant_2_array = np.tile(ant_2_array, Ntimes)
+            if (len(lon_coord) != 1) or (len(lon_coord) == len(time_array)):
+                lon_coord = np.repeat(lon_coord, Nbase)
+                lat_coord = np.repeat(lat_coord, Nbase)
 
-        ant_1_array = np.tile(ant_1_array, Ntimes)
-        ant_2_array = np.tile(ant_2_array, Ntimes)
-        if (len(lon_coord) != 1) or (len(lon_coord) == len(time_array)):
-            lon_coord = np.repeat(lon_coord, Nbase)
-            lat_coord = np.repeat(lat_coord, Nbase)
-
-        time_array = np.repeat(time_array, Nbase)
+            time_array = np.repeat(time_array, Nbase)
 
     lst_array = get_lst_for_time(
         jd_array=time_array, telescope_loc=site_loc, frame=antenna_frame
@@ -4171,8 +4181,16 @@ def uvw_track_generator(
         ant_1_array=ant_1_array,
         ant_2_array=ant_2_array,
         telescope_lon=site_loc.lon.rad,
+        telescope_lat=site_loc.lat.rad,
+        uvw_array=uvw_array,
+        use_ant_pos=(uvw_array is None),
+        from_enu=(uvw_array is not None),
     )
-    print("WOWZERS!")
+
+    if force_postive_u:
+        mask = (uvws[:, 0] < 0.0) | ((uvws[:, 0] == 0.0) & (uvws[:, 1] < 0.0))
+        uvws[mask, :] *= -1.0
+
     return {"uvw": uvws}
 
 
