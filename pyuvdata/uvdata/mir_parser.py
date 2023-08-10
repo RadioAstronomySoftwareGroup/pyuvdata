@@ -2933,7 +2933,7 @@ class MirParser(object):
             # Finally, plug this set of flags back into the solns dict.
             compass_soln_dict["sphid_flags"] = sphid_flags
 
-        return compass_soln_dict, sphid_dict
+        return compass_soln_dict
 
     def _apply_compass_solns(
         self, compass_soln_dict, vis_data, apply_flags=True, apply_bp=True

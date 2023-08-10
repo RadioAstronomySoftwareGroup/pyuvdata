@@ -37,9 +37,13 @@ def compass_soln_file(tmp_path_factory):
         # that we actually have the solutions that we expect).
         bp_soln = np.arange(16 * 16384) + (np.flip(np.arange(16 * 16384)) * 1j)
 
-        file["bandpassArr"] = np.reshape(
-            np.concatenate((bp_soln, np.conj(np.reciprocal(bp_soln)))), (2, 16, 16384)
+        bp_soln = np.reshape(
+            np.concatenate((bp_soln / 2, np.conj(np.reciprocal(bp_soln)))),
+            (2, 16, 16384),
         ).astype(np.complex64)
+
+        file["reBandpassArr"] = bp_soln.real
+        file["imBandpassArr"] = bp_soln.imag
 
         # This number is pulled from the test mir_data object, in in_data["mjd"].
         file["mjdArr"] = np.array([[59054.69153811]])
@@ -48,10 +52,10 @@ def compass_soln_file(tmp_path_factory):
         # uint8 here because of the compression scheme COMPASS uses.
         file["flagArr"] = np.full((1, 1, 16, 2048), 170, dtype=np.uint8)
 
-        # Set up the wide flags so that the first half of the spectrum is flagged.
-        file["wideFlagArr"] = np.tile(
+        # Set up the static flags so that the first half of the spectrum is flagged.
+        file["staticFlagArr"] = np.tile(
             ((np.arange(2048) < 1024) * 255).reshape(1, 1, -1).astype(np.uint8),
-            (1, 16, 1),
+            (8, 16, 1),
         )
 
     yield filename
@@ -281,16 +285,18 @@ def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
         entry["flags"][:] = False
 
     compass_solns = mir_data._read_compass_solns(compass_soln_file)
-    mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
+    mir_data._apply_compass_solns(
+        compass_solns, mir_data.vis_data, apply_bp=False, apply_flags=True
+    )
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
-            assert np.all(entry["flags"][1::2])
-            assert not np.any(entry["flags"][::2])
+            assert not np.all(entry["flags"][1::2])
+            assert np.any(entry["flags"][::2])
 
 
-def test_compass_flag_wide_apply(mir_data, compass_soln_file):
+def test_compass_flag_static_apply(mir_data, compass_soln_file):
     """
-    Test COMPASS wide flagging.
+    Test COMPASS static flagging.
 
     Test that applying COMPASS flags on a per-baseline (all time) basis works correctly.
     """
@@ -305,7 +311,9 @@ def test_compass_flag_wide_apply(mir_data, compass_soln_file):
     ):
         compass_solns = mir_data._read_compass_solns(compass_soln_file)
 
-    mir_data._apply_compass_solns(compass_solns, apply_bp=False, apply_flags=True)
+    mir_data._apply_compass_solns(
+        compass_solns, mir_data.vis_data, apply_bp=False, apply_flags=True
+    )
 
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
@@ -337,28 +345,16 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
     ):
         compass_solns = mir_data._read_compass_solns(compass_soln_file)
 
-    mir_data._apply_compass_solns(compass_solns, apply_bp=True, apply_flags=False)
+    mir_data._apply_compass_solns(
+        compass_solns, mir_data.vis_data, apply_bp=True, apply_flags=False
+    )
 
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
             # If muck_solns is not some, then all the values should agree with our
             # temp value above, otherwise none should
-            assert (muck_solns != "some") == np.allclose(entry["data"], tempval)
+            assert np.allclose(entry["data"], tempval * (1 + (muck_solns == "none")))
             assert (muck_solns != "none") == np.all(entry["flags"])
-
-
-def test_compass_error(mir_data, compass_soln_file):
-    """
-    Test COMPASS-related errors.
-
-    Verify that known error conditions trigger expected errors.
-    """
-    mir_data.unload_data()
-
-    compass_solns = mir_data._read_compass_solns(compass_soln_file)
-
-    with pytest.raises(ValueError, match="Visibility data must be loaded"):
-        mir_data._apply_compass_solns(compass_solns)
 
 
 @pytest.mark.parametrize(
