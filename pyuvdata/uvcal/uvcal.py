@@ -30,29 +30,31 @@ _future_array_shapes_warning = (
 )
 
 
-def _check_time_range_overlap(time_range):
+def _check_range_overlap(val_range, range_type="time"):
     """
-    Detect if any time ranges in an array overlap.
+    Detect if any val_range in an array overlap.
 
     Parameters
     ----------
-    time_range : np.array of float
-        Array of time ranges, shape (Ntimes, 2).
+    val_range : np.array of float
+        Array of ranges, shape (Nranges, 2).
+    range_type : str
+        Type of range (for good error messages)
 
     Returns
     -------
     bool
-        True if any time range overlaps.
+        True if any range overlaps.
     """
     # first check that time ranges are well formed (stop is >= than start)
-    if np.any((time_range[:, 1] - time_range[:, 0]) < 0):
+    if np.any((val_range[:, 1] - val_range[:, 0]) < 0):
         raise ValueError(
-            "The time_ranges are not well-formed, some stop times are after start "
-            "times."
+            f"The {range_type} ranges are not well-formed, some stop {range_type}s "
+            f"are after start {range_type}s."
         )
 
     # Sort by start time
-    sorted_ranges = time_range[np.argsort(time_range[:, 0]), :]
+    sorted_ranges = val_range[np.argsort(val_range[:, 0]), :]
 
     # then check if adjacent pairs overlap
     for ind in range(sorted_ranges.shape[0] - 1):
@@ -292,6 +294,21 @@ class UVCal(UVBase):
         )
 
         desc = (
+            "Array of calibration solution times, center of integration, shape "
+            "(Ntimes), units Julian Date. Should only be set cal solutions were "
+            "calculated per integration (rather than over a range of integrations). "
+            "Only one of time_range and time_array should be set."
+        )
+        self._time_array = uvp.UVParameter(
+            "time_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=float,
+            tols=1e-3 / (60.0 * 60.0 * 24.0),
+            required=False,
+        )
+
+        desc = (
             "Time range (in JD) that cal solutions are valid for. This should be an "
             "array with shape (Ntimes, 2) where the second axis gives the start_time "
             "and end_time (in that order) in JD. Should only be set if the cal "
@@ -307,37 +324,41 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "Array of calibration solution times, center of integration, shape "
-            "(Ntimes), units Julian Date. Should only be set cal solutions were "
-            "calculated per integration (rather than over a range of integrations). "
-            "Only one of time_range and time_array should be set."
+            "Array of lsts, center of integration, shape (Ntimes), units radians. "
+            "Should only be set cal solutions were calculated per integration (rather "
+            "than over a range of integrations). Only one of lst_range and lst_array "
+            "should be set."
         )
-        self._time_array = uvp.UVParameter(
-            "time_array",
-            description=desc,
-            form=("Ntimes",),
-            expected_type=float,
-            tols=1e-3 / (60.0 * 60.0 * 24.0),
-            required=False,
-        )
-
-        # standard angle tolerance: 1 mas in radians.
-        desc = "Array of lsts, center of integration, shape (Ntimes), units radians"
         self._lst_array = uvp.UVParameter(
             "lst_array",
             description=desc,
             form=("Ntimes",),
             expected_type=float,
             tols=uvutils.RADIAN_TOL,
-            required=True,
+            required=False,
         )
 
-        # TODO: what should we do about the lst_array if we have a time_range rather
-        # than a time? 3 options occur to me:
-        #   1) add an lst_range parameter to match the time_range
-        #   2) make the lst_array have the lst of the starts of the time_ranges
-        #   3) dynamically change the expected shape of the lst_array to (Ntimes, 2)
-        #      if we have a time_range and not a time_array
+        desc = (
+            "LST range (in JD) that cal solutions are valid for. This should be an "
+            "array with shape (Ntimes, 2) where the second axis gives the start_lst "
+            "and end_lst (in that order) in radians. Should only be set if the cal "
+            "solutions apply over a range of times. Only one of lst_range and "
+            "lst_array should be set."
+        )
+        self._lst_range = uvp.UVParameter(
+            "lst_range",
+            description=desc,
+            form=("Ntimes", 2),
+            expected_type=float,
+            tols=uvutils.RADIAN_TOL,
+            required=False,
+        )
+
+        # TODO:
+        #  - consider allowing a time_array even if you have a time_range to carry the
+        #     center of times? Talk to Dara.
+        #  - update uvcalibrate to handle multiple time ranges
+        #  - consider using python_ranges package
 
         desc = (
             "Integration time of a time bin, units seconds. "
@@ -1182,19 +1203,27 @@ class UVCal(UVBase):
 
     def _set_lsts_helper(self):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
-        unique_times, inverse_inds = np.unique(self.time_array, return_inverse=True)
-        unique_lst_array = uvutils.get_lst_for_time(
-            jd_array=unique_times,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame=self._telescope_location.frame,
-        )
-        self.lst_array = unique_lst_array[inverse_inds]
+        if self.time_array is not None:
+            self.lst_array = uvutils.get_lst_for_time(
+                jd_array=self.time_array,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                frame=self._telescope_location.frame,
+            )
+
+        if self.time_range is not None:
+            self.lst_range = uvutils.get_lst_for_time(
+                jd_array=self.time_range,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                frame=self._telescope_location.frame,
+            )
         return
 
     def set_lsts_from_time_array(self, background=False):
-        """Set the lst_array based from the time_array.
+        """Set the lst_array or lst_range from the time_array or time_range.
 
         Parameters
         ----------
@@ -1325,19 +1354,39 @@ class UVCal(UVBase):
                 DeprecationWarning,
             )
         # deprecate having both time_array and time_range set
-        if self.time_array is not None and self.time_range is not None:
-            warnings.warn(
-                "The time_array and time_range attributes are both set, but only one "
-                "should be set. This will become an error in version 2.5.",
-                DeprecationWarning,
-            )
-        elif self.time_array is None and self.time_range is None:
-            raise ValueError("Either time_array or time_range must be set.")
+        time_like_pairs = [("time_array", "time_range"), ("lst_array", "lst_range")]
+        for pair in time_like_pairs:
+            if (
+                getattr(self, pair[0]) is not None
+                and getattr(self, pair[1]) is not None
+            ):
+                warnings.warn(
+                    f"The {pair[0]} and {pair[1]} attributes are both set, but only "
+                    "one should be set. This will become an error in version 2.5.",
+                    DeprecationWarning,
+                )
+            elif getattr(self, pair[0]) is None and getattr(self, pair[1]) is None:
+                raise ValueError(f"Either {pair[0]} or {pair[1]} must be set.")
+
+        # this can go away in version 2.5
+        if self.time_array is not None:
+            if self.lst_array is None:
+                raise ValueError(
+                    "If time_array is present, lst_array must also be present."
+                )
 
         # check that time ranges are well formed and do not overlap
         if self.time_range is not None:
-            if _check_time_range_overlap(self.time_range):
+            if self.lst_range is None:
+                raise ValueError(
+                    "If time_range is present, lst_range must also be present."
+                )
+            if _check_range_overlap(self.time_range):
                 raise ValueError("Some time_ranges overlap.")
+
+        if self.lst_range is not None:
+            if _check_range_overlap(self.lst_range, range_type="lst"):
+                raise ValueError("Some lst_range overlap.")
 
         # first run the basic check from UVBase
         super(UVCal, self).check(
@@ -1393,16 +1442,26 @@ class UVCal(UVBase):
 
         if run_check_acceptability:
             lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
-            uvutils.check_lsts_against_times(
-                jd_array=self.time_array,
-                lst_array=self.lst_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
-                lst_tols=self._lst_array.tols,
-                frame=self._telescope_location.frame,
-            )
-
+            if self.time_array is not None:
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_array,
+                    lst_array=self.lst_array,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
+                    lst_tols=self._lst_array.tols,
+                    frame=self._telescope_location.frame,
+                )
+            if self.time_range is not None:
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_range,
+                    lst_array=self.lst_range,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
+                    lst_tols=self._lst_range.tols,
+                    frame=self._telescope_location.frame,
+                )
         return True
 
     def copy(self, metadata_only=False):
@@ -1970,7 +2029,10 @@ class UVCal(UVBase):
             self.time_array = self.time_array[index_array]
         if self.time_range is not None:
             self.time_range = self.time_range[index_array]
-        self.lst_array = self.lst_array[index_array]
+        if self.lst_array is not None:
+            self.lst_array = self.lst_array[index_array]
+        if self.lst_range is not None:
+            self.lst_range = self.lst_range[index_array]
         if self.future_array_shapes:
             self.integration_time = self.integration_time[index_array]
             for param_name in self._data_params:
@@ -2451,7 +2513,7 @@ class UVCal(UVBase):
                 DeprecationWarning,
             )
         if this.time_range is not None:
-            if _check_time_range_overlap(
+            if _check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
             ):
                 raise ValueError("A time_range overlaps in the two objects.")
@@ -2996,9 +3058,14 @@ class UVCal(UVBase):
                 this.time_range = np.concatenate(
                     [this.time_range, other.time_range[tnew_inds]]
                 )
-            this.lst_array = np.concatenate(
-                [this.lst_array, other.lst_array[tnew_inds]]
-            )
+            if this.lst_array is not None:
+                this.lst_array = np.concatenate(
+                    [this.lst_array, other.lst_array[tnew_inds]]
+                )
+            if this.lst_range is not None:
+                this.lst_range = np.concatenate(
+                    [this.lst_range, other.lst_range[tnew_inds]]
+                )
             if this.time_range is not None:
                 t_order = np.argsort(this.time_range[:, 0])
             else:
@@ -3426,7 +3493,10 @@ class UVCal(UVBase):
                 this.time_array = this.time_array[t_order]
             if this.time_range is not None:
                 this.time_range = this.time_range[t_order]
-            this.lst_array = this.lst_array[t_order]
+            if this.lst_array is not None:
+                this.lst_array = this.lst_array[t_order]
+            if this.lst_range is not None:
+                this.lst_range = this.lst_range[t_order]
             if self.future_array_shapes:
                 this.integration_time = this.integration_time[t_order]
         if len(jnew_inds) > 0:
@@ -3681,6 +3751,7 @@ class UVCal(UVBase):
                 "_integration_time",
                 "_lst_array",
                 "_time_range",
+                "_lst_range",
             ]
         elif axis == "jones":
             history_update_string += "jones"
@@ -3692,6 +3763,7 @@ class UVCal(UVBase):
                 "_integration_time",
                 "_lst_array",
                 "_time_range",
+                "_lst_range",
             ]
         elif axis == "antenna":
             history_update_string += "antenna"
@@ -3703,6 +3775,7 @@ class UVCal(UVBase):
                 "_integration_time",
                 "_lst_array",
                 "_time_range",
+                "_lst_range",
             ]
         elif axis == "time":
             history_update_string += "time"
@@ -3894,9 +3967,14 @@ class UVCal(UVBase):
                 this.integration_time = np.concatenate(
                     [this.integration_time] + [obj.integration_time for obj in other]
                 )
-            this.lst_array = np.concatenate(
-                [this.lst_array] + [obj.lst_array for obj in other]
-            )
+            if this.lst_array is not None:
+                this.lst_array = np.concatenate(
+                    [this.lst_array] + [obj.lst_array for obj in other]
+                )
+            if this.lst_range is not None:
+                this.lst_range = np.concatenate(
+                    [this.lst_range] + [obj.lst_range for obj in other], axis=0
+                )
             if this.future_array_shapes:
                 axis_num = 2
             else:
@@ -4072,8 +4150,7 @@ class UVCal(UVBase):
             be OR'ed together).
         times : array_like of float, optional
             The times to keep in the object, each value passed here should exist in
-            the time_array or be a start time in the time_range (i.e. be in
-            time_range[:, 0]).
+            the time_array or be contained in a time_range on the object.
         time_range : array_like of float, optional
             The time range in Julian Date to keep in the object, must be
             length 2. Some of the times in the object should fall between the
@@ -4176,8 +4253,7 @@ class UVCal(UVBase):
                 DeprecationWarning,
             )
 
-        if times is not None:
-            times = uvutils._get_iterable(times)
+        if times is not None or time_range is not None:
             if n_selects > 0:
                 history_update_string += ", times"
             else:
@@ -4185,17 +4261,43 @@ class UVCal(UVBase):
             n_selects += 1
 
             time_inds = np.zeros(0, dtype=np.int64)
-            if cal_object.time_range is not None:
-                time_param = "time_range"
-                times_compare = cal_object.time_range[:, 0]
-            else:
-                time_param = "time_array"
-                times_compare = cal_object.time_array
-            for jd in times:
-                if jd in cal_object.time_array:
-                    time_inds = np.append(time_inds, np.where(times_compare == jd)[0])
+            if times is not None:
+                times = uvutils._get_iterable(times)
+                if cal_object.time_range is not None:
+                    for jd in times:
+                        time_inds = np.append(
+                            time_inds,
+                            np.nonzero(
+                                np.logical_and(
+                                    (cal_object.time_range[:, 0] <= jd),
+                                    (cal_object.time_range[:, 1] >= jd),
+                                )
+                            ),
+                        )
                 else:
-                    raise ValueError(f"Time {jd} is not present in the {time_param}")
+                    for jd in times:
+                        if jd in cal_object.time_array:
+                            time_inds = np.append(
+                                time_inds, np.where(cal_object.time_array == jd)[0]
+                            )
+                        else:
+                            raise ValueError(
+                                f"Time {jd} is not present in the time_array"
+                            )
+            else:
+                if cal_object.time_range is not None:
+                    for tind, trange in enumerate(cal_object.time_range):
+                        if _check_range_overlap(np.stack((trange, time_range), axis=0)):
+                            time_inds = np.append(time_inds, tind)
+                else:
+                    time_inds = (
+                        np.nonzero(
+                            np.logical_and(
+                                (cal_object.time_array >= time_range[0]),
+                                (cal_object.time_array <= time_range[1]),
+                            )
+                        ),
+                    )
 
             time_inds = sorted(set(time_inds))
             cal_object.Ntimes = len(time_inds)
@@ -4604,7 +4706,8 @@ class UVCal(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    # TODO: update the initializers module and read methods for proper time_range handling.
+    # TODO: update the initializers module and read methods for proper time_range
+    # handling.
 
     @classmethod
     @combine_docstrings(initializers.new_uvcal_from_uvdata)
