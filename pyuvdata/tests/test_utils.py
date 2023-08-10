@@ -3296,7 +3296,7 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
-@pytest.mark.parametrize("time_range", [True, False])
+@pytest.mark.parametrize("time_range", [None, "Ntimes", 3])
 def test_uvcalibrate(
     uvcalibrate_data,
     uvc_future_shapes,
@@ -3312,10 +3312,20 @@ def test_uvcalibrate(
     if not uvc_future_shapes:
         uvc.use_current_array_shapes()
 
-    if time_range:
+    if time_range is not None:
         tstarts = uvc.time_array - uvc.integration_time / (86400 * 2)
         tends = uvc.time_array + uvc.integration_time / (86400 * 2)
-        uvc.time_range = np.stack((tstarts, tends), axis=1)
+        if time_range == "Ntimes":
+            uvc.time_range = np.stack((tstarts, tends), axis=1)
+        else:
+            nt_per_range = int(np.ceil(uvc.Ntimes / time_range))
+            tstart_inds = np.array(np.arange(time_range) * nt_per_range)
+            tstarts_use = tstarts[tstart_inds]
+            tend_inds = np.array((np.arange(time_range) + 1) * nt_per_range - 1)
+            tend_inds[-1] = -1
+            tends_use = tends[tend_inds]
+            uvc.select(times=uvc.time_array[0:time_range])
+            uvc.time_range = np.stack((tstarts_use, tends_use), axis=1)
         uvc.time_array = None
         uvc.lst_array = None
         uvc.set_lsts_from_time_array()
@@ -3342,6 +3352,14 @@ def test_uvcalibrate(
         gain_product = (uvc.get_gains(ant1).conj() * uvc.get_gains(ant2)).T
     else:
         gain_product = (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T
+
+    if time_range is not None and time_range != "Ntimes":
+        gain_product = gain_product[:, np.newaxis]
+        gain_product = np.repeat(gain_product, nt_per_range, axis=1)
+        current_shape = gain_product.shape
+        new_shape = (current_shape[0] * current_shape[1], current_shape[-1])
+        gain_product = gain_product.reshape(new_shape)
+        gain_product = gain_product[: uvd.Ntimes]
 
     if gain_convention == "divide":
         np.testing.assert_array_almost_equal(
@@ -3561,11 +3579,13 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data, time_range):
     # change times to get warnings
     if time_range:
         uvc.time_range = uvc.time_range + 1
+        uvc.set_lsts_from_time_array()
         expected_err = "Time_ranges on UVCal do not cover all UVData times."
         with pytest.raises(ValueError, match=expected_err):
             uvutils.uvcalibrate(uvd, uvc, inplace=False)
     else:
         uvc.time_array = uvc.time_array + 1
+        uvc.set_lsts_from_time_array()
         expected_err = {
             f"Time {this_time} exists on UVData but not on UVCal."
             for this_time in np.unique(uvd.time_array)
@@ -3581,6 +3601,7 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data, time_range):
         uvc.time_range[0, 1] = uvc.time_range[0, 0] + uvc.integration_time[0] / (
             86400 * 4
         )
+        uvc.set_lsts_from_time_array()
         with pytest.raises(ValueError, match=expected_err):
             uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
@@ -3625,6 +3646,7 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
 
         # then change time_range to get warnings
         uvc.time_range = np.array(uvc.time_range) + 1
+        uvc.set_lsts_from_time_array()
 
     if time_range:
         msg_start = "Time_range on UVCal does not cover all UVData times"
