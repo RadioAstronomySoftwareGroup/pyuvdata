@@ -3505,3 +3505,132 @@ class MirParser(object):
             self.vis_data = self._chanshift_vis(
                 self.vis_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
             )
+
+    def _make_v3_compliant(self):
+        """
+        Update MIR metadata for export to UVData.
+
+        This is an internal helper function, not meant to be called by users. This
+        function will modify or otherwise fill metadata in fields that were not
+        populated in MIR file versions < 3, in order to make in minimally compliant
+        with what the Mir.read method needs for populating a UVData object. Only data
+        sets recorded prior to 2020 need these modifications.
+        """
+        if "filever" in self.codes_data.get_code_names():
+            if self.codes_data["filever"][0] != "2":
+                # If the file version is already >= 3.0, then this is basically a no-op
+                return
+
+        warnings.warn(
+            "Pre v.3 MIR file format detected, modifying metadata to make in minimally "
+            "compliant for reading in with pyuvdata."
+        )
+
+        from datetime import datetime
+
+        from astropy.time import Time
+
+        from pyuvdata import get_telescope
+
+        from .. import utils as uvutils
+
+        sma_lat, sma_lon, sma_alt = get_telescope("SMA").telescope_location_lat_lon_alt
+
+        # in_data updates: mjd, lst, ara, adec
+        # First sort out the time stamps using the day reference inside codes_data, and
+        # then adding the delta from midnight (dhrs)
+        mjd_day_dict = self.codes_data["ref_time"]
+        for key, value in mjd_day_dict.items():
+            if isinstance(value, str):
+                mjd_day_dict[key] = Time(
+                    datetime.strptime(value, "%b %d, %Y"), scale="tt"
+                ).tt.mjd
+
+        mjd_arr = (self.in_data["dhrs"] / 24.0) + np.array(
+            [mjd_day_dict[idx] for idx in self.in_data["iref_time"]]
+        )
+
+        # Tally the JD dates, since that's used for various helper functions
+        jd_arr = Time(mjd_arr, format="mjd", scale="tt").utc.jd
+
+        # Calculate the LST at the time of obs
+        lst_arr = (12.0 / np.pi) * uvutils.get_lst_for_time(
+            jd_array=jd_arr,
+            latitude=np.rad2deg(sma_lat),
+            longitude=np.rad2deg(sma_lon),
+            altitude=sma_alt,
+        )
+
+        # Finally, calculate the apparent coordinates based on what we have in the data
+        app_ra, app_dec = uvutils.calc_app_coords(
+            lon_coord=self.in_data["rar"],
+            lat_coord=self.in_data["decr"],
+            time_array=jd_arr,
+            telescope_loc=(sma_lat, sma_lon, sma_alt),
+        )
+
+        # Update the fields accordingly
+        self.in_data["mjd"] = mjd_arr
+        self.in_data["lst"] = lst_arr
+        self.in_data["ara"] = app_ra
+        self.in_data["adec"] = app_dec
+
+        # bl_data updates: ant1rx, ant2rx, u, v, w
+        # First, update the antenna receiver fields if this is a non-polarization track,
+        # since that's how we tell X/Y polarization data apart.
+        if np.all(self.bl_data["ipol"] == 0):
+            irec = self.bl_data["irec"]
+
+            # Make sure we recognized all the rx code values, otherwise we may
+            # misidentify RxA vs RxB data.
+            assert np.all(np.isin(irec, [0, 1, 2, 3])), "Forbidden RX code detected."
+            antrx = np.isin(irec, [2, 3]).astype("<i2")
+            self.bl_data["ant1rx"] = antrx
+            self.bl_data["ant2rx"] = antrx
+
+        # Next, the old data had uvws calculated in wavelengths by _sideband_, so we
+        # need to update those.
+        rx_idx = self.bl_data["ant1rx"]
+        sb_idx = self.bl_data["isb"]
+
+        # These isb and ant1rx should _only_ be either 0 or 1
+        assert np.all(np.isin(sb_idx, [0, 1])), "Forbidden SB index values detected."
+        assert np.all(np.isin(rx_idx, [0, 1])), "Forbidden RX index values detected."
+
+        u_vals = self.bl_data["u"]
+        v_vals = self.bl_data["v"]
+        w_vals = self.bl_data["w"]
+
+        # Antenna positions are always stored in meters, so we can use this to get the
+        # total distance between antennas. Note that we have to do this b/c of some
+        # ambiguity of which frequency exactly the uvws are calculated at.
+        ant_dict = {}
+        for ant1, pos1 in zip(*self.antpos_data[("antenna", "xyz_pos")]):
+            temp_dict = {}
+            for ant2, pos2 in zip(*self.antpos_data[("antenna", "xyz_pos")]):
+                temp_dict[ant2] = ((pos1 - pos2) ** 2.0).sum() ** 0.5
+            ant_dict[ant1] = temp_dict
+
+        exp_bl_length = np.array(
+            [ant_dict[idx][jdx] for idx, jdx in zip(*self.bl_data[["iant1", "iant2"]])]
+        )
+        meas_bl_length = ((u_vals**2) + (v_vals**2) + (w_vals**2)) ** 0.5
+
+        # Update the uvws by a scale-factor determined by the ratio of the known total
+        # lengths between antennas versus their calculated uvws. Note that the scale
+        # factor should be the same for all baselines in each receiver-sideband
+        # combination, so for the sake of robustness we use the median across all
+        # baselines to calculate said scale factor.
+        for idx in range(2):
+            for jdx in range(2):
+                mask = (rx_idx == idx) & (sb_idx == jdx)
+                if not np.any(mask):
+                    continue
+                scale_fac = np.median(exp_bl_length[mask] / meas_bl_length[mask])
+                u_vals[mask] *= scale_fac
+                v_vals[mask] *= scale_fac
+                w_vals[mask] *= scale_fac
+
+        self.bl_data["u"] = u_vals
+        self.bl_data["v"] = v_vals
+        self.bl_data["w"] = w_vals

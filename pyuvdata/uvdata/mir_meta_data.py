@@ -2068,14 +2068,30 @@ class MirMetaData(object):
         filepath : str
             Path of the folder containing the metadata in question.
         """
-        if self._binary_dtype is None:
-            self._data = np.fromfile(
-                os.path.join(filepath, self._filetype), dtype=self.dtype
-            )
-        else:
-            self._data = np.fromfile(
-                os.path.join(filepath, self._filetype), dtype=self._binary_dtype
-            ).astype(self.dtype)
+        self._data = np.fromfile(
+            os.path.join(filepath, self._filetype),
+            dtype=self.dtype if self._binary_dtype is None else self._binary_dtype,
+        )
+
+        if self._binary_dtype is not None:
+            try:
+                self._data = self._data.astype(self.dtype)
+            except UnicodeDecodeError:
+                # If we get a unicode error, that means that we have chars that are not
+                # in the 'normal' ascii range. This is a not uncommon occurrence in the
+                # codes_read, where char arrays contained uninitialized memory values.
+                # We only need to do this check for string-like fields.
+                check_fields = [
+                    idx
+                    for idx in range(len(codes_dtype))
+                    if np.issubdtype(codes_dtype[idx], np.str_)
+                ]
+                for idx in range(len(self._data)):
+                    for jdx in check_fields:
+                        marker = self._data[idx][jdx].find(b"\x00")
+                        if marker > 0:
+                            self._data[idx][jdx] = self._data[idx][jdx][:marker]
+                self._data = self._data.astype(self.dtype)
 
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
@@ -2666,12 +2682,12 @@ class MirCodesData(MirMetaData):
             Optional argument specifying the path to the Mir data folder.
         """
         super().__init__(
-            "codes_read",
-            codes_dtype,
-            None,
-            codes_binary_dtype,
-            ("icode", "v_name"),
-            filepath,
+            filetype="codes_read",
+            dtype=codes_dtype,
+            header_key_name=None,
+            binary_dtype=codes_binary_dtype,
+            pseudo_header_key_names=("icode", "v_name"),
+            filepath=filepath,
         )
 
         self._mutable_codes = [
