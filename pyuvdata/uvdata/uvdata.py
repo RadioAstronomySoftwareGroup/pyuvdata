@@ -10662,6 +10662,10 @@ class UVData(UVBase):
         rechunk : int
             Number of channels to average over when reading in the dataset. Optional
             argument, typically required to be a power of 2.
+        compass_soln : str
+            Optional argument, specifying the path of COMPASS-derived flagging and
+            bandpass gains solutions, which are applied prior to any potential spectral
+            averaging (as triggered by using the `rechunk` keyword).
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -11497,6 +11501,7 @@ class UVData(UVBase):
         apply_dedoppler=False,
         pseudo_cont=False,
         rechunk=None,
+        compass_soln=None,
         recompute_nbls: bool | None = None,
     ):
         """
@@ -11900,6 +11905,10 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
+        compass_soln : str
+            Optional argument, specifying the path of COMPASS-derived flagging and
+            bandpass gains solutions, which are applied prior to any potential spectral
+            averaging (as triggered by using the `rechunk` keyword).
 
         Raises
         ------
@@ -12087,6 +12096,7 @@ class UVData(UVBase):
                         apply_dedoppler=apply_dedoppler,
                         pseudo_cont=pseudo_cont,
                         rechunk=rechunk,
+                        compass_soln=compass_soln,
                         recompute_nbls=recompute_nbls,
                         time_axis_faster_than_bls=time_axis_faster_than_bls,
                         blts_are_rectangular=blts_are_rectangular,
@@ -12207,6 +12217,7 @@ class UVData(UVBase):
                             corrchunk=corrchunk,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
+                            compass_soln=compass_soln,
                         )
 
                         uv_list.append(uv2)
@@ -12458,6 +12469,7 @@ class UVData(UVBase):
                     apply_flags=apply_flags,
                     pseudo_cont=pseudo_cont,
                     rechunk=rechunk,
+                    compass_soln=compass_soln,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

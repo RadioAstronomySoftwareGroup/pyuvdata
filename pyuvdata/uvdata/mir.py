@@ -49,6 +49,7 @@ class Mir(UVData):
         apply_dedoppler=False,
         pseudo_cont=False,
         rechunk=None,
+        compass_soln=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -59,10 +60,12 @@ class Mir(UVData):
     ):
         """Read in data from an SMA MIR file, and map to a UVData object."""
         # Use the mir_parser to read in metadata, which can be used to select data.
-        mir_data = mir_parser.MirParser(filepath)
+        # We want to sure that the mir file is v3 compliant, since correctly filling
+        # values into a UVData object depends on that.
+        mir_data = mir_parser.MirParser(
+            filepath=filepath, compass_soln=compass_soln, make_v3_compliant=True
+        )
 
-        # Make sure that the mir file is v3 compliant, since correctly filling values
-        # into a UVData object depends on that.
         mir_data._make_v3_compliant()
 
         if select_where is None:
