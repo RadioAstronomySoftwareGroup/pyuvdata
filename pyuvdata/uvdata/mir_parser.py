@@ -47,6 +47,8 @@ class MirParser(object):
     def __init__(
         self,
         filepath=None,
+        compass_soln=None,
+        make_v3_compliant=False,
         has_auto=False,
         has_cross=True,
         load_auto=False,
@@ -64,6 +66,13 @@ class MirParser(object):
         ----------
         filepath : str
             Filepath is the path to the folder containing the Mir data set.
+        compass_soln : str
+            Optional argument, specifying the path of COMPASS-derived flagging and
+            bandpass gains solutions, which are loaded into the object.
+        make_v3_compliant : bool
+            Convert the metadata required for filling a UVData object into a
+            v3-compliant format. Only applicable if MIR file format is v1 or v2.
+            Default is False.
         has_auto : bool
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
@@ -118,7 +127,9 @@ class MirParser(object):
         # On init, if a filepath is provided, then fill in the object
         if filepath is not None:
             self.read(
-                filepath,
+                filepath=filepath,
+                compass_soln=compass_soln,
+                make_v3_compliant=make_v3_compliant,
                 has_auto=has_auto,
                 has_cross=has_cross,
                 load_auto=load_auto,
@@ -1828,7 +1839,9 @@ class MirParser(object):
 
     def read(
         self,
-        filepath,
+        filepath=None,
+        compass_soln=None,
+        make_v3_compliant=False,
         has_auto=False,
         has_cross=True,
         load_auto=False,
@@ -1846,6 +1859,13 @@ class MirParser(object):
         ----------
         filepath : str
             Filepath is the path to the folder containing the Mir data set.
+        compass_soln : str
+            Optional argument, specifying the path of COMPASS-derived flagging and
+            bandpass gains solutions, which are loaded into the object.
+        make_v3_compliant : bool
+            Convert the metadata required for filling a UVData object into a
+            v3-compliant format. Only applicable if MIR file format is v1 or v2.
+            Default is False.
         has_auto : bool
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
@@ -1908,6 +1928,14 @@ class MirParser(object):
 
         self._file_dict = {filepath: file_dict}
         self.filepath = filepath
+
+        # If we need to update metadata for V3 compliance, do that now.
+        if make_v3_compliant:
+            self._make_v3_compliant()
+
+        # Finally, if we've specified a COMPASS solution, load that now as well.
+        if compass_soln is not None:
+            self.read_compass_solns(compass_soln)
 
         # Set/clear these to start
         self.vis_data = self.raw_data = self.auto_data = None
@@ -2754,7 +2782,6 @@ class MirParser(object):
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
         """
-        # TODO _read_compass_solns: Verify this works.
         # When we read in the COMPASS solutions, we will need to map some per-blhid
         # values to per-sphid values, so create an indexing array that we can do this
         # with conveniently.
@@ -2934,6 +2961,26 @@ class MirParser(object):
             compass_soln_dict["sphid_flags"] = sphid_flags
 
         return compass_soln_dict
+
+    def read_compass_solns(self, filename=None):
+        """
+        Read in COMPASS-formatted bandpass and flagging solutions.
+
+        Reads in an HDF5 file containing the COMPASS-derived flags and gains tables.
+        These solutions are applied as the data are read in (when calling `load_data`).
+
+        Parameters
+        ----------
+        filename : str
+            Name of the file containing the COMPASS flags and gains solutions.
+
+        Raises
+        ------
+        UserWarning
+            If the COMPASS solutions do not appear to overlap in time with that in
+            the MirParser object.
+        """
+        self._compass_solns = self._read_compass_solns(filename)
 
     def _apply_compass_solns(
         self, compass_soln_dict, vis_data, apply_flags=True, apply_bp=True
@@ -3523,7 +3570,8 @@ class MirParser(object):
 
         warnings.warn(
             "Pre v.3 MIR file format detected, modifying metadata to make in minimally "
-            "compliant for reading in with pyuvdata."
+            "compliant for reading in with pyuvdata. Note that this may cause spurious "
+            "warnings about per-baseline records varying when filling a UVData object."
         )
 
         from datetime import datetime
@@ -3576,26 +3624,33 @@ class MirParser(object):
         self.in_data["adec"] = app_dec
 
         # bl_data updates: ant1rx, ant2rx, u, v, w
-        # First, update the antenna receiver fields if this is a non-polarization track,
-        # since that's how we tell X/Y polarization data apart.
-        if np.all(self.bl_data["ipol"] == 0):
-            irec = self.bl_data["irec"]
-
-            # Make sure we recognized all the rx code values, otherwise we may
-            # misidentify RxA vs RxB data.
-            assert np.all(np.isin(irec, [0, 1, 2, 3])), "Forbidden RX code detected."
-            antrx = np.isin(irec, [2, 3]).astype("<i2")
-            self.bl_data["ant1rx"] = antrx
-            self.bl_data["ant2rx"] = antrx
+        # First, update the antenna receiver if these values are unfilled (true in some
+        # earlier tracks, no version demarcation notes it).
+        if np.all(self.bl_data["ant1rx"] == 0) and np.all(self.bl_data["ant2rx"] == 0):
+            ipol = self.bl_data["ipol"]
+            if np.all(ipol == 0):
+                irec = self.bl_data["irec"]
+                # Make sure we recognized all the rx code values, otherwise we may
+                # misidentify RxA vs RxB data.
+                assert np.all(np.isin(irec, [0, 1, 2, 3])), "Bad RX codes detected."
+                antrx = np.isin(irec, [2, 3]).astype("<i2")
+                self.bl_data["ant1rx"] = antrx
+                self.bl_data["ant2rx"] = antrx
+            else:
+                self.bl_data["ant1rx"] = np.isin(ipol, [1, 2])
+                self.bl_data["ant2rx"] = np.isin(ipol, [1, 3])
 
         # Next, the old data had uvws calculated in wavelengths by _sideband_, so we
-        # need to update those.
+        # need to update those. Note we only have to check ant1rx here because if
+        # ant1rx != ant1rx2, this is a pol track, and the tunings (and scaling) are
+        # identical anyways.
         rx_idx = self.bl_data["ant1rx"]
         sb_idx = self.bl_data["isb"]
 
-        # These isb and ant1rx should _only_ be either 0 or 1
-        assert np.all(np.isin(sb_idx, [0, 1])), "Forbidden SB index values detected."
-        assert np.all(np.isin(rx_idx, [0, 1])), "Forbidden RX index values detected."
+        # These isb and ant1rx should _only_ be either 0 or 1. This should never happen
+        # unless the data are corrupt in some substantial way.
+        assert np.all(np.isin(sb_idx, [0, 1])), "Bad SB index values detected."
+        assert np.all(np.isin(rx_idx, [0, 1])), "Bad RX index values detected."
 
         u_vals = self.bl_data["u"]
         v_vals = self.bl_data["v"]
