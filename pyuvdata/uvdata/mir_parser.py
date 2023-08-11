@@ -3582,6 +3582,12 @@ class MirParser(object):
 
         from .. import utils as uvutils
 
+        # First thing -- we only want modern (i.e., SWARM) data, since the older (ASIC)
+        # data is not currently supported by the data handling tools, due to changes
+        # in the underlying file format.
+        self.select(where=("correlator", "eq", 1))
+
+        # Get SMA coordinates for various data-filling stuff
         sma_lat, sma_lon, sma_alt = get_telescope("SMA").telescope_location_lat_lon_alt
 
         # in_data updates: mjd, lst, ara, adec
