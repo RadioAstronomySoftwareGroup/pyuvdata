@@ -596,10 +596,10 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Array giving coordinates of antennas relative to "
-            "telescope_location (ITRF frame), shape (Nants_telescope, 3), "
-            "units meters. See the tutorial page in the documentation "
-            "for an example of how to convert this to topocentric frame."
+            "Array giving coordinates of antennas relative to telescope_location "
+            "(in frame _telescope_location.frame), shape (Nants_telescope, 3), units "
+            "meters. See the UVData tutorial page in the documentation for an example "
+            "of how to convert this to topocentric frame."
         )
         self._antenna_positions = uvp.UVParameter(
             "antenna_positions",

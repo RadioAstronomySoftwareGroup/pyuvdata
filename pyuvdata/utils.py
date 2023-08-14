@@ -1527,7 +1527,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
     longitude : float
         Longitude of center of ENU coordinates in radians.
     altitude : float
-        Altitude of center of ENU coordinates in radians.
+        Altitude of center of ENU coordinates in meters.
     frame : str
         Coordinate frame of xyz.
         Valid options are ITRS (default) or MCMF.
