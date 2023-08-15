@@ -4303,7 +4303,7 @@ def read_feko_beam(
         """
         from . import feko_beam
 
-        
+
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             settings_dict = self._read_feko_beam_yaml(filename)
             if not isinstance(settings_dict["frequencies"], list):
