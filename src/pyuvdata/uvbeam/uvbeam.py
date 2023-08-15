@@ -4717,7 +4717,7 @@ def read_feko_beam(
             override the values in the settings file.
 
         file_type : str
-            One of ['mwa_beam', 'beamfits', 'cst'] or None.
+            One of ['mwa_beam', 'beamfits', 'cst', 'feko'] or None.
             If None, the code attempts to guess what the file type is.
             based on file extensions
             (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
@@ -4783,8 +4783,8 @@ def read_feko_beam(
             frequencies. Must be length 2. This will cause a *partial read* (i.e.
             reduce peak memory usage).
 
-        CST
-        ---
+        CST -or- FEKO
+        -------------
         beam_type : str
             What beam_type to read in ('power' or 'efield').
             Only applies to cst file types.
@@ -4907,6 +4907,8 @@ def read_feko_beam(
                 file_type = "mwa_beam"
             elif extension == ".txt" or extension == ".yaml":
                 file_type = "cst"
+            elif extension == ".ffe":
+                file_type = "feko"
 
         if file_type is None:
             raise ValueError(
@@ -5104,7 +5106,31 @@ def read_feko_beam(
                         freq_range=freq_range,
                         mount_type=mount_type,
                     )
+                elif file_type == "feko":
+                    self.read_feko_beam(
+                        filename,
+                    use_future_array_shapes=use_future_array_shapes,
+                    beam_type=beam_type,
+                    feed_pol=feed_pol,
+                    rotate_pol=rotate_pol,
+                    frequency=frequency,
+                    telescope_name=telescope_name,
+                    feed_name=feed_name,
+                    feed_version=feed_version,
+                    model_name=model_name,
+                    model_version=model_version,
+                    history=history,
+                    x_orientation=x_orientation,
+                    reference_impedance=reference_impedance,
+                    extra_keywords=extra_keywords,
+                    frequency_select=frequency_select,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    check_auto_power=check_auto_power,
+                    fix_auto_power=fix_auto_power,
 
+                    )
     @classmethod
     @copy_replace_short_description(read, style=DocstringStyle.NUMPYDOC)
     def from_file(cls, filename, **kwargs):
