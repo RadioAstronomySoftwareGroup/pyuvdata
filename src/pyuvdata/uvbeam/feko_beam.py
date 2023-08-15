@@ -1,7 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-"""Class for reading beam CST files."""
+"""Class for reading beam FEKO files."""
 import os
 import re
 import warnings

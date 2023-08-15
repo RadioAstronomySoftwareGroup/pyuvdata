@@ -4187,7 +4187,411 @@ class UVBeam(UVBase):
             self.filename = utils.tools._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
-    def read_mwa_beam(self, h5filepath, **kwargs):
+def read_feko_beam(
+        self,
+        filename,
+        beam_type="power",
+        use_future_array_shapes=False,
+        feed_pol=None,
+        rotate_pol=None,
+        frequency=None,
+        telescope_name=None,
+        feed_name=None,
+        feed_version=None,
+        model_name=None,
+        model_version=None,
+        history=None,
+        x_orientation=None,
+        reference_impedance=None,
+        extra_keywords=None,
+        frequency_select=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
+    ):
+        """
+        Read in data from a FEKO file.
+
+        Parameters
+        ----------
+        filename : str
+            Either a settings yaml file or a FEKO text file
+
+            Settings yaml files must include the following keywords:
+
+                |  - telescope_name (str)
+                |  - feed_name (str)
+                |  - feed_version (str)
+                |  - model_name (str)
+                |  - model_version (str)
+                |  - history (str)
+                |  - frequencies (list(float))
+                |  - feko ffe filename (str) -- path relative to yaml file
+                |  - feed_pol (str) or (list(str))
+
+            and they may include the following optional keywords:
+
+                |  - x_orientation (str): Optional but strongly encouraged!
+                |  - ref_imp (float): beam model reference impedance
+                |  - sim_beam_type (str): e.g. 'E-farfield'
+                |  - all other fields will go into the extra_keywords attribute
+
+            More details and an example are available in the docs
+            (FEKO_settings_yaml.rst).
+            Specifying any of the associated keywords to this function will
+            override the values in the settings file.
+        beam_type : str
+            What beam_type to read in ('power' or 'efield').
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+        feed_pol : str
+            The feed or polarization or list of feeds or polarizations the
+            files correspond to.
+            Defaults to 'x' (meaning x for efield or xx for power beams).
+        rotate_pol : bool
+            If True, assume the structure in the simulation is symmetric under
+            90 degree rotations about the z-axis (so that the y polarization can be
+            constructed by rotating the x polarization or vice versa).
+            Default: True if feed_pol is a single value or a list with all
+            the same values in it, False if it is a list with varying values.
+        frequency : float or list of float, optional
+            The frequency or list of frequencies corresponding to the filename(s).
+            This is assumed to be in the same order as the files.
+            If not passed, the code attempts to parse it from the filenames.
+        telescope_name : str, optional
+            The name of the telescope corresponding to the filename(s).
+        feed_name : str, optional
+            The name of the feed corresponding to the filename(s).
+        feed_version : str, optional
+            The version of the feed corresponding to the filename(s).
+        model_name : str, optional
+            The name of the model corresponding to the filename(s).
+        model_version : str, optional
+            The version of the model corresponding to the filename(s).
+        history : str, optional
+            A string detailing the history of the filename(s).
+        x_orientation : str, optional
+            Orientation of the physical dipole corresponding to what is
+            labelled as the x polarization. Options are "east" (indicating
+            east/west orientation) and "north" (indicating north/south orientation)
+        reference_impedance : float, optional
+            The reference impedance of the model(s).
+        extra_keywords : dict, optional
+            A dictionary containing any extra_keywords.
+        frequency_select : list of float, optional
+            Only used if the file is a yaml file. Indicates which frequencies
+            to include (only read in files for those frequencies)
+        run_check : bool
+            Option to check for the existence and proper shapes of
+            required parameters after reading in the file.
+        check_extra : bool
+            Option to check optional parameters as well as
+            required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of
+            required parameters after reading in the file.
+        check_auto_power : bool
+            For power beams, check whether the auto polarization beams have non-zero
+            imaginary values in the data_array (which should not mathematically exist).
+        fix_auto_power : bool
+            For power beams, if auto polarization beams with imaginary values are found,
+            fix those values so that they are real-only in data_array.
+
+        """
+        from . import feko_beam
+
+        
+        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+            settings_dict = self._read_feko_beam_yaml(filename)
+            if not isinstance(settings_dict["frequencies"], list):
+                raise ValueError("frequencies in yaml file must be a list.")
+            yaml_dir = os.path.dirname(filename)
+            feko_filename = [
+                os.path.join(yaml_dir, f) for f in settings_dict["filename"]
+            ]
+
+            overriding_keywords = {
+                "feed_pol": feed_pol,
+                "frequency": frequency,
+                "telescope_name": telescope_name,
+                "feed_name": feed_name,
+                "feed_version": feed_version,
+                "model_name": model_name,
+                "model_version": model_version,
+                "history": history,
+            }
+            if "ref_imp" in settings_dict:
+                overriding_keywords["reference_impedance"] = reference_impedance
+            if "x_orientation" in settings_dict:
+                overriding_keywords["x_orientation"] = reference_impedance
+            for key, val in overriding_keywords.items():
+                if val is not None:
+                    warnings.warn(
+                        "The {key} keyword is set, overriding the "
+                        "value in the settings yaml file.".format(key=key)
+                    )
+
+            if feed_pol is None:
+                feed_pol = settings_dict["feed_pol"]
+            if frequency is None:
+                frequency = settings_dict["frequencies"]
+            if telescope_name is None:
+                telescope_name = settings_dict["telescope_name"]
+            if feed_name is None:
+                feed_name = settings_dict["feed_name"]
+            if feed_version is None:
+                feed_version = str(settings_dict["feed_version"])
+            if model_name is None:
+                model_name = settings_dict["model_name"]
+            if model_version is None:
+                model_version = str(settings_dict["model_version"])
+            if history is None:
+                history = settings_dict["history"]
+            if reference_impedance is None and "ref_imp" in settings_dict:
+                reference_impedance = float(settings_dict["ref_imp"])
+            if x_orientation is None and "x_orientation" in settings_dict:
+                x_orientation = settings_dict["x_orientation"]
+
+            if extra_keywords is None:
+                extra_keywords = {}
+
+            known_keys = [
+                "telescope_name",
+                "feed_name",
+                "feed_version",
+                "model_name",
+                "model_version",
+                "history",
+                "frequencies",
+                "filenames",
+                "feed_pol",
+                "ref_imp",
+                "x_orientation",
+            ]
+            # One of the standard paramters in the settings yaml file is
+            # longer than 8 characters.
+            # This causes warnings and straight truncation when writing to
+            # beamfits files
+            # To avoid these, this defines a standard renaming of that paramter
+            rename_extra_keys_map = {"sim_beam_type": "sim_type"}
+            for key, value in settings_dict.items():
+                if key not in known_keys:
+                    if key in rename_extra_keys_map.keys():
+                        extra_keywords[rename_extra_keys_map[key]] = value
+                    else:
+                        extra_keywords[key] = value
+
+            if frequency_select is not None:
+                freq_inds = []
+                for freq in frequency_select:
+                    freq_array = np.array(frequency, dtype=np.float64)
+                    close_inds = np.where(
+                        np.isclose(
+                            freq_array,
+                            freq,
+                            rtol=self._freq_array.tols[0],
+                            atol=self._freq_array.tols[1],
+                        )
+                    )[0]
+                    if close_inds.size > 0:
+                        for ind in close_inds:
+                            freq_inds.append(ind)
+                    else:
+                        raise ValueError(f"frequency {freq} not in frequency list")
+                freq_inds = np.array(freq_inds)
+                frequency = freq_array[freq_inds].tolist()
+                cst_filename = np.array(cst_filename)[freq_inds].tolist()
+                if len(cst_filename) == 1:
+                    cst_filename = cst_filename[0]
+                if isinstance(feed_pol, list):
+                    if rotate_pol is None:
+                        # if a mix of feed pols, don't rotate by default
+                        # do this here in case selections confuse this test
+                        if np.any(np.array(feed_pol) != feed_pol[0]):
+                            rotate_pol = False
+                        else:
+                            rotate_pol = True
+                    feed_pol = np.array(feed_pol)[freq_inds].tolist()
+
+        else:
+            cst_filename = filename
+
+        if feed_pol is None:
+            # default to x (done here in case it's specified in a yaml file)
+            feed_pol = "x"
+        if history is None:
+            # default to empty (done here in case it's specified in a yaml file)
+            history = ""
+
+        if isinstance(frequency, np.ndarray):
+            if len(frequency.shape) > 1:
+                raise ValueError("frequency can not be a multi-dimensional array")
+            frequency = frequency.tolist()
+        if isinstance(frequency, (list, tuple)):
+            if len(frequency) == 1:
+                frequency = frequency[0]
+
+        if isinstance(feed_pol, np.ndarray):
+            if len(feed_pol.shape) > 1:
+                raise ValueError("feed_pol can not be a multi-dimensional array")
+            feed_pol = feed_pol.tolist()
+        if isinstance(feed_pol, (list, tuple)):
+            if len(feed_pol) == 1:
+                feed_pol = feed_pol[0]
+
+        if isinstance(feko_filename, (list, tuple)):
+            if frequency is not None:
+                if isinstance(frequency, (list, tuple)):
+                    if not len(frequency) == len(feko_filename):
+                        raise ValueError(
+                            "If frequency and filename are both "
+                            "lists they need to be the same length"
+                        )
+                    freq = frequency[0]
+                else:
+                    freq = frequency
+            else:
+                freq = None
+
+            if isinstance(feed_pol, (list, tuple)):
+                if not len(feed_pol) == len(feko_filename):
+                    raise ValueError(
+                        "If feed_pol and filename are both "
+                        "lists they need to be the same length"
+                    )
+                pol = feed_pol[0]
+                if rotate_pol is None:
+                    # if a mix of feed pols, don't rotate by default
+                    if np.any(np.array(feed_pol) != feed_pol[0]):
+                        rotate_pol = False
+                    else:
+                        rotate_pol = True
+            else:
+                pol = feed_pol
+                if rotate_pol is None:
+                    rotate_pol = True
+            if isinstance(freq, (list, tuple)):
+                raise ValueError("frequency can not be a nested list")
+            if isinstance(pol, (list, tuple)):
+                raise ValueError("feed_pol can not be a nested list")
+            self.read_feko_beam(
+                feko_filename[0],
+                beam_type=beam_type,
+                use_future_array_shapes=use_future_array_shapes,
+                feed_pol=pol,
+                rotate_pol=rotate_pol,
+                frequency=freq,
+                telescope_name=telescope_name,
+                feed_name=feed_name,
+                feed_version=feed_version,
+                model_name=model_name,
+                model_version=model_version,
+                history=history,
+                x_orientation=x_orientation,
+                reference_impedance=reference_impedance,
+                extra_keywords=extra_keywords,
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
+            )
+            for file_i, f in enumerate(cst_filename[1:]):
+                if isinstance(f, (list, tuple)):
+                    raise ValueError("filename can not be a nested list")
+
+                if isinstance(frequency, (list, tuple)):
+                    freq = frequency[file_i + 1]
+                elif frequency is not None:
+                    freq = frequency
+                else:
+                    freq = None
+                if isinstance(feed_pol, (list, tuple)):
+                    pol = feed_pol[file_i + 1]
+                else:
+                    pol = feed_pol
+                beam2 = UVBeam()
+                beam2.read_feko_beam(
+                    f,
+                    beam_type=beam_type,
+                    use_future_array_shapes=use_future_array_shapes,
+                    feed_pol=pol,
+                    rotate_pol=rotate_pol,
+                    frequency=freq,
+                    telescope_name=telescope_name,
+                    feed_name=feed_name,
+                    feed_version=feed_version,
+                    model_name=model_name,
+                    model_version=model_version,
+                    history=history,
+                    x_orientation=x_orientation,
+                    reference_impedance=reference_impedance,
+                    extra_keywords=extra_keywords,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    check_auto_power=check_auto_power,
+                    fix_auto_power=fix_auto_power,
+                )
+                self += beam2
+            if len(feko_filename) > 1:
+                del beam2
+        else:
+            if isinstance(frequency, (list, tuple)):
+                raise ValueError("Too many frequencies specified")
+            if isinstance(feed_pol, (list, tuple)):
+                raise ValueError("Too many feed_pols specified")
+            if rotate_pol is None:
+                rotate_pol = True
+            feko_beam_obj = feko_beam.FEKOBeam()
+            feko_beam_obj.read_feko_beam(
+                feko_filename,
+                beam_type=beam_type,
+                use_future_array_shapes=use_future_array_shapes,
+                feed_pol=feed_pol,
+                rotate_pol=rotate_pol,
+                frequency=frequency,
+                telescope_name=telescope_name,
+                feed_name=feed_name,
+                feed_version=feed_version,
+                model_name=model_name,
+                model_version=model_version,
+                history=history,
+                x_orientation=x_orientation,
+                reference_impedance=reference_impedance,
+                extra_keywords=extra_keywords,
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_auto_power=check_auto_power,
+                fix_auto_power=fix_auto_power,
+            )
+            self._convert_from_filetype(feko_beam_obj)
+            del feko_beam_obj
+
+        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+            # update filelist
+            basename = os.path.basename(filename)
+            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self._filename.form = (len(self.filename),)
+
+    def read_mwa_beam(
+        self,
+        h5filepath,
+        use_future_array_shapes=False,
+        delays=None,
+        amplitudes=None,
+        pixels_per_deg=5,
+        freq_range=None,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        check_auto_power=True,
+        fix_auto_power=True,
+    ):
         """
         Read in the full embedded element MWA beam.
 
