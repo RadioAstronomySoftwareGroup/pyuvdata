@@ -183,7 +183,7 @@ class FEKOBeam(UVBeam):
     line = out_file.readlines()[9].strip() # Get the line with column names
     out_file.close()
     column_names = line.split("\"")[1::2]
-    
+
     with open(feko_file, 'r') as fh:
         data_chunks = fh.read().split('\n\n')
 
@@ -196,7 +196,7 @@ class FEKOBeam(UVBeam):
 
     theta_data = np.radians(data_c1[:, theta_col])  ## theta is always exported in degs
     phi_data = np.radians(data_c1[:, phi_col])      ## phi is always exported in degs
-    
+
 
     theta_axis = np.sort(np.unique(theta_data))
     phi_axis = np.sort(np.unique(phi_data))
@@ -286,7 +286,7 @@ class FEKOBeam(UVBeam):
         )
         theta_phase = np.angle(data_c1[:, theta_real_col] + 1j * data_c1[:, theta_imag_col])
         phi_phase = np.angle(data_c1[:, phi_real_col] +1j *data_c1[:, phi_imag_col])
-        
+
         theta_phase = theta_phase.reshape(
             (theta_axis.size, phi_axis.size), order="F"
         )
