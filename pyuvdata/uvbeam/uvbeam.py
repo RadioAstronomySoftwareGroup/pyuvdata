@@ -4314,7 +4314,7 @@ class UVBeam(UVBase):
             self.filename = uvutils._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
-def read_feko_beam(
+    def read_feko_beam(
         self,
         filename,
         beam_type="power",
@@ -4544,7 +4544,7 @@ def read_feko_beam(
                     feed_pol = np.array(feed_pol)[freq_inds].tolist()
 
         else:
-            cst_filename = filename
+            feko_filename = filename
 
         if feed_pol is None:
             # default to x (done here in case it's specified in a yaml file)
@@ -4782,7 +4782,6 @@ def read_feko_beam(
         )
         self._convert_from_filetype(mwabeam_obj)
         del mwabeam_obj
-
     def read(
         self,
         filename,
