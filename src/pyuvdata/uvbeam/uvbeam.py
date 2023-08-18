@@ -4300,7 +4300,6 @@ class UVBeam(UVBase):
         """
         from . import feko_beam
 
-
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             settings_dict = self._read_feko_beam_yaml(filename)
             if not isinstance(settings_dict["frequencies"], list):
@@ -4638,6 +4637,7 @@ class UVBeam(UVBase):
         mwabeam_obj.read_mwa_beam(h5filepath, **kwargs)
         self._convert_from_filetype(mwabeam_obj)
         del mwabeam_obj
+
     def read(
         self,
         filename,
@@ -5108,28 +5108,28 @@ class UVBeam(UVBase):
                 elif file_type == "feko":
                     self.read_feko_beam(
                         filename,
-                    use_future_array_shapes=use_future_array_shapes,
-                    beam_type=beam_type,
-                    feed_pol=feed_pol,
-                    rotate_pol=rotate_pol,
-                    frequency=frequency,
-                    telescope_name=telescope_name,
-                    feed_name=feed_name,
-                    feed_version=feed_version,
-                    model_name=model_name,
-                    model_version=model_version,
-                    history=history,
-                    x_orientation=x_orientation,
-                    reference_impedance=reference_impedance,
-                    extra_keywords=extra_keywords,
-                    frequency_select=frequency_select,
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                    check_auto_power=check_auto_power,
-                    fix_auto_power=fix_auto_power,
-
+                        use_future_array_shapes=use_future_array_shapes,
+                        beam_type=beam_type,
+                        feed_pol=feed_pol,
+                        rotate_pol=rotate_pol,
+                        frequency=frequency,
+                        telescope_name=telescope_name,
+                        feed_name=feed_name,
+                        feed_version=feed_version,
+                        model_name=model_name,
+                        model_version=model_version,
+                        history=history,
+                        x_orientation=x_orientation,
+                        reference_impedance=reference_impedance,
+                        extra_keywords=extra_keywords,
+                        frequency_select=frequency_select,
+                        run_check=run_check,
+                        check_extra=check_extra,
+                        run_check_acceptability=run_check_acceptability,
+                        check_auto_power=check_auto_power,
+                        fix_auto_power=fix_auto_power,
                     )
+
     @classmethod
     @copy_replace_short_description(read, style=DocstringStyle.NUMPYDOC)
     def from_file(cls, filename, **kwargs):
