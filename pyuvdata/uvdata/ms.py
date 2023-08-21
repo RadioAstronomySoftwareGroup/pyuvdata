@@ -286,6 +286,17 @@ class MS(UVData):
                 for ai, num in enumerate(self.antenna_numbers):
                     ant_diam_table[num] = self.antenna_diameters[ai]
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
+
+        # Add telescope frame
+        if self._telescope_location.frame == "itrs":
+            # MS uses "ITRF" while astropy uses "itrs". They are the same.
+            ant_ref_frame = "ITRF"
+        else:
+            ant_ref_frame = self._telescope_location.frame.upper()
+        meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
+        meas_info_dict["Ref"] = ant_ref_frame
+        antenna_table.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)
+
         antenna_table.done()
 
     def _write_ms_data_description(self, filepath):
@@ -2059,21 +2070,32 @@ class MS(UVData):
 
         # check to see if a TELESCOPE_LOCATION column is present in the observation
         # table. This is non-standard, but inserted by pyuvdata
-        if "TELESCOPE_LOCATION" in tb_obs.colnames():
-            self.telescope_location = np.squeeze(tb_obs.getcol("TELESCOPE_LOCATION"))
+        if (
+            "TELESCOPE_LOCATION" not in tb_obs.colnames()
+            and self.telescope_name in self.known_telescopes()
+        ):
+            # get it from known telescopes
+            self.set_telescope_params()
         else:
-            if self.telescope_name in self.known_telescopes():
-                # Try to get it from the known telescopes
-                self.set_telescope_params()
-            elif xyz_telescope_frame == "ITRF":
+            if xyz_telescope_frame == "ITRF":
+                # MS uses "ITRF" while astropy uses "itrs". They are the same.
+                self._telescope_location.frame = "itrs"
+            else:
+                if xyz_telescope_frame.lower() not in ["itrs", "mcmf"]:
+                    raise ValueError(
+                        f"Telescope frame in file is {xyz_telescope_frame.lower()}. "
+                        "Only 'itrs' and 'mcmf' are currently supported."
+                    )
+                self._telescope_location.frame = xyz_telescope_frame.lower()
+
+            if "TELESCOPE_LOCATION" in tb_obs.colnames():
+                self.telescope_location = np.squeeze(
+                    tb_obs.getcol("TELESCOPE_LOCATION")
+                )
+            else:
                 # Set it to be the mean of the antenna positions (this is not ideal!)
                 self.telescope_location = np.array(
                     np.mean(full_antenna_positions, axis=0)
-                )
-            else:
-                raise ValueError(
-                    "Telescope frame is not ITRF and telescope is not "
-                    "in known_telescopes, so telescope_location is not set."
                 )
         tb_obs.close()
 

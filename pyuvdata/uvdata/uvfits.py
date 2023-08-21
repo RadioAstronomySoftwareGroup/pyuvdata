@@ -561,14 +561,31 @@ class UVFITS(UVData):
                 # CASA misspells this one
                 self.timesys = ant_hdu.header["TIMSYS"]
 
+            prefer_lat_lon_alt = False
             if "FRAME" in ant_hdu.header.keys():
-                xyz_telescope_frame = ant_hdu.header["FRAME"]
+                if ant_hdu.header["FRAME"] == "ITRF":
+                    # uvfits uses ITRF, astropy uses itrs. They are the same.
+                    self._telescope_location.frame = "itrs"
+                elif ant_hdu.header["FRAME"] == "????":
+                    # default to itrs, but use the lat/lon/alt to set the location
+                    # if they are available.
+                    prefer_lat_lon_alt = True
+                    self._telescope_location.frame = "itrs"
+                else:
+                    telescope_frame = ant_hdu.header["FRAME"].lower()
+                    if telescope_frame not in ["itrs", "mcmf"]:
+                        raise ValueError(
+                            f"Telescope frame in file is {telescope_frame}. "
+                            "Only 'itrs' and 'mcmf' are currently supported."
+                        )
+                    self._telescope_location.frame = telescope_frame
             else:
                 warnings.warn(
                     "Required Antenna keyword 'FRAME' not set; "
                     "Assuming frame is 'ITRF'."
                 )
-                xyz_telescope_frame = "ITRF"
+                self._telescope_location.frame = "itrs"
+
             # get telescope location and antenna positions.
             # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
             # in the antenna positions themselves
@@ -594,27 +611,27 @@ class UVFITS(UVData):
                 rot_ecef_positions = ant_hdu.data.field("STABXYZ")
                 latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
+                    frame=self._telescope_location.frame,
                     check_acceptability=run_check_acceptability,
                 )
                 self.antenna_positions = uvutils.ECEF_from_rotECEF(
                     rot_ecef_positions, longitude
                 )
 
-            if xyz_telescope_frame == "ITRF":
+            if prefer_lat_lon_alt and (
+                latitude_degrees is not None
+                and longitude_degrees is not None
+                and altitude is not None
+            ):
+                self.telescope_location_lat_lon_alt_degrees = (
+                    latitude_degrees,
+                    longitude_degrees,
+                    altitude,
+                )
+            else:
                 self.telescope_location = np.array(
                     [x_telescope, y_telescope, z_telescope]
                 )
-            else:
-                if (
-                    latitude_degrees is not None
-                    and longitude_degrees is not None
-                    and altitude is not None
-                ):
-                    self.telescope_location_lat_lon_alt_degrees = (
-                        latitude_degrees,
-                        longitude_degrees,
-                        altitude,
-                    )
 
             # stuff in columns
             ant_names = ant_hdu.data.field("ANNAME").tolist()
@@ -1268,7 +1285,11 @@ class UVFITS(UVData):
         ant_hdu.header["ARRAYX"] = self.telescope_location[0]
         ant_hdu.header["ARRAYY"] = self.telescope_location[1]
         ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
-        ant_hdu.header["FRAME"] = "ITRF"
+        if self._telescope_location.frame == "itrs":
+            # uvfits uses "ITRF" rather than "ITRS". They are the same thing.
+            ant_hdu.header["FRAME"] = "ITRF"
+        else:
+            ant_hdu.header["FRAME"] = self._telescope_location.frame.upper()
 
         # TODO Karto: Do this more intelligently in the future
         if self.future_array_shapes:

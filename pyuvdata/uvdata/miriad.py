@@ -1672,6 +1672,11 @@ class Miriad(UVData):
         """
         from . import aipy_extracts
 
+        if self._telescope_location.frame != "itrs":
+            raise ValueError(
+                "Only ITRS telescope locations are supported in Miriad files."
+            )
+
         # change time_array and lst_array to mark beginning of integration,
         # per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.0) / 2

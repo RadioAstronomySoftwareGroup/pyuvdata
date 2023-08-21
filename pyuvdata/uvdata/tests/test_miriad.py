@@ -853,6 +853,33 @@ def test_miriad_multi_phase_error(tmp_path, paper_miriad):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_only_itrs(tmp_path, paper_miriad):
+    pytest.importorskip("lunarsky")
+    uv_in = paper_miriad
+    testfile = os.path.join(tmp_path, "outtest_miriad.uv")
+
+    enu_antpos, _ = uv_in.get_ENU_antpos()
+    latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
+    uv_in._telescope_location.frame = "mcmf"
+    uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+    new_full_antpos = uvutils.ECEF_from_ENU(
+        enu=enu_antpos,
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        frame="mcmf",
+    )
+    uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+    uv_in.set_lsts_from_time_array()
+    uv_in.check()
+
+    with pytest.raises(
+        ValueError, match="Only ITRS telescope locations are supported in Miriad files."
+    ):
+        uv_in.write_miriad(testfile, clobber=True)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.parametrize("cut_ephem_pts", [True, False])
 @pytest.mark.parametrize("extrapolate", [True, False])

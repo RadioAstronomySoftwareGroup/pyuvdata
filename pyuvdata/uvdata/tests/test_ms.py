@@ -13,6 +13,7 @@ import pytest
 from astropy.time import Time
 
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.ms import MS
@@ -101,9 +102,28 @@ def test_cotter_ms():
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_nrao_loopback(tmp_path, nrao_uv):
+@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
+def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
     uvobj = nrao_uv
+
+    if telescope_frame == "mcmf":
+        pytest.importorskip("lunarsky")
+        enu_antpos, _ = uvobj.get_ENU_antpos()
+        latitude, longitude, altitude = uvobj.telescope_location_lat_lon_alt
+        uvobj._telescope_location.frame = "mcmf"
+        uvobj.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            frame="mcmf",
+        )
+        uvobj.antenna_positions = new_full_antpos - uvobj.telescope_location
+        uvobj.set_lsts_from_time_array()
+        uvobj.check()
+
     expected_extra_keywords = ["DATA_COL", "observer"]
 
     assert sorted(expected_extra_keywords) == sorted(uvobj.extra_keywords.keys())
@@ -126,6 +146,8 @@ def test_read_nrao_loopback(tmp_path, nrao_uv):
     assert uvobj.filename == ["day2_TDEM0003_10s_norx_1src_1spw.ms"]
     assert uvobj2.filename == ["ms_testfile.ms"]
     uvobj.filename = uvobj2.filename
+
+    assert uvobj._telescope_location.frame == uvobj2._telescope_location.frame
 
     # Test that the scan numbers are equal
     assert (uvobj.scan_number_array == uvobj2.scan_number_array).all()
@@ -830,7 +852,13 @@ def test_ms_weights(sma_mir, tmp_path, onewin):
         ["DATA_DESC_ID", [1000] * 8, ValueError, "No valid data available in the MS"],
         ["ARRAY_ID", np.arange(8), ValueError, "This file appears to have multiple"],
         ["DATA_COL", None, ValueError, "Invalid data_column value supplied."],
-        ["TEL_LOC", None, ValueError, "Telescope frame is not ITRF and telescope is"],
+        [
+            "TEL_LOC",
+            None,
+            ValueError,
+            "Telescope frame in file is abc. Only 'itrs' and 'mcmf' are currently "
+            "supported.",
+        ],
         [
             "timescale",
             None,

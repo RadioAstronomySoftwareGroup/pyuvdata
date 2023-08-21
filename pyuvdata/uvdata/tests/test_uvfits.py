@@ -192,12 +192,35 @@ def test_time_precision(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_break_read_uvfits():
+def test_break_read_uvfits(tmp_path):
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
     multi_subarray_file = os.path.join(DATA_PATH, "multi_subarray.uvfits")
     with pytest.raises(ValueError, match="This file appears to have multiple subarray"):
         uvobj.read(multi_subarray_file)
+
+    file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
+    write_file = os.path.join(tmp_path, "bad_frame.uvfits")
+
+    with fits.open(file1, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        ant_hdr = ant_hdu.header.copy()
+
+        ant_hdr["FRAME"] = "FOO"
+        ant_hdu.header = ant_hdr
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
+
+    with pytest.raises(
+        ValueError,
+        match="Telescope frame in file is foo. Only 'itrs' and 'mcmf' are currently "
+        "supported.",
+    ):
+        uvobj.read(write_file, read_data=False, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -506,7 +529,8 @@ def test_casa_nonascii_bytes_antenna_names():
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
+@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
+def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame):
     """
     CASA tutorial uvfits loopback test.
 
@@ -518,6 +542,23 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
     if not future_shapes:
         uv_in.use_current_array_shapes()
 
+    if telescope_frame == "mcmf":
+        pytest.importorskip("lunarsky")
+        enu_antpos, _ = uv_in.get_ENU_antpos()
+        latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
+        uv_in._telescope_location.frame = "mcmf"
+        uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            frame="mcmf",
+        )
+        uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+        uv_in.set_lsts_from_time_array()
+        uv_in.check()
+
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
@@ -528,6 +569,8 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes):
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
+
+    assert uv_in._telescope_location.frame == uv_out._telescope_location.frame
 
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog
@@ -753,7 +796,8 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_readwriteread_missing_info(tmp_path, casa_uvfits):
+@pytest.mark.parametrize("lat_lon_alt", [True, False])
+def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
     uv_in = casa_uvfits
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
@@ -777,8 +821,15 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits):
         ant_hdr["TIMSYS"] = time_sys
         ant_hdr["FRAME"] = "????"
 
+        if not lat_lon_alt:
+            vis_hdr.pop("LAT")
+            vis_hdr.pop("LON")
+            vis_hdr.pop("ALT")
+
         ant_hdu.header = ant_hdr
         source_hdu = hdu_list[hdunames["AIPS SU"]]
+
+        vis_hdu.header = vis_hdr
 
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
