@@ -189,24 +189,54 @@ def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, future_shapes, tmp_path)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path):
+@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
+def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame):
     """
     Test a uvfits file round trip.
     """
     uv_in = casa_uvfits
+
+    if telescope_frame == "mcmf":
+        pytest.importorskip("lunarsky")
+        enu_antpos, _ = uv_in.get_ENU_antpos()
+        latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
+        uv_in._telescope_location.frame = "mcmf"
+        uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            frame="mcmf",
+        )
+        uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+        uv_in.set_lsts_from_time_array()
+        uv_in.check()
+
+    assert uv_in._telescope_location.frame == telescope_frame
+
     uv_out = UVData()
-    testfile = str(tmp_path / "outtest_uvfits.uvh5")
+    fname = f"outtest_{telescope_frame}_uvfits.uvh5"
+    testfile = str(tmp_path / fname)
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
 
+    assert uv_out._telescope_location.frame == telescope_frame
+
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
-    assert uv_out.filename == ["outtest_uvfits.uvh5"]
+    assert uv_out.filename == [fname]
     uv_in.filename = uv_out.filename
 
     assert uv_in == uv_out
 
+    # clean up
+    os.remove(testfile)
+
     # also test writing double-precision data_array
+    fname = f"outtest_{telescope_frame}2_uvfits.uvh5"
+    testfile = str(tmp_path / fname)
+
     uv_in.data_array = uv_in.data_array.astype(np.complex128)
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
@@ -218,7 +248,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path):
     return
 
 
-def test_read_uvh5_errors():
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_read_uvh5_errors(tmp_path, casa_uvfits):
     """
     Test raising errors in read function.
     """
@@ -231,6 +262,21 @@ def test_read_uvh5_errors():
     fake_file = os.path.join(DATA_PATH, "fake_file.uvh5")
     with pytest.raises(IOError, match=err_msg):
         uv_in.read_uvh5(fake_file)
+
+    uv_in = casa_uvfits
+    testfile = str(tmp_path / "outtest_uvfits.uvh5")
+    uv_in.write_uvh5(testfile)
+
+    with h5py.File(testfile, "r+") as f:
+        del f["Header"]["telescope_frame"]
+        f["Header"]["telescope_frame"] = np.string_("foo")
+
+    with pytest.raises(
+        ValueError,
+        match="Telescope frame in file is foo. Only 'itrs' and 'mcmf' are currently "
+        "supported.",
+    ):
+        uv_in.read_uvh5(testfile)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

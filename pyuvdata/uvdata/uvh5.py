@@ -656,6 +656,7 @@ class FastUVH5Meta:
                 longitude=lon,
                 altitude=alt,
                 astrometry_library=astrometry_library,
+                frame=self.telescope_frame,
             )
             return lst_array
 
@@ -787,7 +788,9 @@ class FastUVH5Meta:
     @cached_property
     def telescope_location(self):
         """The telescope location in ECEF coordinates, in meters."""
-        return uvutils.XYZ_from_LatLonAlt(*self.telescope_location_lat_lon_alt)
+        return uvutils.XYZ_from_LatLonAlt(
+            *self.telescope_location_lat_lon_alt, frame=self.telescope_frame
+        )
 
     @property
     def telescope_location_lat_lon_alt(self) -> tuple[float, float, float]:
@@ -798,6 +801,22 @@ class FastUVH5Meta:
     def telescope_location_lat_lon_alt_degrees(self) -> tuple[float, float, float]:
         """The telescope location in latitude, longitude, and altitude, in degrees."""
         return self.latitude, self.longitude, self.altitude
+
+    @property
+    def telescope_frame(self) -> str:
+        """The telescope frame."""
+        h = self.header
+        if "telescope_frame" in h:
+            telescope_frame = bytes(h["telescope_frame"][()]).decode("utf8")
+            if telescope_frame not in ["itrs", "mcmf"]:
+                raise ValueError(
+                    f"Telescope frame in file is {telescope_frame}. "
+                    "Only 'itrs' and 'mcmf' are currently supported."
+                )
+            return telescope_frame
+        else:
+            # default to ITRS
+            return "itrs"
 
     @cached_property
     def vis_units(self) -> str:
@@ -881,6 +900,8 @@ class UVH5(UVData):
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
         self.time_array = obj.time_array
+        # must set the frame before setting the location using lat/lon/alt
+        self._telescope_location.frame = obj.telescope_frame
         self.telescope_location_lat_lon_alt_degrees = (
             obj.telescope_location_lat_lon_alt_degrees
         )
@@ -905,6 +926,7 @@ class UVH5(UVData):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=(0, uvutils.RADIAN_TOL),
+                frame=self._telescope_location.frame,
             )
 
         # Required parameters
@@ -1541,6 +1563,7 @@ class UVH5(UVData):
         header["version"] = np.string_("1.2")
 
         # write out telescope and source information
+        header["telescope_frame"] = np.string_(self._telescope_location.frame)
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
