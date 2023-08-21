@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Support for setting the astrometry library for various object methods including `set_lsts_from_time_array`, file read methods and others.
+- Properly round-trip the telescope frame through UVH5, UVFITS and MS files.
+
 ### Fixed
 - Fixed a bug in `utils.calc_app_coords` that occurred when supplying an astropy `Time`
 object for the `time_array` argument.
