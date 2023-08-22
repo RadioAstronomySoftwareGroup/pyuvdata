@@ -2836,8 +2836,8 @@ def transform_icrs_to_app(
             pm_dec_use,
             parallax,
             vrad_use,
-            time_obj_array.utc.jd,
-            0.0,
+            time_obj_array.utc.jd1,
+            time_obj_array.utc.jd2,
             time_obj_array.delta_ut1_utc,
             site_loc.lon.rad,
             site_loc.lat.rad,
@@ -2999,9 +2999,9 @@ def transform_app_to_icrs(
         pm_x_array = pm_x_array.to_value("rad")
         pm_y_array = pm_y_array.to_value("rad")
 
-        bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd, 0.0)
+        bpn_matrix = erfa.pnm06a(time_obj_array.tt.jd1, time_obj_array.tt.jd2)
         cip_x, cip_y = erfa.bpn2xy(bpn_matrix)
-        cio_s = erfa.s06(time_obj_array.tt.jd, 0.0, cip_x, cip_y)
+        cio_s = erfa.s06(time_obj_array.tt.jd1, time_obj_array.tt.jd2, cip_x, cip_y)
         eqn_org = erfa.eors(bpn_matrix, cio_s)
 
         # Observed to ICRS via ERFA
@@ -3009,15 +3009,15 @@ def transform_app_to_icrs(
             "r",
             ra_coord.to_value("rad") + eqn_org,
             dec_coord.to_value("rad"),
-            time_obj_array.utc.jd,
-            0.0,  # Second half of the UT date, not needed
+            time_obj_array.utc.jd1,
+            time_obj_array.utc.jd2,
             time_obj_array.delta_ut1_utc,
             site_loc.lon.rad,
             site_loc.lat.rad,
             site_loc.height.value,
             pm_x_array,
             pm_y_array,
-            0,  # ait pressure, used for refraction (ignored)
+            0,  # atm pressure, used for refraction (ignored)
             0,  # amb temperature, used for refraction (ignored)
             0,  # rel humidity, used for refraction (ignored)
             0,  # wavelength, used for refraction (ignored)
@@ -3879,24 +3879,16 @@ def get_lst_for_time(
             times.ut1.jd1, times.ut1.jd2, times.tt.jd1, times.tt.jd2
         )
 
-        # Correct for TIO
-        from astropy.coordinates.builtin_frames.utils import get_polar_motion
-        from astropy.coordinates.matrix_utilities import rotation_matrix
-
+        # Technically one should correct for the polar wobble here, but the differences
+        # along the equitorial are miniscule -- of order 10s of nanoradians, well below
+        # the promised accuracy of IERS -- and rotation matricies can be expensive.
+        # We do want to correct though for for secular polar drift (s'/TIO locator),
+        # which nudges the Earth rotation angle of order 47 uas per century.
         sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
-        xp, yp = get_polar_motion(times)
-        # Form the rotation matrix, CIRS to apparent [HA,Dec].
-        r = (
-            rotation_matrix(longitude, "z")
-            @ rotation_matrix(-yp, "x", unit=units.radian)
-            @ rotation_matrix(-xp, "y", unit=units.radian)
-            @ rotation_matrix(gast_array + sp, "z", unit=units.radian)
-        )
-        # Solve for angle.
-        angle = np.arctan2(r[..., 0, 1], r[..., 0, 0]) << units.radian
 
-        lst_array = np.mod(angle.value, 2.0 * np.pi)[reverse_inds]
-
+        lst_array = np.mod(gast_array + sp + np.deg2rad(longitude), 2.0 * np.pi)[
+            reverse_inds
+        ]
     elif astrometry_library == "astropy":
         lst_array = times.sidereal_time("apparent").radian[reverse_inds]
     elif astrometry_library == "novas":
