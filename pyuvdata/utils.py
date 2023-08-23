@@ -3894,7 +3894,6 @@ def get_lst_for_time(
         TimeClass = LTime
 
     times = TimeClass(jd, format="jd", scale="utc", location=site_loc)
-    times.shape
 
     if iers.conf.auto_max_age is None:  # pragma: no cover
         delta, status = times.get_delta_ut1_utc(return_status=True)
@@ -4191,7 +4190,14 @@ def uvw_track_generator(
         mask = (uvws[:, 0] < 0.0) | ((uvws[:, 0] == 0.0) & (uvws[:, 1] < 0.0))
         uvws[mask, :] *= -1.0
 
-    return {"uvw": uvws}
+    return {
+        "uvw": uvws,
+        "app_ra": app_ra,
+        "app_dec": app_dec,
+        "frame_pa": frame_pa,
+        "lst": lst_array,
+        "site_loc": site_loc,
+    }
 
 
 def _adj_list(vecs, tol, n_blocks=None):
