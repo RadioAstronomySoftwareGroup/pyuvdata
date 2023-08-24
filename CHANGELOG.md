@@ -8,6 +8,10 @@ All notable changes to this project will be documented in this file.
 - Properly round-trip the telescope frame through UVH5, UVFITS and MS files.
 
 ### Fixed
+- A bug in apparent coordinate calculation that resulted in small errors/loss of
+precision due to the way times were passed when using `erfa` astrometry library.
+- A small correction due to polar drift for LST calculation when using the `erfa`
+astrometry library.
 - Fixed a bug in `utils.calc_app_coords` that occurred when supplying an astropy `Time`
 object for the `time_array` argument.
 - Fixed a bug in `UVData.write_ms` that caused the writer to crash if prior measurement
