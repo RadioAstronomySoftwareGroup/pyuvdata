@@ -834,7 +834,18 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
         hdulist.writeto(write_file2, overwrite=True)
 
-    uv_out.read(write_file2, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "The telescope frame is set to '????', which generally indicates "
+            "ignorance. Defaulting the frame to 'itrs', but this may lead to other "
+            "warnings or errors.",
+            "Telescope EVLA is not in known_telescopes.",
+            "The uvw_array does not match the expected values given the antenna "
+            "positions.",
+        ],
+    ):
+        uv_out.read(write_file2, use_future_array_shapes=True)
     assert uv_out.telescope_name == "EVLA"
     assert uv_out.timesys == time_sys
 

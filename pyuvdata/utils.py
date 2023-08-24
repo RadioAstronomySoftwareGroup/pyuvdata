@@ -3947,23 +3947,16 @@ def get_lst_for_time(
 
 
 def check_lsts_against_times(
-    *,
-    jd_array,
-    lst_array,
-    latitude,
-    longitude,
-    altitude,
-    lst_tols,
-    astrometry_library=None,
-    frame="itrs",
+    *, jd_array, lst_array, latitude, longitude, altitude, lst_tols, frame="itrs"
 ):
     """Check that LSTs consistent with the time_array and telescope location."""
+    # Don't worry about passing the astrometry library because we test that they agree
+    # to better than our standard lst tolerances.
     lsts = get_lst_for_time(
         jd_array=jd_array,
         latitude=latitude,
         longitude=longitude,
         altitude=altitude,
-        astrometry_library=astrometry_library,
         frame=frame,
     )
 

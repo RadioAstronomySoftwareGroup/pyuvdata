@@ -71,7 +71,6 @@ class UVFITS(UVData):
                 longitude=longitude,
                 altitude=altitude,
                 lst_tols=self._lst_array.tols,
-                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 
@@ -569,6 +568,11 @@ class UVFITS(UVData):
                 elif ant_hdu.header["FRAME"] == "????":
                     # default to itrs, but use the lat/lon/alt to set the location
                     # if they are available.
+                    warnings.warn(
+                        "The telescope frame is set to '????', which generally "
+                        "indicates ignorance. Defaulting the frame to 'itrs', but this "
+                        "may lead to other warnings or errors."
+                    )
                     prefer_lat_lon_alt = True
                     self._telescope_location.frame = "itrs"
                 else:
