@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- A bug in apparent coordinate calculation that resulted in small errors/loss of
+precision due to the way times were passed when using `erfa` astrometry library.
+- A small correction due to polar drift for LST calculation when using the `erfa`
+astrometry library.
 - Fixed a bug in `utils.calc_app_coords` that occurred when supplying an astropy `Time`
 object for the `time_array` argument.
 
