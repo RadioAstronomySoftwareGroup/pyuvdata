@@ -3208,7 +3208,6 @@ class UVData(UVBase):
         allow_flip_conj=False,
         check_autos=False,
         fix_autos=False,
-        astrometry_library=None,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -3241,12 +3240,6 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
-        astrometry_library : str
-            Library used for running the LST acceptability check. Allowed options are
-            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
-            library), and 'astropy' (which uses the astropy utilities). Default is erfa
-            unless the telescope_location frame is MCMF (on the moon), in which case the
-            default is astropy.
 
         Returns
         -------
@@ -3390,7 +3383,6 @@ class UVData(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols,
-                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 

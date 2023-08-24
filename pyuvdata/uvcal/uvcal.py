@@ -1160,7 +1160,7 @@ class UVCal(UVBase):
         if self.flex_spw:
             uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
 
-    def _check_freq_spacing(self, raise_errors=True, astrometry_library="erfa"):
+    def _check_freq_spacing(self, raise_errors=True):
         """
         Check if frequencies are evenly spaced and separated by their channel width.
 
@@ -1194,11 +1194,7 @@ class UVCal(UVBase):
         )
 
     def check(
-        self,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_freq_spacing=False,
-        astrometry_library=None,
+        self, check_extra=True, run_check_acceptability=True, check_freq_spacing=False
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1216,12 +1212,6 @@ class UVCal(UVBase):
             Option to check if frequencies are evenly spaced and the spacing is
             equal to their channel_width. This is not required for UVCal
             objects in general but is required to write to calfits files.
-        astrometry_library : str
-            Library used for running the LST acceptability check. Allowed options are
-            'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
-            library), and 'astropy' (which uses the astropy utilities). Default is erfa
-            unless the telescope_location frame is MCMF (on the moon), in which case the
-            default is astropy.
 
         Returns
         -------
@@ -1327,7 +1317,6 @@ class UVCal(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols,
-                astrometry_library=astrometry_library,
                 frame=self._telescope_location.frame,
             )
 

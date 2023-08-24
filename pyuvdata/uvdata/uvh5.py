@@ -243,6 +243,12 @@ class FastUVH5Meta:
         HERA files (< March 2023) may have this issue, but in this case the correct
         number of baselines can be computed more quickly than by fully re=computing,
         and so we do this.
+    astrometry_library : str
+        Library used for calculating the LSTs. Allowed options are
+        'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
+        library), and 'astropy' (which uses the astropy utilities). Default is erfa
+        unless the telescope_location frame is MCMF (on the moon), in which case the
+        default is astropy.
 
     Notes
     -----
@@ -301,6 +307,7 @@ class FastUVH5Meta:
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
         recompute_nbls: bool | None = None,
+        astrometry_library: str | None = None,
     ):
         self.__file = None
 
@@ -321,6 +328,7 @@ class FastUVH5Meta:
         self.__time_first = time_axis_faster_than_bls
         self.__blt_order = blt_order
         self._recompute_nbls = recompute_nbls
+        self._astrometry_library = astrometry_library
 
     def is_open(self) -> bool:
         """Whether the file is open."""
@@ -631,7 +639,7 @@ class FastUVH5Meta:
             return np.unique(self.time_array)
 
     @cached_property
-    def lsts(self, astrometry_library: str | None = None) -> np.ndarray:
+    def lsts(self) -> np.ndarray:
         """The unique LSTs in the file."""
         h = self.header
         if "lst_array" in h and self.blts_are_rectangular:
@@ -643,7 +651,7 @@ class FastUVH5Meta:
             return np.unique(self.lst_array)
 
     @cached_property
-    def lst_array(self, astrometry_library: str | None = None) -> np.ndarray:
+    def lst_array(self) -> np.ndarray:
         """The LSTs corresponding to each baseline-time."""
         h = self.header
         if "lst_array" in h:
@@ -655,7 +663,7 @@ class FastUVH5Meta:
                 latitude=lat,
                 longitude=lon,
                 altitude=alt,
-                astrometry_library=astrometry_library,
+                astrometry_library=self._astrometry_library,
                 frame=self.telescope_frame,
             )
             return lst_array
@@ -848,7 +856,7 @@ class FastUVH5Meta:
             Option to check that the LSTs match the expected values for the telescope
             location and times.
         astrometry_library : str
-            Library used for running the LST check. Allowed options are
+            Library used for calculating the LSTs. Allowed options are
             'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
             library), and 'astropy' (which uses the astropy utilities). Default is erfa
             unless the telescope_location frame is MCMF (on the moon), in which case the
@@ -893,6 +901,7 @@ class UVH5(UVData):
                 blts_are_rectangular=blts_are_rectangular,
                 time_axis_faster_than_bls=time_axis_faster_than_bls,
                 recompute_nbls=recompute_nbls,
+                astrometry_library=astrometry_library,
             )
         else:
             obj = filename
@@ -1982,11 +1991,7 @@ class UVH5(UVData):
         return
 
     def _check_header(
-        self,
-        filename,
-        run_check_acceptability=True,
-        background_lsts=True,
-        astrometry_library=None,
+        self, filename, run_check_acceptability=True, background_lsts=True
     ):
         """
         Check that the metadata in a file header matches the object's metadata.
@@ -2021,7 +2026,6 @@ class UVH5(UVData):
                 header,
                 run_check_acceptability=run_check_acceptability,
                 background_lsts=background_lsts,
-                astrometry_library=astrometry_library,
             )
 
         # temporarily remove data, flag, and nsample arrays, so we only check metadata
