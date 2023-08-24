@@ -230,12 +230,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame
 
     assert uv_in == uv_out
 
-    # clean up
-    os.remove(testfile)
-
     # also test writing double-precision data_array
     fname = f"outtest_{telescope_frame}2_uvfits.uvh5"
-    testfile = str(tmp_path / fname)
 
     uv_in.data_array = uv_in.data_array.astype(np.complex128)
     uv_in.write_uvh5(testfile, clobber=True)
