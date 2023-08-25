@@ -308,8 +308,8 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 
     with uvtest.check_warnings(warning_list, match=message_list):
         fhd_cal.read_fhd_cal(
-            cal_file,
-            obs_file,
+            cal_file=cal_file,
+            obs_file=obs_file,
             settings_file=settings_file,
             use_future_array_shapes=True,
         )
@@ -324,8 +324,8 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             "an error in version 2.5",
         ):
             fhd_cal.read_fhd_cal(
-                cal_file,
-                obs_file,
+                cal_file=cal_file,
+                obs_file=obs_file,
                 layout_file=layout_file,
                 read_data=False,
                 use_future_array_shapes=True,
