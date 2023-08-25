@@ -1448,7 +1448,9 @@ class UVH5(UVData):
         if isinstance(filename, FastUVH5Meta):
             meta = filename
             filename = str(meta.path)
+            close_meta = False
         else:
+            close_meta = True
             meta = FastUVH5Meta(
                 filename,
                 blt_order=blt_order,
@@ -1492,6 +1494,8 @@ class UVH5(UVData):
                 keep_all_metadata,
                 multidim_index,
             )
+        if close_meta:
+            meta.close()
 
         # Finally, backfill the apparent coords if they aren't in the original datafile
         add_app_coords = (

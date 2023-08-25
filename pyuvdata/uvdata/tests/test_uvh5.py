@@ -221,6 +221,9 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
 
+    # clean up
+    os.remove(testfile)
+
     assert uv_out._telescope_location.frame == telescope_frame
 
     # make sure filenames are what we expect
