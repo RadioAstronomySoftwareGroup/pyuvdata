@@ -6,6 +6,8 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - Fixed a bug in `utils.calc_app_coords` that occurred when supplying an astropy `Time`
 object for the `time_array` argument.
+- Fixed a bug in `UVData.write_ms` that caused the writer to crash if prior measurement
+set history was not formatted in the currently expected fashion.
 
 ## [2.4] - 2023-07-12
 
