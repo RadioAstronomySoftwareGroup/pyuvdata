@@ -267,6 +267,7 @@ class MWABeam(UVBeam):
 
     def _get_beam_modes(
         self,
+        *,
         h5filepath,
         freqs_hz,
         pol_names,
@@ -379,7 +380,7 @@ class MWABeam(UVBeam):
                     }
         return beam_modes
 
-    def _get_response(self, freqs_hz, pol_names, beam_modes, phi_arr, theta_arr):
+    def _get_response(self, *, freqs_hz, pol_names, beam_modes, phi_arr, theta_arr):
         """
         Calculate full Jones matrix response (E-field) of beam on a regular az/za grid.
 
@@ -479,6 +480,7 @@ class MWABeam(UVBeam):
     def read_mwa_beam(
         self,
         h5filepath,
+        *,
         use_future_array_shapes=False,
         delays=None,
         amplitudes=None,
@@ -604,13 +606,13 @@ class MWABeam(UVBeam):
             freqs_use = freqs_hz
 
         beam_modes = self._get_beam_modes(
-            h5filepath,
-            freqs_hz,
-            pol_names,
-            dipole_names,
-            max_length,
-            delays,
-            amplitudes,
+            h5filepath=h5filepath,
+            freqs_hz=freqs_hz,
+            pol_names=pol_names,
+            dipole_names=dipole_names,
+            max_length=max_length,
+            delays=delays,
+            amplitudes=amplitudes,
         )
 
         n_phi = np.floor(360 * pixels_per_deg)
@@ -618,7 +620,13 @@ class MWABeam(UVBeam):
         theta_arr = np.deg2rad(np.arange(0, n_theta) / pixels_per_deg)
         phi_arr = np.deg2rad(np.arange(0, n_phi) / pixels_per_deg)
 
-        jones = self._get_response(freqs_use, pol_names, beam_modes, phi_arr, theta_arr)
+        jones = self._get_response(
+            freqs_hz=freqs_use,
+            pol_names=pol_names,
+            beam_modes=beam_modes,
+            phi_arr=phi_arr,
+            theta_arr=theta_arr,
+        )
 
         # work out zenith normalization
         # (MWA beams are peak normalized to 1 when pointed at zenith)
