@@ -966,3 +966,47 @@ def test_timescale_handling():
     assert (
         np.round(Time(uvobj.time_array[0], format="jd").gps, decimals=5) == 1090008642.0
     )
+
+
+def test_ms_bad_history(sma_mir, tmp_path):
+    # Adding history string that rlbryne (Issue 1324) reported as throwing a particular
+    # bug on write.
+    sma_mir.history = (
+        "Begin measurement set history\nAPP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE;"
+        "OBJECT_ID;OBSERVATION_ID;ORIG\nIN;PRIORITY;TIME\nEnd measurement set history."
+        "\n  Read/written with pyuvdata version: 2.1.2. Combined data along baselin\ne-"
+        "time axis using pyuvdata. Combined data along baseline-time axis using\n "
+        "pyuvdata. Combined data along baseline-time axis using pyuvdata. Combin\ned "
+        "data along baseline-time axis using pyuvdata. Combined data along bas\neline-"
+        "time axis using pyuvdata. Combined data along baseline-time axis u\nsing "
+        "pyuvdata. Combined data along baseline-time axis using pyuvdata. Co\nmbined "
+        "data along baseline-time axis using pyuvdata. Combined data along\n baseline-"
+        "time axis using pyuvdata. Combined data along baseline-time ax\nis using "
+        "pyuvdata. Combined data along baseline-time axis using pyuvdata\n. Combined "
+        "data along baseline-time axis using pyuvdata. Combined data a\nlong baseline-"
+        "time axis using pyuvdata. Combined data along baseline-tim\ne axis using "
+        "pyuvdata. Combined data along baseline-time axis using pyuv\ndata. Combined "
+        "data along baseline-time axis using pyuvdata. Combined da\nta along baseline-"
+        "time axis using pyuvdata. Combined data along baseline\n-time axis using "
+        "pyuvdata. Combined data along baseline-time axis using\npyuvdata. Combined "
+        "data along baseline-time axis using pyuvdata. Combine\nd data along baseline-"
+        "time axis using pyuvdata. Combined data along base\nline-time axis using "
+        "pyuvdata. Combined data along baseline-time axis us\ning pyuvdata. Combined "
+        "data along baseline-time axis using pyuvdata. Com\nbined data along baseline-"
+        "time axis using pyuvdata. Combined data along\nbaseline-time axis using "
+        "pyuvdata. Combined data along baseline-time axi\ns using pyuvdata. Combined "
+        "data along baseline-time axis using pyuvdata.\n Combined data along baseline-"
+        "time axis using pyuvdata.\nFlagged with pyuvdata.utils.apply_uvflags.  "
+        "Downselected to specific tim\nes using pyuvdata.\n  Read/written with pyuvdata"
+        "version: 2.3.2.\nCalibrated with pyuvdata.utils.uvcalibrate."
+    )
+
+    filename = os.path.join(tmp_path, "bad_history.ms")
+    with uvtest.check_warnings(
+        UserWarning, match="Failed to parse prior history of MS file,"
+    ):
+        sma_mir.write_ms(filename)
+
+    # Make sure the history is actually preserved correctly.
+    sma_ms = UVData.from_file(filename, use_future_array_shapes=True)
+    assert sma_mir.history in sma_ms.history
