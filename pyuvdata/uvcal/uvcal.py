@@ -354,10 +354,6 @@ class UVCal(UVBase):
             required=False,
         )
 
-        # TODO:
-        #  - update uvcalibrate to handle multiple time ranges
-        #  - consider using python_ranges package
-
         desc = (
             "Integration time of a time bin, units seconds. "
             "If future_array_shapes=False, then it is a single value of type = float, "
