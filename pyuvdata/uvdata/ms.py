@@ -949,7 +949,9 @@ class MS(UVData):
         origin = []
         priority = []
         times = []
-        if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in self.history:
+        ms_history = "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in self.history
+
+        if ms_history:
             # this history contains info from an MS history table. Need to parse it.
 
             ms_header_line_no = None
@@ -957,6 +959,9 @@ class MS(UVData):
             pre_ms_history_lines = []
             post_ms_history_lines = []
             for line_no, line in enumerate(self.history.splitlines()):
+                if not ms_history:
+                    continue
+
                 if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in line:
                     ms_header_line_no = line_no
                     # we don't need this line anywhere below so continue
@@ -970,6 +975,17 @@ class MS(UVData):
                 if ms_header_line_no is not None and ms_end_line_no is None:
                     # this is part of the MS history block. Parse it.
                     line_parts = line.split(";")
+                    if len(line_parts) != 9:
+                        # If the line has the wrong number of elements, then the history
+                        # is mangled and we shouldn't try to parse it -- just record
+                        # line-by-line as we do with any other pyuvdata history.
+                        warnings.warn(
+                            "Failed to parse prior history of MS file, "
+                            "switching to standard recording method."
+                        )
+                        pre_ms_history_lines = post_ms_history_lines = []
+                        ms_history = False
+                        continue
 
                     app_params.append(line_parts[0])
                     cli_command.append(line_parts[1])
@@ -1010,7 +1026,7 @@ class MS(UVData):
                 priority.append("INFO")
                 times.append(Time.now().mjd * 3600.0 * 24.0)
 
-        else:
+        if not ms_history:
             # no prior MS history detected in the history. Put all of our history in
             # the message column
             for line in self.history.splitlines():
