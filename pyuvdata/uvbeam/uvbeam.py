@@ -1362,7 +1362,7 @@ class UVBeam(UVBase):
 
         return pauli_mat
 
-    def _construct_mueller(self, jones, pol_index1, pol_index2):
+    def _construct_mueller(self, *, jones, pol_index1, pol_index2):
         """
         Generate Mueller components.
 
@@ -1484,11 +1484,11 @@ class UVBeam(UVBase):
             for pol_i in range(len(pol_strings)):
                 if beam_object.future_array_shapes:
                     power_data[:, pol_i, fq_i, :] = self._construct_mueller(
-                        jones, pol_i, pol_i
+                        jones=jones, pol_index1=pol_i, pol_index2=pol_i
                     )
                 else:
                     power_data[:, :, pol_i, fq_i, :] = self._construct_mueller(
-                        jones, pol_i, pol_i
+                        jones=jones, pol_index1=pol_i, pol_index2=pol_i
                     )
         assert not np.any(np.iscomplex(power_data)), (
             "The calculated pstokes beams are complex but should be real. This is a "
@@ -2386,9 +2386,9 @@ class UVBeam(UVBase):
             extra_keyword_dict["check_azza_domain"] = check_azza_domain
 
         interp_arrays = getattr(self, interp_func)(
-            az_array_use,
-            za_array_use,
-            freq_array,
+            az_array=az_array_use,
+            za_array=za_array_use,
+            freq_array=freq_array,
             freq_interp_kind=kind_use,
             polarizations=polarizations,
             **extra_keyword_dict,
@@ -3371,7 +3371,7 @@ class UVBeam(UVBase):
             else:
                 freq_arr_test = this.freq_array[0, :]
             if not uvutils._test_array_constant_spacing(
-                freq_arr_test, this._freq_array.tols
+                freq_arr_test, tols=this._freq_array.tols
             ):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced. This will "
@@ -3640,7 +3640,7 @@ class UVBeam(UVBase):
                         beam_object.freq_array[1:] - beam_object.freq_array[:-1]
                     )
                     if not uvutils._test_array_constant(
-                        freq_separation, beam_object._freq_array.tols
+                        freq_separation, tols=beam_object._freq_array.tols
                     ):
                         warnings.warn(
                             "Selected frequencies are not evenly spaced. This "
@@ -3667,7 +3667,7 @@ class UVBeam(UVBase):
                         beam_object.freq_array[0, 1:] - beam_object.freq_array[0, :-1]
                     )
                     if not uvutils._test_array_constant(
-                        freq_separation, beam_object._freq_array.tols
+                        freq_separation, tols=beam_object._freq_array.tols
                     ):
                         warnings.warn(
                             "Selected frequencies are not evenly spaced. This "
