@@ -28,6 +28,7 @@ class CALFITS(UVCal):
     def write_calfits(
         self,
         filename,
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -525,6 +526,7 @@ class CALFITS(UVCal):
     def read_calfits(
         self,
         filename,
+        *,
         read_data=True,
         background_lsts=True,
         run_check=True,
