@@ -54,6 +54,7 @@ class CSTBeam(UVBeam):
     def read_cst_beam(
         self,
         filename,
+        *,
         beam_type="power",
         use_future_array_shapes=False,
         feed_pol="x",
@@ -240,12 +241,16 @@ class CSTBeam(UVBeam):
         theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
         phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
-        if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
+        if not uvutils._test_array_constant_spacing(
+            theta_axis, tols=self._axis2_array.tols
+        ):
             raise ValueError(
                 "Data does not appear to be regularly gridded in zenith angle"
             )
 
-        if not uvutils._test_array_constant_spacing(phi_axis, self._axis1_array.tols):
+        if not uvutils._test_array_constant_spacing(
+            phi_axis, tols=self._axis1_array.tols
+        ):
             raise ValueError(
                 "Data does not appear to be regularly gridded in azimuth angle"
             )

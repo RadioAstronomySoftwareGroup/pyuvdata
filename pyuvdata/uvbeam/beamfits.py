@@ -61,6 +61,7 @@ class BeamFITS(UVBeam):
     def read_beamfits(
         self,
         filename,
+        *,
         use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
@@ -555,6 +556,7 @@ class BeamFITS(UVBeam):
     def write_beamfits(
         self,
         filename,
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -607,7 +609,9 @@ class BeamFITS(UVBeam):
                 freq_spacing = self.freq_array[1:] - self.freq_array[:-1]
             else:
                 freq_spacing = self.freq_array[0, 1:] - self.freq_array[0, :-1]
-            if not uvutils._test_array_constant(freq_spacing, self._freq_array.tols):
+            if not uvutils._test_array_constant(
+                freq_spacing, tols=self._freq_array.tols
+            ):
                 raise ValueError(
                     "The frequencies are not evenly spaced (probably "
                     "because of a select operation). The beamfits format "
