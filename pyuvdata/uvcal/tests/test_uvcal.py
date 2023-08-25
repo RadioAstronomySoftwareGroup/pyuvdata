@@ -1891,12 +1891,12 @@ def test_reorder_ants(
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff > 0)
 
-    calobj2.reorder_antennas("-number")
+    calobj2.reorder_antennas(order="-number")
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff < 0)
 
     sorted_names = np.sort(calobj.antenna_names)
-    calobj.reorder_antennas("name")
+    calobj.reorder_antennas(order="name")
     temp = np.asarray(calobj.antenna_names)
     dtype_use = temp.dtype
     name_array = np.zeros_like(calobj.ant_array, dtype=dtype_use)
@@ -1908,10 +1908,10 @@ def test_reorder_ants(
     assert np.all(sorted_names == name_array)
 
     # test sorting with an integer array. First resort back to by number
-    calobj2.reorder_antennas("number")
+    calobj2.reorder_antennas(order="number")
     sorted_nums = [int(name[3:]) for name in sorted_names]
     index_array = [np.nonzero(calobj2.ant_array == ant)[0][0] for ant in sorted_nums]
-    calobj2.reorder_antennas(index_array)
+    calobj2.reorder_antennas(order=index_array)
     assert calobj2 == calobj
 
 
@@ -2206,11 +2206,11 @@ def test_reorder_jones(
     calobj = calobj2.copy()
 
     # this is a no-op because it's already sorted this way
-    calobj2.reorder_jones("-number")
+    calobj2.reorder_jones(order="-number")
     jnum_diff = np.diff(calobj2.jones_array)
     assert np.all(jnum_diff < 0)
 
-    calobj2.reorder_jones("number")
+    calobj2.reorder_jones(order="number")
     jnum_diff = np.diff(calobj2.jones_array)
     assert np.all(jnum_diff > 0)
 
@@ -2234,7 +2234,7 @@ def test_reorder_jones(
     # test sorting with an index array. Sort back to number first so indexing works
     sorted_nums = uvutils.jstr2num(sorted_names, x_orientation=calobj.x_orientation)
     index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
-    calobj.reorder_jones(index_array)
+    calobj.reorder_jones(order=index_array)
     assert calobj2 == calobj
 
 
@@ -2325,14 +2325,14 @@ def test_add_different_sorting(
         cal2 = calobj.select(jones=np.array([-6, -8]), inplace=False)
 
     if sort_type == "ant":
-        cal1.reorder_antennas("number")
-        cal2.reorder_antennas("-number")
-        calobj.reorder_antennas("name")
+        cal1.reorder_antennas(order="number")
+        cal2.reorder_antennas(order="-number")
+        calobj.reorder_antennas(order="name")
         order_check = cal1._ant_array == cal2._ant_array
     elif sort_type == "time":
-        cal1.reorder_times("time")
-        cal2.reorder_times("-time")
-        calobj.reorder_times("time")
+        cal1.reorder_times(order="time")
+        cal2.reorder_times(order="-time")
+        calobj.reorder_times(order="time")
         order_check = cal1._time_array == cal2._time_array
     elif sort_type == "freq":
         if wide_band:
@@ -2346,9 +2346,9 @@ def test_add_different_sorting(
             calobj.reorder_freqs(channel_order="freq")
             order_check = cal1._freq_array == cal2._freq_array
     elif sort_type == "jones":
-        cal1.reorder_jones("name")
-        cal2.reorder_jones("-number")
-        calobj.reorder_jones("number")
+        cal1.reorder_jones(order="name")
+        cal2.reorder_jones(order="-number")
+        calobj.reorder_jones(order="number")
         order_check = cal1._jones_array == cal2._jones_array
 
     # Make sure that the order has actually been scrambled
@@ -2359,11 +2359,11 @@ def test_add_different_sorting(
     cal4 = cal2 + cal1
 
     if sort_type == "ant":
-        cal3.reorder_antennas("name")
-        cal4.reorder_antennas("name")
+        cal3.reorder_antennas(order="name")
+        cal4.reorder_antennas(order="name")
     elif sort_type == "time":
-        cal3.reorder_times("time")
-        cal4.reorder_times("time")
+        cal3.reorder_times(order="time")
+        cal4.reorder_times(order="time")
     elif sort_type == "freq":
         if wide_band:
             cal3.reorder_freqs()
@@ -2372,8 +2372,8 @@ def test_add_different_sorting(
             cal3.reorder_freqs(channel_order="freq")
             cal4.reorder_freqs(channel_order="freq")
     elif sort_type == "jones":
-        cal3.reorder_jones("number")
-        cal4.reorder_jones("number")
+        cal3.reorder_jones(order="number")
+        cal4.reorder_jones(order="number")
 
     # Deal with the history separately, since it will be different
     assert str.startswith(cal3.history, calobj.history)
@@ -3918,15 +3918,15 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     np.testing.assert_array_almost_equal(gain_arr, expected_array)
 
     # test variable key input
-    gain_arr2 = uvc.get_gains(*key)
+    gain_arr2 = uvc.get_gains(key[0], jpol=key[1])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
     gain_arr2 = uvc.get_gains(key[0])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
     gain_arr2 = uvc.get_gains(key[:1])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
-    gain_arr2 = uvc.get_gains(10, -5)
+    gain_arr2 = uvc.get_gains(10, jpol=-5)
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
-    gain_arr2 = uvc.get_gains(10, "x")
+    gain_arr2 = uvc.get_gains(10, jpol="x")
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
 
     # check has_key
@@ -3937,10 +3937,15 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     assert not uvc._key_exists(antnum=101, jpol="Jee")
 
     # test exceptions
-    pytest.raises(ValueError, uvc.get_gains, 1)
-    pytest.raises(ValueError, uvc.get_gains, (10, "Jnn"))
+    with pytest.raises(ValueError, match="1 not found in ant_array"):
+        uvc.get_gains(1)
+    with pytest.raises(ValueError, match="-6 not found in jones_array"):
+        uvc.get_gains((10, "Jnn"))
     uvc.cal_type = "delay"
-    pytest.raises(ValueError, uvc.get_gains, 10)
+    with pytest.raises(
+        ValueError, match=re.escape("cal_type must be 'gain' for get_gains() method")
+    ):
+        uvc.get_gains(10)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -4195,7 +4200,10 @@ def test_init_from_uvdata(
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
-        uvd, uvc.gain_convention, uvc.cal_style, future_array_shapes=uvcal_future_shapes
+        uvd,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
+        future_array_shapes=uvcal_future_shapes,
     )
 
     assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
@@ -4269,8 +4277,8 @@ def test_init_from_uvdata_setfreqs(
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
         freq_array=freqs_use,
         channel_width=channel_width,
@@ -4283,8 +4291,8 @@ def test_init_from_uvdata_setfreqs(
     ):
         UVCal.initialize_from_uvdata(
             uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
             future_array_shapes=uvcal_future_shapes,
             frequencies=freqs_use,
             channel_width=channel_width,
@@ -4350,8 +4358,8 @@ def test_init_from_uvdata_settimes(
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
         metadata_only=metadata_only,
         time_array=times_use,
@@ -4364,8 +4372,8 @@ def test_init_from_uvdata_settimes(
     ):
         UVCal.initialize_from_uvdata(
             uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
             future_array_shapes=uvcal_future_shapes,
             metadata_only=metadata_only,
             times=times_use,
@@ -4414,7 +4422,10 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
-        uvd, uvc.gain_convention, uvc.cal_style, jones_array=[-5, -6]
+        uvd,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
+        jones_array=[-5, -6],
     )
 
     with pytest.warns(
@@ -4422,7 +4433,10 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
         match="The jones keyword is deprecated in favor of jones_array",
     ):
         UVCal.initialize_from_uvdata(
-            uvd, uvc.gain_convention, uvc.cal_style, jones=[-5, -6]
+            uvd,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
+            jones=[-5, -6],
         )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
@@ -4471,7 +4485,9 @@ def test_init_single_pol(uvcalibrate_data, pol):
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+    uvc_new = UVCal.initialize_from_uvdata(
+        uvd, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
+    )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -4513,7 +4529,9 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
 
     uvc2 = uvc.copy(metadata_only=True)
 
-    uvc_new = UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+    uvc_new = UVCal.initialize_from_uvdata(
+        uvd, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
+    )
 
     # antenna positions are different by ~6cm or less. The ones in the uvcal file
     # derive from info on our telescope object while the ones in the uvdata file
@@ -4586,8 +4604,8 @@ def test_init_from_uvdata_sky(
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
         sky_field=uvc_sky.sky_field,
         sky_catalog=uvc_sky.sky_catalog,
@@ -4701,8 +4719,8 @@ def test_init_from_uvdata_delay(
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
         future_array_shapes=uvcal_future_shapes,
         cal_type="delay",
         freq_range=freq_range,
@@ -4801,8 +4819,8 @@ def test_init_from_uvdata_wideband(
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
-        uvc.gain_convention,
-        uvc.cal_style,
+        gain_convention=uvc.gain_convention,
+        cal_style=uvc.cal_style,
         wide_band=True,
         freq_range=freq_range,
         spw_array=spw_array,
@@ -4843,11 +4861,16 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     uvc._set_flex_spw()
 
     with pytest.raises(ValueError, match="uvdata must be a UVData object."):
-        UVCal.initialize_from_uvdata(uvc, uvc.gain_convention, uvc.cal_style)
+        UVCal.initialize_from_uvdata(
+            uvc, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
+        )
 
     with pytest.raises(ValueError, match="cal_type must be either 'gain' or 'delay'."):
         UVCal.initialize_from_uvdata(
-            uvd, uvc.gain_convention, uvc.cal_style, cal_type="unknown"
+            uvd,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
+            cal_type="unknown",
         )
 
     with pytest.raises(
@@ -4855,11 +4878,15 @@ def test_init_from_uvdata_basic_errors(uvcalibrate_data):
         match="If cal_style is 'sky', ref_antenna_name and sky_catalog must be "
         "provided.",
     ):
-        UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, "sky")
+        UVCal.initialize_from_uvdata(
+            uvd, gain_convention=uvc.gain_convention, cal_style="sky"
+        )
 
     uvd.polarization_array = np.array([1, 2, 3, 4])
     with pytest.raises(ValueError, match="you must set jones_array."):
-        UVCal.initialize_from_uvdata(uvd, uvc.gain_convention, uvc.cal_style)
+        UVCal.initialize_from_uvdata(
+            uvd, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
+        )
 
 
 def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
@@ -4874,8 +4901,8 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
     ):
         UVCal.initialize_from_uvdata(
             uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
             cal_type="delay",
             freq_range=[1e8, 1.2e8, 1.3e8, 1.5e8],
         )
@@ -4889,8 +4916,8 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
     ):
         UVCal.initialize_from_uvdata(
             uvd,
-            uvc.gain_convention,
-            uvc.cal_style,
+            gain_convention=uvc.gain_convention,
+            cal_style=uvc.cal_style,
             cal_type="delay",
             freq_range=np.asarray([[1e8, 1.2e8], [1.3e8, 1.5e8]]),
         )
