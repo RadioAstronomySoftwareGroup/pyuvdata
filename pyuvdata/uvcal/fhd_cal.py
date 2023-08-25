@@ -30,6 +30,7 @@ class FHDCal(UVCal):
     @copy_replace_short_description(UVCal.read_fhd_cal, style=DocstringStyle.NUMPYDOC)
     def read_fhd_cal(
         self,
+        *,
         cal_file,
         obs_file,
         layout_file=None,

@@ -1196,7 +1196,7 @@ class UVCal(UVBase):
                 f"Telescope {self.telescope_name} is not in known_telescopes."
             )
 
-    def _set_lsts_helper(self, astrometry_library=None):
+    def _set_lsts_helper(self, *, astrometry_library=None):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         if self.time_array is not None:
             self.lst_array = uvutils.get_lst_for_time(
@@ -2630,7 +2630,7 @@ class UVCal(UVBase):
                     this_ants_ind[other_argsort]
                 ]
 
-                this.reorder_antennas(temp_ind)
+                this.reorder_antennas(order=temp_ind)
 
         if len(this_times_ind) != 0:
             this_argsort = np.argsort(this_times_ind)
@@ -2642,7 +2642,7 @@ class UVCal(UVBase):
                     this_times_ind[other_argsort]
                 ]
 
-                this.reorder_times(temp_ind)
+                this.reorder_times(order=temp_ind)
 
         if len(this_freq_ind) != 0:
             this_argsort = np.argsort(this_freq_ind)
@@ -2672,7 +2672,7 @@ class UVCal(UVBase):
                     this_jones_ind[other_argsort]
                 ]
 
-                this.reorder_jones(temp_ind)
+                this.reorder_jones(order=temp_ind)
 
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)
@@ -4876,7 +4876,7 @@ class UVCal(UVBase):
             del calfits_obj
 
     def read_fhd_cal(
-        self, *, cal_file, obs_file, layout_file=None, settings_file=None, **kwargs
+        self, cal_file, *, obs_file, layout_file=None, settings_file=None, **kwargs
     ):
         """
         Read data from an FHD cal.sav file.
@@ -4980,8 +4980,8 @@ class UVCal(UVBase):
                 settings_file_use = None
 
             self.read_fhd_cal(
-                cal_file[0],
-                obs_file[0],
+                cal_file=cal_file[0],
+                obs_file=obs_file[0],
                 layout_file=layout_file_use,
                 settings_file=settings_file_use,
                 **kwargs,
@@ -4994,8 +4994,8 @@ class UVCal(UVBase):
                     if layout_file is not None:
                         layout_file_use = layout_file[ind + 1]
                     uvcal2.read_fhd_cal(
-                        f,
-                        obs_file[ind + 1],
+                        cal_file=f,
+                        obs_file=obs_file[ind + 1],
                         layout_file=layout_file_use,
                         settings_file=settings_file_use,
                         **kwargs,
@@ -5019,8 +5019,8 @@ class UVCal(UVBase):
 
             fhd_cal_obj = fhd_cal.FHDCal()
             fhd_cal_obj.read_fhd_cal(
-                cal_file,
-                obs_file,
+                cal_file=cal_file,
+                obs_file=obs_file,
                 layout_file=layout_file,
                 settings_file=settings_file,
                 **kwargs,
@@ -5268,8 +5268,8 @@ class UVCal(UVBase):
 
             elif file_type == "fhd":
                 self.read_fhd_cal(
-                    filename,
-                    obs_file,
+                    cal_file=filename,
+                    obs_file=obs_file,
                     layout_file=layout_file,
                     settings_file=settings_file,
                     raw=raw,
