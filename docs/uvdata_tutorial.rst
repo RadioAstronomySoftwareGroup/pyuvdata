@@ -700,7 +700,7 @@ Phasing/unphasing data
   >>> # center, though it does not need to be unique. We are specifying that the type
   >>> # here is "sidereal", which means that the position is represented by a fixed set
   >>> # of coordinates in a sidereal coordinate frame (e.g., ICRS, FK5, etc).
-  >>> uvd.phase(5.23368, 0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
+  >>> uvd.phase(lon=5.23368, lat=0.710940, epoch="J2000", cat_name='target1', cat_type="sidereal")
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch
       #          Name                       hours           deg
@@ -722,7 +722,7 @@ Phasing/unphasing data
   >>> # You can also now phase to "ephem" objects, which
   >>> # move with time, e.g. solar system bodies. The phase method has a `lookup_name`
   >>> # option which, if set to true, will allow you to search JPL-Horizons for coords
-  >>> uvd.phase(0, 0, epoch="J2000", cat_name="Sun", lookup_name=True)
+  >>> uvd.phase(lon=0, lat=0, epoch="J2000", cat_name="Sun", lookup_name=True)
   >>> uvd.print_phase_center_info()
      ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch        Ephem Range        Dist   V_rad
       #          Name                       hours           deg                  Start-MJD    End-MJD       pc    km/s
@@ -739,7 +739,7 @@ Phasing/unphasing data
   >>> # used to be designated with phase_type="drift" -- in that it is still phased and
   >>> # can be to any azimuth and elevation, not just zenith). Note that we need to
   >>> # supply `phase_frame` as "altaz", since driftscans are always in that frame.
-  >>> uvd.phase(0, pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
+  >>> uvd.phase(lon=0, lat=pi/2, cat_name="zenith", phase_frame='altaz', cat_type="driftscan", select_mask=select_mask)
 
   >>> # Now when using `print_phase_center_info`, we'll see that there are multiple
   >>> # phase centers present in the data
@@ -980,7 +980,8 @@ a) Getting antenna positions in topocentric frame in units of meters
   >>> antpos = uvd.antenna_positions + uvd.telescope_location
 
   >>> # convert to topocentric (East, North, Up or ENU) coords.
-  >>> antpos = utils.ENU_from_ECEF(antpos, *uvd.telescope_location_lat_lon_alt)
+  >>> lat, lon, alt = uvd.telescope_location_lat_lon_alt
+  >>> antpos = utils.ENU_from_ECEF(antpos, latitude=lat, longitude=lon, altitude=alt)
 
 UVData: Selecting data
 ----------------------
@@ -1646,13 +1647,25 @@ are written to the appropriate parts of the file on disk.
   >>> data_array = 0.5 * uvd2.data_array
   >>> flag_array = uvd2.flag_array
   >>> nsample_array = uvd2.nsample_array
-  >>> uvd.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds1)
+  >>> uvd.write_uvh5_part(
+  ...   partfile,
+  ...   data_array=data_array,
+  ...   flag_array=flag_array,
+  ...   nsample_array=nsample_array,
+  ...   freq_chans=freq_inds1
+  ... )
 
   >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds2, use_future_array_shapes=True)
   >>> data_array = 2.0 * uvd2.data_array
   >>> flag_array = uvd2.flag_array
   >>> nsample_array = uvd2.nsample_array
-  >>> uvd.write_uvh5_part(partfile, data_array, flag_array, nsample_array, freq_chans=freq_inds2)
+  >>> uvd.write_uvh5_part(
+  ...   partfile,
+  ...   data_array=data_array,
+  ...   flag_array=flag_array,
+  ...   nsample_array=nsample_array,
+  ...   freq_chans=freq_inds2
+  ... )
 
 
 .. _uvdata_sorting_data:
@@ -1677,7 +1690,7 @@ various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'
   >>> from pyuvdata.data import DATA_PATH
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
-  >>> uvd.conjugate_bls('ant1<ant2')
+  >>> uvd.conjugate_bls(convention='ant1<ant2')
   >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
   True
 
@@ -1790,7 +1803,7 @@ ordering set by the user.
   >>> print(uvutils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl', 'lr']
 
-  >>> uvd.reorder_pols('CASA')
+  >>> uvd.reorder_pols(order='CASA')
   >>> print(uvutils.polnum2str(uvd.polarization_array))
   ['rr', 'rl', 'lr', 'll']
 
