@@ -4705,7 +4705,7 @@ def get_baseline_redundancies(
                 location_ids=baselines,
                 location_vectors=baseline_vecs,
                 tol=tol,
-                strict=True
+                strict=True,
             )
         except ValueError as exc:
             raise ValueError(
@@ -4726,7 +4726,12 @@ def get_baseline_redundancies(
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, *, tol=1.0, include_autos=False, use_grid_alg=None
+    antenna_numbers,
+    antenna_positions,
+    *,
+    tol=1.0,
+    include_autos=False,
+    use_grid_alg=None,
 ):
     """
     Find redundant baseline groups based on antenna positions.
