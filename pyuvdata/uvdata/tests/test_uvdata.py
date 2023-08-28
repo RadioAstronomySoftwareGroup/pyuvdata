@@ -1000,7 +1000,7 @@ def test_phase_unphase_hera_one_bl(hera_uvh5):
     # check that phase + unphase work with one baseline
     uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
     uv_phase_small = uv_raw_small.copy()
-    uv_phase_small.phase(Angle("23h").rad, Angle("15d").rad, cat_name="foo")
+    uv_phase_small.phase(lon=Angle("23h").rad, lat=Angle("15d").rad, cat_name="foo")
     uv_phase_small.unproject_phase(cat_name="zenith")
     assert uv_raw_small == uv_phase_small
 
@@ -1011,9 +1011,12 @@ def test_phase_unphase_hera_antpos(hera_uvh5):
     uv_raw = hera_uvh5
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
+    lat, lon, alt = uv_raw.telescope_location_lat_lon_alt
     antenna_enu = uvutils.ENU_from_ECEF(
         (uv_raw.antenna_positions + uv_raw.telescope_location),
-        *uv_raw.telescope_location_lat_lon_alt,
+        latitude=lat,
+        longitude=lon,
+        altitude=alt,
     )
     uvw_calc = np.zeros_like(uv_raw.uvw_array)
     unique_times, unique_inds = np.unique(uv_raw.time_array, return_index=True)
@@ -3183,7 +3186,7 @@ def test_reorder_pols(casa_uvfits, future_shapes):
         ValueError,
         match="order must be one of: 'AIPS', 'CASA', or an index array of length Npols",
     ):
-        uv2.reorder_pols({"order": "foo"})
+        uv2.reorder_pols(order={"order": "foo"})
 
     # check error if order is an array of the wrong length
     with pytest.raises(ValueError, match="If order is an index array, it must"):
@@ -5475,7 +5478,7 @@ def test_antpair2ind_exceptions(paper_uvh5):
     with pytest.raises(ValueError, match="antpair2ind must be fed an antpair tuple"):
         uv.antpair2ind("bar", "foo")
     with pytest.raises(ValueError, match="ordered must be a boolean"):
-        uv.antpair2ind(0, 1, "foo")
+        uv.antpair2ind(0, 1, ordered="foo")
 
     return
 
@@ -6450,7 +6453,9 @@ def test_redundancy_contract_expand(
         # need to conjugate some so we have mixed groups to properly test the average
         # method.
         (orig_red_gps, orig_centers, orig_lengths, orig_conjugates) = (
-            uv0.get_redundancies(tol, include_conjugates=True, use_grid_alg=grid_alg)
+            uv0.get_redundancies(
+                tol=tol, include_conjugates=True, use_grid_alg=grid_alg
+            )
         )
         blt_inds_to_conj = []
         for gp in orig_red_gps:
@@ -6464,7 +6469,7 @@ def test_redundancy_contract_expand(
     # This must be done after reconjugation because reconjugation can alter the index
     # baseline
     red_gps, centers, lengths, conjugates = uv0.get_redundancies(
-        tol, include_conjugates=True, use_grid_alg=grid_alg
+        tol=tol, include_conjugates=True, use_grid_alg=grid_alg
     )
     index_bls = []
     for gp_ind, gp in enumerate(red_gps):
@@ -7123,7 +7128,7 @@ def test_overlapping_data_add(casa_uvfits, tmp_path, future_shapes):
     with pytest.raises(
         ValueError, match="These objects have overlapping data and cannot be combined."
     ):
-        uv4.__add__(uv4, uvfull)
+        uv4.__add__(uv4)
 
     # write individual objects out, and make sure that we can read in the list
     uv1_out = str(tmp_path / "uv1.uvfits")
@@ -7172,7 +7177,9 @@ def test_lsts_from_time_with_only_unique(paper_uvh5):
     uv = paper_uvh5
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
-    full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
+    full_lsts = uvutils.get_lst_for_time(
+        uv.time_array, latitude=lat, longitude=lon, altitude=alt
+    )
     # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
     uv.set_lsts_from_time_array()
     assert np.array_equal(full_lsts, uv.lst_array)
@@ -7186,7 +7193,9 @@ def test_lsts_from_time_with_only_unique_background(paper_uvh5):
     uv = paper_uvh5
     lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
-    full_lsts = uvutils.get_lst_for_time(uv.time_array, lat, lon, alt)
+    full_lsts = uvutils.get_lst_for_time(
+        uv.time_array, latitude=lat, longitude=lon, altitude=alt
+    )
     # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
     proc = uv.set_lsts_from_time_array(background=True)
     proc.join()
@@ -8753,7 +8762,7 @@ def test_upsample_downsample_in_time_odd_resample(hera_uvh5, future_shapes):
     assert np.amax(uv_object.integration_time) <= max_integration_time
 
     uv_object.downsample_in_time(
-        np.amin(uv_object2.integration_time), blt_order="baseline"
+        min_int_time=np.amin(uv_object2.integration_time), blt_order="baseline"
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -8799,7 +8808,7 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     assert np.amax(uv_object.integration_time) <= max_integration_time
 
     uv_object.downsample_in_time(
-        np.amin(uv_object2.integration_time), blt_order="baseline"
+        min_int_time=np.amin(uv_object2.integration_time), blt_order="baseline"
     )
 
     # increase tolerance on LST if iers.conf.auto_max_age is set to None, as we
@@ -9232,7 +9241,7 @@ def test_frequency_average_uneven(
         )
     with uvtest.check_warnings(warn, match=msg):
         uvobj.frequency_average(
-            n_chan_to_avg,
+            n_chan_to_avg=n_chan_to_avg,
             keep_ragged=keep_ragged,
             summing_correlator_mode=sum_corr,
             respect_spws=respect_spws,
@@ -9466,7 +9475,7 @@ def test_frequency_average_flagging(
         warn = None
         msg = ""
     with uvtest.check_warnings(warn, match=msg):
-        uvobj.frequency_average(n_chan_to_avg, keep_ragged=keep_ragged)
+        uvobj.frequency_average(n_chan_to_avg=n_chan_to_avg, keep_ragged=keep_ragged)
 
     input_freqs = np.squeeze(uvobj2.freq_array)
 
@@ -9640,7 +9649,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
         msg = ""
     with uvtest.check_warnings(warn, match=msg):
         uvobj.frequency_average(
-            n_chan_to_avg, propagate_flags=True, keep_ragged=keep_ragged
+            n_chan_to_avg=n_chan_to_avg, propagate_flags=True, keep_ragged=keep_ragged
         )
 
     input_freqs = np.squeeze(uvobj2.freq_array)
@@ -10773,24 +10782,66 @@ def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):
 
 @pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad file,")
 @pytest.mark.parametrize(
-    "args,err_type,msg",
+    "kwargs,err_type,msg",
     (
-        [["abc", "xyz", 1], ValueError, "No catalog entries matching the name abc."],
-        [["3C273", -2, 1], TypeError, "Value provided to new_name must be a string"],
-        [["3C273", "3c273", 1.5], IndexError, "select_mask must be an array-like,"],
-        [["3C273", "3c273", 1], ValueError, "Data selected with select_mask includes"],
-        [[-1], ValueError, "No entry with the ID -1 found in the catalog"],
-        [[1, None, None, "hi"], TypeError, "Value provided to new_id must be an int"],
-        [[1, None, None, 2], ValueError, "The ID 2 is already in the catalog"],
-        [[35.5], TypeError, "catalog_identifier must be a string or an integer."],
+        [
+            {"catalog_identifier": "abc", "new_name": "xyz", "select_mask": 1},
+            ValueError,
+            "No catalog entries matching the name abc.",
+        ],
+        [
+            {"catalog_identifier": "3C273", "new_name": -2, "select_mask": 1},
+            TypeError,
+            "Value provided to new_name must be a string",
+        ],
+        [
+            {"catalog_identifier": "3C273", "new_name": "3c273", "select_mask": 1.5},
+            IndexError,
+            "select_mask must be an array-like,",
+        ],
+        [
+            {"catalog_identifier": "3C273", "new_name": "3c273", "select_mask": 1},
+            ValueError,
+            "Data selected with select_mask includes",
+        ],
+        [
+            {"catalog_identifier": -1},
+            ValueError,
+            "No entry with the ID -1 found in the catalog",
+        ],
+        [
+            {
+                "catalog_identifier": 1,
+                "new_name": None,
+                "select_mask": None,
+                "new_id": "hi",
+            },
+            TypeError,
+            "Value provided to new_id must be an int",
+        ],
+        [
+            {
+                "catalog_identifier": 1,
+                "new_name": None,
+                "select_mask": None,
+                "new_id": 2,
+            },
+            ValueError,
+            "The ID 2 is already in the catalog",
+        ],
+        [
+            {"catalog_identifier": 35.5},
+            TypeError,
+            "catalog_identifier must be a string or an integer.",
+        ],
     ),
 )
-def test_split_phase_center_bad_args(carma_miriad, args, err_type, msg):
+def test_split_phase_center_bad_args(carma_miriad, kwargs, err_type, msg):
     """
     Verify that split_phase_center will throw an error if supplied with bad args
     """
     with pytest.raises(err_type, match=msg):
-        carma_miriad.split_phase_center(*args)
+        carma_miriad.split_phase_center(**kwargs)
 
 
 def test_split_phase_center_err_multiname(carma_miriad):
@@ -10847,7 +10898,7 @@ def test_update_id_bad_args(sma_mir, cat_id, new_id, res_id, err_type, msg):
     Verify that _update_phase_center_id throws errors when supplied with bad args
     """
     with pytest.raises(err_type, match=msg):
-        sma_mir._update_phase_center_id(cat_id, new_id, reserved_ids=res_id)
+        sma_mir._update_phase_center_id(cat_id, new_id=new_id, reserved_ids=res_id)
 
 
 def test_add_clear_phase_center(sma_mir):
@@ -10932,7 +10983,7 @@ def test_update_id(sma_mir):
 def test_split_phase_center_warnings(sma_mir, name1, name2, select_mask, msg):
     # Now let's select no data at all
     with uvtest.check_warnings(UserWarning, match=msg):
-        sma_mir.split_phase_center(name1, name2, select_mask)
+        sma_mir.split_phase_center(name1, new_name=name2, select_mask=select_mask)
 
 
 def test_split_phase_center(hera_uvh5):
@@ -10948,7 +10999,7 @@ def test_split_phase_center(hera_uvh5):
     # integration?
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
 
-    hera_uvh5.split_phase_center("3c84", "3c84_2", select_mask)
+    hera_uvh5.split_phase_center("3c84", new_name="3c84_2", select_mask=select_mask)
     cat_id1 = hera_uvh5._look_for_name("3c84")
     cat_id2 = hera_uvh5._look_for_name("3c84_2")
     # Check that the catalog IDs also line up w/ what we expect
@@ -10978,13 +11029,16 @@ def test_split_phase_center_downselect(hera_uvh5):
 
     # Again, only select the first half of the data
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
-    hera_uvh5.split_phase_center("3c84", "3c84_2", select_mask)
+    hera_uvh5.split_phase_center("3c84", new_name="3c84_2", select_mask=select_mask)
 
     # Now effectively rename zenith2 as zenith3 by selecting all data and using
     # the downselect switch
     with uvtest.check_warnings(UserWarning, "All data for the source selected"):
         hera_uvh5.split_phase_center(
-            "3c84_2", "3c84_3", np.arange(hera_uvh5.Nblts), downselect=True
+            "3c84_2",
+            new_name="3c84_3",
+            select_mask=np.arange(hera_uvh5.Nblts),
+            downselect=True,
         )
 
     cat_id1 = hera_uvh5._look_for_name("3c84")
@@ -11010,16 +11064,20 @@ def test_split_phase_center_downselect(hera_uvh5):
 
 
 @pytest.mark.parametrize(
-    "val1,val2,val3,err_type,msg",
+    "new_w_vals,old_w_vals,select_mask,err_type,msg",
     [
         [0.0, 0.0, 1.5, IndexError, "select_mask must be an array-like, either of"],
         [[0.0, 0.0], 0.0, [0], IndexError, "The length of new_w_vals is wrong"],
         [0.0, [0.0, 0.0], [0], IndexError, "The length of old_w_vals is wrong"],
     ],
 )
-def test_apply_w_arg_errs(hera_uvh5, val1, val2, val3, err_type, msg):
+def test_apply_w_arg_errs(
+    hera_uvh5, new_w_vals, old_w_vals, select_mask, err_type, msg
+):
     with pytest.raises(err_type, match=msg):
-        hera_uvh5._apply_w_proj(val1, val2, val3)
+        hera_uvh5._apply_w_proj(
+            new_w_vals=new_w_vals, old_w_vals=old_w_vals, select_mask=select_mask
+        )
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -11035,12 +11093,14 @@ def test_apply_w_no_ops(hera_uvh5, future_shapes):
 
     # Test to make sure that the following gives us back the same results,
     # first without a selection mask
-    hera_uvh5._apply_w_proj(0.0, 0.0)
+    hera_uvh5._apply_w_proj(new_w_vals=0.0, old_w_vals=0.0)
     assert hera_uvh5 == hera_copy
 
     # And now with a selection mask applied
     hera_uvh5._apply_w_proj(
-        np.arange(hera_uvh5.Nblts), np.arange(hera_uvh5.Nblts), [0, 1]
+        new_w_vals=np.arange(hera_uvh5.Nblts),
+        old_w_vals=np.arange(hera_uvh5.Nblts),
+        select_mask=[0, 1],
     )
     assert hera_uvh5 == hera_copy
 
@@ -11053,10 +11113,23 @@ def test_phase_dict_helper_err_multi_match(carma_miriad):
     """
     for key in carma_miriad.phase_center_catalog:
         carma_miriad.phase_center_catalog[key]["cat_name"] = "NOISE"
-    args = [None] * 13
-    args[10:12] = "NOISE", True
+
     with pytest.raises(ValueError, match="Name of object has multiple matches in "):
-        carma_miriad._phase_dict_helper(*args)
+        carma_miriad._phase_dict_helper(
+            lon=None,
+            lat=None,
+            epoch=None,
+            phase_frame=None,
+            ephem_times=None,
+            cat_type=None,
+            pm_ra=None,
+            pm_dec=None,
+            dist=None,
+            vrad=None,
+            cat_name="NOISE",
+            lookup_name=True,
+            time_array=None,
+        )
 
 
 def test_phase_dict_helper_simple(hera_uvh5, sma_mir, dummy_phase_dict):
@@ -11069,19 +11142,19 @@ def test_phase_dict_helper_simple(hera_uvh5, sma_mir, dummy_phase_dict):
     # for loop to move through two different datasets.
     for uv_object in [hera_uvh5, sma_mir]:
         phase_dict = uv_object._phase_dict_helper(
-            dummy_phase_dict["cat_lon"],
-            dummy_phase_dict["cat_lat"],
-            dummy_phase_dict["cat_epoch"],
-            dummy_phase_dict["cat_frame"],
-            dummy_phase_dict["cat_times"],
-            dummy_phase_dict["cat_type"],
-            dummy_phase_dict["cat_pm_ra"],
-            dummy_phase_dict["cat_pm_dec"],
-            dummy_phase_dict["cat_dist"],
-            dummy_phase_dict["cat_vrad"],
-            dummy_phase_dict["cat_name"],
-            False,  # Don't lookup source
-            None,  # Don't supply a time_array
+            lon=dummy_phase_dict["cat_lon"],
+            lat=dummy_phase_dict["cat_lat"],
+            epoch=dummy_phase_dict["cat_epoch"],
+            phase_frame=dummy_phase_dict["cat_frame"],
+            ephem_times=dummy_phase_dict["cat_times"],
+            cat_type=dummy_phase_dict["cat_type"],
+            pm_ra=dummy_phase_dict["cat_pm_ra"],
+            pm_dec=dummy_phase_dict["cat_pm_dec"],
+            dist=dummy_phase_dict["cat_dist"],
+            vrad=dummy_phase_dict["cat_vrad"],
+            cat_name=dummy_phase_dict["cat_name"],
+            lookup_name=False,
+            time_array=None,
         )
         assert phase_dict == dummy_phase_dict
 
@@ -11121,19 +11194,19 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
     # intermittent failures connecting to the JPL-Horizons service.
     with pytest.raises(Exception) as cm:
         sma_mir._phase_dict_helper(
-            arg_dict["cat_lon"],
-            arg_dict["cat_lat"],
-            arg_dict["cat_epoch"],
-            arg_dict["cat_frame"],
-            arg_dict["cat_times"],
-            arg_dict["cat_type"],
-            arg_dict["cat_pm_ra"],
-            arg_dict["cat_pm_dec"],
-            arg_dict["cat_dist"],
-            arg_dict["cat_vrad"],
-            arg_dict["cat_name"],
-            arg_dict.get("lookup"),
-            arg_dict.get("time_arr"),
+            lon=arg_dict["cat_lon"],
+            lat=arg_dict["cat_lat"],
+            epoch=arg_dict["cat_epoch"],
+            phase_frame=arg_dict["cat_frame"],
+            ephem_times=arg_dict["cat_times"],
+            cat_type=arg_dict["cat_type"],
+            pm_ra=arg_dict["cat_pm_ra"],
+            pm_dec=arg_dict["cat_pm_dec"],
+            dist=arg_dict["cat_dist"],
+            vrad=arg_dict["cat_vrad"],
+            cat_name=arg_dict["cat_name"],
+            lookup_name=arg_dict.get("lookup"),
+            time_array=arg_dict.get("time_arr"),
         )
 
     if issubclass(cm.type, RequestException) or issubclass(cm.type, SSLError):
@@ -11149,19 +11222,19 @@ def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
     a multi-phase-ctr dataset.
     """
     phase_dict = sma_mir._phase_dict_helper(
-        dummy_phase_dict["cat_lon"],
-        dummy_phase_dict["cat_lat"],
-        dummy_phase_dict["cat_epoch"],
-        dummy_phase_dict["cat_frame"],
-        dummy_phase_dict["cat_times"],
-        dummy_phase_dict["cat_type"],
-        dummy_phase_dict["cat_pm_ra"],
-        dummy_phase_dict["cat_pm_dec"],
-        dummy_phase_dict["cat_dist"],
-        dummy_phase_dict["cat_vrad"],
-        "3c84",
-        True,  # Do lookup source!
-        None,  # Don't supply a time_array
+        lon=dummy_phase_dict["cat_lon"],
+        lat=dummy_phase_dict["cat_lat"],
+        epoch=dummy_phase_dict["cat_epoch"],
+        phase_frame=dummy_phase_dict["cat_frame"],
+        ephem_times=dummy_phase_dict["cat_times"],
+        cat_type=dummy_phase_dict["cat_type"],
+        pm_ra=dummy_phase_dict["cat_pm_ra"],
+        pm_dec=dummy_phase_dict["cat_pm_dec"],
+        dist=dummy_phase_dict["cat_dist"],
+        vrad=dummy_phase_dict["cat_vrad"],
+        cat_name="3c84",
+        lookup_name=True,
+        time_array=None,
     )
     assert phase_dict.pop("cat_id") == sma_mir._look_for_name("3c84")[0]
     assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
@@ -11176,19 +11249,19 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     # actually performing a lookup
     cat_id = sma_mir._look_for_name("3c84")[0]
     phase_dict = sma_mir._phase_dict_helper(
-        sma_mir.phase_center_catalog[cat_id].get("cat_lon"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_lat"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_epoch"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_frame"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_times"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_type"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_pm_ra"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_pm_dec"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_dist"),
-        sma_mir.phase_center_catalog[cat_id].get("cat_vrad"),
-        "3c84",
-        False,
-        sma_mir.time_array,
+        lon=sma_mir.phase_center_catalog[cat_id].get("cat_lon"),
+        lat=sma_mir.phase_center_catalog[cat_id].get("cat_lat"),
+        epoch=sma_mir.phase_center_catalog[cat_id].get("cat_epoch"),
+        phase_frame=sma_mir.phase_center_catalog[cat_id].get("cat_frame"),
+        ephem_times=sma_mir.phase_center_catalog[cat_id].get("cat_times"),
+        cat_type=sma_mir.phase_center_catalog[cat_id].get("cat_type"),
+        pm_ra=sma_mir.phase_center_catalog[cat_id].get("cat_pm_ra"),
+        pm_dec=sma_mir.phase_center_catalog[cat_id].get("cat_pm_dec"),
+        dist=sma_mir.phase_center_catalog[cat_id].get("cat_dist"),
+        vrad=sma_mir.phase_center_catalog[cat_id].get("cat_vrad"),
+        cat_name="3c84",
+        lookup_name=False,
+        time_array=sma_mir.time_array,
     )
     assert phase_dict.pop("cat_id") == cat_id
     assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
@@ -11212,14 +11285,26 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     # to reach the JPL-Horizons service.
     try:
         phase_dict = sma_mir._phase_dict_helper(
-            0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, obs_time
+            lon=0,
+            lat=0,
+            epoch=None,
+            phase_frame=None,
+            ephem_times=None,
+            cat_type=None,
+            pm_ra=0,
+            pm_dec=0,
+            dist=0,
+            vrad=0,
+            cat_name="Mars",
+            lookup_name=True,
+            time_array=obs_time,
         )
     except (SSLError, RequestException) as err:
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     cat_id = sma_mir._add_phase_center(
         phase_dict["cat_name"],
-        phase_dict["cat_type"],
+        cat_type=phase_dict["cat_type"],
         cat_lon=phase_dict["cat_lon"],
         cat_lat=phase_dict["cat_lat"],
         cat_frame=phase_dict["cat_frame"],
@@ -11243,7 +11328,19 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
     # Again, just skip if we are unable to reach the JPL-Horizons
     try:
         phase_dict = sma_mir._phase_dict_helper(
-            0, 0, None, None, None, None, 0, 0, 0, 0, "Mars", True, obs_time
+            lon=0,
+            lat=0,
+            epoch=None,
+            phase_frame=None,
+            ephem_times=None,
+            cat_type=None,
+            pm_ra=0,
+            pm_dec=0,
+            dist=0,
+            vrad=0,
+            cat_name="Mars",
+            lookup_name=True,
+            time_array=obs_time,
         )
     except (SSLError, RequestException) as err:
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
@@ -11276,7 +11373,7 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
     phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
 
     # Do the improved phasing on the data set.
-    uv_in.phase(phase_ra, phase_dec, phase_frame=phase_frame, cat_name="foo")
+    uv_in.phase(lon=phase_ra, lat=phase_dec, phase_frame=phase_frame, cat_name="foo")
 
     if use_ant_pos:
         antpos_str = "_antpos"
@@ -11408,9 +11505,9 @@ def test_multi_file_ignore_name(hera_uvh5_split, future_shapes):
         uvfull.use_current_array_shapes()
 
     # Phase both targets to the same position with different names
-    uv1.phase(3.6, -0.5, cat_name="target1")
-    uv2.phase(3.6, -0.5, cat_name="target2")
-    uvfull.phase(3.6, -0.5, cat_name="target1")
+    uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
+    uv2.phase(lon=3.6, lat=-0.5, cat_name="target2")
+    uvfull.phase(lon=3.6, lat=-0.5, cat_name="target1")
 
     # Check that you end up with two phase centers if you don't ignore the name
     uv3 = uv1 + uv2
@@ -11442,15 +11539,15 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
     uv1, uv2, uvfull = hera_uvh5_split
     half_mask = np.arange(uvfull.Nblts) < (uvfull.Nblts * 0.5)
 
-    uv1.phase(3.6, -0.5, cat_name="target1")
-    uv2.phase(3.6, -0.5, cat_name="target1" if (test_op is None) else "target2")
+    uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
+    uv2.phase(lon=3.6, lat=-0.5, cat_name="target1" if (test_op is None) else "target2")
     uv3 = uv1 + uv2
     uv3.reorder_blts()
 
     uvfull.reorder_blts()
-    uvfull.phase(3.6, -0.5, cat_name="target1")
+    uvfull.phase(lon=3.6, lat=-0.5, cat_name="target1")
     uvfull._update_phase_center_id(
-        list(uvfull.phase_center_catalog)[0], 1 if (test_op is None) else 0
+        list(uvfull.phase_center_catalog)[0], new_id=1 if (test_op is None) else 0
     )
 
     # Any of these operations should allow for the objects to become equal to the
@@ -11466,7 +11563,7 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
     elif test_op == "rename":
         uv3.merge_phase_centers(list(uv3.phase_center_catalog)[::-1], ignore_name=True)
         uvfull.rename_phase_center("target1", "target2")
-        uvfull._update_phase_center_id(0, 1)
+        uvfull._update_phase_center_id(0, new_id=1)
     elif test_op == "merge":
         uv3.merge_phase_centers(["target1", "target2"], ignore_name=True)
     elif test_op == "r+m":
@@ -11489,13 +11586,13 @@ def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
         uvfull.use_current_array_shapes()
 
     # Give it a new name, and then rephase half of the "full" object
-    uv1.phase(3.6, -0.5, cat_name="target1")
-    uv2.phase(-0.5, 3.6, cat_name="target2")
+    uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
+    uv2.phase(lon=-0.5, lat=3.6, cat_name="target2")
 
     # Test that addition handles cat ID collisions correctly
     for pc_id in list(uv2.phase_center_catalog):
         if uv2.phase_center_catalog[pc_id]["cat_name"] == "target2":
-            uv2._update_phase_center_id(pc_id, catid)
+            uv2._update_phase_center_id(pc_id, new_id=catid)
 
     # Add the objects together
     uv3 = uv1.__add__(uv2)
@@ -11503,8 +11600,8 @@ def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
 
     # Separately phase both halves of the full data set
     half_mask = np.arange(uvfull.Nblts) < (uvfull.Nblts * 0.5)
-    uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
-    uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
+    uvfull.phase(lon=-0.5, lat=3.6, cat_name="target2", select_mask=~half_mask)
+    uvfull.phase(lon=3.6, lat=-0.5, cat_name="target1", select_mask=half_mask)
     uvfull.reorder_blts()
 
     # Check that the histories line up
@@ -11527,10 +11624,10 @@ def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
         for pc_id, pc_dict in uvfull.phase_center_catalog.items()
     }
 
-    uv3._update_phase_center_id(name_map1["target1"], 100)
-    uv3._update_phase_center_id(name_map1["target2"], 101)
-    uv3._update_phase_center_id(100, name_map2["target1"])
-    uv3._update_phase_center_id(101, name_map2["target2"])
+    uv3._update_phase_center_id(name_map1["target1"], new_id=100)
+    uv3._update_phase_center_id(name_map1["target2"], new_id=101)
+    uv3._update_phase_center_id(100, new_id=name_map2["target1"])
+    uv3._update_phase_center_id(101, new_id=name_map2["target2"])
 
     assert uv3 == uvfull
 
@@ -11558,10 +11655,10 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
 
     # Give it a new name, and then rephase half of the "full" object
     if cat_type == "sidereal":
-        uv1.phase(3.6, -0.5, cat_name="target1")
-        uv2.phase(-0.5, 3.6, cat_name="target2")
-        uvfull.phase(-0.5, 3.6, cat_name="target2", select_mask=~half_mask)
-        uvfull.phase(3.6, -0.5, cat_name="target1", select_mask=half_mask)
+        uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
+        uv2.phase(lon=-0.5, lat=3.6, cat_name="target2")
+        uvfull.phase(lon=-0.5, lat=3.6, cat_name="target2", select_mask=~half_mask)
+        uvfull.phase(lon=3.6, lat=-0.5, cat_name="target1", select_mask=half_mask)
     elif cat_type == "ephem":
         from ssl import SSLError
 
@@ -11573,27 +11670,35 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
                 ra=0, dec=0, epoch="J2000", lookup_name="Jupiter", cat_name="Jupiter"
             )
             uvfull.phase(
-                0, 0, lookup_name="Jupiter", cat_name="Jupiter", select_mask=~half_mask
+                lon=0,
+                lat=0,
+                lookup_name="Jupiter",
+                cat_name="Jupiter",
+                select_mask=~half_mask,
             )
             uvfull.phase(
-                0, 0, lookup_name="Mars", cat_name="Mars", select_mask=half_mask
+                lon=0, lat=0, lookup_name="Mars", cat_name="Mars", select_mask=half_mask
             )
         except (SSLError, RequestException) as err:
             pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
     elif cat_type == "driftscan":
-        uv1.phase(3.6, -0.5, cat_type=cat_type, phase_frame=None, cat_name="drift1")
-        uv2.phase(-0.5, 3.6, cat_type=cat_type, phase_frame="altaz", cat_name="drift2")
+        uv1.phase(
+            lon=3.6, lat=-0.5, cat_type=cat_type, phase_frame=None, cat_name="drift1"
+        )
+        uv2.phase(
+            lon=-0.5, lat=3.6, cat_type=cat_type, phase_frame="altaz", cat_name="drift2"
+        )
         uvfull.phase(
-            -0.5,
-            3.6,
+            lon=-0.5,
+            lat=3.6,
             cat_type=cat_type,
             cat_name="drift2",
             phase_frame=None,
             select_mask=~half_mask,
         )
         uvfull.phase(
-            3.6,
-            -0.5,
+            lon=3.6,
+            lat=-0.5,
             cat_type=cat_type,
             cat_name="drift1",
             phase_frame="altaz",
@@ -11609,7 +11714,9 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
         # Select does not clear the catalog, so clear the unused source and
         # update the cat ID so that it matches with the indv datasets
         uvtemp._clear_unused_phase_centers()
-        uvtemp._update_phase_center_id(list(uvtemp.phase_center_catalog.keys())[0], 1)
+        uvtemp._update_phase_center_id(
+            list(uvtemp.phase_center_catalog.keys())[0], new_id=1
+        )
         assert uvtemp.history in uvdata.history
         uvtemp.history = uvdata.history
         assert uvtemp == uvdata
@@ -12135,19 +12242,19 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
         )
 
     if sort_type == "blt":
-        uv1.reorder_blts("time", "ant1")
-        uv2.reorder_blts("time", "ant2")
-        casa_uvfits.reorder_blts("bda")
+        uv1.reorder_blts(order="time", minor_order="ant1")
+        uv2.reorder_blts(order="time", minor_order="ant2")
+        casa_uvfits.reorder_blts(order="bda")
         order_check = uv1.ant_1_array == uv2.ant_1_array
     elif sort_type == "freq":
         uv1.reorder_freqs(channel_order="freq")
         uv2.reorder_freqs(channel_order="-freq")
-        casa_uvfits.reorder_freqs("freq")
+        casa_uvfits.reorder_freqs(spw_order="freq")
         order_check = uv1.freq_array == uv2.freq_array
     elif sort_type == "pol":
-        uv1.reorder_pols("AIPS")
-        uv2.reorder_pols("CASA")
-        casa_uvfits.reorder_pols("CASA")
+        uv1.reorder_pols(order="AIPS")
+        uv2.reorder_pols(order="CASA")
+        casa_uvfits.reorder_pols(order="CASA")
         order_check = uv1.polarization_array == uv2.polarization_array
 
     # Make sure that the order has actually been scrambled
@@ -12157,11 +12264,11 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
     uv3 = uv1 + uv2
 
     if sort_type == "blt":
-        uv3.reorder_blts("bda")
+        uv3.reorder_blts(order="bda")
     elif sort_type == "freq":
         uv3.reorder_freqs(channel_order="freq")
     elif sort_type == "pol":
-        uv3.reorder_pols("CASA")
+        uv3.reorder_pols(order="CASA")
 
     # Deal with the history separately, since it will be different
     assert str.startswith(uv3.history, casa_uvfits.history)
@@ -12429,14 +12536,14 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
     sma_copy = sma_mir.copy()
 
     with pytest.raises(ValueError, match=err_msg):
-        sma_mir._make_flex_pol(True, True)
+        sma_mir._make_flex_pol(raise_error=True, raise_warning=True)
 
     with uvtest.check_warnings(UserWarning, err_msg):
-        sma_mir._make_flex_pol(False, True)
+        sma_mir._make_flex_pol(raise_error=False, raise_warning=True)
     assert sma_copy == sma_mir
 
     with uvtest.check_warnings(None):
-        sma_mir._make_flex_pol(False, False)
+        sma_mir._make_flex_pol(raise_error=False, raise_warning=False)
     assert sma_copy == sma_mir
 
 
