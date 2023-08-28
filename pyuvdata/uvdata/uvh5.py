@@ -303,6 +303,7 @@ class FastUVH5Meta:
     def __init__(
         self,
         path: str | Path | h5py.File | h5py.Group,
+        *,
         blt_order: Literal["determine"] | tuple[str] | None = None,
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
@@ -787,9 +788,12 @@ class FastUVH5Meta:
     @cached_property
     def antpos_enu(self) -> np.ndarray:
         """The antenna positions in ENU coordinates, in meters."""
+        lat, lon, alt = self.telescope_location_lat_lon_alt
         return uvutils.ENU_from_ECEF(
             self.antenna_positions + self.telescope_location,
-            *self.telescope_location_lat_lon_alt,
+            latitude=lat,
+            longitude=lon,
+            altitude=alt,
             frame="itrs",
         )
 
@@ -856,7 +860,7 @@ class FastUVH5Meta:
         return vis_units
 
     def to_uvdata(
-        self, check_lsts: bool = False, astrometry_library: str | None = None
+        self, *, check_lsts: bool = False, astrometry_library: str | None = None
     ) -> UVData:
         """Convert the file to a UVData object.
 
@@ -898,6 +902,7 @@ class UVH5(UVData):
     def _read_header_with_fast_meta(
         self,
         filename: str | Path | FastUVH5Meta,
+        *,
         run_check_acceptability: bool = True,
         blt_order: tuple[str] | None | Literal["determine"] = None,
         blts_are_rectangular: bool | None = None,
@@ -1107,6 +1112,7 @@ class UVH5(UVData):
     def _get_data(
         self,
         dgrp,
+        *,
         antenna_nums,
         antenna_names,
         ant_str,
@@ -1234,7 +1240,11 @@ class UVH5(UVData):
             # do select operations on everything except data_array, flag_array
             # and nsample_array
             self._select_by_index(
-                blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
+                blt_inds=blt_inds,
+                freq_inds=freq_inds,
+                pol_inds=pol_inds,
+                history_update_string=history_update_string,
+                keep_all_metadata=keep_all_metadata,
             )
 
             # determine which axes can be sliced, rather than fancy indexed
@@ -1424,6 +1434,7 @@ class UVH5(UVData):
     def read_uvh5(
         self,
         filename,
+        *,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -1491,23 +1502,23 @@ class UVH5(UVData):
             # Now read in the data
             self._get_data(
                 meta.datagrp,
-                antenna_nums,
-                antenna_names,
-                ant_str,
-                bls,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                polarizations,
-                blt_inds,
-                phase_center_ids,
-                catalog_names,
-                data_array_dtype,
-                keep_all_metadata,
-                multidim_index,
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
+                data_array_dtype=data_array_dtype,
+                keep_all_metadata=keep_all_metadata,
+                multidim_index=multidim_index,
             )
         if close_meta:
             meta.close()
@@ -1699,6 +1710,7 @@ class UVH5(UVData):
     def write_uvh5(
         self,
         filename,
+        *,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -1875,6 +1887,7 @@ class UVH5(UVData):
     def initialize_uvh5_file(
         self,
         filename,
+        *,
         clobber=False,
         chunks=True,
         data_compression=None,
@@ -2012,7 +2025,7 @@ class UVH5(UVData):
         return
 
     def _check_header(
-        self, filename, run_check_acceptability=True, background_lsts=True
+        self, filename, *, run_check_acceptability=True, background_lsts=True
     ):
         """
         Check that the metadata in a file header matches the object's metadata.
@@ -2091,6 +2104,7 @@ class UVH5(UVData):
     def write_uvh5_part(
         self,
         filename,
+        *,
         data_array,
         flag_array,
         nsample_array,
@@ -2244,20 +2258,20 @@ class UVH5(UVData):
 
         # figure out which "full file" indices to write data to
         blt_inds, freq_inds, pol_inds, _ = self._select_preprocess(
-            antenna_nums,
-            antenna_names,
-            ant_str,
-            bls,
-            frequencies,
-            freq_chans,
-            times,
-            time_range,
-            lsts,
-            lst_range,
-            polarizations,
-            blt_inds,
-            phase_center_ids,
-            catalog_names,
+            antenna_nums=antenna_nums,
+            antenna_names=antenna_names,
+            ant_str=ant_str,
+            bls=bls,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            polarizations=polarizations,
+            blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
         )
 
         # make sure that the dimensions of the data to write are correct
