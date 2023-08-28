@@ -79,8 +79,9 @@ def read_metafits(
         # antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
         # \"height\". Units are meters."
+        latitude, longitude, altitude = mwa_telescope_obj.telescope_location_lat_lon_alt
         antenna_positions_ecef = uvutils.ECEF_from_ENU(
-            antenna_positions, *mwa_telescope_obj.telescope_location_lat_lon_alt
+            antenna_positions, latitude=latitude, longitude=longitude, altitude=altitude
         )
         # make antenna positions relative to telescope location
         antenna_positions = (
@@ -308,7 +309,7 @@ def corrcorrect_simps(rho, sig1, sig2):
     return integrated_khat
 
 
-def corrcorrect_vect_prime(rho, sig1, sig2):
+def corrcorrect_vect_prime(*, rho, sig1, sig2):
     """
     Calculate the derivative of corrcorrect_simps.
 
@@ -361,7 +362,7 @@ def van_vleck_autos(sighat_arr):
     return sighat_arr
 
 
-def van_vleck_crosses_int(k_arr, sig1_arr, sig2_arr, cheby_approx):
+def van_vleck_crosses_int(*, k_arr, sig1_arr, sig2_arr, cheby_approx):
     """
     Use Newton's method to solve the inverse of corrcorrect_simps.
 
@@ -400,11 +401,13 @@ def van_vleck_crosses_int(k_arr, sig1_arr, sig2_arr, cheby_approx):
         sig2 = sig2_arr[nonzero_inds]
         x0 = khat / (sig1 * sig2)
         corr = corrcorrect_simps(x0, sig1, sig2) - khat
-        x0 -= corr / corrcorrect_vect_prime(x0, sig1, sig2)
+        x0 -= corr / corrcorrect_vect_prime(rho=x0, sig1=sig1, sig2=sig2)
         inds = np.where(np.abs(corr) > 1e-8)[0]
         while len(inds) != 0:
             corr = corrcorrect_simps(x0[inds], sig1[inds], sig2[inds]) - khat[inds]
-            x0[inds] -= corr / corrcorrect_vect_prime(x0[inds], sig1[inds], sig2[inds])
+            x0[inds] -= corr / corrcorrect_vect_prime(
+                rho=x0[inds], sig1=sig1[inds], sig2=sig2[inds]
+            )
             inds2 = np.where(np.abs(corr) > 1e-8)[0]
             inds = inds[inds2]
         k_arr[nonzero_inds] = x0 * sig1 * sig2
@@ -473,9 +476,15 @@ def van_vleck_crosses_cheby(
         sig1[broad_inds] * sig2[broad_inds]
     )
     khat[~broad_inds] = van_vleck_crosses_int(
-        khat.real[~broad_inds], sig1[~broad_inds], sig2[~broad_inds], cheby_approx
+        k_arr=khat.real[~broad_inds],
+        sig1_arr=sig1[~broad_inds],
+        sig2_arr=sig2[~broad_inds],
+        cheby_approx=cheby_approx,
     ) + 1j * van_vleck_crosses_int(
-        khat.imag[~broad_inds], sig1[~broad_inds], sig2[~broad_inds], cheby_approx
+        k_arr=khat.imag[~broad_inds],
+        sig1_arr=sig1[~broad_inds],
+        sig2_arr=sig2[~broad_inds],
+        cheby_approx=cheby_approx,
     )
 
     return khat
@@ -944,12 +953,22 @@ class MWACorrFITS(UVData):
                         k, :, j, np.array([yy, yx, xy, xx])
                     ].flatten()
                     # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2, cheby_approx)
+                    kap = van_vleck_crosses_int(
+                        k_arr=khat.real,
+                        sig1_arr=sig1,
+                        sig2_arr=sig2,
+                        cheby_approx=cheby_approx,
+                    )
                     self.data_array.real[
                         k, :, j, np.array([yy, yx, xy, xx])
                     ] = kap.reshape(self.Npols, self.Ntimes)
                     # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2, cheby_approx)
+                    kap = van_vleck_crosses_int(
+                        k_arr=khat.imag,
+                        sig1_arr=sig1,
+                        sig2_arr=sig2,
+                        cheby_approx=cheby_approx,
+                    )
                     self.data_array.imag[
                         k, :, j, np.array([yy, yx, xy, xx])
                     ] = kap.reshape(self.Npols, self.Ntimes)
@@ -961,10 +980,19 @@ class MWACorrFITS(UVData):
                     sig2 = self.data_array.real[k, :, j, xx]
                     khat = self.data_array[k, :, j, yx]
                     # correct real
-                    kap = van_vleck_crosses_int(khat.real, sig1, sig2, cheby_approx)
-                    self.data_array.real[k, :, j, yx] = kap
+                    kap = van_vleck_crosses_int(
+                        k_arr=khat.real,
+                        sig1_arr=sig1,
+                        sig2_arr=sig2,
+                        cheby_approx=cheby_approx,
+                    )
                     # correct imaginary
-                    kap = van_vleck_crosses_int(khat.imag, sig1, sig2, cheby_approx)
+                    kap = van_vleck_crosses_int(
+                        k_arr=khat.imag,
+                        sig1_arr=sig1,
+                        sig2_arr=sig2,
+                        cheby_approx=cheby_approx,
+                    )
                     self.data_array.imag[k, :, j, yx] = kap
         # correct xy autos
         self.data_array[good_autos, :, :, xy] = np.conj(
@@ -985,7 +1013,13 @@ class MWACorrFITS(UVData):
         self.history += history_add_string
 
     def _flag_small_auto_ants(
-        self, nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
+        self,
+        *,
+        nsamples,
+        flag_small_auto_ants,
+        ant_1_inds,
+        ant_2_inds,
+        flagged_ant_inds,
     ):
         """
         Find and flag autocorrelations below a threshold.
@@ -1219,7 +1253,11 @@ class MWACorrFITS(UVData):
             nsamples = self.channel_width[0] * self.integration_time[0] * 2
             # look for small auto data and flag
             flagged_ant_inds = self._flag_small_auto_ants(
-                nsamples, flag_small_auto_ants, ant_1_inds, ant_2_inds, flagged_ant_inds
+                nsamples=nsamples,
+                flag_small_auto_ants=flag_small_auto_ants,
+                ant_1_inds=ant_1_inds,
+                ant_2_inds=ant_2_inds,
+                flagged_ant_inds=flagged_ant_inds,
             )
         else:
             nsamples = None
@@ -1265,6 +1303,7 @@ class MWACorrFITS(UVData):
     def read_mwa_corr_fits(
         self,
         filelist,
+        *,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,

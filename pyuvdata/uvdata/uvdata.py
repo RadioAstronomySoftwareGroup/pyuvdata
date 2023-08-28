@@ -1608,7 +1608,7 @@ class UVData(UVBase):
             warnings.warn(
                 "All data for the source selected - updating the cat_id instead."
             )
-            self._update_phase_center_id(cat_id, new_id)
+            self._update_phase_center_id(cat_id, new_id=new_id)
             if new_name is not None:
                 self.rename_phase_center(new_id, new_name)
         else:
@@ -2451,7 +2451,7 @@ class UVData(UVBase):
         # seconds, so we need to convert.
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
-    def _set_lsts_helper(self, astrometry_library=None):
+    def _set_lsts_helper(self, *, astrometry_library=None):
         latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         # the utility function is efficient -- it only calculates unique times
         self.lst_array = uvutils.get_lst_for_time(
@@ -4539,7 +4539,7 @@ class UVData(UVBase):
         """
         dshape = data.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.data_array, inds, data)
+        uvutils._index_dset(self.data_array, inds, input_array=data)
 
         return
 
@@ -4584,7 +4584,7 @@ class UVData(UVBase):
         """
         dshape = flags.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.flag_array, inds, flags)
+        uvutils._index_dset(self.flag_array, inds, input_array=flags)
 
         return
 
@@ -4631,7 +4631,7 @@ class UVData(UVBase):
         """
         dshape = nsamples.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.nsample_array, inds, nsamples)
+        uvutils._index_dset(self.nsample_array, inds, input_array=nsamples)
 
         return
 
@@ -5714,6 +5714,7 @@ class UVData(UVBase):
 
     def phase(
         self,
+        *,
         lon=None,
         lat=None,
         epoch="J2000",
@@ -5892,8 +5893,8 @@ class UVData(UVBase):
         # We got the meta-data, now handle calculating the apparent coordinates.
         # First, check if we need to look up the phase center in question
         new_app_ra, new_app_dec = uvutils.calc_app_coords(
-            phase_dict["cat_lon"],
-            phase_dict["cat_lat"],
+            lon_coord=phase_dict["cat_lon"],
+            lat_coord=phase_dict["cat_lat"],
             coord_frame=phase_dict["cat_frame"],
             coord_epoch=phase_dict["cat_epoch"],
             coord_times=phase_dict["cat_times"],
@@ -5943,8 +5944,8 @@ class UVData(UVBase):
 
         # With all operations complete, we now start manipulating the UVData object
         cat_id = self._add_phase_center(
-            phase_dict["cat_name"],
-            phase_dict["cat_type"],
+            cat_name=phase_dict["cat_name"],
+            cat_type=phase_dict["cat_type"],
             cat_lon=phase_dict["cat_lon"],
             cat_lat=phase_dict["cat_lat"],
             cat_frame=phase_dict["cat_frame"],
@@ -6045,8 +6046,8 @@ class UVData(UVBase):
         zenith_dec = obs_zenith_coord.dec.rad
 
         self.phase(
-            zenith_ra,
-            zenith_dec,
+            lon=zenith_ra,
+            lat=zenith_dec,
             epoch="J2000",
             phase_frame=phase_frame,
             use_ant_pos=use_ant_pos,
@@ -6231,10 +6232,13 @@ class UVData(UVBase):
                 )
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
-
+                lat, lon, alt = itrs_lat_lon_alt
                 # now convert them to ENU, which is the space uvws are in
                 self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(
-                    itrs_uvw_coord.cartesian.get_xyz().value.T, *itrs_lat_lon_alt
+                    itrs_uvw_coord.cartesian.get_xyz().value.T,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
                 )
 
             # remove/add phase center
@@ -6257,8 +6261,8 @@ class UVData(UVBase):
 
             # And rephase the data using the new algorithm
             self.phase(
-                phase_dict["cat_lon"],
-                phase_dict["cat_lat"],
+                lon=phase_dict["cat_lon"],
+                lat=phase_dict["cat_lat"],
                 phase_frame=phase_dict["cat_frame"],
                 epoch=phase_dict["cat_epoch"],
                 cat_name=phase_dict["cat_name"],
@@ -6689,7 +6693,7 @@ class UVData(UVBase):
                     this_blts_ind[other_argsort]
                 ]
 
-                this.reorder_blts(temp_ind)
+                this.reorder_blts(order=temp_ind)
 
         if len(this_freq_ind) != 0:
             this_argsort = np.argsort(this_freq_ind)
@@ -6711,7 +6715,7 @@ class UVData(UVBase):
                     this_pol_ind[other_argsort]
                 ]
 
-                this.reorder_pols(temp_ind)
+                this.reorder_pols(order=temp_ind)
 
         # Pad out self to accommodate new data
         blt_order = None
@@ -8416,6 +8420,7 @@ class UVData(UVBase):
 
     def _select_by_index(
         self,
+        *,
         blt_inds,
         freq_inds,
         pol_inds,
@@ -8520,6 +8525,7 @@ class UVData(UVBase):
 
     def select(
         self,
+        *,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -8686,7 +8692,11 @@ class UVData(UVBase):
 
         # Call the low-level selection method.
         uv_obj._select_by_index(
-            blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
+            blt_inds=blt_inds,
+            freq_inds=freq_inds,
+            pol_inds=pol_inds,
+            history_update_string=history_update_string,
+            keep_all_metadata=keep_all_metadata,
         )
 
         # Update the rectangularity attributes
@@ -8780,6 +8790,7 @@ class UVData(UVBase):
     def upsample_in_time(
         self,
         max_int_time,
+        *,
         blt_order="time",
         minor_order="baseline",
         summing_correlator_mode=False,
@@ -9013,8 +9024,8 @@ class UVData(UVBase):
                     else:
                         select_mask = None
                     self.phase(
-                        cat_dict["cat_lon"],
-                        cat_dict["cat_lat"],
+                        lon=cat_dict["cat_lon"],
+                        lat=cat_dict["cat_lat"],
                         cat_name=cat_dict["cat_name"],
                         cat_type=cat_dict["cat_type"],
                         phase_frame=cat_dict["cat_frame"],
@@ -9039,6 +9050,7 @@ class UVData(UVBase):
 
     def downsample_in_time(
         self,
+        *,
         min_int_time=None,
         n_times_to_avg=None,
         blt_order="time",
@@ -9215,7 +9227,7 @@ class UVData(UVBase):
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
                 if len(np.unique(dtime)) > 1 and not uvutils._test_array_constant(
-                    dtime, self._integration_time.tols
+                    dtime, tols=self._integration_time.tols
                 ):
                     warnings.warn(
                         "There is a gap in the times of baseline {bl}. "
@@ -9511,8 +9523,8 @@ class UVData(UVBase):
                     else:
                         select_mask = None
                     self.phase(
-                        cat_dict["cat_lon"],
-                        cat_dict["cat_lat"],
+                        lon=cat_dict["cat_lon"],
+                        lat=cat_dict["cat_lat"],
                         cat_name=cat_dict["cat_name"],
                         cat_type=cat_dict["cat_type"],
                         phase_frame=cat_dict["cat_frame"],
@@ -9622,7 +9634,7 @@ class UVData(UVBase):
 
         if downsample:
             self.downsample_in_time(
-                target_time,
+                min_int_time=target_time,
                 blt_order=blt_order,
                 minor_order=minor_order,
                 keep_ragged=keep_ragged,
@@ -10115,7 +10127,7 @@ class UVData(UVBase):
             raise ValueError(f"method must be one of {allowed_methods}")
 
         red_gps, centers, lengths, conjugates = self.get_redundancies(
-            tol, include_conjugates=True
+            tol=tol, include_conjugates=True
         )
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
 
@@ -10185,9 +10197,9 @@ class UVData(UVBase):
                 # so we can average over them.
                 time_inds = np.arange(len(group_times + conj_group_times))
                 time_gps = uvutils.find_clusters(
-                    time_inds,
-                    np.array(group_times + conj_group_times),
-                    self._time_array.tols[1],
+                    location_ids=time_inds,
+                    location_vectors=np.array(group_times + conj_group_times),
+                    tol=self._time_array.tols[1],
                 )
 
                 # average over the same times
@@ -13037,7 +13049,7 @@ class UVData(UVBase):
         filename,
         *,
         data_array,
-        flags_array,
+        flag_array,
         nsample_array,
         check_header=True,
         antenna_nums=None,
@@ -13166,9 +13178,9 @@ class UVData(UVBase):
         uvh5_obj = self._convert_to_filetype("uvh5")
         uvh5_obj.write_uvh5_part(
             filename,
-            data_array,
-            flags_array,
-            nsample_array,
+            data_array=data_array,
+            flag_array=flag_array,
+            nsample_array=nsample_array,
             check_header=check_header,
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
