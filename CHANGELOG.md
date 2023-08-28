@@ -9,6 +9,8 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Require keyword arguments rather than allowing for passing arguments by position for
+functions and methods with many parameters.
 - Only one of `time_array` and `time_range` (and similarly `lst_array` and `lst_range`)
 can be set on a UVCal object.
 - If `time_range` is set it must be 2D with a shape of (Ntimes, 2) where the first axis
