@@ -196,7 +196,7 @@ data-like arrays as well, filled with zeros.
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
   >>> uvd = UVData.from_file(uvd_file, file_type="uvh5", use_future_array_shapes=True)
-  >>> uvc = UVCal.initialize_from_uvdata(uvd, "multiply", "redundant")
+  >>> uvc = UVCal.initialize_from_uvdata(uvd, gain_convention="multiply", cal_style="redundant")
   >>> print(uvc.ant_array)
   [ 0  1 11 12 13 23 24 25]
 
@@ -256,7 +256,7 @@ a) Data for a single antenna and instrumental polarization
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
   >>> uvc = UVCal.from_file(filename, use_future_array_shapes=True)
-  >>> gain = uvc.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
+  >>> gain = uvc.get_gains(9, jpol='Jxx')  # gain for ant=9, pol='Jxx'
 
   >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
   >>> gain = uvc.get_gains((9, 'Jxx'))
@@ -629,7 +629,7 @@ specified by passing an index array.
   True
 
   >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_antennas('-number')
+  >>> cal.reorder_antennas(order='-number')
   >>> print(np.min(np.diff(cal.ant_array)) <= 0)
   True
 
@@ -713,7 +713,7 @@ array for the time axis.
   True
 
   >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_times('-time')
+  >>> cal.reorder_times(order='-time')
   >>> print(np.min(np.diff(cal.time_array)) <= 0)
   True
 
