@@ -161,7 +161,7 @@ def test_time_precision(tmp_path):
     latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
     unique_lst_array = uvutils.get_lst_for_time(
-        unique_times, latitude, longitude, altitude
+        unique_times, latitude=latitude, longitude=longitude, altitude=altitude
     )
 
     calc_lst_array = unique_lst_array[inverse_inds]
@@ -626,7 +626,9 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
         ):
             uv2 = UVData.from_file(write_file2, use_future_array_shapes=True)
         uv2.uvw_array = uvutils._rotate_one_axis(
-            uv2.uvw_array[:, :, None], -1 * (uv2.phase_center_app_dec - np.pi / 2), 0
+            xyz_array=uv2.uvw_array[:, :, None],
+            rot_amount=-1 * (uv2.phase_center_app_dec - np.pi / 2),
+            rot_axis=0,
         )[:, :, 0]
     else:
         uv2 = UVData.from_file(write_file2, use_future_array_shapes=True)
@@ -1057,7 +1059,7 @@ def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     uv_out = UVData()
     write_file = str(tmp_path / "blt_order_test.uvfits")
 
-    uv_in.reorder_blts(order)
+    uv_in.reorder_blts(order=order)
 
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file, use_future_array_shapes=True)

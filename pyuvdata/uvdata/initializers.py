@@ -32,6 +32,7 @@ XORIENTMAP = {
 
 
 def get_antenna_params(
+    *,
     antenna_positions: np.ndarray | dict[str | int, np.ndarray],
     antenna_names: list[str] | None = None,
     antenna_numbers: list[int] | None = None,
@@ -91,6 +92,7 @@ def get_antenna_params(
 
 
 def get_time_params(
+    *,
     telescope_location: Locations,
     time_array: np.ndarray,
     integration_time: float | np.ndarray | None = None,
@@ -151,7 +153,7 @@ def get_time_params(
 
 
 def get_freq_params(
-    freq_array: np.ndarray, channel_width: float | np.ndarray | None = None
+    *, freq_array: np.ndarray, channel_width: float | np.ndarray | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Configure frequency parameters for new UVData object."""
     if not isinstance(freq_array, np.ndarray):
@@ -182,15 +184,16 @@ def get_freq_params(
 
 
 def get_baseline_params(
-    antenna_positions: np.ndarray, antpairs: np.ndarray
+    *, antenna_numbers: np.ndarray, antpairs: np.ndarray
 ) -> np.ndarray:
     """Configure baseline parameters for new UVData object."""
     return utils.antnums_to_baseline(
-        antpairs[:, 0], antpairs[:, 1], len(antenna_positions)
+        antpairs[:, 0], antpairs[:, 1], len(antenna_numbers)
     )
 
 
 def configure_blt_rectangularity(
+    *,
     times: np.ndarray,
     antpairs: np.ndarray,
     do_blt_outer: bool | None = None,
@@ -292,7 +295,7 @@ def configure_blt_rectangularity(
     )
 
 
-def set_phase_params(obj, phase_center_catalog, phase_center_id_array, time_array):
+def set_phase_params(obj, *, phase_center_catalog, phase_center_id_array, time_array):
     """Configure phase center parameters for new UVData object."""
     if phase_center_catalog is None:
         obj._add_phase_center(cat_name="unprojected", cat_type="unprojected")
@@ -315,6 +318,7 @@ def set_phase_params(obj, phase_center_catalog, phase_center_id_array, time_arra
 
 
 def get_spw_params(
+    *,
     flex_spw_id_array: np.ndarray | None = None,
     freq_array: np.ndarray | None = None,
     spw_array: np.ndarray | None = None,
@@ -343,6 +347,7 @@ def get_spw_params(
 
 
 def new_uvdata(
+    *,
     freq_array: np.ndarray,
     polarization_array: np.ndarray | list[str | int] | tuple[str | int],
     antenna_positions: np.ndarray | dict[str | int, np.ndarray],
@@ -501,13 +506,16 @@ def new_uvdata(
     obj = UVData()
 
     antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
-        antenna_positions, antenna_names, antenna_numbers, antname_format
+        antenna_positions=antenna_positions,
+        antenna_names=antenna_names,
+        antenna_numbers=antenna_numbers,
+        antname_format=antname_format,
     )
 
     lst_array, integration_time = get_time_params(
-        telescope_location,
-        times,
-        integration_time,
+        telescope_location=telescope_location,
+        time_array=times,
+        integration_time=integration_time,
         astrometry_library=astrometry_library,
     )
 
@@ -531,14 +539,20 @@ def new_uvdata(
         time_axis_faster_than_bls=time_axis_faster_than_bls,
         time_sized_arrays=(lst_array, integration_time),
     )
-    baseline_array = get_baseline_params(antenna_numbers, antpairs)
+    baseline_array = get_baseline_params(
+        antenna_numbers=antenna_numbers, antpairs=antpairs
+    )
 
     # Re-get the ant arrays because the baseline array may have changed
     ant_1_array, ant_2_array = antpairs.T
 
-    freq_array, channel_width = get_freq_params(freq_array, channel_width)
+    freq_array, channel_width = get_freq_params(
+        freq_array=freq_array, channel_width=channel_width
+    )
 
-    flex_spw_id_array, spw_array = get_spw_params(flex_spw_id_array, freq_array)
+    flex_spw_id_array, spw_array = get_spw_params(
+        flex_spw_id_array=flex_spw_id_array, freq_array=freq_array
+    )
 
     polarization_array = np.array(polarization_array)
     if polarization_array.dtype.kind != "i":

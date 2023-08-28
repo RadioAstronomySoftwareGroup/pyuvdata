@@ -3341,7 +3341,7 @@ def test_flags2waterfall_errors(uvdata_obj):
     uv = uvdata_obj
     # Flag array must have same shape as uv.flag_array
     with pytest.raises(ValueError) as cm:
-        flags2waterfall(uv, np.array([4, 5]))
+        flags2waterfall(uv, flag_array=np.array([4, 5]))
     assert str(cm.value).startswith("Flag array must align with UVData or UVCal")
 
 

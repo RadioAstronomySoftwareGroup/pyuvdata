@@ -938,7 +938,7 @@ def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
         uv_in.write_miriad(testfile, clobber=True)
     uv2 = UVData.from_file(testfile, use_future_array_shapes=True)
 
-    uv2._update_phase_center_id(0, 1)
+    uv2._update_phase_center_id(0, new_id=1)
     uv2.phase_center_catalog[1]["info_source"] = uv_in.phase_center_catalog[1][
         "info_source"
     ]
@@ -1855,7 +1855,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     testfile2 = os.path.join(tmp_path, "uv2")
     # rename telescope to avoid name warning
     uv_full.unproject_phase()
-    uv_full.conjugate_bls("ant1<ant2")
+    uv_full.conjugate_bls(convention="ant1<ant2")
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
@@ -1955,7 +1955,9 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     t1 = Time(uv["time"], format="jd", location=(lon, lat))
     dt = TimeDelta(uv["inttime"] / 2, format="sec")
     t2 = t1 + dt
-    lsts = uvutils.get_lst_for_time(np.array([t1.jd, t2.jd]), lat, lon, alt)
+    lsts = uvutils.get_lst_for_time(
+        np.array([t1.jd, t2.jd]), latitude=lat, longitude=lon, altitude=alt
+    )
     delta_lst = lsts[1] - lsts[0]
     uv_l = uv["lst"] + delta_lst
 
