@@ -53,8 +53,9 @@ def uv_partial_write(casa_uvfits, tmp_path):
     # convert a uvfits file to uvh5, cutting down the amount of data
     uv_uvfits = casa_uvfits
     uv_uvfits.select(antenna_nums=[3, 7, 24])
+    lat, lon, alt = uv_uvfits.telescope_location_lat_lon_alt_degrees
     uv_uvfits.lst_array = uvutils.get_lst_for_time(
-        uv_uvfits.time_array, *uv_uvfits.telescope_location_lat_lon_alt_degrees
+        uv_uvfits.time_array, latitude=lat, longitude=lon, altitude=alt
     )
 
     testfile = str(tmp_path / "outtest.uvh5")
@@ -1009,8 +1010,13 @@ def test_uvh5_partial_write_antpairs(uv_partial_write, future_shapes, tmp_path):
         data = full_uvh5.get_data(key, squeeze="none")
         flags = full_uvh5.get_flags(key, squeeze="none")
         nsamples = full_uvh5.get_nsamples(key, squeeze="none")
-        partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
-
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
+            bls=key,
+        )
     # now read in the full file and make sure that it matches the original
     partial_uvh5.read(partial_testfile, use_future_array_shapes=future_shapes)
 
@@ -1027,7 +1033,12 @@ def test_uvh5_partial_write_antpairs(uv_partial_write, future_shapes, tmp_path):
     flags = full_uvh5.get_flags(key, squeeze="none")
     nsamples = full_uvh5.get_nsamples(key, squeeze="none")
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, bls=key, add_to_history="foo"
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        bls=key,
+        add_to_history="foo",
     )
     partial_uvh5.read(partial_testfile, read_data=False)
     assert "foo" in partial_uvh5.history
@@ -1073,7 +1084,11 @@ def test_uvh5_partial_write_frequencies(uv_partial_write, future_shapes, tmp_pat
         flags = full_uvh5.flag_array[:, :, freqs1, :]
         nsamples = full_uvh5.nsample_array[:, :, freqs1, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freqs1
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freqs1,
     )
     if future_shapes:
         data = full_uvh5.data_array[:, freqs2, :]
@@ -1084,7 +1099,11 @@ def test_uvh5_partial_write_frequencies(uv_partial_write, future_shapes, tmp_pat
         flags = full_uvh5.flag_array[:, :, freqs2, :]
         nsamples = full_uvh5.nsample_array[:, :, freqs2, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freqs2
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freqs2,
     )
 
     # read in the full file and make sure it matches
@@ -1133,13 +1152,21 @@ def test_uvh5_partial_write_blts(uv_partial_write, future_shapes, tmp_path):
     flags = full_uvh5.flag_array[blts1]
     nsamples = full_uvh5.nsample_array[blts1]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blts1
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blts1,
     )
     data = full_uvh5.data_array[blts2]
     flags = full_uvh5.flag_array[blts2]
     nsamples = full_uvh5.nsample_array[blts2]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blts2
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blts2,
     )
 
     # read in the full file and make sure it matches
@@ -1194,9 +1221,9 @@ def test_uvh5_partial_write_pols(uv_partial_write, future_shapes, tmp_path):
         nsamples = full_uvh5.nsample_array[:, :, :, pols1]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=full_uvh5.polarization_array[:Hpols],
     )
     if future_shapes:
@@ -1209,9 +1236,9 @@ def test_uvh5_partial_write_pols(uv_partial_write, future_shapes, tmp_path):
         nsamples = full_uvh5.nsample_array[:, :, :, pols2]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=full_uvh5.polarization_array[Hpols:],
     )
 
@@ -1262,7 +1289,11 @@ def test_uvh5_partial_write_irregular_blt(uv_partial_write, tmp_path):
     flags = full_uvh5.flag_array[blt_inds]
     nsamples = full_uvh5.nsample_array[blt_inds]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blt_inds
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
     )
 
     # also write the arrays to the partial object
@@ -1318,7 +1349,11 @@ def test_uvh5_partial_write_irregular_freq(uv_partial_write, tmp_path):
     flags = full_uvh5.flag_array[:, freq_inds, :]
     nsamples = full_uvh5.nsample_array[:, freq_inds, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freq_inds
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freq_inds,
     )
 
     # also write the arrays to the partial object
@@ -1375,9 +1410,9 @@ def test_uvh5_partial_write_irregular_pol(uv_partial_write, tmp_path):
     nsamples = full_uvh5.nsample_array[:, :, pol_inds]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=partial_uvh5.polarization_array[pol_inds],
     )
 
@@ -1460,9 +1495,9 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, future_shapes, tm
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             freq_chans=freq_inds,
         )
@@ -1565,9 +1600,9 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, future_shapes, tm
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             freq_chans=freq_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
         )
@@ -1666,9 +1701,9 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, future_shapes, tm
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
         )
@@ -1778,9 +1813,9 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, future_shapes, tm
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             freq_chans=freq_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
@@ -1856,7 +1891,13 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
     with pytest.raises(
         AssertionError, match=re.escape(f"{partial_testfile} does not exist")
     ):
-        partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
+            bls=key,
+        )
 
     # initialize file on disk
     partial_uvh5.initialize_uvh5_file(partial_testfile, clobber=True)
@@ -1866,20 +1907,31 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
         AssertionError, match="data_array and flag_array must have the same shape"
     ):
         partial_uvh5.write_uvh5_part(
-            partial_testfile, data, flags[:, :, 0], nsamples, bls=key
+            partial_testfile,
+            data_array=data,
+            flag_array=flags[:, :, 0],
+            nsample_array=nsamples,
+            bls=key,
         )
 
     with pytest.raises(
         AssertionError, match="data_array and nsample_array must have the same shape"
     ):
         partial_uvh5.write_uvh5_part(
-            partial_testfile, data, flags, nsamples[:, :, 0], bls=key
+            partial_testfile,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples[:, :, 0],
+            bls=key,
         )
 
     # pass in arrays that are the same size, but don't match expected shape
     with pytest.raises(AssertionError, match="data_array has shape"):
         partial_uvh5.write_uvh5_part(
-            partial_testfile, data[:, :, 0], flags[:, :, 0], nsamples[:, :, 0]
+            partial_testfile,
+            data_array=data[:, :, 0],
+            flag_array=flags[:, :, 0],
+            nsample_array=nsamples[:, :, 0],
         )
 
     # initialize a file on disk, and pass in a different object so check_header fails
@@ -1890,7 +1942,13 @@ def test_uvh5_partial_write_errors(uv_partial_write, tmp_path):
         AssertionError,
         match="The object metadata in memory and metadata on disk are different",
     ):
-        small_uvd.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
+        small_uvd.write_uvh5_part(
+            partial_testfile,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
+            bls=key,
+        )
 
     # clean up
     os.remove(partial_testfile)
@@ -2399,7 +2457,13 @@ def test_uvh5_partial_write_ints_antpairs(uv_uvh5, tmp_path):
         data = full_uvh5.get_data(key, squeeze="none")
         flags = full_uvh5.get_flags(key, squeeze="none")
         nsamples = full_uvh5.get_nsamples(key, squeeze="none")
-        partial_uvh5.write_uvh5_part(partial_testfile, data, flags, nsamples, bls=key)
+        partial_uvh5.write_uvh5_part(
+            partial_testfile,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
+            bls=key,
+        )
 
     # now read in the full file and make sure that it matches the original
     partial_uvh5.read(partial_testfile, use_future_array_shapes=True)
@@ -2444,13 +2508,21 @@ def test_uvh5_partial_write_ints_frequencies(uv_uvh5, tmp_path):
     flags = full_uvh5.flag_array[:, freqs1, :]
     nsamples = full_uvh5.nsample_array[:, freqs1, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freqs1
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freqs1,
     )
     data = full_uvh5.data_array[:, freqs2, :]
     flags = full_uvh5.flag_array[:, freqs2, :]
     nsamples = full_uvh5.nsample_array[:, freqs2, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freqs2
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freqs2,
     )
 
     # read in the full file and make sure it matches
@@ -2496,13 +2568,21 @@ def test_uvh5_partial_write_ints_blts(uv_uvh5, tmp_path):
     flags = full_uvh5.flag_array[blts1]
     nsamples = full_uvh5.nsample_array[blts1]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blts1
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blts1,
     )
     data = full_uvh5.data_array[blts2]
     flags = full_uvh5.flag_array[blts2]
     nsamples = full_uvh5.nsample_array[blts2]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blts2
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blts2,
     )
 
     # read in the full file and make sure it matches
@@ -2549,9 +2629,9 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5, tmp_path):
     nsamples = full_uvh5.nsample_array[:, :, pols1]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=full_uvh5.polarization_array[:Hpols],
     )
     data = full_uvh5.data_array[:, :, pols2]
@@ -2559,9 +2639,9 @@ def test_uvh5_partial_write_ints_pols(uv_uvh5, tmp_path):
     nsamples = full_uvh5.nsample_array[:, :, pols2]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=full_uvh5.polarization_array[Hpols:],
     )
 
@@ -2714,7 +2794,11 @@ def test_uvh5_partial_write_ints_irregular_blt(uv_uvh5, tmp_path):
     flags = full_uvh5.flag_array[blt_inds]
     nsamples = full_uvh5.nsample_array[blt_inds]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, blt_inds=blt_inds
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
     )
 
     # also write the arrays to the partial object
@@ -2767,7 +2851,11 @@ def test_uvh5_partial_write_ints_irregular_freq(uv_uvh5, tmp_path):
     flags = full_uvh5.flag_array[:, freq_inds, :]
     nsamples = full_uvh5.nsample_array[:, freq_inds, :]
     partial_uvh5.write_uvh5_part(
-        partial_testfile, data, flags, nsamples, freq_chans=freq_inds
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freq_inds,
     )
 
     # also write the arrays to the partial object
@@ -2821,9 +2909,9 @@ def test_uvh5_partial_write_ints_irregular_pol(uv_uvh5, tmp_path):
     nsamples = full_uvh5.nsample_array[:, :, pol_inds]
     partial_uvh5.write_uvh5_part(
         partial_testfile,
-        data,
-        flags,
-        nsamples,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
         polarizations=partial_uvh5.polarization_array[pol_inds],
     )
 
@@ -2905,9 +2993,9 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, future_shapes, tmp_pa
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             freq_chans=freq_inds,
         )
@@ -3009,9 +3097,9 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, future_shapes, tmp_pa
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             freq_chans=freq_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
         )
@@ -3108,9 +3196,9 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, future_shapes, tmp_pa
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
         )
@@ -3221,9 +3309,9 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
     ):
         partial_uvh5.write_uvh5_part(
             partial_testfile,
-            data,
-            flags,
-            nsamples,
+            data_array=data,
+            flag_array=flags,
+            nsample_array=nsamples,
             blt_inds=blt_inds,
             freq_chans=freq_inds,
             polarizations=full_uvh5.polarization_array[pol_inds],
@@ -3485,9 +3573,9 @@ def test_write_uvh5_part_fix_autos(uv_uvh5, tmp_path):
     initialize_with_zeros_ints(uv_uvh5, testfile)
     uv_uvh5.write_uvh5_part(
         testfile,
-        uv_uvh5.data_array,
-        uv_uvh5.flag_array,
-        uv_uvh5.nsample_array,
+        data_array=uv_uvh5.data_array,
+        flag_array=uv_uvh5.flag_array,
+        nsample_array=uv_uvh5.nsample_array,
         fix_autos=True,
     )
 

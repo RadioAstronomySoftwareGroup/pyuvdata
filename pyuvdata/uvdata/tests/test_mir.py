@@ -181,7 +181,9 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
     # fix up the phase center info to match the mir dataset
     cat_id = list(sma_mir.phase_center_catalog.keys())[0]
     cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
-    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv._update_phase_center_id(
+        list(ms_uv.phase_center_catalog.keys())[0], new_id=cat_id
+    )
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
 
@@ -349,7 +351,9 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     # fix up the phase center info to match the mir dataset
     cat_id = list(mir_uv.phase_center_catalog.keys())[0]
     cat_name = mir_uv.phase_center_catalog[cat_id]["cat_name"]
-    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv._update_phase_center_id(
+        list(ms_uv.phase_center_catalog.keys())[0], new_id=cat_id
+    )
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
 
