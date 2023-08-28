@@ -80,6 +80,7 @@ class Mir(UVData):
     def read_mir(
         self,
         filepath,
+        *,
         antenna_nums=None,
         antenna_names=None,
         bls=None,
@@ -732,10 +733,10 @@ class Mir(UVData):
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd
                 source_ra, source_dec = uvutils.transform_app_to_icrs(
-                    time_arr,
-                    mir_data.in_data["ara"][source_mask],
-                    mir_data.in_data["adec"][source_mask],
-                    self.telescope_location_lat_lon_alt,
+                    time_array=time_arr,
+                    app_ra=mir_data.in_data["ara"][source_mask],
+                    app_dec=mir_data.in_data["adec"][source_mask],
+                    telescope_loc=self.telescope_location_lat_lon_alt,
                 )
             self._add_phase_center(
                 source_name,

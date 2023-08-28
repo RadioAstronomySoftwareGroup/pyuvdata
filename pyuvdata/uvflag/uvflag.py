@@ -641,7 +641,7 @@ class UVFlag(UVBase):
             # Given a path, read indata
             self.read(
                 indata,
-                history,
+                history=history,
                 telescope_name=telescope_name,
                 mwa_metafits_file=mwa_metafits_file,
                 use_future_array_shapes=use_future_array_shapes,
@@ -1530,7 +1530,7 @@ class UVFlag(UVBase):
             warnings.warn("This object is already a waterfall. Nothing to change.")
             return
         if (not keep_pol) and (len(self.polarization_array) > 1):
-            self.collapse_pol(method)
+            self.collapse_pol(method=method)
 
         if self.mode == "flag":
             darr = self.flag_array

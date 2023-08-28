@@ -31,6 +31,7 @@ class UVFITS(UVData):
     def _get_parameter_data(
         self,
         vis_hdu,
+        *,
         read_source,
         run_check_acceptability,
         background_lsts=True,
@@ -195,6 +196,7 @@ class UVFITS(UVData):
 
     def _get_data(
         self,
+        *,
         vis_hdu,
         antenna_nums,
         antenna_names,
@@ -269,7 +271,11 @@ class UVFITS(UVData):
             # do select operations on everything except data_array, flag_array
             # and nsample_array
             self._select_by_index(
-                blt_inds, freq_inds, pol_inds, history_update_string, keep_all_metadata
+                blt_inds=blt_inds,
+                freq_inds=freq_inds,
+                pol_inds=pol_inds,
+                history_update_string=history_update_string,
+                keep_all_metadata=keep_all_metadata,
             )
 
             # just read in the right portions of the data and flag arrays
@@ -346,6 +352,7 @@ class UVFITS(UVData):
     def read_uvfits(
         self,
         filename,
+        *,
         antenna_nums=None,
         antenna_names=None,
         ant_str=None,
@@ -674,8 +681,8 @@ class UVFITS(UVData):
             # Now read in the random parameter info
             self._get_parameter_data(
                 vis_hdu,
-                read_source,
-                run_check_acceptability,
+                read_source=read_source,
+                run_check_acceptability=run_check_acceptability,
                 background_lsts=background_lsts,
                 astrometry_library=astrometry_library,
             )
@@ -737,30 +744,32 @@ class UVFITS(UVData):
             # Must be done here because it requires the phase_center_app_dec
             if "UU---NCP" in vis_hdu.data.parnames:
                 self.uvw_array = uvutils._rotate_one_axis(
-                    self.uvw_array[:, :, None], self.phase_center_app_dec - np.pi / 2, 0
+                    xyz_array=self.uvw_array[:, :, None],
+                    rot_amount=self.phase_center_app_dec - np.pi / 2,
+                    rot_axis=0,
                 )[:, :, 0]
 
             if read_data:
                 # Now read in the data
                 self._get_data(
-                    vis_hdu,
-                    antenna_nums,
-                    antenna_names,
-                    ant_str,
-                    bls,
-                    frequencies,
-                    freq_chans,
-                    times,
-                    time_range,
-                    lsts,
-                    lst_range,
-                    polarizations,
-                    blt_inds,
-                    phase_center_ids,
-                    catalog_names,
-                    keep_all_metadata,
-                    fix_old_proj,
-                    fix_use_ant_pos,
+                    vis_hdu=vis_hdu,
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    ant_str=ant_str,
+                    bls=bls,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
+                    times=times,
+                    time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
+                    polarizations=polarizations,
+                    blt_inds=blt_inds,
+                    phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
+                    keep_all_metadata=keep_all_metadata,
+                    fix_old_proj=fix_old_proj,
+                    fix_use_ant_pos=fix_use_ant_pos,
                 )
         if use_future_array_shapes:
             self.use_future_array_shapes()
@@ -781,6 +790,7 @@ class UVFITS(UVData):
     def write_uvfits(
         self,
         filename,
+        *,
         write_lst=True,
         force_phase=False,
         run_check=True,
@@ -1461,10 +1471,10 @@ class UVFITS(UVData):
             # objects to share the same frame. So we want to make sure that
             # everything lines up with the coordinate frame listed.
             new_ra, new_dec = uvutils.transform_sidereal_coords(
-                phase_dict["cat_lon"],
-                phase_dict["cat_lat"],
-                phase_dict["cat_frame"],
-                hdu.header["RADESYS"],
+                longitude=phase_dict["cat_lon"],
+                latitude=phase_dict["cat_lat"],
+                in_coord_frame=phase_dict["cat_frame"],
+                out_coord_frame=hdu.header["RADESYS"],
                 in_coord_epoch=phase_dict.get("cat_epoch"),
                 out_coord_epoch=phase_dict.get("cat_epoch"),
                 time_array=np.mean(self.time_array),
