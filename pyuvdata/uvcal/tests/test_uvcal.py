@@ -3989,15 +3989,15 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     np.testing.assert_array_almost_equal(gain_arr, expected_array)
 
     # test variable key input
-    gain_arr2 = uvc.get_gains(key[0], jpol=key[1])
+    gain_arr2 = uvc.get_gains(key[0], key[1])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
     gain_arr2 = uvc.get_gains(key[0])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
     gain_arr2 = uvc.get_gains(key[:1])
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
-    gain_arr2 = uvc.get_gains(10, jpol=-5)
+    gain_arr2 = uvc.get_gains(10, -5)
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
-    gain_arr2 = uvc.get_gains(10, jpol="x")
+    gain_arr2 = uvc.get_gains(10, "x")
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
 
     # check has_key
