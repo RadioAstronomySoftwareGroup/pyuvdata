@@ -163,7 +163,10 @@ def new_uvcal(
     uvc = UVCal()
 
     antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
-        antenna_positions, antenna_names, antenna_numbers, antname_format
+        antenna_positions=antenna_positions,
+        antenna_names=antenna_names,
+        antenna_numbers=antenna_numbers,
+        antname_format=antname_format,
     )
     if ant_array is None:
         ant_array = antenna_numbers
@@ -177,16 +180,16 @@ def new_uvcal(
 
     if time_array is not None:
         lst_array, integration_time = get_time_params(
-            telescope_location,
-            time_array,
-            integration_time,
+            telescope_location=telescope_location,
+            time_array=time_array,
+            integration_time=integration_time,
             astrometry_library=astrometry_library,
         )
     if time_range is not None:
         lst_range, integration_time = get_time_params(
-            telescope_location,
-            time_range,
-            integration_time,
+            telescope_location=telescope_location,
+            time_array=time_range,
+            integration_time=integration_time,
             astrometry_library=astrometry_library,
         )
 
@@ -201,9 +204,11 @@ def new_uvcal(
         )
 
     if freq_array is not None:
-        freq_array, channel_width = get_freq_params(freq_array, channel_width)
+        freq_array, channel_width = get_freq_params(
+            freq_array=freq_array, channel_width=channel_width
+        )
         flex_spw_id_array, spw_array = get_spw_params(
-            flex_spw_id_array, freq_array=freq_array
+            flex_spw_id_array=flex_spw_id_array, freq_array=freq_array
         )
         wide_band = False
         freq_range = None

@@ -1074,6 +1074,7 @@ class MS(UVData):
     def write_ms(
         self,
         filepath,
+        *,
         force_phase=False,
         clobber=False,
         run_check=True,
@@ -1350,7 +1351,7 @@ class MS(UVData):
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
 
-    def _parse_casa_frame_ref(self, ref_name, raise_error=True):
+    def _parse_casa_frame_ref(self, ref_name, *, raise_error=True):
         """
         Interpret a CASA frame into an astropy-friendly frame and epoch.
 
@@ -1406,7 +1407,7 @@ class MS(UVData):
 
         return frame_name, epoch_val
 
-    def _parse_pyuvdata_frame_ref(self, frame_name, epoch_val, raise_error=True):
+    def _parse_pyuvdata_frame_ref(self, frame_name, epoch_val, *, raise_error=True):
         """
         Interpret a UVData pair of frame + epoch into a CASA frame name.
 
@@ -1464,6 +1465,7 @@ class MS(UVData):
     def _read_ms_main(
         self,
         filepath,
+        *,
         data_column,
         data_desc_dict,
         read_weights=True,
@@ -1912,6 +1914,7 @@ class MS(UVData):
     def read_ms(
         self,
         filepath,
+        *,
         data_column="DATA",
         pol_order="AIPS",
         background_lsts=True,
@@ -2012,8 +2015,8 @@ class MS(UVData):
         flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
         spw_list, field_list, pol_list, flex_pol = self._read_ms_main(
             filepath,
-            data_column,
-            data_desc_dict,
+            data_column=data_column,
+            data_desc_dict=data_desc_dict,
             read_weights=read_weights,
             flip_conj=flip_conj,
             raise_error=raise_error,

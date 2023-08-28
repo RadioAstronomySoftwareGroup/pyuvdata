@@ -127,14 +127,14 @@ class FHDCal(UVCal):
                 ]
 
             layout_param_dict = get_fhd_layout_info(
-                layout_file,
-                self.telescope_name,
-                latitude,
-                longitude,
-                altitude,
-                self._lst_array.tols,
-                self._telescope_location.tols,
-                obs_tile_names,
+                layout_file=layout_file,
+                telescope_name=self.telescope_name,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                radian_tol=uvutils.RADIAN_TOL,
+                loc_tols=self._telescope_location.tols,
+                obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )
 

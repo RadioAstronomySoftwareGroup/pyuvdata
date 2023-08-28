@@ -265,7 +265,7 @@ class Miriad(UVData):
 
         return default_miriad_variables, other_miriad_variables, extra_miriad_variables
 
-    def _load_telescope_coords(self, uv, correct_lat_lon=True):
+    def _load_telescope_coords(self, uv, *, correct_lat_lon=True):
         """
         Load telescope lat, lon, alt coordinates from aipy.miriad UV descriptor.
 
@@ -380,7 +380,7 @@ class Miriad(UVData):
                     )
                 )
 
-    def _load_antpos(self, uv, sorted_unique_ants=None, correct_lat_lon=True):
+    def _load_antpos(self, uv, *, sorted_unique_ants=None, correct_lat_lon=True):
         """
         Load antennas and their positions from a Miriad UV descriptor.
 
@@ -634,7 +634,7 @@ class Miriad(UVData):
                 self.Nants_telescope, dtype=np.float64
             )
 
-    def _read_miriad_metadata(self, uv, correct_lat_lon=True):
+    def _read_miriad_metadata(self, uv, *, correct_lat_lon=True):
         """
         Read in metadata (parameter info) but not data from a miriad file.
 
@@ -720,6 +720,7 @@ class Miriad(UVData):
     def read_miriad(
         self,
         filepath,
+        *,
         antenna_nums=None,
         ant_str=None,
         bls=None,
@@ -1514,7 +1515,7 @@ class Miriad(UVData):
 
                 self._add_phase_center(
                     name,
-                    cat_type,
+                    cat_type=cat_type,
                     cat_lon=lon_use,
                     cat_lat=lat_use,
                     cat_frame=cat_frame,
@@ -1611,6 +1612,7 @@ class Miriad(UVData):
     def write_miriad(
         self,
         filepath,
+        *,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -1683,7 +1685,10 @@ class Miriad(UVData):
         if (self.telescope_location is not None) and calc_lst:
             latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
             miriad_lsts = uvutils.get_lst_for_time(
-                miriad_time_array, latitude, longitude, altitude
+                miriad_time_array,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
             )
         else:
             # The long float below is the number of sidereal days per day. The below
