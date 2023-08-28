@@ -1644,7 +1644,7 @@ class UVCal(UVBase):
 
         return key
 
-    def get_gains(self, ant, *, jpol=None, squeeze_pol=True):
+    def get_gains(self, ant, jpol=None, *, squeeze_pol=True):
         """
         Get the gain associated with an antenna and/or polarization.
 
@@ -1672,7 +1672,7 @@ class UVCal(UVBase):
             self._parse_key(ant, jpol=jpol), self.gain_array, squeeze_pol=squeeze_pol
         )
 
-    def get_flags(self, ant, *, jpol=None, squeeze_pol=True):
+    def get_flags(self, ant, jpol=None, *, squeeze_pol=True):
         """
         Get the flags associated with an antenna and/or polarization.
 
@@ -1697,7 +1697,7 @@ class UVCal(UVBase):
             self._parse_key(ant, jpol=jpol), self.flag_array, squeeze_pol=squeeze_pol
         )
 
-    def get_quality(self, ant, *, jpol=None, squeeze_pol=True):
+    def get_quality(self, ant, jpol=None, *, squeeze_pol=True):
         """
         Get the qualities associated with an antenna and/or polarization.
 
