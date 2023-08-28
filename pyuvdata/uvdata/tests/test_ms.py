@@ -670,7 +670,9 @@ def test_ms_single_chan(sma_mir, future_shapes, tmp_path):
 
     cat_id = list(sma_mir.phase_center_catalog.keys())[0]
     cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
-    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv._update_phase_center_id(
+        list(ms_uv.phase_center_catalog.keys())[0], new_id=cat_id
+    )
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
 
@@ -752,8 +754,8 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             match="lon parameter must be a single value for cat_type sidereal",
         ):
             miriad_uv.phase(
-                miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"],
-                dec_use,
+                lon=miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"],
+                lat=dec_use,
                 cat_name="foo",
                 phase_frame="icrs",
                 select_mask=miriad_uv.phase_center_id_array == cat_id[0],
@@ -764,8 +766,8 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             match="lat parameter must be a single value for cat_type sidereal",
         ):
             miriad_uv.phase(
-                ra_use,
-                miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"],
+                lon=ra_use,
+                lat=miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"],
                 cat_name="foo",
                 phase_frame="icrs",
                 select_mask=miriad_uv.phase_center_id_array == cat_id[0],
@@ -779,8 +781,8 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
             ],
         ):
             miriad_uv.phase(
-                ra_use,
-                dec_use,
+                lon=ra_use,
+                lat=dec_use,
                 cat_name="NOISE",
                 phase_frame="icrs",
                 select_mask=miriad_uv.phase_center_id_array == cat_id[0],
@@ -826,7 +828,9 @@ def test_ms_extra_data_descrip(sma_mir, tmp_path):
     ms_uv.read(testfile, ignore_single_chan=False, use_future_array_shapes=True)
     cat_id = list(sma_mir.phase_center_catalog.keys())[0]
     cat_name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
-    ms_uv._update_phase_center_id(list(ms_uv.phase_center_catalog.keys())[0], cat_id)
+    ms_uv._update_phase_center_id(
+        list(ms_uv.phase_center_catalog.keys())[0], new_id=cat_id
+    )
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
 

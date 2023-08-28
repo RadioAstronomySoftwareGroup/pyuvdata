@@ -528,11 +528,11 @@ def test_get_spw_params():
     idarray = np.array([0, 0, 0, 0, 0])
     freq = np.linspace(0, 1, 5)
 
-    _id, spw = get_spw_params(idarray, freq)
+    _id, spw = get_spw_params(flex_spw_id_array=idarray, freq_array=freq)
     assert np.all(spw == 0)
 
     idarray = np.array([0, 0, 0, 0, 1])
-    _id, spw = get_spw_params(idarray, freq)
+    _id, spw = get_spw_params(flex_spw_id_array=idarray, freq_array=freq)
     assert np.all(spw == [0, 1])
 
     with pytest.raises(

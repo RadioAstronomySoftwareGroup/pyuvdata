@@ -19,7 +19,7 @@ from .uvdata import UVData, _future_array_shapes_warning
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
 
-def get_fhd_history(settings_file, return_user=False):
+def get_fhd_history(settings_file, *, return_user=False):
     """
     Small function to get the important history from an FHD settings text file.
 
@@ -92,6 +92,7 @@ def _latlonalt_close(latlonalt1, latlonalt2, radian_tol, loc_tols):
 
 
 def get_fhd_layout_info(
+    *,
     layout_file,
     telescope_name,
     latitude,
@@ -534,14 +535,14 @@ class FHD(UVData):
                     for ant in obs_tile_names
                 ]
             layout_param_dict = get_fhd_layout_info(
-                layout_file,
-                self.telescope_name,
-                latitude,
-                longitude,
-                altitude,
-                uvutils.RADIAN_TOL,
-                self._telescope_location.tols,
-                obs_tile_names,
+                layout_file=layout_file,
+                telescope_name=self.telescope_name,
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                radian_tol=uvutils.RADIAN_TOL,
+                loc_tols=self._telescope_location.tols,
+                obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )
 
