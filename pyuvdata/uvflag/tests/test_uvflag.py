@@ -944,6 +944,17 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
         ),
         (
             "baseline",
+            ["antenna_names"],
+            UserWarning,
+            [
+                "Not all antennas with data have metadata in the telescope object. "
+                "Not setting antenna metadata.",
+                "antenna_names not in file, setting based on antenna_numbers",
+            ],
+            "change_ant_numbers",
+        ),
+        (
+            "baseline",
             ["antenna_numbers"],
             UserWarning,
             [
@@ -1077,6 +1088,21 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ],
             "remove_extra_metadata",
         ),
+        (
+            "antenna",
+            ["antenna_numbers"],
+            [UserWarning, UserWarning, UserWarning],
+            [
+                "Not all antennas with data have metadata in the telescope object. "
+                "Not setting antenna metadata.",
+                "antenna_numbers is not set but cannot be set using known values for "
+                "HERA because the expected shapes don't match.",
+                "antenna_numbers not in file, cannot be set based on ant_array "
+                "because Nants_telescope is greater than Nants_data. This will result "
+                "in errors when the object is checked.",
+            ],
+            "change_ant_numbers",
+        ),
     ],
 )
 def test_read_write_loop_missing_telescope_info(
@@ -1116,6 +1142,19 @@ def test_read_write_loop_missing_telescope_info(
                 antenna_nums=np.union1d(uv.ant_1_array, uv.ant_2_array),
                 keep_all_metadata=False,
             )
+    elif uv_mod == "change_ant_numbers":
+        run_check = False
+        if uvf_type == "antenna":
+            max_ant = np.max(uv.ant_array)
+            new_max = max_ant + 300
+            uv.ant_array[np.nonzero(uv.ant_array == max_ant)[0]] = new_max
+            uv.antenna_numbers[np.nonzero(uv.antenna_numbers == max_ant)[0]] = new_max
+        else:
+            max_ant = np.max(np.union1d(uv.ant_1_array, uv.ant_2_array))
+            new_max = max_ant + 300
+            uv.ant_1_array[np.nonzero(uv.ant_1_array == max_ant)[0]] = new_max
+            uv.ant_2_array[np.nonzero(uv.ant_2_array == max_ant)[0]] = new_max
+            uv.antenna_numbers[np.nonzero(uv.antenna_numbers == max_ant)[0]] = new_max
     else:
         run_check = False
 
@@ -1133,6 +1172,7 @@ def test_read_write_loop_missing_telescope_info(
 
     with uvtest.check_warnings(warn_type, match=msg):
         uvf2 = UVFlag(test_outfile, use_future_array_shapes=True, run_check=run_check)
+
     if uv_mod is None:
         if param_list == ["antenna_names"]:
             assert np.array_equal(uvf2.antenna_names, uvf2.antenna_numbers.astype(str))
@@ -1145,8 +1185,9 @@ def test_read_write_loop_missing_telescope_info(
     elif "telescope_name" in param_list:
         assert uvf2.telescope_name is None
         uvf2.telescope_name = uvf.telescope_name
-    assert uvf.__eq__(uvf2, check_history=True)
-    assert uvf2.filename == [os.path.basename(test_outfile)]
+    if uv_mod != "change_ant_numbers":
+        assert uvf.__eq__(uvf2, check_history=True)
+        assert uvf2.filename == [os.path.basename(test_outfile)]
 
 
 def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
