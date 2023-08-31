@@ -1166,6 +1166,30 @@ class UVFlag(UVBase):
             # ensure that the Nants_telescope comes first so shapes work out below
             telescope_params.remove("_Nants_telescope")
             telescope_params.insert(0, "_Nants_telescope")
+
+            set_ant_metadata = True
+            if self.type != "waterfall" and "_antenna_numbers" in telescope_params:
+                # need to check that all antennas on the object are in the telescope's
+                # antenna_numbers
+                if self.type == "antenna":
+                    ants_to_check = self.ant_array
+                else:
+                    ants_to_check = np.union1d(self.ant_1_array, self.ant_2_array)
+
+                if not all(
+                    ant in telescope_obj.antenna_numbers for ant in ants_to_check
+                ):
+                    warnings.warn(
+                        "Not all antennas with data have metadata in the telescope "
+                        "object. Not setting antenna metadata."
+                    )
+                    set_ant_metadata = False
+
+            if not set_ant_metadata:
+                for p in telescope_params:
+                    if "ant" in p:
+                        telescope_params.remove(p)
+
             for p in telescope_params:
                 telescope_param = getattr(telescope_obj, p)
                 if p in self:
