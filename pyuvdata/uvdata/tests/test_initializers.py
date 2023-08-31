@@ -295,7 +295,7 @@ def test_alternate_freq_inputs():
     freq_array = np.linspace(1e8, 2e8, 15)
     channel_width = freq_array[1] - freq_array[0]
 
-    freqs, widths = get_freq_params(freq_array=freq_array, channel_width=channel_width)
+    freqs, widths = get_freq_params(freq_array, channel_width=channel_width)
 
     freqs2, widths2 = get_freq_params(
         freq_array=freq_array, channel_width=channel_width * np.ones_like(freq_array)

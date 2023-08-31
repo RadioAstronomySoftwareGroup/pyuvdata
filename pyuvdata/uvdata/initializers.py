@@ -153,7 +153,7 @@ def get_time_params(
 
 
 def get_freq_params(
-    *, freq_array: np.ndarray, channel_width: float | np.ndarray | None = None
+    freq_array: np.ndarray, *, channel_width: float | np.ndarray | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Configure frequency parameters for new UVData object."""
     if not isinstance(freq_array, np.ndarray):
