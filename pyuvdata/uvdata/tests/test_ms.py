@@ -74,7 +74,7 @@ def nrao_uv(nrao_uv_main):
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
-@pytest.mark.filterwarnings("ignore:telescope_location are not set")
+@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_names")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
@@ -956,7 +956,7 @@ def test_no_source(sma_mir, tmp_path):
     assert uv == uv2
 
 
-@pytest.mark.filterwarnings("ignore:telescope_location are not set")
+@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_names")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_timescale_handling():

@@ -291,10 +291,12 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     assert fhd_cal.history == expected_history
 
     message_list = [
-        "No layout file, antenna_postions will not be defined."
+        "No layout file, antenna_postions will not be defined.",
+        "antenna_positions are not set or are being overwritten. Using known values "
+        "for mwa.",
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
-    warning_list = [UserWarning] * (2 * nfiles - 1)
+    warning_list = [UserWarning] * (3 * nfiles - 1)
 
     if nfiles > 1:
         warning_list += [DeprecationWarning]
@@ -304,16 +306,13 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             "version 2.5"
         ]
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set."
-    ):
-        with uvtest.check_warnings(warning_list, match=message_list):
-            fhd_cal.read_fhd_cal(
-                cal_file,
-                obs_file,
-                settings_file=settings_file,
-                use_future_array_shapes=True,
-            )
+    with uvtest.check_warnings(warning_list, match=message_list):
+        fhd_cal.read_fhd_cal(
+            cal_file,
+            obs_file,
+            settings_file=settings_file,
+            use_future_array_shapes=True,
+        )
 
     with pytest.raises(
         ValueError, match="A settings_file must be provided if read_data is False."

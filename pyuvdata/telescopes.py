@@ -67,6 +67,7 @@ KNOWN_TELESCOPES = {
         "altitude": 1183.48,
         "citation": "OVRO Sharepoint Documentation",
     },
+    "MWA": {"antenna_positions_file": "mwa_ant_pos.csv"},
 }
 
 
