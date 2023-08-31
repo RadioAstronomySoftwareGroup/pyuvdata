@@ -8942,9 +8942,7 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
 
     n_chan_to_avg = 2
     with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
-        uvobj.frequency_average(
-            n_chan_to_avg=2, keep_ragged=True, summing_correlator_mode=sum_corr
-        )
+        uvobj.frequency_average(2, keep_ragged=True, summing_correlator_mode=sum_corr)
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / n_chan_to_avg)
 
