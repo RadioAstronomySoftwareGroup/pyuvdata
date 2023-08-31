@@ -9742,8 +9742,8 @@ class UVData(UVBase):
 
     def frequency_average(
         self,
-        *,
         n_chan_to_avg,
+        *,
         summing_correlator_mode=False,
         propagate_flags=False,
         respect_spws=True,
