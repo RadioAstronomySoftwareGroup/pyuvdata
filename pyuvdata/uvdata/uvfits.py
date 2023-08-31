@@ -197,8 +197,8 @@ class UVFITS(UVData):
 
     def _get_data(
         self,
-        *,
         vis_hdu,
+        *,
         antenna_nums,
         antenna_names,
         ant_str,
@@ -760,7 +760,7 @@ class UVFITS(UVData):
             if read_data:
                 # Now read in the data
                 self._get_data(
-                    vis_hdu=vis_hdu,
+                    vis_hdu,
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     ant_str=ant_str,
