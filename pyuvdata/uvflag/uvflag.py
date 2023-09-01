@@ -164,6 +164,12 @@ class UVFlag(UVBase):
         parameter.
     label: str, optional
         String used for labeling the object (e.g. 'FM').
+    telescope_name : str, optional
+        Name of the telescope. Only used if `indata` is a string or pathlib.Path object.
+        This should only be set when reading in old uvflag files
+        that do not have the telescope name in them. Setting this parameter for old
+        files allows for other telescope metadata to be set from the known
+        telescopes. Setting this parameter overrides any telescope name in the file.
     use_future_array_shapes : bool
         Option to convert to the future planned array shapes before the changes go
         into effect by removing the spectral window axis.
@@ -196,6 +202,7 @@ class UVFlag(UVBase):
         waterfall=False,
         history="",
         label="",
+        telescope_name=None,
         use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
@@ -636,6 +643,7 @@ class UVFlag(UVBase):
             self.read(
                 indata,
                 history,
+                telescope_name=telescope_name,
                 use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
@@ -3324,6 +3332,7 @@ class UVFlag(UVBase):
         self,
         filename,
         history="",
+        telescope_name=None,
         use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
@@ -3337,6 +3346,11 @@ class UVFlag(UVBase):
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
+        telescope_name : str
+            Name of the telescope. This should only be set when reading in old files
+            that do not have the telescope name in them. Setting this parameter for old
+            files allows for other telescope metadata to be set from the known
+            telescopes. Setting this parameter overrides any telescope name in the file.
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
@@ -3498,8 +3512,20 @@ class UVFlag(UVBase):
                         self.Nfreqs, self.spw_array[0], dtype=int
                     )
 
+                if telescope_name is not None:
+                    self.telescope_name = telescope_name
+
                 if "telescope_name" in header.keys():
-                    self.telescope_name = header["telescope_name"][()].decode("utf8")
+                    file_telescope_name = header["telescope_name"][()].decode("utf8")
+                    if telescope_name is not None:
+                        if telescope_name.lower() != file_telescope_name.lower():
+                            warnings.warn(
+                                f"Telescope_name parameter is set to {telescope_name}, "
+                                "which overrides the telescope name in the file "
+                                f"({file_telescope_name})."
+                            )
+                    else:
+                        self.telescope_name = file_telescope_name
 
                 if "telescope_location" in header.keys():
                     self.telescope_location = header["telescope_location"][()]
@@ -3600,7 +3626,8 @@ class UVFlag(UVBase):
                     warnings.warn(
                         "telescope_name not available in file, so telescope related "
                         "parameters cannot be set. This will result in errors when the "
-                        "object is checked. To avoid the errors, use `run_check=False` "
+                        "object is checked. To avoid the errors, either set the "
+                        "`telescope_name` parameter or use `run_check=False` "
                         "to turn off the check."
                     )
                 elif (

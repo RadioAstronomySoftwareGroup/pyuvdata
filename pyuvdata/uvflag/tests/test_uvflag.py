@@ -918,7 +918,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             [
                 "telescope_name not available in file, so telescope related parameters "
                 "cannot be set. This will result in errors when the object is checked. "
-                "To avoid the errors, use `run_check=False` to turn off the check."
+                "To avoid the errors, either set the `telescope_name` parameter or use "
+                "`run_check=False` to turn off the check."
             ],
             None,
         ),
@@ -987,7 +988,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             [
                 "telescope_name not available in file, so telescope related parameters "
                 "cannot be set. This will result in errors when the object is checked. "
-                "To avoid the errors, use `run_check=False` to turn off the check."
+                "To avoid the errors, either set the `telescope_name` parameter or use "
+                "`run_check=False` to turn off the check."
             ],
             None,
         ),
@@ -998,7 +1000,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             [
                 "telescope_name not available in file, so telescope related parameters "
                 "cannot be set. This will result in errors when the object is checked. "
-                "To avoid the errors, use `run_check=False` to turn off the check."
+                "To avoid the errors, either set the `telescope_name` parameter or use "
+                "`run_check=False` to turn off the check."
             ],
             None,
         ),
@@ -1015,7 +1018,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             [
                 "telescope_name not available in file, so telescope related parameters "
                 "cannot be set. This will result in errors when the object is checked. "
-                "To avoid the errors, use `run_check=False` to turn off the check."
+                "To avoid the errors, either set the `telescope_name` parameter or use "
+                "`run_check=False` to turn off the check."
             ],
             None,
         ),
@@ -1188,6 +1192,24 @@ def test_read_write_loop_missing_telescope_info(
     if uv_mod != "change_ant_numbers":
         assert uvf.__eq__(uvf2, check_history=True)
         assert uvf2.filename == [os.path.basename(test_outfile)]
+
+    if "telescope_name" in param_list and "Nants_telescope" not in param_list:
+        uvf2 = UVFlag(test_outfile, telescope_name="HERA", use_future_array_shapes=True)
+        assert uvf.__eq__(uvf2, check_history=True)
+        assert uvf2.filename == [os.path.basename(test_outfile)]
+
+    if "Nants_telescope" in param_list and "telescope_name" not in param_list:
+        with uvtest.check_warnings(
+            UserWarning,
+            match=[msg]
+            + [
+                "Telescope_name parameter is set to foo, which overrides the telescope "
+                "name in the file (HERA)."
+            ],
+        ):
+            uvf2 = UVFlag(
+                test_outfile, telescope_name="foo", use_future_array_shapes=True
+            )
 
 
 def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
