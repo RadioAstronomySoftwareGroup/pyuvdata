@@ -1147,7 +1147,7 @@ def test_roundtrip_optional_params(uv_in_paper, tmp_path):
     assert uv_in == uv_out
 
     # test with bda as well (single entry in tuple)
-    uv_in.reorder_blts(order="bda")
+    uv_in.reorder_blts("bda")
 
     uv_in.write_miriad(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
