@@ -1,6 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
+import copy
 
 import astropy.units as units
 import numpy as np
@@ -195,7 +196,7 @@ def test_dict_inequality_keys():
 
 
 def test_nested_dict_equality():
-    """Test equality error for nested dicts."""
+    """Test equality for nested dicts."""
     param1 = uvp.UVParameter(
         name="p1", value={"d1": {"v1": 1, "s1": "test"}, "d2": {"v1": 1, "s1": "test"}}
     )
@@ -214,6 +215,95 @@ def test_nested_dict_inequality():
         name="p3", value={"d1": {"v1": 2, "s1": "test"}, "d2": {"v1": 1, "s1": "test"}}
     )
     assert param1.__ne__(param3, silent=False)
+
+
+def test_recarray_equality():
+    """Test equality for recarray."""
+    names = ["foo", "bar", "gah"]
+    values = [
+        np.arange(35, dtype=float),
+        np.arange(35, dtype=int),
+        np.array(["gah " + str(ind) for ind in range(35)]),
+    ]
+    dtype = []
+    for val in values:
+        dtype.append(val.dtype)
+    dtype_obj = np.dtype(list(zip(names, dtype)))
+    recarr1 = np.rec.fromarrays(values, dtype=dtype_obj)
+    recarr2 = copy.deepcopy(recarr1)
+    param1 = uvp.UVParameter(name="p1", value=recarr1)
+    param3 = uvp.UVParameter(name="p3", value=recarr2)
+    assert param1 == param3
+
+
+@pytest.mark.parametrize(
+    ["names2", "values2", "msg"],
+    [
+        [
+            ["foo", "bar", "gah"],
+            [
+                np.arange(35, dtype=float),
+                np.arange(35, dtype=int) + 1,
+                np.array(["gah " + str(ind) for ind in range(35)]),
+            ],
+            "p1 parameter value is a recarray, values in field bar are not close.",
+        ],
+        [
+            ["foo", "bar", "gah"],
+            [
+                np.arange(35, dtype=float),
+                np.arange(35, dtype=int),
+                np.array(["bah " + str(ind) for ind in range(35)]),
+            ],
+            "p1 parameter value is a recarray, values in field gah are not close.",
+        ],
+        [
+            ["fob", "bar", "gah"],
+            [
+                np.arange(35, dtype=float),
+                np.arange(35, dtype=int),
+                np.array(["gah " + str(ind) for ind in range(35)]),
+            ],
+            "p1 parameter value is a recarray, field names "
+            "are different. Left has names ('foo', 'bar', 'gah'), right has "
+            "names ('fob', 'bar', 'gah').",
+        ],
+        [
+            None,
+            np.arange(35, dtype=float),
+            "p1 parameter value is a recarray, but other is not.",
+        ],
+    ],
+)
+def test_recarray_inequality(capsys, names2, values2, msg):
+    """Test inequality for recarray."""
+    names1 = ["foo", "bar", "gah"]
+    values1 = [
+        np.arange(35, dtype=float),
+        np.arange(35, dtype=int),
+        np.array(["gah " + str(ind) for ind in range(35)]),
+    ]
+    dtype = []
+    for val in values1:
+        dtype.append(val.dtype)
+    dtype_obj1 = np.dtype(list(zip(names1, dtype)))
+    recarr1 = np.rec.fromarrays(values1, dtype=dtype_obj1)
+    param1 = uvp.UVParameter(name="p1", value=recarr1)
+
+    if names2 is None:
+        param2 = uvp.UVParameter(name="p2", value=values2)
+    else:
+        dtype = []
+        for val in values2:
+            dtype.append(val.dtype)
+        dtype_obj2 = np.dtype(list(zip(names2, dtype)))
+        recarr2 = np.rec.fromarrays(values2, dtype=dtype_obj2)
+
+        param2 = uvp.UVParameter(name="p2", value=recarr2)
+
+    assert param1.__ne__(param2, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith(msg)
 
 
 def test_equality_check_fail():

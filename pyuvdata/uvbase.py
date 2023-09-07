@@ -621,6 +621,32 @@ class UVBase(object):
                             # matches expected type. Don't need to iterate through it.
                             continue  # pragma: no cover
 
+                    # Handle recarrays separately
+                    if isinstance(param.value, np.recarray):
+                        rec_names = param.value.dtype.names
+                        if not isinstance(param.expected_type, list) or len(
+                            param.expected_type
+                        ) != len(rec_names):
+                            raise ValueError(
+                                f"Parameter {p} is a recarray, but the expected type "
+                                "is not a list with a length equal to the number of "
+                                "columns in the recarray. The expected type is: "
+                                f"{param.expected_type}, the recarray dtype is "
+                                f"{param.value.dtype}."
+                            )
+
+                        for ind, name in enumerate(rec_names):
+                            if isinstance(
+                                param.value[name].item(0), param.expected_type[ind]
+                            ):
+                                raise ValueError(
+                                    f"Parameter {p} is a recarray, the columns do not "
+                                    "all have the expected types. The expected type is:"
+                                    f" {param.expected_type}, the recarray dtype is "
+                                    f"{param.value.dtype}."
+                                )
+                        continue  # pragma: no cover
+
                     # Quantity objects complicate things slightly
                     # Do a separate check with warnings until a quantity based
                     # parameter value is created
