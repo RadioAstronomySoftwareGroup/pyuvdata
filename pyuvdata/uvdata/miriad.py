@@ -1698,7 +1698,7 @@ class Miriad(UVData):
             )
 
         # Miriad requires j>i which we call ant1<ant2
-        self.conjugate_bls(convention="ant1<ant2")
+        self.conjugate_bls("ant1<ant2")
 
         if run_check:
             self.check(

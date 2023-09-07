@@ -1855,7 +1855,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     testfile2 = os.path.join(tmp_path, "uv2")
     # rename telescope to avoid name warning
     uv_full.unproject_phase()
-    uv_full.conjugate_bls(convention="ant1<ant2")
+    uv_full.conjugate_bls("ant1<ant2")
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
