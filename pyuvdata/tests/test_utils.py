@@ -2784,7 +2784,9 @@ def test_redundancy_finder():
     for gi, gp in enumerate(bl_gps_unconj):
         for bi, bl in enumerate(gp):
             if bl in conjugates:
-                bl_gps_unconj[gi][bi] = uvutils.baseline_index_flip(bl, len(antnums))
+                bl_gps_unconj[gi][bi] = uvutils.baseline_index_flip(
+                    bl, Nants_telescope=len(antnums)
+                )
     bl_gps_unconj = [sorted(bgp) for bgp in bl_gps_unconj]
     bl_gps_ants = [sorted(bgp) for bgp in baseline_groups_ants]
     assert np.all(sorted(bl_gps_ants) == sorted(bl_gps_unconj))
@@ -2841,7 +2843,7 @@ def test_redundancy_conjugates():
     ant1_arr = np.tile(np.arange(Nants), Nants)
     ant2_arr = np.repeat(np.arange(Nants), Nants)
     Nbls = ant1_arr.size
-    bl_inds = uvutils.antnums_to_baseline(ant1_arr, ant2_arr, Nants)
+    bl_inds = uvutils.antnums_to_baseline(ant1_arr, ant2_arr, Nants_telescope=Nants)
 
     maxbl = 100.0
     bl_vecs = np.random.uniform(-maxbl, maxbl, (Nbls, 3))
@@ -4294,7 +4296,7 @@ def test_determine_blt_order(blt_order):
     ntime = 2
 
     def getbl(ant1, ant2):
-        return uvutils.antnums_to_baseline(ant1, ant2, nant)
+        return uvutils.antnums_to_baseline(ant1, ant2, Nants_telescope=nant)
 
     def getantbls():
         # Arrange them backwards so by default they are NOT sorted
@@ -4366,7 +4368,7 @@ def test_determine_blt_order_size_1():
     times = np.array([2458119.5])
     ant1 = np.array([0])
     ant2 = np.array([1])
-    bl = uvutils.antnums_to_baseline(ant1, ant2, 2)
+    bl = uvutils.antnums_to_baseline(ant1, ant2, Nants_telescope=2)
 
     order = uvutils.determine_blt_order(
         time_array=times,
@@ -4389,7 +4391,7 @@ def test_determine_rect_time_first():
     ant1 = np.arange(3)
     ant2 = np.arange(3)
     ANT1, ANT2 = np.meshgrid(ant1, ant2)
-    bls = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), 3)
+    bls = uvutils.antnums_to_baseline(ANT1.flatten(), ANT2.flatten(), Nants_telescope=3)
 
     rng = np.random.default_rng(12345)
 
