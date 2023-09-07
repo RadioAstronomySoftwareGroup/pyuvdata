@@ -1600,17 +1600,17 @@ an option to sort the auto visibilities before the cross visibilities (``autos_f
 
   >>> # Explicity sorting by 'time' then 'baseline' gets the same result
   >>> uvd2 = uvd.copy()
-  >>> uvd2.reorder_blts(order='time', minor_order='baseline')
+  >>> uvd2.reorder_blts('time', minor_order='baseline')
   >>> print(uvd == uvd2)
   True
 
-  >>> uvd.reorder_blts(order='ant1', minor_order='ant2')
+  >>> uvd.reorder_blts('ant1', minor_order='ant2')
   >>> print(np.min(np.diff(uvd.ant_1_array)) >= 0)
   True
 
   >>> # You can also sort and conjugate in a single step for the purposes of comparing two objects
-  >>> uvd.reorder_blts(order='bda', conj_convention='ant1<ant2')
-  >>> uvd2.reorder_blts(order='bda', conj_convention='ant1<ant2')
+  >>> uvd.reorder_blts('bda', conj_convention='ant1<ant2')
+  >>> uvd2.reorder_blts('bda', conj_convention='ant1<ant2')
   >>> print(uvd == uvd2)
   True
 
@@ -1680,7 +1680,7 @@ ordering set by the user.
   >>> print(uvutils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl', 'lr']
 
-  >>> uvd.reorder_pols(order='CASA')
+  >>> uvd.reorder_pols('CASA')
   >>> print(uvutils.polnum2str(uvd.polarization_array))
   ['rr', 'rl', 'lr', 'll']
 

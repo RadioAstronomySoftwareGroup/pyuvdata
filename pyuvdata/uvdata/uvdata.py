@@ -4795,8 +4795,8 @@ class UVData(UVBase):
 
     def reorder_pols(
         self,
-        *,
         order="AIPS",
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4910,8 +4910,8 @@ class UVData(UVBase):
 
     def reorder_blts(
         self,
-        *,
         order="time",
+        *,
         minor_order=None,
         autos_first=False,
         conj_convention=None,
@@ -6715,7 +6715,7 @@ class UVData(UVBase):
                     this_pol_ind[other_argsort]
                 ]
 
-                this.reorder_pols(order=temp_ind)
+                this.reorder_pols(temp_ind)
 
         # Pad out self to accommodate new data
         blt_order = None

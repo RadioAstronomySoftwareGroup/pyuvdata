@@ -587,7 +587,7 @@ specified by passing an index array.
   True
 
   >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_antennas(order='-number')
+  >>> cal.reorder_antennas('-number')
   >>> print(np.min(np.diff(cal.ant_array)) <= 0)
   True
 
@@ -671,7 +671,7 @@ array for the time axis.
   True
 
   >>> # Prepend a ``-`` to the sort string to sort in descending order.
-  >>> cal.reorder_times(order='-time')
+  >>> cal.reorder_times('-time')
   >>> print(np.min(np.diff(cal.time_array)) <= 0)
   True
 
