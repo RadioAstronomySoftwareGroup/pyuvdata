@@ -197,7 +197,7 @@ def get_baseline_params(
 ) -> np.ndarray:
     """Configure baseline parameters for new UVData object."""
     return utils.antnums_to_baseline(
-        antpairs[:, 0], antpairs[:, 1], len(antenna_numbers)
+        antpairs[:, 0], antpairs[:, 1], Nants_telescope=len(antenna_numbers)
     )
 
 
@@ -283,7 +283,9 @@ def configure_blt_rectangularity(
         # We don't know if it's rectangular or not.
         # Let's try to figure it out.
         baselines = utils.antnums_to_baseline(
-            antpairs[:, 0], antpairs[:, 1], len(np.unique(unique_antpairs))
+            antpairs[:, 0],
+            antpairs[:, 1],
+            Nants_telescope=len(np.unique(unique_antpairs)),
         )
 
         (blts_are_rectangular, time_axis_faster_than_bls) = (
