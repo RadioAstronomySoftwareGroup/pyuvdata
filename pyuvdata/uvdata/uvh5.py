@@ -740,7 +740,7 @@ class FastUVH5Meta:
     def baseline_array(self) -> np.ndarray:
         """The baselines in the file, as unique integers."""
         return uvutils.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array, self.Nants_telescope
+            self.ant_1_array, self.ant_2_array, Nants_telescope=self.Nants_telescope
         )
 
     @cached_property
@@ -749,7 +749,7 @@ class FastUVH5Meta:
         return uvutils.antnums_to_baseline(
             self.unique_antpair_1_array,
             self.unique_antpair_2_array,
-            self.Nants_telescope,
+            Nants_telescope=self.Nants_telescope,
         )
 
     @cached_property

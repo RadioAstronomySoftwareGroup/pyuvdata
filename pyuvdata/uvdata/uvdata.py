@@ -3613,7 +3613,9 @@ class UVData(UVBase):
         int or array_like of int
             second antenna number(s)
         """
-        return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
+        return uvutils.baseline_to_antnums(
+            baseline, Nants_telescope=self.Nants_telescope
+        )
 
     def antnums_to_baseline(
         self, ant1, ant2, *, attempt256=False, use_miriad_convention=False
@@ -3646,7 +3648,7 @@ class UVData(UVBase):
         return uvutils.antnums_to_baseline(
             ant1,
             ant2,
-            self.Nants_telescope,
+            Nants_telescope=self.Nants_telescope,
             attempt256=attempt256,
             use_miriad_convention=use_miriad_convention,
         )
