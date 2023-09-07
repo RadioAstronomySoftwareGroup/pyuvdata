@@ -1567,11 +1567,11 @@ various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'
   >>> from pyuvdata.data import DATA_PATH
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
-  >>> uvd.conjugate_bls(convention='ant1<ant2')
+  >>> uvd.conjugate_bls('ant1<ant2')
   >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
   True
 
-  >>> uvd2.conjugate_bls(convention='u<0', use_enu=False)
+  >>> uvd2.conjugate_bls('u<0', use_enu=False)
   >>> print(np.max(uvd2.uvw_array[:, 0]) <= 0)
   True
 
