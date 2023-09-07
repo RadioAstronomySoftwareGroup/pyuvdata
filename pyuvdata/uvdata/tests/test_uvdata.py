@@ -351,8 +351,8 @@ def uv_phase_time_split(hera_uvh5):
     uv_phase = hera_uvh5.copy
     uv_raw = hera_uvh5.copy
 
-    uv_phase.reorder_blts(order="time", minor_order="baseline")
-    uv_raw.reorder_blts(order="time", minor_order="baseline")
+    uv_phase.reorder_blts("time", minor_order="baseline")
+    uv_raw.reorder_blts("time", minor_order="baseline")
 
     uv_phase.phase(ra=0, dec=0, cat_name="npole", epoch="J2000", use_ant_pos=True)
     times = np.unique(uv_phase.time_array)
@@ -1469,7 +1469,7 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_phase_center_id_blts(carma_miriad):
     uv_obj = carma_miriad
-    uv_obj.reorder_blts(order="baseline")
+    uv_obj.reorder_blts("baseline")
 
     uv1 = uv_obj.select(
         phase_center_ids=0, blt_inds=np.arange(uv_obj.Nblts // 2), inplace=False
@@ -3151,7 +3151,7 @@ def test_reorder_pols(casa_uvfits, future_shapes):
         uv2.data_array = uv2.data_array[:, :, :, order]
         uv2.nsample_array = uv2.nsample_array[:, :, :, order]
         uv2.flag_array = uv2.flag_array[:, :, :, order]
-    uv1.reorder_pols(order=order)
+    uv1.reorder_pols(order)
     assert uv1 == uv2
 
     # Restore original order
@@ -3159,13 +3159,13 @@ def test_reorder_pols(casa_uvfits, future_shapes):
     uv2.reorder_pols()
     assert uv1 == uv2
 
-    uv1.reorder_pols(order="AIPS")
+    uv1.reorder_pols("AIPS")
     # check that we have aips ordering
     aips_pols = np.array([-1, -2, -3, -4]).astype(int)
     assert np.all(uv1.polarization_array == aips_pols)
 
     uv2 = uv1.copy()
-    uv2.reorder_pols(order="CASA")
+    uv2.reorder_pols("CASA")
     # check that we have casa ordering
     casa_pols = np.array([-1, -3, -4, -2]).astype(int)
     assert np.all(uv2.polarization_array == casa_pols)
@@ -3177,7 +3177,7 @@ def test_reorder_pols(casa_uvfits, future_shapes):
         assert np.all(uv2.data_array == uv1.data_array[:, :, :, order])
         assert np.all(uv2.flag_array == uv1.flag_array[:, :, :, order])
 
-    uv2.reorder_pols(order="AIPS")
+    uv2.reorder_pols("AIPS")
     # check that we have aips ordering again
     assert uv1 == uv2
 
@@ -3186,11 +3186,11 @@ def test_reorder_pols(casa_uvfits, future_shapes):
         ValueError,
         match="order must be one of: 'AIPS', 'CASA', or an index array of length Npols",
     ):
-        uv2.reorder_pols(order={"order": "foo"})
+        uv2.reorder_pols({"order": "foo"})
 
     # check error if order is an array of the wrong length
     with pytest.raises(ValueError, match="If order is an index array, it must"):
-        uv2.reorder_pols(order=[3, 2, 1])
+        uv2.reorder_pols([3, 2, 1])
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3212,7 +3212,7 @@ def test_reorder_blts_errs(casa_uvfits, order, minor_order, msg):
     Verify that reorder_blts throws expected errors when supplied with bad args
     """
     with pytest.raises(ValueError, match=msg):
-        casa_uvfits.reorder_blts(order=order, minor_order=minor_order)
+        casa_uvfits.reorder_blts(order, minor_order=minor_order)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -3315,7 +3315,7 @@ def test_reorder_blts_equiv(casa_uvfits, args1, args2, future_shapes):
 def test_reorder_blts_sort_order(
     hera_uvh5, order, m_order, check_tuple, check_attr, autos_first
 ):
-    hera_uvh5.reorder_blts(order=order, minor_order=m_order, autos_first=autos_first)
+    hera_uvh5.reorder_blts(order, minor_order=m_order, autos_first=autos_first)
     assert hera_uvh5.blt_order == check_tuple
     if isinstance(order, str) and autos_first:
         auto_inds = np.nonzero(hera_uvh5.ant_1_array == hera_uvh5.ant_2_array)[0]
@@ -7239,7 +7239,7 @@ def test_upsample_in_time(hera_uvh5, future_shapes):
     uv_object.phase_center_catalog[0] = init_phase_dict
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7275,7 +7275,7 @@ def test_upsample_in_time_with_flags(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -7311,7 +7311,7 @@ def test_upsample_in_time_noninteger_resampling(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7372,7 +7372,7 @@ def test_upsample_in_time_summing_correlator_mode(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7410,7 +7410,7 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -7448,7 +7448,7 @@ def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7491,7 +7491,7 @@ def test_partial_upsample_in_time(hera_uvh5):
     uv_object.integration_time[bl_inds] = uv_object.integration_time[0] / 2.0
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_wf_01 = uv_object.get_data(0, 1)
@@ -7530,7 +7530,7 @@ def test_upsample_in_time_drift(hera_uvh5):
     uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7587,7 +7587,7 @@ def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
         )
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7633,7 +7633,7 @@ def test_downsample_in_time(hera_uvh5, future_shapes):
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -7684,7 +7684,7 @@ def test_downsample_in_time_partial_flags(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
@@ -7738,7 +7738,7 @@ def test_downsample_in_time_totally_flagged(hera_uvh5, future_shapes):
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -7792,7 +7792,7 @@ def test_downsample_in_time_uneven_samples(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -7846,7 +7846,7 @@ def test_downsample_in_time_uneven_samples_keep_ragged(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -7888,7 +7888,7 @@ def test_downsample_in_time_summing_correlator_mode(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -7933,7 +7933,7 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -7979,7 +7979,7 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -8026,7 +8026,7 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -8079,7 +8079,7 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -8126,7 +8126,7 @@ def test_partial_downsample_in_time(hera_uvh5):
     uv_object.integration_time[bl_inds] = uv_object.integration_time[0] * 2.0
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline")
+    uv_object.reorder_blts("baseline")
 
     # save some values for later
     init_wf_01 = uv_object.get_data(0, 1)
@@ -8173,7 +8173,7 @@ def test_downsample_in_time_drift(hera_uvh5):
     uv_object = hera_uvh5
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -8241,7 +8241,7 @@ def test_downsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase
         )
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # save some values for later
@@ -8295,7 +8295,7 @@ def test_downsample_in_time_nsample_precision(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
     original_int_time = np.amax(uv_object.integration_time)
@@ -8349,7 +8349,7 @@ def test_downsample_in_time_errors(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # raise an error if set neither min_int_time and n_times_to_avg
     with pytest.raises(
@@ -8381,7 +8381,7 @@ def test_downsample_in_time_errors(hera_uvh5):
 
     # raise an error if phase centers change within an downsampling window
     uv_object2 = uv_object.copy()
-    uv_object2.reorder_blts(order="time")
+    uv_object2.reorder_blts("time")
     mask = np.full(uv_object2.Nblts, False)
     mask[: uv_object2.Nblts // 3] = True
     uv_object2.phase(ra=0, dec=0, phase_frame="icrs", select_mask=mask, cat_name="foo")
@@ -8464,7 +8464,7 @@ def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_data_size = uv_object.data_array.size
@@ -8508,7 +8508,7 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -8565,7 +8565,7 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # downselect to 14 times and one baseline
     uv_object.select(times=np.unique(uv_object.time_array)[:14])
@@ -8614,7 +8614,7 @@ def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
     uv_object = hera_uvh5
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
 
     # save some values for later
     init_wf = uv_object.get_data(0, 1)
@@ -8659,7 +8659,7 @@ def test_upsample_downsample_in_time(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
@@ -8750,7 +8750,7 @@ def test_upsample_downsample_in_time_odd_resample(hera_uvh5, future_shapes):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     # try again with a resampling factor of 3 (test odd numbers)
@@ -8797,7 +8797,7 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
-    uv_object.reorder_blts(order="baseline", minor_order="time")
+    uv_object.reorder_blts("baseline", minor_order="time")
     uv_object2 = uv_object.copy()
 
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
@@ -12237,9 +12237,9 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
         )
 
     if sort_type == "blt":
-        uv1.reorder_blts(order="time", minor_order="ant1")
-        uv2.reorder_blts(order="time", minor_order="ant2")
-        casa_uvfits.reorder_blts(order="bda")
+        uv1.reorder_blts("time", minor_order="ant1")
+        uv2.reorder_blts("time", minor_order="ant2")
+        casa_uvfits.reorder_blts("bda")
         order_check = uv1.ant_1_array == uv2.ant_1_array
     elif sort_type == "freq":
         uv1.reorder_freqs(channel_order="freq")
@@ -12247,9 +12247,9 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
         casa_uvfits.reorder_freqs(spw_order="freq")
         order_check = uv1.freq_array == uv2.freq_array
     elif sort_type == "pol":
-        uv1.reorder_pols(order="AIPS")
-        uv2.reorder_pols(order="CASA")
-        casa_uvfits.reorder_pols(order="CASA")
+        uv1.reorder_pols("AIPS")
+        uv2.reorder_pols("CASA")
+        casa_uvfits.reorder_pols("CASA")
         order_check = uv1.polarization_array == uv2.polarization_array
 
     # Make sure that the order has actually been scrambled
@@ -12259,11 +12259,11 @@ def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
     uv3 = uv1 + uv2
 
     if sort_type == "blt":
-        uv3.reorder_blts(order="bda")
+        uv3.reorder_blts("bda")
     elif sort_type == "freq":
         uv3.reorder_freqs(channel_order="freq")
     elif sort_type == "pol":
-        uv3.reorder_pols(order="CASA")
+        uv3.reorder_pols("CASA")
 
     # Deal with the history separately, since it will be different
     assert str.startswith(uv3.history, casa_uvfits.history)
@@ -12895,7 +12895,7 @@ def test_setting_time_axis_wrongly(casa_uvfits):
     with pytest.raises(ValueError, match="time_axis_faster_than_bls is True but"):
         casa_uvfits.check()
 
-    casa_uvfits.reorder_blts(order="time", minor_order="baseline")
+    casa_uvfits.reorder_blts("time", minor_order="baseline")
     casa_uvfits.blts_are_rectangular = True
     casa_uvfits.time_axis_faster_than_bls = True
     with pytest.raises(
@@ -12903,7 +12903,7 @@ def test_setting_time_axis_wrongly(casa_uvfits):
     ):
         casa_uvfits.check()
 
-    casa_uvfits.reorder_blts(order="baseline", minor_order="time")
+    casa_uvfits.reorder_blts("baseline", minor_order="time")
     assert not casa_uvfits.time_axis_faster_than_bls
     casa_uvfits.blts_are_rectangular = True
     assert not casa_uvfits.time_axis_faster_than_bls
@@ -12920,12 +12920,12 @@ def test_set_rectangularity(casa_uvfits, hera_uvh5):
     assert casa_uvfits.blts_are_rectangular is False
     assert casa_uvfits.time_axis_faster_than_bls is False
 
-    hera_uvh5.reorder_blts(order="time", minor_order="baseline")
+    hera_uvh5.reorder_blts("time", minor_order="baseline")
     hera_uvh5.set_rectangularity(force=True)
     assert hera_uvh5.blts_are_rectangular is True
     assert hera_uvh5.time_axis_faster_than_bls is False
 
-    hera_uvh5.reorder_blts(order=np.random.permutation(hera_uvh5.Nblts))
+    hera_uvh5.reorder_blts(np.random.permutation(hera_uvh5.Nblts))
     hera_uvh5.set_rectangularity(force=True)
     assert hera_uvh5.blts_are_rectangular is False
     assert hera_uvh5.time_axis_faster_than_bls is False
