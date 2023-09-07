@@ -769,7 +769,7 @@ def _sort_freq_helper(
     return index_array
 
 
-def baseline_to_antnums(baseline, Nants_telescope):
+def baseline_to_antnums(baseline, *, Nants_telescope):
     """
     Get the antenna numbers corresponding to a given baseline number.
 
@@ -808,7 +808,7 @@ def baseline_to_antnums(baseline, Nants_telescope):
 
 
 def antnums_to_baseline(
-    ant1, ant2, Nants_telescope, *, attempt256=False, use_miriad_convention=False
+    ant1, ant2, *, Nants_telescope, attempt256=False, use_miriad_convention=False
 ):
     """
     Get the baseline number corresponding to two given antenna numbers.
@@ -873,10 +873,10 @@ def antnums_to_baseline(
         return baseline.item(0)
 
 
-def baseline_index_flip(baseline, Nants_telescope):
+def baseline_index_flip(baseline, *, Nants_telescope):
     """Change baseline number to reverse antenna order."""
-    ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope)
-    return antnums_to_baseline(ant2, ant1, Nants_telescope)
+    ant1, ant2 = baseline_to_antnums(baseline, Nants_telescope=Nants_telescope)
+    return antnums_to_baseline(ant2, ant1, Nants_telescope=Nants_telescope)
 
 
 def _x_orientation_rep_dict(x_orientation):
@@ -1838,7 +1838,7 @@ def _rotate_matmul_wrapper(*, xyz_array, rot_matrix, n_rot):
     return rotated_xyz
 
 
-def _rotate_one_axis(*, xyz_array, rot_amount, rot_axis):
+def _rotate_one_axis(xyz_array, *, rot_amount, rot_axis):
     """
     Rotate an array of 3D positions around the a single axis (x, y, or z).
 
@@ -1923,7 +1923,7 @@ def _rotate_one_axis(*, xyz_array, rot_amount, rot_axis):
         )
 
 
-def _rotate_two_axis(*, xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
+def _rotate_two_axis(xyz_array, *, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
     """
     Rotate an array of 3D positions sequentially around a pair of axes (x, y, or z).
 
@@ -1971,21 +1971,15 @@ def _rotate_two_axis(*, xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis
         return deepcopy(xyz_array)
     elif no_rot1:
         # If rot_amount1 is None, then ignore it and just work w/ the 2nd rotation
-        return _rotate_one_axis(
-            xyz_array=xyz_array, rot_amount=rot_amount2, rot_axis=rot_axis2
-        )
+        return _rotate_one_axis(xyz_array, rot_amount=rot_amount2, rot_axis=rot_axis2)
     elif no_rot2:
         # If rot_amount2 is None, then ignore it and just work w/ the 1st rotation
-        return _rotate_one_axis(
-            xyz_array=xyz_array, rot_amount=rot_amount1, rot_axis=rot_axis1
-        )
+        return _rotate_one_axis(xyz_array, rot_amount=rot_amount1, rot_axis=rot_axis1)
     elif rot_axis1 == rot_axis2:
         # Capture the case where someone wants to do a sequence of rotations on the same
         # axis. Also known as just rotating a single axis.
         return _rotate_one_axis(
-            xyz_array=xyz_array,
-            rot_amount=rot_amount1 + rot_amount2,
-            rot_axis=rot_axis1,
+            xyz_array, rot_amount=rot_amount1 + rot_amount2, rot_axis=rot_axis1
         )
 
     # Figure out how many individual rotation matricies we need, accounting for the
@@ -2259,8 +2253,8 @@ def calc_uvw(
         ant_rot_vectors = np.reshape(
             np.transpose(
                 _rotate_one_axis(
-                    xyz_array=_rotate_two_axis(
-                        xyz_array=ant_vectors,
+                    _rotate_two_axis(
+                        ant_vectors,
                         rot_amount1=unique_gha,
                         rot_amount2=unique_dec,
                         rot_axis1=2,
@@ -2333,14 +2327,14 @@ def calc_uvw(
         # up on the map). This is a much easier transform to handle.
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
             new_coords = _rotate_one_axis(
-                xyz_array=uvw_array[:, [2, 0, 1], np.newaxis],
+                uvw_array[:, [2, 0, 1], np.newaxis],
                 rot_amount=frame_pa - (0.0 if old_frame_pa is None else old_frame_pa),
                 rot_axis=0,
             )[:, :, 0]
         else:
             new_coords = _rotate_two_axis(
-                xyz_array=_rotate_two_axis(
-                    xyz_array=uvw_array[:, [2, 0, 1], np.newaxis],
+                _rotate_two_axis(
+                    uvw_array[:, [2, 0, 1], np.newaxis],
                     rot_amount1=(
                         0.0 if (from_enu or old_frame_pa is None) else (-old_frame_pa)
                     ),
@@ -2359,7 +2353,7 @@ def calc_uvw(
             # the chosen frame, if we not in ENU coordinates
             if not to_enu:
                 new_coords = _rotate_one_axis(
-                    xyz_array=new_coords, rot_amount=frame_pa, rot_axis=0
+                    new_coords, rot_amount=frame_pa, rot_axis=0
                 )
 
             # Finally drop the now-vestigal last axis of the array
@@ -4677,7 +4671,7 @@ def get_antenna_redundancies(
             mini = aj
         for ai in range(mini, Nants):
             anti, antj = antenna_numbers[ai], antenna_numbers[aj]
-            bidx = antnums_to_baseline(antj, anti, Nants)
+            bidx = antnums_to_baseline(antj, anti, Nants_telescope=Nants)
             bv = antenna_positions[ai] - antenna_positions[aj]
             bl_vecs.append(bv)
             bls.append(bidx)
@@ -4690,7 +4684,7 @@ def get_antenna_redundancies(
     for gi, gp in enumerate(gps):
         for bi, bl in enumerate(gp):
             if bl in conjs:
-                gps[gi][bi] = baseline_index_flip(bl, Nants)
+                gps[gi][bi] = baseline_index_flip(bl, Nants_telescope=Nants)
 
     return gps, vecs, lens
 

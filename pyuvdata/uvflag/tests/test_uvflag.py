@@ -4148,7 +4148,8 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
     assert np.array_equiv(
         np.unique(uvf.baseline_array),
         uvutils.antnums_to_baseline(
-            *np.transpose([(88, 97), (97, 104), (97, 105)]), uvf.Nants_telescope
+            *np.transpose([(88, 97), (97, 104), (97, 105)]),
+            Nants_telescope=uvf.Nants_telescope,
         ),
     )
 

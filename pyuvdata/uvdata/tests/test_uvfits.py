@@ -1694,7 +1694,7 @@ def test_miriad_convention(tmp_path):
 
     # Check baselines match MIRIAD convention
     bl_miriad_expected = uvutils.antnums_to_baseline(
-        uv.ant_1_array, uv.ant_2_array, 512, use_miriad_convention=True
+        uv.ant_1_array, uv.ant_2_array, Nants_telescope=512, use_miriad_convention=True
     )
     with fits.open(testfile1) as hdu:
         assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
