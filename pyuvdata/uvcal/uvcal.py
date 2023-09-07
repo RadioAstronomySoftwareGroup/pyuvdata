@@ -1780,8 +1780,8 @@ class UVCal(UVBase):
 
     def reorder_antennas(
         self,
-        *,
         order="number",
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2032,8 +2032,8 @@ class UVCal(UVBase):
 
     def reorder_times(
         self,
-        *,
         order="time",
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2135,8 +2135,8 @@ class UVCal(UVBase):
 
     def reorder_jones(
         self,
-        *,
         order="name",
+        *,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2680,7 +2680,7 @@ class UVCal(UVBase):
                     this_ants_ind[other_argsort]
                 ]
 
-                this.reorder_antennas(order=temp_ind)
+                this.reorder_antennas(temp_ind)
 
         if len(this_times_ind) != 0:
             this_argsort = np.argsort(this_times_ind)
@@ -2692,7 +2692,7 @@ class UVCal(UVBase):
                     this_times_ind[other_argsort]
                 ]
 
-                this.reorder_times(order=temp_ind)
+                this.reorder_times(temp_ind)
 
         if len(this_freq_ind) != 0:
             this_argsort = np.argsort(this_freq_ind)
@@ -2722,7 +2722,7 @@ class UVCal(UVBase):
                     this_jones_ind[other_argsort]
                 ]
 
-                this.reorder_jones(order=temp_ind)
+                this.reorder_jones(temp_ind)
 
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)

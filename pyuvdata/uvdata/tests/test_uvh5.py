@@ -365,7 +365,7 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     assert uv_in == uv_out
 
     # test with blt_order = bda as well (single entry in tuple)
-    uv_in.reorder_blts(order="bda")
+    uv_in.reorder_blts("bda")
 
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
@@ -3635,7 +3635,7 @@ class TestFastUVH5Meta:
 
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
-        uvd.reorder_blts(order="baseline", minor_order="time")
+        uvd.reorder_blts("baseline", minor_order="time")
         self.fltime_axis_faster_than_bls = os.path.join(
             self.tmp_path.name, "time_axis_faster_than_bls.uvh5"
         )
@@ -3742,7 +3742,7 @@ class TestFastUVH5Meta:
 
         # Now test a different ordering.
         uvd = meta.to_uvdata()
-        uvd.reorder_blts(order="baseline", minor_order="time")
+        uvd.reorder_blts("baseline", minor_order="time")
         uvd.initialize_uvh5_file(
             os.path.join(self.tmp_path.name, "time_axis_faster_than_bls.uvh5"),
             clobber=True,
