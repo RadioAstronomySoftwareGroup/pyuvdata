@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for recarrays in `UVParameter` objects and in `UVBase`, needed for pyradiosky.
 - Support for setting the astrometry library for various object methods including `set_lsts_from_time_array`, file read methods and others.
 - Properly round-trip the telescope frame through UVH5, UVFITS and MS files.
 
