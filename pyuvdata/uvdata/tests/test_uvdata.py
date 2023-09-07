@@ -4997,8 +4997,10 @@ def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
     # Mix one instance of this baseline.
     uv.ant_1_array[0] = ant2
     uv.ant_2_array[0] = ant1
-    uv.baseline_array[0] = uvutils.antnums_to_baseline(ant2, ant1, uv.Nants_telescope)
-    bl = uvutils.antnums_to_baseline(ant1, ant2, uv.Nants_telescope)
+    uv.baseline_array[0] = uvutils.antnums_to_baseline(
+        ant2, ant1, Nants_telescope=uv.Nants_telescope
+    )
+    bl = uvutils.antnums_to_baseline(ant1, ant2, Nants_telescope=uv.Nants_telescope)
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     ind1, ind2, indp = uv._key2inds(bl)
 
@@ -5027,7 +5029,7 @@ def test_key2inds_conj_all_pols_bls(casa_uvfits):
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
-    bl = uvutils.antnums_to_baseline(ant2, ant1, uv.Nants_telescope)
+    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.Nants_telescope)
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     ind1, ind2, indp = uv._key2inds(bl)
 
@@ -5045,7 +5047,7 @@ def test_key2inds_conj_all_pols_missing_data_bls(casa_uvfits):
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
-    bl = uvutils.antnums_to_baseline(ant2, ant1, uv.Nants_telescope)
+    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.Nants_telescope)
 
     with pytest.raises(
         KeyError, match="Baseline 81924 not found for polarization array in data."
