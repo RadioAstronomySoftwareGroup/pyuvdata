@@ -133,6 +133,23 @@ class UVTest(UVBase):
             form=(),
         )
 
+        values = [
+            np.arange(35, dtype=float),
+            np.arange(35, dtype=int),
+            np.array(["gah " + str(ind) for ind in range(35)]),
+        ]
+        dtype_list = [val.dtype for val in values]
+
+        self._recarray = uvp.UVParameter(
+            "recarray",
+            description="A recarray object.",
+            expected_type=[dtype.type for dtype in dtype_list],
+            value=np.rec.fromarrays(
+                values, dtype=np.dtype(list(zip(["foo", "bar", "gah"], dtype_list)))
+            ),
+            form=(35,),
+        )
+
         self._skycoord_array = uvp.SkyCoordParameter(
             "skycoord_array",
             description="A skycoord array.",
@@ -290,6 +307,36 @@ def test_quantity_scalar_type():
         "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
         "Testing the precision of the value, but this "
         "check will fail in a future version.",
+    ):
+        test_obj.check()
+
+
+def test_recarray_dtype():
+    """Test check when a recarray has wrong expected type."""
+    test_obj = UVTest()
+    test_obj.check()
+
+    test_obj._recarray.expected_type = float
+    with pytest.raises(
+        ValueError,
+        match="Parameter _recarray is a recarray, but the expected type is not a list "
+        "with a length equal to the number of columns in the recarray.",
+    ):
+        test_obj.check()
+
+    test_obj._recarray.expected_type = [int, float]
+    with pytest.raises(
+        ValueError,
+        match="Parameter _recarray is a recarray, but the expected type is not a list "
+        "with a length equal to the number of columns in the recarray.",
+    ):
+        test_obj.check()
+
+    test_obj._recarray.expected_type = [float, float, str]
+    with pytest.raises(
+        ValueError,
+        match="Parameter _recarray is a recarray, the columns do not all have the "
+        "expected types.",
     ):
         test_obj.check()
 

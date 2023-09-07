@@ -32,12 +32,12 @@ def _get_generic_type(expected_type, strict_type_check=False):
 
     Parameters
     ----------
-    expected_type : Type or string
-        The expected type of a Parameter object or a string of the name of a type.
+    expected_type : Type or string or list of types or strings
+        The expected type of a Parameter object or a string of the name of a type. Lists
+        are only for recarray parameters and in that case the input expected_type is
+        returned exactly.
     strict_type_check : bool
-        If True the input expected_type is return exactly
-    if strict_type_check:
-        return expected_type exactly
+        If True, the input expected_type is returned exactly.
 
     Returns
     -------
@@ -52,7 +52,7 @@ def _get_generic_type(expected_type, strict_type_check=False):
                 f"Input expected_type is a string with value: '{expected_type}'. "
                 "When the expected_type is a string, it must be a Python builtin type."
             ) from err
-    if strict_type_check:
+    if strict_type_check or isinstance(expected_type, list):
         return expected_type
 
     for types in [
@@ -329,17 +329,64 @@ class UVParameter(object):
                     print(f"{self.name} is None on right, but not left")
                 return False
 
-        if isinstance(self.value, np.ndarray) and not isinstance(
+        if isinstance(self.value, np.recarray):
+            # check both recarrays and field names match (order doesn't have to)
+            # then iterate through field names and check that each matches
+            if not isinstance(other.value, np.recarray):
+                if not silent:
+                    print(
+                        f"{self.name} parameter value is a recarray, but other is "
+                        "not."
+                    )
+                return False
+            this_names = self.value.dtype.names
+            other_names = other.value.dtype.names
+            if np.setxor1d(this_names, other_names).size != 0:
+                if not silent:
+                    print(
+                        f"{self.name} parameter value is a recarray, field names "
+                        f"are different. Left has names {this_names}, right has "
+                        f"names {other_names}."
+                    )
+                return False
+            for name in this_names:
+                this_arr = self.value[name]
+                other_arr = other.value[name]
+                if isinstance(this_arr.item(0), (str, np.str_)):
+                    if not np.all(this_arr == other_arr):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is a recarray, values in "
+                                f"field {name} are not close. Left has values "
+                                f"{this_arr}, right has values {other_arr}."
+                            )
+                        return False
+                else:
+                    if not np.allclose(
+                        this_arr,
+                        other_arr,
+                        rtol=self.tols[0],
+                        atol=self.tols[1],
+                        equal_nan=True,
+                    ):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is a recarray, values in "
+                                f"field {name} are not close.  Left has values "
+                                f"{this_arr}, right has values {other_arr}."
+                            )
+                        return False
+        elif isinstance(self.value, np.ndarray) and not isinstance(
             self.value.item(0), (str, np.str_)
         ):
             if not isinstance(other.value, np.ndarray):
                 if not silent:
-                    print(f"{self.name} parameter value is array, but other is not")
+                    print(f"{self.name} parameter value is an array, but other is not")
                 return False
             if self.value.shape != other.value.shape:
                 if not silent:
                     print(
-                        f"{self.name} parameter value is array, shapes are " "different"
+                        f"{self.name} parameter value is an array, shapes are different"
                     )
                 return False
 
@@ -957,19 +1004,10 @@ class SkyCoordParameter(UVParameter):
 
     description : str
         Description of the data or metadata in the object.
-    expected_type
-        The type that the data or metadata should be. Default is int or str if
-        form is 'str'.
-    acceptable_vals : list, optional
-        List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
         Tuple giving a range of allowed magnitudes for elements of value.
     radian_tol : float
         Tolerance of the sky separation in radians.
-    strict_type_check : bool
-        When True, the input expected_type is used exactly, otherwise a more
-        generic type is found to allow changes in precicions or to/from numpy
-        dtypes to not break checks.
 
     Attributes
     ----------
@@ -1001,8 +1039,6 @@ class SkyCoordParameter(UVParameter):
         Description of the data or metadata in the object.
     expected_type
         Always set to SkyCoord.
-    acceptable_vals : list, optional
-        List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
         Tuple giving a range of allowed magnitudes for elements of value.
     tols : 2-tuple of float
