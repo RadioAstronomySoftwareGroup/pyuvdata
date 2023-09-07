@@ -2332,7 +2332,7 @@ class MS(UVData):
         self.freq_array = np.expand_dims(self.freq_array, 0)
 
         # order polarizations
-        self.reorder_pols(order=pol_order, run_check=False)
+        self.reorder_pols(pol_order, run_check=False)
 
         if use_future_array_shapes:
             self.use_future_array_shapes()

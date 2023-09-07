@@ -1586,7 +1586,7 @@ class Miriad(UVData):
             else:
                 order = self.blt_order[0]
                 minor_order = None
-            self.reorder_blts(order=order, minor_order=minor_order)
+            self.reorder_blts(order, minor_order=minor_order)
 
         # If the data set was recorded using the old phasing method, fix that now.
         if fix_old_proj and projected:
