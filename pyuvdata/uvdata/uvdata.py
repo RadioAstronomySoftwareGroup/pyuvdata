@@ -4672,7 +4672,7 @@ class UVData(UVBase):
         for key in antpairpols:
             yield (key, self.get_data(key, squeeze=squeeze))
 
-    def conjugate_bls(self, *, convention="ant1<ant2", use_enu=True, uvw_tol=0.0):
+    def conjugate_bls(self, convention="ant1<ant2", *, use_enu=True, uvw_tol=0.0):
         """
         Conjugate baselines according to one of the supported conventions.
 
@@ -5040,9 +5040,7 @@ class UVData(UVBase):
 
         if conj_convention is not None:
             self.conjugate_bls(
-                convention=conj_convention,
-                use_enu=conj_convention_use_enu,
-                uvw_tol=uvw_tol,
+                conj_convention, use_enu=conj_convention_use_enu, uvw_tol=uvw_tol
             )
 
         if isinstance(order, str):
@@ -10146,7 +10144,7 @@ class UVData(UVBase):
                 numbers, antpos, tol=tol, include_autos=include_autos
             )
             if conjugate_bls:
-                self.conjugate_bls(convention="u>0", uvw_tol=tol)
+                self.conjugate_bls("u>0", uvw_tol=tol)
 
             if include_conjugates:
                 result = result + (None,)
@@ -10419,7 +10417,7 @@ class UVData(UVBase):
             string specifying minor order along the blt axis (see `reorder_blts`)
 
         """
-        self.conjugate_bls(convention="u>0")
+        self.conjugate_bls("u>0")
         red_gps, centers, lengths = self.get_redundancies(
             tol=tol, use_antpos=True, conjugate_bls=True
         )

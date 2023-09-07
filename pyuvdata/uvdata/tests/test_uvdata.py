@@ -2915,7 +2915,7 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
 
     # check everything swapped & conjugated when go to ant2<ant1
     uv2 = uv1.copy()
-    uv2.conjugate_bls(convention="ant2<ant1")
+    uv2.conjugate_bls("ant2<ant1")
     assert np.min(uv2.ant_1_array - uv2.ant_2_array) >= 0
 
     assert np.allclose(uv1.ant_1_array, uv2.ant_2_array)
@@ -2974,13 +2974,13 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
             )
 
     # check everything returned to original values with original convention
-    uv2.conjugate_bls(convention="ant1<ant2")
+    uv2.conjugate_bls("ant1<ant2")
     assert uv1 == uv2
 
     # conjugate a particular set of blts
     blts_to_conjugate = np.arange(uv2.Nblts // 2)
     blts_not_conjugated = np.arange(uv2.Nblts // 2, uv2.Nblts)
-    uv2.conjugate_bls(convention=blts_to_conjugate)
+    uv2.conjugate_bls(blts_to_conjugate)
 
     assert np.allclose(
         uv1.ant_1_array[blts_to_conjugate], uv2.ant_2_array[blts_to_conjugate]
@@ -3090,41 +3090,41 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
             )
 
     # check uv half plane conventions
-    uv2.conjugate_bls(convention="u<0", use_enu=False)
+    uv2.conjugate_bls("u<0", use_enu=False)
     assert np.max(uv2.uvw_array[:, 0]) <= 0
 
-    uv2.conjugate_bls(convention="u>0", use_enu=False)
+    uv2.conjugate_bls("u>0", use_enu=False)
     assert np.min(uv2.uvw_array[:, 0]) >= 0
 
-    uv2.conjugate_bls(convention="v<0", use_enu=False)
+    uv2.conjugate_bls("v<0", use_enu=False)
     assert np.max(uv2.uvw_array[:, 1]) <= 0
 
-    uv2.conjugate_bls(convention="v>0", use_enu=False)
+    uv2.conjugate_bls("v>0", use_enu=False)
     assert np.min(uv2.uvw_array[:, 1]) >= 0
 
     # unphase to drift to test using ENU positions
     uv2.unproject_phase(use_ant_pos=True)
-    uv2.conjugate_bls(convention="u<0")
+    uv2.conjugate_bls("u<0")
     assert np.max(uv2.uvw_array[:, 0]) <= 0
 
-    uv2.conjugate_bls(convention="u>0")
+    uv2.conjugate_bls("u>0")
     assert np.min(uv2.uvw_array[:, 0]) >= 0
 
-    uv2.conjugate_bls(convention="v<0")
+    uv2.conjugate_bls("v<0")
     assert np.max(uv2.uvw_array[:, 1]) <= 0
 
-    uv2.conjugate_bls(convention="v>0")
+    uv2.conjugate_bls("v>0")
     assert np.min(uv2.uvw_array[:, 1]) >= 0
 
     # test errors
     with pytest.raises(ValueError, match="convention must be one of"):
-        uv2.conjugate_bls(convention="foo")
+        uv2.conjugate_bls("foo")
 
     with pytest.raises(ValueError, match="If convention is an index array"):
-        uv2.conjugate_bls(convention=np.arange(5) - 1)
+        uv2.conjugate_bls(np.arange(5) - 1)
 
     with pytest.raises(ValueError, match="If convention is an index array"):
-        uv2.conjugate_bls(convention=[uv2.Nblts])
+        uv2.conjugate_bls([uv2.Nblts])
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -6388,7 +6388,7 @@ def test_get_antenna_redundancies(pyuvsim_redundant):
             assert bl in uv0.baseline_array
 
     # conjugate data differently
-    uv0.conjugate_bls(convention="ant1<ant2")
+    uv0.conjugate_bls("ant1<ant2")
     new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
         use_antpos=True, include_autos=False, include_conjugates=True
     )
@@ -6440,7 +6440,7 @@ def test_redundancy_contract_expand(
                 blt_inds_to_conj.extend(
                     list(np.nonzero(uv0.baseline_array == gp[0])[0])
                 )
-        uv0.conjugate_bls(convention=np.array(blt_inds_to_conj))
+        uv0.conjugate_bls(np.array(blt_inds_to_conj))
 
     # Assign identical data to each redundant group, set up flagging.
     # This must be done after reconjugation because reconjugation can alter the index
@@ -6477,7 +6477,7 @@ def test_redundancy_contract_expand(
     if reconjugate:
         # undo the conjugations to make uv3 have different conjugations than uv0 to test
         # that we still get the same answer
-        uv3.conjugate_bls(convention=np.array(blt_inds_to_conj))
+        uv3.conjugate_bls(np.array(blt_inds_to_conj))
 
     uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
     uv2.check()
@@ -6541,7 +6541,7 @@ def test_redundancy_contract_expand(
             blts_to_conj = []
             for bl in bls_to_conj:
                 blts_to_conj.extend(list(np.nonzero(uv3.baseline_array == bl)[0]))
-            uv3.conjugate_bls(convention=blts_to_conj)
+            uv3.conjugate_bls(blts_to_conj)
 
         # now check for ones that are still not matching
         unique_bls_3 = np.unique(uv3.baseline_array)
@@ -6935,7 +6935,7 @@ def test_quick_redundant_vs_redundant_test_array(pyuvsim_redundant):
 
     uv.select(times=uv.time_array[0])
     uv.unproject_phase()
-    uv.conjugate_bls(convention="u>0", use_enu=True)
+    uv.conjugate_bls("u>0", use_enu=True)
     tol = 0.05
     # a quick and dirty redundancy calculation
     unique_bls, baseline_inds = np.unique(uv.baseline_array, return_index=True)
@@ -6974,7 +6974,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
     """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
     tol = 1  # meter
     uv = casa_uvfits
-    uv.conjugate_bls(convention="u>0", use_enu=True)
+    uv.conjugate_bls("u>0", use_enu=True)
     # check that Nblts != Nbls * Ntimes
     assert uv.Nblts != uv.Nbls * uv.Ntimes
 
@@ -11392,7 +11392,7 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
 
     uv_in_bad_copy = uv_in_bad.copy()
     if file_type == "miriad":
-        uv_in_bad_copy.conjugate_bls(convention="ant1<ant2")
+        uv_in_bad_copy.conjugate_bls("ant1<ant2")
         uv_in_bad_copy.reorder_blts()
         uv_in_bad2.reorder_blts()
         uv_in_bad2._update_phase_center_id(0, new_id=1)

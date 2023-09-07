@@ -2596,7 +2596,7 @@ def test_redundancy_finder():
     uvd.select(times=uvd.time_array[0])
     uvd.unproject_phase(use_ant_pos=True)
     # uvw_array is now equivalent to baseline positions
-    uvd.conjugate_bls(convention="ant1<ant2", use_enu=True)
+    uvd.conjugate_bls("ant1<ant2", use_enu=True)
 
     tol = 0.05  # meters
 
@@ -2728,7 +2728,7 @@ def test_high_tolerance_redundancy_error():
     uvd.select(times=uvd.time_array[0])
     uvd.unproject_phase(use_ant_pos=True)
     # uvw_array is now equivalent to baseline positions
-    uvd.conjugate_bls(convention="ant1<ant2", use_enu=True)
+    uvd.conjugate_bls("ant1<ant2", use_enu=True)
     bl_positions = uvd.uvw_array
 
     tol = 20.05  # meters
