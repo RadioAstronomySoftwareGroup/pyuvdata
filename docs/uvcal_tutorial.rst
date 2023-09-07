@@ -256,7 +256,7 @@ a) Data for a single antenna and instrumental polarization
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'zen.2457555.42443.HH.uvcA.omni.calfits')
   >>> uvc = UVCal.from_file(filename, use_future_array_shapes=True)
-  >>> gain = uvc.get_gains(9, jpol='Jxx')  # gain for ant=9, pol='Jxx'
+  >>> gain = uvc.get_gains(9, 'Jxx')  # gain for ant=9, pol='Jxx'
 
   >>> # One can equivalently make any of these calls with the input wrapped in a tuple.
   >>> gain = uvc.get_gains((9, 'Jxx'))

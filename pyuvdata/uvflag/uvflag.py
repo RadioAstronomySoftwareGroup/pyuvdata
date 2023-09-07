@@ -1303,7 +1303,9 @@ class UVFlag(UVBase):
 
         """
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
-        return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
+        return uvutils.baseline_to_antnums(
+            baseline, Nants_telescope=self.Nants_telescope
+        )
 
     def antnums_to_baseline(self, ant1, ant2, *, attempt256=False):
         """
@@ -1326,7 +1328,7 @@ class UVFlag(UVBase):
         """
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.antnums_to_baseline(
-            ant1, ant2, self.Nants_telescope, attempt256=attempt256
+            ant1, ant2, Nants_telescope=self.Nants_telescope, attempt256=attempt256
         )
 
     def get_baseline_nums(self):
