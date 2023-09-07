@@ -1907,12 +1907,12 @@ def test_reorder_ants(
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff > 0)
 
-    calobj2.reorder_antennas(order="-number")
+    calobj2.reorder_antennas("-number")
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff < 0)
 
     sorted_names = np.sort(calobj.antenna_names)
-    calobj.reorder_antennas(order="name")
+    calobj.reorder_antennas("name")
     temp = np.asarray(calobj.antenna_names)
     dtype_use = temp.dtype
     name_array = np.zeros_like(calobj.ant_array, dtype=dtype_use)
@@ -1924,10 +1924,10 @@ def test_reorder_ants(
     assert np.all(sorted_names == name_array)
 
     # test sorting with an integer array. First resort back to by number
-    calobj2.reorder_antennas(order="number")
+    calobj2.reorder_antennas("number")
     sorted_nums = [int(name[3:]) for name in sorted_names]
     index_array = [np.nonzero(calobj2.ant_array == ant)[0][0] for ant in sorted_nums]
-    calobj2.reorder_antennas(order=index_array)
+    calobj2.reorder_antennas(index_array)
     assert calobj2 == calobj
 
 
@@ -1937,21 +1937,21 @@ def test_reorder_ants_errors(gain_data):
         match="order must be one of 'number', 'name', '-number', '-name' or an "
         "index array of length Nants_data",
     ):
-        gain_data.reorder_antennas(order="foo")
+        gain_data.reorder_antennas("foo")
 
     with pytest.raises(
         ValueError,
         match="If order is an index array, it must contain all indicies for the"
         "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(order=gain_data.antenna_numbers.astype(float))
+        gain_data.reorder_antennas(gain_data.antenna_numbers.astype(float))
 
     with pytest.raises(
         ValueError,
         match="If order is an index array, it must contain all indicies for the"
         "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(order=gain_data.antenna_numbers[:8])
+        gain_data.reorder_antennas(gain_data.antenna_numbers[:8])
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -2134,7 +2134,7 @@ def test_reorder_times(
     calobj.reorder_times()
     assert calobj == calobj2
 
-    calobj2.reorder_times(order="-time")
+    calobj2.reorder_times("-time")
     if time_range:
         time_diff = np.diff(calobj2.time_range[:, 0])
     else:
@@ -2149,7 +2149,7 @@ def test_reorder_times(
             total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
         assert np.all(total_quality_diff < 0)
 
-    calobj.reorder_times(order=np.flip(np.arange(calobj.Ntimes)))
+    calobj.reorder_times(np.flip(np.arange(calobj.Ntimes)))
     assert calobj == calobj2
 
 
@@ -2158,21 +2158,21 @@ def test_reorder_times_errors(gain_data):
         ValueError,
         match="order must be one of 'time', '-time' or an index array of length Ntimes",
     ):
-        gain_data.reorder_times(order="foo")
+        gain_data.reorder_times("foo")
 
     with pytest.raises(
         ValueError,
         match="If order is an array, it must contain all indicies for the time axis, "
         "without duplicates.",
     ):
-        gain_data.reorder_times(order=np.arange(gain_data.Ntimes) * 2)
+        gain_data.reorder_times(np.arange(gain_data.Ntimes) * 2)
 
     with pytest.raises(
         ValueError,
         match="If order is an array, it must contain all indicies for the time axis, "
         "without duplicates.",
     ):
-        gain_data.reorder_times(order=np.arange(7))
+        gain_data.reorder_times(np.arange(7))
 
     gain_data = time_array_to_time_range(gain_data, keep_time_array=True)
     with uvtest.check_warnings(
@@ -2222,11 +2222,11 @@ def test_reorder_jones(
     calobj = calobj2.copy()
 
     # this is a no-op because it's already sorted this way
-    calobj2.reorder_jones(order="-number")
+    calobj2.reorder_jones("-number")
     jnum_diff = np.diff(calobj2.jones_array)
     assert np.all(jnum_diff < 0)
 
-    calobj2.reorder_jones(order="number")
+    calobj2.reorder_jones("number")
     jnum_diff = np.diff(calobj2.jones_array)
     assert np.all(jnum_diff > 0)
 
@@ -2250,7 +2250,7 @@ def test_reorder_jones(
     # test sorting with an index array. Sort back to number first so indexing works
     sorted_nums = uvutils.jstr2num(sorted_names, x_orientation=calobj.x_orientation)
     index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
-    calobj.reorder_jones(order=index_array)
+    calobj.reorder_jones(index_array)
     assert calobj2 == calobj
 
 
@@ -2264,21 +2264,21 @@ def test_reorder_jones_errors(gain_data):
         match="order must be one of 'number', 'name', '-number', '-name' or an "
         "index array of length Njones",
     ):
-        calobj.reorder_jones(order="foo")
+        calobj.reorder_jones("foo")
 
     with pytest.raises(
         ValueError,
         match="If order is an array, it must contain all indicies for "
         "the jones axis, without duplicates.",
     ):
-        calobj.reorder_jones(order=np.arange(gain_data.Njones) * 2)
+        calobj.reorder_jones(np.arange(gain_data.Njones) * 2)
 
     with pytest.raises(
         ValueError,
         match="If order is an array, it must contain all indicies for "
         "the jones axis, without duplicates.",
     ):
-        calobj.reorder_jones(order=np.arange(2))
+        calobj.reorder_jones(np.arange(2))
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -2341,14 +2341,14 @@ def test_add_different_sorting(
         cal2 = calobj.select(jones=np.array([-6, -8]), inplace=False)
 
     if sort_type == "ant":
-        cal1.reorder_antennas(order="number")
-        cal2.reorder_antennas(order="-number")
-        calobj.reorder_antennas(order="name")
+        cal1.reorder_antennas("number")
+        cal2.reorder_antennas("-number")
+        calobj.reorder_antennas("name")
         order_check = cal1._ant_array == cal2._ant_array
     elif sort_type == "time":
-        cal1.reorder_times(order="time")
-        cal2.reorder_times(order="-time")
-        calobj.reorder_times(order="time")
+        cal1.reorder_times("time")
+        cal2.reorder_times("-time")
+        calobj.reorder_times("time")
         order_check = cal1._time_array == cal2._time_array
     elif sort_type == "freq":
         if wide_band:
@@ -2362,9 +2362,9 @@ def test_add_different_sorting(
             calobj.reorder_freqs(channel_order="freq")
             order_check = cal1._freq_array == cal2._freq_array
     elif sort_type == "jones":
-        cal1.reorder_jones(order="name")
-        cal2.reorder_jones(order="-number")
-        calobj.reorder_jones(order="number")
+        cal1.reorder_jones("name")
+        cal2.reorder_jones("-number")
+        calobj.reorder_jones("number")
         order_check = cal1._jones_array == cal2._jones_array
 
     # Make sure that the order has actually been scrambled
@@ -2375,11 +2375,11 @@ def test_add_different_sorting(
     cal4 = cal2 + cal1
 
     if sort_type == "ant":
-        cal3.reorder_antennas(order="name")
-        cal4.reorder_antennas(order="name")
+        cal3.reorder_antennas("name")
+        cal4.reorder_antennas("name")
     elif sort_type == "time":
-        cal3.reorder_times(order="time")
-        cal4.reorder_times(order="time")
+        cal3.reorder_times("time")
+        cal4.reorder_times("time")
     elif sort_type == "freq":
         if wide_band:
             cal3.reorder_freqs()
@@ -2388,8 +2388,8 @@ def test_add_different_sorting(
             cal3.reorder_freqs(channel_order="freq")
             cal4.reorder_freqs(channel_order="freq")
     elif sort_type == "jones":
-        cal3.reorder_jones(order="number")
-        cal4.reorder_jones(order="number")
+        cal3.reorder_jones("number")
+        cal4.reorder_jones("number")
 
     # Deal with the history separately, since it will be different
     assert str.startswith(cal3.history, calobj.history)
