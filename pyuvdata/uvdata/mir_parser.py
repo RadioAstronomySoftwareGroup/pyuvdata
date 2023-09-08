@@ -1908,6 +1908,11 @@ class MirParser(object):
                 "ignore_header": False,
             }
 
+        # If we need to update metadata for V3 compliance, do that now, since we fill
+        # the acdata struct with fields added in V3.
+        if make_v3_compliant:
+            self._make_v3_compliant()
+
         if self._has_auto:
             filetype = "ach_read"
             old_fmt = self.ac_data._old_fmt
@@ -1928,10 +1933,6 @@ class MirParser(object):
 
         self._file_dict = {filepath: file_dict}
         self.filepath = filepath
-
-        # If we need to update metadata for V3 compliance, do that now.
-        if make_v3_compliant:
-            self._make_v3_compliant()
 
         # Finally, if we've specified a COMPASS solution, load that now as well.
         if compass_soln is not None:
