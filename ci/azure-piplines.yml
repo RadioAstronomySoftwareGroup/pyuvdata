@@ -8,7 +8,7 @@ jobs:
   steps:
   - task: UsePythonVersion@0
     inputs:
-      versionSpec: "3.9"
+      versionSpec: "3.10"
 
   - bash: |
       cd ../
@@ -37,7 +37,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.9"
+    PYTHON: "3.10"
     ENV_NAME: hera_qm_tests
     WITH_SUDO: true
 
@@ -81,7 +81,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.9"
+    PYTHON: "3.10"
     ENV_NAME: full_deps
     WITH_SUDO: true
 
@@ -126,7 +126,7 @@ jobs:
   pool:
     vmImage: "ubuntu-latest"
   variables:
-    PYTHON: "3.9"
+    PYTHON: "3.10"
     ENV_NAME: pyuvsim_tests
     WITH_SUDO: true
 
@@ -166,3 +166,48 @@ jobs:
       mkdir test-reports
       python -m pytest pyuvsim --junitxml=test-reports/xunit.xml
     displayName: run pyuvsim tests
+
+- job: SSINS
+  pool:
+    vmImage: "ubuntu-latest"
+  variables:
+    PYTHON: "3.10"
+    ENV_NAME: SSINS_tests
+    WITH_SUDO: true
+
+  steps:
+  - bash: |
+      cd ../
+      git clone https://github.com/mwilensky768/SSINS
+      cd s
+    displayName: clone SSINS
+
+  - bash: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
+    displayName: Install Micromamba
+
+  - bash: |
+      micromamba info
+      # need to add gxx and gcc to build novas and cython
+      # docstring_parser should be removed after next pyuvdata release (>2.3.2)
+      # note different spelling of yaml extension
+      micromamba create --name=${ENV_NAME}  python=$PYTHON gxx gcc docstring_parser -f ../SSINS/ci/${ENV_NAME}.yml -yq
+    displayName: configure conda environment
+
+  - bash: |
+      source ./ci/_activate_current_env.sh
+      micromamba list -n ${ENV_NAME}
+      # check that the python version matches the desired one; exit immediately if not
+      PYVER=`python -c "import sys; print('{:d}.{:d}'.format(sys.version_info.major, sys.version_info.minor))"`
+      if [[ $PYVER != $PYTHON ]]; then
+        exit 1;
+      fi
+    displayName: Verify Mamba Config
+
+  - bash: |
+      source ./ci/_activate_current_env.sh
+      pip install --no-deps .
+      cd ../SSINS
+      pip install --no-deps .
+      mkdir test-reports
+      python -m pytest SSINS --junitxml=test-reports/xunit.xml
+    displayName: run SSINS tests
