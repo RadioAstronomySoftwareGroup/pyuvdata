@@ -819,7 +819,7 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
   >>> bl_ind = np.where(uvd.baseline_array == bl)[0]
 
   >>> # Amplitude waterfall for all spectral channels and 0th polarization
-  >>> plt.imshow(np.abs(uvd.data_array[bl_ind, 0, :, 0])) # doctest: +SKIP
+  >>> plt.imshow(np.abs(uvd.data_array[bl_ind, :, 0])) # doctest: +SKIP
   >>> plt.show() # doctest: +SKIP
 
   >>> # If using flexible spectral windows (flex_spw=True), plot the 0th window, 0th pol
