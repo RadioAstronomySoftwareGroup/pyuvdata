@@ -45,6 +45,9 @@ def compass_soln_file(tmp_path_factory):
         file["reBandpassArr"] = bp_soln.real
         file["imBandpassArr"] = bp_soln.imag
 
+        # Populate the SEFD values
+        file["sefdArr"] = np.ones(bp_soln.shape)
+
         # This number is pulled from the test mir_data object, in in_data["mjd"].
         file["mjdArr"] = np.array([[59054.69153811]])
 
