@@ -2834,6 +2834,7 @@ class MirParser(object):
             ).astype(
                 np.complex64
             )  # BP gains (3D array)
+            sefd_arr = np.array(file["sefdArr"])
 
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
@@ -2841,10 +2842,17 @@ class MirParser(object):
                 for jdx, (rx, sb, chunk) in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
                     cal_data = bp_arr[idx, jdx]
                     cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
+                    sefd_data = sefd_arr[idx, jdx]
+                    sefd_flags = (sefd_data == 0.0) | ~np.isfinite(sefd_data)
+
                     cal_data[cal_flags] = 1.0
+                    sefd_data[sefd_flags] = 0.0
+
                     bandpass_gains[(ant, rx, sb, chunk)] = {
                         "cal_data": cal_data,
                         "cal_flags": cal_flags,
+                        "sefd_data": sefd_data,
+                        "sefd_flags": sefd_flags,
                     }
 
             # Once we divvy-up the solutions, plug them back into the dict that
@@ -2867,6 +2875,8 @@ class MirParser(object):
                     bp_gains_corr[new_key] = {
                         "cal_data": cal_soln,
                         "cal_flags": dict1["cal_flags"] | dict2["cal_flags"],
+                        "sefd_data": dict1["sefd_data"] * dict2["sefd_data"],
+                        "sefd_flags": dict1["sefd_flags"] * dict2["sefd_flags"],
                     }
 
             compass_soln_dict["bp_gains_corr"] = bp_gains_corr

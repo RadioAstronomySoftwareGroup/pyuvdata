@@ -66,8 +66,6 @@ class Mir(UVData):
             filepath=filepath, compass_soln=compass_soln, make_v3_compliant=True
         )
 
-        mir_data._make_v3_compliant()
-
         if select_where is None:
             select_where = []
 
