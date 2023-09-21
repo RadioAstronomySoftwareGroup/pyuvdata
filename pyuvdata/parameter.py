@@ -659,6 +659,48 @@ class UVParameter(object):
                     )
                     return False, message
 
+    def compare_value(self, value):
+        """
+        Compare UVParameter value to a supplied value.
+
+        Parameters
+        ----------
+        value
+            The value to compare against that stored in the UVParameter object. Must
+            be the same type.
+
+        Returns
+        -------
+        same : bool
+            True if the values are equivalent (or within specified tolerances),
+            otherwise false.
+        """
+        # Catch the case when the values are different types
+        if not (
+            isinstance(value, self.value.__class__)
+            and isinstance(self.value, value.__class__)
+        ):
+            raise ValueError(
+                "UVParameter value and supplied values are of different types."
+            )
+
+        # If these are numeric types, handle them via allclose
+        if isinstance(value, (np.ndarray, int, float, complex)):
+            # Check that we either have a number or an ndarray
+            if not isinstance(value, np.ndarray) or value.shape == self.value.shape:
+                if np.allclose(
+                    value,
+                    self.value,
+                    rtol=self.tols[0],
+                    atol=self.tols[1],
+                    equal_nan=True,
+                ):
+                    return True
+            return False
+        else:
+            # Otherwise just default to checking equality
+            return value == self.value
+
 
 class AngleParameter(UVParameter):
     """
