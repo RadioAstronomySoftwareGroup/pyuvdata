@@ -669,18 +669,23 @@ def test_compare_value_err():
 
 
 @pytest.mark.parametrize(
-    "value,status",
+    "value,param_value,value_type,status",
     [
-        (np.array([1, 2]), False),
-        (np.array([1, 2, 3]), True),
-        (np.array([1.0, 2.0, 3.0]), True),
-        (np.array([2, 3, 4]), True),
-        (np.array([4, 5, 6]), False),
-        (np.array([1, 2, 3, 4, 5, 6]), False),
+        (np.array([1, 2]), np.array([1, 2, 3]), float, False),
+        (np.array([1, 2, 3]), np.array([1, 2, 3]), float, True),
+        (np.array([1.0, 2.0, 3.0]), np.array([1, 2, 3]), float, True),
+        (np.array([2, 3, 4]), np.array([1, 2, 3]), float, True),
+        (np.array([4, 5, 6]), np.array([1, 2, 3]), float, False),
+        (np.array([1, 2, 3, 4, 5, 6]), np.array([1, 2, 3]), float, False),
+        ("test_me", "dont_test_me", str, False),
+        ("test_me", "test_me", str, True),
     ],
 )
-def test_compare_value(value, status):
+def test_compare_value(value, param_value, value_type, status):
     param = uvp.UVParameter(
-        "_test1", value=np.array([1, 2, 3]), tols=[0, 1], expected_type=float
+        "_test1",
+        value=param_value,
+        tols=None if isinstance(value_type, str) else [0, 1],
+        expected_type=value_type,
     )
     assert param.compare_value(value) == status
