@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a `uvw_track_generator` method within `utils` for calculating the expected
+uvws (and a few other values) without needing to instantiate a whole `UVData` object.
+- Added a convenience function called `compare_value` in `UVParameter` that enables
+one to do value checking with tolerances accounted for.
 - New `mwa_metafits_file` and `telescope_name` optional parameters to `UVFlag.read` and
 `UVFlag.__init__` to help with setting telescope metadata for old UVFlag files that are
 missing it.
