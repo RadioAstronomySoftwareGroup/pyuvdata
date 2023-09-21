@@ -657,3 +657,30 @@ def test_spoof():
     assert param.value is None
     param.apply_spoof()
     assert param.value == 1.0
+
+
+def test_compare_value_err():
+    param = uvp.UVParameter("_test1", value=3.0, tols=[0, 1], expected_type=float)
+    with pytest.raises(
+        ValueError,
+        match="UVParameter value and supplied values are of different types.",
+    ):
+        param.compare_value("test")
+
+
+@pytest.mark.parametrize(
+    "value,status",
+    [
+        (np.array([1, 2]), False),
+        (np.array([1, 2, 3]), True),
+        (np.array([1.0, 2.0, 3.0]), True),
+        (np.array([2, 3, 4]), True),
+        (np.array([4, 5, 6]), False),
+        (np.array([1, 2, 3, 4, 5, 6]), False),
+    ],
+)
+def test_compare_value(value, status):
+    param = uvp.UVParameter(
+        "_test1", value=np.array([1, 2, 3]), tols=[0, 1], expected_type=float
+    )
+    assert param.compare_value(value) == status
