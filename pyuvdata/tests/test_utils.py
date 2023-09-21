@@ -4131,3 +4131,35 @@ def test_calc_app_coords_time_obj():
 
     assert np.allclose(app_ra_to, app_ra_nto)
     assert np.allclose(app_dec_to, app_dec_nto)
+
+
+@pytest.mark.parametrize("flip_u", [False, True])
+def test_uvw_track_generator(flip_u):
+    sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
+    sma_mir.set_lsts_from_time_array()
+    sma_mir._set_app_coords_helper()
+    sma_mir.set_uvws_from_antenna_positions()
+
+    cat_dict = sma_mir.phase_center_catalog[1]
+    gen_results = uvutils.uvw_track_generator(
+        lon_coord=cat_dict["cat_lon"],
+        lat_coord=cat_dict["cat_lat"],
+        coord_frame=cat_dict["cat_frame"],
+        coord_epoch=cat_dict["cat_epoch"],
+        telescope_loc=sma_mir.telescope_location_lat_lon_alt_degrees,
+        time_array=sma_mir.time_array,
+        antenna_positions=sma_mir.antenna_positions,
+        ant_1_array=sma_mir.ant_1_array,
+        ant_2_array=sma_mir.ant_2_array,
+        antenna_numbers=sma_mir.antenna_numbers,
+        force_postive_u=flip_u,
+    )
+
+    assert sma_mir._phase_center_app_ra.compare_value(gen_results["app_ra"])
+    assert sma_mir._phase_center_app_dec.compare_value(gen_results["app_dec"])
+    assert sma_mir._phase_center_frame_pa.compare_value(gen_results["frame_pa"])
+    assert sma_mir._lst_array.compare_value(gen_results["lst"])
+    if flip_u:
+        assert sma_mir._uvw_array.compare_value(-gen_results["uvw"])
+    else:
+        assert sma_mir._uvw_array.compare_value(gen_results["uvw"])

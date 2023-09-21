@@ -4058,7 +4058,7 @@ def uvw_track_generator(
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, a lunarsky
         Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
-        longitude, and altitude for a position on Earth in units of radians, radians,
+        longitude, and altitude for a position on Earth in units of degrees, degrees,
         and meters, respectively.
     antenna_frame : str, optional
         Reference frame for latitude/longitude/altitude. Options are itrs (default) or
@@ -4159,7 +4159,7 @@ def uvw_track_generator(
     app_ra, app_dec = calc_app_coords(
         lon_coord=lon_coord,
         lat_coord=lat_coord,
-        coord_frame="icrs",
+        coord_frame=coord_frame,
         coord_type=coord_type,
         time_array=time_array,
         lst_array=lst_array,
