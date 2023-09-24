@@ -4157,6 +4157,9 @@ def test_uvw_track_generator(flip_u, use_uvw):
     sma_mir.set_lsts_from_time_array()
     sma_mir._set_app_coords_helper()
     sma_mir.set_uvws_from_antenna_positions()
+    if not use_uvw:
+        # Just subselect the antennas in the dataset
+        sma_mir.antenna_positions = sma_mir.antenna_positions[[0, 3], :]
 
     if use_uvw:
         sma_copy = sma_mir.copy()
@@ -4173,10 +4176,7 @@ def test_uvw_track_generator(flip_u, use_uvw):
         coord_epoch=cat_dict["cat_epoch"],
         telescope_loc=sma_mir.telescope_location_lat_lon_alt_degrees,
         time_array=sma_mir.time_array,
-        antenna_positions=sma_mir.antenna_positions,
-        ant_1_array=sma_mir.ant_1_array,
-        ant_2_array=sma_mir.ant_2_array,
-        antenna_numbers=sma_mir.antenna_numbers,
+        antenna_positions=sma_mir.antenna_positions if uvw_array is None else None,
         force_postive_u=flip_u,
         uvw_array=uvw_array,
     )
