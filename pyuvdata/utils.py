@@ -3849,6 +3849,8 @@ def get_lst_for_time(
 
     if isinstance(jd_array, np.ndarray):
         lst_array = np.zeros_like(jd_array)
+        if lst_array.ndim == 0:
+            lst_array = lst_array.reshape(1)
     else:
         lst_array = np.zeros(1)
 
