@@ -4148,7 +4148,7 @@ def uvw_track_generator(
 
             ant_1_array = np.tile(ant_1_array, Ntimes)
             ant_2_array = np.tile(ant_2_array, Ntimes)
-            if (len(lon_coord) != 1) or (len(lon_coord) == len(time_array)):
+            if len(lon_coord) == len(time_array):
                 lon_coord = np.repeat(lon_coord, Nbase)
                 lat_coord = np.repeat(lat_coord, Nbase)
 
