@@ -2151,6 +2151,10 @@ def test_lst_for_time_float_vs_array(astrometry_args, astrolib):
     Test for equality when passing a single float vs an ndarray (of length 1) when
     calling get_lst_for_time.
     """
+    if astrolib == "novas":
+        pytest.importorskip("novas")
+        pytest.importorskip("novas_de405")
+
     lst_array = uvutils.get_lst_for_time(
         np.array(astrometry_args["time_array"][0]),
         astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
