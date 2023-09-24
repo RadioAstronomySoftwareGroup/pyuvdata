@@ -2145,7 +2145,8 @@ def test_lst_for_time_smooth(astrometry_lib):
     assert np.max(np.abs(diff_poly)) < 1e-10
 
 
-def test_lst_for_time_float_vs_array(astrometry_args):
+@pytest.mark.parametrize("astrolib", ["novas", "astropy", "erfa"])
+def test_lst_for_time_float_vs_array(astrometry_args, astrolib):
     """
     Test for equality when passing a single float vs an ndarray (of length 1) when
     calling get_lst_for_time.
@@ -2155,6 +2156,7 @@ def test_lst_for_time_float_vs_array(astrometry_args):
         astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
         astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
         astrometry_args["telescope_loc"][2],
+        astrometry_library=astrolib,
     )
 
     check_lst = uvutils.get_lst_for_time(
@@ -2162,6 +2164,7 @@ def test_lst_for_time_float_vs_array(astrometry_args):
         astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
         astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
         astrometry_args["telescope_loc"][2],
+        astrometry_library=astrolib,
     )
 
     assert np.all(lst_array == check_lst)
@@ -2179,6 +2182,16 @@ def test_get_lst_for_time_errors(astrometry_args):
             astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
             astrometry_args["telescope_loc"][2],
             astrometry_library="foo",
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot set both telescope_loc and latitude/longitude/altitude",
+    ):
+        uvutils.get_lst_for_time(
+            np.array(astrometry_args["time_array"][0]),
+            latitude=astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+            telescope_loc=astrometry_args["telescope_loc"][2],
         )
 
 
@@ -4134,11 +4147,19 @@ def test_calc_app_coords_time_obj():
 
 
 @pytest.mark.parametrize("flip_u", [False, True])
-def test_uvw_track_generator(flip_u):
+@pytest.mark.parametrize("use_uvw", [False, True])
+def test_uvw_track_generator(flip_u, use_uvw):
     sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
     sma_mir.set_lsts_from_time_array()
     sma_mir._set_app_coords_helper()
     sma_mir.set_uvws_from_antenna_positions()
+
+    if use_uvw:
+        sma_copy = sma_mir.copy()
+        sma_copy.unproject_phase()
+        uvw_array = sma_copy.uvw_array
+    else:
+        uvw_array = None
 
     cat_dict = sma_mir.phase_center_catalog[1]
     gen_results = uvutils.uvw_track_generator(
@@ -4153,6 +4174,7 @@ def test_uvw_track_generator(flip_u):
         ant_2_array=sma_mir.ant_2_array,
         antenna_numbers=sma_mir.antenna_numbers,
         force_postive_u=flip_u,
+        uvw_array=uvw_array,
     )
 
     assert sma_mir._phase_center_app_ra.compare_value(gen_results["app_ra"])
