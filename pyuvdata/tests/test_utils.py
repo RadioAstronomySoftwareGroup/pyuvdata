@@ -4150,7 +4150,7 @@ def test_calc_app_coords_time_obj():
     assert np.allclose(app_dec_to, app_dec_nto)
 
 
-@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+@pytest.mark.skipif(hasmoon, reason="lunarsky installed")
 def test_uvw_track_generator_errs():
     with pytest.raises(
         ValueError, match="Need to install `lunarsky` package to work with MCMF frame."
@@ -4158,10 +4158,10 @@ def test_uvw_track_generator_errs():
         uvutils.uvw_track_generator(telescope_loc=(0, 0, 0), antenna_frame="MCMF")
 
 
-@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded')
 @pytest.mark.parametrize("flip_u", [False, True])
 @pytest.mark.parametrize("use_uvw", [False, True])
 @pytest.mark.parametrize("use_earthloc", [False, True])
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
     sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
     sma_mir.set_lsts_from_time_array()
