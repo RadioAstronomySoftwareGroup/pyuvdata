@@ -2155,19 +2155,19 @@ def test_lst_for_time_float_vs_array(astrometry_args, astrolib):
         pytest.importorskip("novas")
         pytest.importorskip("novas_de405")
 
+    r2d = 180.0 / np.pi
+
     lst_array = uvutils.get_lst_for_time(
-        np.array(astrometry_args["time_array"][0]),
-        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
-        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
-        astrometry_args["telescope_loc"][2],
+        jd_array=np.array(astrometry_args["time_array"][0]),
+        latitude=astrometry_args["telescope_loc"][0] * r2d,
+        longitude=astrometry_args["telescope_loc"][1] * r2d,
+        altitude=astrometry_args["telescope_loc"][2],
         astrometry_library=astrolib,
     )
 
     check_lst = uvutils.get_lst_for_time(
-        astrometry_args["time_array"][0],
-        astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
-        astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
-        astrometry_args["telescope_loc"][2],
+        jd_array=astrometry_args["time_array"][0],
+        telescope_loc=np.multiply(astrometry_args["telescope_loc"], [r2d, r2d, 1]),
         astrometry_library=astrolib,
     )
 
@@ -4150,9 +4150,19 @@ def test_calc_app_coords_time_obj():
     assert np.allclose(app_dec_to, app_dec_nto)
 
 
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_uvw_track_generator_errs():
+    with pytest.raises(
+        ValueError, match="Need to install `lunarsky` package to work with MCMF frame."
+    ):
+        uvutils.uvw_track_generator(telescope_loc=(0, 0, 0), antenna_frame="MCMF")
+
+
+@pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded')
 @pytest.mark.parametrize("flip_u", [False, True])
 @pytest.mark.parametrize("use_uvw", [False, True])
-def test_uvw_track_generator(flip_u, use_uvw):
+@pytest.mark.parametrize("use_earthloc", [False, True])
+def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
     sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
     sma_mir.set_lsts_from_time_array()
     sma_mir._set_app_coords_helper()
@@ -4160,6 +4170,15 @@ def test_uvw_track_generator(flip_u, use_uvw):
     if not use_uvw:
         # Just subselect the antennas in the dataset
         sma_mir.antenna_positions = sma_mir.antenna_positions[[0, 3], :]
+
+    if use_earthloc:
+        telescope_loc = EarthLocation.from_geodetic(
+            lon=sma_mir.telescope_location_lat_lon_alt_degrees[1],
+            lat=sma_mir.telescope_location_lat_lon_alt_degrees[0],
+            height=sma_mir.telescope_location_lat_lon_alt_degrees[2],
+        )
+    else:
+        telescope_loc = sma_mir.telescope_location_lat_lon_alt_degrees
 
     if use_uvw:
         sma_copy = sma_mir.copy()
@@ -4174,8 +4193,8 @@ def test_uvw_track_generator(flip_u, use_uvw):
         lat_coord=cat_dict["cat_lat"],
         coord_frame=cat_dict["cat_frame"],
         coord_epoch=cat_dict["cat_epoch"],
-        telescope_loc=sma_mir.telescope_location_lat_lon_alt_degrees,
-        time_array=sma_mir.time_array,
+        telescope_loc=telescope_loc,
+        time_array=sma_mir.time_array if use_uvw else sma_mir.time_array[0],
         antenna_positions=sma_mir.antenna_positions if uvw_array is None else None,
         force_postive_u=flip_u,
         uvw_array=uvw_array,
@@ -4189,3 +4208,20 @@ def test_uvw_track_generator(flip_u, use_uvw):
         assert sma_mir._uvw_array.compare_value(-gen_results["uvw"])
     else:
         assert sma_mir._uvw_array.compare_value(gen_results["uvw"])
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+def test_uvw_track_generator_moon():
+    # Note this isn't a particularly deep test, but it at least exercises the code.
+    gen_results = uvutils.uvw_track_generator(
+        lon_coord=0.0,
+        lat_coord=0.0,
+        coord_frame="icrs",
+        telescope_loc=(0, 0, 0),
+        time_array=2456789.0,
+        antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+        antenna_frame="mcmf",
+    )
+
+    # Check that the total lengths all match 1
+    assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
