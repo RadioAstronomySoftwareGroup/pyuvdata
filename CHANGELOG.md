@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New `mwa_metafits_file` and `telescope_name` optional parameters to `UVFlag.read` and
+`UVFlag.__init__` to help with setting telescope metadata for old UVFlag files that are
+missing it.
+- MWA antenna metadata to our known telescopes to allow them to be filled in for old
+UVFlag files. This is a stopgap solution, a better approach is to pass an MWA metafits
+file to the new `mwa_metafits_file` parameter.
 - Support for recarrays in `UVParameter` objects and in `UVBase`, needed for pyradiosky.
 - Support for setting the astrometry library for various object methods including `set_lsts_from_time_array`, file read methods and others.
 - Properly round-trip the telescope frame through UVH5, UVFITS and MS files.
