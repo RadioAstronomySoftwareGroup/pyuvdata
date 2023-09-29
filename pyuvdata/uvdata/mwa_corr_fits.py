@@ -20,6 +20,7 @@ from scipy.special import erf
 from pyuvdata.data import DATA_PATH
 
 from .. import _corr_fits
+from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
@@ -37,6 +38,189 @@ def input_output_mapping():
     # floor(index/4) + index%4 * 16 = input
     # for the first 64 outputs, pfb_mapper[output] = input
     return _corr_fits.input_output_mapping()
+
+
+def read_metafits(
+    file,
+    *,
+    mwax=None,
+    flag_init=None,
+    start_flag=None,
+    start_time=None,
+    telescope_info_only=False,
+):
+    # get information from metafits file
+    with fits.open(file, memmap=True) as meta:
+        meta_hdr = meta[0].header
+
+        telescope_name = meta_hdr.pop("TELESCOP")
+        instrument = meta_hdr.pop("INSTRUME")
+
+        # get antenna data from metafits file table
+        meta_tbl = meta[1].data
+
+        # because of polarization, each antenna # is listed twice
+        antenna_inds = meta_tbl["Antenna"][1::2]
+        antenna_numbers = meta_tbl["Tile"][1::2]
+        antenna_names = meta_tbl["TileName"][1::2]
+        flagged_ant_inds = antenna_inds[meta_tbl["Flag"][1::2] == 1]
+        cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
+        dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64)
+
+        # get antenna postions in enu coordinates
+        antenna_positions = np.zeros((len(antenna_numbers), 3))
+        antenna_positions[:, 0] = meta_tbl["East"][1::2]
+        antenna_positions[:, 1] = meta_tbl["North"][1::2]
+        antenna_positions[:, 2] = meta_tbl["Height"][1::2]
+
+        mwa_telescope_obj = uvtel.get_telescope("mwa")
+
+        # convert antenna positions from enu to ecef
+        # antenna positions are "relative to
+        # the centre of the array in local topocentric \"east\", \"north\",
+        # \"height\". Units are meters."
+        antenna_positions_ecef = uvutils.ECEF_from_ENU(
+            antenna_positions, *mwa_telescope_obj.telescope_location_lat_lon_alt
+        )
+        # make antenna positions relative to telescope location
+        antenna_positions = (
+            antenna_positions_ecef - mwa_telescope_obj.telescope_location
+        )
+
+        # reorder antenna parameters from metafits ordering
+        reordered_inds = antenna_inds.argsort()
+        antenna_numbers = antenna_numbers[reordered_inds]
+        antenna_names = list(antenna_names[reordered_inds])
+        antenna_positions = antenna_positions[reordered_inds, :]
+        cable_lens = cable_lens[reordered_inds]
+        dig_gains = dig_gains[reordered_inds, :]
+
+        if telescope_info_only:
+            return {
+                "telescope_name": telescope_name,
+                "telescope_location": mwa_telescope_obj.telescope_location,
+                "instrument": instrument,
+                "antenna_numbers": antenna_numbers,
+                "antenna_names": antenna_names,
+                "antenna_positions": antenna_positions,
+            }
+
+        if None in [mwax, flag_init, start_flag, start_time]:
+            raise ValueError(
+                "mwax, flag_init, start_flag and start_time must all be passed if the "
+                "`telescope_info_only` parameter is False"
+            )
+
+        # get a list of coarse channels
+        coarse_chans = meta_hdr["CHANNELS"].split(",")
+        coarse_chans = np.array(sorted(int(i) for i in coarse_chans))
+        # fine channel width
+        channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
+        # number of fine channels in observation
+        obs_num_fine_chans = meta_hdr["NCHANS"]
+        # calculate number of fine channels per coarse channel
+        coarse_num_fine_chans = obs_num_fine_chans / len(coarse_chans)
+
+        # center frequency of first fine channel of center coarse channel in hertz
+        # For the legacy correlator, the metafits file includes the observation
+        # frequency center, which is the center frequency of the first fine
+        # channel of the center coarse channel. (If there are an even number of
+        # coarse channels, the center channel is to the right).
+        # For mwax, the center frequency of the first fine channel of a coarse
+        # channel is the leftmost edge of the coarse channel if the number of
+        # fine channels per coarse channel is even. Otherwise it is offset by
+        # half of the fine channel width.
+        if mwax:
+            # calculate coarse channel width in MHz
+            coarse_chan_width = meta_hdr["BANDWDTH"] / len(coarse_chans)
+            # coarse channel center freq is channel number * coarse channel width
+            center_coarse_chan_center = meta_hdr["CENTCHAN"] * coarse_chan_width * 1e6
+            # calculate center of first fine channel; this works if the number of
+            # fine channels is even or odd
+            obs_freq_center = (
+                center_coarse_chan_center
+                - int(coarse_num_fine_chans / 2) * channel_width
+            )
+        else:
+            obs_freq_center = meta_hdr["FREQCENT"] * 1e6
+
+        # frequency averaging factor
+        avg_factor = meta_hdr["NAV_FREQ"]
+
+        # integration time in seconds
+        int_time = meta_hdr["INTTIME"]
+
+        # pointing center in degrees
+        ra_deg = meta_hdr["RA"]
+        dec_deg = meta_hdr["DEC"]
+        ra_rad = np.pi * ra_deg / 180
+        dec_rad = np.pi * dec_deg / 180
+
+        # set start_flag with goodtime
+        if flag_init and start_flag == "goodtime":
+            # ppds file does not contain this key
+            if "GOODTIME" not in meta_hdr:
+                raise ValueError(
+                    "To use start_flag='goodtime', a .metafits file must be "
+                    "submitted"
+                )
+            if meta_hdr["GOODTIME"] > start_time:
+                start_flag = meta_hdr["GOODTIME"] - start_time
+                # round start_flag up to nearest multiple of int_time
+                if start_flag % int_time > 0:
+                    start_flag = (1 + int(start_flag / int_time)) * int_time
+            else:
+                start_flag = 0.0
+
+        if "HISTORY" in meta_hdr:
+            history = str(meta_hdr["HISTORY"])
+            meta_hdr.remove("HISTORY", remove_all=True)
+        else:
+            history = ""
+
+        object_name = meta_hdr.pop("FILENAME")
+
+        # if not mwax, remove mwax-specific keys
+        mwax_keys_to_skip = []
+        if not mwax:
+            mwax_keys_to_skip = [
+                "DELAYMOD",
+                "DELDESC",
+                "CABLEDEL",
+                "GEODEL",
+                "CALIBDEL",
+            ]
+        # store remaining keys in extra keywords
+        meta_extra_keywords = uvutils._get_fits_extra_keywords(
+            meta_hdr, keywords_to_skip=["DATE-OBS"] + mwax_keys_to_skip
+        )
+
+    meta_dict = {
+        "telescope_name": telescope_name,
+        "telescope_location": mwa_telescope_obj.telescope_location,
+        "instrument": instrument,
+        "antenna_inds": antenna_inds,
+        "antenna_numbers": antenna_numbers,
+        "antenna_names": antenna_names,
+        "antenna_positions": antenna_positions,
+        "flagged_ant_inds": flagged_ant_inds,
+        "int_time": int_time,
+        "start_flag": start_flag,
+        "obs_freq_center": obs_freq_center,
+        "avg_factor": avg_factor,
+        "coarse_chans": coarse_chans,
+        "coarse_num_fine_chans": coarse_num_fine_chans,
+        "channel_width": channel_width,
+        "dig_gains": dig_gains,
+        "cable_lens": cable_lens,
+        "ra_rad": ra_rad,
+        "dec_rad": dec_rad,
+        "history": history,
+        "object_name": object_name,
+        "extra_keywords": meta_extra_keywords,
+    }
+
+    return meta_dict
 
 
 def sighat_vector(x):
@@ -1289,131 +1473,31 @@ class MWACorrFITS(UVData):
         self.Npols = 4
         self.xorientation = "east"
 
-        # get information from metafits file
-        with fits.open(metafits_file, memmap=True) as meta:
-            meta_hdr = meta[0].header
+        meta_dict = read_metafits(
+            metafits_file,
+            mwax=mwax,
+            flag_init=flag_init,
+            start_flag=start_flag,
+            start_time=start_time,
+            telescope_info_only=False,
+        )
 
-            # get a list of coarse channels
-            coarse_chans = meta_hdr["CHANNELS"].split(",")
-            coarse_chans = np.array(sorted(int(i) for i in coarse_chans))
-            # fine channel width
-            channel_width = float(meta_hdr.pop("FINECHAN") * 1000)
-            # number of fine channels in observation
-            obs_num_fine_chans = meta_hdr["NCHANS"]
-            # calculate number of fine channels per coarse channel
-            coarse_num_fine_chans = obs_num_fine_chans / len(coarse_chans)
-
-            # center frequency of first fine channel of center coarse channel in hertz
-            # For the legacy correlator, the metafits file includes the observation
-            # frequency center, which is the center frequency of the first fine
-            # channel of the center coarse channel. (If there are an even number of
-            # coarse channels, the center channel is to the right).
-            # For mwax, the center frequency of the first fine channel of a coarse
-            # channel is the leftmost edge of the coarse channel if the number of
-            # fine channels per coarse channel is even. Otherwise it is offset by
-            # half of the fine channel width.
-            if mwax:
-                # calculate coarse channel width in MHz
-                coarse_chan_width = meta_hdr["BANDWDTH"] / len(coarse_chans)
-                # coarse channel center freq is channel number * coarse channel width
-                center_coarse_chan_center = (
-                    meta_hdr["CENTCHAN"] * coarse_chan_width * 1e6
-                )
-                # calculate center of first fine channel; this works if the number of
-                # fine channels is even or odd
-                obs_freq_center = (
-                    center_coarse_chan_center
-                    - int(coarse_num_fine_chans / 2) * channel_width
-                )
-            else:
-                obs_freq_center = meta_hdr["FREQCENT"] * 1e6
-
-            # frequency averaging factor
-            avg_factor = meta_hdr["NAV_FREQ"]
-
-            # integration time in seconds
-            int_time = meta_hdr["INTTIME"]
-
-            # pointing center in degrees
-            ra_deg = meta_hdr["RA"]
-            dec_deg = meta_hdr["DEC"]
-            ra_rad = np.pi * ra_deg / 180
-            dec_rad = np.pi * dec_deg / 180
-
-            # set start_flag with goodtime
-            if flag_init and start_flag == "goodtime":
-                # ppds file does not contain this key
-                if "GOODTIME" not in meta_hdr:
-                    raise ValueError(
-                        "To use start_flag='goodtime', a .metafits file must be "
-                        "submitted"
-                    )
-                if meta_hdr["GOODTIME"] > start_time:
-                    start_flag = meta_hdr["GOODTIME"] - start_time
-                    # round start_flag up to nearest multiple of int_time
-                    if start_flag % int_time > 0:
-                        start_flag = (1 + int(start_flag / int_time)) * int_time
-                else:
-                    start_flag = 0.0
-
-            if "HISTORY" in meta_hdr:
-                self.history = str(meta_hdr["HISTORY"])
-                meta_hdr.remove("HISTORY", remove_all=True)
-            else:
-                self.history = ""
-            if not uvutils._check_history_version(
-                self.history, self.pyuvdata_version_str
-            ):
-                self.history += self.pyuvdata_version_str
-            self.instrument = meta_hdr.pop("INSTRUME")
-            self.telescope_name = meta_hdr.pop("TELESCOP")
-            object_name = meta_hdr.pop("FILENAME")
-
-            # if not mwax, remove mwax-specific keys
-            mwax_keys_to_skip = []
-            if not mwax:
-                mwax_keys_to_skip = [
-                    "DELAYMOD",
-                    "DELDESC",
-                    "CABLEDEL",
-                    "GEODEL",
-                    "CALIBDEL",
-                ]
-            # store remaining keys in extra keywords
-            meta_extra_keywords = uvutils._get_fits_extra_keywords(
-                meta_hdr, keywords_to_skip=["DATE-OBS"] + mwax_keys_to_skip
-            )
-            for key, value in meta_extra_keywords.items():
-                self.extra_keywords[key] = value
-            if ppds_file is not None:
-                # get any unique ones from ppd file
-                for key, value in ppd_extra_keywords.items():
-                    if key not in self.extra_keywords.keys():
-                        self.extra_keywords[key] = value
-            # get antenna data from metafits file table
-            meta_tbl = meta[1].data
-
-            # because of polarization, each antenna # is listed twice
-            antenna_inds = meta_tbl["Antenna"][1::2]
-            antenna_numbers = meta_tbl["Tile"][1::2]
-            antenna_names = meta_tbl["TileName"][1::2]
-            flagged_ant_inds = antenna_inds[meta_tbl["Flag"][1::2] == 1]
-            cable_lens = np.asarray(meta_tbl["Length"][1::2]).astype(np.str_)
-            dig_gains = meta_tbl["Gains"][1::2, :].astype(np.float64)
-
-            # get antenna postions in enu coordinates
-            antenna_positions = np.zeros((len(antenna_numbers), 3))
-            antenna_positions[:, 0] = meta_tbl["East"][1::2]
-            antenna_positions[:, 1] = meta_tbl["North"][1::2]
-            antenna_positions[:, 2] = meta_tbl["Height"][1::2]
-
-        # reorder antenna parameters from metafits ordering
-        reordered_inds = antenna_inds.argsort()
-        self.antenna_numbers = antenna_numbers[reordered_inds]
-        self.antenna_names = list(antenna_names[reordered_inds])
-        antenna_positions = antenna_positions[reordered_inds, :]
-        cable_lens = cable_lens[reordered_inds]
-        dig_gains = dig_gains[reordered_inds, :]
+        self.telescope_name = meta_dict["telescope_name"]
+        self.telescope_location = meta_dict["telescope_location"]
+        self.instrument = meta_dict["instrument"]
+        self.antenna_numbers = meta_dict["antenna_numbers"]
+        self.antenna_names = meta_dict["antenna_names"]
+        self.antenna_positions = meta_dict["antenna_positions"]
+        self.history = meta_dict["history"]
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+        for key, value in meta_dict["extra_keywords"].items():
+            self.extra_keywords[key] = value
+        if ppds_file is not None:
+            # get any unique ones from ppd file
+            for key, value in ppd_extra_keywords.items():
+                if key not in self.extra_keywords.keys():
+                    self.extra_keywords[key] = value
 
         # set parameters from other parameters
         self.Nants_telescope = len(self.antenna_numbers)
@@ -1425,15 +1509,14 @@ class MWACorrFITS(UVData):
             # use another name to prevent name collision in phase call below
             cat_name = "unprojected"
         else:
-            cat_name = object_name
+            cat_name = meta_dict["object_name"]
         cat_id = self._add_phase_center(cat_name=cat_name, cat_type="unprojected")
-
-        # get telescope parameters
-        self.set_telescope_params(warn=False)
 
         # build time array of centers
         time_array = np.arange(
-            start_time + int_time / 2.0, end_time + int_time / 2.0 + int_time, int_time
+            start_time + meta_dict["int_time"] / 2.0,
+            end_time + meta_dict["int_time"] / 2.0 + meta_dict["int_time"],
+            meta_dict["int_time"],
         )
 
         # convert to time to jd floats
@@ -1451,17 +1534,7 @@ class MWACorrFITS(UVData):
             background=background_lsts, astrometry_library=astrometry_library
         )
 
-        self.integration_time = np.full((self.Nblts), int_time)
-
-        # convert antenna positions from enu to ecef
-        # antenna positions are "relative to
-        # the centre of the array in local topocentric \"east\", \"north\",
-        # \"height\". Units are meters."
-        antenna_positions_ecef = uvutils.ECEF_from_ENU(
-            antenna_positions, *self.telescope_location_lat_lon_alt
-        )
-        # make antenna positions relative to telescope location
-        self.antenna_positions = antenna_positions_ecef - self.telescope_location
+        self.integration_time = np.full((self.Nblts), meta_dict["int_time"])
 
         # make initial antenna arrays, where ant_1 <= ant_2
         # itertools.combinations_with_replacement returns
@@ -1498,17 +1571,17 @@ class MWACorrFITS(UVData):
             # and the next hightest channel assigned to the fourth file, and so on
             mapped_coarse_chans = np.concatenate(
                 (
-                    coarse_chans[coarse_chans <= 128],
-                    np.flip(coarse_chans[coarse_chans > 128]),
+                    meta_dict["coarse_chans"][meta_dict["coarse_chans"] <= 128],
+                    np.flip(meta_dict["coarse_chans"][meta_dict["coarse_chans"] > 128]),
                 )
             )
-            ordered_file_nums = np.arange(len(coarse_chans))[
+            ordered_file_nums = np.arange(len(meta_dict["coarse_chans"]))[
                 np.argsort(mapped_coarse_chans)
             ]
             ordered_file_nums += 1
         else:
             # for mwax, the file numbers are the coarse channel numbers
-            ordered_file_nums = coarse_chans
+            ordered_file_nums = meta_dict["coarse_chans"]
         file_mask = np.isin(ordered_file_nums, included_file_nums)
         # get included file numbers in coarse band order
         file_nums = ordered_file_nums[file_mask]
@@ -1521,32 +1594,34 @@ class MWACorrFITS(UVData):
             # add spectral windows
             self._set_flex_spw()
             self.Nspws = len(spw_inds)
-            self.spw_array = coarse_chans[spw_inds]
+            self.spw_array = meta_dict["coarse_chans"][spw_inds]
             self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
         else:
             # future proof: always set the fles_spw_id_array
             self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         # warn user if not all coarse channels are included
-        if len(included_file_nums) != len(coarse_chans):
+        if len(included_file_nums) != len(meta_dict["coarse_chans"]):
             warnings.warn("some coarse channel files were not submitted")
 
         # build frequency array
         self.freq_array = np.zeros(self.Nfreqs)
-        self.channel_width = np.full(self.Nfreqs, channel_width)
+        self.channel_width = np.full(self.Nfreqs, meta_dict["channel_width"])
         # Use the center frequency of the first fine channel of the center coarse
         # channel to get the frequency range for each included coarse channel.
-        center_coarse_chan = int(len(coarse_chans) / 2)
+        center_coarse_chan = int(len(meta_dict["coarse_chans"]) / 2)
         for i in range(len(spw_inds)):
             first_coarse_freq = (
-                obs_freq_center
+                meta_dict["obs_freq_center"]
                 + (spw_inds[i] - center_coarse_chan)
-                * coarse_num_fine_chans
-                * channel_width
+                * meta_dict["coarse_num_fine_chans"]
+                * meta_dict["channel_width"]
             )
-            last_coarse_freq = first_coarse_freq + num_fine_chans * channel_width
+            last_coarse_freq = (
+                first_coarse_freq + num_fine_chans * meta_dict["channel_width"]
+            )
             self.freq_array[i * num_fine_chans : (i + 1) * num_fine_chans] = np.arange(
-                first_coarse_freq, last_coarse_freq, channel_width
+                first_coarse_freq, last_coarse_freq, meta_dict["channel_width"]
             )
         # for mwax, polarizations are ordered xx, xy, yx, yy
         if mwax:
@@ -1563,9 +1638,11 @@ class MWACorrFITS(UVData):
             if not mwax:
                 # build mapper from antenna numbers and polarizations to pfb inputs
                 corr_ants_to_pfb_inputs = {}
-                for i in range(len(antenna_inds)):
+                for i in range(len(meta_dict["antenna_inds"])):
                     for p in range(2):
-                        corr_ants_to_pfb_inputs[(antenna_inds[i], p)] = 2 * i + p
+                        corr_ants_to_pfb_inputs[(meta_dict["antenna_inds"][i], p)] = (
+                            2 * i + p
+                        )
 
                 # for mapping, start with a pair of antennas/polarizations
                 # this is the pair we want to find the data for
@@ -1607,7 +1684,7 @@ class MWACorrFITS(UVData):
                     time_array,
                     file_nums,
                     num_fine_chans,
-                    int_time,
+                    meta_dict["int_time"],
                     mwax,
                     map_inds,
                     conj,
@@ -1627,15 +1704,15 @@ class MWACorrFITS(UVData):
                 self.flag_init(
                     num_fine_chans,
                     edge_width=edge_width,
-                    start_flag=start_flag,
+                    start_flag=meta_dict["start_flag"],
                     end_flag=end_flag,
                     flag_dc_offset=flag_dc_offset,
                 )
 
             # flag bad ants
             bad_ant_inds = np.logical_or(
-                np.isin(ant_1_inds[: self.Nbls], flagged_ant_inds),
-                np.isin(ant_2_inds[: self.Nbls], flagged_ant_inds),
+                np.isin(ant_1_inds[: self.Nbls], meta_dict["flagged_ant_inds"]),
+                np.isin(ant_2_inds[: self.Nbls], meta_dict["flagged_ant_inds"]),
             )
             self.flag_array[:, bad_ant_inds, :, :] = True
             # reshape arrays
@@ -1659,22 +1736,22 @@ class MWACorrFITS(UVData):
                 self.van_vleck_correction(
                     ant_1_inds,
                     ant_2_inds,
-                    flagged_ant_inds,
+                    meta_dict["flagged_ant_inds"],
                     cheby_approx=cheby_approx,
                     data_array_dtype=data_array_dtype,
                 )
 
             # apply corrections
             if np.any([correct_van_vleck, remove_coarse_band, remove_dig_gains]):
-                flagged_ant_inds = self._apply_corrections(
+                meta_dict["flagged_ant_inds"] = self._apply_corrections(
                     mwax,
                     ant_1_inds,
                     ant_2_inds,
-                    avg_factor,
-                    dig_gains,
+                    meta_dict["avg_factor"],
+                    meta_dict["dig_gains"],
                     spw_inds,
                     num_fine_chans,
-                    flagged_ant_inds,
+                    meta_dict["flagged_ant_inds"],
                     cheby_approx=cheby_approx,
                     data_array_dtype=data_array_dtype,
                     flag_small_auto_ants=flag_small_auto_ants,
@@ -1697,7 +1774,9 @@ class MWACorrFITS(UVData):
                     "correct_cable_len=False. This warning will be removed in v2.4"
                 )
             if correct_cable_len:
-                self.correct_cable_length(cable_lens, ant_1_inds, ant_2_inds)
+                self.correct_cable_length(
+                    meta_dict["cable_lens"], ant_1_inds, ant_2_inds
+                )
             # add aoflagger flags to flag_array
             if use_aoflagger_flags:
                 # throw an error if matching files not submitted
@@ -1729,17 +1808,19 @@ class MWACorrFITS(UVData):
         # remove bad antennas
         # select must be called after lst thread is re-joined
         if remove_flagged_ants:
-            good_ants = np.delete(np.array(self.antenna_numbers), flagged_ant_inds)
+            good_ants = np.delete(
+                np.array(self.antenna_numbers), meta_dict["flagged_ant_inds"]
+            )
             self.select(antenna_nums=good_ants, run_check=False)
 
         # phasing
         if phase_to_pointing_center:
             self.phase(
-                lon=ra_rad,
-                lat=dec_rad,
+                lon=meta_dict["ra_rad"],
+                lat=meta_dict["dec_rad"],
                 epoch="J2000",
                 phase_frame="fk5",
-                cat_name=object_name,
+                cat_name=meta_dict["object_name"],
             )
 
         # switch to current_array_shape

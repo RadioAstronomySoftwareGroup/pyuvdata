@@ -203,6 +203,7 @@ class UVFlag(UVBase):
         history="",
         label="",
         telescope_name=None,
+        mwa_metafits_file=None,
         use_future_array_shapes=False,
         run_check=True,
         check_extra=True,
@@ -644,6 +645,7 @@ class UVFlag(UVBase):
                 indata,
                 history,
                 telescope_name=telescope_name,
+                mwa_metafits_file=mwa_metafits_file,
                 use_future_array_shapes=use_future_array_shapes,
                 run_check=run_check,
                 check_extra=check_extra,
@@ -3332,6 +3334,7 @@ class UVFlag(UVBase):
         self,
         filename,
         history="",
+        mwa_metafits_file=None,
         telescope_name=None,
         use_future_array_shapes=False,
         run_check=True,
@@ -3346,11 +3349,18 @@ class UVFlag(UVBase):
             The file name to read.
         history : str
             History string to append to UVFlag history attribute.
-        telescope_name : str
+        mwa_metafits_file : str, optional
+            For MWA data only, the metafits file corresponding to the data in filename.
+            This should only be set when reading in old files that do not have telescope
+            metadata in them. Passing in the metafits file for old files allows for
+            all the telescope metadata (e.g. connected antennas and positions) to be
+            set. Setting this parameter overrides any telescope metadata in the file.
+        telescope_name : str, optional
             Name of the telescope. This should only be set when reading in old files
             that do not have the telescope name in them. Setting this parameter for old
             files allows for other telescope metadata to be set from the known
             telescopes. Setting this parameter overrides any telescope name in the file.
+            This should not be set if `mwa_metafits_file` is passed.
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
@@ -3512,23 +3522,71 @@ class UVFlag(UVBase):
                         self.Nfreqs, self.spw_array[0], dtype=int
                     )
 
-                if telescope_name is not None:
-                    self.telescope_name = telescope_name
+                if mwa_metafits_file is not None:
+                    from ..uvdata.mwa_corr_fits import read_metafits
 
-                if "telescope_name" in header.keys():
-                    file_telescope_name = header["telescope_name"][()].decode("utf8")
+                    meta_dict = read_metafits(
+                        mwa_metafits_file, telescope_info_only=True
+                    )
+
+                    self.telescope_name = meta_dict["telescope_name"]
+                    self.telescope_location = meta_dict["telescope_location"]
+                    self.antenna_numbers = meta_dict["antenna_numbers"]
+                    self.antenna_names = meta_dict["antenna_names"]
+                    self.antenna_positions = meta_dict["antenna_positions"]
+
+                    override_params = []
+                    params_to_check = [
+                        "telescope_name",
+                        "telescope_location",
+                        "antenna_numbers",
+                        "antenna_names",
+                        "antenna_positions",
+                    ]
+                    for param in params_to_check:
+                        if param in header.keys():
+                            override_params.append(param)
+
+                    if len(override_params) > 0:
+                        warnings.warn(
+                            "An mwa_metafits_file was passed. The metadata from the "
+                            "metafits file are overriding the following parameters in "
+                            f"the UVFlag file: {override_params}"
+                        )
+                else:
                     if telescope_name is not None:
-                        if telescope_name.lower() != file_telescope_name.lower():
-                            warnings.warn(
-                                f"Telescope_name parameter is set to {telescope_name}, "
-                                "which overrides the telescope name in the file "
-                                f"({file_telescope_name})."
-                            )
-                    else:
-                        self.telescope_name = file_telescope_name
+                        self.telescope_name = telescope_name
 
-                if "telescope_location" in header.keys():
-                    self.telescope_location = header["telescope_location"][()]
+                    if "telescope_name" in header.keys():
+                        file_telescope_name = header["telescope_name"][()].decode(
+                            "utf8"
+                        )
+                        if telescope_name is not None:
+                            if telescope_name.lower() != file_telescope_name.lower():
+                                warnings.warn(
+                                    f"Telescope_name parameter is set to "
+                                    f"{telescope_name}, which overrides the telescope "
+                                    f"name in the file ({file_telescope_name})."
+                                )
+                        else:
+                            self.telescope_name = file_telescope_name
+
+                    if "telescope_location" in header.keys():
+                        self.telescope_location = header["telescope_location"][()]
+
+                    if "antenna_numbers" in header.keys():
+                        self.antenna_numbers = header["antenna_numbers"][()]
+
+                    if "antenna_names" in header.keys():
+                        self.antenna_names = np.array(
+                            [
+                                bytes(n).decode("utf8")
+                                for n in header["antenna_names"][:]
+                            ]
+                        )
+
+                    if "antenna_positions" in header.keys():
+                        self.antenna_positions = header["antenna_positions"][()]
 
                 self.history = header["history"][()].decode("utf8")
 
@@ -3611,17 +3669,6 @@ class UVFlag(UVBase):
                 if "Nants_telescope" in header.keys():
                     self.Nants_telescope = int(header["Nants_telescope"][()])
 
-                if "antenna_numbers" in header.keys():
-                    self.antenna_numbers = header["antenna_numbers"][()]
-
-                if "antenna_names" in header.keys():
-                    self.antenna_names = np.array(
-                        [bytes(n).decode("utf8") for n in header["antenna_names"][:]]
-                    )
-
-                if "antenna_positions" in header.keys():
-                    self.antenna_positions = header["antenna_positions"][()]
-
                 if self.telescope_name is None:
                     warnings.warn(
                         "telescope_name not available in file, so telescope related "
@@ -3642,6 +3689,21 @@ class UVFlag(UVBase):
                         and self.antenna_positions is None
                     ):
                         self.Nants_telescope = None
+
+                    if "mwa" in self.telescope_name.lower() and (
+                        self.antenna_numbers is None
+                        or self.antenna_names is None
+                        or self.antenna_positions is None
+                    ):
+                        warnings.warn(
+                            "Antenna metadata are missing for this file. Since this "
+                            "is MWA data, the best way to fill in these metadata is to "
+                            "pass in an mwa_metafits_file which contains information "
+                            "about which antennas were connected when the data were "
+                            "taken. Since that was not passed, the antenna metadata "
+                            "will be filled in from a static csv file containing all "
+                            "the antennas that could have been connected."
+                        )
                     self.set_telescope_params()
 
                 if self.antenna_numbers is None and self.type in [
