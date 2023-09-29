@@ -164,19 +164,9 @@ def uvf_from_uvcal(uvcal_obj):
 def uvf_from_file_future_main():
     with uvtest.check_warnings(
         [UserWarning] * 4 + [DeprecationWarning] * 5,
-        match=[
-            "channel_width not available in file, computing it from the freq_array",
-            "Nants_data in file does not match number of antennas with data.",
-            "antenna_numbers not in file, cannot be set based on ant_1_array and",
-            "telescope_name not available in file, so telescope related parameters",
-            "The telescope_name is not set. It will be a required parameter",
-            "The telescope_location is not set. It will be a required parameter",
-            "The antenna_numbers is not set. It will be a required parameter",
-            "The antenna_names is not set. It will be a required parameter",
-            "The antenna_positions is not set. It will be a required parameter",
-        ],
+        match=["channel_width not available in file, computing it from the freq_array"],
     ):
-        uvf = UVFlag(test_f_file, use_future_array_shapes=True)
+        uvf = UVFlag(test_f_file, use_future_array_shapes=True, telescope_name="HERA")
     uvf.telescope_name = "HERA"
     uvf.antenna_numbers = None
     uvf.antenna_names = None
@@ -1210,6 +1200,65 @@ def test_read_write_loop_missing_telescope_info(
             uvf2 = UVFlag(
                 test_outfile, telescope_name="foo", use_future_array_shapes=True
             )
+
+
+def test_missing_telescope_info_mwa(test_outfile):
+    mwa_uvfits = os.path.join(DATA_PATH, "1133866760.uvfits")
+    metafits = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles", "1131733552.metafits")
+    uvd = UVData.from_file(mwa_uvfits, use_future_array_shapes=True)
+    uvf = UVFlag(uvd, use_future_array_shapes=True, waterfall=True)
+
+    uvf.write(test_outfile, clobber=True)
+    param_list = [
+        "telescope_name",
+        "antenna_numbers",
+        "antenna_names",
+        "antenna_positions",
+        "Nants_telescope",
+    ]
+    with h5py.File(test_outfile, "r+") as h5f:
+        for param in param_list:
+            del h5f["/Header/" + param]
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Antenna metadata are missing for this file. Since this is MWA data, the "
+            "best way to fill in these metadata is to pass in an mwa_metafits_file "
+            "which contains information about which antennas were connected when the "
+            "data were taken. Since that was not passed, the antenna metadata will be "
+            "filled in from a static csv file containing all the antennas that could "
+            "have been connected.",
+            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions "
+            "are not set or are being overwritten. Using known values for mwa.",
+        ],
+    ):
+        uvf2 = UVFlag(test_outfile, use_future_array_shapes=True, telescope_name="mwa")
+
+    from pyuvdata.uvdata.mwa_corr_fits import read_metafits
+
+    with pytest.raises(
+        ValueError,
+        match="mwax, flag_init, start_flag and start_time must all be passed if the "
+        "`telescope_info_only` parameter is False",
+    ):
+        read_metafits(metafits)
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "An mwa_metafits_file was passed. The metadata from the metafits file are "
+            "overriding the following parameters in the UVFlag file: "
+            "['telescope_location']",
+            "The lst_array is not self-consistent with the time_array and telescope "
+            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+        ],
+    ):
+        uvf3 = UVFlag(
+            test_outfile, use_future_array_shapes=True, mwa_metafits_file=metafits
+        )
+
+    assert uvf2.Nants_telescope > uvf3.Nants_telescope
 
 
 def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
