@@ -2440,6 +2440,7 @@ def transform_icrs_to_app(
     ra,
     dec,
     telescope_loc,
+    antenna_frame='itrs',
     epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
@@ -2481,6 +2482,9 @@ def transform_icrs_to_app(
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
+    antenna_frame: str, optional
+        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     epoch : int or float or str or Time object
         Epoch of the coordinate data supplied, only used when supplying proper motion
         values. If supplying a number, it will assumed to be in Julian years. Default
@@ -2525,6 +2529,12 @@ def transform_icrs_to_app(
     if astrometry_library is None:
         if hasmoon and isinstance(telescope_loc, MoonLocation):
             astrometry_library = "astropy"
+        elif antenna_frame.upper() == "MCMF":
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install 'lunarsky' package to work with MCMF frame."
+                )
+            astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
 
@@ -2562,6 +2572,16 @@ def transform_icrs_to_app(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
+    elif antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install 'lunarsky' package to work with MCMF frame."
+            )
+        site_loc = MoonLocation.from_selenodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height = telescope_loc[2],
+        )
     else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
@@ -2856,7 +2876,7 @@ def transform_icrs_to_app(
 
 
 def transform_app_to_icrs(
-    time_array, app_ra, app_dec, telescope_loc, astrometry_library=None
+    time_array, app_ra, app_dec, telescope_loc, antenna_frame='itrs', astrometry_library=None
 ):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
@@ -2885,6 +2905,9 @@ def transform_app_to_icrs(
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
+    antenna_frame: str, optional
+        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     astrometry_library : str
         Library used for running the coordinate conversions. Allowed options are
         'erfa' (which uses the pyERFA), and 'astropy' (which uses the astropy
@@ -2903,6 +2926,12 @@ def transform_app_to_icrs(
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
         if hasmoon and isinstance(telescope_loc, MoonLocation):
+            astrometry_library = "astropy"
+        elif antenna_frame.upper() == "MCMF":
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install 'lunarsky' package to work with MCMF frame."
+                )
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -2926,6 +2955,16 @@ def transform_app_to_icrs(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
+    elif antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install 'lunarsky' package to work with MCMF frame."
+            )
+        site_loc = MoonLocation.from_selenodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height = telescope_loc[2],
+        )
     else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
@@ -3059,6 +3098,7 @@ def calc_frame_pos_angle(
     telescope_loc,
     ref_frame,
     ref_epoch=None,
+    antenna_frame='itrs',
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3083,9 +3123,6 @@ def calc_frame_pos_angle(
         Can either be provided as an astropy EarthLocation, or an array-like of shape
         (3,) containing the latitude, longitude, and altitude, in that order, with units
         of radians, radians, and meters, respectively.
-    offset_pos : float
-        Distance of the offset position used to calculate the frame PA. Default
-        is 0.5 degrees, which should be sufficent for most applications.
     ref_frame : str
         Coordinate frame to calculate position angles for. Can be any of the
         several supported frames in astropy (a limited list: fk4, fk5, icrs,
@@ -3094,6 +3131,12 @@ def calc_frame_pos_angle(
         Epoch of the coordinates, only used when ref_frame = fk4 or fk5. Given
         in unites of fractional years, either as a float or as a string with
         the epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
+    antenna_frame: str, optional
+        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+    offset_pos : float
+        Distance of the offset position used to calculate the frame PA. Default
+        is 0.5 degrees, which should be sufficent for most applications.
 
 
     Returns
@@ -3152,6 +3195,7 @@ def calc_frame_pos_angle(
         np.concatenate((dn_dec, up_dec)),
         telescope_loc,
         ref_frame,
+        antenna_frame=antenna_frame,
         coord_epoch=ref_epoch,
     )
 
@@ -3565,15 +3609,9 @@ def calc_app_coords(
         Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
         longitude, and altitude for a position on Earth in units of radians, radians,
         and meters, respectively.
-    coord_frame : string
-        The requested reference frame for the output coordinates, can be any frame
-        that is presently supported by astropy. Default is ICRS.
-    coord_epoch : float or str or Time object
-        Epoch for ref_frame, nominally only used if converting to either the FK4 or
-        FK5 frames, in units of fractional years. If provided as a float and the
-        ref_frame is an FK4-variant, value will assumed to be given in Besselian
-        years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
-        in Julian years.
+    antenna_frame: str, optional
+        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     pm_ra : float or ndarray of float
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Can either be a single float or array of shape (Ntimes,), although this must
@@ -3713,7 +3751,7 @@ def calc_app_coords(
 
 
 def calc_sidereal_coords(
-    time_array, app_ra, app_dec, telescope_loc, coord_frame, coord_epoch=None
+    time_array, app_ra, app_dec, telescope_loc, coord_frame, antenna_frame='itrs', coord_epoch=None
 ):
     """
     Calculate sidereal coordinates given apparent coordinates.
@@ -3740,6 +3778,9 @@ def calc_sidereal_coords(
     coord_frame : string
         The requested reference frame for the output coordinates, can be any frame
         that is presently supported by astropy. Default is ICRS.
+    antenna_frame: str, optional
+        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     coord_epoch : float or str or Time object
         Epoch for ref_frame, nominally only used if converting to either the FK4 or
         FK5 frames, in units of fractional years. If provided as a float and the
@@ -3769,7 +3810,7 @@ def calc_sidereal_coords(
             epoch = Time(coord_epoch, format="jyear")
 
     icrs_ra, icrs_dec = transform_app_to_icrs(
-        time_array, app_ra, app_dec, telescope_loc
+        time_array, app_ra, app_dec, telescope_loc, antenna_frame
     )
 
     if coord_frame == "icrs":
@@ -4174,9 +4215,7 @@ def uvw_track_generator(
     lst_array = get_lst_for_time(
         jd_array=time_array, telescope_loc=site_loc, frame=antenna_frame
     )
-
-    app_ra, app_dec = calc_app_coords(
-        lon_coord=lon_coord,
+    app_ra, app_dec = calc_app_coords(lon_coord=lon_coord,
         lat_coord=lat_coord,
         coord_frame=coord_frame,
         coord_type=coord_type,
@@ -4184,6 +4223,7 @@ def uvw_track_generator(
         lst_array=lst_array,
         telescope_loc=site_loc,
     )
+   
 
     frame_pa = calc_frame_pos_angle(
         time_array, app_ra, app_dec, site_loc, coord_frame, ref_epoch=coord_epoch
