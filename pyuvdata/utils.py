@@ -2532,7 +2532,7 @@ def transform_icrs_to_app(
         elif antenna_frame.upper() == "MCMF":
             if not hasmoon:
                 raise ValueError(
-                    "Need to install 'lunarsky' package to work with MCMF frame."
+                    "Need to install `lunarsky` package to work with MCMF frame."
                 )
             astrometry_library = "astropy"
         else:
@@ -2575,7 +2575,7 @@ def transform_icrs_to_app(
     elif antenna_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
-                "Need to install 'lunarsky' package to work with MCMF frame."
+                "Need to install `lunarsky` package to work with MCMF frame."
             )
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
@@ -2935,7 +2935,7 @@ def transform_app_to_icrs(
         elif antenna_frame.upper() == "MCMF":
             if not hasmoon:
                 raise ValueError(
-                    "Need to install 'lunarsky' package to work with MCMF frame."
+                    "Need to install `lunarsky` package to work with MCMF frame."
                 )
             astrometry_library = "astropy"
         else:
@@ -2963,7 +2963,7 @@ def transform_app_to_icrs(
     elif antenna_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
-                "Need to install 'lunarsky' package to work with MCMF frame."
+                "Need to install `lunarsky` package to work with MCMF frame."
             )
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
@@ -3651,7 +3651,7 @@ def calc_app_coords(
     elif antenna_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
-                "Need to install 'lunarsky' package to work with MCMF frame."
+                "Need to install `lunarsky` package to work with MCMF frame."
             )
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
