@@ -2440,7 +2440,7 @@ def transform_icrs_to_app(
     ra,
     dec,
     telescope_loc,
-    antenna_frame='itrs',
+    antenna_frame="itrs",
     epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
@@ -2580,7 +2580,7 @@ def transform_icrs_to_app(
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
-            height = telescope_loc[2],
+            height=telescope_loc[2],
         )
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -2876,7 +2876,12 @@ def transform_icrs_to_app(
 
 
 def transform_app_to_icrs(
-    time_array, app_ra, app_dec, telescope_loc, antenna_frame='itrs', astrometry_library=None
+    time_array,
+    app_ra,
+    app_dec,
+    telescope_loc,
+    antenna_frame="itrs",
+    astrometry_library=None,
 ):
     """
     Transform a set of coordinates in topocentric/apparent to ICRS coordinates.
@@ -2963,7 +2968,7 @@ def transform_app_to_icrs(
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
-            height = telescope_loc[2],
+            height=telescope_loc[2],
         )
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -3098,7 +3103,7 @@ def calc_frame_pos_angle(
     telescope_loc,
     ref_frame,
     ref_epoch=None,
-    antenna_frame='itrs',
+    antenna_frame="itrs",
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3751,7 +3756,13 @@ def calc_app_coords(
 
 
 def calc_sidereal_coords(
-    time_array, app_ra, app_dec, telescope_loc, coord_frame, antenna_frame='itrs', coord_epoch=None
+    time_array,
+    app_ra,
+    app_dec,
+    telescope_loc,
+    coord_frame,
+    antenna_frame="itrs",
+    coord_epoch=None,
 ):
     """
     Calculate sidereal coordinates given apparent coordinates.
@@ -4215,7 +4226,8 @@ def uvw_track_generator(
     lst_array = get_lst_for_time(
         jd_array=time_array, telescope_loc=site_loc, frame=antenna_frame
     )
-    app_ra, app_dec = calc_app_coords(lon_coord=lon_coord,
+    app_ra, app_dec = calc_app_coords(
+        lon_coord=lon_coord,
         lat_coord=lat_coord,
         coord_frame=coord_frame,
         coord_type=coord_type,
@@ -4223,7 +4235,6 @@ def uvw_track_generator(
         lst_array=lst_array,
         telescope_loc=site_loc,
     )
-   
 
     frame_pa = calc_frame_pos_angle(
         time_array, app_ra, app_dec, site_loc, coord_frame, ref_epoch=coord_epoch
