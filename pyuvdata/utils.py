@@ -3656,7 +3656,7 @@ def calc_app_coords(
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
-            height = telescope_loc[2],
+            height=telescope_loc[2],
         )
     else:
         site_loc = EarthLocation.from_geodetic(
