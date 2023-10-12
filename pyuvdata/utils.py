@@ -3550,12 +3550,11 @@ def calc_app_coords(
         `lon_coord` and `lat_coord`. These values are used to interpolate `lon_coord`
         and `lat_coord` values to those times listed in `time_array`.
     coord_type : str
-        coord_type : str
-            Type of source to calculate coordinates for. Must be one of:
-                "sidereal" (fixed RA/Dec),
-                "ephem" (RA/Dec that moves with time),
-                "driftscan" (fixed az/el position),
-                "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
+        Type of source to calculate coordinates for. Must be one of:
+            "sidereal" (fixed RA/Dec),
+            "ephem" (RA/Dec that moves with time),
+            "driftscan" (fixed az/el position),
+            "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
     time_array : float or ndarray of float or Time object
         Times for which the apparent coordinates were calculated, in UTC JD. If more
         than a single element, must be the same shape as lon_coord and lat_coord if
@@ -3814,11 +3813,14 @@ def get_lst_for_time(
     jd_array : ndarray of float
         JD times to get lsts for.
     latitude : float
-        Latitude of location to get lst for in degrees.
+        Latitude of location to get lst for in degrees. Cannot specify both `latitute`
+        and `telescope_loc`.
     longitude : float
-        Longitude of location to get lst for in degrees.
+        Longitude of location to get lst for in degrees. Cannot specify both `longitude`
+        and `telescope_loc`.
     altitude : float
-        Altitude of location to get lst for in meters.
+        Altitude of location to get lst for in meters. Cannot specify both `altitude`
+        and `telescope_loc`.
     astrometry_library : str
         Library used for running the LST calculations. Allowed options are 'erfa'
         (which uses the pyERFA), 'novas' (which uses the python-novas library),
@@ -3828,6 +3830,10 @@ def get_lst_for_time(
     frame : str
         Reference frame for latitude/longitude/altitude.
         Options are itrs (default) or mcmf.
+    telescope_loc : tuple or EarthLocation or MoonLocation
+        Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
+        or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
+        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
 
     Returns
     -------
@@ -4014,6 +4020,7 @@ def check_lsts_against_times(
 
 
 def uvw_track_generator(
+    *,
     lon_coord=None,
     lat_coord=None,
     coord_frame="icrs",
@@ -4033,8 +4040,7 @@ def uvw_track_generator(
     Calculate uvw coordinates (among other values) for a given position on the sky.
 
     This function is meant to be a user-friendly wrapper around several pieces of code
-    for effectively simulating a track. Note that the naming of things may change
-    before this hits a PR.
+    for effectively simulating a track.
 
     Parameters
     ----------
@@ -4053,7 +4059,13 @@ def uvw_track_generator(
         ref_frame is an FK4-variant, value will assumed to be given in Besselian
         years (i.e., 1950 would be 'B1950'), otherwise the year is assumed to be
         in Julian years.
-    time_array : float or ndarray of float or Time object
+    coord_type : str
+        Type of source to calculate coordinates for. Must be one of:
+            "sidereal" (fixed RA/Dec),
+            "ephem" (RA/Dec that moves with time),
+            "driftscan" (fixed az/el position),
+            "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
+    time_array : ndarray of float or Time object
         Times for which the apparent coordinates were calculated, in UTC JD. Must
         match the shape of lon_coord and lat_coord.
     telescope_loc : array-like of floats or EarthLocation or MoonLocation
@@ -4095,8 +4107,13 @@ def uvw_track_generator(
     Returns
     -------
     obs_dict : dict
-        Dictionary containing the results of the simulation, the only key of which
-        is 'uvw' for the uvw-coordinates of the observation.
+        Dictionary containing the results of the simulation, which includes:
+            "uvw" the uvw-coordinates (meters),
+            "app_ra" apparent RA of the sources (radians),
+            "app_dec"  apparent Dec of the sources (radians),
+            "frame_pa"  ngle between apparent north and `coord_frame` north (radians),
+            "lst" local apparent sidereal time (radians),
+            "site_loc" EarthLocation or MoonLocation for the telescope site.
     """
     if isinstance(telescope_loc, EarthLocation) or (
         hasmoon and isinstance(telescope_loc, MoonLocation)
