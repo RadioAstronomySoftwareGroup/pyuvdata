@@ -3567,6 +3567,7 @@ def calc_app_coords(
     time_array=None,
     lst_array=None,
     telescope_loc=None,
+    antenna_frame="itrs",
     pm_ra=None,
     pm_dec=None,
     vrad=None,
@@ -3647,6 +3648,16 @@ def calc_app_coords(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
+    elif antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install 'lunarsky' package to work with MCMF frame."
+            )
+        site_loc = MoonLocation.from_selenodetic(
+            telescope_loc[1] * (180.0 / np.pi),
+            telescope_loc[0] * (180.0 / np.pi),
+            height = telescope_loc[2],
+        )
     else:
         site_loc = EarthLocation.from_geodetic(
             telescope_loc[1] * (180.0 / np.pi),
