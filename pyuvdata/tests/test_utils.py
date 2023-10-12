@@ -67,7 +67,9 @@ def astrometry_args():
     )
 
     if hasmoon:
-        default_args["moon_telescope_loc"] = tuple(np.deg2rad(x) for x in (0.6875, 24.433, 0))
+        default_args["moon_telescope_loc"] = tuple(
+            np.deg2rad(x) for x in (0.6875, 24.433, 0)
+        )
         default_args["moon_lst_array"] = uvutils.get_lst_for_time(
             default_args["time_array"],
             default_args["moon_telescope_loc"][0] * (180.0 / np.pi),
@@ -116,7 +118,7 @@ def astrometry_args():
             default_args["icrs_ra"],
             default_args["icrs_dec"],
             default_args["moon_telescope_loc"],
-            antenna_frame='mcmf'
+            antenna_frame="mcmf",
         )
 
         default_args["moon_app_coord"] = SkyCoord(
@@ -272,11 +274,15 @@ def test_no_moon():
     with pytest.raises(ValueError, match=msg):
         uvutils.ECEF_from_ENU(None, 0.0, 1.0, 10.0, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
-        uvutils.transform_icrs_to_app([2451545.0],0,0,(0,0,0),antenna_frame="mcmf")
+        uvutils.transform_icrs_to_app(
+            [2451545.0], 0, 0, (0, 0, 0), antenna_frame="mcmf"
+        )
     with pytest.raises(ValueError, match=msg):
-        uvutils.transform_app_to_icrs([2451545.0],0,0,(0,0,0),antenna_frame="mcmf")
+        uvutils.transform_app_to_icrs(
+            [2451545.0], 0, 0, (0, 0, 0), antenna_frame="mcmf"
+        )
     with pytest.raises(ValueError, match=msg):
-        uvutils.calc_app_coords(0,0,antenna_frame="mcmf")
+        uvutils.calc_app_coords(0, 0, antenna_frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():
@@ -1403,7 +1409,8 @@ def test_transform_fk5_fk4_icrs_loop(astrometry_args):
 
     check_ra, check_dec = uvutils.transform_sidereal_coords(
         fk4_ra,
-        fk4_dec, "fk4",
+        fk4_dec,
+        "fk4",
         "icrs",
         in_coord_epoch="B1950.0",
         out_coord_epoch="J2000.0",
@@ -2020,6 +2027,7 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
     assert np.all(check_ra == astrometry_args[app_ra_name])
     assert np.all(check_dec == astrometry_args[app_dec_name])
 
+
 def test_transform_app_to_icrs_objs(astrometry_args):
     """
     Test that we recover identical values when using Time/EarthLocation objects instead
@@ -2030,7 +2038,6 @@ def test_transform_app_to_icrs_objs(astrometry_args):
         astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
         height=astrometry_args["telescope_loc"][2],
     )
-    
 
     icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
         astrometry_args["time_array"][0],
@@ -2048,6 +2055,7 @@ def test_transform_app_to_icrs_objs(astrometry_args):
 
     assert np.all(check_ra == icrs_ra)
     assert np.all(check_dec == icrs_dec)
+
 
 @pytest.mark.parametrize("telescope_frame", telescope_frame)
 def test_calc_app_coords_objs(astrometry_args, telescope_frame):
@@ -2075,7 +2083,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
         astrometry_args["icrs_dec"],
         time_array=astrometry_args["time_array"][0],
         telescope_loc=astrometry_args["telescope_loc"],
-        antenna_frame=telescope_frame
+        antenna_frame=telescope_frame,
     )
 
     check_ra, check_dec = uvutils.calc_app_coords(
