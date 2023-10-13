@@ -2525,18 +2525,18 @@ def transform_icrs_to_app(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians, of shape (Ntimes,).
     """
+    if antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
+
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if hasmoon and isinstance(telescope_loc, MoonLocation):
-            astrometry_library = "astropy"
-        elif antenna_frame.upper() == "MCMF":
-            if not hasmoon:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with MCMF frame."
-                )
-            astrometry_library = "astropy"
-        else:
+        if antenna_frame.upper() == "ITRS":
             astrometry_library = "erfa"
+        else:
+            astrometry_library = "astropy"
 
     if astrometry_library not in ["erfa", "novas", "astropy"]:
         raise ValueError(
@@ -2573,10 +2573,6 @@ def transform_icrs_to_app(
     ):
         site_loc = telescope_loc
     elif antenna_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
@@ -2928,18 +2924,18 @@ def transform_app_to_icrs(
         ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
+    if antenna_frame.upper() == "MCMF":
+        if not hasmoon:
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
+
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if hasmoon and isinstance(telescope_loc, MoonLocation):
-            astrometry_library = "astropy"
-        elif antenna_frame.upper() == "MCMF":
-            if not hasmoon:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with MCMF frame."
-                )
-            astrometry_library = "astropy"
-        else:
+        if antenna_frame.upper() == "ITRS":
             astrometry_library = "erfa"
+        else:
+            astrometry_library = "astropy"
 
     if astrometry_library not in ["erfa", "astropy"]:
         raise ValueError(
@@ -2961,10 +2957,6 @@ def transform_app_to_icrs(
     ):
         site_loc = telescope_loc
     elif antenna_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
