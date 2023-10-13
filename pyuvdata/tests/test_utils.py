@@ -118,7 +118,7 @@ def astrometry_args():
             default_args["icrs_ra"],
             default_args["icrs_dec"],
             default_args["moon_telescope_loc"],
-            antenna_frame="mcmf",
+            telescope_frame="mcmf",
         )
 
         default_args["moon_app_coord"] = SkyCoord(
@@ -275,14 +275,14 @@ def test_no_moon():
         uvutils.ECEF_from_ENU(None, 0.0, 1.0, 10.0, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
         uvutils.transform_icrs_to_app(
-            [2451545.0], 0, 0, (0, 0, 0), antenna_frame="mcmf"
+            [2451545.0], 0, 0, (0, 0, 0), telescope_frame="mcmf"
         )
     with pytest.raises(ValueError, match=msg):
         uvutils.transform_app_to_icrs(
-            [2451545.0], 0, 0, (0, 0, 0), antenna_frame="mcmf"
+            [2451545.0], 0, 0, (0, 0, 0), telescope_frame="mcmf"
         )
     with pytest.raises(ValueError, match=msg):
-        uvutils.calc_app_coords(0, 0, antenna_frame="mcmf")
+        uvutils.calc_app_coords(0, 0, telescope_frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():
@@ -1160,7 +1160,7 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
             default_args["icrs_ra"],
             default_args["icrs_dec"],
             default_args["telescope_loc"],
-            antenna_frame=default_args["telescope_frame"],
+            telescope_frame=default_args["telescope_frame"],
             pm_ra=default_args["pm_ra"],
             pm_dec=default_args["pm_dec"],
             dist=default_args["dist"],
@@ -1194,7 +1194,7 @@ def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
             default_args["app_ra"],
             default_args["app_dec"],
             default_args["telescope_loc"],
-            antenna_frame=default_args["telescope_frame"],
+            telescope_frame=default_args["telescope_frame"],
             astrometry_library=default_args["library"],
         )
     assert str(cm.value).startswith(msg)
@@ -1445,7 +1445,7 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
                 astrometry_args["icrs_ra"],
                 astrometry_args["icrs_dec"],
                 telescope_loc,
-                antenna_frame=telescope_frame,
+                telescope_frame=telescope_frame,
                 epoch=astrometry_args["epoch"],
                 astrometry_library=in_lib,
             )
@@ -1471,7 +1471,7 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
                 app_ra,
                 app_dec,
                 telescope_loc,
-                antenna_frame=telescope_frame,
+                telescope_frame=telescope_frame,
                 astrometry_library=out_lib,
             )
 
@@ -1689,7 +1689,7 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame):
         astrometry_args["fk5_dec"] if (frame == "fk5") else astrometry_args["icrs_dec"],
         coord_type="sidereal",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
         coord_frame=frame,
         coord_epoch=astrometry_args["epoch"],
@@ -1730,7 +1730,7 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
         coord_times=ephem_times,
         coord_type="ephem",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
         coord_epoch=astrometry_args["epoch"],
         coord_frame=frame,
@@ -1758,7 +1758,7 @@ def test_calc_app_driftscan(astrometry_args, telescope_frame):
         np.pi / 2.0,
         coord_type="driftscan",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
@@ -1787,7 +1787,7 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame):
         None,
         coord_type="unprojected",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
         lst_array=lst_array,
     )
@@ -1810,7 +1810,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
         0.0,
         coord_type="sidereal",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
         coord_frame="fk5",
         coord_epoch="J2000.0",
@@ -1822,7 +1822,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
         app_dec,
         telescope_loc,
         "fk5",
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         coord_epoch=2000.0,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
@@ -1842,7 +1842,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
         0.0,
         coord_type="sidereal",
         telescope_loc=telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         time_array=astrometry_args["time_array"],
         coord_frame="fk4",
         coord_epoch=1950.0,
@@ -1854,7 +1854,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
         app_dec,
         telescope_loc,
         "fk4",
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         coord_epoch=1950.0,
     )
 
@@ -2020,7 +2020,7 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
         astrometry_args["icrs_ra"],
         astrometry_args["icrs_dec"],
         telescope_loc,
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
         epoch=Time(astrometry_args["epoch"], format="jyear"),
     )
 
@@ -2083,7 +2083,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
         astrometry_args["icrs_dec"],
         time_array=astrometry_args["time_array"][0],
         telescope_loc=astrometry_args["telescope_loc"],
-        antenna_frame=telescope_frame,
+        telescope_frame=telescope_frame,
     )
 
     check_ra, check_dec = uvutils.calc_app_coords(
@@ -4191,7 +4191,7 @@ def test_uvw_track_generator_errs():
     with pytest.raises(
         ValueError, match="Need to install `lunarsky` package to work with MCMF frame."
     ):
-        uvutils.uvw_track_generator(telescope_loc=(0, 0, 0), antenna_frame="MCMF")
+        uvutils.uvw_track_generator(telescope_loc=(0, 0, 0), telescope_frame="MCMF")
 
 
 @pytest.mark.parametrize("flip_u", [False, True])
@@ -4256,7 +4256,7 @@ def test_uvw_track_generator_moon():
         telescope_loc=(0, 0, 0),
         time_array=2456789.0,
         antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-        antenna_frame="mcmf",
+        telescope_frame="mcmf",
     )
 
     # Check that the total lengths all match 1

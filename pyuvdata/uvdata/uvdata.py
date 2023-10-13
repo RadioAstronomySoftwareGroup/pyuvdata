@@ -5868,7 +5868,7 @@ class UVData(UVBase):
             vrad=phase_dict["cat_vrad"],
             dist=phase_dict["cat_dist"],
             telescope_loc=self.telescope_location_lat_lon_alt,
-            antenna_frame=self._telescope_location.frame,
+            telescope_frame=self._telescope_location.frame,
         )
 
         # Now calculate position angles.
@@ -5880,7 +5880,7 @@ class UVData(UVBase):
                 self.telescope_location_lat_lon_alt,
                 phase_frame,
                 ref_epoch=epoch,
-                antenna_frame=self._telescope_location.frame,
+                telescope_frame=self._telescope_location.frame,
             )
         else:
             new_frame_pa = np.zeros(time_array.shape, dtype=float)
