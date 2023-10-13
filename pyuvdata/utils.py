@@ -2440,7 +2440,7 @@ def transform_icrs_to_app(
     ra,
     dec,
     telescope_loc,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
@@ -2482,7 +2482,7 @@ def transform_icrs_to_app(
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
-    antenna_frame: str, optional
+    telescope_frame: str, optional
         Reference frame for latitude/longitude,altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     epoch : int or float or str or Time object
@@ -2525,7 +2525,7 @@ def transform_icrs_to_app(
     app_dec : ndarray of floats
         Apparent declination coordinates, in units of radians, of shape (Ntimes,).
     """
-    if antenna_frame.upper() == "MCMF":
+    if telescope_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
@@ -2535,7 +2535,7 @@ def transform_icrs_to_app(
     if astrometry_library is None:
         if hasmoon and isinstance(telescope_loc, MoonLocation):
             astrometry_library = "astropy"
-        elif antenna_frame.upper() == "MCMF":
+        elif telescope_frame.upper() == "MCMF":
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -2574,7 +2574,7 @@ def transform_icrs_to_app(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
-    elif antenna_frame.upper() == "MCMF":
+    elif telescope_frame.upper() == "MCMF":
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
@@ -2878,7 +2878,7 @@ def transform_app_to_icrs(
     app_ra,
     app_dec,
     telescope_loc,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     astrometry_library=None,
 ):
     """
@@ -2908,7 +2908,7 @@ def transform_app_to_icrs(
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
-    antenna_frame: str, optional
+    telescope_frame: str, optional
         Reference frame for latitude/longitude,altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     astrometry_library : str
@@ -2926,7 +2926,7 @@ def transform_app_to_icrs(
         ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
-    if antenna_frame.upper() == "MCMF":
+    if telescope_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
@@ -2936,7 +2936,7 @@ def transform_app_to_icrs(
     if astrometry_library is None:
         if hasmoon and isinstance(telescope_loc, MoonLocation):
             astrometry_library = "astropy"
-        elif antenna_frame.upper() == "MCMF":
+        elif telescope_frame.upper() == "MCMF":
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -2960,7 +2960,7 @@ def transform_app_to_icrs(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
-    elif antenna_frame.upper() == "MCMF":
+    elif telescope_frame.upper() == "MCMF":
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
@@ -3099,7 +3099,7 @@ def calc_frame_pos_angle(
     telescope_loc,
     ref_frame,
     ref_epoch=None,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3132,7 +3132,7 @@ def calc_frame_pos_angle(
         Epoch of the coordinates, only used when ref_frame = fk4 or fk5. Given
         in unites of fractional years, either as a float or as a string with
         the epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
-    antenna_frame: str, optional
+    telescope_frame: str, optional
         Reference frame for latitude/longitude,altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     offset_pos : float
@@ -3196,7 +3196,7 @@ def calc_frame_pos_angle(
         np.concatenate((dn_dec, up_dec)),
         telescope_loc,
         ref_frame,
-        antenna_frame=antenna_frame,
+        telescope_frame=telescope_frame,
         coord_epoch=ref_epoch,
     )
 
@@ -3563,7 +3563,7 @@ def calc_app_coords(
     time_array=None,
     lst_array=None,
     telescope_loc=None,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     pm_ra=None,
     pm_dec=None,
     vrad=None,
@@ -3611,7 +3611,7 @@ def calc_app_coords(
         Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
         longitude, and altitude for a position on Earth in units of radians, radians,
         and meters, respectively.
-    antenna_frame: str, optional
+    telescope_frame: str, optional
         Reference frame for latitude/longitude,altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     pm_ra : float or ndarray of float
@@ -3644,7 +3644,7 @@ def calc_app_coords(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
-    elif antenna_frame.upper() == "MCMF":
+    elif telescope_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
@@ -3768,7 +3768,7 @@ def calc_sidereal_coords(
     app_dec,
     telescope_loc,
     coord_frame,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     coord_epoch=None,
 ):
     """
@@ -3796,7 +3796,7 @@ def calc_sidereal_coords(
     coord_frame : string
         The requested reference frame for the output coordinates, can be any frame
         that is presently supported by astropy. Default is ICRS.
-    antenna_frame: str, optional
+    telescope_frame: str, optional
         Reference frame for latitude/longitude,altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     coord_epoch : float or str or Time object
@@ -3828,7 +3828,7 @@ def calc_sidereal_coords(
             epoch = Time(coord_epoch, format="jyear")
 
     icrs_ra, icrs_dec = transform_app_to_icrs(
-        time_array, app_ra, app_dec, telescope_loc, antenna_frame
+        time_array, app_ra, app_dec, telescope_loc, telescope_frame
     )
 
     if coord_frame == "icrs":
@@ -4087,7 +4087,7 @@ def uvw_track_generator(
     coord_type="sidereal",
     time_array=None,
     telescope_loc=None,
-    antenna_frame="itrs",
+    telescope_frame="itrs",
     antenna_positions=None,
     antenna_numbers=None,
     ant_1_array=None,
@@ -4133,7 +4133,7 @@ def uvw_track_generator(
         Moonlocation, or a tuple of shape (3,) containing (in order) the latitude,
         longitude, and altitude for a position on Earth in units of degrees, degrees,
         and meters, respectively.
-    antenna_frame : str, optional
+    telescope_frame : str, optional
         Reference frame for latitude/longitude/altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
     antenna_positions : ndarray of float
@@ -4178,7 +4178,7 @@ def uvw_track_generator(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
-    elif antenna_frame.upper() == "MCMF":
+    elif telescope_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
@@ -4231,7 +4231,7 @@ def uvw_track_generator(
             time_array = np.repeat(time_array, Nbase)
 
     lst_array = get_lst_for_time(
-        jd_array=time_array, telescope_loc=site_loc, frame=antenna_frame
+        jd_array=time_array, telescope_loc=site_loc, frame=telescope_frame
     )
     app_ra, app_dec = calc_app_coords(
         lon_coord=lon_coord,
