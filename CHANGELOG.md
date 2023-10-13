@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.4.1] - 2023-10-13
+
 ### Added
 - Added a `uvw_track_generator` method within `utils` for calculating the expected
 uvws (and a few other values) without needing to instantiate a whole `UVData` object.
