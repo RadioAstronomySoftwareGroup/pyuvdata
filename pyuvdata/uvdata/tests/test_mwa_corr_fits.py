@@ -175,7 +175,6 @@ def test_read_mwax_write_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_mwax_metafits_keys(tmp_path):
     """Check that mwax keywords are removed from extra_keywords for legacy files"""
     meta_spoof_file = str(tmp_path / "spoof_1131733552.metafits")
@@ -189,7 +188,6 @@ def test_mwax_metafits_keys(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_select_on_read():
     mwa_uv = UVData()
     mwa_uv2 = UVData()
@@ -297,7 +295,6 @@ def test_read_mwa_write_uvfits_meta_mod(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_read_mwa_multi():
     """Test reading in two sets of files."""
     set1 = filelist[0:2]
@@ -309,9 +306,7 @@ def test_read_mwa_multi():
     mwa_uv2 = UVData()
     messages = [
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
         "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
@@ -324,7 +319,6 @@ def test_read_mwa_multi():
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_read_mwa_multi_concat(tmp_path):
     """Test reading in two sets of files with fast concatenation."""
     # modify file so that time arrays are matching
@@ -340,9 +334,7 @@ def test_read_mwa_multi_concat(tmp_path):
     mwa_uv2 = UVData()
     messages = [
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
         "Combined frequencies are separated by more than their channel width",
     ]
     with uvtest.check_warnings(UserWarning, messages):
@@ -365,7 +357,6 @@ def test_read_mwa_flags():
     messages = [
         "mwaf files submitted with use_aoflagger_flags=False",
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
     ]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv.read(subfiles, use_aoflagger_flags=False, use_future_array_shapes=True)
@@ -394,7 +385,6 @@ def test_multiple_coarse():
     messages = [
         "coarse channels are not contiguous for this observation",
         "some coarse channel files were not submitted",
-        "cable length correction is now defaulted to True",
     ]
     with uvtest.check_warnings(UserWarning, messages):
         mwa_uv1.read(order1, use_future_array_shapes=True)
@@ -405,7 +395,6 @@ def test_multiple_coarse():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_ppds(tmp_path):
     """Test handling of ppds files"""
     # turnaround test with just ppds file given
@@ -562,7 +551,6 @@ def test_misaligned_times(tmp_path):
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_flag_nsample_basic():
     """
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
@@ -606,7 +594,6 @@ def test_flag_nsample_basic():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_flag_init(flag_file_init):
     """
     Test that routine MWA flagging works as intended.
@@ -636,7 +623,6 @@ def test_flag_init(flag_file_init):
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_flag_start_flag(flag_file_init):
     uv = UVData()
     uv.read(
@@ -686,7 +672,6 @@ def test_flag_start_flag(flag_file_init):
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
     uv = UVData()
     # give noninteger multiple inputs
@@ -711,7 +696,6 @@ def test_read_metadata_only(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_data_array_precision():
     uv = UVData()
     uv2 = UVData()
@@ -730,7 +714,6 @@ def test_data_array_precision():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_nsample_array_precision():
     uv = UVData()
     uv2 = UVData()
@@ -769,7 +752,6 @@ def test_invalid_precision_errors():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_remove_dig_gains():
     """Test digital gain removal."""
     uv1 = UVData()
@@ -804,7 +786,6 @@ def test_remove_dig_gains():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_remove_coarse_band(tmp_path):
     """Test coarse band removal."""
     # generate a spoof file with 32 channels
@@ -842,7 +823,6 @@ def test_remove_coarse_band(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_remove_coarse_band_mwax_40(tmp_path):
     """Test coarse band removal for a 40 kHz mwax file."""
@@ -878,7 +858,6 @@ def test_remove_coarse_band_mwax_40(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_remove_coarse_band_mwax_80(tmp_path):
     """Test coarse band removal for an 80 kHz mwax file."""
@@ -914,7 +893,6 @@ def test_remove_coarse_band_mwax_80(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_remove_coarse_band_mwax_warning(tmp_path):
     """Test coarse band removal for a file we don't have a passband for."""
@@ -966,7 +944,6 @@ def test_aoflagger_flags():
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_aoflagger_flags_multiple(tmp_path):
     """Test aoflagger flags with multiple coarse bands"""
     mod_mini_6 = str(tmp_path / "mini_gpubox06_01.fits")
@@ -995,7 +972,6 @@ def test_aoflagger_flags_multiple(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:coarse channel, start time, and end time flagging")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_mismatch_flags():
     """Break by submitting flag and gpubox files from different coarse bands."""
     uv = UVData()
@@ -1009,7 +985,6 @@ def test_mismatch_flags():
     "ignore:coarse channels are not contiguous for this observation"
 )
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_propagate_coarse_flags():
     """
     Test that the flag(without flag_int) and nsample arrays correctly reflect data.
@@ -1025,7 +1000,6 @@ def test_propagate_coarse_flags():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_start_flag(tmp_path):
     """Test the default value of start_flag."""
     uv1 = UVData()
@@ -1061,7 +1035,6 @@ def test_start_flag(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_start_flag_goodtime_ppds():
     """Test that error is thrown using 'goodtime' with only ppds file."""
     uv = UVData()
@@ -1070,7 +1043,6 @@ def test_start_flag_goodtime_ppds():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_start_flag_bad_string():
     """Test that error is thrown if start_flag is given string other than 'goodtime'"""
     uv = UVData()
@@ -1081,7 +1053,6 @@ def test_start_flag_bad_string():
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_start_flag_int_time(tmp_path):
     """Test goodtime returning a start_flag smaller than integration time."""
     uv = UVData()
@@ -1194,7 +1165,6 @@ def test_van_vleck_interp(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_remove_flagged_ants(tmp_path):
     """Test remove_flagged_ants."""
     uv1 = UVData()
@@ -1210,7 +1180,6 @@ def test_remove_flagged_ants(tmp_path):
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:.*values are being corrected with the van vleck")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 def test_small_sigs(tmp_path):
     """Test flag_small_auto_ants."""
     small_sigs = str(tmp_path / "small_sigs07_02.fits")
@@ -1227,7 +1196,6 @@ def test_small_sigs(tmp_path):
     messages = ["values are being corrected with the van vleck integral"]
     messages = messages * 8
     messages.append("some coarse channel files were not submitted")
-    messages.append("cable length correction is now defaulted to True")
     uv2 = UVData()
     with uvtest.check_warnings(UserWarning, messages):
         uv2.read(
@@ -1242,7 +1210,6 @@ def test_small_sigs(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-@pytest.mark.filterwarnings("ignore:cable length correction is now defaulted to True")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_bscale(tmp_path):
     """Test that bscale is saved correctly"""
