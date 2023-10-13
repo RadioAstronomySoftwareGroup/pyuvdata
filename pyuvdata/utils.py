@@ -2483,8 +2483,8 @@ def transform_icrs_to_app(
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
     telescope_frame: str, optional
-        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
-        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
     epoch : int or float or str or Time object
         Epoch of the coordinate data supplied, only used when supplying proper motion
         values. If supplying a number, it will assumed to be in Julian years. Default
@@ -2909,8 +2909,8 @@ def transform_app_to_icrs(
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
     telescope_frame: str, optional
-        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
-        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
     astrometry_library : str
         Library used for running the coordinate conversions. Allowed options are
         'erfa' (which uses the pyERFA), and 'astropy' (which uses the astropy
@@ -3133,8 +3133,8 @@ def calc_frame_pos_angle(
         in unites of fractional years, either as a float or as a string with
         the epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
     telescope_frame: str, optional
-        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
-        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
     offset_pos : float
         Distance of the offset position used to calculate the frame PA. Default
         is 0.5 degrees, which should be sufficent for most applications.
@@ -3612,8 +3612,8 @@ def calc_app_coords(
         longitude, and altitude for a position on Earth in units of radians, radians,
         and meters, respectively.
     telescope_frame: str, optional
-        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
-        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
     pm_ra : float or ndarray of float
         Proper motion in RA of the source, expressed in units of milliarcsec / year.
         Can either be a single float or array of shape (Ntimes,), although this must
@@ -3797,8 +3797,8 @@ def calc_sidereal_coords(
         The requested reference frame for the output coordinates, can be any frame
         that is presently supported by astropy. Default is ICRS.
     telescope_frame: str, optional
-        Reference frame for latitude/longitude,altitude. Options are itrs (default) or
-        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+        Reference frame for telescope location. Options are itrs (default) or mcmf.
+        Only used if telescope_loc is not an EarthLocation or MoonLocation.
     coord_epoch : float or str or Time object
         Epoch for ref_frame, nominally only used if converting to either the FK4 or
         FK5 frames, in units of fractional years. If provided as a float and the
