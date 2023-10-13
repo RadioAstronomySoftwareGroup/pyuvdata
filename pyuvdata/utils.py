@@ -2533,10 +2533,12 @@ def transform_icrs_to_app(
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if antenna_frame.upper() == "ITRS":
-            astrometry_library = "erfa"
-        else:
+        if hasmoon and isinstance(telescope_loc, MoonLocation):
             astrometry_library = "astropy"
+        elif antenna_frame.upper() == "MCMF":
+            astrometry_library = "astropy"
+        else:
+            astrometry_library = "erfa"
 
     if astrometry_library not in ["erfa", "novas", "astropy"]:
         raise ValueError(
@@ -2932,10 +2934,12 @@ def transform_app_to_icrs(
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if antenna_frame.upper() == "ITRS":
-            astrometry_library = "erfa"
-        else:
+        if hasmoon and isinstance(telescope_loc, MoonLocation):
             astrometry_library = "astropy"
+        elif antenna_frame.upper() == "MCMF":
+            astrometry_library = "astropy"
+        else:
+            astrometry_library = "erfa"
 
     if astrometry_library not in ["erfa", "astropy"]:
         raise ValueError(
