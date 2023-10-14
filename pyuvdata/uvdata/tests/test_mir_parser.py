@@ -953,6 +953,7 @@ def test_rechunk_cross(inplace):
         25624: {
             "data": (np.arange(1024) + np.flip(np.arange(1024) * 1j)),
             "flags": np.zeros(1024, dtype=bool),
+            "weights": np.ones(1024, dtype=np.float32),
         }
     }
     check_vals = np.arange(1024) + np.flip(np.arange(1024) * 1j)
@@ -965,6 +966,7 @@ def test_rechunk_cross(inplace):
     assert vis_data.keys() == vis_copy.keys()
     assert np.all(vis_data[25624]["flags"] == np.zeros(1024, dtype=bool))
     assert np.all(vis_data[25624]["data"] == check_vals)
+    assert np.all(vis_data[25624]["weights"] == np.ones(1024))
 
     # Next, test averaging w/o flags
     vis_copy = MirParser._rechunk_data(vis_data, [4], inplace=inplace)
@@ -974,6 +976,7 @@ def test_rechunk_cross(inplace):
     assert vis_data.keys() == vis_copy.keys()
     assert np.all(vis_copy[25624]["flags"] == np.zeros(256, dtype=bool))
     assert np.all(vis_copy[25624]["data"] == check_vals)
+    assert np.all(vis_copy[25624]["weights"] == np.ones(256))
     vis_data = vis_copy
 
     # Finally, check what happens if we flag data
@@ -983,6 +986,7 @@ def test_rechunk_cross(inplace):
     assert vis_data.keys() == vis_copy.keys()
     assert np.all(vis_copy[25624]["flags"] == [False, True])
     assert np.all(vis_copy[25624]["data"] == [check_vals[0], 0.0])
+    assert np.all(vis_copy[25624]["weights"] == [1.0, 0.0])
 
 
 @pytest.mark.parametrize("inplace", [True, False])
@@ -991,6 +995,7 @@ def test_rechunk_auto(inplace):
         8675309: {
             "data": np.arange(-1024, 1024, dtype=np.float32),
             "flags": np.zeros(2048, dtype=bool),
+            "weights": np.ones(2048, dtype=np.float32),
         }
     }
 
@@ -999,12 +1004,14 @@ def test_rechunk_auto(inplace):
     assert (auto_copy is auto_data) == inplace
     assert auto_data.keys() == auto_copy.keys()
     assert np.all(auto_copy[8675309]["data"] == np.arange(-1024, 1024))
+    assert np.all(auto_copy[8675309]["weights"] == np.ones(2048))
 
     # First up, test no averaging
     auto_copy = MirParser._rechunk_data(auto_data, [512], inplace=inplace)
     assert (auto_copy is auto_data) == inplace
     assert auto_data.keys() == auto_copy.keys()
     assert np.all(auto_copy[8675309]["data"] == [-768.5, -256.5, 255.5, 767.5])
+    assert np.all(auto_copy[8675309]["weights"] == np.ones(4))
 
 
 @pytest.mark.parametrize(
@@ -1512,11 +1519,13 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
     flag_vals = [False] * 4
     flag_vals.append(check_flags)
     flag_vals.extend([False] * 3)
-
+    weight_vals = np.ones(8)
+    weight_vals[flag_vals] = 0.0
     vis_dict = {
         456: {
             "data": np.array(vis_vals, dtype=np.complex64),
             "flags": np.array(flag_vals, dtype=bool),
+            "weights": np.array(weight_vals, dtype=np.float32),
         }
     }
 
@@ -1529,7 +1538,8 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
         assert new_dict is vis_dict
 
     assert np.all(vis_vals == new_dict[456]["data"])
-    assert np.all(new_dict[456]["flags"] == flag_vals)
+    assert np.all(flag_vals == new_dict[456]["flags"])
+    assert np.all(weight_vals == new_dict[456]["weights"])
 
     # Now try a simple one-channel shift
     new_dict = MirParser._chanshift_vis(
@@ -1550,9 +1560,14 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
         flag_vals[good_slice]
         == np.roll(new_dict[456]["flags"], -1 if fwd_dir else 1)[good_slice]
     )
+    assert np.all(
+        weight_vals[good_slice]
+        == np.roll(new_dict[456]["weights"], -1 if fwd_dir else 1)[good_slice]
+    )
 
     assert np.all(new_dict[456]["data"][flag_slice] == 0.0)
     assert np.all(new_dict[456]["flags"][flag_slice])
+    assert np.all(new_dict[456]["weights"][flag_slice] == 0.0)
 
     # Refresh the values, in case we are doing this in-place
     if inplace:
@@ -1560,6 +1575,7 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
             456: {
                 "data": np.array(vis_vals, dtype=np.complex64),
                 "flags": np.array(flag_vals, dtype=bool),
+                "weights": np.array(weight_vals, dtype=np.float32),
             }
         }
 
@@ -1575,18 +1591,23 @@ def test_chanshift_vis(check_flags, flag_adj, fwd_dir, inplace):
 
     exp_vals = np.roll(vis_vals, 2 if fwd_dir else -2)
     exp_flags = np.roll(flag_vals, 2 if fwd_dir else -2)
+    exp_weights = np.roll(weight_vals, 2 if fwd_dir else -2)
     exp_vals[None if fwd_dir else -2 : 2 if fwd_dir else None] = 0.0
     exp_flags[None if fwd_dir else -2 : 2 if fwd_dir else None] = True
+    exp_weights[None if fwd_dir else -2 : 2 if fwd_dir else None] = 0.0
     mod_slice = slice(4 - (-1 if fwd_dir else 2), 6 - (-1 if fwd_dir else 2))
     if flag_adj:
         exp_flags[mod_slice] = check_flags
         exp_vals[mod_slice] = 0 if check_flags else [check_val * 0.75, check_val * 0.25]
+        exp_weights[mod_slice] = 0 if check_flags else 1
     else:
         exp_vals[mod_slice] = [check_val * 0.25, check_val * 0.75]
         exp_flags[mod_slice] = False
+        exp_weights[mod_slice] = [0.25, 0.75]
 
     assert np.all(new_dict[456]["data"] == exp_vals)
     assert np.all(new_dict[456]["flags"] == exp_flags)
+    assert np.all(new_dict[456]["weights"] == exp_weights)
 
 
 @pytest.mark.parametrize(
