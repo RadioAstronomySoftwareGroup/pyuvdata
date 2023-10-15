@@ -1261,7 +1261,9 @@ class UVCal(UVBase):
 
         """
         if self.flex_spw:
-            uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
+            uvutils._check_flex_spw_contiguous(
+                spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
+            )
 
     def _check_freq_spacing(self, *, raise_errors=True):
         """
@@ -1543,7 +1545,7 @@ class UVCal(UVBase):
 
             return uv
 
-    def _has_key(self, *, antnum=None, jpol=None):
+    def _key_exists(self, *, antnum=None, jpol=None):
         """
         Check if this UVCal has the requested antenna or polarization.
 
@@ -1585,7 +1587,7 @@ class UVCal(UVBase):
         int
             Antenna index in data arrays.
         """
-        if not self._has_key(antnum=antnum):
+        if not self._key_exists(antnum=antnum):
             raise ValueError("{} not found in ant_array".format(antnum))
 
         return np.argmin(np.abs(self.ant_array - antnum))
@@ -1607,7 +1609,7 @@ class UVCal(UVBase):
         if isinstance(jpol, (str, np.str_)):
             jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
 
-        if not self._has_key(jpol=jpol):
+        if not self._key_exists(jpol=jpol):
             raise ValueError("{} not found in jones_array".format(jpol))
 
         return np.argmin(np.abs(self.jones_array - jpol))

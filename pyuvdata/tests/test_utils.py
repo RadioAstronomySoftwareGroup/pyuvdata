@@ -53,10 +53,10 @@ def astrometry_args():
         "library": "erfa",
     }
     default_args["lst_array"] = uvutils.get_lst_for_time(
-        default_args["time_array"],
-        default_args["telescope_loc"][0] * (180.0 / np.pi),
-        default_args["telescope_loc"][1] * (180.0 / np.pi),
-        default_args["telescope_loc"][2],
+        jd_array=default_args["time_array"],
+        latitude=default_args["telescope_loc"][0] * (180.0 / np.pi),
+        longitude=default_args["telescope_loc"][1] * (180.0 / np.pi),
+        altitude=default_args["telescope_loc"][2],
         frame="itrs",
     )
 
@@ -71,10 +71,10 @@ def astrometry_args():
             np.deg2rad(x) for x in (0.6875, 24.433, 0)
         )
         default_args["moon_lst_array"] = uvutils.get_lst_for_time(
-            default_args["time_array"],
-            default_args["moon_telescope_loc"][0] * (180.0 / np.pi),
-            default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
-            default_args["moon_telescope_loc"][2],
+            jd_array=default_args["time_array"],
+            latitude=default_args["moon_telescope_loc"][0] * (180.0 / np.pi),
+            longitude=default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
+            altitude=default_args["moon_telescope_loc"][2],
             frame="mcmf",
         )
         default_args["moon_drift_coord"] = SkyCoord(
@@ -89,20 +89,20 @@ def astrometry_args():
     )
 
     default_args["fk5_ra"], default_args["fk5_dec"] = uvutils.transform_sidereal_coords(
-        default_args["icrs_ra"],
-        default_args["icrs_dec"],
-        "icrs",
-        "fk5",
+        longitude=default_args["icrs_ra"],
+        latitude=default_args["icrs_dec"],
+        in_coord_frame="icrs",
+        out_coord_frame="fk5",
         in_coord_epoch="J2000.0",
         out_coord_epoch="J2000.0",
     )
 
     # These are values calculated w/o the optional arguments, e.g. pm, vrad, dist
     default_args["app_ra"], default_args["app_dec"] = uvutils.transform_icrs_to_app(
-        default_args["time_array"],
-        default_args["icrs_ra"],
-        default_args["icrs_dec"],
-        default_args["telescope_loc"],
+        time_array=default_args["time_array"],
+        ra=default_args["icrs_ra"],
+        dec=default_args["icrs_dec"],
+        telescope_loc=default_args["telescope_loc"],
     )
 
     default_args["app_coord"] = SkyCoord(
@@ -114,10 +114,10 @@ def astrometry_args():
             default_args["moon_app_ra"],
             default_args["moon_app_dec"],
         ) = uvutils.transform_icrs_to_app(
-            default_args["time_array"],
-            default_args["icrs_ra"],
-            default_args["icrs_dec"],
-            default_args["moon_telescope_loc"],
+            time_array=default_args["time_array"],
+            ra=default_args["icrs_ra"],
+            dec=default_args["icrs_dec"],
+            telescope_loc=default_args["moon_telescope_loc"],
             telescope_frame="mcmf",
         )
 
@@ -439,7 +439,9 @@ def test_enu_from_ecef(enu_ecef_info):
     ) = enu_ecef_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
 
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    enu = uvutils.ENU_from_ECEF(
+        xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
 
@@ -460,7 +462,13 @@ def test_enu_from_mcmf(enu_mcmf_info):
         up,
     ) = enu_mcmf_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame="mcmf")
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame="mcmf")
+    enu = uvutils.ENU_from_ECEF(
+        xyz,
+        latitude=center_lat,
+        longitude=center_lon,
+        altitude=center_alt,
+        frame="mcmf",
+    )
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
 
@@ -469,11 +477,15 @@ def test_invalid_frame():
     with pytest.raises(
         ValueError, match='No ENU_from_ECEF transform defined for frame "UNDEF".'
     ):
-        uvutils.ENU_from_ECEF(np.zeros((2, 3)), 0.0, 0.0, 0.0, frame="undef")
+        uvutils.ENU_from_ECEF(
+            np.zeros((2, 3)), latitude=0.0, longitude=0.0, altitude=0.0, frame="undef"
+        )
     with pytest.raises(
         ValueError, match='No ECEF_from_ENU transform defined for frame "UNDEF".'
     ):
-        uvutils.ECEF_from_ENU(np.zeros((2, 3)), 0.0, 0.0, 0.0, frame="undef")
+        uvutils.ECEF_from_ENU(
+            np.zeros((2, 3)), latitude=0.0, longitude=0.0, altitude=0.0, frame="undef"
+        )
 
 
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
@@ -503,7 +515,9 @@ def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
 
     # check error if array transposed
     with pytest.raises(ValueError) as cm:
-        uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+        uvutils.ENU_from_ECEF(
+            xyz, longitude=center_lat, latitude=center_lon, altitude=center_alt
+        )
     assert str(cm.value).startswith(
         "The expected shape of ECEF xyz array is (Npts, 3)."
     )
@@ -528,7 +542,9 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # error checking
     with pytest.raises(ValueError) as cm:
-        uvutils.ENU_from_ECEF(xyz / 2.0, center_lat, center_lon, center_alt)
+        uvutils.ENU_from_ECEF(
+            xyz / 2.0, latitude=center_lat, longitude=center_lon, altitude=center_alt
+        )
     assert str(cm.value).startswith(
         "ITRS vector magnitudes must be on the order of the radius of the earth"
     )
@@ -544,10 +560,12 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
         enu_ecef_info if frame == "itrs" else enu_mcmf_info
     )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame)
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame=frame)
+    enu = uvutils.ENU_from_ECEF(
+        xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt, frame=frame
+    )
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(
-        enu, center_lat, center_lon, center_alt, frame=frame
+        enu, latitude=center_lat, longitude=center_lon, altitude=center_alt, frame=frame
     )
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
 
@@ -569,7 +587,9 @@ def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
         up,
     ) = enu_ecef_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    enu = uvutils.ENU_from_ECEF(
+        xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
     if shape_type == "transpose":
         enu = enu.copy().T
     elif shape_type == "Nblts,2":
@@ -579,7 +599,9 @@ def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
 
     # check error if array transposed
     with pytest.raises(ValueError) as cm:
-        uvutils.ECEF_from_ENU(enu, center_lat, center_lon, center_alt)
+        uvutils.ECEF_from_ENU(
+            enu, latitude=center_lat, longitude=center_lon, altitude=center_alt
+        )
     assert str(cm.value).startswith("The expected shape of the ENU array is (Npts, 3).")
 
 
@@ -601,7 +623,9 @@ def test_ecef_from_enu_single(enu_ecef_info):
     ) = enu_ecef_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # check passing a single value
-    enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
+    enu_single = uvutils.ENU_from_ECEF(
+        xyz[0, :], latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
 
     assert np.allclose(np.array((east[0], north[0], up[0])), enu_single, atol=1e-3)
 
@@ -624,12 +648,18 @@ def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
     ) = enu_ecef_info
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # check passing a single value
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
+    enu = uvutils.ENU_from_ECEF(
+        xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
 
-    enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
+    enu_single = uvutils.ENU_from_ECEF(
+        xyz[0, :], latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
     assert np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3)
 
-    xyz_from_enu = uvutils.ECEF_from_ENU(enu_single, center_lat, center_lon, center_alt)
+    xyz_from_enu = uvutils.ECEF_from_ENU(
+        enu_single, latitude=center_lat, longitude=center_lon, altitude=center_alt
+    )
     assert np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
 
 
@@ -673,7 +703,7 @@ def test_mwa_ecef_conversion():
     # add in array center to get real ECEF
     ecef_xyz = new_xyz + arrcent
 
-    enu = uvutils.ENU_from_ECEF(ecef_xyz, lat, lon, alt)
+    enu = uvutils.ENU_from_ECEF(ecef_xyz, latitude=lat, longitude=lon, altitude=alt)
 
     assert np.allclose(enu, enh)
 
@@ -683,18 +713,18 @@ def test_mwa_ecef_conversion():
 
 
 @pytest.mark.parametrize(
-    "input1,input2,msg",
+    "lon_array,lat_array,msg",
     (
         [0.0, np.array([0.0]), "lon_array and lat_array must either both be floats or"],
         [np.array([0.0, 1.0]), np.array([0.0]), "lon_array and lat_array must have "],
     ),
 )
-def test_polar2_to_cart3_arg_errs(input1, input2, msg):
+def test_polar2_to_cart3_arg_errs(lon_array, lat_array, msg):
     """
     Test that bad arguments to polar2_to_cart3 throw appropriate errors.
     """
     with pytest.raises(ValueError) as cm:
-        uvutils.polar2_to_cart3(input1, input2)
+        uvutils.polar2_to_cart3(lon_array=lon_array, lat_array=lat_array)
     assert str(cm.value).startswith(msg)
 
 
@@ -729,7 +759,9 @@ def test_rotate_matmul_wrapper_arg_errs(input1, input2, input3, msg):
     Test that bad arguments to _rotate_matmul_wrapper throw appropriate errors.
     """
     with pytest.raises(ValueError) as cm:
-        uvutils._rotate_matmul_wrapper(input1, input2, input3)
+        uvutils._rotate_matmul_wrapper(
+            xyz_array=input1, rot_matrix=input2, n_rot=input3
+        )
     assert str(cm.value).startswith(msg)
 
 
@@ -738,7 +770,9 @@ def test_cart_to_polar_roundtrip():
     Test that polar->cart coord transformation is the inverse of cart->polar.
     """
     # Basic round trip with vectors
-    assert uvutils.cart3_to_polar2(uvutils.polar2_to_cart3(0.0, 0.0)) == (0.0, 0.0)
+    assert uvutils.cart3_to_polar2(
+        uvutils.polar2_to_cart3(lon_array=0.0, lat_array=0.0)
+    ) == (0.0, 0.0)
 
 
 def test_rotate_one_axis(vector_list):
@@ -750,50 +784,88 @@ def test_rotate_one_axis(vector_list):
     x_vecs, y_vecs, z_vecs, test_vecs = vector_list
 
     # Test no-ops w/ 0 deg rotations
-    assert np.all(uvutils._rotate_one_axis(x_vecs, 0.0, 0) == x_vecs)
     assert np.all(
-        uvutils._rotate_one_axis(x_vecs[:, 0], 0.0, 1)
+        uvutils._rotate_one_axis(xyz_array=x_vecs, rot_amount=0.0, rot_axis=0) == x_vecs
+    )
+    assert np.all(
+        uvutils._rotate_one_axis(xyz_array=x_vecs[:, 0], rot_amount=0.0, rot_axis=1)
         == x_vecs[np.newaxis, :, 0, np.newaxis]
     )
     assert np.all(
-        uvutils._rotate_one_axis(x_vecs[:, :, np.newaxis], 0.0, 2)
+        uvutils._rotate_one_axis(
+            xyz_array=x_vecs[:, :, np.newaxis], rot_amount=0.0, rot_axis=2
+        )
         == x_vecs[:, :, np.newaxis]
     )
 
     # Test no-ops w/ None
-    assert np.all(uvutils._rotate_one_axis(test_vecs, None, 1) == test_vecs)
     assert np.all(
-        uvutils._rotate_one_axis(test_vecs[:, 0], None, 2)
+        uvutils._rotate_one_axis(xyz_array=test_vecs, rot_amount=None, rot_axis=1)
+        == test_vecs
+    )
+    assert np.all(
+        uvutils._rotate_one_axis(xyz_array=test_vecs[:, 0], rot_amount=None, rot_axis=2)
         == test_vecs[np.newaxis, :, 0, np.newaxis]
     )
     assert np.all(
-        uvutils._rotate_one_axis(test_vecs[:, :, np.newaxis], None, 0)
+        uvutils._rotate_one_axis(
+            xyz_array=test_vecs[:, :, np.newaxis], rot_amount=None, rot_axis=0
+        )
         == test_vecs[:, :, np.newaxis]
     )
 
     # Test some basic equivalencies to make sure rotations are working correctly
-    assert np.allclose(x_vecs, uvutils._rotate_one_axis(x_vecs, 1.0, 0))
-    assert np.allclose(y_vecs, uvutils._rotate_one_axis(y_vecs, 2.0, 1))
-    assert np.allclose(z_vecs, uvutils._rotate_one_axis(z_vecs, 3.0, 2))
+    assert np.allclose(
+        x_vecs, uvutils._rotate_one_axis(xyz_array=x_vecs, rot_amount=1.0, rot_axis=0)
+    )
+    assert np.allclose(
+        y_vecs, uvutils._rotate_one_axis(xyz_array=y_vecs, rot_amount=2.0, rot_axis=1)
+    )
+    assert np.allclose(
+        z_vecs, uvutils._rotate_one_axis(xyz_array=z_vecs, rot_amount=3.0, rot_axis=2)
+    )
 
-    assert np.allclose(x_vecs, uvutils._rotate_one_axis(y_vecs, -np.pi / 2.0, 2))
-    assert np.allclose(y_vecs, uvutils._rotate_one_axis(x_vecs, np.pi / 2.0, 2))
-    assert np.allclose(x_vecs, uvutils._rotate_one_axis(z_vecs, np.pi / 2.0, 1))
-    assert np.allclose(z_vecs, uvutils._rotate_one_axis(x_vecs, -np.pi / 2.0, 1))
-    assert np.allclose(y_vecs, uvutils._rotate_one_axis(z_vecs, -np.pi / 2.0, 0))
-    assert np.allclose(z_vecs, uvutils._rotate_one_axis(y_vecs, np.pi / 2.0, 0))
+    assert np.allclose(
+        x_vecs,
+        uvutils._rotate_one_axis(xyz_array=y_vecs, rot_amount=-np.pi / 2.0, rot_axis=2),
+    )
+    assert np.allclose(
+        y_vecs,
+        uvutils._rotate_one_axis(xyz_array=x_vecs, rot_amount=np.pi / 2.0, rot_axis=2),
+    )
+    assert np.allclose(
+        x_vecs,
+        uvutils._rotate_one_axis(xyz_array=z_vecs, rot_amount=np.pi / 2.0, rot_axis=1),
+    )
+    assert np.allclose(
+        z_vecs,
+        uvutils._rotate_one_axis(xyz_array=x_vecs, rot_amount=-np.pi / 2.0, rot_axis=1),
+    )
+    assert np.allclose(
+        y_vecs,
+        uvutils._rotate_one_axis(xyz_array=z_vecs, rot_amount=-np.pi / 2.0, rot_axis=0),
+    )
+    assert np.allclose(
+        z_vecs,
+        uvutils._rotate_one_axis(xyz_array=y_vecs, rot_amount=np.pi / 2.0, rot_axis=0),
+    )
 
     assert np.all(
         np.equal(
-            uvutils._rotate_one_axis(test_vecs, 1.0, 2),
-            uvutils._rotate_one_axis(test_vecs, 1.0, np.array([2])),
+            uvutils._rotate_one_axis(xyz_array=test_vecs, rot_amount=1.0, rot_axis=2),
+            uvutils._rotate_one_axis(
+                xyz_array=test_vecs, rot_amount=1.0, rot_axis=np.array([2])
+            ),
         )
     )
 
     # Testing a special case, where the xyz_array vectors are reshaped if there
     # is only a single rotation matrix used (helps speed things up significantly)
     mod_vec = x_vecs.T.reshape((2, 3, 1))
-    assert np.all(uvutils._rotate_one_axis(mod_vec, 1.0, 0) == mod_vec)
+    assert np.all(
+        uvutils._rotate_one_axis(xyz_array=mod_vec, rot_amount=1.0, rot_axis=0)
+        == mod_vec
+    )
 
 
 def test_rotate_two_axis(vector_list):
@@ -804,15 +876,49 @@ def test_rotate_two_axis(vector_list):
 
     # These tests are used to verify the basic functionality of the primary
     # functions used to two-axis rotations
-    assert np.allclose(x_vecs, uvutils._rotate_two_axis(x_vecs, 2 * np.pi, 1.0, 1, 0))
-    assert np.allclose(y_vecs, uvutils._rotate_two_axis(y_vecs, 2 * np.pi, 2.0, 2, 1))
-    assert np.allclose(z_vecs, uvutils._rotate_two_axis(z_vecs, 2 * np.pi, 3.0, 0, 2))
+    assert np.allclose(
+        x_vecs,
+        uvutils._rotate_two_axis(
+            xyz_array=x_vecs,
+            rot_amount1=2 * np.pi,
+            rot_amount2=1.0,
+            rot_axis1=1,
+            rot_axis2=0,
+        ),
+    )
+    assert np.allclose(
+        y_vecs,
+        uvutils._rotate_two_axis(
+            xyz_array=y_vecs,
+            rot_amount1=2 * np.pi,
+            rot_amount2=2.0,
+            rot_axis1=2,
+            rot_axis2=1,
+        ),
+    )
+    assert np.allclose(
+        z_vecs,
+        uvutils._rotate_two_axis(
+            xyz_array=z_vecs,
+            rot_amount1=2 * np.pi,
+            rot_amount2=3.0,
+            rot_axis1=0,
+            rot_axis2=2,
+        ),
+    )
 
     # Do one more test, which verifies that we can filp our (1,1,1) test vector to
     # the postiion at (-1, -1 , -1)
     mod_vec = test_vecs.T.reshape((2, 3, 1))
     assert np.allclose(
-        uvutils._rotate_two_axis(mod_vec, np.pi, np.pi / 2.0, 0, 1), -mod_vec
+        uvutils._rotate_two_axis(
+            xyz_array=mod_vec,
+            rot_amount1=np.pi,
+            rot_amount2=np.pi / 2.0,
+            rot_axis1=0,
+            rot_axis2=1,
+        ),
+        -mod_vec,
     )
 
 
@@ -835,8 +941,16 @@ def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, ax
     # a single rot (with the rot angle equal to the sum of the two rot angles)
     assert np.all(
         np.equal(
-            uvutils._rotate_one_axis(test_vecs, rot1, axis1),
-            uvutils._rotate_two_axis(test_vecs, rot2, rot3, axis2, axis3),
+            uvutils._rotate_one_axis(
+                xyz_array=test_vecs, rot_amount=rot1, rot_axis=axis1
+            ),
+            uvutils._rotate_two_axis(
+                xyz_array=test_vecs,
+                rot_amount1=rot2,
+                rot_amount2=rot3,
+                rot_axis1=axis2,
+                rot_axis2=axis3,
+            ),
         )
     )
 
@@ -1156,10 +1270,10 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
     # Start w/ the transform_icrs_to_app block
     with pytest.raises(ValueError) as cm:
         uvutils.transform_icrs_to_app(
-            default_args["time_array"],
-            default_args["icrs_ra"],
-            default_args["icrs_dec"],
-            default_args["telescope_loc"],
+            time_array=default_args["time_array"],
+            ra=default_args["icrs_ra"],
+            dec=default_args["icrs_dec"],
+            telescope_loc=default_args["telescope_loc"],
             telescope_frame=default_args["telescope_frame"],
             pm_ra=default_args["pm_ra"],
             pm_dec=default_args["pm_dec"],
@@ -1190,10 +1304,10 @@ def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
 
     with pytest.raises(ValueError) as cm:
         uvutils.transform_app_to_icrs(
-            default_args["time_array"],
-            default_args["app_ra"],
-            default_args["app_dec"],
-            default_args["telescope_loc"],
+            time_array=default_args["time_array"],
+            app_ra=default_args["app_ra"],
+            app_dec=default_args["app_dec"],
+            telescope_loc=default_args["telescope_loc"],
             telescope_frame=default_args["telescope_frame"],
             astrometry_library=default_args["library"],
         )
@@ -1207,10 +1321,10 @@ def test_transform_sidereal_coords_arg_errs():
     # Next on to sidereal to sidereal
     with pytest.raises(ValueError) as cm:
         uvutils.transform_sidereal_coords(
-            [0.0],
-            [0.0, 1.0],
-            "fk5",
-            "icrs",
+            longitude=[0.0],
+            latitude=[0.0, 1.0],
+            in_coord_frame="fk5",
+            out_coord_frame="icrs",
             in_coord_epoch="J2000.0",
             time_array=[0.0, 1.0, 2.0],
         )
@@ -1218,10 +1332,10 @@ def test_transform_sidereal_coords_arg_errs():
 
     with pytest.raises(ValueError) as cm:
         uvutils.transform_sidereal_coords(
-            [0.0, 1.0],
-            [0.0, 1.0],
-            "fk4",
-            "fk4",
+            longitude=[0.0, 1.0],
+            latitude=[0.0, 1.0],
+            in_coord_frame="fk4",
+            out_coord_frame="fk4",
             in_coord_epoch=1950.0,
             out_coord_epoch=1984.0,
             time_array=[0.0, 1.0, 2.0],
@@ -1339,10 +1453,10 @@ def test_interpolate_ephem_arg_errs(bad_arg, msg):
     # Now moving on to the interpolation scheme
     with pytest.raises(ValueError) as cm:
         uvutils.interpolate_ephem(
-            0.0,
-            0.0 if ("etimes" == bad_arg) else [0.0, 1.0],
-            0.0 if ("ra" == bad_arg) else [0.0, 1.0],
-            0.0 if ("dec" == bad_arg) else [0.0, 1.0],
+            time_array=0.0,
+            ephem_times=0.0 if ("etimes" == bad_arg) else [0.0, 1.0],
+            ephem_ra=0.0 if ("ra" == bad_arg) else [0.0, 1.0],
+            ephem_dec=0.0 if ("dec" == bad_arg) else [0.0, 1.0],
             ephem_dist=0.0 if ("dist" == bad_arg) else [0.0, 1.0],
             ephem_vel=0.0 if ("vel" == bad_arg) else [0.0, 1.0],
         )
@@ -1356,7 +1470,7 @@ def test_calc_app_coords_arg_errs():
     # Now on to app_coords
     with pytest.raises(ValueError) as cm:
         uvutils.calc_app_coords(
-            0.0, 0.0, telescope_loc=(0, 1, 2), coord_type="whoknows"
+            lon_coord=0.0, lat_coord=0.0, telescope_loc=(0, 1, 2), coord_type="whoknows"
         )
     assert str(cm.value).startswith("Object type whoknows is not recognized.")
 
@@ -1369,10 +1483,10 @@ def test_transform_multi_sidereal_coords(astrometry_args):
     # Check and make sure that we can deal with non-singleton times or coords with
     # singleton coords and times, respectively.
     check_ra, check_dec = uvutils.transform_sidereal_coords(
-        astrometry_args["icrs_ra"] * np.ones(2),
-        astrometry_args["icrs_dec"] * np.ones(2),
-        "icrs",
-        "fk5",
+        longitude=astrometry_args["icrs_ra"] * np.ones(2),
+        latitude=astrometry_args["icrs_dec"] * np.ones(2),
+        in_coord_frame="icrs",
+        out_coord_frame="fk5",
         in_coord_epoch=2000.0,
         out_coord_epoch=2000.0,
         time_array=astrometry_args["time_array"][0] * np.ones(2),
@@ -1389,29 +1503,29 @@ def test_transform_fk5_fk4_icrs_loop(astrometry_args):
     # Now do a triangle between ICRS -> FK5 -> FK4 -> ICRS. If all is working well,
     # then we should recover the same position we started with.
     fk5_ra, fk5_dec = uvutils.transform_sidereal_coords(
-        astrometry_args["icrs_ra"],
-        astrometry_args["icrs_dec"],
-        "icrs",
-        "fk5",
+        longitude=astrometry_args["icrs_ra"],
+        latitude=astrometry_args["icrs_dec"],
+        in_coord_frame="icrs",
+        out_coord_frame="fk5",
         in_coord_epoch=2000.0,
         out_coord_epoch=2000.0,
         time_array=astrometry_args["time_array"][0],
     )
 
     fk4_ra, fk4_dec = uvutils.transform_sidereal_coords(
-        fk5_ra,
-        fk5_dec,
-        "fk5",
-        "fk4",
+        longitude=fk5_ra,
+        latitude=fk5_dec,
+        in_coord_frame="fk5",
+        out_coord_frame="fk4",
         in_coord_epoch="J2000.0",
         out_coord_epoch="B1950.0",
     )
 
     check_ra, check_dec = uvutils.transform_sidereal_coords(
-        fk4_ra,
-        fk4_dec,
-        "fk4",
-        "icrs",
+        longitude=fk4_ra,
+        latitude=fk4_dec,
+        in_coord_frame="fk4",
+        out_coord_frame="icrs",
         in_coord_epoch="B1950.0",
         out_coord_epoch="J2000.0",
     )
@@ -1441,10 +1555,10 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
             "astrometry library",
         ):
             app_ra, app_dec = uvutils.transform_icrs_to_app(
-                astrometry_args["time_array"],
-                astrometry_args["icrs_ra"],
-                astrometry_args["icrs_dec"],
-                telescope_loc,
+                time_array=astrometry_args["time_array"],
+                ra=astrometry_args["icrs_ra"],
+                dec=astrometry_args["icrs_dec"],
+                telescope_loc=telescope_loc,
                 telescope_frame=telescope_frame,
                 epoch=astrometry_args["epoch"],
                 astrometry_library=in_lib,
@@ -1452,10 +1566,10 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
         return
 
     app_ra, app_dec = uvutils.transform_icrs_to_app(
-        astrometry_args["time_array"],
-        astrometry_args["icrs_ra"],
-        astrometry_args["icrs_dec"],
-        telescope_loc,
+        time_array=astrometry_args["time_array"],
+        ra=astrometry_args["icrs_ra"],
+        dec=astrometry_args["icrs_dec"],
+        telescope_loc=telescope_loc,
         epoch=astrometry_args["epoch"],
         astrometry_library=in_lib,
     )
@@ -1467,19 +1581,19 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
             "astrometry library",
         ):
             check_ra, check_dec = uvutils.transform_app_to_icrs(
-                astrometry_args["time_array"],
-                app_ra,
-                app_dec,
-                telescope_loc,
+                time_array=astrometry_args["time_array"],
+                app_ra=app_ra,
+                app_dec=app_dec,
+                telescope_loc=telescope_loc,
                 telescope_frame=telescope_frame,
                 astrometry_library=out_lib,
             )
 
     check_ra, check_dec = uvutils.transform_app_to_icrs(
-        astrometry_args["time_array"],
-        app_ra,
-        app_dec,
-        telescope_loc,
+        time_array=astrometry_args["time_array"],
+        app_ra=app_ra,
+        app_dec=app_dec,
+        telescope_loc=telescope_loc,
         astrometry_library=out_lib,
     )
 
@@ -1503,7 +1617,10 @@ def test_calc_parallactic_angle():
     """
     expected_vals = np.array([1.0754290375762232, 0.0, -0.6518070715011698])
     meas_vals = uvutils.calc_parallactic_angle(
-        [0.0, 1.0, 2.0], [-1.0, 0.0, 1.0], [2.0, 1.0, 0], 1.0
+        app_ra=[0.0, 1.0, 2.0],
+        app_dec=[-1.0, 0.0, 1.0],
+        lst_array=[2.0, 1.0, 0],
+        telescope_lat=1.0,
     )
     # Make sure things agree to better than ~0.1 uas (as it definitely should)
     assert np.allclose(expected_vals, meas_vals, 0.0, 1e-12)
@@ -1516,11 +1633,11 @@ def test_calc_frame_pos_angle():
     # First test -- plug in "topo" for the frame, which should always produce an
     # array of all zeros (the topo frame is what the apparent coords are in)
     frame_pa = uvutils.calc_frame_pos_angle(
-        np.array([2456789.0] * 100),
-        np.arange(100) * (np.pi / 50),
-        np.zeros(100),
-        (0, 0, 0),
-        "topo",
+        time_array=np.array([2456789.0] * 100),
+        app_ra=np.arange(100) * (np.pi / 50),
+        app_dec=np.zeros(100),
+        telescope_loc=(0, 0, 0),
+        ref_frame="topo",
     )
     assert len(frame_pa) == 100
     assert np.all(frame_pa == 0.0)
@@ -1529,11 +1646,11 @@ def test_calc_frame_pos_angle():
     # of basically 0 degrees.
     j2000_jd = Time(2000.0, format="jyear").utc.jd
     frame_pa = uvutils.calc_frame_pos_angle(
-        np.array([j2000_jd] * 100),
-        np.arange(100) * (np.pi / 50),
-        np.zeros(100),
-        (0, 0, 0),
-        "fk5",
+        time_array=np.array([j2000_jd] * 100),
+        app_ra=np.arange(100) * (np.pi / 50),
+        app_dec=np.zeros(100),
+        telescope_loc=(0, 0, 0),
+        ref_frame="fk5",
         ref_epoch=2000.0,
     )
     # At J2000, the only frame PA terms come from aberation, which basically max out
@@ -1543,11 +1660,11 @@ def test_calc_frame_pos_angle():
     # JD 2458849.5 is Jan-01-2020, so 20 years of parallax ought to have accumulated
     # (with about 1 arcmin/yr of precession). Make sure these values are sensible
     frame_pa = uvutils.calc_frame_pos_angle(
-        np.array([2458849.5] * 100),
-        np.arange(100) * (np.pi / 50),
-        np.zeros(100),
-        (0, 0, 0),
-        "fk5",
+        time_array=np.array([2458849.5] * 100),
+        app_ra=np.arange(100) * (np.pi / 50),
+        app_dec=np.zeros(100),
+        telescope_loc=(0, 0, 0),
+        ref_frame="fk5",
         ref_epoch=2000.0,
     )
     assert np.all(np.abs(frame_pa) < 20 * (50.3 / 3600) * (np.pi / 180.0))
@@ -1603,10 +1720,10 @@ def test_ephem_interp_one_point():
     ephem_vel = np.array([4.0])
 
     ra_vals0, dec_vals0, dist_vals0, vel_vals0 = uvutils.interpolate_ephem(
-        time_array,
-        ephem_times,
-        ephem_ra,
-        ephem_dec,
+        time_array=time_array,
+        ephem_times=ephem_times,
+        ephem_ra=ephem_ra,
+        ephem_dec=ephem_dec,
         ephem_dist=ephem_dist,
         ephem_vel=ephem_vel,
     )
@@ -1632,10 +1749,10 @@ def test_ephem_interp_multi_point():
     ephem_vel = np.array([0, 1]) + 4.0
 
     ra_vals1, dec_vals1, dist_vals1, vel_vals1 = uvutils.interpolate_ephem(
-        time_array,
-        ephem_times,
-        ephem_ra,
-        ephem_dec,
+        time_array=time_array,
+        ephem_times=ephem_times,
+        ephem_ra=ephem_ra,
+        ephem_dec=ephem_dec,
         ephem_dist=ephem_dist,
         ephem_vel=ephem_vel,
     )
@@ -1650,10 +1767,10 @@ def test_ephem_interp_multi_point():
     ephem_vel = (np.arange(11) * 0.1) + 4.0
 
     ra_vals2, dec_vals2, dist_vals2, vel_vals2 = uvutils.interpolate_ephem(
-        time_array,
-        ephem_times,
-        ephem_ra,
-        ephem_dec,
+        time_array=time_array,
+        ephem_times=ephem_times,
+        ephem_ra=ephem_ra,
+        ephem_dec=ephem_dec,
         ephem_dist=ephem_dist,
         ephem_vel=ephem_vel,
     )
@@ -1685,8 +1802,12 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame):
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.calc_app_coords(
-        astrometry_args["fk5_ra"] if (frame == "fk5") else astrometry_args["icrs_ra"],
-        astrometry_args["fk5_dec"] if (frame == "fk5") else astrometry_args["icrs_dec"],
+        lon_coord=astrometry_args["fk5_ra"]
+        if (frame == "fk5")
+        else astrometry_args["icrs_ra"],
+        lat_coord=astrometry_args["fk5_dec"]
+        if (frame == "fk5")
+        else astrometry_args["icrs_dec"],
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
@@ -1725,8 +1846,8 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
 
     ephem_times = np.array([astrometry_args["time_array"][0]])
     check_ra, check_dec = uvutils.calc_app_coords(
-        ephem_ra,
-        ephem_dec,
+        lon_coord=ephem_ra,
+        lat_coord=ephem_dec,
         coord_times=ephem_times,
         coord_type="ephem",
         telescope_loc=telescope_loc,
@@ -1754,8 +1875,8 @@ def test_calc_app_driftscan(astrometry_args, telescope_frame):
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.calc_app_coords(
-        0.0,
-        np.pi / 2.0,
+        lon_coord=0.0,
+        lat_coord=np.pi / 2.0,
         coord_type="driftscan",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
@@ -1783,8 +1904,8 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame):
         lst_array = astrometry_args["moon_lst_array"]
 
     check_ra, check_dec = uvutils.calc_app_coords(
-        None,
-        None,
+        lon_coord=None,
+        lat_coord=None,
         coord_type="unprojected",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
@@ -1807,8 +1928,8 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     app_ra, app_dec = uvutils.calc_app_coords(
-        0.0,
-        0.0,
+        lon_coord=0.0,
+        lat_coord=0.0,
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
@@ -1818,11 +1939,11 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
     )
 
     check_ra, check_dec = uvutils.calc_sidereal_coords(
-        astrometry_args["time_array"],
-        app_ra,
-        app_dec,
-        telescope_loc,
-        "fk5",
+        time_array=astrometry_args["time_array"],
+        app_ra=app_ra,
+        app_dec=app_dec,
+        telescope_loc=telescope_loc,
+        coord_frame="fk5",
         telescope_frame=telescope_frame,
         coord_epoch=2000.0,
     )
@@ -1839,8 +1960,8 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     app_ra, app_dec = uvutils.calc_app_coords(
-        0.0,
-        0.0,
+        lon_coord=0.0,
+        lat_coord=0.0,
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
@@ -1850,11 +1971,11 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
     )
 
     check_ra, check_dec = uvutils.calc_sidereal_coords(
-        astrometry_args["time_array"],
-        app_ra,
-        app_dec,
-        telescope_loc,
-        "fk4",
+        time_array=astrometry_args["time_array"],
+        app_ra=app_ra,
+        app_dec=app_dec,
+        telescope_loc=telescope_loc,
+        coord_frame="fk4",
         telescope_frame=telescope_frame,
         coord_epoch=1950.0,
     )
@@ -1908,10 +2029,10 @@ def test_astrometry_icrs_to_app(astrometry_args, use_extra):
 
     for idx, name in enumerate(astrometry_list):
         coord_results[idx] = uvutils.transform_icrs_to_app(
-            astrometry_args["time_array"],
-            astrometry_args["icrs_ra"],
-            astrometry_args["icrs_dec"],
-            astrometry_args["telescope_loc"],
+            time_array=astrometry_args["time_array"],
+            ra=astrometry_args["icrs_ra"],
+            dec=astrometry_args["icrs_dec"],
+            telescope_loc=astrometry_args["telescope_loc"],
             epoch=astrometry_args["epoch"],
             astrometry_library=name,
             **kwargs,
@@ -1957,10 +2078,10 @@ def test_astrometry_app_to_icrs(astrometry_args):
         # because the above pre-calculated values were generated using the ICRS
         # coordinate values
         coord_results[idx] = uvutils.transform_app_to_icrs(
-            astrometry_args["time_array"],
-            astrometry_args["icrs_ra"],
-            astrometry_args["icrs_dec"],
-            astrometry_args["telescope_loc"],
+            time_array=astrometry_args["time_array"],
+            app_ra=astrometry_args["icrs_ra"],
+            app_dec=astrometry_args["icrs_dec"],
+            telescope_loc=astrometry_args["telescope_loc"],
             astrometry_library=name,
         )
 
@@ -1982,18 +2103,18 @@ def test_sidereal_reptime(astrometry_args):
     """
 
     gcrs_ra, gcrs_dec = uvutils.transform_sidereal_coords(
-        astrometry_args["icrs_ra"] * np.ones(2),
-        astrometry_args["icrs_dec"] * np.ones(2),
-        "icrs",
-        "gcrs",
+        longitude=astrometry_args["icrs_ra"] * np.ones(2),
+        latitude=astrometry_args["icrs_dec"] * np.ones(2),
+        in_coord_frame="icrs",
+        out_coord_frame="gcrs",
         time_array=Time(astrometry_args["time_array"][0], format="jd"),
     )
 
     check_ra, check_dec = uvutils.transform_sidereal_coords(
-        astrometry_args["icrs_ra"] * np.ones(2),
-        astrometry_args["icrs_dec"] * np.ones(2),
-        "icrs",
-        "gcrs",
+        longitude=astrometry_args["icrs_ra"] * np.ones(2),
+        latitude=astrometry_args["icrs_dec"] * np.ones(2),
+        in_coord_frame="icrs",
+        out_coord_frame="gcrs",
         time_array=Time(astrometry_args["time_array"][0] * np.ones(2), format="jd"),
     )
 
@@ -2017,10 +2138,10 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.transform_icrs_to_app(
-        Time(astrometry_args["time_array"], format="jd"),
-        astrometry_args["icrs_ra"],
-        astrometry_args["icrs_dec"],
-        telescope_loc,
+        time_array=Time(astrometry_args["time_array"], format="jd"),
+        ra=astrometry_args["icrs_ra"],
+        dec=astrometry_args["icrs_dec"],
+        telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
         epoch=Time(astrometry_args["epoch"], format="jyear"),
     )
@@ -2041,17 +2162,17 @@ def test_transform_app_to_icrs_objs(astrometry_args):
     )
 
     icrs_ra, icrs_dec = uvutils.transform_app_to_icrs(
-        astrometry_args["time_array"][0],
-        astrometry_args["app_ra"][0],
-        astrometry_args["app_dec"][0],
-        astrometry_args["telescope_loc"],
+        time_array=astrometry_args["time_array"][0],
+        app_ra=astrometry_args["app_ra"][0],
+        app_dec=astrometry_args["app_dec"][0],
+        telescope_loc=astrometry_args["telescope_loc"],
     )
 
     check_ra, check_dec = uvutils.transform_app_to_icrs(
-        Time(astrometry_args["time_array"][0], format="jd"),
-        astrometry_args["app_ra"][0],
-        astrometry_args["app_dec"][0],
-        telescope_loc,
+        time_array=Time(astrometry_args["time_array"][0], format="jd"),
+        app_ra=astrometry_args["app_ra"][0],
+        app_dec=astrometry_args["app_dec"][0],
+        telescope_loc=telescope_loc,
     )
 
     assert np.all(check_ra == icrs_ra)
@@ -2080,16 +2201,16 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
         TimeClass = LTime
 
     app_ra, app_dec = uvutils.calc_app_coords(
-        astrometry_args["icrs_ra"],
-        astrometry_args["icrs_dec"],
+        lon_coord=astrometry_args["icrs_ra"],
+        lat_coord=astrometry_args["icrs_dec"],
         time_array=astrometry_args["time_array"][0],
         telescope_loc=astrometry_args["telescope_loc"],
         telescope_frame=telescope_frame,
     )
 
     check_ra, check_dec = uvutils.calc_app_coords(
-        astrometry_args["icrs_ra"],
-        astrometry_args["icrs_dec"],
+        lon_coord=astrometry_args["icrs_ra"],
+        lat_coord=astrometry_args["icrs_dec"],
         time_array=TimeClass(astrometry_args["time_array"][0], format="jd"),
         telescope_loc=telescope_loc,
     )
@@ -2125,10 +2246,10 @@ def test_astrometry_lst(astrometry_args):
         # Note that the units aren't right here (missing a rad-> deg conversion), but
         # the above values were calculated using the arguments below.
         lst_results[idx] = uvutils.get_lst_for_time(
-            astrometry_args["time_array"],
-            astrometry_args["telescope_loc"][0],
-            astrometry_args["telescope_loc"][1],
-            astrometry_args["telescope_loc"][2],
+            jd_array=astrometry_args["time_array"],
+            latitude=astrometry_args["telescope_loc"][0],
+            longitude=astrometry_args["telescope_loc"][1],
+            altitude=astrometry_args["telescope_loc"][2],
             astrometry_library=name,
         )
 
@@ -2218,10 +2339,10 @@ def test_get_lst_for_time_errors(astrometry_args):
         "select either 'erfa' or 'astropy' for astrometry_library.",
     ):
         uvutils.get_lst_for_time(
-            np.array(astrometry_args["time_array"][0]),
-            astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
-            astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
-            astrometry_args["telescope_loc"][2],
+            jd_array=np.array(astrometry_args["time_array"][0]),
+            latitude=astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
+            longitude=astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
+            altitude=astrometry_args["telescope_loc"][2],
             astrometry_library="foo",
         )
 
@@ -2250,16 +2371,20 @@ def test_lst_for_time_moon(astrometry_args):
         match="The MCMF frame is only supported with the 'astropy' astrometry library",
     ):
         lst_array = uvutils.get_lst_for_time(
-            astrometry_args["time_array"],
-            lat,
-            lon,
-            alt,
+            jd_array=astrometry_args["time_array"],
+            latitude=lat,
+            longitude=lon,
+            altitude=alt,
             frame="mcmf",
             astrometry_library="novas",
         )
 
     lst_array = uvutils.get_lst_for_time(
-        astrometry_args["time_array"], lat, lon, alt, frame="mcmf"
+        jd_array=astrometry_args["time_array"],
+        latitude=lat,
+        longitude=lon,
+        altitude=alt,
+        frame="mcmf",
     )
 
     # Verify that lsts are close to local zenith RA
@@ -2292,7 +2417,10 @@ def test_phasing_funcs():
     ants_enu = np.array([-101.94, 156.41, 1.24])
 
     ant_xyz_abs = uvutils.ECEF_from_ENU(
-        ants_enu, lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2]
+        ants_enu,
+        latitude=lat_lon_alt[0],
+        longitude=lat_lon_alt[1],
+        altitude=lat_lon_alt[2],
     )
 
     array_center_coord = SkyCoord(
@@ -2318,14 +2446,9 @@ def test_phasing_funcs():
         (gcrs_from_itrs_coord.cartesian - gcrs_array_center.cartesian).get_xyz().T
     )
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="This function supports the old phasing method and will be removed along "
-        "with the old phasing code in version 2.4",
-    ):
-        gcrs_uvw = uvutils.phase_uvw(
-            gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value
-        )
+    gcrs_uvw = uvutils.old_uvw_calc(
+        gcrs_coord.ra.rad, gcrs_coord.dec.rad, gcrs_rel.value
+    )
 
     mwa_tools_calcuvw_u = -97.122828
     mwa_tools_calcuvw_v = 50.388281
@@ -2336,14 +2459,9 @@ def test_phasing_funcs():
     assert np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
 
     # also test unphasing
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="This function supports the old phasing method and will be removed along "
-        "with the old phasing code in version 2.4",
-    ):
-        temp2 = uvutils.unphase_uvw(
-            gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
-        )
+    temp2 = uvutils.undo_old_uvw_calc(
+        gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
+    )
     assert np.allclose(gcrs_rel.value, temp2)
 
 
@@ -2627,17 +2745,14 @@ def test_redundancy_finder():
     # Check with conjugated baseline redundancies returned
     # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     bl_positions[16, 0] = 0
-    with uvtest.check_warnings(
-        DeprecationWarning, "The with_conjugates keyword is deprecated"
-    ):
-        (
-            baseline_groups,
-            vec_bin_centers,
-            lens,
-            conjugates,
-        ) = uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, with_conjugates=True
-        )
+    (
+        baseline_groups,
+        vec_bin_centers,
+        lens,
+        conjugates,
+    ) = uvutils.get_baseline_redundancies(
+        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+    )
 
     # restore baseline (16,0) and repeat to get correct groups
     bl_positions = bl_pos_backup
@@ -4199,7 +4314,12 @@ def test_determine_blt_order(blt_order):
     # time, bl
     TIME, ANT1, ANT2, BL = gettimebls(blt_order)
     order = uvutils.determine_blt_order(
-        TIME, ANT1, ANT2, BL, Nbls=nant**2, Ntimes=ntime
+        time_array=TIME,
+        ant_1_array=ANT1,
+        ant_2_array=ANT2,
+        baseline_array=BL,
+        Nbls=nant**2,
+        Ntimes=ntime,
     )
     if isinstance(blt_order, list):
         assert order is None
@@ -4209,7 +4329,7 @@ def test_determine_blt_order(blt_order):
         assert order is None
 
     is_rect, time_first = uvutils.determine_rectangularity(
-        TIME, BL, nbls=nant**2, ntimes=ntime
+        time_array=TIME, baseline_array=BL, nbls=nant**2, ntimes=ntime
     )
     if blt_order in [("ant1", "time"), ("ant2", "time")]:
         # sorting by ant1/ant2 then time means we split the other ant into a
@@ -4234,9 +4354,18 @@ def test_determine_blt_order_size_1():
     ant2 = np.array([1])
     bl = uvutils.antnums_to_baseline(ant1, ant2, 2)
 
-    order = uvutils.determine_blt_order(times, ant1, ant2, bl, Nbls=1, Ntimes=1)
+    order = uvutils.determine_blt_order(
+        time_array=times,
+        ant_1_array=ant1,
+        ant_2_array=ant2,
+        baseline_array=bl,
+        Nbls=1,
+        Ntimes=1,
+    )
     assert order == ("baseline", "time")
-    is_rect, time_first = uvutils.determine_rectangularity(times, bl, nbls=1, ntimes=1)
+    is_rect, time_first = uvutils.determine_rectangularity(
+        time_array=times, baseline_array=bl, nbls=1, ntimes=1
+    )
     assert is_rect
     assert time_first
 
@@ -4253,19 +4382,25 @@ def test_determine_rect_time_first():
     TIME = np.tile(times, len(bls))
     BL = np.concatenate([rng.permuted(bls) for i in range(len(times))])
 
-    is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
+    is_rect, time_first = uvutils.determine_rectangularity(
+        time_array=TIME, baseline_array=BL, nbls=9, ntimes=10
+    )
     assert not is_rect
 
     # now, permute time instead of bls
     TIME = np.concatenate([rng.permuted(times) for i in range(len(bls))])
     BL = np.tile(bls, len(times))
-    is_rect, time_first = uvutils.determine_rectangularity(TIME, BL, nbls=9, ntimes=10)
+    is_rect, time_first = uvutils.determine_rectangularity(
+        time_array=TIME, baseline_array=BL, nbls=9, ntimes=10
+    )
     assert not is_rect
 
     TIME = np.array([1000.0, 1000.0, 2000.0, 1000.0])
     BLS = np.array([0, 0, 1, 0])
 
-    is_rect, time_first = uvutils.determine_rectangularity(TIME, BLS, nbls=2, ntimes=2)
+    is_rect, time_first = uvutils.determine_rectangularity(
+        time_array=TIME, baseline_array=BLS, nbls=2, ntimes=2
+    )
     assert not is_rect
 
 
@@ -4291,11 +4426,17 @@ def test_calc_app_coords_time_obj():
     ra = zenith_coord.ra.to_value("rad")
     dec = zenith_coord.dec.to_value("rad")
     app_ra_to, app_dec_to = uvutils.calc_app_coords(
-        ra, dec, time_array=obstime, telescope_loc=telescope_location
+        lon_coord=ra,
+        lat_coord=dec,
+        time_array=obstime,
+        telescope_loc=telescope_location,
     )
 
     app_ra_nto, app_dec_nto = uvutils.calc_app_coords(
-        ra, dec, time_array=obstime.utc.jd, telescope_loc=telescope_location
+        lon_coord=ra,
+        lat_coord=dec,
+        time_array=obstime.utc.jd,
+        telescope_loc=telescope_location,
     )
 
     assert np.allclose(app_ra_to, app_ra_nto)
