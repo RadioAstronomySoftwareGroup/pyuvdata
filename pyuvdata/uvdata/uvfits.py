@@ -223,20 +223,20 @@ class UVFITS(UVData):
         """
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
-            antenna_nums,
-            antenna_names,
-            ant_str,
-            bls,
-            frequencies,
-            freq_chans,
-            times,
-            time_range,
-            lsts,
-            lst_range,
-            polarizations,
-            blt_inds,
-            phase_center_ids,
-            catalog_names,
+            antenna_nums=antenna_nums,
+            antenna_names=antenna_names,
+            ant_str=ant_str,
+            bls=bls,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            polarizations=polarizations,
+            blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
         )
 
         if blt_inds is not None:
