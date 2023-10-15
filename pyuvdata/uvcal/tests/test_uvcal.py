@@ -3930,11 +3930,11 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     np.testing.assert_array_almost_equal(gain_arr, gain_arr2)
 
     # check has_key
-    assert uvc._has_key(antnum=10)
-    assert uvc._has_key(jpol="Jee")
-    assert uvc._has_key(antnum=10, jpol="Jee")
-    assert not uvc._has_key(antnum=10, jpol="Jnn")
-    assert not uvc._has_key(antnum=101, jpol="Jee")
+    assert uvc._key_exists(antnum=10)
+    assert uvc._key_exists(jpol="Jee")
+    assert uvc._key_exists(antnum=10, jpol="Jee")
+    assert not uvc._key_exists(antnum=10, jpol="Jnn")
+    assert not uvc._key_exists(antnum=101, jpol="Jee")
 
     # test exceptions
     pytest.raises(ValueError, uvc.get_gains, 1)
