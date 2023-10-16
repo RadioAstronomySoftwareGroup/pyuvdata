@@ -267,21 +267,35 @@ def test_no_moon():
     with pytest.raises(ValueError, match=msg):
         uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
     with pytest.raises(ValueError, match=msg):
-        uvutils.get_lst_for_time([2451545.0], 0, 0, 0, frame="mcmf")
+        uvutils.get_lst_for_time(
+            [2451545.0], latitude=0, longitude=0, altitude=0, frame="mcmf"
+        )
     with pytest.raises(ValueError, match=msg):
-        uvutils.ENU_from_ECEF(None, 0.0, 1.0, 10.0, frame="mcmf")
+        uvutils.ENU_from_ECEF(
+            None, latitude=0.0, longitude=1.0, altitude=10.0, frame="mcmf"
+        )
     with pytest.raises(ValueError, match=msg):
-        uvutils.ECEF_from_ENU(None, 0.0, 1.0, 10.0, frame="mcmf")
+        uvutils.ECEF_from_ENU(
+            None, latitude=0.0, longitude=1.0, altitude=10.0, frame="mcmf"
+        )
     with pytest.raises(ValueError, match=msg):
         uvutils.transform_icrs_to_app(
-            [2451545.0], 0, 0, (0, 0, 0), telescope_frame="mcmf"
+            time_array=[2451545.0],
+            ra=0,
+            dec=0,
+            telescope_loc=(0, 0, 0),
+            telescope_frame="mcmf",
         )
     with pytest.raises(ValueError, match=msg):
         uvutils.transform_app_to_icrs(
-            [2451545.0], 0, 0, (0, 0, 0), telescope_frame="mcmf"
+            time_array=[2451545.0],
+            app_ra=0,
+            app_dec=0,
+            telescope_loc=(0, 0, 0),
+            telescope_frame="mcmf",
         )
     with pytest.raises(ValueError, match=msg):
-        uvutils.calc_app_coords(0, 0, telescope_frame="mcmf")
+        uvutils.calc_app_coords(lon_coord=0.0, lat_coord=0.0, telescope_frame="mcmf")
 
 
 def test_lla_xyz_lla_roundtrip():
