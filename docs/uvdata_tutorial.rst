@@ -146,14 +146,17 @@ When reading FHD format, we need to point to several files for each observation.
 
   >>> # Construct the list of files
   >>> fhd_prefix = os.path.join(DATA_PATH, 'fhd_vis_data/1061316296_')
-  >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
-  ...                                       'vis_YY.sav', 'vis_model_XX.sav',
-  ...                                       'vis_model_YY.sav', 'settings.txt',
-  ...                                       'layout.sav']]
+  >>> fhd_vis_files = [fhd_prefix + f for f in ['vis_XX.sav', 'vis_YY.sav']]
 
-  # Use the `read` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(fhd_files, use_future_array_shapes=True)
-  >>> uvd = UVData.from_file(fhd_files, file_type='fhd', use_future_array_shapes=True)
+  # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd = UVData.from_file(
+  ...    fhd_vis_files,
+  ...    params_file=fhd_prefix + 'params.sav',
+  ...    flag_file=fhd_prefix + 'flags.sav',
+  ...    layout_file=fhd_prefix + 'layout.sav',
+  ...    settings_file=fhd_prefix + 'settings.txt',
+  ...    use_future_array_shapes=True
+  ... )
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> uvd.write_uvfits(write_file)
 
@@ -169,11 +172,17 @@ d) FHD -> miriad
 
   >>> # Construct the list of files
   >>> fhd_prefix = os.path.join(DATA_PATH, 'fhd_vis_data/1061316296_')
-  >>> fhd_files = [fhd_prefix + f for f in ['flags.sav', 'vis_XX.sav', 'params.sav',
-  ...                                       'vis_YY.sav', 'vis_model_XX.sav',
-  ...                                       'vis_model_YY.sav', 'settings.txt',
-  ...                                       'layout.sav']]
-  >>> uvd = UVData.from_file(fhd_files, use_future_array_shapes=True)
+  >>> fhd_vis_files = [fhd_prefix + f for f in ['vis_XX.sav', 'vis_YY.sav']]
+
+  # Use the `read` or `from_file` method, optionally specify the file type.
+  >>> uvd = UVData.from_file(
+  ...    fhd_vis_files,
+  ...    params_file=fhd_prefix + 'params.sav',
+  ...    flag_file=fhd_prefix + 'flags.sav',
+  ...    layout_file=fhd_prefix + 'layout.sav',
+  ...    settings_file=fhd_prefix + 'settings.txt',
+  ...    use_future_array_shapes=True
+  ... )
   >>> write_file = os.path.join('.','tutorial.uv')
   >>> if os.path.exists(write_file):
   ...    shutil.rmtree(write_file)
