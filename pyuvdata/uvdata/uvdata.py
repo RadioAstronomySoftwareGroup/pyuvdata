@@ -10629,20 +10629,25 @@ class UVData(UVBase):
                         setattr(other_obj, attr, attr_val)
         return other_obj
 
-    def read_fhd(self, filelist, **kwargs):
+    def read_fhd(self, vis_files, *, params_file, **kwargs):
         """
         Read in data from a list of FHD files.
 
         Parameters
         ----------
-        filelist : array_like of str
-            The list/array of FHD save files to read from. Must include at
-            least one polarization file, a params file, a layout file and a flag file.
-            An obs file is also required if `read_data` is False.
-        use_model : bool
-            Option to read in the model visibilities rather than the dirty
-            visibilities (the default is False, meaning the dirty visibilities
-            will be read).
+        vis_files : array_like of str
+            The FHD data (or model) visibility save files. Can be None if `read_data` is
+            False.
+        params_file : str
+            The FHD params save file. Required.
+        obs_file : str
+            The FHD obs save file. Required if `read_data` is False.
+        flag_file : str
+            The FHD data (or model) flag save file. Required if `read_data` is True.
+        layout_file : str
+            The FHD layout save file. Required for correct antenna metadata.
+        settings_file : str
+            The FHD settings text file. Required for full history information.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         read_data : bool
@@ -10695,7 +10700,9 @@ class UVData(UVBase):
         """
         from . import fhd
 
-        if isinstance(filelist[0], (list, tuple, np.ndarray)):
+        if isinstance(vis_files, (list, tuple, np.ndarray)) and isinstance(
+            vis_files[0], (list, tuple, np.ndarray)
+        ):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -10703,7 +10710,7 @@ class UVData(UVBase):
             )
 
         fhd_obj = fhd.FHD()
-        fhd_obj.read_fhd(filelist, **kwargs)
+        fhd_obj.read_fhd(vis_files, params_file=params_file, **kwargs)
         self._convert_from_filetype(fhd_obj)
         del fhd_obj
 
@@ -11581,7 +11588,11 @@ class UVData(UVBase):
         fix_old_proj=None,
         fix_use_ant_pos=True,
         # FHD
-        use_model=False,
+        params_file=None,
+        obs_file=None,
+        flag_file=None,
+        layout_file=None,
+        settings_file=None,
         # MS
         data_column="DATA",
         pol_order="AIPS",
@@ -11642,7 +11653,7 @@ class UVData(UVBase):
         Parameters
         ----------
         filename : str or array_like of str
-            The file(s) or list(s) (or array(s)) of files to read from.
+            The file(s) or list(s) (or array(s)) of data files to read from.
         file_type : str
             One of ['uvfits', 'miriad', 'ms', 'uvh5', 'fhd', 'mwa_corr_fits', 'mir']
             or None. If None, the code attempts to guess what the file type is.
@@ -11835,10 +11846,16 @@ class UVData(UVBase):
 
         FHD
         ---
-        use_model : bool
-            Option to read in the model visibilities rather than the dirty
-            visibilities (the default is False, meaning the dirty visibilities
-            will be read).
+        params_file : str
+            The FHD params save file. Required.
+        obs_file : str
+            The FHD obs save file. Required if `read_data` is False.
+        flag_file : str
+            The FHD data (or model) flag save file. Required if `read_data` is True.
+        layout_file : str
+            The FHD layout save file. Required for correct antenna metadata.
+        settings_file : str
+            The FHD settings text file. Required for full history information.
 
         MS
         --
@@ -12128,12 +12145,16 @@ class UVData(UVBase):
                     file_type = "uvfits"
                 elif extension == ".uvh5":
                     file_type = "uvh5"
+                elif extension == ".sav":
+                    file_type = "fhd"
 
         if file_type is None:
             raise ValueError(
                 "File type could not be determined, use the "
                 "file_type keyword to specify the type."
             )
+        if file_type == "fhd" and params_file is None:
+            raise ValueError("The params_file must be passed for FHD files.")
 
         if time_range is not None:
             if times is not None:
@@ -12149,6 +12170,78 @@ class UVData(UVBase):
             file_warnings = ""
             unread = True
             f = filename[file_num]
+            params_file_use = None
+            obs_file_use = None
+            flag_file_use = None
+            layout_file_use = None
+            settings_file_use = None
+            if file_type == "fhd":
+                n_files = len(filename)
+                if (
+                    not isinstance(params_file, (list, tuple, np.ndarray))
+                    or len(params_file) != n_files
+                ):
+                    raise ValueError(
+                        "For multiple FHD files, the number of params_file values must "
+                        "match the number of data file sets."
+                    )
+                if obs_file is not None:
+                    if (
+                        not isinstance(obs_file, (list, tuple, np.ndarray))
+                        or len(obs_file) != n_files
+                    ):
+                        raise ValueError(
+                            "For multiple FHD files, if obs_file is passed, the number "
+                            "of obs_file values must match the number of data file "
+                            "sets."
+                        )
+                else:
+                    obs_file = [None] * n_files
+                if flag_file is not None:
+                    if (
+                        not isinstance(flag_file, (list, tuple, np.ndarray))
+                        or len(flag_file) != n_files
+                    ):
+                        raise ValueError(
+                            "For multiple FHD files, if flag_file is passed, the "
+                            "number of flag_file values must match the number of data "
+                            "file sets."
+                        )
+                else:
+                    flag_file = [None] * n_files
+
+                if layout_file is not None:
+                    if (
+                        not isinstance(layout_file, (list, tuple, np.ndarray))
+                        or len(layout_file) != n_files
+                    ):
+                        raise ValueError(
+                            "For multiple FHD files, if layout_file is passed, the "
+                            "number of layout_file values must match the number of "
+                            "data file sets."
+                        )
+                else:
+                    layout_file = [None] * n_files
+
+                if settings_file is not None:
+                    if (
+                        not isinstance(settings_file, (list, tuple, np.ndarray))
+                        or len(settings_file) != n_files
+                    ):
+                        raise ValueError(
+                            "For multiple FHD files, if settings_file is passed, the "
+                            "number of settings_file values must match the number of "
+                            "data file sets."
+                        )
+                else:
+                    settings_file = [None] * n_files
+
+                params_file_use = params_file[file_num]
+                obs_file_use = obs_file[file_num]
+                flag_file_use = flag_file[file_num]
+                layout_file_use = layout_file[file_num]
+                settings_file_use = settings_file[file_num]
+
             while unread and file_num < len(filename):
                 try:
                     self.read(
@@ -12191,7 +12284,11 @@ class UVData(UVBase):
                         correct_lat_lon=correct_lat_lon,
                         calc_lst=calc_lst,
                         # FHD
-                        use_model=use_model,
+                        params_file=params_file_use,
+                        obs_file=obs_file_use,
+                        flag_file=flag_file_use,
+                        layout_file=layout_file_use,
+                        settings_file=settings_file_use,
                         # MS
                         data_column=data_column,
                         pol_order=pol_order,
@@ -12274,6 +12371,13 @@ class UVData(UVBase):
             uv_list = []
             if len(filename) > file_num + 1:
                 for f in filename[file_num + 1 :]:
+                    if file_type == "fhd":
+                        params_file_use = params_file[file_num]
+                        obs_file_use = obs_file[file_num]
+                        flag_file_use = flag_file[file_num]
+                        layout_file_use = layout_file[file_num]
+                        settings_file_use = settings_file[file_num]
+
                     uv2 = UVData()
                     try:
                         uv2.read(
@@ -12318,7 +12422,11 @@ class UVData(UVBase):
                             correct_lat_lon=correct_lat_lon,
                             calc_lst=calc_lst,
                             # FHD
-                            use_model=use_model,
+                            params_file=params_file_use,
+                            obs_file=obs_file_use,
+                            flag_file=flag_file_use,
+                            layout_file=layout_file_use,
+                            settings_file=settings_file_use,
                             # MS
                             data_column=data_column,
                             pol_order=pol_order,
@@ -12684,8 +12792,12 @@ class UVData(UVBase):
 
             elif file_type == "fhd":
                 self.read_fhd(
-                    filename,
-                    use_model=use_model,
+                    vis_files=filename,
+                    params_file=params_file,
+                    obs_file=obs_file,
+                    flag_file=flag_file,
+                    layout_file=layout_file,
+                    settings_file=settings_file,
                     background_lsts=background_lsts,
                     read_data=read_data,
                     run_check=run_check,
