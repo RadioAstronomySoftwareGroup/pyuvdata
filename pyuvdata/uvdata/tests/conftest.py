@@ -11,6 +11,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.mir_parser import MirParser
+from pyuvdata.uvdata.tests.test_fhd import get_fhd_files
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -137,6 +138,29 @@ def mir_data(mir_data_main):
     mir_data = mir_data_main.copy()
 
     yield mir_data
+
+
+@pytest.fixture(scope="function")
+def fhd_test_files():
+    # set up FHD files
+    testdir = os.path.join(DATA_PATH, "fhd_vis_data/")
+    tf_prefix = "1061316296_"
+    tf_suffix = [
+        "flags.sav",
+        "vis_XX.sav",
+        "params.sav",
+        "vis_YY.sav",
+        "vis_model_XX.sav",
+        "vis_model_YY.sav",
+        "layout.sav",
+        "settings.txt",
+        "obs.sav",
+    ]
+    testfiles = []
+    for s in tf_suffix:
+        testfiles.append(testdir + tf_prefix + s)
+
+    return get_fhd_files(testfiles)
 
 
 @pytest.fixture(scope="session")
