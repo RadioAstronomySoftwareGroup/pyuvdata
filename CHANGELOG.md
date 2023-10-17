@@ -8,6 +8,11 @@ All notable changes to this project will be documented in this file.
 time for each time range or the time_array (if there's a time_array and no time_range).
 
 ### Changed
+- Changed the way files are passed for reading FHD files. Rather than one list including
+all the types of files, each file type (e.g. params, obs, layout) must be passed to
+their own parameter. This makes the API for reading FHD data files more similar to the
+API for reading FHD cal files. Also removed the `use_model` parameter because it is no
+longer needed (only data or model files should be passed as visibility files).
 - Require keyword arguments rather than allowing for passing arguments by position for
 functions and methods with many parameters.
 - Only one of `time_array` and `time_range` (and similarly `lst_array` and `lst_range`)
