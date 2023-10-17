@@ -725,6 +725,41 @@ def test_multi_files(fhd_model, axis, fhd_test_files):
     assert fhd_uv1 == fhd_uv2
 
 
+@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
+@pytest.mark.parametrize("ftype_err", ["params", "obs", "flag", "layout", "settings"])
+def test_multi_files_errors(fhd_model, fhd_test_files, ftype_err):
+    fhd_uv1 = UVData()
+
+    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+    test1 = [tf_model[0]]
+    test2 = [tf_model[1]]
+
+    n_files_per_type = np.zeros(5, dtype="int") + 2
+    ftype_ind_dict = {"params": 0, "flag": 1, "obs": 2, "layout": 3, "settings": 4}
+    n_files_per_type[ftype_ind_dict[ftype_err]] = 3
+
+    msg = "For multiple FHD files, "
+    if ftype_err == "params":
+        msg += "the number of params_file"
+    else:
+        ftype_name = ftype_err + "_file"
+        msg += "if " + ftype_name + " is passed, the number of " + ftype_name
+
+    msg += " values must match the number of data file sets."
+    with pytest.raises(ValueError, match=msg):
+        fhd_uv1.read(
+            np.array([test1, test2]),
+            params_file=[tf_params] * n_files_per_type[0],
+            flag_file=[tf_flag] * n_files_per_type[1],
+            obs_file=[tf_obs] * n_files_per_type[2],
+            layout_file=[tf_layout] * n_files_per_type[3],
+            settings_file=[tf_stngs] * n_files_per_type[4],
+            file_type="fhd",
+            axis="polarization",
+            use_future_array_shapes=True,
+        )
+
+
 def test_single_time():
     """
     test reading in a file with a single time.
