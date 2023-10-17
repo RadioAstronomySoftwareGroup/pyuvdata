@@ -22,7 +22,6 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
-from pyuvdata.uvdata.tests.test_fhd import testfiles as fhd_files
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning, old_phase_attrs
 
@@ -9869,17 +9868,24 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
                 os.path.join(DATA_PATH, "multi_2.ms"),
             ],
         ),
-        (
-            "read_fhd",
-            [
-                list(np.array(fhd_files)[[0, 1, 2, 4, 6, 7]]),
-                list(np.array(fhd_files)[[0, 2, 3, 5, 6, 7]]),
-            ],
-        ),
+        ("read_fhd", []),
     ],
 )
-def test_multifile_read_errors(read_func, filelist):
+def test_multifile_read_errors(read_func, filelist, fhd_test_files):
     uv = UVData()
+    kwargs = {}
+    if "fhd" in read_func:
+        (tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs) = (
+            fhd_test_files
+        )
+        filelist = [[tf_data[0]], [tf_data[1]]]
+        kwargs = {
+            "params_file": tf_params,
+            "obs_file": tf_obs,
+            "flag_file": tf_flag,
+            "layout_file": tf_layout,
+            "settings_file": tf_stngs,
+        }
     with pytest.raises(
         ValueError,
         match=(
@@ -9887,7 +9893,7 @@ def test_multifile_read_errors(read_func, filelist):
             "longer supported."
         ),
     ):
-        getattr(uv, read_func)(filelist)
+        getattr(uv, read_func)(filelist, **kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -12124,17 +12130,29 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
             ),
         ],
         [
-            fhd_files,
-            (
-                "Telescope location derived from obs lat/lon/alt values does not match"
-                " the location in the layout file."
-            ),
+            "fhd",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file.",
         ],
     ],
 )
-def test_from_file(filename, msg):
+def test_from_file(filename, msg, fhd_test_files):
+    kwargs = {}
     if "miriad" in filename:
         pytest.importorskip("pyuvdata._miriad")
+    elif "fhd" in filename:
+        (tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs) = (
+            fhd_test_files
+        )
+        filename = tf_data
+        kwargs = {
+            "params_file": tf_params,
+            "obs_file": tf_obs,
+            "flag_file": tf_flag,
+            "layout_file": tf_layout,
+            "settings_file": tf_stngs,
+        }
+
     if isinstance(filename, str):
         testfile = os.path.join(DATA_PATH, filename)
     else:
@@ -12147,9 +12165,9 @@ def test_from_file(filename, msg):
         warn = UserWarning
 
     with uvtest.check_warnings(warn, match=msg):
-        uvd.read(testfile, use_future_array_shapes=True)
+        uvd.read(testfile, use_future_array_shapes=True, **kwargs)
     with uvtest.check_warnings(warn, match=msg):
-        uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
+        uvd2 = UVData.from_file(testfile, use_future_array_shapes=True, **kwargs)
     assert uvd == uvd2
 
 
