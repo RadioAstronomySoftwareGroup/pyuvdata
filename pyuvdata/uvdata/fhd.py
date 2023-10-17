@@ -317,8 +317,13 @@ class FHD(UVData):
     @copy_replace_short_description(UVData.read_fhd, style=DocstringStyle.NUMPYDOC)
     def read_fhd(
         self,
-        filelist,
-        use_model=False,
+        vis_files: list[str] | np.ndarray | str,
+        *,
+        params_file: str,
+        obs_file: str | None = None,
+        flag_file: str | None = None,
+        layout_file: str | None = None,
+        settings_file: str | None = None,
         background_lsts=True,
         read_data=True,
         run_check=True,
@@ -331,83 +336,80 @@ class FHD(UVData):
         astrometry_library=None,
     ):
         """Read in data from a list of FHD files."""
-        datafiles = {}
-        params_file = None
-        obs_file = None
-        flags_file = None
-        layout_file = None
-        settings_file = None
-        if use_model:
-            data_name = "_vis_model_"
-        else:
-            data_name = "_vis_"
-        for filename in filelist:
-            # update filelist
+        datafiles_dict = {}
+        use_model = None
+        if isinstance(vis_files, str):
+            vis_files = [vis_files]
+        for filename in vis_files:
+            if filename is None:
+                continue
+            if filename.lower().endswith("xx.sav"):
+                if "xx" in list(datafiles_dict.keys()):
+                    raise ValueError("multiple xx datafiles in vis_files")
+                datafiles_dict["xx"] = filename
+            elif filename.lower().endswith("yy.sav"):
+                if "yy" in list(datafiles_dict.keys()):
+                    raise ValueError("multiple yy datafiles in vis_files")
+                datafiles_dict["yy"] = filename
+            elif filename.lower().endswith("xy.sav"):
+                if "xy" in list(datafiles_dict.keys()):
+                    raise ValueError("multiple xy datafiles in vis_files")
+                datafiles_dict["xy"] = filename
+            elif filename.lower().endswith("yx.sav"):
+                if "yx" in list(datafiles_dict.keys()):
+                    raise ValueError("multiple yx datafiles in vis_files")
+                datafiles_dict["yx"] = filename
+            else:
+                raise ValueError("unrecognized file in vis_files")
+
             basename = os.path.basename(filename)
             self.filename = uvutils._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
-            if filename.lower().endswith(data_name + "xx.sav"):
-                if "xx" in list(datafiles.keys()):
-                    raise ValueError("multiple xx datafiles in filelist")
-                datafiles["xx"] = filename
-            elif filename.lower().endswith(data_name + "yy.sav"):
-                if "yy" in list(datafiles.keys()):
-                    raise ValueError("multiple yy datafiles in filelist")
-                datafiles["yy"] = filename
-            elif filename.lower().endswith(data_name + "xy.sav"):
-                if "xy" in list(datafiles.keys()):
-                    raise ValueError("multiple xy datafiles in filelist")
-                datafiles["xy"] = filename
-            elif filename.lower().endswith(data_name + "yx.sav"):
-                if "yx" in list(datafiles.keys()):
-                    raise ValueError("multiple yx datafiles in filelist")
-                datafiles["yx"] = filename
-            elif filename.lower().endswith("_params.sav"):
-                if params_file is not None:
-                    raise ValueError("multiple params files in filelist")
-                params_file = filename
-            elif filename.lower().endswith("_obs.sav"):
-                if obs_file is not None:
-                    raise ValueError("multiple obs files in filelist")
-                obs_file = filename
-            elif filename.lower().endswith("_flags.sav"):
-                if flags_file is not None:
-                    raise ValueError("multiple flags files in filelist")
-                flags_file = filename
-            elif filename.lower().endswith("_layout.sav"):
-                if layout_file is not None:
-                    raise ValueError("multiple layout files in filelist")
-                layout_file = filename
-            elif filename.lower().endswith("_settings.txt"):
-                if settings_file is not None:
-                    raise ValueError("multiple settings files in filelist")
-                settings_file = filename
-            else:
-                # this is reached in tests but marked as uncovered because
-                # CPython's peephole optimizer replaces a jump to a continue
-                # with a jump to the top of the loop
-                continue  # pragma: no cover
 
-        if len(datafiles) < 1 and read_data is True:
+            if "_vis_model_" in filename:
+                this_model = True
+            else:
+                this_model = False
+
+            if use_model is None:
+                use_model = this_model
+            elif this_model != use_model:
+                raise ValueError(
+                    "The vis_files parameter has a mix of model and in data files."
+                )
+
+        if len(datafiles_dict) < 1 and read_data is True:
             raise ValueError(
-                "No data files included in file list and read_data is True."
+                "The vis_files parameter must be passed if read_data is True"
             )
+        if flag_file is None and read_data is True:
+            raise ValueError(
+                "The flag_file parameter must be passed if read_data is True"
+            )
+
         if obs_file is None and read_data is False:
             raise ValueError(
-                "No obs file included in file list and read_data is False."
+                "The obs_file parameter must be passed if read_data is False."
             )
-        if params_file is None:
-            raise ValueError("No params file included in file list")
-        if flags_file is None:
-            raise ValueError("No flags file included in file list")
+
         if layout_file is None:
             warnings.warn(
-                "No layout file included in file list, "
-                "antenna_postions will not be defined "
-                "and antenna names and numbers might be incorrect."
+                "The layout_file parameter was not passed, so antenna_postions will "
+                "not be defined and antenna names and numbers might be incorrect."
             )
+
         if settings_file is None:
-            warnings.warn("No settings file included in file list")
+            warnings.warn(
+                "The settings_file parameter was not passed, so some history "
+                "information will be missing."
+            )
+
+        for fname in [params_file, obs_file, flag_file, layout_file, settings_file]:
+            if fname is None:
+                continue
+            basename = os.path.basename(fname)
+            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self._filename.form = (len(self.filename),)
 
         if not read_data:
             obs_dict = readsav(obs_file, python_dict=True)
@@ -417,7 +419,7 @@ class FHD(UVData):
             # TODO: add checking to make sure params, flags and datafiles are
             # consistent with each other
             vis_data = {}
-            for pol, file in datafiles.items():
+            for pol, file in datafiles_dict.items():
                 this_dict = readsav(file, python_dict=True)
                 if use_model:
                     vis_data[pol] = this_dict["vis_model_ptr"]
@@ -437,7 +439,7 @@ class FHD(UVData):
         params = params_dict["params"]
 
         if read_data:
-            flag_file_dict = readsav(flags_file, python_dict=True)
+            flag_file_dict = readsav(flag_file, python_dict=True)
             # The name for this variable changed recently (July 2016). Test for both.
             vis_weights_data = {}
             if "flag_arr" in flag_file_dict:
@@ -446,7 +448,7 @@ class FHD(UVData):
                 weights_key = "vis_weights"
             else:
                 raise ValueError(
-                    "No recognized key for visibility weights in flags_file."
+                    "No recognized key for visibility weights in flag_file."
                 )
             for index, w in enumerate(flag_file_dict[weights_key]):
                 vis_weights_data[fhd_pol_list[index]] = w
