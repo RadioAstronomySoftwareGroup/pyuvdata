@@ -3,6 +3,8 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading FHD save files."""
+from __future__ import annotations
+
 import os
 import warnings
 
