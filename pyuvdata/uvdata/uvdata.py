@@ -12093,7 +12093,7 @@ class UVData(UVBase):
                 if file_type is None:
                     # this must be a list of lists of FHD or MWA correlator FITS
                     _, extension = os.path.splitext(filename[0][0])
-                    if extension == ".sav" or extension == ".txt":
+                    if extension in [".sav", ".txt"]:
                         file_type = "fhd"
                     elif (
                         extension == ".fits"
@@ -12105,7 +12105,7 @@ class UVData(UVBase):
             else:
                 if file_type is None:
                     _, extension = os.path.splitext(filename[0])
-                    if extension == ".sav" or extension == ".txt":
+                    if extension in [".sav", ".txt"]:
                         file_type = "fhd"
                     elif (
                         extension == ".fits"
@@ -12197,6 +12197,7 @@ class UVData(UVBase):
                         )
                 else:
                     obs_file = [None] * n_files
+
                 if flag_file is not None:
                     if (
                         not isinstance(flag_file, (list, tuple, np.ndarray))

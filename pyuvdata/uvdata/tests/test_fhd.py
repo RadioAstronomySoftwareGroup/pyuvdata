@@ -152,9 +152,18 @@ def test_read_fhd_metadata_only(fhd_data, fhd_test_files):
     assert fhd_uv == fhd_uv3
 
 
-def test_read_fhd_metadata_only_error(fhd_test_files):
+@pytest.mark.parametrize("multi", [True, False])
+def test_read_fhd_metadata_only_error(fhd_test_files, multi):
     fhd_uv = UVData()
     tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
+    if multi:
+        tf_data = [[tf_data[0]], [tf_data[1]]]
+        tf_params = [tf_params] * 2
+        tf_flag = [tf_flag] * 2
+        tf_layout = [tf_layout] * 2
+        tf_stngs = [tf_stngs] * 2
+
     with pytest.raises(
         ValueError, match="The obs_file parameter must be passed if read_data is False."
     ):
@@ -221,28 +230,37 @@ def test_read_fhd_select(fhd_test_files):
     assert fhd_uv == fhd_uv2
 
 
-def test_read_fhd_write_read_uvfits_no_layout(fhd_test_files):
+@pytest.mark.parametrize("multi", [True, False])
+def test_read_fhd_write_read_uvfits_no_layout(fhd_test_files, multi):
     """
     Test errors/warnings with with no layout file.
     """
     fhd_uv = UVData()
     tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
 
-    # check warning raised
-    with uvtest.check_warnings(
-        UserWarning,
-        match="The layout_file parameter was not passed, so antenna_postions will not "
-        "be defined and antenna names and numbers might be incorrect.",
-    ):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            settings_file=tf_stngs,
-            run_check=False,
-            use_future_array_shapes=True,
-        )
+    if multi:
+        tf_data = [[tf_data[0]], [tf_data[1]]]
+        tf_params = [tf_params] * 2
+        tf_obs = [tf_obs] * 2
+        tf_flag = [tf_flag] * 2
+        tf_stngs = [tf_stngs] * 2
+
+    if not multi:
+        # check warning raised
+        with uvtest.check_warnings(
+            UserWarning,
+            match="The layout_file parameter was not passed, so antenna_postions will "
+            "not be defined and antenna names and numbers might be incorrect.",
+        ):
+            fhd_uv.read(
+                tf_data,
+                params_file=tf_params,
+                obs_file=tf_obs,
+                flag_file=tf_flag,
+                settings_file=tf_stngs,
+                run_check=False,
+                use_future_array_shapes=True,
+            )
 
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set"
@@ -485,7 +503,8 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_test_files):
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files):
+@pytest.mark.parametrize("multi", [True, False])
+def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files, multi):
     """
     FHD to uvfits loopback test with no settings file.
 
@@ -501,6 +520,15 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files):
         "location in the layout file. Using the value from known_telescopes.",
     ]
     tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
+    if multi:
+        messages *= 2
+        tf_data = [[tf_data[0]], [tf_data[1]]]
+        tf_params = [tf_params] * 2
+        tf_obs = [tf_obs] * 2
+        tf_flag = [tf_flag] * 2
+        tf_layout = [tf_layout] * 2
+
     with uvtest.check_warnings(UserWarning, messages):
         fhd_uv.read(
             tf_data,
@@ -511,8 +539,9 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files):
             use_future_array_shapes=True,
         )
 
-    # Check only pyuvdata history with no settings file
-    assert fhd_uv.history == fhd_uv.pyuvdata_version_str
+    if not multi:
+        # Check only pyuvdata history with no settings file
+        assert fhd_uv.history == fhd_uv.pyuvdata_version_str
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
@@ -538,6 +567,18 @@ def test_break_read_fhd(fhd_test_files):
             obs_file=tf_obs,
             layout_file=tf_layout,
             settings_file=tf_stngs,
+            use_future_array_shapes=True,
+        )
+
+    with pytest.raises(
+        ValueError, match="The flag_file parameter must be passed if read_data is True"
+    ):
+        fhd_uv.read(
+            [[tf_data[0]], [tf_data[1]]],
+            params_file=[tf_params] * 2,
+            obs_file=[tf_obs] * 2,
+            layout_file=[tf_layout] * 2,
+            settings_file=[tf_stngs] * 2,
             use_future_array_shapes=True,
         )
 
