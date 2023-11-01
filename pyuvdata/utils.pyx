@@ -36,8 +36,10 @@ e_squared = _e2
 e_prime_squared = _ep2
 
 ctypedef fused int_or_float:
+    numpy.uint64_t
     numpy.int64_t
     numpy.int32_t
+    numpy.uint32_t
     numpy.float64_t
     numpy.float32_t
 
@@ -68,8 +70,8 @@ cdef int_or_float arraymax(int_or_float[::1] array) nogil:
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _bl_to_ant_256(
-    numpy.int64_t[::1] _bl,
-    numpy.int64_t[:, ::1] _ants,
+    numpy.uint64_t[::1] _bl,
+    numpy.uint64_t[:, ::1] _ants,
     long nbls,
 ):
   cdef Py_ssize_t i
@@ -82,8 +84,8 @@ cdef inline void _bl_to_ant_256(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _bl_to_ant_2048(
-    numpy.int64_t[::1] _bl,
-    numpy.int64_t[:, ::1] _ants,
+    numpy.uint64_t[::1] _bl,
+    numpy.uint64_t[:, ::1] _ants,
     int nbls
 ):
   cdef Py_ssize_t i
@@ -95,8 +97,8 @@ cdef inline void _bl_to_ant_2048(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _bl_to_ant_2147483648(
-    numpy.int64_t[::1] _bl,
-    numpy.int64_t[:, ::1] _ants,
+    numpy.uint64_t[::1] _bl,
+    numpy.uint64_t[:, ::1] _ants,
     int nbls
 ):
   cdef Py_ssize_t i
@@ -108,17 +110,15 @@ cdef inline void _bl_to_ant_2147483648(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
-    numpy.int64_t[::1] _bl
+cpdef numpy.ndarray[dtype=numpy.uint64_t, ndim=2] baseline_to_antnums(
+    numpy.uint64_t[::1] _bl
 ):
-  cdef numpy.int64_t _min = arraymin(_bl)
-  cdef bint use2147483648 = _min >= (2 ** 16 + 2 ** 22)
-  cdef bint use2048 = _min >= 2 ** 16
+  cdef numpy.uint64_t _min = arraymin(_bl)
   cdef long nbls = _bl.shape[0]
   cdef int ndim = 2
   cdef numpy.npy_intp * dims = [2, <numpy.npy_intp> nbls]
-  cdef numpy.ndarray[ndim=2, dtype=numpy.int64_t] ants = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
-  cdef numpy.int64_t[:, ::1] _ants = ants
+  cdef numpy.ndarray[ndim=2, dtype=numpy.uint64_t] ants = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_UINT64, 0)
+  cdef numpy.uint64_t[:, ::1] _ants = ants
 
   if use2147483648:
     _bl_to_ant_2147483648(_bl, _ants, nbls)
@@ -131,9 +131,9 @@ cpdef numpy.ndarray[dtype=numpy.int64_t, ndim=2] baseline_to_antnums(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_2147483648(
-  numpy.int64_t[::1] ant1,
-  numpy.int64_t[::1] ant2,
-  numpy.int64_t[::1] baselines,
+  numpy.uint64_t[::1] ant1,
+  numpy.uint64_t[::1] ant2,
+  numpy.uint64_t[::1] baselines,
   int nbls,
 ):
   cdef Py_ssize_t i
@@ -146,9 +146,9 @@ cdef inline void _antnum_to_bl_2147483648(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_2048(
-  numpy.int64_t[::1] ant1,
-  numpy.int64_t[::1] ant2,
-  numpy.int64_t[::1] baselines,
+  numpy.uint64_t[::1] ant1,
+  numpy.uint64_t[::1] ant2,
+  numpy.uint64_t[::1] baselines,
   int nbls,
 ):
   cdef Py_ssize_t i
@@ -160,9 +160,9 @@ cdef inline void _antnum_to_bl_2048(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_256(
-  numpy.int64_t[::1] ant1,
-  numpy.int64_t[::1] ant2,
-  numpy.int64_t[::1] baselines,
+  numpy.uint64_t[::1] ant1,
+  numpy.uint64_t[::1] ant2,
+  numpy.uint64_t[::1] baselines,
   int nbls,
 ):
   cdef Py_ssize_t i
@@ -172,17 +172,17 @@ cdef inline void _antnum_to_bl_256(
     baselines[i] = 256 * (ant1[i]) + (ant2[i])
   return
 
-cpdef numpy.ndarray[dtype=numpy.int64_t] antnums_to_baseline(
-  numpy.int64_t[::1] ant1,
-  numpy.int64_t[::1] ant2,
+cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
+  numpy.uint64_t[::1] ant1,
+  numpy.uint64_t[::1] ant2,
   bint attempt256=False,
   bint nants_less2048=True
 ):
   cdef int ndim = 1
   cdef int nbls = ant1.shape[0]
   cdef numpy.npy_intp * dims = [<numpy.npy_intp>nbls]
-  cdef numpy.ndarray[ndim=1, dtype=numpy.int64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_INT64, 0)
-  cdef numpy.int64_t[::1] _bl = baseline
+  cdef numpy.ndarray[ndim=1, dtype=numpy.uint64_t] baseline = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_UINT64, 0)
+  cdef numpy.uint64_t[::1] _bl = baseline
   cdef bint less255
   cdef bint ants_less2048
   # to ensure baseline numbers are unambiguous,
