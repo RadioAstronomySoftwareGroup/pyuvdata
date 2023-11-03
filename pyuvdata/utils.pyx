@@ -94,6 +94,11 @@ cdef inline void _bl_to_ant_2048(
     _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i])) // 2048
   return
 
+# defining these constants helps cython not cast the large
+# numbers as python ints
+cdef numpy.uint64_t bl_large = 2 ** 16 + 2 ** 22
+cdef numpy.uint64_t large_mod = 2147483648
+
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _bl_to_ant_2147483648(
@@ -103,8 +108,8 @@ cdef inline void _bl_to_ant_2147483648(
 ):
   cdef Py_ssize_t i
   for i in range(nbls):
-    _ants[1, i] = (_bl[i] - 2 ** 16 - 2 ** 22) % 2147483648
-    _ants[0, i] = (_bl[i] - 2 ** 16 - 2 ** 22 - (_ants[1, i])) // 2147483648
+    _ants[1, i] = (_bl[i] - bl_large) % large_mod
+    _ants[0, i] = (_bl[i] - bl_large - (_ants[1, i])) // large_mod
   return
 
 
@@ -139,7 +144,7 @@ cdef inline void _antnum_to_bl_2147483648(
   cdef Py_ssize_t i
 
   for i in range(nbls):
-    baselines[i] = 2147483648 * (ant1[i]) + (ant2[i]) + 2 ** 16 + 2 ** 22
+    baselines[i] = large_mod * (ant1[i]) + (ant2[i]) + bl_large
   return
 
 
