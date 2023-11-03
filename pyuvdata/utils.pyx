@@ -120,9 +120,9 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t, ndim=2] baseline_to_antnums(
   cdef numpy.ndarray[ndim=2, dtype=numpy.uint64_t] ants = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_UINT64, 0)
   cdef numpy.uint64_t[:, ::1] _ants = ants
 
-  if use2147483648:
+  if  _min >= (2 ** 16 + 2 ** 22):
     _bl_to_ant_2147483648(_bl, _ants, nbls)
-  elif use2048:
+  elif _min >= 2 ** 16:
     _bl_to_ant_2048(_bl, _ants, nbls)
   else:
     _bl_to_ant_256(_bl, _ants,  nbls)
