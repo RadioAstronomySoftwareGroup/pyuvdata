@@ -934,7 +934,7 @@ class UVH5(UVData):
                 latitude=lat,
                 longitude=lon,
                 altitude=alt,
-                lst_tols=(0, uvutils.RADIAN_TOL),
+                lst_tols=(0, uvutils.LST_RAD_TOL),
                 frame=self._telescope_location.frame,
             )
 

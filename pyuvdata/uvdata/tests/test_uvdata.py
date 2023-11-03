@@ -5514,8 +5514,13 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     uv.read(fname, run_check=False, use_future_array_shapes=True)
 
     # try to read without checks: assert it fails
-    with pytest.raises(
-        ValueError, match="UVParameter _telescope_location has unacceptable values."
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected",
+            "itrs antenna position vector magnitudes must be on the order "
+            "of the radius of Earth -- they appear to lie well below this.",
+        ],
     ):
         uv.read(fname, use_future_array_shapes=True)
 

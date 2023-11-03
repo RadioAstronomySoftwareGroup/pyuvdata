@@ -3990,13 +3990,7 @@ def test_init_from_uvdata(
     # of precision in the processing pipeline.
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
-    with uvtest.check_warnings(
-        UserWarning,
-        match="The lst_array is not self-consistent with the time_array and "
-        "telescope location. Consider recomputing with the "
-        "`set_lsts_from_time_array` method.",
-    ):
-        uvc_new.check()
+    uvc_new.check()
 
     uvc_new.set_lsts_from_time_array()
 

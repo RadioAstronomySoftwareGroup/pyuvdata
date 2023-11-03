@@ -895,8 +895,6 @@ class LocationParameter(UVParameter):
 
     """
 
-    _range_dict = {"itrs": (6.35e6, 6.39e6), "mcmf": (1717100.0, 1757100.0)}
-
     def __init__(
         self,
         name,
@@ -905,7 +903,7 @@ class LocationParameter(UVParameter):
         spoof_val=None,
         description="",
         frame="itrs",
-        acceptable_range=-1,
+        acceptable_range=None,
         tols=1e-3,
     ):
         super(LocationParameter, self).__init__(
@@ -920,21 +918,6 @@ class LocationParameter(UVParameter):
             tols=tols,
         )
         self.frame = frame
-
-        # If acceptable_range is set, set it now. Has to be done after frame is set
-        # because setting the frame changes the acceptable_range.
-        if acceptable_range != -1:
-            self.acceptable_range = acceptable_range
-
-    def __setattr__(self, name, value):
-        """Ensure that acceptable_range is set properly when frame is changed."""
-        if name == "frame":
-            if value in self._range_dict.keys():
-                self.acceptable_range = self._range_dict[value]
-            else:
-                self.acceptable_range = None
-
-        return super().__setattr__(name, value)
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
