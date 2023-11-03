@@ -4248,12 +4248,6 @@ class UVBeam(UVBase):
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
-        rotate_pol : bool
-            If True, assume the structure in the simulation is symmetric under
-            90 degree rotations about the z-axis (so that the y polarization can be
-            constructed by rotating the x polarization or vice versa).
-            Default: True if feed_pol is a single value or a list with all
-            the same values in it, False if it is a list with varying values.
         frequency : float or list of float, optional
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -4459,16 +4453,10 @@ class UVBeam(UVBase):
                         "lists they need to be the same length"
                     )
                 pol = feed_pol[0]
-                if rotate_pol is None:
-                    # if a mix of feed pols, don't rotate by default
-                    if np.any(np.array(feed_pol) != feed_pol[0]):
-                        rotate_pol = False
-                    else:
-                        rotate_pol = True
+                
             else:
                 pol = feed_pol
-                if rotate_pol is None:
-                    rotate_pol = True
+                
             if isinstance(freq, (list, tuple)):
                 raise ValueError("frequency can not be a nested list")
             if isinstance(pol, (list, tuple)):
@@ -4478,7 +4466,6 @@ class UVBeam(UVBase):
                 beam_type=beam_type,
                 use_future_array_shapes=use_future_array_shapes,
                 feed_pol=pol,
-                rotate_pol=rotate_pol,
                 frequency=freq,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
@@ -4495,7 +4482,7 @@ class UVBeam(UVBase):
                 check_auto_power=check_auto_power,
                 fix_auto_power=fix_auto_power,
             )
-            for file_i, f in enumerate(cst_filename[1:]):
+            for file_i, f in enumerate(feko_filename[1:]):
                 if isinstance(f, (list, tuple)):
                     raise ValueError("filename can not be a nested list")
 
@@ -4515,7 +4502,6 @@ class UVBeam(UVBase):
                     beam_type=beam_type,
                     use_future_array_shapes=use_future_array_shapes,
                     feed_pol=pol,
-                    rotate_pol=rotate_pol,
                     frequency=freq,
                     telescope_name=telescope_name,
                     feed_name=feed_name,
@@ -4540,15 +4526,12 @@ class UVBeam(UVBase):
                 raise ValueError("Too many frequencies specified")
             if isinstance(feed_pol, (list, tuple)):
                 raise ValueError("Too many feed_pols specified")
-            if rotate_pol is None:
-                rotate_pol = True
             feko_beam_obj = feko_beam.FEKOBeam()
             feko_beam_obj.read_feko_beam(
                 feko_filename,
                 beam_type=beam_type,
                 use_future_array_shapes=use_future_array_shapes,
                 feed_pol=feed_pol,
-                rotate_pol=rotate_pol,
                 frequency=frequency,
                 telescope_name=telescope_name,
                 feed_name=feed_name,
