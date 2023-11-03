@@ -22,6 +22,25 @@ class FEKOBeam(UVBeam):
     read_feko_beam method on the UVBeam class.
 
     """
+    def nametopol(self, fname):
+        """
+        Get name of the y file  from the main filename.
+
+    
+        Parameters
+        ----------
+        fname : str
+            Filename to parse.
+
+        Returns
+        -------
+        str
+            New file name.
+        """
+        fnew = fname.replace("x","y")
+        
+        return fnew
+
 
     def read_feko_beam(
         self,
@@ -29,7 +48,6 @@ class FEKOBeam(UVBeam):
         beam_type="power",
         use_future_array_shapes=False,
         feed_pol="x",
-        rotate_pol=True,
         frequency=None,
         telescope_name=None,
         feed_name=None,
@@ -62,12 +80,6 @@ class FEKOBeam(UVBeam):
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
             Defaults to 'x' (meaning x for efield or xx for power beams).
-        rotate_pol : bool
-            If True, assume the structure in the simulation is symmetric under
-            90 degree rotations about the z-axis (so that the y polarization can be
-            constructed by rotating the x polarization or vice versa).
-            Default: True if feed_pol is a single value or a list with all
-            the same values in it, False if it is a list with varying values.
         frequency : float or list of float
             The frequency or list of frequencies corresponding to the filename(s).
             This is assumed to be in the same order as the files.
@@ -138,30 +150,19 @@ class FEKOBeam(UVBeam):
             elif feed_pol == "y":
                 feed_pol = "yy"
 
-            if rotate_pol:
-                rot_pol_dict = {"xx": "yy", "yy": "xx", "xy": "yx", "yx": "xy"}
-                pol2 = rot_pol_dict[feed_pol]
-                self.polarization_array = np.array(
-                    [uvutils.polstr2num(feed_pol), uvutils.polstr2num(pol2)]
-                )
-            else:
-                self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
-
+            self.polarization_array = np.array([uvutils.polstr2num(feed_pol)])
             self.Npols = len(self.polarization_array)
             self._set_power()
         else:
             self.Naxes_vec = 2
             self.Ncomponents_vec = 2
-            if rotate_pol:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x", "y"])
-                else:
-                    self.feed_array = np.array(["y", "x"])
-            else:
-                if feed_pol == "x":
-                    self.feed_array = np.array(["x"])
-                else:
-                    self.feed_array = np.array(["y"])
+             
+            
+            if feed_pol == "x":
+                self.feed_array = np.array(["x" , "y"])
+            elif feed_pol == "y":
+                self.feed_array = np.array(["y" , "x"])
+            
             self.Nfeeds = self.feed_array.size
             self._set_efield()
 
@@ -190,99 +191,82 @@ class FEKOBeam(UVBeam):
             i.splitlines()[9:] for i in data_chunks
         ]  ## skips the 9 lines of text in each chunk
 
-        if frequency is not None:
-            self.freq_array = frequency
-        else:
-            frequency = [
-                float(i.split("Frequency")[1].split()[1]) for i in data_chunks[:-1]
-            ]
-            self.freq_array = frequency
+        if beam_type == "efield":
+            filename2 = self.nametopol(filename)
+            with open(filename2, 'r') as fh:
+                data_chunks = fh.read()[1:].split('\n\n') ## avoiding the first row since there is a blank row at the start of every file
+            data_all2 = [i.splitlines()[9:] for i in data_chunks] ## skips the 9 lines of text in each chunk
 
+        frequency = [float(i.split('Frequency')[1].split()[1]) for i in data_chunks[:-1]]
         self.Nfreqs = len(frequency)
         self.freq_array = np.zeros((1, self.Nfreqs))
+        self.freq_array[0] = frequency
         self.bandpass_array = np.zeros((1, self.Nfreqs))
 
-        data_each = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
-        for i in range(len(self.freq_array)):
-            data_each[i, :, :] = np.array(
-                [list(map(float, data.split())) for data in data_all[i]]
-            )
+        data_each=np.zeros((len(self.freq_array[0]),np.shape(data_all[0])[0],9))
+        if beam_type == "efield":
+            data_each2=np.zeros((len(self.freq_array[0]),np.shape(data_all2[0])[0],9))
+        
 
-            theta_data = np.radians(
-                data_each[i, :, theta_col]
-            )  ## theta is always exported in degs
-            phi_data = np.radians(
-                data_each[i, :, phi_col]
-            )  ## phi is always exported in degs
+        for i in range(len(self.freq_array[0])):
 
-            theta_axis = np.sort(np.unique(theta_data))
-            phi_axis = np.sort(np.unique(phi_data))
+            data_each[i,:,:] = np.array([list(map(float,data.split())) for data in data_all[i]])
+            if beam_type == "efield":
+                data_each2[i,:,:] = np.array([list(map(float,data.split())) for data in data_all2[i]])
+            if i ==0 :
+                
+                theta_data = np.radians(data_each[i,:, theta_col])  ## theta is always exported in degs
+                phi_data = np.radians(data_each[i, :, phi_col])      ## phi is always exported in degs
 
-            if not theta_axis.size * phi_axis.size == theta_data.size:
-                raise ValueError("Data does not appear to be on a grid")
+                theta_axis = np.sort(np.unique(theta_data))
+                phi_axis = np.sort(np.unique(phi_data))
+            
+                if not theta_axis.size * phi_axis.size == theta_data.size:
+                    raise ValueError("Data does not appear to be on a grid")
 
-            theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
-            phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
+                theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
+                phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
-            if not uvutils._test_array_constant_spacing(
-                theta_axis, self._axis2_array.tols
-            ):
-                raise ValueError(
-                    "Data does not appear to be regularly gridded in zenith angle"
-                )
+                if not uvutils._test_array_constant_spacing(theta_axis, self._axis2_array.tols):
+                    raise ValueError(
+                        "Data does not appear to be regularly gridded in zenith angle"
+                    )
 
-            if not uvutils._test_array_constant_spacing(
-                phi_axis, self._axis1_array.tols
-            ):
-                raise ValueError(
-                    "Data does not appear to be regularly gridded in azimuth angle"
-                )
-            delta_phi = phi_axis[1] - phi_axis[0]
-            self.axis1_array = phi_axis
-            self.Naxes1 = self.axis1_array.size
-            self.axis2_array = theta_axis
-            self.Naxes2 = self.axis2_array.size
-
-            if self.beam_type == "power":
-                # type depends on whether cross pols are present
-                # (if so, complex, else float)
-                if complex in self._data_array.expected_type:
-                    dtype_use = np.complex128
+                if not uvutils._test_array_constant_spacing(phi_axis, self._axis1_array.tols):
+                    raise ValueError(
+                        "Data does not appear to be regularly gridded in azimuth angle"
+                    )
+                delta_phi = phi_axis[1] - phi_axis[0]
+                self.axis1_array = phi_axis
+                self.Naxes1 = self.axis1_array.size
+                self.axis2_array = theta_axis
+                self.Naxes2 = self.axis2_array.size
+            
+            
+                if self.beam_type == "power":
+                    # type depends on whether cross pols are present
+                    # (if so, complex, else float)
+                    if complex in self._data_array.expected_type:
+                        dtype_use = np.complex128
+                    else:
+                        dtype_use = np.float64
+                    self.data_array = np.zeros(
+                        self._data_array.expected_shape(self), dtype=dtype_use
+                    )
                 else:
-                    dtype_use = np.float64
-                self.data_array = np.zeros(
-                    self._data_array.expected_shape(self), dtype=dtype_use
-                )
-            else:
-                self.data_array = np.zeros(
+                    self.data_array = np.zeros(
                     self._data_array.expected_shape(self), dtype=np.complex128
-                )
-
-            if rotate_pol:
-                # for second polarization, rotate by pi/2
-                rot_phi = phi_data + np.pi / 2
-                rot_phi[np.where(rot_phi >= 2 * np.pi)] -= 2 * np.pi
-                roll_rot_phi = np.roll(rot_phi, int((np.pi / 2) / delta_phi), axis=1)
-                if not np.allclose(roll_rot_phi, phi_data):
-                    raise ValueError("Rotating by pi/2 failed")
+                    )
+            
 
             # get beam
             if self.beam_type == "power":
                 name = "Gain(Total)"
                 this_col = np.where(np.array(column_names) == name)[0]
                 data_col = this_col.tolist()
-                power_beam1 = 10 ** (data_each[i, :, data_col] / 10).reshape(
-                    (theta_axis.size, phi_axis.size), order="F"
-                )
-
+                power_beam1 =  10**(data_each[i,:,data_col]/10).reshape((theta_axis.size, phi_axis.size), order="F")
                 self.data_array[0, 0, 0, i, :, :] = power_beam1
-
-                if rotate_pol:
-                    # rotate by pi/2 for second polarization
-                    power_beam2 = np.roll(
-                        power_beam1, int((np.pi / 2) / delta_phi), axis=1
-                    )
-                    self.data_array[0, 0, 1, i, :, :] = power_beam2
+                
             else:
                 self.basis_vector_array = np.zeros(
                     (self.Naxes_vec, self.Ncomponents_vec, self.Naxes2, self.Naxes1)
@@ -309,6 +293,8 @@ class FEKOBeam(UVBeam):
                 phi_phase = np.angle(
                     data_each[i, :, phi_real_col] + 1j * data_c1[:, phi_imag_col]
                 )
+                theta_phase = np.angle(data_each[i,:, theta_real_col] + 1j * data_each[i,:, theta_imag_col])
+                phi_phase = np.angle(data_each[i,:, phi_real_col] +1j *data_each[i,:, phi_imag_col])
 
                 theta_phase = theta_phase.reshape(
                     (theta_axis.size, phi_axis.size), order="F"
@@ -323,15 +309,29 @@ class FEKOBeam(UVBeam):
                 self.data_array[0, 0, 0, i, :, :] = phi_beam
                 self.data_array[1, 0, 0, i, :, :] = theta_beam
 
-                if rotate_pol:
-                    # rotate by pi/2 for second polarization
-                    theta_beam2 = np.roll(
-                        theta_beam, int((np.pi / 2) / delta_phi), axis=1
-                    )
-                    phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=1)
-                    self.data_array[0, 0, 1, i, :, :] = phi_beam2
-                    self.data_array[1, 0, 1, i, :, :] = theta_beam2
 
+                theta_mag2 = np.sqrt(10**(data_each2[i,:, theta_mag_col]/10)).reshape(
+                    (theta_axis.size, phi_axis.size), order="F"
+                )
+                phi_mag2 = np.sqrt(10**(data_each2[i,:, phi_mag_col]/10)).reshape(
+                    (theta_axis.size, phi_axis.size), order="F"
+                )
+                theta_phase2 = np.angle(data_each2[i,:, theta_real_col] + 1j * data_each2[i,:, theta_imag_col])
+                phi_phase2 = np.angle(data_each2[i,:, phi_real_col] +1j *data_each2[i,:, phi_imag_col])
+
+                theta_phase2 = theta_phase2.reshape(
+                    (theta_axis.size, phi_axis.size), order="F"
+                )
+                phi_phase2 = phi_phase2.reshape((theta_axis.size, phi_axis.size), order="F")
+
+                theta_beam2 = theta_mag2 * np.exp(1j * theta_phase2)
+                phi_beam2 = phi_mag2 * np.exp(1j * phi_phase2)
+
+
+                self.data_array[0, 0, 1, i, :, :] = phi_beam2
+                self.data_array[1, 0, 1, i, :, :] = theta_beam2
+             
+          
         self.bandpass_array[0] = 1
 
         if frequency is None:
