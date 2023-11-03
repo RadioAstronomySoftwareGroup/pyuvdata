@@ -8854,7 +8854,7 @@ class UVData(UVBase):
 
         temp_Nblts = np.sum(n_new_samples)
 
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int64)
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.uint64)
         temp_id_array = np.zeros((temp_Nblts,), dtype=int)
         if initial_nphase_ids > 1 and initial_driftscan:
             temp_initial_ids = np.zeros((temp_Nblts,), dtype=int)
@@ -9240,7 +9240,7 @@ class UVData(UVBase):
                 self.phase_to_time(phase_time)
 
         # make temporary arrays
-        temp_baseline = np.zeros((temp_Nblts,), dtype=np.int64)
+        temp_baseline = np.zeros((temp_Nblts,), dtype=np.uint64)
         temp_id_array = np.zeros((temp_Nblts,), dtype=int)
         temp_time = np.zeros((temp_Nblts,))
         temp_int_time = np.zeros((temp_Nblts,))

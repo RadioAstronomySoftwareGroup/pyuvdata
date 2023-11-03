@@ -6200,7 +6200,11 @@ def determine_rectangularity(
         baseline_array = baseline_array.reshape((nbls, ntimes))
         if np.sum(np.abs(np.diff(time_array, axis=0))) != 0:
             return False, False
-        if np.sum(np.abs(np.diff(baseline_array, axis=1))) != 0:
+        if np.any(
+            np.logical_not(
+                np.apply_along_axis(lambda x: np.allclose(x, x[0]), 1, baseline_array)
+            )
+        ):
             return False, False
         return True, True
     elif bl_first:
@@ -6208,6 +6212,10 @@ def determine_rectangularity(
         baseline_array = baseline_array.reshape((ntimes, nbls))
         if np.sum(np.abs(np.diff(time_array, axis=1))) != 0:
             return False, False
-        if np.sum(np.abs(np.diff(baseline_array, axis=0))) != 0:
+        if np.any(
+            np.logical_not(
+                np.apply_along_axis(lambda x: np.allclose(x, x[0]), 0, baseline_array)
+            )
+        ):
             return False, False
         return True, False
