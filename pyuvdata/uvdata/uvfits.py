@@ -70,7 +70,7 @@ class UVFITS(UVData):
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
-                lst_tols=self._lst_array.tols,
+                lst_tols=(0, uvutils.LST_RAD_TOL),
                 frame=self._telescope_location.frame,
             )
 

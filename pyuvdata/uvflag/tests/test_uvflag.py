@@ -917,20 +917,14 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["telescope_location"],
             UserWarning,
-            [
-                "telescope_location are not set or are being overwritten. Using known",
-                "The lst_array is not self-consistent with the time_array",
-            ],
+            ["telescope_location are not set or are being overwritten. Using known"],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_names"],
             UserWarning,
-            [
-                "antenna_names are not set or are being overwritten. Using known",
-                "The lst_array is not self-consistent with the time_array",
-            ],
+            ["antenna_names are not set or are being overwritten. Using known"],
             "reset_telescope_params",
         ),
         (
@@ -948,29 +942,17 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["antenna_numbers"],
             UserWarning,
-            [
-                "antenna_numbers are not set or are being overwritten. Using known",
-                "The lst_array is not self-consistent with the time_array",
-            ],
+            ["antenna_numbers are not set or are being overwritten. Using known"],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_positions"],
             UserWarning,
-            [
-                "antenna_positions are not set or are being overwritten. Using known",
-                "The lst_array is not self-consistent with the time_array",
-            ],
+            ["antenna_positions are not set or are being overwritten. Using known"],
             "reset_telescope_params",
         ),
-        (
-            "baseline",
-            ["Nants_telescope"],
-            UserWarning,
-            "The lst_array is not self-consistent with the time_array",
-            "reset_telescope_params",
-        ),
+        ("baseline", ["Nants_telescope"], None, [], "reset_telescope_params"),
         (
             "waterfall",
             ["Nants_telescope", "telescope_name", "antenna_numbers"],
@@ -1019,8 +1001,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             UserWarning,
             [
                 "Nants_telescope, antenna_names, antenna_numbers, antenna_positions "
-                "are not set or are being overwritten. Using known values for HERA.",
-                "The lst_array is not self-consistent with the time_array",
+                "are not set or are being overwritten. Using known values for HERA."
             ],
             "reset_telescope_params",
         ),
@@ -1164,7 +1145,7 @@ def test_read_write_loop_missing_telescope_info(
     if "telescope_name" in param_list:
         run_check = False
 
-    with uvtest.check_warnings(warn_type, match=msg):
+    with uvtest.check_warnings(warn_type, match=None if warn_type is None else msg):
         uvf2 = UVFlag(test_outfile, use_future_array_shapes=True, run_check=run_check)
 
     if uv_mod is None:
@@ -1191,7 +1172,7 @@ def test_read_write_loop_missing_telescope_info(
     if "Nants_telescope" in param_list and "telescope_name" not in param_list:
         with uvtest.check_warnings(
             UserWarning,
-            match=[msg]
+            match=([] if warn_type is None else [msg])
             + [
                 "Telescope_name parameter is set to foo, which overrides the telescope "
                 "name in the file (HERA)."
@@ -1568,11 +1549,8 @@ def test_read_multiple_files(
     uvf = UVFlag(uv, use_future_array_shapes=write_future_shapes)
     uvf.write(test_outfile, clobber=True)
 
-    warn_msg = [
-        "The lst_array is not self-consistent with the time_array and telescope "
-        "location. Consider recomputing with the `set_lsts_from_time_array` method."
-    ] * 2
-    warn_type = [UserWarning] * 2
+    warn_msg = []
+    warn_type = []
     if not read_future_shapes:
         warn_msg += [_future_array_shapes_warning] * 2
         warn_type += [DeprecationWarning] * 2
@@ -1857,12 +1835,10 @@ def test_add_frequency():
 
     with uvtest.check_warnings(
         UserWarning,
-        match=[
+        match=(
             "One object has the flex_spw_id_array set and one does not. Combined "
-            "object will have it set.",
-            "The lst_array is not self-consistent with the time_array and telescope "
-            "location. Consider recomputing with the `set_lsts_from_time_array` method",
-        ],
+            "object will have it set."
+        ),
     ):
         uv3 = uv1.__add__(uv2, axis="frequency")
     assert np.array_equal(
@@ -1915,13 +1891,10 @@ def test_add_frequency_multi_spw(split_spw):
         assert uv2.Nfreqs == uv_full.Nfreqs // 2
 
         with uvtest.check_warnings(
-            [DeprecationWarning, UserWarning] * 2,
+            [DeprecationWarning] * 2,
             match=[
                 "flex_spw_id_array is not set. It will be required starting in "
-                "version 3.0",
-                "The lst_array is not self-consistent with the time_array and "
-                "telescope location. Consider recomputing with the "
-                "`set_lsts_from_time_array` method.",
+                "version 3.0"
             ]
             * 2,
         ):

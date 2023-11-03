@@ -456,7 +456,12 @@ class Miriad(UVData):
                     rel_ecef_antpos = ecef_antpos
             else:
                 self.telescope_location = np.mean(ecef_antpos[good_antpos, :], axis=0)
-                valid_location = self._telescope_location.check_acceptability()[0]
+                valid_location = uvutils.check_surface_based_positions(
+                    telescope_loc=self.telescope_location,
+                    telescope_frame=self._telescope_location.frame,
+                    raise_error=False,
+                    raise_warning=False,
+                )
 
                 # check to see if this could be a valid telescope_location
                 if valid_location:

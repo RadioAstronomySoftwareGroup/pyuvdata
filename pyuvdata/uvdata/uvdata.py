@@ -377,11 +377,7 @@ class UVData(UVBase):
             "telescope_location_lat_lon_alt_degrees properties."
         )
         self._telescope_location = uvp.LocationParameter(
-            "telescope_location",
-            description=desc,
-            acceptable_range=(6.35e6, 6.39e6),
-            frame="itrs",
-            tols=1e-3,
+            "telescope_location", description=desc, frame="itrs", tols=1e-3
         )
 
         self._history = uvp.UVParameter(
@@ -3208,6 +3204,7 @@ class UVData(UVBase):
         allow_flip_conj=False,
         check_autos=False,
         fix_autos=False,
+        lst_tol="1ms",
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -3240,6 +3237,14 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
+        lst_tol : str or float or Quantity
+            Tolerance level at which to test LSTs against their expected values. If
+            provided as a float, must be in units of radians, otherwise a string
+            parsable by the astropy `Quantity` class (or a `Quantity` object itself)
+            with a time-based value can also be used. Default value is 1 millisecond,
+            which is set by the predictive uncertainty in IERS calculations of DUT1,
+            which for some observatories sets the precision with which these values
+            are written. Note that this will raise a warning if the check fails.
 
         Returns
         -------
@@ -3371,20 +3376,44 @@ class UVData(UVBase):
                 )
 
         if run_check_acceptability:
-            # check that the uvws make sense given the antenna positions
-            # make a metadata only copy of this object to properly calculate uvws
-            temp_obj = self.copy(metadata_only=True)
+            # Check antenna positions
+            uvutils.check_surface_based_positions(
+                antenna_positions=self.antenna_positions,
+                telescope_loc=self.telescope_location,
+                telescope_frame=self._telescope_location.frame,
+                raise_error=False,
+            )
+
+            # Figure out our LST tols
+            if lst_tol is None:
+                lst_tols = self._lst_array.tols
+            else:
+                if isinstance(lst_tol, str):
+                    lst_tol = units.Quantity(lst_tol)
+                if isinstance(lst_tol, units.Quantity):
+                    lst_tol = lst_tol.to(
+                        "rad", equivalencies=uvutils.ANGLE_TIME_EQUIV
+                    ).value
+                if not isinstance(lst_tol, float):
+                    raise ValueError(
+                        "lst_tol must be of type float, angle Quantity, or None."
+                    )
+                lst_tols = [0, lst_tol]
 
             lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            # Check the LSTs against what we expect given up-to-date IERS data
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
                 latitude=lat,
                 longitude=lon,
                 altitude=alt,
-                lst_tols=self._lst_array.tols,
+                lst_tols=lst_tols,
                 frame=self._telescope_location.frame,
             )
+
+            # create a metadata copy to do operations on
+            temp_obj = self.copy(metadata_only=True)
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
@@ -3392,6 +3421,8 @@ class UVData(UVBase):
                 temp_obj.set_uvws_from_antenna_positions()
                 logger.debug("... Done Setting UVWs")
 
+            # check that the uvws make sense given the antenna positions
+            # make a metadata only copy of this object to properly calculate uvws
             if not np.allclose(temp_obj.uvw_array, self.uvw_array, atol=1):
                 max_diff = np.max(np.abs(temp_obj.uvw_array - self.uvw_array))
                 if allow_flip_conj and np.allclose(
@@ -3421,7 +3452,7 @@ class UVData(UVBase):
 
             # check auto and cross-corrs have sensible uvws
             logger.debug("Checking autos...")
-            autos = np.isclose(self.ant_1_array - self.ant_2_array, 0.0)
+            autos = self.ant_1_array == self.ant_2_array
             if not np.all(
                 np.isclose(
                     self.uvw_array[autos],
@@ -3517,15 +3548,12 @@ class UVData(UVBase):
                 np.isclose(
                     # this line used to use np.linalg.norm but it turns out
                     # squaring and sqrt is slightly more efficient unless the array
-                    # is "very large".
-                    np.sqrt(
-                        self.uvw_array[~autos, 0] ** 2
-                        + self.uvw_array[~autos, 1] ** 2
-                        + self.uvw_array[~autos, 2] ** 2
-                    ),
+                    # is "very large". Square the tols is equivalent to getting the
+                    # sqrt of the uvw magnitude, but much faster.
+                    np.sum(self.uvw_array[~autos] ** 2, axis=1),
                     0.0,
-                    rtol=self._uvw_array.tols[0],
-                    atol=self._uvw_array.tols[1],
+                    rtol=self._uvw_array.tols[0] ** 2,
+                    atol=self._uvw_array.tols[1] ** 2,
                 )
             ):
                 raise ValueError(
