@@ -11,7 +11,6 @@ import warnings
 
 import h5py
 import numpy as np
-from astropy import units
 
 from .. import parameter as uvp
 from .. import telescopes as uvtel
@@ -927,7 +926,12 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self._freq_array.form = ("Nfreqs",)
 
-    def check(self, check_extra=True, run_check_acceptability=True, lst_tol="1ms"):
+    def check(
+        self,
+        check_extra=True,
+        run_check_acceptability=True,
+        lst_tol=uvutils.LST_RAD_TOL,
+    ):
         """
         Add some extra checks on top of checks on UVBase class.
 
@@ -940,14 +944,13 @@ class UVFlag(UVBase):
             If true, check all parameters, otherwise only check required parameters.
         run_check_acceptability : bool
             Option to check if values in parameters are acceptable.
-        lst_tol : str or float or Quantity
+        lst_tol : float or None
             Tolerance level at which to test LSTs against their expected values. If
-            provided as a float, must be in units of radians, otherwise a string
-            parsable by the astropy `Quantity` class (or a `Quantity` object itself)
-            with a time-based value can also be used. Default value is 1 millisecond,
-            which is set by the predictive uncertainty in IERS calculations of DUT1,
-            which for some observatories sets the precision with which these values
-            are written. Note that this will raise a warning if the check fails.
+            provided as a float, must be in units of radians. If set to None, the
+            default precision tolerance from the `lst_array` parameter is used (1 mas).
+            Default value is 15 mas,  which is set by the predictive uncertainty in IERS
+            calculations of DUT1 (of order 1 ms), which for some observatories sets the
+            precision with which these values are written.
 
         Returns
         -------
@@ -1036,22 +1039,6 @@ class UVFlag(UVBase):
                 raise_error=False,
             )
 
-            # Figure out our LST tols
-            if lst_tol is None:
-                lst_tols = self._lst_array.tols
-            else:
-                if isinstance(lst_tol, str):
-                    lst_tol = units.Quantity(lst_tol)
-                if isinstance(lst_tol, units.Quantity):
-                    lst_tol = lst_tol.to(
-                        "rad", equivalencies=uvutils.ANGLE_TIME_EQUIV
-                    ).value
-                if not isinstance(lst_tol, float):
-                    raise ValueError(
-                        "lst_tol must be of type float, angle Quantity, or None."
-                    )
-                lst_tols = [0, lst_tol]
-
             lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
@@ -1059,7 +1046,7 @@ class UVFlag(UVBase):
                 latitude=lat,
                 longitude=lon,
                 altitude=alt,
-                lst_tols=lst_tols,
+                lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                 frame=self._telescope_location.frame,
             )
 
