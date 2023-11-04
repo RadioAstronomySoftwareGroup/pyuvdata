@@ -120,7 +120,7 @@ POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
 ANGLE_TIME_EQUIV = [(units.s, units.arcsec, lambda x: x * 15.0, lambda x: x / 15.0)]
 
 _range_dict = {
-    "itrs": (6.35e6, 6.39e6, "Earth"), "mcmf": (1717100.0, 1757100.0, "Earth")
+    "itrs": (6.35e6, 6.39e6, "Earth"), "mcmf": (1717100.0, 1757100.0, "Moon")
 }
 
 
@@ -4105,7 +4105,7 @@ def check_surface_based_positions(
     whereas for theMoon the range is 1717.1 to 1757.1 km.
 
     telescope_loc : tuple or EarthLocation or MoonLocation
-        Telescope location, specified as a 3-elemnemt tuple (specifying geocentric
+        Telescope location, specified as a 3-element tuple (specifying geo/selenocentric
         position in meters) or as an astropy EarthLocation (or lunarsky MoonLocation).
     telescope_frame : str, optional
         Reference frame for latitude/longitude/altitude. Options are itrs (default) or
@@ -4138,7 +4138,7 @@ def check_surface_based_positions(
         antenna_positions = antenna_positions + (
             telescope_loc.x.to("m").value,
             telescope_loc.y.to("m").value,
-            telescope_loc.x.to("m").value,
+            telescope_loc.z.to("m").value,
         )
     elif telescope_loc is not None:
         antenna_positions = antenna_positions + telescope_loc
@@ -4155,7 +4155,7 @@ def check_surface_based_positions(
         return True
 
     err_msg = (
-        f"{telescope_frame} antenna position vector magnitudes must be on the order of "
+        f"{telescope_frame} position vector magnitudes must be on the order of "
         f"the radius of {world} -- they appear to lie well {err_type} this."
     )
 
