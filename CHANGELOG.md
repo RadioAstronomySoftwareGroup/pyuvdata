@@ -6,6 +6,9 @@ All notable changes to this project will be documented in this file.
 ## [2.4.1] - 2023-10-13
 
 ### Added
+- Added a `check_surface_based_positions` positions method for verifying antenna
+positions are near surface of whatever celestial body their positions are referenced to
+(either the Earth or Moon, currently).
 - Added a `uvw_track_generator` method within `utils` for calculating the expected
 uvws (and a few other values) without needing to instantiate a whole `UVData` object.
 - Added a convenience function called `compare_value` in `UVParameter` that enables
@@ -19,6 +22,14 @@ file to the new `mwa_metafits_file` parameter.
 - Support for recarrays in `UVParameter` objects and in `UVBase`, needed for pyradiosky.
 - Support for setting the astrometry library for various object methods including `set_lsts_from_time_array`, file read methods and others.
 - Properly round-trip the telescope frame through UVH5, UVFITS and MS files.
+
+### Changed
+- Increased the tolerance to 15 mas for a warning about values in `lst_array` not conforming
+to exceptations for `UVData`, `UVCal`, and `UVFlag` (was 1 mas) inside of `check`, additionally
+adding a keyword to enable the tolerance value to be specified.
+- Changed the behavior of checking of telescope location to look at the combination of
+`antenna_positions` and `telescope_location` together for `UVData`, `UVCal`, and `UVFlag`.
+Additionally, failing this check results in a warning (was an error).
 
 ### Fixed
 - A bug in apparent coordinate calculation that resulted in small errors/loss of
