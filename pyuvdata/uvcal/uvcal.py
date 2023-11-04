@@ -1216,9 +1216,11 @@ class UVCal(UVBase):
             Tolerance level at which to test LSTs against their expected values. If
             provided as a float, must be in units of radians. If set to None, the
             default precision tolerance from the `lst_array` parameter is used (1 mas).
-            Default value is 15 mas,  which is set by the predictive uncertainty in IERS
-            calculations of DUT1 (of order 1 ms), which for some observatories sets the
-            precision with which these values are written.
+            Default value is 75 mas,  which is set by the predictive uncertainty in IERS
+            calculations of DUT1 (RMS is of order 1 ms, with with a 5-sigma threshold
+            for detection is used to prevent false issues from being reported), which
+            for some observatories sets the precision with which these values are
+            written.
 
         Returns
         -------

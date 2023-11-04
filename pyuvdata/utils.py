@@ -75,8 +75,11 @@ __all__ = [
 
 # standard angle tolerance: 1 mas in radians.
 RADIAN_TOL = 1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)
-# standard lst time tolerance: 1 ms (15 mas in radians)
-LST_RAD_TOL = 1 * 2 * np.pi * 1e-3 / (86400.0)
+# standard lst time tolerance: 5 ms (75 mas in radians), based on an expected RMS
+# accuracy of 1 ms at 7 days out from issuance of Bulletin A (which are issued once a
+# week with rapidly determined parameters and forecasted values of DUT1), the exact
+# formula for which is t_err = 0.00025 (MJD-<Bulletin A Release Data>)**0.75 (in secs).
+LST_RAD_TOL = 2 * np.pi * 5e-3 / (86400.0)
 
 # fmt: off
 # polarization constants
