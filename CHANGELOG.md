@@ -10,7 +10,7 @@ positions are near surface of whatever celestial body their positions are refere
 
 ### Changed
 - Increased the tolerance to 75 mas (equivalent to 5 ms time error) for a warning about
-values in `lst_array` not conforming to exceptations for `UVData`, `UVCal`, and `UVFlag`
+values in `lst_array` not conforming to expectations for `UVData`, `UVCal`, and `UVFlag`
 (was 1 mas) inside of `check`. Additionally, added a keyword to `check` enable the
 tolerance value to be user-specified.
 - Changed the behavior of checking of telescope location to look at the combination of
