@@ -397,6 +397,17 @@ def test_location_set_lat_lon_alt_degrees_none():
     assert param1.value is None
 
 
+def test_location_acceptability():
+    """Test check_acceptability with LocationParameters"""
+    val = np.array([0.5, 0.5, 0.5])
+    param1 = uvp.LocationParameter("p1", value=val, acceptable_range=[0, 1])
+    assert param1.check_acceptability()[0]
+
+    val += 0.5
+    param1 = uvp.LocationParameter("p1", value=val, acceptable_range=[0, 1])
+    assert not param1.check_acceptability()[0]
+
+
 def test_location_acceptable_none():
     param1 = uvp.LocationParameter(name="p2", value=1, acceptable_range=None)
 
