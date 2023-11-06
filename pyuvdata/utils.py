@@ -120,8 +120,6 @@ POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
                     "rr": ["r", "r"], "ll": ["l", "l"],
                     "rl": ["r", "l"], "lr": ["l", "r"]}
 
-ANGLE_TIME_EQUIV = [(units.s, units.arcsec, lambda x: x * 15.0, lambda x: x / 15.0)]
-
 _range_dict = {
     "itrs": (6.35e6, 6.39e6, "Earth"), "mcmf": (1717100.0, 1757100.0, "Moon")
 }
