@@ -101,6 +101,7 @@ cdef numpy.uint64_t large_mod = 2147483648
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
 cdef inline void _bl_to_ant_2147483648(
     numpy.uint64_t[::1] _bl,
     numpy.uint64_t[:, ::1] _ants,
