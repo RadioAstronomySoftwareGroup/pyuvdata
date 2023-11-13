@@ -10628,7 +10628,7 @@ class UVData(UVBase):
             The FHD params save file. Required.
         obs_file : str
             The FHD obs save file. Required if `read_data` is False.
-        flag_file : str
+        flags_file : str
             The FHD data (or model) flag save file. Required if `read_data` is True.
         layout_file : str
             The FHD layout save file. Required for correct antenna metadata.
@@ -11576,7 +11576,7 @@ class UVData(UVBase):
         # FHD
         params_file=None,
         obs_file=None,
-        flag_file=None,
+        flags_file=None,
         layout_file=None,
         settings_file=None,
         # MS
@@ -11836,7 +11836,7 @@ class UVData(UVBase):
             The FHD params save file. Required.
         obs_file : str
             The FHD obs save file. Required if `read_data` is False.
-        flag_file : str
+        flags_file : str
             The FHD data (or model) flag save file. Required if `read_data` is True.
         layout_file : str
             The FHD layout save file. Required for correct antenna metadata.
@@ -12158,7 +12158,7 @@ class UVData(UVBase):
             f = filename[file_num]
             params_file_use = None
             obs_file_use = None
-            flag_file_use = None
+            flags_file_use = None
             layout_file_use = None
             settings_file_use = None
             if file_type == "fhd":
@@ -12184,18 +12184,18 @@ class UVData(UVBase):
                 else:
                     obs_file = [None] * n_files
 
-                if flag_file is not None:
+                if flags_file is not None:
                     if (
-                        not isinstance(flag_file, (list, tuple, np.ndarray))
-                        or len(flag_file) != n_files
+                        not isinstance(flags_file, (list, tuple, np.ndarray))
+                        or len(flags_file) != n_files
                     ):
                         raise ValueError(
-                            "For multiple FHD files, if flag_file is passed, the "
-                            "number of flag_file values must match the number of data "
+                            "For multiple FHD files, if flags_file is passed, the "
+                            "number of flags_file values must match the number of data "
                             "file sets."
                         )
                 else:
-                    flag_file = [None] * n_files
+                    flags_file = [None] * n_files
 
                 if layout_file is not None:
                     if (
@@ -12225,7 +12225,7 @@ class UVData(UVBase):
 
                 params_file_use = params_file[file_num]
                 obs_file_use = obs_file[file_num]
-                flag_file_use = flag_file[file_num]
+                flags_file_use = flags_file[file_num]
                 layout_file_use = layout_file[file_num]
                 settings_file_use = settings_file[file_num]
 
@@ -12273,7 +12273,7 @@ class UVData(UVBase):
                         # FHD
                         params_file=params_file_use,
                         obs_file=obs_file_use,
-                        flag_file=flag_file_use,
+                        flags_file=flags_file_use,
                         layout_file=layout_file_use,
                         settings_file=settings_file_use,
                         # MS
@@ -12361,7 +12361,7 @@ class UVData(UVBase):
                     if file_type == "fhd":
                         params_file_use = params_file[file_num]
                         obs_file_use = obs_file[file_num]
-                        flag_file_use = flag_file[file_num]
+                        flags_file_use = flags_file[file_num]
                         layout_file_use = layout_file[file_num]
                         settings_file_use = settings_file[file_num]
 
@@ -12411,7 +12411,7 @@ class UVData(UVBase):
                             # FHD
                             params_file=params_file_use,
                             obs_file=obs_file_use,
-                            flag_file=flag_file_use,
+                            flags_file=flags_file_use,
                             layout_file=layout_file_use,
                             settings_file=settings_file_use,
                             # MS
@@ -12782,7 +12782,7 @@ class UVData(UVBase):
                     vis_files=filename,
                     params_file=params_file,
                     obs_file=obs_file,
-                    flag_file=flag_file,
+                    flags_file=flags_file,
                     layout_file=layout_file,
                     settings_file=settings_file,
                     background_lsts=background_lsts,
