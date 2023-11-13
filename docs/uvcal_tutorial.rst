@@ -154,10 +154,10 @@ b) FHD cal to cal fits
   >>> import os
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> obs_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav')
-  >>> cal_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_cal.sav')
-  >>> settings_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt')
-  >>> layout_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav')
+  >>> obs_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_obs.sav')
+  >>> cal_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/calibration/1061316296_cal.sav')
+  >>> settings_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_settings.txt')
+  >>> layout_testfile = os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_layout.sav')
 
   >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
   >>> # Can optionally specify the ``file_type`` to either method
@@ -541,20 +541,20 @@ with the previous file(s).
 
   >>> # For FHD cal datasets pass lists for each file type
   >>> obs_testfiles = [
-  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_obs.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_obs.sav'),
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_obs.sav'),
   ... ]
   >>> cal_testfiles = [
-  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_cal.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/calibration/1061316296_cal.sav'),
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_cal.sav'),
   ... ]
   >>> settings_testfiles = [
-  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_settings.txt'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_settings.txt'),
   ...   os.path.join(DATA_PATH, 'fhd_cal_data/set2/1061316296_settings.txt'),
   ... ]
   >>> layout_testfiles = [
-  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
-  ...   os.path.join(DATA_PATH, 'fhd_cal_data/1061316296_layout.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_layout.sav'),
+  ...   os.path.join(DATA_PATH, 'fhd_cal_data/metadata/1061316296_layout.sav'),
   ... ]
   >>> fhd_cal = UVCal.from_file(
   ...    cal_testfiles,

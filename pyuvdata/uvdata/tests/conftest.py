@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """pytest fixtures for UVData tests."""
+import copy
 import os
 
 import pytest
@@ -11,7 +12,6 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.mir_parser import MirParser
-from pyuvdata.uvdata.tests.test_fhd import get_fhd_files
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -144,23 +144,45 @@ def mir_data(mir_data_main):
 def fhd_test_files():
     # set up FHD files
     testdir = os.path.join(DATA_PATH, "fhd_vis_data/")
-    tf_prefix = "1061316296_"
-    tf_suffix = [
-        "flags.sav",
-        "vis_XX.sav",
-        "params.sav",
-        "vis_YY.sav",
-        "vis_model_XX.sav",
-        "vis_model_YY.sav",
-        "layout.sav",
-        "settings.txt",
-        "obs.sav",
-    ]
-    testfiles = []
-    for s in tf_suffix:
-        testfiles.append(testdir + tf_prefix + s)
 
-    return get_fhd_files(testfiles)
+    tf_prefix = "1061316296_"
+    tf_dict = {
+        "data_files": [
+            os.path.join(testdir, "vis_data", tf_prefix + fname)
+            for fname in ["vis_XX.sav", "vis_YY.sav"]
+        ],
+        "model_files": [
+            os.path.join(testdir, "vis_data", tf_prefix + fname)
+            for fname in ["vis_model_XX.sav", "vis_model_YY.sav"]
+        ],
+        "flags_file": os.path.join(testdir, "vis_data", tf_prefix + "flags.sav"),
+        "params_file": os.path.join(testdir, "metadata", tf_prefix + "params.sav"),
+        "layout_file": os.path.join(testdir, "metadata", tf_prefix + "layout.sav"),
+        "settings_file": os.path.join(testdir, "metadata", tf_prefix + "settings.txt"),
+        "obs_file": os.path.join(testdir, "metadata", tf_prefix + "obs.sav"),
+    }
+
+    return tf_dict
+
+
+@pytest.fixture(scope="function")
+def fhd_data_files(fhd_test_files):
+    file_dict = copy.deepcopy(fhd_test_files)
+    file_dict["filename"] = file_dict["data_files"]
+    del file_dict["data_files"]
+    del file_dict["model_files"]
+
+    return file_dict
+
+
+@pytest.fixture(scope="function")
+def fhd_model_files(fhd_test_files):
+    file_dict = copy.deepcopy(fhd_test_files)
+    file_dict["filename"] = file_dict["model_files"]
+    del file_dict["data_files"]
+    del file_dict["model_files"]
+
+    return file_dict
 
 
 @pytest.fixture(scope="session")
