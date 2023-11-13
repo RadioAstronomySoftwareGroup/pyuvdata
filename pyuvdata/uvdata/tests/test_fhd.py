@@ -5,6 +5,7 @@
 """Tests for FHD object.
 
 """
+import copy
 import glob
 import os
 from shutil import copyfile
@@ -24,7 +25,7 @@ def get_fhd_files(filelist):
     model_files = []
     params_file = None
     obs_file = None
-    flag_file = None
+    flags_file = None
     layout_file = None
     settings_file = None
     for fname in filelist:
@@ -38,59 +39,41 @@ def get_fhd_files(filelist):
         elif "obs" in basename:
             obs_file = fname
         elif "flag" in basename:
-            flag_file = fname
+            flags_file = fname
         elif "layout" in basename:
             layout_file = fname
         elif "settings" in basename:
             settings_file = fname
 
-    return (
-        data_files,
-        model_files,
-        params_file,
-        obs_file,
-        flag_file,
-        layout_file,
-        settings_file,
-    )
+    return {
+        "data_files": data_files,
+        "model_files": model_files,
+        "params_file": params_file,
+        "obs_file": obs_file,
+        "flags_file": flags_file,
+        "layout_file": layout_file,
+        "settings_file": settings_file,
+    }
 
 
 @pytest.fixture(scope="function")
-def fhd_data(fhd_test_files):
+def fhd_data(fhd_data_files):
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_data,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=tf_flag,
-        layout_file=tf_layout,
-        settings_file=tf_stngs,
-        use_future_array_shapes=True,
-    )
+    fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     return fhd_uv
 
 
 @pytest.fixture(scope="function")
-def fhd_model(fhd_test_files):
+def fhd_model(fhd_model_files):
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_model,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=tf_flag,
-        layout_file=tf_layout,
-        settings_file=tf_stngs,
-        use_future_array_shapes=True,
-    )
+    fhd_uv.read(**fhd_model_files, use_future_array_shapes=True)
 
     return fhd_uv
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-def test_read_fhd_write_read_uvfits(fhd_data, tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits(fhd_data, tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test.
 
@@ -104,20 +87,16 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path, fhd_test_files):
     fhd_uv.write_uvfits(outfile)
     uvfits_uv.read_uvfits(outfile, use_future_array_shapes=True)
 
-    all_testfiles = list(fhd_test_files)
-    for fname in fhd_test_files:
+    all_testfiles = []
+    for fname in fhd_data_files.values():
         if isinstance(fname, list):
-            all_testfiles.remove(fname)
-            all_testfiles.extend(fname)
-
-    all_testfiles_data = []
-    for fname in all_testfiles:
-        temp = os.path.basename(fname)
-        if "vis_model" not in temp:
-            all_testfiles_data.append(temp)
+            for temp in fname:
+                all_testfiles.append(temp)
+        else:
+            all_testfiles.append(fname)
 
     # make sure filename attributes are correct
-    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in all_testfiles_data}
+    assert set(fhd_uv.filename) == {os.path.basename(fn) for fn in all_testfiles}
     assert uvfits_uv.filename == [os.path.basename(outfile)]
     fhd_uv.filename = uvfits_uv.filename
     fhd_uv._filename.form = (1,)
@@ -130,19 +109,9 @@ def test_read_fhd_write_read_uvfits(fhd_data, tmp_path, fhd_test_files):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-def test_read_fhd_metadata_only(fhd_data, fhd_test_files):
+def test_read_fhd_metadata_only(fhd_data, fhd_data_files):
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_data,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=tf_flag,
-        layout_file=tf_layout,
-        settings_file=tf_stngs,
-        read_data=False,
-        use_future_array_shapes=True,
-    )
+    fhd_uv.read(**fhd_data_files, read_data=False, use_future_array_shapes=True)
 
     assert fhd_uv.metadata_only
 
@@ -153,32 +122,25 @@ def test_read_fhd_metadata_only(fhd_data, fhd_test_files):
 
 
 @pytest.mark.parametrize("multi", [True, False])
-def test_read_fhd_metadata_only_error(fhd_test_files, multi):
+def test_read_fhd_metadata_only_error(fhd_data_files, multi):
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
+    del fhd_data_files["obs_file"]
 
     if multi:
-        tf_data = [[tf_data[0]], [tf_data[1]]]
-        tf_params = [tf_params] * 2
-        tf_flag = [tf_flag] * 2
-        tf_layout = [tf_layout] * 2
-        tf_stngs = [tf_stngs] * 2
+        for ftype, fnames in fhd_data_files.items():
+            if isinstance(fnames, list):
+                fhd_data_files[ftype] = [[fnames[0]], [fnames[1]]]
+            else:
+                fhd_data_files[ftype] = [fnames] * 2
 
     with pytest.raises(
         ValueError, match="The obs_file parameter must be passed if read_data is False."
     ):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            flag_file=tf_flag,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            read_data=False,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**fhd_data_files, read_data=False, use_future_array_shapes=True)
 
 
-def test_read_fhd_select(fhd_test_files):
+def test_read_fhd_select(fhd_data_files):
     """
     test select on read with FHD files.
 
@@ -187,7 +149,7 @@ def test_read_fhd_select(fhd_test_files):
     """
     fhd_uv = UVData()
     fhd_uv2 = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
     with uvtest.check_warnings(
         [UserWarning, UserWarning, DeprecationWarning],
         [
@@ -199,15 +161,7 @@ def test_read_fhd_select(fhd_test_files):
             _future_array_shapes_warning,
         ],
     ):
-        fhd_uv2.read(
-            tf_data,
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            freq_chans=np.arange(2),
-        )
+        fhd_uv2.read(**fhd_data_files, freq_chans=np.arange(2))
 
     with uvtest.check_warnings(
         [UserWarning, DeprecationWarning],
@@ -217,33 +171,27 @@ def test_read_fhd_select(fhd_test_files):
             _future_array_shapes_warning,
         ],
     ):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-        )
+        fhd_uv.read(**fhd_data_files)
 
     fhd_uv.select(freq_chans=np.arange(2))
     assert fhd_uv == fhd_uv2
 
 
 @pytest.mark.parametrize("multi", [True, False])
-def test_read_fhd_write_read_uvfits_no_layout(fhd_test_files, multi):
+def test_read_fhd_write_read_uvfits_no_layout(fhd_data_files, multi):
     """
     Test errors/warnings with with no layout file.
     """
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
+    del fhd_data_files["layout_file"]
 
     if multi:
-        tf_data = [[tf_data[0]], [tf_data[1]]]
-        tf_params = [tf_params] * 2
-        tf_obs = [tf_obs] * 2
-        tf_flag = [tf_flag] * 2
-        tf_stngs = [tf_stngs] * 2
+        for ftype, fnames in fhd_data_files.items():
+            if isinstance(fnames, list):
+                fhd_data_files[ftype] = [[fnames[0]], [fnames[1]]]
+            else:
+                fhd_data_files[ftype] = [fnames] * 2
 
     if not multi:
         # check warning raised
@@ -252,28 +200,13 @@ def test_read_fhd_write_read_uvfits_no_layout(fhd_test_files, multi):
             match="The layout_file parameter was not passed, so antenna_postions will "
             "not be defined and antenna names and numbers might be incorrect.",
         ):
-            fhd_uv.read(
-                tf_data,
-                params_file=tf_params,
-                obs_file=tf_obs,
-                flag_file=tf_flag,
-                settings_file=tf_stngs,
-                run_check=False,
-                use_future_array_shapes=True,
-            )
+            fhd_uv.read(**fhd_data_files, run_check=False, use_future_array_shapes=True)
 
     with pytest.raises(
         ValueError, match="Required UVParameter _antenna_positions has not been set"
     ):
         with uvtest.check_warnings(UserWarning, "No layout file"):
-            fhd_uv.read(
-                tf_data,
-                params_file=tf_params,
-                obs_file=tf_obs,
-                flag_file=tf_flag,
-                settings_file=tf_stngs,
-                use_future_array_shapes=True,
-            )
+            fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
@@ -316,8 +249,7 @@ def test_fhd_antenna_pos(fhd_data):
     assert mwa_corr_obj._antenna_positions == cotter_obj._antenna_positions
 
 
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with variant flag file.
 
@@ -326,19 +258,44 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_test_files):
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
-    variant_flag_file = os.path.join(
+
+    variant_flags_file = os.path.join(
         DATA_PATH, "fhd_vis_data/", "1061316296_variant_flags.sav"
     )
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_data,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=variant_flag_file,
-        layout_file=tf_layout,
-        settings_file=tf_stngs,
-        use_future_array_shapes=True,
+    fhd_data_files["flags_file"] = variant_flags_file
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['flags']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
+
+    os.makedirs(os.path.join(tmp_path, "vis_data"))
+    temp_flag_file = copyfile(
+        variant_flags_file, os.path.join(tmp_path, "vis_data", "foo.sav")
     )
+    fhd_data_files["flags_file"] = temp_flag_file
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected suffix so prefix matching "
+            "could not be done. The affected file types are: ['flags']",
+            "The FHD input files do not all have the same parent folder, so they may "
+            "not be for the same FHD run.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_uv2 = UVData.from_file(**fhd_data_files, use_future_array_shapes=True)
+
+    assert fhd_uv == fhd_uv2
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
@@ -351,8 +308,7 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_test_files):
     assert fhd_uv == uvfits_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
-def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with fixed array center layout file.
 
@@ -361,20 +317,48 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_test_files):
     """
     fhd_uv = UVData()
     uvfits_uv = UVData()
+
     layout_fixed_file = os.path.join(
         DATA_PATH, "fhd_vis_data/", "1061316296_fixed_arr_center_layout.sav"
     )
 
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_data,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=tf_flag,
-        layout_file=layout_fixed_file,
-        settings_file=tf_stngs,
-        use_future_array_shapes=True,
+    fhd_data_files["layout_file"] = layout_fixed_file
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['layout']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
+
+    os.makedirs(os.path.join(tmp_path, "fhd_vis_data2", "metadata"))
+    temp_layout_file = copyfile(
+        layout_fixed_file,
+        os.path.join(
+            tmp_path,
+            "fhd_vis_data2",
+            "metadata",
+            "1061316296_fixed_arr_center_layout.sav",
+        ),
     )
+    fhd_data_files["layout_file"] = temp_layout_file
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "The FHD input files do not all have the same parent folder, so they may "
+            "not be for the same FHD run.",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
 
@@ -388,7 +372,7 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_test_files):
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with fixed array center layout file, bad obs location.
 
@@ -406,19 +390,17 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path, fhd_test_fi
     messages = [
         "Telescope location derived from obs",
         "tile_names from obs structure does not match",
+        "Some FHD input files do not have the expected subfolder so FHD folder "
+        "matching could not be done. The affected file types are: ['vis', 'layout']",
+        "The FHD input files do not all have matching prefixes, so they may not be "
+        "for the same data.",
     ]
 
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(
-            [bad_obs_loc_file],
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            layout_file=layout_fixed_file,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+    fhd_data_files["filename"] = [bad_obs_loc_file]
+    fhd_data_files["layout_file"] = layout_fixed_file
+
+    with uvtest.check_warnings(UserWarning, match=messages):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
@@ -430,7 +412,7 @@ def test_read_fhd_write_read_uvfits_fix_layout_bad_obs_loc(tmp_path, fhd_test_fi
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with bad obs location (and bad layout location).
 
@@ -445,18 +427,16 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path, fhd_test_files):
     messages = [
         "Telescope location derived from obs",
         "tile_names from obs structure does not match",
+        "Some FHD input files do not have the expected subfolder so FHD folder "
+        "matching could not be done. The affected file types are: ['vis']",
+        "The FHD input files do not all have matching prefixes, so they may not be "
+        "for the same data.",
     ]
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(
-            [bad_obs_loc_file],
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+
+    fhd_data_files["filename"] = [bad_obs_loc_file]
+
+    with uvtest.check_warnings(UserWarning, match=messages):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
@@ -468,7 +448,7 @@ def test_read_fhd_write_read_uvfits_bad_obs_loc(tmp_path, fhd_test_files):
     assert fhd_uv == uvfits_uv
 
 
-def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_test_files):
+def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with altered layout file.
 
@@ -482,16 +462,19 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_test_files):
     altered_layout_file = os.path.join(
         DATA_PATH, "fhd_vis_data/", "1061316296_broken_layout.sav"
     )
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    fhd_uv.read(
-        tf_data,
-        params_file=tf_params,
-        obs_file=tf_obs,
-        flag_file=tf_flag,
-        layout_file=altered_layout_file,
-        settings_file=tf_stngs,
-        use_future_array_shapes=True,
-    )
+
+    fhd_data_files["layout_file"] = altered_layout_file
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['layout']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+        ],
+    ):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     outfile = str(tmp_path / "outtest_FHD_1061316296.uvfits")
     fhd_uv.write_uvfits(outfile)
@@ -504,7 +487,7 @@ def test_read_fhd_write_read_uvfits_altered_layout(tmp_path, fhd_test_files):
 
 
 @pytest.mark.parametrize("multi", [True, False])
-def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files, multi):
+def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_data_files, multi):
     """
     FHD to uvfits loopback test with no settings file.
 
@@ -519,25 +502,17 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files, multi)
         "Telescope location derived from obs lat/lon/alt values does not match the "
         "location in the layout file. Using the value from known_telescopes.",
     ]
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-
+    del fhd_data_files["settings_file"]
     if multi:
         messages *= 2
-        tf_data = [[tf_data[0]], [tf_data[1]]]
-        tf_params = [tf_params] * 2
-        tf_obs = [tf_obs] * 2
-        tf_flag = [tf_flag] * 2
-        tf_layout = [tf_layout] * 2
+        for ftype, fnames in fhd_data_files.items():
+            if isinstance(fnames, list):
+                fhd_data_files[ftype] = [[fnames[0]], [fnames[1]]]
+            else:
+                fhd_data_files[ftype] = [fnames] * 2
 
-    with uvtest.check_warnings(UserWarning, messages):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            obs_file=tf_obs,
-            flag_file=tf_flag,
-            layout_file=tf_layout,
-            use_future_array_shapes=True,
-        )
+    with uvtest.check_warnings(UserWarning, match=messages):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
     if not multi:
         # Check only pyuvdata history with no settings file
@@ -553,93 +528,63 @@ def test_read_fhd_write_read_uvfits_no_settings(tmp_path, fhd_test_files, multi)
     assert fhd_uv == uvfits_uv
 
 
-def test_break_read_fhd(fhd_test_files):
+def test_break_read_fhd(fhd_data_files, fhd_model_files):
     """Try various cases of incomplete file lists."""
     fhd_uv = UVData()
     # missing flags
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+
+    file_dict = copy.deepcopy(fhd_data_files)
+    del file_dict["flags_file"]
     with pytest.raises(
-        ValueError, match="The flag_file parameter must be passed if read_data is True"
+        ValueError, match="The flags_file parameter must be passed if read_data is True"
     ):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
+
+    for ftype, fnames in file_dict.items():
+        if isinstance(fnames, list):
+            file_dict[ftype] = [[fnames[0]], [fnames[1]]]
+        else:
+            file_dict[ftype] = [fnames] * 2
 
     with pytest.raises(
-        ValueError, match="The flag_file parameter must be passed if read_data is True"
+        ValueError, match="The flags_file parameter must be passed if read_data is True"
     ):
-        fhd_uv.read(
-            [[tf_data[0]], [tf_data[1]]],
-            params_file=[tf_params] * 2,
-            obs_file=[tf_obs] * 2,
-            layout_file=[tf_layout] * 2,
-            settings_file=[tf_stngs] * 2,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
 
+    file_dict = copy.deepcopy(fhd_data_files)
+    del file_dict["params_file"]
     # Missing params
     with pytest.raises(
         ValueError, match="The params_file must be passed for FHD files."
     ):
-        fhd_uv.read(
-            tf_data,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
 
+    file_dict = copy.deepcopy(fhd_data_files)
+    file_dict["filename"] = ["foo.sav"]
     # No data files
     with pytest.raises(ValueError, match="unrecognized file in vis_files"):
-        fhd_uv.read(
-            ["foo.sav"],
-            params_file=tf_params,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
 
+    file_dict["filename"] = [None]
     # No data files
     with pytest.raises(
         ValueError, match="The vis_files parameter must be passed if read_data is True"
     ):
-        fhd_uv.read(
-            [None],
-            params_file=tf_params,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            file_type="fhd",
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, file_type="fhd", use_future_array_shapes=True)
 
     # mix of model & data files
+
+    file_dict["filename"] = [
+        fhd_data_files["filename"][0],
+        fhd_model_files["filename"][1],
+    ]
     with pytest.raises(
-        ValueError,
-        match="The vis_files parameter has a mix of model and in data files.",
+        ValueError, match="The vis_files parameter has a mix of model and data files."
     ):
-        fhd_uv.read(
-            [tf_data[0], tf_model[1]],
-            params_file=tf_params,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            file_type="fhd",
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, file_type="fhd", use_future_array_shapes=True)
 
 
-def test_read_fhd_warnings(fhd_test_files):
+def test_read_fhd_warnings(fhd_data_files):
     """Test warnings with various broken inputs."""
     # bad obs structure values
     broken_data_file = os.path.join(
@@ -651,38 +596,38 @@ def test_read_fhd_warnings(fhd_test_files):
         "Telescope location derived from obs",
         "These visibilities may have been phased improperly",
         "Nbls does not match",
+        "Some FHD input files do not have the expected subfolder so FHD folder "
+        "matching could not be done. The affected file types are: ['vis']",
+        "The FHD input files do not all have matching prefixes, so they may not be for "
+        "the same data.",
     ]
     fhd_uv = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    with uvtest.check_warnings(UserWarning, warn_messages):
-        fhd_uv.read(
-            broken_data_file,
-            params_file=tf_params,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            run_check=False,
-            use_future_array_shapes=True,
-        )
+
+    fhd_data_files["filename"] = broken_data_file
+
+    with uvtest.check_warnings(UserWarning, match=warn_messages):
+        fhd_uv.read(**fhd_data_files, run_check=False, use_future_array_shapes=True)
 
     # bad flag file
-    broken_flag_file = os.path.join(
+    broken_flags_file = os.path.join(
         DATA_PATH, "fhd_vis_data/", "1061316296_broken_flags.sav"
     )
+
+    fhd_data_files["flags_file"] = broken_flags_file
     fhd_uv = UVData()
-    with pytest.raises(
-        ValueError, match="No recognized key for visibility weights in flag_file."
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['vis', 'flags']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+        ],
     ):
-        fhd_uv.read(
-            tf_data,
-            params_file=tf_params,
-            flag_file=broken_flag_file,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
+        with pytest.raises(
+            ValueError, match="No recognized key for visibility weights in flags_file."
+        ):
+            fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
 
 @pytest.mark.parametrize(
@@ -694,27 +639,20 @@ def test_read_fhd_warnings(fhd_test_files):
         (["vis_YX.sav", "extra_vis_YX.sav"], 0, "multiple yx datafiles in vis_files"),
     ],
 )
-def test_read_fhd_extra_files(new_file_end, file_copy_ind, message, fhd_test_files):
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
+def test_read_fhd_extra_files(
+    tmp_path, new_file_end, file_copy_ind, message, fhd_data_files
+):
     # try cases with extra files of each type
     new_files = []
     for file_end in new_file_end:
-        extra_file = os.path.join(DATA_PATH, "fhd_vis_data/", "1061316296_" + file_end)
+        extra_file = os.path.join(tmp_path, "1061316296_" + file_end)
         new_files.append(extra_file)
-        copyfile(tf_data[file_copy_ind], extra_file)
+        copyfile(fhd_data_files["filename"][file_copy_ind], extra_file)
+
+    fhd_data_files["filename"].extend(new_files)
     fhd_uv = UVData()
     with pytest.raises(ValueError, match=message):
-        fhd_uv.read(
-            tf_data + new_files,
-            params_file=tf_params,
-            flag_file=tf_flag,
-            obs_file=tf_obs,
-            layout_file=tf_layout,
-            settings_file=tf_stngs,
-            use_future_array_shapes=True,
-        )
-    for extra_file in new_files:
-        os.remove(extra_file)
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
@@ -735,23 +673,20 @@ def test_read_fhd_model(tmp_path, fhd_model):
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
 @pytest.mark.parametrize("axis", [None, "polarization"])
-def test_multi_files(fhd_model, axis, fhd_test_files):
+def test_multi_files(fhd_model, axis, fhd_model_files):
     """Read multiple files at once."""
     fhd_uv1 = UVData()
     fhd_uv2 = UVData()
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    test1 = [tf_model[0]]
-    test2 = [tf_model[1]]
+    for ftype, fnames in fhd_model_files.items():
+        if isinstance(fnames, list):
+            fhd_model_files[ftype] = [[fnames[0]], [fnames[1]]]
+        else:
+            fhd_model_files[ftype] = [fnames] * 2
+    fhd_model_files["filename"] = np.array(
+        [fhd_model_files["filename"][0], fhd_model_files["filename"][1]]
+    )
     fhd_uv1.read(
-        np.array([test1, test2]),
-        params_file=[tf_params, tf_params],
-        flag_file=[tf_flag, tf_flag],
-        obs_file=[tf_obs, tf_obs],
-        layout_file=[tf_layout, tf_layout],
-        settings_file=[tf_stngs, tf_stngs],
-        file_type="fhd",
-        axis=axis,
-        use_future_array_shapes=True,
+        **fhd_model_files, file_type="fhd", axis=axis, use_future_array_shapes=True
     )
 
     fhd_uv2 = fhd_model
@@ -767,34 +702,35 @@ def test_multi_files(fhd_model, axis, fhd_test_files):
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
-@pytest.mark.parametrize("ftype_err", ["params", "obs", "flag", "layout", "settings"])
-def test_multi_files_errors(fhd_model, fhd_test_files, ftype_err):
+@pytest.mark.parametrize(
+    "ftype_err",
+    ["params_file", "obs_file", "flags_file", "layout_file", "settings_file"],
+)
+def test_multi_files_errors(fhd_model, fhd_model_files, ftype_err):
     fhd_uv1 = UVData()
 
-    tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs = fhd_test_files
-    test1 = [tf_model[0]]
-    test2 = [tf_model[1]]
+    for ftype, fnames in fhd_model_files.items():
+        if isinstance(fnames, list):
+            fhd_model_files[ftype] = [[fnames[0]], [fnames[1]]]
+        else:
+            fhd_model_files[ftype] = [fnames] * 2
+    fhd_model_files["filename"] = np.array(
+        [fhd_model_files["filename"][0], fhd_model_files["filename"][1]]
+    )
 
-    n_files_per_type = np.zeros(5, dtype="int") + 2
-    ftype_ind_dict = {"params": 0, "flag": 1, "obs": 2, "layout": 3, "settings": 4}
-    n_files_per_type[ftype_ind_dict[ftype_err]] = 3
+    fhd_model_files[ftype_err] = [fhd_model_files[ftype_err]] * 3
 
     msg = "For multiple FHD files, "
-    if ftype_err == "params":
+    if ftype_err == "params_file":
         msg += "the number of params_file"
     else:
-        ftype_name = ftype_err + "_file"
+        ftype_name = ftype_err
         msg += "if " + ftype_name + " is passed, the number of " + ftype_name
 
     msg += " values must match the number of data file sets."
     with pytest.raises(ValueError, match=msg):
         fhd_uv1.read(
-            np.array([test1, test2]),
-            params_file=[tf_params] * n_files_per_type[0],
-            flag_file=[tf_flag] * n_files_per_type[1],
-            obs_file=[tf_obs] * n_files_per_type[2],
-            layout_file=[tf_layout] * n_files_per_type[3],
-            settings_file=[tf_stngs] * n_files_per_type[4],
+            **fhd_model_files,
             file_type="fhd",
             axis="polarization",
             use_future_array_shapes=True,
@@ -806,15 +742,10 @@ def test_single_time():
     test reading in a file with a single time.
     """
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
-    (
-        data_files,
-        model_files,
-        params_file,
-        obs_file,
-        flag_file,
-        layout_file,
-        settings_file,
-    ) = get_fhd_files(single_time_filelist)
+    file_dict = get_fhd_files(single_time_filelist)
+    file_dict["filename"] = file_dict["data_files"]
+    del file_dict["data_files"]
+    del file_dict["model_files"]
 
     fhd_uv = UVData()
     with uvtest.check_warnings(
@@ -822,17 +753,12 @@ def test_single_time():
         [
             "tile_names from obs structure does not match",
             "Telescope location derived from obs lat/lon/alt",
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['vis', 'vis', "
+            "'flags', 'layout', 'params', 'settings']",
         ],
     ):
-        fhd_uv.read(
-            data_files,
-            params_file=params_file,
-            flag_file=flag_file,
-            obs_file=obs_file,
-            layout_file=layout_file,
-            settings_file=settings_file,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
 
     assert np.unique(fhd_uv.time_array).size == 1
 
@@ -841,15 +767,11 @@ def test_conjugation():
     """test uvfits vs fhd conjugation"""
     uvfits_file = os.path.join(DATA_PATH, "ref_1.1_uniform.uvfits")
     single_time_filelist = glob.glob(os.path.join(DATA_PATH, "refsim1.1_fhd/*"))
-    (
-        data_files,
-        model_files,
-        params_file,
-        obs_file,
-        flag_file,
-        layout_file,
-        settings_file,
-    ) = get_fhd_files(single_time_filelist)
+    file_dict = get_fhd_files(single_time_filelist)
+    file_dict["filename"] = file_dict["data_files"]
+    del file_dict["data_files"]
+    del file_dict["model_files"]
+
     uvfits_uv = UVData()
     uvfits_uv.read(uvfits_file, use_future_array_shapes=True)
 
@@ -859,17 +781,12 @@ def test_conjugation():
         [
             "tile_names from obs structure does not match",
             "Telescope location derived from obs lat/lon/alt",
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['vis', 'vis', "
+            "'flags', 'layout', 'params', 'settings']",
         ],
     ):
-        fhd_uv.read(
-            data_files,
-            params_file=params_file,
-            flag_file=flag_file,
-            obs_file=obs_file,
-            layout_file=layout_file,
-            settings_file=settings_file,
-            use_future_array_shapes=True,
-        )
+        fhd_uv.read(**file_dict, use_future_array_shapes=True)
 
     uvfits_uv.select(polarizations=fhd_uv.polarization_array)
 
