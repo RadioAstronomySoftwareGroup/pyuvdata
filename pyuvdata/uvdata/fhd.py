@@ -21,6 +21,110 @@ from .uvdata import UVData, _future_array_shapes_warning
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
 
+def fhd_filenames(
+    *,
+    vis_files: list[str] | np.ndarray | str | None = None,
+    params_file: str | None = None,
+    obs_file: str | None = None,
+    flags_file: str | None = None,
+    layout_file: str | None = None,
+    settings_file: str | None = None,
+    cal_file: str | None = None,
+):
+    """
+    Check the FHD input files for matching prefixes and folders.
+
+    Parameters
+    ----------
+    vis_files : str or array-like of str, optional
+        FHD visibility save file names, can be data or model visibilities.
+    params_file : str
+        FHD params save file name.
+    obs_file : str
+        FHD obs save file name.
+    flags_file : str
+        FHD flag save file name.
+    layout_file : str
+        FHD layout save file name.
+    layout_file : str
+        FHD layout save file name.
+    settings_file : str
+        FHD settings text file name.
+    cal_file : str
+        FHD cal save file name.
+
+    Returns
+    -------
+    A list of file basenames to be used in the object `filename` attribute.
+
+    """
+    file_types = {
+        "vis": {"files": vis_files, "suffix": "_vis", "sub_folder": "vis_data"},
+        "cal": {"files": cal_file, "suffix": "_cal", "sub_folder": "calibration"},
+        "flags": {"files": flags_file, "suffix": "_flags", "sub_folder": "vis_data"},
+        "layout": {"files": layout_file, "suffix": "_layout", "sub_folder": "metadata"},
+        "obs": {"files": obs_file, "suffix": "_obs", "sub_folder": "metadata"},
+        "params": {"files": params_file, "suffix": "_params", "sub_folder": "metadata"},
+        "settings": {
+            "files": settings_file,
+            "suffix": "_settings",
+            "sub_folder": "metadata",
+        },
+    }
+
+    basename_list = []
+    prefix_list = []
+    folder_list = []
+    missing_suffix = []
+    missing_subfolder = []
+    for ftype, fdict in file_types.items():
+        if fdict["files"] is None:
+            continue
+        if isinstance(fdict["files"], (list, np.ndarray)):
+            these_files = fdict["files"]
+        else:
+            these_files = [fdict["files"]]
+
+        for fname in these_files:
+            dirname, basename = os.path.split(fname)
+            basename_list.append(basename)
+            if fdict["suffix"] in basename:
+                suffix_loc = basename.find(fdict["suffix"])
+                prefix_list.append(basename[:suffix_loc])
+            else:
+                missing_suffix.append(ftype)
+            fhd_folder, subfolder = os.path.split(dirname)
+            if subfolder == fdict["sub_folder"]:
+                folder_list.append(fhd_folder)
+            else:
+                missing_subfolder.append(ftype)
+
+    if len(missing_suffix) > 0:
+        warnings.warn(
+            "Some FHD input files do not have the expected suffix so prefix "
+            f"matching could not be done. The affected file types are: {missing_suffix}"
+        )
+    if len(missing_subfolder) > 0:
+        warnings.warn(
+            "Some FHD input files do not have the expected subfolder so FHD "
+            "folder matching could not be done. The affected file types are: "
+            f"{missing_subfolder}"
+        )
+
+    if np.unique(prefix_list).size > 1:
+        warnings.warn(
+            "The FHD input files do not all have matching prefixes, so they "
+            "may not be for the same data."
+        )
+    if np.unique(folder_list).size > 1:
+        warnings.warn(
+            "The FHD input files do not all have the same parent folder, so "
+            "they may not be for the same FHD run."
+        )
+
+    return basename_list
+
+
 def get_fhd_history(settings_file, *, return_user=False):
     """
     Small function to get the important history from an FHD settings text file.
@@ -323,7 +427,7 @@ class FHD(UVData):
         *,
         params_file: str,
         obs_file: str | None = None,
-        flag_file: str | None = None,
+        flags_file: str | None = None,
         layout_file: str | None = None,
         settings_file: str | None = None,
         background_lsts=True,
@@ -364,10 +468,6 @@ class FHD(UVData):
             else:
                 raise ValueError("unrecognized file in vis_files")
 
-            basename = os.path.basename(filename)
-            self.filename = uvutils._combine_filenames(self.filename, [basename])
-            self._filename.form = (len(self.filename),)
-
             if "_vis_model_" in filename:
                 this_model = True
             else:
@@ -377,16 +477,16 @@ class FHD(UVData):
                 use_model = this_model
             elif this_model != use_model:
                 raise ValueError(
-                    "The vis_files parameter has a mix of model and in data files."
+                    "The vis_files parameter has a mix of model and data files."
                 )
 
         if len(datafiles_dict) < 1 and read_data is True:
             raise ValueError(
                 "The vis_files parameter must be passed if read_data is True"
             )
-        if flag_file is None and read_data is True:
+        if flags_file is None and read_data is True:
             raise ValueError(
-                "The flag_file parameter must be passed if read_data is True"
+                "The flags_file parameter must be passed if read_data is True"
             )
 
         if obs_file is None and read_data is False:
@@ -406,20 +506,23 @@ class FHD(UVData):
                 "information will be missing."
             )
 
-        for fname in [params_file, obs_file, flag_file, layout_file, settings_file]:
-            if fname is None:
-                continue
-            basename = os.path.basename(fname)
-            self.filename = uvutils._combine_filenames(self.filename, [basename])
-            self._filename.form = (len(self.filename),)
+        filenames = fhd_filenames(
+            vis_files=vis_files,
+            params_file=params_file,
+            obs_file=obs_file,
+            flags_file=flags_file,
+            layout_file=layout_file,
+            settings_file=settings_file,
+        )
+
+        self.filename = filenames
+        self._filename.form = (len(self.filename),)
 
         if not read_data:
             obs_dict = readsav(obs_file, python_dict=True)
             this_obs = obs_dict["obs"]
             self.Npols = int(this_obs[0]["N_POL"])
         else:
-            # TODO: add checking to make sure params, flags and datafiles are
-            # consistent with each other
             vis_data = {}
             for pol, file in datafiles_dict.items():
                 this_dict = readsav(file, python_dict=True)
@@ -441,7 +544,7 @@ class FHD(UVData):
         params = params_dict["params"]
 
         if read_data:
-            flag_file_dict = readsav(flag_file, python_dict=True)
+            flag_file_dict = readsav(flags_file, python_dict=True)
             # The name for this variable changed recently (July 2016). Test for both.
             vis_weights_data = {}
             if "flag_arr" in flag_file_dict:
@@ -450,7 +553,7 @@ class FHD(UVData):
                 weights_key = "vis_weights"
             else:
                 raise ValueError(
-                    "No recognized key for visibility weights in flag_file."
+                    "No recognized key for visibility weights in flags_file."
                 )
             for index, w in enumerate(flag_file_dict[weights_key]):
                 vis_weights_data[fhd_pol_list[index]] = w

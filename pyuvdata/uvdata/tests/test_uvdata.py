@@ -9871,21 +9871,13 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
         ("read_fhd", []),
     ],
 )
-def test_multifile_read_errors(read_func, filelist, fhd_test_files):
+def test_multifile_read_errors(read_func, filelist, fhd_data_files):
     uv = UVData()
     kwargs = {}
     if "fhd" in read_func:
-        (tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs) = (
-            fhd_test_files
-        )
-        filelist = [[tf_data[0]], [tf_data[1]]]
-        kwargs = {
-            "params_file": tf_params,
-            "obs_file": tf_obs,
-            "flag_file": tf_flag,
-            "layout_file": tf_layout,
-            "settings_file": tf_stngs,
-        }
+        filelist = [[fhd_data_files["filename"][0]], [fhd_data_files["filename"][1]]]
+        kwargs = fhd_data_files
+        del kwargs["filename"]
     with pytest.raises(
         ValueError,
         match=(
@@ -12136,22 +12128,14 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         ],
     ],
 )
-def test_from_file(filename, msg, fhd_test_files):
+def test_from_file(filename, msg, fhd_data_files):
     kwargs = {}
     if "miriad" in filename:
         pytest.importorskip("pyuvdata._miriad")
     elif "fhd" in filename:
-        (tf_data, tf_model, tf_params, tf_obs, tf_flag, tf_layout, tf_stngs) = (
-            fhd_test_files
-        )
-        filename = tf_data
-        kwargs = {
-            "params_file": tf_params,
-            "obs_file": tf_obs,
-            "flag_file": tf_flag,
-            "layout_file": tf_layout,
-            "settings_file": tf_stngs,
-        }
+        filename = fhd_data_files["filename"]
+        kwargs = fhd_data_files
+        del kwargs["filename"]
 
     if isinstance(filename, str):
         testfile = os.path.join(DATA_PATH, filename)
