@@ -145,16 +145,20 @@ When reading FHD format, we need to point to several files for each observation.
   >>> uvd = UVData()
 
   >>> # Construct the list of files
-  >>> fhd_prefix = os.path.join(DATA_PATH, 'fhd_vis_data/1061316296_')
-  >>> fhd_vis_files = [fhd_prefix + f for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> fhd_prefix = '1061316296_'
+  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
+  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
+  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
+  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
 
   # Use the `read` or `from_file` method, optionally specify the file type.
   >>> uvd = UVData.from_file(
   ...    fhd_vis_files,
-  ...    params_file=fhd_prefix + 'params.sav',
-  ...    flag_file=fhd_prefix + 'flags.sav',
-  ...    layout_file=fhd_prefix + 'layout.sav',
-  ...    settings_file=fhd_prefix + 'settings.txt',
+  ...    flags_file=flags_file,
+  ...    layout_file=layout_file,
+  ...    params_file=params_file,
+  ...    settings_file=settings_file,
   ...    use_future_array_shapes=True
   ... )
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
@@ -171,16 +175,21 @@ d) FHD -> miriad
   >>> import os
 
   >>> # Construct the list of files
-  >>> fhd_prefix = os.path.join(DATA_PATH, 'fhd_vis_data/1061316296_')
-  >>> fhd_vis_files = [fhd_prefix + f for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> fhd_prefix = '1061316296_'
+  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
+  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
+  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
+  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
+
 
   # Use the `read` or `from_file` method, optionally specify the file type.
   >>> uvd = UVData.from_file(
   ...    fhd_vis_files,
-  ...    params_file=fhd_prefix + 'params.sav',
-  ...    flag_file=fhd_prefix + 'flags.sav',
-  ...    layout_file=fhd_prefix + 'layout.sav',
-  ...    settings_file=fhd_prefix + 'settings.txt',
+  ...    flags_file=flags_file,
+  ...    layout_file=layout_file,
+  ...    params_file=params_file,
+  ...    settings_file=settings_file,
   ...    use_future_array_shapes=True
   ... )
   >>> write_file = os.path.join('.','tutorial.uv')
