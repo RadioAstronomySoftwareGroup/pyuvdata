@@ -16,13 +16,13 @@ from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 # set up FHD files
 testdir = os.path.join(DATA_PATH, "fhd_cal_data/")
 testfile_prefix = "1061316296_"
-obs_testfile = os.path.join(testdir, testfile_prefix + "obs.sav")
-cal_testfile = os.path.join(testdir, testfile_prefix + "cal.sav")
-settings_testfile = os.path.join(testdir, testfile_prefix + "settings.txt")
+obs_testfile = os.path.join(testdir, "metadata", testfile_prefix + "obs.sav")
+cal_testfile = os.path.join(testdir, "calibration", testfile_prefix + "cal.sav")
+settings_testfile = os.path.join(testdir, "metadata", testfile_prefix + "settings.txt")
 settings_testfile_nodiffuse = os.path.join(
     testdir, testfile_prefix + "nodiffuse_settings.txt"
 )
-layout_testfile = os.path.join(testdir, testfile_prefix + "layout.sav")
+layout_testfile = os.path.join(testdir, "metadata", testfile_prefix + "layout.sav")
 
 testdir2 = os.path.join(DATA_PATH, "fhd_cal_data/set2")
 obs_file_multi = [obs_testfile, os.path.join(testdir2, testfile_prefix + "obs.sav")]
@@ -48,8 +48,8 @@ def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path)
         fhd_cal = fhd_cal_fit
 
     filelist = [cal_testfile, obs_testfile, layout_testfile, settings_testfile]
+    assert set(fhd_cal.filename) == {os.path.basename(fn) for fn in filelist}
 
-    assert fhd_cal.filename == sorted(os.path.basename(file) for file in filelist)
     assert np.max(fhd_cal.gain_array) < 2.0
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
@@ -109,48 +109,86 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
 
     # test that no diffuse is properly picked up from the settings file when
     # read_data is False
-    fhd_cal = UVCal.from_file(
-        cal_testfile,
-        obs_file=obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=settings_testfile_nodiffuse,
-        raw=raw,
-        read_data=False,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['settings']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_cal = UVCal.from_file(
+            cal_testfile,
+            obs_file=obs_testfile,
+            layout_file=layout_testfile,
+            settings_file=settings_testfile_nodiffuse,
+            raw=raw,
+            read_data=False,
+            use_future_array_shapes=True,
+        )
 
     assert fhd_cal.diffuse_model is None
 
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 def test_read_fhdcal_multimode():
     """
     Read cal with multiple mode_fit values.
     """
-    fhd_cal = UVCal.from_file(
-        os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-        obs_file=obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
-        raw=False,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: "
+            "['cal', 'settings']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_cal = UVCal.from_file(
+            os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
+            obs_file=obs_testfile,
+            layout_file=layout_testfile,
+            settings_file=os.path.join(
+                testdir, testfile_prefix + "multimode_settings.txt"
+            ),
+            raw=False,
+            use_future_array_shapes=True,
+        )
     assert fhd_cal.extra_keywords["MODE_FIT"] == "[90, 150, 230, 320, 400, 524]"
 
     fhd_cal2 = fhd_cal.copy(metadata_only=True)
 
     # check metadata only read
-    fhd_cal = UVCal.from_file(
-        os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
-        obs_file=obs_testfile,
-        layout_file=layout_testfile,
-        settings_file=os.path.join(testdir, testfile_prefix + "multimode_settings.txt"),
-        raw=False,
-        read_data=False,
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: "
+            "['cal', 'settings']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
+            "Telescope location derived from obs lat/lon/alt values does not match the "
+            "location in the layout file. Using the value from known_telescopes.",
+        ],
+    ):
+        fhd_cal = UVCal.from_file(
+            os.path.join(testdir, testfile_prefix + "multimode_cal.sav"),
+            obs_file=obs_testfile,
+            layout_file=layout_testfile,
+            settings_file=os.path.join(
+                testdir, testfile_prefix + "multimode_settings.txt"
+            ),
+            raw=False,
+            read_data=False,
+            use_future_array_shapes=True,
+        )
     # this file set has a mismatch in Nsources between the cal file & settings
     # file for some reason. I think it's just an issue with the files chosen
     assert fhd_cal.Nsources != fhd_cal2.Nsources
@@ -213,6 +251,9 @@ def test_flags_galaxy(tmp_path):
         match=[
             "tile_names from obs structure does not match",
             "Telescope location derived from obs lat/lon/alt",
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['cal', "
+            "'layout', 'obs', 'settings']",
         ],
     ):
         fhd_cal = UVCal.from_file(
@@ -235,6 +276,10 @@ def test_unknown_telescope():
         match=[
             "Telescope foo is not in known_telescopes.",
             "Telescope location derived from obs lat/lon/alt",
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['obs']",
+            "The FHD input files do not all have matching prefixes, so they may not be "
+            "for the same data.",
         ],
     ):
         fhd_cal = UVCal.from_file(
@@ -275,6 +320,10 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     if nfiles > 1:
         message_list *= 2
         message_list.append("UVParameter diffuse_model does not match")
+        message_list.append(
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: ['cal', 'obs']"
+        )
 
     with uvtest.check_warnings(UserWarning, message_list):
         fhd_cal = UVCal.from_file(
@@ -299,12 +348,17 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     warning_list = [UserWarning] * (3 * nfiles - 1)
 
     if nfiles > 1:
-        warning_list += [DeprecationWarning]
+        warning_list += [DeprecationWarning, UserWarning]
         message_list += [
             "Reading multiple files from file specific read methods is deprecated. Use "
             "the generic `UVCal.read` method instead. This will become an error in "
             "version 2.5"
         ]
+        message_list.append(
+            "Some FHD input files do not have the expected subfolder so FHD folder "
+            "matching could not be done. The affected file types are: "
+            "['cal', 'obs', 'settings']"
+        )
 
     with uvtest.check_warnings(warning_list, match=message_list):
         fhd_cal.read_fhd_cal(
@@ -338,13 +392,16 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 )
 def test_read_multi(tmp_path, concat_method, read_method):
     """Test reading in multiple files."""
-    warn_type = [UserWarning] * 3
+    warn_type = [UserWarning] * 4
     msg = [
         "UVParameter diffuse_model does not match",
         "Telescope location derived from obs lat/lon/alt values does not match the "
         "location in the layout file.",
         "Telescope location derived from obs lat/lon/alt values does not match the "
         "location in the layout file.",
+        "Some FHD input files do not have the expected subfolder so FHD folder "
+        "matching could not be done. The affected file types are: "
+        "['cal', 'obs', 'settings']",
     ]
 
     if concat_method == "fast_concat":

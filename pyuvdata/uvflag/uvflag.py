@@ -482,7 +482,7 @@ class UVFlag(UVBase):
         )
 
         self._telescope_location = uvp.LocationParameter(
-            "telescope_location", description=desc, tols=1e-3, frame="itrs",
+            "telescope_location", description=desc, tols=1e-3, frame="itrs"
         )
 
         self._history = uvp.UVParameter(
