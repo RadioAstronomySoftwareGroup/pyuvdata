@@ -478,10 +478,19 @@ def new_uvcal_from_uvdata(
         "ant_array", np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
     )
 
+    # Just in case a user inputs their own ant_array kwarg
+    # make sure this is a numpy array for the following interactions
+    if not isinstance(ant_array, np.ndarray):
+        ant_array = np.asarray(ant_array)
+
     if antenna_numbers is not None:
-        ant_array = np.intersect1d(ant_array, antenna_numbers)
+        ant_array = np.intersect1d(
+            ant_array, np.asarray(antenna_numbers, dtype=ant_array.dtype)
+        )
     elif isinstance(antenna_positions, dict):
-        ant_array = np.intersect1d(ant_array, list(antenna_positions.keys()))
+        ant_array = np.intersect1d(
+            ant_array, np.asarray(list(antenna_positions.keys()), dtype=ant_array.dtype)
+        )
 
     if jones_array is None:
         if np.all(uvdata.polarization_array < -4):
