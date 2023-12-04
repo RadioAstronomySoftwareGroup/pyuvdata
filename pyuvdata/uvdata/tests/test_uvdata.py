@@ -2320,7 +2320,7 @@ def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
     uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
-    with pytest.raises(ValueError, match="No elements in time range"):
+    with pytest.raises(ValueError, match="No elements in time_array"):
         uv_object.select(
             time_range=[
                 np.min(unique_times) - uv_object.integration_time[0] * 2,
@@ -2333,7 +2333,7 @@ def test_select_lst_range_no_data(casa_uvfits):
     """Check for error associated with LSTS not included in data."""
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
-    with pytest.raises(ValueError, match="No elements in LST range"):
+    with pytest.raises(ValueError, match="No elements in lst_array"):
         uv_object.select(
             lst_range=[np.min(unique_lsts) - 0.2, np.min(unique_lsts) - 0.1]
         )
@@ -5453,9 +5453,9 @@ def test_parse_ants(casa_uvfits, hera_uvh5_xx):
     assert isinstance(ant_pairs_nums, type(None))
     assert Counter(polarizations) == Counter(pols_expected)
 
-    # Unparsible string
+    # Unparsable string
     ant_str = "none"
-    with pytest.raises(ValueError, match="Unparsible argument none"):
+    with pytest.raises(ValueError, match="Unparsable argument none"):
         uv.parse_ants(ant_str)
 
     # Single antenna number
@@ -6110,7 +6110,7 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
             {"ant_str": "pI,pq,pU,pv"},
             "Polarization 4 is not present in the polarization_array",
         ),
-        ({"ant_str": "none"}, "Unparsible argument none"),
+        ({"ant_str": "none"}, "Unparsable argument none"),
     ],
 )
 def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):

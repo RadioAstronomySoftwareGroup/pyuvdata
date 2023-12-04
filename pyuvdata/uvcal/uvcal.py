@@ -14,7 +14,7 @@ from docstring_parser import DocstringStyle
 from .. import parameter as uvp
 from .. import telescopes as uvtel
 from .. import utils as uvutils
-from ..docstrings import combine_docstrings
+from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
 from . import initializers
 
@@ -28,40 +28,6 @@ _future_array_shapes_warning = (
     "warning. See the UVCal tutorial on ReadTheDocs for more details about these "
     "shape changes."
 )
-
-
-def _check_range_overlap(val_range, range_type="time"):
-    """
-    Detect if any val_range in an array overlap.
-
-    Parameters
-    ----------
-    val_range : np.array of float
-        Array of ranges, shape (Nranges, 2).
-    range_type : str
-        Type of range (for good error messages)
-
-    Returns
-    -------
-    bool
-        True if any range overlaps.
-    """
-    # first check that time ranges are well formed (stop is >= than start)
-    if np.any((val_range[:, 1] - val_range[:, 0]) < 0):
-        raise ValueError(
-            f"The {range_type} ranges are not well-formed, some stop {range_type}s "
-            f"are after start {range_type}s."
-        )
-
-    # Sort by start time
-    sorted_ranges = val_range[np.argsort(val_range[:, 0]), :]
-
-    # then check if adjacent pairs overlap
-    for ind in range(sorted_ranges.shape[0] - 1):
-        range1 = sorted_ranges[ind]
-        range2 = sorted_ranges[ind + 1]
-        if range2[0] < range1[1]:
-            return True
 
 
 def _time_param_check(this, other):
@@ -242,7 +208,6 @@ class UVCal(UVBase):
         desc = (
             "Array of frequencies, center of the channel, "
             "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz."
-            "Not required if future_array_shapes=True and wide_band=True."
             "Should not be set if future_array_shapes=True and wide_band=True."
         )
         # TODO: Spw axis to be collapsed in future release
@@ -1380,8 +1345,7 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
-        # deprecate having both time_array and time_range set
-        # check that corresponding lst parameters are set
+        # deprecate having both arrays and ranges set for times and lsts
         time_like_pairs = [("time_array", "time_range"), ("lst_array", "lst_range")]
         for pair in time_like_pairs:
             if (
@@ -1396,6 +1360,7 @@ class UVCal(UVBase):
             elif getattr(self, pair[0]) is None and getattr(self, pair[1]) is None:
                 raise ValueError(f"Either {pair[0]} or {pair[1]} must be set.")
 
+        # check that corresponding lst/time parameters are set
         for tp_ind, param in enumerate(time_like_pairs[0]):
             lst_param = time_like_pairs[1][tp_ind]
             if getattr(self, param) is not None and getattr(self, lst_param) is None:
@@ -1405,7 +1370,7 @@ class UVCal(UVBase):
 
         # check that time ranges are well formed and do not overlap
         if self.time_range is not None:
-            if _check_range_overlap(self.time_range):
+            if uvutils._check_range_overlap(self.time_range):
                 raise ValueError("Some time_ranges overlap.")
             # note: do not check lst range overlap because of branch cut.
             # Assume they are ok if time_ranges are ok.
@@ -2623,7 +2588,7 @@ class UVCal(UVBase):
                 DeprecationWarning,
             )
         if this.time_range is not None:
-            if _check_range_overlap(
+            if uvutils._check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
             ):
                 raise ValueError("A time_range overlaps in the two objects.")
@@ -4227,6 +4192,449 @@ class UVCal(UVBase):
         if not inplace:
             return this
 
+    def _select_preprocess(
+        self,
+        *,
+        antenna_nums,
+        antenna_names,
+        frequencies,
+        freq_chans,
+        spws,
+        times,
+        time_range,
+        lsts,
+        lst_range,
+        jones,
+    ):
+        """
+        Downselect data to keep on the object along various axes.
+
+        Axes that can be selected along include antennas, frequencies, times and
+        antenna polarization (jones).
+
+        The history attribute on the object will be updated to identify the
+        operations performed.
+
+        Parameters
+        ----------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to keep in the object (antenna positions and
+            names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided.
+        antenna_names : array_like of str, optional
+            The antennas names to keep in the object (antenna positions and
+            names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided.
+        frequencies : array_like of float, optional
+            The frequencies to keep in the object, each value passed here should
+            exist in the freq_array.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to keep in the object.
+        spws : array_like of in, optional
+            The spectral window numbers to keep in the object. If this is not a
+            wide-band object and `frequencies` or `freq_chans` is not None, frequencies
+            that match any of the specifications will be kept (i.e. the selections will
+            be OR'ed together).
+        times : array_like of float, optional
+            The times to keep in the object, each value passed here should exist in
+            the time_array or be contained in a time_range on the object.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        jones : array_like of int or str, optional
+            The antenna polarizations numbers to keep in the object, each value
+            passed here should exist in the jones_array. If passing strings, the
+            canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
+            `x_orientation` attribute is set, the physical dipole strings
+            (e.g. "Jnn", "Jee") are also supported.
+
+        Returns
+        -------
+        ant_inds : list of int
+            list of antenna indices to keep. Can be None (to keep everything).
+        time_inds : list of int
+            list of time indices to keep. Can be None (to keep everything).
+        spw_inds : list of int
+            list of spw indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        pol_inds : list of int
+            list of polarization indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+
+        """
+        # build up history string as we go
+        history_update_string = "  Downselected to specific "
+        n_selects = 0
+
+        if antenna_names is not None:
+            if antenna_nums is not None:
+                raise ValueError(
+                    "Only one of antenna_nums and antenna_names can be provided."
+                )
+
+            antenna_names = uvutils._get_iterable(antenna_names)
+            antenna_nums = []
+            for s in antenna_names:
+                if s not in self.antenna_names:
+                    raise ValueError(
+                        f"Antenna name {s} is not present in the antenna_names array"
+                    )
+                ind = np.where(np.array(self.antenna_names) == s)[0][0]
+                antenna_nums.append(self.antenna_numbers[ind])
+
+        if antenna_nums is not None:
+            antenna_nums = uvutils._get_iterable(antenna_nums)
+            history_update_string += "antennas"
+            n_selects += 1
+
+            ant_inds = np.zeros(0, dtype=np.int64)
+            for ant in antenna_nums:
+                if ant in self.ant_array:
+                    ant_inds = np.append(ant_inds, np.where(self.ant_array == ant)[0])
+                else:
+                    raise ValueError(
+                        f"Antenna number {ant} is not present in the array"
+                    )
+
+            ant_inds = sorted(set(ant_inds))
+        else:
+            ant_inds = None
+
+        if (times is not None or time_range is not None) and (
+            self.time_array is not None and self.time_range is not None
+        ):
+            warnings.warn(
+                "The time_array and time_range attributes are both set. "
+                "Defaulting to using time_range to determine time selection. "
+                "This will become an error in version 3.0.",
+                DeprecationWarning,
+            )
+
+        time_inds = uvutils._select_times_helper(
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            obj_time_array=self.time_array,
+            obj_time_range=self.time_range,
+            obj_lst_array=self.lst_array,
+            obj_lst_range=self.lst_range,
+            time_tols=self._time_array.tols,
+            lst_tols=self._lst_array.tols,
+        )
+        if time_inds is not None:
+            time_inds = sorted(set(time_inds.tolist()))
+
+        if times is not None or time_range is not None:
+            if n_selects > 0:
+                history_update_string += ", times"
+            else:
+                history_update_string += "times"
+            n_selects += 1
+
+        if lsts is not None or lst_range is not None:
+            if n_selects > 0:
+                history_update_string += ", lsts"
+            else:
+                history_update_string += "lsts"
+            n_selects += 1
+
+        if time_inds is not None and self.time_range is None:
+            # don't warn if time_range is not None because calfits does not support
+            # multiple time_range values
+            time_inds_arr = np.array(time_inds)
+            if time_inds_arr.size > 1:
+                time_ind_separation = time_inds_arr[1:] - time_inds_arr[:-1]
+                if not uvutils._test_array_constant(time_ind_separation):
+                    warnings.warn(
+                        "Selected times are not evenly spaced. This "
+                        "is not supported by the calfits format."
+                    )
+
+        if spws is not None:
+            if self.Nspws == 1:
+                warnings.warn(
+                    "Cannot select on spws if Nspws=1. Ignoring the spw parameter."
+                )
+                spw_inds = None
+            else:
+                if not self.wide_band:
+                    assert self.flex_spw is True, (
+                        "The `flex_spw` parameter must be True if there are multiple "
+                        "spectral windows and the `wide_band` parameter is not True."
+                    )
+                    # Translate the spws into frequencies
+                    if frequencies is None:
+                        if self.future_array_shapes:
+                            frequencies = self.freq_array[
+                                np.isin(self.flex_spw_id_array, spws)
+                            ]
+                        else:
+                            frequencies = self.freq_array[
+                                0, np.isin(self.flex_spw_id_array, spws)
+                            ]
+                    spw_inds = None
+                else:
+                    assert self.future_array_shapes, (
+                        "The `future_array_shapes` parameter must be True if the "
+                        "`wide_band` parameter is True"
+                    )
+                    if n_selects > 0:
+                        history_update_string += ", spectral windows"
+                    else:
+                        history_update_string += "spectral windows"
+                    n_selects += 1
+
+                    # Check and see that all requested spws are available
+                    spw_check = np.isin(spws, self.spw_array)
+                    if not np.all(spw_check):
+                        raise ValueError(
+                            f"SPW number {spws[np.where(~spw_check)[0][0]]} is not "
+                            "present in the spw_array"
+                        )
+
+                    spw_inds = np.where(np.isin(self.spw_array, spws))[0]
+
+                    spw_inds = sorted(set(spw_inds))
+        else:
+            spw_inds = None
+
+        if self.freq_array is None and (
+            freq_chans is not None or frequencies is not None
+        ):
+            raise ValueError(
+                "Cannot select on frequencies because this is a wide_band object with "
+                "no freq_array."
+            )
+        if freq_chans is not None:
+            freq_chans = uvutils._get_iterable(freq_chans)
+            if frequencies is None:
+                if self.future_array_shapes:
+                    frequencies = self.freq_array[freq_chans]
+                else:
+                    frequencies = self.freq_array[0, freq_chans]
+            else:
+                frequencies = uvutils._get_iterable(frequencies)
+                if self.future_array_shapes:
+                    frequencies = np.sort(
+                        list(set(frequencies) | set(self.freq_array[freq_chans]))
+                    )
+                else:
+                    frequencies = np.sort(
+                        list(set(frequencies) | set(self.freq_array[0, freq_chans]))
+                    )
+
+        if frequencies is not None:
+            frequencies = uvutils._get_iterable(frequencies)
+            if n_selects > 0:
+                history_update_string += ", frequencies"
+            else:
+                history_update_string += "frequencies"
+            n_selects += 1
+
+            if self.future_array_shapes:
+                freq_arr_use = self.freq_array
+            else:
+                freq_arr_use = self.freq_array[0, :]
+
+            # Check and see that all requested freqs are available
+            freq_check = np.isin(frequencies, freq_arr_use)
+            if not np.all(freq_check):
+                raise ValueError(
+                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
+                    "present in the freq_array"
+                )
+            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
+
+            if len(frequencies) > 1:
+                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
+                if self.flex_spw_id_array is not None:
+                    freq_ind_separation = freq_ind_separation[
+                        np.diff(self.flex_spw_id_array[freq_inds]) == 0
+                    ]
+                if not uvutils._test_array_constant(freq_ind_separation):
+                    warnings.warn(
+                        "Selected frequencies are not evenly spaced. This "
+                        "will make it impossible to write this data out to "
+                        "some file types"
+                    )
+                elif np.max(freq_ind_separation) > 1:
+                    warnings.warn(
+                        "Selected frequencies are not contiguous. This "
+                        "will make it impossible to write this data out to "
+                        "some file types."
+                    )
+
+            freq_inds = sorted(set(freq_inds))
+        else:
+            freq_inds = None
+
+        if jones is not None:
+            jones = uvutils._get_iterable(jones)
+            if np.array(jones).ndim > 1:
+                jones = np.array(jones).flatten()
+            if n_selects > 0:
+                history_update_string += ", jones polarization terms"
+            else:
+                history_update_string += "jones polarization terms"
+            n_selects += 1
+
+            jones_inds = np.zeros(0, dtype=np.int64)
+            for j in jones:
+                if isinstance(j, str):
+                    j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
+                else:
+                    j_num = j
+                if j_num in self.jones_array:
+                    jones_inds = np.append(
+                        jones_inds, np.where(self.jones_array == j_num)[0]
+                    )
+                else:
+                    raise ValueError(
+                        "Jones term {j} is not present in the jones_array".format(j=j)
+                    )
+
+            jones_inds = sorted(set(jones_inds))
+            if not uvutils._test_array_constant_spacing(self.jones_array[jones_inds]):
+                warnings.warn(
+                    "Selected jones polarization terms are not evenly spaced. This "
+                    "will make it impossible to write this data out to some file types."
+                )
+        else:
+            jones_inds = None
+
+        history_update_string += " using pyuvdata."
+
+        if n_selects == 0:
+            history_update_string = ""
+
+        return (
+            ant_inds,
+            time_inds,
+            spw_inds,
+            freq_inds,
+            jones_inds,
+            history_update_string,
+        )
+
+    def _select_by_index(
+        self,
+        *,
+        ant_inds,
+        time_inds,
+        spw_inds,
+        freq_inds,
+        jones_inds,
+        history_update_string,
+    ):
+        """
+        Perform select based on indexing arrays.
+
+        Parameters
+        ----------
+        ant_inds : list of int
+            list of antenna indices to keep. Can be None (to keep everything).
+        time_inds : list of int
+            list of time indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        jones_inds : list of int
+            list of jones indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+        """
+        # Create a dictionary that we can loop over an update if need be
+        ind_dict = {
+            "Nants_data": ant_inds,
+            "Ntimes": time_inds,
+            "Nspws": spw_inds,
+            "Nfreqs": freq_inds,
+            "Njones": jones_inds,
+        }
+
+        # During each loop interval, we pop off an element of this dict, so continue
+        # until the dict is empty.
+        while len(ind_dict):
+            # This is an easy way to grab the first key in the dict
+            key = next(iter(ind_dict))
+            # Grab the corresponding index array
+            ind_arr = ind_dict.pop(key)
+
+            # If nothing to select on, bail!
+            if ind_arr is None:
+                continue
+
+            for param in self:
+                # For each attribute, if the value is None, then bail, otherwise
+                # attempt to figure out along which axis ind_arr will apply.
+                attr = getattr(self, param)
+                if attr.value is not None:
+                    try:
+                        sel_axis = attr.form.index(key)
+                    except (AttributeError, ValueError):
+                        # If form is not a tuple/list (and therefore not
+                        # array-like), it'll throw an AttributeError, and if key is
+                        # not found in the tuple/list, it'll throw a ValueError.
+                        # In both cases, skip!
+                        continue
+
+                    if isinstance(attr.value, np.ndarray):
+                        # If we're working with an ndarray, use take to slice along
+                        # the axis that we want to grab from.
+                        attr.value = attr.value.take(ind_arr, axis=sel_axis)
+                    elif isinstance(attr.value, list):
+                        # If this is a list, it _should_ always have 1-dimension.
+                        assert sel_axis == 0, (
+                            "Something is wrong, sel_axis != 0 when selecting on a "
+                            "list, which should not be possible. Please file an "
+                            "issue in our GitHub issue log so that we can fix it."
+                        )
+                        attr.value = [attr.value[idx] for idx in ind_arr]
+
+            if key == "Nants_data":
+                # Count the number of unique antennas after antenna-based selection
+                self.Nants_data = len(ind_arr)
+                if self.total_quality_array is not None:
+                    warnings.warn(
+                        "Cannot preserve total_quality_array when changing "
+                        "number of antennas; discarding"
+                    )
+                    self.total_quality_array = None
+            elif key == "Ntimes":
+                # Process post time-specific selection actions
+                self.Ntimes = len(ind_arr)
+            elif key == "Nfreqs":
+                # Process post freq-specific selection actions
+                self.Nfreqs = len(ind_arr)
+                if self.flex_spw_id_array is not None:
+                    # If we are dropping channels, then evaluate the spw axis
+                    ind_dict["Nspws"] = np.where(
+                        np.isin(self.spw_array, self.flex_spw_id_array)
+                    )[0]
+            elif key == "Njones":
+                # Count the number of unique pols after pol-based selection
+                self.Njones = len(ind_arr)
+            elif key == "Nspws":
+                # Count the number of unique pols after spw-based selection
+                self.Nspws = len(ind_arr)
+
+        # Update the history string
+        self.history += history_update_string
+
     def select(
         self,
         *,
@@ -4237,6 +4645,8 @@ class UVCal(UVBase):
         spws=None,
         times=None,
         time_range=None,
+        lsts=None,
+        lst_range=None,
         jones=None,
         run_check=True,
         check_extra=True,
@@ -4279,6 +4689,17 @@ class UVCal(UVBase):
             The time range in Julian Date to keep in the object, must be
             length 2. Some of the times in the object should fall between the
             first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
         jones : array_like of int or str, optional
             The antenna polarizations numbers to keep in the object, each value
             passed here should exist in the jones_array. If passing strings, the
@@ -4306,506 +4727,49 @@ class UVCal(UVBase):
         else:
             cal_object = self.copy()
 
-        # build up history string as we go
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
+        # Figure out which index positions we want to hold on to.
+        (
+            ant_inds,
+            time_inds,
+            spw_inds,
+            freq_inds,
+            jones_inds,
+            history_update_string,
+        ) = cal_object._select_preprocess(
+            antenna_nums=antenna_nums,
+            antenna_names=antenna_names,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            spws=spws,
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            jones=jones,
+        )
 
-        if antenna_names is not None:
-            if antenna_nums is not None:
-                raise ValueError(
-                    "Only one of antenna_nums and antenna_names can be provided."
-                )
+        # Call the low-level selection method.
+        cal_object._select_by_index(
+            ant_inds=ant_inds,
+            time_inds=time_inds,
+            freq_inds=freq_inds,
+            spw_inds=spw_inds,
+            jones_inds=jones_inds,
+            history_update_string=history_update_string,
+        )
 
-            antenna_names = uvutils._get_iterable(antenna_names)
-            antenna_nums = []
-            for s in antenna_names:
-                if s not in cal_object.antenna_names:
-                    raise ValueError(
-                        f"Antenna name {s} is not present in the antenna_names array"
-                    )
-                ind = np.where(np.array(cal_object.antenna_names) == s)[0][0]
-                antenna_nums.append(cal_object.antenna_numbers[ind])
-
-        if antenna_nums is not None:
-            antenna_nums = uvutils._get_iterable(antenna_nums)
-            history_update_string += "antennas"
-            n_selects += 1
-
-            ant_inds = np.zeros(0, dtype=np.int64)
-            for ant in antenna_nums:
-                if ant in cal_object.ant_array:
-                    ant_inds = np.append(
-                        ant_inds, np.where(cal_object.ant_array == ant)[0]
-                    )
-                else:
-                    raise ValueError(
-                        f"Antenna number {ant} is not present in the array"
-                    )
-
-            ant_inds = sorted(set(ant_inds))
-            cal_object.Nants_data = len(ant_inds)
-            cal_object.ant_array = cal_object.ant_array[ant_inds]
-            if not self.metadata_only:
-                cal_object.flag_array = cal_object.flag_array[ant_inds]
-                if cal_object.quality_array is not None:
-                    cal_object.quality_array = cal_object.quality_array[ant_inds]
-                if cal_object.cal_type == "delay":
-                    cal_object.delay_array = cal_object.delay_array[ant_inds]
-                else:
-                    cal_object.gain_array = cal_object.gain_array[ant_inds]
-
-                if cal_object.input_flag_array is not None:
-                    cal_object.input_flag_array = cal_object.input_flag_array[ant_inds]
-
-                if cal_object.total_quality_array is not None:
-                    warnings.warn(
-                        "Cannot preserve total_quality_array when changing "
-                        "number of antennas; discarding"
-                    )
-                    cal_object.total_quality_array = None
-
-        if times is not None and time_range is not None:
-            raise ValueError("Only one of times and time_range can be provided.")
-
-        if (times is not None or time_range is not None) and (
-            cal_object.time_array is not None and cal_object.time_range is not None
+        # handle freq_range if selecting on freqs (can go away in v3.0)
+        if (
+            cal_object.freq_range is not None
+            and cal_object.flex_spw is False
+            and freq_inds is not None
         ):
-            warnings.warn(
-                "The time_array and time_range attributes are both set. "
-                "Defaulting to using time_range to determine time selection. "
-                "This will become an error in version 3.0.",
-                DeprecationWarning,
-            )
-
-        if times is not None or time_range is not None:
-            if n_selects > 0:
-                history_update_string += ", times"
-            else:
-                history_update_string += "times"
-            n_selects += 1
-
-            time_inds = np.zeros(0, dtype=np.int64)
-            if times is not None:
-                times = uvutils._get_iterable(times)
-                if cal_object.time_range is not None:
-                    for jd in times:
-                        time_inds = np.append(
-                            time_inds,
-                            np.nonzero(
-                                np.logical_and(
-                                    (cal_object.time_range[:, 0] <= jd),
-                                    (cal_object.time_range[:, 1] >= jd),
-                                )
-                            )[0],
-                        )
-                else:
-                    for jd in times:
-                        if jd in cal_object.time_array:
-                            time_inds = np.append(
-                                time_inds, np.nonzero(cal_object.time_array == jd)[0]
-                            )
-                        else:
-                            raise ValueError(
-                                f"Time {jd} is not present in the time_array"
-                            )
-            else:
-                if cal_object.time_range is not None:
-                    for tind, trange in enumerate(cal_object.time_range):
-                        if _check_range_overlap(np.stack((trange, time_range), axis=0)):
-                            time_inds = np.append(time_inds, tind)
-                else:
-                    time_inds = np.nonzero(
-                        np.logical_and(
-                            (cal_object.time_array >= time_range[0]),
-                            (cal_object.time_array <= time_range[1]),
-                        )
-                    )[0]
-
-            if time_inds.size == 0:
-                raise ValueError("No times or time_ranges matching requested times.")
-
-            time_inds = np.array(sorted(set(time_inds.tolist())))
-            cal_object.Ntimes = time_inds.size
-            if cal_object.time_array is not None:
-                cal_object.time_array = cal_object.time_array[time_inds]
-            if cal_object.time_range is not None:
-                cal_object.time_range = cal_object.time_range[time_inds]
-            if cal_object.lst_array is not None:
-                cal_object.lst_array = cal_object.lst_array[time_inds]
-            if cal_object.lst_range is not None:
-                cal_object.lst_range = cal_object.lst_range[time_inds]
-            if self.future_array_shapes:
-                cal_object.integration_time = cal_object.integration_time[time_inds]
-
-            if cal_object.Ntimes > 1 and self.time_array is not None:
-                if not uvutils._test_array_constant_spacing(cal_object._time_array):
-                    warnings.warn(
-                        "Selected times are not evenly spaced. This "
-                        "is not supported by the calfits format."
-                    )
-
-            if not self.metadata_only:
-                if self.future_array_shapes:
-                    cal_object.flag_array = cal_object.flag_array[:, :, time_inds, :]
-                    if cal_object.quality_array is not None:
-                        cal_object.quality_array = cal_object.quality_array[
-                            :, :, time_inds, :
-                        ]
-                    if cal_object.cal_type == "delay":
-                        cal_object.delay_array = cal_object.delay_array[
-                            :, :, time_inds, :
-                        ]
-                    else:
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, :, time_inds, :
-                        ]
-
-                    if cal_object.input_flag_array is not None:
-                        cal_object.input_flag_array = cal_object.input_flag_array[
-                            :, :, time_inds, :
-                        ]
-
-                    if cal_object.total_quality_array is not None:
-                        cal_object.total_quality_array = cal_object.total_quality_array[
-                            :, time_inds, :
-                        ]
-                else:
-                    cal_object.flag_array = cal_object.flag_array[:, :, :, time_inds, :]
-                    if cal_object.quality_array is not None:
-                        cal_object.quality_array = cal_object.quality_array[
-                            :, :, :, time_inds, :
-                        ]
-                    if cal_object.cal_type == "delay":
-                        cal_object.delay_array = cal_object.delay_array[
-                            :, :, :, time_inds, :
-                        ]
-                    else:
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, :, :, time_inds, :
-                        ]
-
-                    if cal_object.input_flag_array is not None:
-                        cal_object.input_flag_array = cal_object.input_flag_array[
-                            :, :, :, time_inds, :
-                        ]
-
-                    if cal_object.total_quality_array is not None:
-                        cal_object.total_quality_array = cal_object.total_quality_array[
-                            :, :, time_inds, :
-                        ]
-
-        if spws is not None:
-            if cal_object.Nspws == 1:
-                warnings.warn(
-                    "Cannot select on spws if Nspws=1. Ignoring the spw parameter."
-                )
-            else:
-                if not cal_object.wide_band:
-                    assert cal_object.flex_spw is True, (
-                        "The `flex_spw` parameter must be True if there are multiple "
-                        "spectral windows and the `wide_band` parameter is not True."
-                    )
-                    # Translate the spws into frequencies
-                    if frequencies is None:
-                        if self.future_array_shapes:
-                            frequencies = self.freq_array[
-                                np.isin(cal_object.flex_spw_id_array, spws)
-                            ]
-                        else:
-                            frequencies = self.freq_array[
-                                0, np.isin(cal_object.flex_spw_id_array, spws)
-                            ]
-                else:
-                    assert self.future_array_shapes, (
-                        "The `future_array_shapes` parameter must be True if the "
-                        "`wide_band` parameter is True"
-                    )
-                    if n_selects > 0:
-                        history_update_string += ", spectral windows"
-                    else:
-                        history_update_string += "spectral windows"
-                    n_selects += 1
-
-                    # Check and see that all requested spws are available
-                    spw_check = np.isin(spws, cal_object.spw_array)
-                    if not np.all(spw_check):
-                        raise ValueError(
-                            f"SPW number {spws[np.where(~spw_check)[0][0]]} is not "
-                            "present in the spw_array"
-                        )
-
-                    spw_inds = np.where(np.isin(cal_object.spw_array, spws))[0]
-
-                    spw_inds = sorted(set(spw_inds))
-                    cal_object.Nspws = len(spw_inds)
-                    cal_object.freq_range = cal_object.freq_range[spw_inds, :]
-                    cal_object.spw_array = cal_object.spw_array[spw_inds]
-
-                    if not cal_object.metadata_only:
-                        if cal_object.cal_type == "delay":
-                            cal_object.delay_array = cal_object.delay_array[
-                                :, spw_inds, :, :
-                            ]
-                        else:
-                            cal_object.gain_array = cal_object.gain_array[
-                                :, spw_inds, :, :
-                            ]
-
-                        cal_object.flag_array = cal_object.flag_array[:, spw_inds, :, :]
-                        if cal_object.input_flag_array is not None:
-                            cal_object.input_flag_array = cal_object.input_flag_array[
-                                :, spw_inds, :, :
-                            ]
-                        if cal_object.quality_array is not None:
-                            cal_object.quality_array = cal_object.quality_array[
-                                :, spw_inds, :, :
-                            ]
-                        if cal_object.total_quality_array is not None:
-                            tqa = cal_object.total_quality_array[spw_inds, :, :]
-                            cal_object.total_quality_array = tqa
-
-        if self.freq_array is None and (
-            freq_chans is not None or frequencies is not None
-        ):
-            raise ValueError(
-                "Cannot select on frequencies because this is a wide_band object with "
-                "no freq_array."
-            )
-        if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
-            if frequencies is None:
-                if self.future_array_shapes:
-                    frequencies = cal_object.freq_array[freq_chans]
-                else:
-                    frequencies = cal_object.freq_array[0, freq_chans]
-            else:
-                frequencies = uvutils._get_iterable(frequencies)
-                if self.future_array_shapes:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(cal_object.freq_array[freq_chans]))
-                    )
-                else:
-                    frequencies = np.sort(
-                        list(
-                            set(frequencies) | set(cal_object.freq_array[0, freq_chans])
-                        )
-                    )
-
-        if frequencies is not None:
-            frequencies = uvutils._get_iterable(frequencies)
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
-
+            cal_object.freq_range = [
+                np.min(cal_object.freq_array),
+                np.max(cal_object.freq_array),
+            ]
             if cal_object.future_array_shapes:
-                freq_arr_use = self.freq_array
-            else:
-                freq_arr_use = self.freq_array[0, :]
-
-            # Check and see that all requested freqs are available
-            freq_check = np.isin(frequencies, freq_arr_use)
-            if not np.all(freq_check):
-                raise ValueError(
-                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
-                    "present in the freq_array"
-                )
-            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
-
-            freq_inds = sorted(set(freq_inds))
-            cal_object.Nfreqs = len(freq_inds)
-            if cal_object.future_array_shapes:
-                cal_object.freq_array = cal_object.freq_array[freq_inds]
-            else:
-                cal_object.freq_array = cal_object.freq_array[:, freq_inds]
-
-            if cal_object.future_array_shapes or cal_object.flex_spw:
-                cal_object.channel_width = cal_object.channel_width[freq_inds]
-
-            if cal_object.flex_spw_id_array is not None:
-                cal_object.flex_spw_id_array = cal_object.flex_spw_id_array[freq_inds]
-
-            if cal_object.flex_spw:
-                spw_mask = np.isin(cal_object.spw_array, cal_object.flex_spw_id_array)
-                cal_object.spw_array = cal_object.spw_array[spw_mask]
-                cal_object.Nspws = cal_object.spw_array.size
-                if cal_object.freq_range is not None and cal_object.future_array_shapes:
-                    cal_object.freq_range = np.zeros(
-                        (cal_object.Nspws, 2), dtype=cal_object.freq_array.dtype
-                    )
-                    for index, spw in enumerate(cal_object.spw_array):
-                        spw_inds = np.nonzero(cal_object.flex_spw_id_array == spw)[0]
-                        cal_object.freq_range[index, 0] = np.min(
-                            cal_object.freq_array[spw_inds]
-                        )
-                        cal_object.freq_range[index, 1] = np.max(
-                            cal_object.freq_array[spw_inds]
-                        )
-            else:
-                if cal_object.freq_range is not None:
-                    cal_object.freq_range = [
-                        np.min(cal_object.freq_array),
-                        np.max(cal_object.freq_array),
-                    ]
-                    if cal_object.future_array_shapes:
-                        cal_object.freq_range = np.asarray(cal_object.freq_range)[
-                            np.newaxis, :
-                        ]
-
-            if cal_object.Nfreqs > 1:
-                spacing_error, chanwidth_error = cal_object._check_freq_spacing(
-                    raise_errors=False
-                )
-                if spacing_error:
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-                elif chanwidth_error:
-                    warnings.warn(
-                        "Selected frequencies are not contiguous. This "
-                        "will make it impossible to write this data out to "
-                        "some file types."
-                    )
-
-            if not cal_object.metadata_only:
-                if not cal_object.future_array_shapes:
-                    cal_object.flag_array = cal_object.flag_array[:, :, freq_inds, :, :]
-                    if cal_object.input_flag_array is not None:
-                        cal_object.input_flag_array = cal_object.input_flag_array[
-                            :, :, freq_inds, :, :
-                        ]
-
-                if cal_object.cal_type == "delay":
-                    pass
-                else:
-                    if cal_object.future_array_shapes:
-                        cal_object.flag_array = cal_object.flag_array[
-                            :, freq_inds, :, :
-                        ]
-                        if cal_object.input_flag_array is not None:
-                            cal_object.input_flag_array = cal_object.input_flag_array[
-                                :, freq_inds, :, :
-                            ]
-                        if cal_object.quality_array is not None:
-                            cal_object.quality_array = cal_object.quality_array[
-                                :, freq_inds, :, :
-                            ]
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, freq_inds, :, :
-                        ]
-
-                        if cal_object.total_quality_array is not None:
-                            tqa = cal_object.total_quality_array[freq_inds, :, :]
-                            cal_object.total_quality_array = tqa
-                    else:
-                        if cal_object.quality_array is not None:
-                            cal_object.quality_array = cal_object.quality_array[
-                                :, :, freq_inds, :, :
-                            ]
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, :, freq_inds, :, :
-                        ]
-
-                        if cal_object.total_quality_array is not None:
-                            tqa = cal_object.total_quality_array[:, freq_inds, :, :]
-                            cal_object.total_quality_array = tqa
-
-        if jones is not None:
-            jones = uvutils._get_iterable(jones)
-            if np.array(jones).ndim > 1:
-                jones = np.array(jones).flatten()
-            if n_selects > 0:
-                history_update_string += ", jones polarization terms"
-            else:
-                history_update_string += "jones polarization terms"
-            n_selects += 1
-
-            jones_inds = np.zeros(0, dtype=np.int64)
-            for j in jones:
-                if isinstance(j, str):
-                    j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
-                else:
-                    j_num = j
-                if j_num in cal_object.jones_array:
-                    jones_inds = np.append(
-                        jones_inds, np.where(cal_object.jones_array == j_num)[0]
-                    )
-                else:
-                    raise ValueError(
-                        "Jones term {j} is not present in the jones_array".format(j=j)
-                    )
-
-            jones_inds = sorted(set(jones_inds))
-            cal_object.Njones = len(jones_inds)
-            cal_object.jones_array = cal_object.jones_array[jones_inds]
-            if len(jones_inds) > 2:
-                jones_separation = (
-                    cal_object.jones_array[1:] - cal_object.jones_array[:-1]
-                )
-                if not uvutils._test_array_constant(jones_separation):
-                    warnings.warn(
-                        "Selected jones polarization terms are not evenly spaced. This "
-                        "is not supported by the calfits format"
-                    )
-
-            if not cal_object.metadata_only:
-                if cal_object.future_array_shapes:
-                    cal_object.flag_array = cal_object.flag_array[:, :, :, jones_inds]
-                    if cal_object.quality_array is not None:
-                        cal_object.quality_array = cal_object.quality_array[
-                            :, :, :, jones_inds
-                        ]
-                    if cal_object.cal_type == "delay":
-                        cal_object.delay_array = cal_object.delay_array[
-                            :, :, :, jones_inds
-                        ]
-                    else:
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, :, :, jones_inds
-                        ]
-
-                    if cal_object.input_flag_array is not None:
-                        cal_object.input_flag_array = cal_object.input_flag_array[
-                            :, :, :, jones_inds
-                        ]
-
-                    if cal_object.total_quality_array is not None:
-                        cal_object.total_quality_array = cal_object.total_quality_array[
-                            :, :, jones_inds
-                        ]
-                else:
-                    cal_object.flag_array = cal_object.flag_array[
-                        :, :, :, :, jones_inds
-                    ]
-                    if cal_object.quality_array is not None:
-                        cal_object.quality_array = cal_object.quality_array[
-                            :, :, :, :, jones_inds
-                        ]
-                    if cal_object.cal_type == "delay":
-                        cal_object.delay_array = cal_object.delay_array[
-                            :, :, :, :, jones_inds
-                        ]
-                    else:
-                        cal_object.gain_array = cal_object.gain_array[
-                            :, :, :, :, jones_inds
-                        ]
-
-                    if cal_object.input_flag_array is not None:
-                        cal_object.input_flag_array = cal_object.input_flag_array[
-                            :, :, :, :, jones_inds
-                        ]
-
-                    if cal_object.total_quality_array is not None:
-                        cal_object.total_quality_array = cal_object.total_quality_array[
-                            :, :, :, jones_inds
-                        ]
-
-        if n_selects > 0:
-            history_update_string += " using pyuvdata."
-            cal_object.history = cal_object.history + history_update_string
+                cal_object.freq_range = np.asarray(cal_object.freq_range)[np.newaxis, :]
 
         # check if object is self-consistent
         if run_check:
@@ -4826,8 +4790,12 @@ class UVCal(UVBase):
             from . import calfits
 
             other_obj = calfits.CALFITS()
+        elif filetype == "calh5":
+            from . import calh5
+
+            other_obj = calh5.CalH5()
         else:
-            raise ValueError("filetype must be calfits.")
+            raise ValueError("filetype must be calh5 or calfits.")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -4966,6 +4934,109 @@ class UVCal(UVBase):
             calfits_obj.read_calfits(filename, **kwargs)
             self._convert_from_filetype(calfits_obj)
             del calfits_obj
+
+    def read_calh5(self, filename, **kwargs):
+        """
+        Read in data from calh5 file(s).
+
+        Parameters
+        ----------
+        filename : string, path, FastCalH5Meta, h5py.File
+            The CalH5 file to read from. A file name or path or a FastCalH5Meta or
+            h5py File object. Must contains a "/Header" group for CalH5 files
+            conforming to spec.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided. Ignored if
+            read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided. Ignored if
+            read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        jones : array_like of int, optional
+            The jones polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        read_data : bool
+            Read in the data-like arrays (gains/delays, flags, qualities). If set to
+            False, only the metadata will be read in. Setting read_data to False
+            results in a metadata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after after reading in the file (the default is True,
+            meaning the check will be run). Ignored if read_data is False.
+        check_extra : bool
+            Option to check optional parameters as well as required ones (the
+            default is True, meaning the optional parameters will be checked).
+            Ignored if read_data is False.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reading in the file (the default is True, meaning the acceptable
+            range check will be done). Ignored if read_data is False.
+        use_future_array_shapes : bool
+            Option to convert to the future planned array shapes before the changes go
+            into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        IOError
+            If filename doesn't exist.
+        ValueError
+            If incompatible select keywords are set (e.g. `times` and `time_range`) or
+            select keywords exclude all data or if keywords are set to the wrong type.
+
+        """
+        from . import calh5
+
+        if isinstance(filename, (list, tuple)):
+            raise ValueError(
+                "Use the generic `UVCal.read` method to read multiple files."
+            )
+
+        calh5_obj = calh5.CalH5()
+        calh5_obj.read_calh5(filename, **kwargs)
+        self._convert_from_filetype(calh5_obj)
+        del calh5_obj
 
     def read_fhd_cal(
         self, cal_file, *, obs_file, layout_file=None, settings_file=None, **kwargs
@@ -5127,7 +5198,20 @@ class UVCal(UVBase):
         axis=None,
         file_type=None,
         read_data=True,
+        background_lsts=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
+        # selecting parameters
+        antenna_nums=None,
+        antenna_names=None,
+        frequencies=None,
+        freq_chans=None,
+        spws=None,
+        times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
+        jones=None,
         # checking parameters
         run_check=True,
         check_extra=True,
@@ -5170,9 +5254,60 @@ class UVCal(UVBase):
             Read in the gains or delays, quality arrays and flag arrays.
             If set to False, only the metadata will be read in. Setting read_data to
             False results in a metadata only object.
+        background_lsts : bool
+            When set to True, the lst_array is calculated in a background thread.
         use_future_array_shapes : bool
             Option to convert to the future planned array shapes before the changes go
             into effect by removing the spectral window axis.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
+
+        Selecting
+        ---------
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_names` is also provided. Ignored if
+            read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained).
+            This cannot be provided if `antenna_nums` is also provided. Ignored if
+            read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to keep in the object, must be
+            length 2. Some of the times in the object should fall between the
+            first and last elements. Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        jones : array_like of int, optional
+            The jones polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
 
         Checking
         --------
@@ -5225,14 +5360,18 @@ class UVCal(UVBase):
                 file_type = "fhd"
             elif "fits" in extension:
                 file_type = "calfits"
+            elif "h5" in extension:
+                file_type = "calh5"
             else:
                 raise ValueError(
                     "File type could not be determined, use the "
                     "file_type keyword to specify the type."
                 )
 
-        if file_type not in ["calfits", "fhd"]:
-            raise ValueError("The only supported file_types are 'calfits' and 'fhd'.")
+        if file_type not in ["calfits", "fhd", "calh5"]:
+            raise ValueError(
+                "The only supported file_types are 'calfits', 'calh5', and 'fhd'."
+            )
 
         obs_file_use = None
         layout_file_use = None
@@ -5279,7 +5418,20 @@ class UVCal(UVBase):
                 filename[0],
                 file_type=file_type,
                 read_data=read_data,
+                background_lsts=background_lsts,
                 use_future_array_shapes=use_future_array_shapes,
+                astrometry_library=astrometry_library,
+                # selecting parameters
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                spws=spws,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                jones=jones,
                 # checking parameters
                 run_check=run_check,
                 check_extra=check_extra,
@@ -5307,7 +5459,20 @@ class UVCal(UVBase):
                     file,
                     read_data=read_data,
                     file_type=file_type,
+                    background_lsts=background_lsts,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
+                    # selecting parameters
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
+                    spws=spws,
+                    times=times,
+                    time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
+                    jones=jones,
                     # checking parameters
                     run_check=run_check,
                     check_extra=check_extra,
@@ -5348,14 +5513,53 @@ class UVCal(UVBase):
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
         else:
+            if file_type in ["fhd", "calfits"]:
+                if (
+                    antenna_nums is not None
+                    or antenna_names is not None
+                    or frequencies is not None
+                    or freq_chans is not None
+                    or spws is not None
+                    or times is not None
+                    or lsts is not None
+                    or time_range is not None
+                    or lst_range is not None
+                    or jones is not None
+                ):
+                    select = True
+                    warnings.warn(
+                        "Warning: select on read keyword set, but "
+                        f'file_type is "{file_type}" which does not support select '
+                        "on read. Entire file will be read and then select "
+                        "will be performed"
+                    )
+                    # these file types do not have select on read, so set all
+                    # select parameters
+                    select_antenna_nums = antenna_nums
+                    select_antenna_names = antenna_names
+                    select_frequencies = frequencies
+                    select_freq_chans = freq_chans
+                    select_spws = spws
+                    select_times = times
+                    select_lsts = lsts
+                    select_time_range = time_range
+                    select_lst_range = lst_range
+                    select_jones = jones
+                else:
+                    select = False
+            elif file_type in ["calh5"]:
+                select = False
+
             if file_type == "calfits":
                 self.read_calfits(
                     filename,
                     read_data=read_data,
+                    background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
                 )
 
             elif file_type == "fhd":
@@ -5367,113 +5571,58 @@ class UVCal(UVBase):
                     raw=raw,
                     read_data=read_data,
                     extra_history=extra_history,
+                    background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
+                )
+            elif file_type == "calh5":
+                self.read_calh5(
+                    filename,
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
+                    spws=spws,
+                    times=times,
+                    time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
+                    jones=jones,
+                    read_data=read_data,
+                    background_lsts=background_lsts,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                    use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
+                )
+
+            if select:
+                self.select(
+                    antenna_nums=select_antenna_nums,
+                    antenna_names=select_antenna_names,
+                    frequencies=select_frequencies,
+                    freq_chans=select_freq_chans,
+                    spws=select_spws,
+                    times=select_times,
+                    lsts=select_lsts,
+                    time_range=select_time_range,
+                    lst_range=select_lst_range,
+                    jones=select_jones,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
                 )
 
     @classmethod
-    def from_file(
-        cls,
-        filename,
-        *,
-        axis=None,
-        file_type=None,
-        read_data=True,
-        use_future_array_shapes=False,
-        # checking parameters
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        # file-type specific parameters
-        # FHD
-        obs_file=None,
-        layout_file=None,
-        settings_file=None,
-        raw=True,
-        extra_history=None,
-    ):
-        """
-        Initialize a new UVCal object by reading the input file.
-
-        This method supports a number of different types of files.
-        Universal parameters (required and optional) are listed directly below,
-        followed by parameters used by all file types related to checking. Each file
-        type also has its own set of optional parameters that are listed at the end of
-        this docstring.
-
-        Parameters
-        ----------
-        filename : str or array_like of str
-            The file(s) or list(s) (or array(s)) of files to read from.
-        file_type : str
-            One of ['calfits', 'fhd'] or None. If None, the code attempts to guess what
-            the file type is based on file extensions (FHD: .sav, .txt;
-            uvfits: .calfits). Note that if a list of datasets is passed, the file type
-            is determined from the first dataset.
-        axis : str
-            Axis to concatenate files along. This enables fast concatenation
-            along the specified axis without the normal checking that all other
-            metadata agrees. This method does not guarantee correct resulting
-            objects. Please see the docstring for fast_concat for details.
-            Allowed values are: 'antenna', 'time', 'freq', 'spw', 'jones' ('freq' is
-            not allowed for delay or wideband objects and 'spw' is only allowed for
-            wideband objects). Only used if multiple files are passed.
-        read_data : bool
-            Read in the gains or delays, quality arrays and flag arrays.
-            If set to False, only the metadata will be read in. Setting read_data to
-            False results in a metadata only object.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Checking
-        --------
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            parameters after reading in the file.
-
-        FHD
-        ---
-        obs_file : str or list of str
-            The obs.sav file or list of files to read from. This is required for FHD
-            files.
-        layout_file : str
-            The FHD layout file. Required for antenna_positions to be set.
-        settings_file : str or list of str, optional
-            The settings_file or list of files to read from. Optional,
-            but very useful for provenance.
-        raw : bool
-            Option to use the raw (per antenna, per frequency) solution or
-            to use the fitted (polynomial over phase/amplitude) solution.
-            Default is True (meaning use the raw solutions).
-
-        """
+    @copy_replace_short_description(read, style=DocstringStyle.NUMPYDOC)
+    def from_file(cls, filename, **kwargs):
+        """Initialize a new UVCal object by reading the input file."""
         uvc = cls()
-        uvc.read(
-            filename,
-            axis=axis,
-            file_type=file_type,
-            read_data=read_data,
-            use_future_array_shapes=use_future_array_shapes,
-            # checking parameters
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            # file-type specific parameters
-            # FHD
-            obs_file=obs_file,
-            layout_file=layout_file,
-            settings_file=settings_file,
-            raw=raw,
-            extra_history=extra_history,
-        )
+        uvc.read(filename, **kwargs)
         return uvc
 
     def write_calfits(
@@ -5523,3 +5672,69 @@ class UVCal(UVBase):
             clobber=clobber,
         )
         del calfits_obj
+
+    def write_calh5(self, filename, **kwargs):
+        """
+        Write the data to a calh5 file.
+
+        Write an in-memory UVCal object to a CalH5 file.
+
+        Parameters
+        ----------
+        filename : str
+            The CalH5 file to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
+        chunks : tuple or bool
+            h5py.create_dataset chunks keyword. Tuple for chunk shape,
+            True for auto-chunking, None for no chunking. Default is True.
+        data_compression : str
+            HDF5 filter to apply when writing the gain_array or delay. Default is None
+            (no filter/compression). In addition to the normal HDF5 filter values, the
+            user may specify "bitshuffle" which will set the compression to `32008` for
+            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
+            bitshuffle to automatically determine the block size and to use the LZF
+            filter after bitshuffle. Using `bitshuffle` requires having the
+            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
+        flags_compression : str
+            HDF5 filter to apply when writing the flags_array. Default is the
+            LZF filter. Dataset must be chunked.
+        quality_compression : str
+            HDF5 filter to apply when writing the quality_array and/or
+            total_quality_array if they are defined. Default is the LZF filter. Dataset
+            must be chunked.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        IOError
+            If the file located at `filename` already exists and clobber=False,
+            an IOError is raised.
+
+        Notes
+        -----
+        The HDF5 library allows for the application of "filters" when writing
+        data, which can provide moderate to significant levels of compression
+        for the datasets in question.  Testing has shown that for some typical
+        cases of UVData objects (empty/sparse flag_array objects, and/or uniform
+        nsample_arrays), the built-in LZF filter provides significant
+        compression for minimal computational overhead.
+
+        """
+        if self.metadata_only:
+            raise ValueError("Cannot write out metadata only objects to a calh5 file.")
+
+        calh5_obj = self._convert_to_filetype("calh5")
+        calh5_obj.write_calh5(filename, **kwargs)
+        del calh5_obj

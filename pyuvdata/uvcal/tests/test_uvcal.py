@@ -19,7 +19,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-from pyuvdata.uvcal.tests import time_array_to_time_range
+from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
@@ -105,182 +105,6 @@ def uvcal_data():
     # some post-test object cleanup
     del uv_cal_object
     return
-
-
-@pytest.fixture
-def multi_spw_gain(gain_data):
-    gain_obj = gain_data.copy()
-    gain_obj._set_flex_spw()
-    gain_obj.channel_width = (
-        np.zeros(gain_obj.Nfreqs, dtype=np.float64) + gain_obj.channel_width
-    )
-    gain_obj.Nspws = 2
-    gain_obj.flex_spw_id_array = np.concatenate(
-        (
-            np.ones(gain_obj.Nfreqs // 2, dtype=int),
-            np.full(gain_obj.Nfreqs // 2, 2, dtype=int),
-        )
-    )
-    gain_obj.spw_array = np.array([1, 2])
-    spw2_inds = np.nonzero(gain_obj.flex_spw_id_array == 2)[0]
-    spw2_chan_width = gain_obj.channel_width[0] * 2
-    gain_obj.freq_array[spw2_inds] = gain_obj.freq_array[
-        spw2_inds[0]
-    ] + spw2_chan_width * np.arange(spw2_inds.size)
-    gain_obj.channel_width[spw2_inds] = spw2_chan_width
-    gain_obj.check(check_freq_spacing=True)
-
-    yield gain_obj
-
-    del gain_obj
-
-
-@pytest.fixture
-def wideband_gain(gain_data):
-    gain_obj = gain_data.copy()
-    gain_obj._set_wide_band()
-
-    gain_obj.spw_array = np.array([1, 2, 3])
-    gain_obj.Nspws = 3
-    gain_obj.gain_array = gain_obj.gain_array[:, 0:3, :, :]
-    gain_obj.flag_array = gain_obj.flag_array[:, 0:3, :, :]
-    gain_obj.quality_array = gain_obj.quality_array[:, 0:3, :, :]
-    gain_obj.input_flag_array = np.zeros(
-        gain_obj._input_flag_array.expected_shape(gain_obj)
-    ).astype(np.bool_)
-
-    gain_obj.freq_range = np.zeros((gain_obj.Nspws, 2), dtype=gain_obj.freq_array.dtype)
-    gain_obj.freq_range[0, :] = gain_obj.freq_array[[0, 2]]
-    gain_obj.freq_range[1, :] = gain_obj.freq_array[[2, 4]]
-    gain_obj.freq_range[2, :] = gain_obj.freq_array[[4, 6]]
-
-    gain_obj.channel_width = None
-    gain_obj.freq_array = None
-    gain_obj.flex_spw_id_array = None
-    gain_obj.Nfreqs = 1
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The input_flag_array is deprecated and will be removed in version 2.5",
-    ):
-        gain_obj.check(check_freq_spacing=True)
-
-    yield gain_obj
-
-    del gain_obj
-
-
-@pytest.fixture
-def multi_spw_delay(delay_data_inputflag):
-    delay_obj = delay_data_inputflag.copy()
-    delay_obj.Nspws = 3
-    delay_obj.spw_array = np.array([1, 2, 3])
-
-    # copy the delay array to the second SPW
-    delay_obj.delay_array = np.repeat(delay_obj.delay_array, delay_obj.Nspws, axis=1)
-    delay_obj.flag_array = np.repeat(delay_obj.flag_array, delay_obj.Nspws, axis=1)
-    delay_obj.input_flag_array = np.repeat(
-        delay_obj.input_flag_array, delay_obj.Nspws, axis=1
-    )
-    delay_obj.quality_array = np.repeat(
-        delay_obj.quality_array, delay_obj.Nspws, axis=1
-    )
-
-    delay_obj.freq_range = np.repeat(delay_obj.freq_range, delay_obj.Nspws, axis=0)
-    # Make the second & third SPWs be contiguous with a 10 MHz range
-    delay_obj.freq_range[1, 0] = delay_obj.freq_range[0, 1]
-    delay_obj.freq_range[1, 1] = delay_obj.freq_range[1, 0] + 10e6
-    delay_obj.freq_range[2, 0] = delay_obj.freq_range[1, 1]
-    delay_obj.freq_range[2, 1] = delay_obj.freq_range[1, 1] + 10e6
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The input_flag_array is deprecated and will be removed in version 2.5",
-    ):
-        delay_obj.check()
-
-    yield delay_obj
-
-    del delay_obj
-
-
-def extend_jones_axis(calobj, input_flag=True, total_quality=True):
-    while calobj.Njones < 4:
-        new_jones = np.min(calobj.jones_array) - 1
-        calobj.jones_array = np.append(calobj.jones_array, new_jones)
-        calobj.Njones += 1
-        if not calobj.metadata_only:
-            if calobj.future_array_shapes:
-                calobj.flag_array = np.concatenate(
-                    (calobj.flag_array, calobj.flag_array[:, :, :, [-1]]), axis=3
-                )
-                if calobj.cal_type == "gain":
-                    calobj.gain_array = np.concatenate(
-                        (calobj.gain_array, calobj.gain_array[:, :, :, [-1]]), axis=3
-                    )
-                else:
-                    calobj.delay_array = np.concatenate(
-                        (calobj.delay_array, calobj.delay_array[:, :, :, [-1]]), axis=3
-                    )
-                if calobj.input_flag_array is not None:
-                    calobj.input_flag_array = np.concatenate(
-                        (
-                            calobj.input_flag_array,
-                            calobj.input_flag_array[:, :, :, [-1]],
-                        ),
-                        axis=3,
-                    )
-                calobj.quality_array = np.concatenate(
-                    (calobj.quality_array, calobj.quality_array[:, :, :, [-1]]), axis=3
-                )
-                if calobj.total_quality_array is not None:
-                    calobj.total_quality_array = np.concatenate(
-                        (
-                            calobj.total_quality_array,
-                            calobj.total_quality_array[:, :, [-1]],
-                        ),
-                        axis=2,
-                    )
-            else:
-                calobj.flag_array = np.concatenate(
-                    (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]]), axis=4
-                )
-                if calobj.cal_type == "gain":
-                    calobj.gain_array = np.concatenate(
-                        (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]]), axis=4
-                    )
-                else:
-                    calobj.delay_array = np.concatenate(
-                        (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]]),
-                        axis=4,
-                    )
-                if calobj.input_flag_array is not None:
-                    calobj.input_flag_array = np.concatenate(
-                        (
-                            calobj.input_flag_array,
-                            calobj.input_flag_array[:, :, :, :, [-1]],
-                        ),
-                        axis=4,
-                    )
-                calobj.quality_array = np.concatenate(
-                    (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]]),
-                    axis=4,
-                )
-                if calobj.total_quality_array is not None:
-                    calobj.total_quality_array = np.concatenate(
-                        (
-                            calobj.total_quality_array,
-                            calobj.total_quality_array[:, :, :, [-1]],
-                        ),
-                        axis=3,
-                    )
-    if not calobj.metadata_only:
-        if calobj.input_flag_array is None and input_flag:
-            calobj.input_flag_array = calobj.flag_array
-        if calobj.total_quality_array is None and total_quality:
-            calobj.total_quality_array = np.ones(
-                calobj._total_quality_array.expected_shape(calobj)
-            )
 
 
 def test_parameter_iter(uvcal_data):
@@ -735,7 +559,7 @@ def test_set_redundant(gain_data):
 
 def test_convert_filetype(gain_data):
     # error testing
-    with pytest.raises(ValueError, match="filetype must be calfits."):
+    with pytest.raises(ValueError, match="filetype must be calh5 or calfits."):
         gain_data._convert_to_filetype("uvfits")
 
 
@@ -1047,6 +871,8 @@ def test_select_antennas(
 ):
     if caltype == "gain":
         calobj = gain_data
+        # test list handling
+        calobj.ant_array = calobj.ant_array.tolist()
     else:
         calobj = delay_data_inputflag
 
@@ -1107,6 +933,10 @@ def test_select_antennas(
     new_calobj = UVCal.from_file(
         write_file_calfits, use_future_array_shapes=future_shapes
     )
+    if caltype == "gain":
+        # make list type match
+        new_calobj.ant_array = new_calobj.ant_array.tolist()
+
     assert calobj2 == new_calobj
 
     # check that total_quality_array is handled properly when present
@@ -1194,14 +1024,19 @@ def test_select_times(
     # check for errors associated with times not included in data
     early_time = np.min(orig_time_array) - np.max(calobj.integration_time)
     if time_range:
-        msg = "No times or time_ranges matching requested times."
+        msg = f"Time {early_time} does not fall in any time_range."
     else:
         msg = f"Time {early_time} is not present in the time_array"
+
     with pytest.raises(ValueError, match=msg):
         calobj.select(times=[early_time])
 
     with pytest.raises(
-        ValueError, match="Only one of times and time_range can be provided."
+        ValueError,
+        match=re.escape(
+            "Only one of [times, time_range, lsts, lst_range] may be specified per "
+            "selection operation."
+        ),
     ):
         calobj.select(times=times_to_keep, time_range=time_range_to_keep)
 
@@ -1456,6 +1291,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
         ],
     ):
         calobj3.select(spws=1)
+
     assert calobj3 == calobj2
 
     calobj3 = UVCal.from_file(write_file_calfits, use_future_array_shapes=future_shapes)
@@ -3901,12 +3737,18 @@ def test_parameter_warnings(gain_data):
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-def test_multi_files(caltype, method, gain_data, delay_data_inputflag, tmp_path):
+@pytest.mark.parametrize("file_type", ["calfits", "calh5"])
+def test_multi_files(
+    caltype, method, gain_data, delay_data_inputflag, tmp_path, file_type
+):
     """Test read function when multiple files are included"""
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
+
+    if file_type == "calh5":
+        calobj.input_flag_array = None
 
     calobj2 = calobj.copy()
 
@@ -3918,27 +3760,39 @@ def test_multi_files(caltype, method, gain_data, delay_data_inputflag, tmp_path)
     calobj.select(times=times1)
     calobj2.select(times=times2)
     # Write those objects to files
-    f1 = str(tmp_path / "read_multi1.calfits")
-    f2 = str(tmp_path / "read_multi2.calfits")
-    calobj.write_calfits(f1, clobber=True)
-    calobj2.write_calfits(f2, clobber=True)
+    f1 = str(tmp_path / ("read_multi1." + file_type))
+    f2 = str(tmp_path / ("read_multi2." + file_type))
+
+    write_method = "write_" + file_type
+    getattr(calobj, write_method)(f1, clobber=True)
+    getattr(calobj2, write_method)(f2, clobber=True)
     # Read both files together
     if method == "fast_concat":
         calobj = UVCal.from_file([f1, f2], axis="time", use_future_array_shapes=True)
     else:
-        warn_type = [DeprecationWarning]
-        msg = [
-            "Reading multiple files from file specific read methods is deprecated. "
-            "Use the generic `UVCal.read` method instead."
-        ]
-        if caltype == "delay":
-            warn_type += 2 * [UserWarning] + [DeprecationWarning] * 5
-            msg += 2 * ["When converting a delay-style cal to future array"] + 5 * [
-                "The input_flag_array is deprecated and will be removed in version 2.5"
+        if file_type == "calfits":
+            warn_type = [DeprecationWarning]
+            msg = [
+                "Reading multiple files from file specific read methods is deprecated. "
+                "Use the generic `UVCal.read` method instead."
             ]
+            if caltype == "delay":
+                warn_type += 2 * [UserWarning] + [DeprecationWarning] * 5
+                msg += 2 * ["When converting a delay-style cal to future array"] + 5 * [
+                    "The input_flag_array is deprecated and will be removed in "
+                    "version 2.5"
+                ]
 
-        with uvtest.check_warnings(warn_type, match=msg):
-            calobj.read_calfits([f1, f2], use_future_array_shapes=True)
+            with uvtest.check_warnings(warn_type, match=msg):
+                calobj.read_calfits([f1, f2], use_future_array_shapes=True)
+        else:
+            with pytest.raises(
+                ValueError,
+                match="Use the generic `UVCal.read` method to read multiple files.",
+            ):
+                calobj.read_calh5([f1, f2], use_future_array_shapes=True)
+
+            calobj.read([f1, f2], use_future_array_shapes=True)
 
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific times"
@@ -3946,7 +3800,7 @@ def test_multi_files(caltype, method, gain_data, delay_data_inputflag, tmp_path)
         "along time axis using pyuvdata.",
         calobj.history,
     )
-    assert calobj.filename == ["read_multi1.calfits", "read_multi2.calfits"]
+    assert calobj.filename == ["read_multi1." + file_type, "read_multi2." + file_type]
     calobj.history = calobj_full.history
     assert calobj == calobj_full
 
@@ -4027,7 +3881,8 @@ def test_uvcal_get_methods(future_shapes, gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-def test_write_read_optional_attrs(gain_data, tmp_path):
+@pytest.mark.parametrize("file_type", ["calfits", "calh5"])
+def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     # read a test file
     cal_in = gain_data
 
@@ -4036,13 +3891,14 @@ def test_write_read_optional_attrs(gain_data, tmp_path):
     cal_in.sky_field = "GLEAM"
 
     # write
-    write_file_calfits = str(tmp_path / "test.calfits")
+    outfile = str(tmp_path / ("test." + file_type))
+    write_method = "write_" + file_type
     with uvtest.check_warnings(
         DeprecationWarning,
         match="The sky_field parameter is deprecated and will be removed in version "
         "2.5",
     ):
-        cal_in.write_calfits(write_file_calfits, clobber=True)
+        getattr(cal_in, write_method)(outfile)
 
     # read and compare
     # also check that passing a single file in a list works properly
@@ -4051,7 +3907,7 @@ def test_write_read_optional_attrs(gain_data, tmp_path):
         match="The sky_field parameter is deprecated and will be removed in version "
         "2.5",
     ):
-        cal_in2 = UVCal.from_file([write_file_calfits], use_future_array_shapes=True)
+        cal_in2 = UVCal.from_file([outfile], use_future_array_shapes=True)
     assert cal_in == cal_in2
 
 
@@ -4235,7 +4091,8 @@ def test_read_errors():
         UVCal.from_file([[gainfile]])
 
     with pytest.raises(
-        ValueError, match="The only supported file_types are 'calfits' and 'fhd'."
+        ValueError,
+        match="The only supported file_types are 'calfits', 'calh5', and 'fhd'.",
     ):
         UVCal.from_file(gainfile, file_type="foo")
 
@@ -4329,6 +4186,9 @@ def test_init_from_uvdata_setfreqs(
 
     if not uvcal_future_shapes:
         uvc.use_current_array_shapes()
+
+    print(uvc.cal_type)
+    print(uvc.freq_range)
 
     uvc2 = uvc.copy(metadata_only=True)
 

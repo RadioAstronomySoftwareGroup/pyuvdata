@@ -11,10 +11,12 @@ from pathlib import Path
 
 import h5py
 import numpy as np
+from docstring_parser import DocstringStyle
 
 from .. import hdf5_utils
 from .. import utils as uvutils
-from .uvcal import UVCal, _future_array_shapes_warning, radian_tol
+from ..docstrings import copy_replace_short_description
+from .uvcal import UVCal, _future_array_shapes_warning
 
 hdf5plugin_present = True
 try:
@@ -91,26 +93,13 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
 
     _bool_attrs = frozenset(("wide_band",))
 
-    def check_lsts_against_times(self):
-        """Check that LSTs consistent with the time_array and telescope location."""
-        lsts = uvutils.get_lst_for_time(
-            self.time_array, *self.telescope_location_lat_lon_alt_degrees
-        )
-
-        if not np.all(np.isclose(self.lsts, lsts, rtol=0, atol=radian_tol)):
-            warnings.warn(
-                f"LST values stored in {self.path} are not self-consistent "
-                "with time_array and telescope location. Consider "
-                "recomputing with utils.get_lst_for_time."
-            )
-
     @cached_property
     def antenna_names(self) -> list[str]:
         """The antenna names in the file."""
         return [bytes(name).decode("utf8") for name in self.header["antenna_names"][:]]
 
     def has_key(self, antnum: int | None = None, jpol: str | int | None = None) -> bool:
-        """Check if the file has a given antpair or antpair-pol key."""
+        """Check if the file has a given antenna number or antenna number-pol key."""
         if antnum is not None:
             if antnum not in self.ant_array:
                 return False
@@ -144,12 +133,14 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
         """The telescope location in latitude, longitude, and altitude, in degrees."""
         return self.latitude, self.longitude, self.altitude
 
-    def to_uvcal(self, check_lsts: bool = False) -> UVCal:
+    def to_uvcal(
+        self, *, check_lsts: bool = False, astrometry_library: str | None = None
+    ) -> UVCal:
         """Convert the file to a UVData object.
 
         The object will be metadata-only.
         """
-        uvc = CalH5()
+        uvc = UVCal()
         uvc.read_calh5(
             self,
             read_data=False,
@@ -170,9 +161,11 @@ class CalH5(UVCal):
 
     def _read_header(
         self,
-        filename: str | Path | FastCalH5Meta,
+        meta: FastCalH5Meta,
+        *,
         background_lsts: bool = True,
         run_check_acceptability: bool = True,
+        astrometry_library: str | None = None,
     ):
         """
         Read header information from a UVH5 file.
@@ -182,10 +175,8 @@ class CalH5(UVCal):
 
         Parameters
         ----------
-        filename : string, path, FastCalH5Meta, h5py.File or h5py.Group
-            A file name or path or a FastCalH5Meta or h5py File or Group object that
-            contains the header information. Should be called "/Header" for CalH5 files
-            conforming to spec.
+        meta : FastCalH5Meta, h5py.File or h5py.Group
+            A FastCalH5Meta or object that contains the header information.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check_acceptability : bool
@@ -195,32 +186,31 @@ class CalH5(UVCal):
         -------
         None
         """
-        if not isinstance(filename, FastCalH5Meta):
-            obj = FastCalH5Meta(filename)
-        else:
-            obj = filename
-
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
         self.telescope_location_lat_lon_alt_degrees = (
-            obj.telescope_location_lat_lon_alt_degrees
+            meta.telescope_location_lat_lon_alt_degrees
         )
-        if "time_array" in obj.header:
-            self.time_array = obj.time_array
-        if "time_range" in obj.header:
-            self.time_range = obj.time_range
+        if "time_array" in meta.header:
+            self.time_array = meta.time_array
+        if "time_range" in meta.header:
+            self.time_range = meta.time_range
 
-        if "lst_array" in obj.header:
-            self.lst_array = obj.header["lst_array"][:]
+        if "lst_array" in meta.header:
+            self.lst_array = meta.header["lst_array"][:]
             proc = None
-        elif "time_array" in obj.header:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+        elif "time_array" in meta.header:
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
 
-        if "lst_range" in obj.header:
-            self.lst_range = obj.header["lst_range"][:]
+        if "lst_range" in meta.header:
+            self.lst_range = meta.header["lst_range"][:]
             proc = None
-        elif "time_range" in obj.header:
-            proc = self.set_lsts_from_time_array(background=background_lsts)
+        elif "time_range" in meta.header:
+            proc = self.set_lsts_from_time_array(
+                background=background_lsts, astrometry_library=astrometry_library
+            )
 
         # Required parameters
         for attr in [
@@ -239,26 +229,33 @@ class CalH5(UVCal):
             "integration_time",
             "spw_array",
             "jones_array",
-            "channel_width",
             "cal_style",
             "cal_type",
             "gain_convention",
             "wide_band",
             "x_orientation",
-            "flex_spw_id_array",
         ]:
             try:
-                setattr(self, attr, getattr(obj, attr))
+                setattr(self, attr, getattr(meta, attr))
             except AttributeError as e:
                 raise KeyError(str(e)) from e
+
+        self._set_future_array_shapes()
+        if self.wide_band:
+            self._set_wide_band()
+        if self.Nspws > 1 and not self.wide_band:
+            self._set_flex_spw()
 
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # Optional parameters
         for attr in [
+            "channel_width",
+            "flex_spw_id_array",
             "Nsources",
             "baseline_range",
+            "diffuse_model",
             "extra_keywords",
             "freq_array",
             "freq_range",
@@ -271,12 +268,9 @@ class CalH5(UVCal):
             "sky_field",
         ]:
             try:
-                setattr(self, attr, getattr(obj, attr))
+                setattr(self, attr, getattr(meta, attr))
             except AttributeError:
                 pass
-
-        if self.blt_order is not None:
-            self._blt_order.form = (len(self.blt_order),)
 
         # set telescope params
         try:
@@ -284,13 +278,32 @@ class CalH5(UVCal):
         except ValueError as ve:
             warnings.warn(str(ve))
 
-        if run_check_acceptability:
-            obj.check_lsts_against_times()
-
-        self._set_future_array_shapes()
-
+        # ensure LSTs are set before checking them.
         if proc is not None:
             proc.join()
+
+        if run_check_acceptability:
+            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+            if self.time_array is not None:
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_array,
+                    lst_array=self.lst_array,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
+                    lst_tols=(0, uvutils.LST_RAD_TOL),
+                    frame=self._telescope_location.frame,
+                )
+            if self.time_range is not None:
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_range,
+                    lst_array=self.lst_range,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
+                    lst_tols=(0, uvutils.LST_RAD_TOL),
+                    frame=self._telescope_location.frame,
+                )
 
     def _get_data(
         self,
@@ -336,7 +349,11 @@ class CalH5(UVCal):
         """
         # check for bitshuffle data; bitshuffle filter number is 32008
         # TODO should we check for any other filters?
-        if "32008" in dgrp["visdata"]._filters:
+        if self.cal_type == "gain":
+            data_name = "gains"
+        else:
+            data_name = "delays"
+        if "32008" in dgrp[data_name]._filters:
             if not hdf5plugin_present:  # pragma: no cover
                 raise ImportError(
                     "hdf5plugin is not installed but is required to read this dataset"
@@ -346,59 +363,49 @@ class CalH5(UVCal):
         (
             ant_inds,
             time_inds,
+            spw_inds,
             freq_inds,
             jones_inds,
             history_update_string,
         ) = self._select_preprocess(
-            antenna_nums,
-            antenna_names,
-            frequencies,
-            freq_chans,
-            times,
-            time_range,
-            lsts,
-            lst_range,
-            jones,
+            antenna_nums=antenna_nums,
+            antenna_names=antenna_names,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            spws=spws,
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            jones=jones,
         )
-
         # figure out which axis is the most selective
         if ant_inds is not None:
-            ant_frac = len(ant_inds) / float(self.Nblts)
+            ant_frac = len(ant_inds) / float(self.Nants_data)
         else:
             ant_frac = 1
 
         if time_inds is not None:
-            time_frac = len(time_inds) / float(self.Nblts)
+            time_frac = len(time_inds) / float(self.Ntimes)
         else:
             time_frac = 1
 
-        if freq_inds is not None:
+        if freq_inds is not None and not self.wide_band:
             freq_frac = len(freq_inds) / float(self.Nfreqs)
         else:
             freq_frac = 1
 
+        if spw_inds is not None and self.wide_band:
+            spw_frac = len(spw_inds) / float(self.Nspws)
+        else:
+            spw_frac = 1
+
         if jones_inds is not None:
-            jones_frac = len(jones_inds) / float(self.Npols)
+            jones_frac = len(jones_inds) / float(self.Njones)
         else:
             jones_frac = 1
 
-        min_frac = np.min([ant_frac, time_frac, freq_frac, jones_frac])
-
-        if self.cal_type == "gain":
-            # get the fundamental datatype of the cal data; if integers, we need to
-            # cast to floats
-            caldata_dtype = dgrp["gains"].dtype
-            if caldata_dtype not in ("complex64", "complex128"):
-                hdf5_utils._check_uvh5_dtype(caldata_dtype)
-                if gain_array_dtype not in (np.complex64, np.complex128):
-                    raise ValueError(
-                        "gain_array_dtype must be np.complex64 or np.complex128"
-                    )
-                custom_dtype = True
-            else:
-                custom_dtype = False
-        else:
-            custom_dtype = False
+        min_frac = np.min([ant_frac, time_frac, freq_frac, jones_frac, spw_frac])
 
         quality_present = False
         if "qualities" in dgrp:
@@ -411,12 +418,7 @@ class CalH5(UVCal):
             # no select, read in all the data
             inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
             if self.cal_type == "gain":
-                if custom_dtype:
-                    self.gain_array = hdf5_utils._read_complex_astype(
-                        dgrp["gains"], inds, gain_array_dtype
-                    )
-                else:
-                    self.gain_array = uvutils._index_dset(dgrp["gains"], inds)
+                self.gain_array = uvutils._index_dset(dgrp["gains"], inds)
             else:
                 self.delay_array = uvutils._index_dset(dgrp["delays"], inds)
             self.flag_array = uvutils._index_dset(dgrp["flags"], inds)
@@ -431,12 +433,16 @@ class CalH5(UVCal):
             # do select operations on everything except data_array, flag_array
             # and nsample_array
             self._select_by_index(
-                ant_inds, time_inds, freq_inds, jones_inds, history_update_string
+                ant_inds=ant_inds,
+                time_inds=time_inds,
+                spw_inds=spw_inds,
+                freq_inds=freq_inds,
+                jones_inds=jones_inds,
+                history_update_string=history_update_string,
             )
 
             # determine which axes can be sliced, rather than fancy indexed
-            # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
-            # See pyuvdata PR #805
+            # max_nslice_frac of 0.1 is just copied from uvh5, not validated
             if ant_inds is not None:
                 ant_slices, ant_sliceable = uvutils._convert_to_slices(
                     ant_inds, max_nslice_frac=0.1
@@ -460,6 +466,14 @@ class CalH5(UVCal):
             else:
                 freq_inds, freq_slices = np.s_[:], np.s_[:]
                 freq_sliceable = True
+
+            if spw_inds is not None:
+                spw_slices, spw_sliceable = uvutils._convert_to_slices(
+                    spw_inds, max_nslice_frac=0.1
+                )
+            else:
+                spw_inds, spw_slices = np.s_[:], np.s_[:]
+                spw_sliceable = True
 
             if jones_inds is not None:
                 jones_slices, jones_sliceable = uvutils._convert_to_slices(
@@ -491,20 +505,9 @@ class CalH5(UVCal):
                 # change ant_frac so no more selects are done
                 ant_frac = 1
 
-            elif time_frac == min_frac:
-                # construct inds list given simultaneous sliceability
-                inds = [np.s_[:], time_inds, np.s_[:], np.s_[:]]
-                if time_sliceable:
-                    inds[1] = time_slices
-
-                inds = tuple(inds)
-
-                # change time_frac so no more selects are done
-                time_frac = 1
-
             elif freq_frac == min_frac:
                 # construct inds list given simultaneous sliceability
-                inds = [np.s_[:], np.s_[:], freq_inds, np.s_[:]]
+                inds = [np.s_[:], freq_inds, np.s_[:], np.s_[:]]
                 if freq_sliceable:
                     inds[1] = freq_slices
 
@@ -513,11 +516,32 @@ class CalH5(UVCal):
                 # change freq_frac so no more selects are done
                 freq_frac = 1
 
+            elif spw_frac == min_frac:
+                # construct inds list given simultaneous sliceability
+                inds = [np.s_[:], spw_inds, np.s_[:], np.s_[:]]
+                if spw_sliceable:
+                    inds[1] = spw_slices
+
+                inds = tuple(inds)
+
+                # change freq_frac so no more selects are done
+                spw_frac = 1
+
+            elif time_frac == min_frac:
+                # construct inds list given simultaneous sliceability
+                inds = [np.s_[:], np.s_[:], time_inds, np.s_[:]]
+                if time_sliceable:
+                    inds[2] = time_slices
+
+                inds = tuple(inds)
+
+                # change time_frac so no more selects are done
+                time_frac = 1
             else:
                 # construct inds list given simultaneous sliceability
                 inds = [np.s_[:], np.s_[:], np.s_[:], jones_inds]
                 if jones_sliceable:
-                    inds[2] = jones_slices
+                    inds[3] = jones_slices
 
                 inds = tuple(inds)
 
@@ -525,17 +549,13 @@ class CalH5(UVCal):
                 jones_frac = 1
 
             # index datasets
-            if custom_dtype:
-                cal_data = hdf5_utils._read_complex_astype(
-                    caldata_dset, inds, gain_array_dtype
-                )
-            else:
-                cal_data = uvutils._index_dset(caldata_dset, inds)
+            cal_data = uvutils._index_dset(caldata_dset, inds)
             flags = uvutils._index_dset(flags_dset, inds)
             if quality_present:
                 qualities = uvutils._index_dset(qualities_dset, inds)
             if total_quality_present:
-                total_qualities = uvutils._index_dset(total_qualities_dset, inds)
+                tq_inds = inds[1:]
+                total_qualities = uvutils._index_dset(total_qualities_dset, tq_inds)
             # down select on other dimensions if necessary
             # use indices not slices here: generally not the bottleneck
             if ant_frac < 1:
@@ -543,20 +563,27 @@ class CalH5(UVCal):
                 flags = flags[ant_inds]
                 if quality_present:
                     qualities = qualities[ant_inds]
-            if time_frac < 1:
-                cal_data = cal_data[:, time_inds]
-                flags = flags[:, time_inds]
-                if quality_present:
-                    qualities = qualities[:, time_inds]
-                if total_quality_present:
-                    total_qualities = total_qualities[time_inds]
             if freq_frac < 1:
-                cal_data = cal_data[:, :, freq_inds]
-                flags = flags[:, :, freq_inds]
+                cal_data = cal_data[:, freq_inds]
+                flags = flags[:, freq_inds]
                 if quality_present:
-                    qualities = qualities[:, :, freq_inds]
+                    qualities = qualities[:, freq_inds]
                 if total_quality_present:
-                    total_qualities = total_qualities[:, freq_inds]
+                    total_qualities = total_qualities[freq_inds]
+            if spw_frac < 1:
+                cal_data = cal_data[:, spw_inds]
+                flags = flags[:, spw_inds]
+                if quality_present:
+                    qualities = qualities[:, spw_inds]
+                if total_quality_present:
+                    total_qualities = total_qualities[spw_inds]
+            if time_frac < 1:
+                cal_data = cal_data[:, :, time_inds]
+                flags = flags[:, :, time_inds]
+                if quality_present:
+                    qualities = qualities[:, :, time_inds]
+                if total_quality_present:
+                    total_qualities = total_qualities[:, time_inds]
             if jones_frac < 1:
                 cal_data = cal_data[:, :, :, jones_inds]
                 flags = flags[:, :, :, jones_inds]
@@ -569,7 +596,7 @@ class CalH5(UVCal):
             if self.cal_type == "gain":
                 self.gain_array = cal_data
             else:
-                self.gain_array = cal_data
+                self.delay_array = cal_data
             self.flag_array = flags
             if quality_present:
                 self.quality_array = qualities
@@ -578,15 +605,16 @@ class CalH5(UVCal):
 
         return
 
+    @copy_replace_short_description(UVCal.read_calh5, style=DocstringStyle.NUMPYDOC)
     def read_calh5(
         self,
-        filename,
+        filename: str | Path | FastCalH5Meta,
         *,
         antenna_nums=None,
         antenna_names=None,
-        ant_str=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -599,99 +627,15 @@ class CalH5(UVCal):
         check_extra=True,
         run_check_acceptability=True,
         use_future_array_shapes=False,
+        astrometry_library=None,
     ):
-        """
-        Read in data from a CalH5 file.
-
-        Parameters
-        ----------
-        filename : str
-             The UVH5 file to read from.
-        antenna_nums : array_like of int, optional
-            The antennas numbers to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_names` is also provided. Ignored if read_data is False.
-        antenna_names : array_like of str, optional
-            The antennas names to include when reading data into the object
-            (antenna positions and names for the removed antennas will be retained
-            unless `keep_all_metadata` is False). This cannot be provided if
-            `antenna_nums` is also provided. Ignored if read_data is False.
-        frequencies : array_like of float, optional
-            The frequencies to include when reading data into the object, each
-            value passed here should exist in the freq_array. Ignored if
-            read_data is False.
-        freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
-        times : array_like of float, optional
-            The times to include when reading data into the object, each value
-            passed here should exist in the time_array. Cannot be used with
-            `time_range`.
-        time_range : array_like of float, optional
-            The time range in Julian Date to keep in the object, must be
-            length 2. Some of the times in the object should fall between the
-            first and last elements. Cannot be used with `times`.
-        lsts : array_like of float, optional
-            The local sidereal times (LSTs) to keep in the object, each value
-            passed here should exist in the lst_array. Cannot be used with
-            `times`, `time_range`, or `lst_range`.
-        lst_range : array_like of float, optional
-            The local sidereal time (LST) range in radians to keep in the
-            object, must be of length 2. Some of the LSTs in the object should
-            fall between the first and last elements. If the second value is
-            smaller than the first, the LSTs are treated as having phase-wrapped
-            around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            the larger value, through 0, and end at the smaller value.
-        jones : array_like of int, optional
-            The jones polarizations numbers to include when reading data into the
-            object, each value passed here should exist in the polarization_array.
-            Ignored if read_data is False.
-        read_data : bool
-            Read in the data-like arrays (gains/delays, flags, qualities). If set to
-            False, only the metadata will be read in. Setting read_data to False
-            results in a metadata only object.
-        gain_array_dtype : numpy dtype
-            Datatype to store the output gain_array as. Must be either
-            np.complex64 (single-precision real and imaginary) or np.complex128 (double-
-            precision real and imaginary). Only used for gain type files and if the
-            datatype of the gain data on-disk is not 'c8' or 'c16'.
-        background_lsts : bool
-            When set to True, the lst_array is calculated in a background thread.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        IOError
-            If filename doesn't exist.
-        ValueError
-            If the data_array_dtype is not a complex dtype.
-            If incompatible select keywords are set (e.g. `times` and `time_range`) or
-            select keywords exclude all data or if keywords are set to the wrong type.
-
-        """
+        """Read in data from a CalH5 file."""
         if isinstance(filename, FastCalH5Meta):
             meta = filename
             filename = str(meta.path)
+            close_meta = False
         else:
+            close_meta = True
             meta = FastCalH5Meta(filename)
 
         # update filename attribute
@@ -704,23 +648,28 @@ class CalH5(UVCal):
             meta,
             run_check_acceptability=run_check_acceptability,
             background_lsts=background_lsts,
+            astrometry_library=astrometry_library,
         )
 
         if read_data:
             # Now read in the data
             self._get_data(
                 meta.datagrp,
-                antenna_nums,
-                antenna_names,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                jones,
-                gain_array_dtype,
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                spws=spws,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                jones=jones,
+                gain_array_dtype=gain_array_dtype,
             )
+
+        if close_meta:
+            meta.close()
 
         if not use_future_array_shapes:
             warnings.warn(_future_array_shapes_warning, DeprecationWarning)
@@ -776,16 +725,11 @@ class CalH5(UVCal):
         header["Nspws"] = self.Nspws
         header["Ntimes"] = self.Ntimes
         header["antenna_numbers"] = self.antenna_numbers
-        header["channel_width"] = self.channel_width
-        header["time_array"] = self.time_array
-        header["freq_array"] = self.freq_array
         header["integration_time"] = self.integration_time
-        header["lst_array"] = self.lst_array
-        header["jones_array"] = self.polarization_array
+        header["jones_array"] = self.jones_array
         header["spw_array"] = self.spw_array
-        header["ant_array"] = self.ant_1_array
+        header["ant_array"] = self.ant_array
         header["antenna_positions"] = self.antenna_positions
-        header["flex_spw_id_array"] = self.flex_spw_id_array
         # handle antenna_names; works for lists or arrays
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
         header["x_orientation"] = np.string_(self.x_orientation)
@@ -795,10 +739,26 @@ class CalH5(UVCal):
         header["wide_band"] = self.wide_band
 
         # write out optional parameters
+        if self.channel_width is not None:
+            header["channel_width"] = self.channel_width
+        if self.flex_spw_id_array is not None:
+            header["flex_spw_id_array"] = self.flex_spw_id_array
+
+        if self.time_array is not None:
+            header["time_array"] = self.time_array
+        if self.time_range is not None:
+            header["time_range"] = self.time_range
+        if self.lst_array is not None:
+            header["lst_array"] = self.lst_array
+        if self.lst_range is not None:
+            header["lst_range"] = self.lst_range
+
         if self.Nsources is not None:
             header["Nsources"] = self.Nsources
         if self.baseline_range is not None:
             header["baseline_range"] = self.baseline_range
+        if self.diffuse_model is not None:
+            header["diffuse_model"] = np.string_(self.diffuse_model)
         if self.freq_array is not None:
             header["freq_array"] = self.freq_array
         if self.freq_range is not None:
@@ -835,91 +795,30 @@ class CalH5(UVCal):
 
         return
 
+    @copy_replace_short_description(UVCal.write_calh5, style=DocstringStyle.NUMPYDOC)
     def write_calh5(
         self,
         filename,
         *,
-        overwrite=False,
+        clobber=False,
         chunks=True,
         data_compression=None,
         flags_compression="lzf",
         quality_compression="lzf",
-        gain_write_dtype=None,
         add_to_history=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
     ):
-        """
-        Write an in-memory UVCal object to a CalH5 file.
-
-        Parameters
-        ----------
-        filename : str
-            The CalH5 file to write to.
-        overwrite : bool
-            Option to overwrite the file if it already exists.
-        chunks : tuple or bool
-            h5py.create_dataset chunks keyword. Tuple for chunk shape,
-            True for auto-chunking, None for no chunking. Default is True.
-        data_compression : str
-            HDF5 filter to apply when writing the gain_array or delay. Default is None
-            (no filter/compression). In addition to the normal HDF5 filter values, the
-            user may specify "bitshuffle" which will set the compression to `32008` for
-            bitshuffle and will set the `compression_opts` to `(0, 2)` to allow
-            bitshuffle to automatically determine the block size and to use the LZF
-            filter after bitshuffle. Using `bitshuffle` requires having the
-            `hdf5plugin` package installed.  Dataset must be chunked to use compression.
-        flags_compression : str
-            HDF5 filter to apply when writing the flags_array. Default is the
-            LZF filter. Dataset must be chunked.
-        quality_compression : str
-            HDF5 filter to apply when writing the quality_array and/or
-            total_quality_array if they are defined. Default is the LZF filter. Dataset
-            must be chunked.
-        gain_write_dtype : numpy dtype
-            The datatype of output gain data (only applies if cal_type="gain"). If
-            'None', then the same datatype as gain_array will be used. The user may
-            specify 'c8' for single-precision floats or 'c16' for double-presicion.
-            Otherwise, a numpy dtype object must be specified with an 'r' field and an
-            'i' field for real and imaginary parts, respectively. See uvh5.py for
-            an example of defining such a datatype.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        IOError
-            If the file located at `filename` already exists and overwrite=False,
-            an IOError is raised.
-
-        Notes
-        -----
-        The HDF5 library allows for the application of "filters" when writing
-        data, which can provide moderate to significant levels of compression
-        for the datasets in question.  Testing has shown that for some typical
-        cases of UVData objects (empty/sparse flag_array objects, and/or uniform
-        nsample_arrays), the built-in LZF filter provides significant
-        compression for minimal computational overhead.
-        """
+        """Write an in-memory UVCal object to a CalH5 file."""
         if run_check:
             self.check(
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
         if os.path.exists(filename):
-            if overwrite:
-                print("File exists; overwrite")
+            if clobber:
+                print("File exists; clobbering")
             else:
                 raise IOError("File exists; skipping")
 
@@ -943,32 +842,13 @@ class CalH5(UVCal):
             # write out data, flags, and nsample arrays
             dgrp = f.create_group("Data")
             if self.cal_type == "gain":
-                if gain_write_dtype is None:
-                    if self.gain_array.dtype == "complex64":
-                        gain_write_dtype = "c8"
-                    else:
-                        gain_write_dtype = "c16"
-                if gain_write_dtype not in ("c8", "c16"):
-                    hdf5_utils._check_uvh5_dtype(gain_write_dtype)
-                    gaindata = dgrp.create_dataset(
-                        "gains",
-                        self.gain_array.shape,
-                        chunks=chunks,
-                        compression=data_compression,
-                        compression_opts=data_compression_opts,
-                        dtype=gain_write_dtype,
-                    )
-                    indices = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
-                    hdf5_utils._write_complex_astype(self.gain_array, gaindata, indices)
-                else:
-                    gaindata = dgrp.create_dataset(
-                        "gains",
-                        chunks=chunks,
-                        data=self.gain_array,
-                        compression=data_compression,
-                        compression_opts=data_compression_opts,
-                        dtype=gain_write_dtype,
-                    )
+                dgrp.create_dataset(
+                    "gains",
+                    chunks=chunks,
+                    data=self.gain_array,
+                    compression=data_compression,
+                    compression_opts=data_compression_opts,
+                )
             else:
                 dgrp.create_dataset(
                     "delays",

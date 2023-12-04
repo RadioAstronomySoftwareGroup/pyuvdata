@@ -617,9 +617,9 @@ class CALFITS(UVCal):
             self.Nsources = hdr.pop("NSOURCES", None)
             bl_range_string = hdr.pop("BL_RANGE", None)
             if bl_range_string is not None:
-                self.baseline_range = [
-                    float(b) for b in bl_range_string.strip("[").strip("]").split(",")
-                ]
+                self.baseline_range = np.asarray(
+                    [float(b) for b in bl_range_string.strip("[").strip("]").split(",")]
+                )
             self.diffuse_model = hdr.pop("DIFFUSE", None)
 
             self.observer = hdr.pop("OBSERVER", None)

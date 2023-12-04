@@ -395,27 +395,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             return float(h["channel_width"][()])
 
     @cached_property
-    def extra_keywords(self) -> dict:
-        """The extra_keywords from the file."""
-        header = self.header
-        if "extra_keywords" not in header:
-            return {}
-
-        extra_keywords = {}
-        for key in header["extra_keywords"].keys():
-            if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
-                extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
-                    "utf8"
-                )
-            else:
-                # special handling for empty datasets == python `None` type
-                if header["extra_keywords"][key].shape is None:
-                    extra_keywords[key] = None
-                else:
-                    extra_keywords[key] = header["extra_keywords"][key][()]
-        return extra_keywords
-
-    @cached_property
     def unique_antpair_1_array(self) -> np.ndarray:
         """The unique antenna 1 indices in the file."""
         h = self.header
@@ -593,7 +572,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             default is astropy.
 
         """
-        uvd = UVH5()
+        uvd = UVData()
         uvd.read_uvh5(
             self,
             read_data=False,

@@ -776,6 +776,253 @@ def _sort_freq_helper(
     return index_array
 
 
+def _check_range_overlap(val_range, range_type="time"):
+    """
+    Detect if any val_range in an array overlap.
+
+    Parameters
+    ----------
+    val_range : np.array of float
+        Array of ranges, shape (Nranges, 2).
+    range_type : str
+        Type of range (for good error messages)
+
+    Returns
+    -------
+    bool
+        True if any range overlaps.
+    """
+    # first check that time ranges are well formed (stop is >= than start)
+    if np.any((val_range[:, 1] - val_range[:, 0]) < 0):
+        raise ValueError(
+            f"The {range_type} ranges are not well-formed, some stop {range_type}s "
+            f"are after start {range_type}s."
+        )
+
+    # Sort by start time
+    sorted_ranges = val_range[np.argsort(val_range[:, 0]), :]
+
+    # then check if adjacent pairs overlap
+    for ind in range(sorted_ranges.shape[0] - 1):
+        range1 = sorted_ranges[ind]
+        range2 = sorted_ranges[ind + 1]
+        if range2[0] < range1[1]:
+            return True
+
+
+def _select_times_helper(
+    *,
+    times,
+    time_range,
+    lsts,
+    lst_range,
+    obj_time_array,
+    obj_time_range,
+    obj_lst_array,
+    obj_lst_range,
+    time_tols,
+    lst_tols,
+):
+    """
+    Get time indices in a select.
+
+    Parameters
+    ----------
+    times : array_like of float
+        The times to keep in the object, each value passed here should exist in the
+        time_array. Can be None, cannot be set with `time_range`, `lsts` or `lst_array`.
+    time_range : array_like of float
+        The time range in Julian Date to keep in the object, must be length 2. Some of
+        the times in the object should fall between the first and last elements. Can be
+        None, cannot be set with `times`, `lsts` or `lst_array`.
+    lsts : array_like of float
+        The local sidereal times (LSTs) to keep in the object, each value passed here
+        should exist in the lst_array. Can be None, cannot be set with `times`,
+        `time_range`, or `lst_range`.
+    lst_range : array_like of float
+        The local sidereal time (LST) range in radians to keep in the
+        object, must be of length 2. Some of the LSTs in the object should
+        fall between the first and last elements. If the second value is
+        smaller than the first, the LSTs are treated as having phase-wrapped
+        around LST = 2*pi = 0, and the LSTs kept on the object will run from
+        the larger value, through 0, and end at the smaller value. Can be None, cannot
+        be set with `times`, `time_range`, or `lsts`.
+    obj_time_array : array_like of float
+        Time array on object. Can be None if `object_time_range` is set.
+    obj_time_range : array_like of float
+        Time range on object. Can be None if `object_time_array` is set.
+    obj_lst_array : array_like of float
+        LST array on object. Can be None if `object_lst_range` is set.
+    obj_lst_range : array_like of float
+        LST range on object. Can be None if `object_lst_array` is set.
+    time_tols : tuple of float
+        Length 2 tuple giving (rtol, atol) to use for time matching.
+    lst_tols : tuple of float
+        Length 2 tuple giving (rtol, atol) to use for lst matching.
+
+    """
+    have_times = times is not None
+    have_time_range = time_range is not None
+    have_lsts = lsts is not None
+    have_lst_range = lst_range is not None
+    n_time_params = np.count_nonzero(
+        [have_times, have_time_range, have_lsts, have_lst_range]
+    )
+    if n_time_params > 1:
+        raise ValueError(
+            "Only one of [times, time_range, lsts, lst_range] may be "
+            "specified per selection operation."
+        )
+    if n_time_params == 0:
+        return None
+
+    time_inds = np.zeros(0, dtype=np.int64)
+    if times is not None:
+        times = _get_iterable(times)
+        if np.array(times).ndim > 1:
+            times = np.array(times).flatten()
+
+        if obj_time_range is not None:
+            for jd in times:
+                this_ind = np.nonzero(
+                    np.logical_and(
+                        (obj_time_range[:, 0] <= jd), (obj_time_range[:, 1] >= jd)
+                    )
+                )[0]
+                if this_ind.size > 0:
+                    time_inds = np.append(time_inds, this_ind)
+                else:
+                    raise ValueError(f"Time {jd} does not fall in any time_range.")
+        else:
+            for jd in times:
+                if np.any(
+                    np.isclose(obj_time_array, jd, rtol=time_tols[0], atol=time_tols[1])
+                ):
+                    time_inds = np.append(
+                        time_inds,
+                        np.where(
+                            np.isclose(
+                                obj_time_array, jd, rtol=time_tols[0], atol=time_tols[1]
+                            )
+                        )[0],
+                    )
+                else:
+                    raise ValueError(f"Time {jd} is not present in the time_array.")
+
+    if time_range is not None:
+        if np.size(time_range) != 2:
+            raise ValueError("time_range must be length 2.")
+
+        if obj_time_range is not None:
+            for tind, trange in enumerate(obj_time_range):
+                if _check_range_overlap(np.stack((trange, time_range), axis=0)):
+                    time_inds = np.append(time_inds, tind)
+            attr_str = "time_range"
+        else:
+            time_inds = np.nonzero(
+                (obj_time_array <= time_range[1]) & (obj_time_array >= time_range[0])
+            )[0]
+            attr_str = "time_array"
+        if time_inds.size == 0:
+            raise ValueError(
+                f"No elements in {attr_str} between {time_range[0]} and "
+                f"{time_range[1]}."
+            )
+
+    if (lsts is not None or lst_range is not None) and obj_lst_range is not None:
+        # check for lsts wrapping around zero
+        lst_range_wrap = obj_lst_range[:, 0] > obj_lst_range[:, 1]
+
+    if lsts is not None:
+        if np.any(np.asarray(lsts) > 2 * np.pi):
+            warnings.warn(
+                "The lsts parameter contained a value greater than 2*pi. "
+                "LST values are assumed to be in radians, not hours."
+            )
+        lsts = _get_iterable(lsts)
+        if np.array(lsts).ndim > 1:
+            lsts = np.array(lsts).flatten()
+
+        if obj_lst_range is not None:
+            for lst in lsts:
+                lst_ind = np.nonzero(
+                    np.logical_and(
+                        (obj_lst_range[:, 0] <= lst), (obj_lst_range[:, 1] >= lst)
+                    )
+                )[0]
+                if lst_ind.size == 0 and np.any(lst_range_wrap):
+                    for lr_ind in np.nonzero(lst_range_wrap)[0]:
+                        if (obj_lst_range[lr_ind, 0] <= lst and lst <= 2 * np.pi) or (
+                            lst >= 0 and lst <= obj_lst_range[lr_ind, 1]
+                        ):
+                            lst_ind = np.array([lr_ind])
+                if lst_ind.size > 0:
+                    time_inds = np.append(time_inds, lst_ind)
+                else:
+                    raise ValueError(f"LST {lst} does not fall in any lst_range")
+        else:
+            for lst in lsts:
+                if np.any(
+                    np.isclose(obj_lst_array, lst, rtol=lst_tols[0], atol=lst_tols[1])
+                ):
+                    time_inds = np.append(
+                        time_inds,
+                        np.where(
+                            np.isclose(
+                                obj_lst_array, lst, rtol=lst_tols[0], atol=lst_tols[1]
+                            )
+                        )[0],
+                    )
+                else:
+                    raise ValueError(f"LST {lst} is not present in the lst_array")
+
+    if lst_range is not None:
+        if np.size(lst_range) != 2:
+            raise ValueError("lst_range must be length 2.")
+        if np.any(np.asarray(lst_range) > 2 * np.pi):
+            warnings.warn(
+                "The lst_range contained a value greater than 2*pi. "
+                "LST values are assumed to be in radians, not hours."
+            )
+        if obj_lst_range is not None:
+            for lind, lrange in enumerate(obj_lst_range):
+                if not lst_range_wrap[lind] and lst_range[0] < lst_range[1]:
+                    if _check_range_overlap(np.stack((lrange, lst_range), axis=0)):
+                        time_inds = np.append(time_inds, lind)
+                else:
+                    if (lst_range[0] >= lrange[0] and lst_range[0] <= 2 * np.pi) or (
+                        lst_range[1] <= lrange[1] and lst_range[1] >= 0
+                    ):
+                        time_inds = np.append(time_inds, lind)
+            attr_str = "lst_range"
+        else:
+            if lst_range[1] < lst_range[0]:
+                # we're wrapping around LST = 2*pi = 0
+                lst_range_1 = [lst_range[0], 2 * np.pi]
+                lst_range_2 = [0, lst_range[1]]
+                time_inds1 = np.nonzero(
+                    (obj_lst_array <= lst_range_1[1])
+                    & (obj_lst_array >= lst_range_1[0])
+                )[0]
+                time_inds2 = np.nonzero(
+                    (obj_lst_array <= lst_range_2[1])
+                    & (obj_lst_array >= lst_range_2[0])
+                )[0]
+                time_inds = np.union1d(time_inds1, time_inds2)
+            else:
+                time_inds = np.nonzero(
+                    (obj_lst_array <= lst_range[1]) & (obj_lst_array >= lst_range[0])
+                )[0]
+            attr_str = "lst_array"
+
+        if time_inds.size == 0:
+            raise ValueError(
+                f"No elements in {attr_str} between {lst_range[0]} and "
+                f"{lst_range[1]}."
+            )
+    return time_inds
+
+
 def baseline_to_antnums(baseline, *, Nants_telescope):
     """
     Get the antenna numbers corresponding to a given baseline number.
@@ -796,9 +1043,7 @@ def baseline_to_antnums(baseline, *, Nants_telescope):
 
     """
     if Nants_telescope > 2147483648:
-        raise ValueError(
-            "error Nants={Nants}>2147483648 not supported".format(Nants=Nants_telescope)
-        )
+        raise ValueError(f"error Nants={Nants_telescope}>2147483648 not supported")
     if np.any(np.asarray(baseline) < 0):
         raise ValueError("negative baseline numbers are not supported")
     if np.any(np.asarray(baseline) > 4611686018498691072):
@@ -849,7 +1094,7 @@ def antnums_to_baseline(
     if Nants_telescope is not None and Nants_telescope > 2147483648:
         raise ValueError(
             "cannot convert ant1, ant2 to a baseline index "
-            "with Nants={Nants}>2147483648.".format(Nants=Nants_telescope)
+            f"with Nants={Nants_telescope}>2147483648."
         )
     if np.any(np.concatenate((np.unique(ant1), np.unique(ant2))) >= 2147483648):
         raise ValueError(
@@ -967,9 +1212,7 @@ def polstr2num(pol: str | IterableType[str], *, x_orientation: str | None = None
         out = [poldict[key.lower()] for key in pol]
     else:
         raise ValueError(
-            "Polarization {p} cannot be converted to a polarization number.".format(
-                p=pol
-            )
+            f"Polarization {pol} cannot be converted to a polarization number."
         )
     return out
 
@@ -1022,9 +1265,7 @@ def polnum2str(num, *, x_orientation=None):
     elif isinstance(num, Iterable):
         out = [dict_use[i] for i in num]
     else:
-        raise ValueError(
-            "Polarization {p} cannot be converted to string.".format(p=num)
-        )
+        raise ValueError(f"Polarization {num} cannot be converted to string.")
     return out
 
 
@@ -1075,9 +1316,7 @@ def jstr2num(jstr, *, x_orientation=None):
     elif isinstance(jstr, Iterable):
         out = [jdict[key.lower()] for key in jstr]
     else:
-        raise ValueError(
-            "Jones polarization {j} cannot be converted to index.".format(j=jstr)
-        )
+        raise ValueError(f"Jones polarization {jstr} cannot be converted to index.")
     return out
 
 
@@ -1127,9 +1366,7 @@ def jnum2str(jnum, *, x_orientation=None):
     elif isinstance(jnum, Iterable):
         out = [dict_use[i] for i in jnum]
     else:
-        raise ValueError(
-            "Jones polarization {j} cannot be converted to string.".format(j=jnum)
-        )
+        raise ValueError(f"Jones polarization {jnum} cannot be converted to string.")
     return out
 
 
@@ -5841,7 +6078,7 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
             elif ant_str[str_pos:].upper().startswith("PV"):
                 polarizations.append(polstr2num("pV"))
             else:
-                raise ValueError("Unparsible argument {s}".format(s=ant_str))
+                raise ValueError(f"Unparsable argument {ant_str}")
 
             comma_cnt = ant_str[str_pos:].find(",")
             if comma_cnt >= 0:
@@ -6040,9 +6277,41 @@ def _combine_filenames(filename1, filename2):
     return combined_filenames
 
 
+def _get_slice_len(s, axlen):
+    """
+    Get length of a slice s into array of len axlen.
+
+    Parameters
+    ----------
+    s : slice object
+        Slice object to index with
+    axlen : int
+        Length of axis s slices into
+
+    Returns
+    -------
+    int
+        Length of slice object
+    """
+    if s.start is None:
+        start = 0
+    else:
+        start = s.start
+    if s.stop is None:
+        stop = axlen
+    else:
+        stop = np.min([s.stop, axlen])
+    if s.step is None:
+        step = 1
+    else:
+        step = s.step
+
+    return ((stop - 1 - start) // step) + 1
+
+
 def _get_dset_shape(dset, indices):
     """
-    Given a 3-tuple of indices, determine the indexed array shape.
+    Given a tuple of indices, determine the indexed array shape.
 
     Parameters
     ----------
@@ -6050,7 +6319,7 @@ def _get_dset_shape(dset, indices):
         A numpy array or a reference to an HDF5 dataset on disk. Requires the
         `dset.shape` attribute exists and returns a tuple.
     indices : tuple
-        A 3-tuple with the indices to extract along each dimension of dset.
+        A tuple with the indices to extract along each dimension of dset.
         Each element should contain a list of indices, a slice element,
         or a list of slice elements that will be concatenated after slicing.
         For data arrays with 4 dimensions, the second dimension (the old spw axis)
@@ -6059,10 +6328,10 @@ def _get_dset_shape(dset, indices):
     Returns
     -------
     tuple
-        a 3- or 4-tuple with the shape of the indexed array
+        a tuple with the shape of the indexed array
     tuple
-        a 3- or 4-tuple with indices used (will be different than input if dset has
-        4 dimensions)
+        a tuple with indices used (will be different than input if dset has
+        4 dimensions and indices has 3 dimensions)
     """
     dset_shape = list(dset.shape)
     if len(dset_shape) == 4 and len(indices) == 3:
@@ -6197,58 +6466,35 @@ def _convert_to_slices(
         return slices, check
 
 
-def _get_slice_len(s, axlen):
-    """
-    Get length of a slice s into array of len axlen.
-
-    Parameters
-    ----------
-    s : slice object
-        Slice object to index with
-    axlen : int
-        Length of axis s slices into
-
-    Returns
-    -------
-    int
-        Length of slice object
-    """
-    if s.start is None:
-        start = 0
-    else:
-        start = s.start
-    if s.stop is None:
-        stop = axlen
-    else:
-        stop = np.min([s.stop, axlen])
-    if s.step is None:
-        step = 1
-    else:
-        step = s.step
-
-    return ((stop - 1 - start) // step) + 1
-
-
 def _index_dset(dset, indices, *, input_array=None):
     """
-    Index a UVH5 data, flags or nsamples h5py dataset.
+    Index a UVH5 data, flags or nsamples h5py dataset to get data or overwrite data.
+
+    If no `input_array` is passed, this function extracts the data at the indices
+    and returns it. If `input_array` is passed, this function replaced the data at the
+    indices with the input array.
 
     Parameters
     ----------
     dset : h5py dataset
         A reference to an HDF5 dataset on disk.
     indices : tuple
-        A 3-tuple with the indices to extract along each dimension of dset.
+        A tuple with the indices to extract along each dimension of dset.
         Each element should contain a list of indices, a slice element,
         or a list of slice elements that will be concatenated after slicing.
         Indices must be provided such that all dimensions can be indexed
-        simultaneously. For data arrays with 4 dimensions, the second dimension
-        (the old spw axis) should not be included because it can only be length one.
+        simultaneously. This should have a length equal to the length of the dset,
+        with an exception to support the old array shape for uvdata arrays (in that
+        case the dset is length 4 but the second dimension is shallow, so only three
+        indices need to be passed).
+    input_array : ndarray, optional
+        Array to be copied into the dset at the indices. If not provided, the data in
+        the dset is indexed and returned.
 
     Returns
     -------
-    ndarray
-        The indexed dset
+    ndarray or None
+        The indexed dset if the `input_array` parameter is not used.
 
     Notes
     -----
@@ -6272,22 +6518,26 @@ def _index_dset(dset, indices, *, input_array=None):
     # get arr and dset indices for each dimension in indices
     dset_indices = []
     arr_indices = []
+    nselects_per_dim = []
     for i, dset_inds in enumerate(indices):
         if isinstance(dset_inds, (int, np.integer)):
             # this dimension is len 1, so slice is fine
             arr_indices.append([slice(None)])
             dset_indices.append([[dset_inds]])
+            nselects_per_dim.append(1)
 
         elif isinstance(dset_inds, slice):
             # this dimension is just a slice, so slice is fine
             arr_indices.append([slice(None)])
             dset_indices.append([dset_inds])
+            nselects_per_dim.append(1)
 
         elif isinstance(dset_inds, (list, np.ndarray)):
             if isinstance(dset_inds[0], (int, np.integer)):
                 # this is a list of integers, append slice
                 arr_indices.append([slice(None)])
                 dset_indices.append([dset_inds])
+                nselects_per_dim.append(1)
             elif isinstance(dset_inds[0], slice):
                 # this is a list of slices, need list of slice lens
                 slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
@@ -6295,38 +6545,29 @@ def _index_dset(dset, indices, *, input_array=None):
                 arr_inds = [slice(s, s + l) for s, l in zip(ssums, slens)]
                 arr_indices.append(arr_inds)
                 dset_indices.append(dset_inds)
+                nselects_per_dim.append(len(dset_inds))
 
-    if len(dset_shape) == 3:
-        freq_dim = 1
-        pol_dim = 2
-    else:
-        freq_dim = 2
-        pol_dim = 3
-
-    # iterate over each of the 3 axes and fill the array
-    for blt_arr, blt_dset in zip(arr_indices[0], dset_indices[0]):
-        for freq_arr, freq_dset in zip(arr_indices[freq_dim], dset_indices[freq_dim]):
-            for pol_arr, pol_dset in zip(arr_indices[pol_dim], dset_indices[pol_dim]):
-                if input_array is None:
-                    # index dset and assign to arr
-                    if len(dset_shape) == 3:
-                        arr[blt_arr, freq_arr, pol_arr] = dset[
-                            blt_dset, freq_dset, pol_dset
-                        ]
-                    else:
-                        arr[blt_arr, :, freq_arr, pol_arr] = dset[
-                            blt_dset, :, freq_dset, pol_dset
-                        ]
-                else:
-                    # index arr and assign to dset
-                    if len(dset_shape) == 3:
-                        dset[blt_dset, freq_dset, pol_dset] = arr[
-                            blt_arr, freq_arr, pol_arr
-                        ]
-                    else:
-                        dset[blt_dset, :, freq_dset, pol_dset] = arr[
-                            blt_arr, :, freq_arr, pol_arr
-                        ]
+    # iterate through all selections and fill the array
+    total_selects = np.prod(nselects_per_dim)
+    axis_arrays = []
+    for nsel in nselects_per_dim:
+        axis_arrays.append(np.arange(nsel, dtype=int))
+    sel_index_arrays = np.meshgrid(*axis_arrays)
+    for ind, array in enumerate(sel_index_arrays):
+        sel_index_arrays[ind] = array.flatten()
+    for sel in np.arange(total_selects):
+        sel_arr_indices = []
+        sel_dset_indices = []
+        for dim in np.arange(len(dset_shape)):
+            this_index = (sel_index_arrays[dim])[sel]
+            sel_arr_indices.append(arr_indices[dim][this_index])
+            sel_dset_indices.append(dset_indices[dim][this_index])
+        if input_array is None:
+            # index dset and assign to arr
+            arr[(*sel_arr_indices,)] = dset[(*sel_dset_indices,)]
+        else:
+            # index arr and assign to dset
+            dset[(*sel_dset_indices,)] = arr[(*sel_arr_indices,)]
 
     if input_array is None:
         return arr
