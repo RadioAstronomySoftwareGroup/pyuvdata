@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new HDF5 file format for calibration solutions called `calh5`, which supports
+writing out all types of UVCal objects and supports partial reads (select on read).
 - A `UVCal.get_lst_array` method similar to the `get_time_array` method that either
 returns the LST of the mean of the start and stop time for each time range or the
 lst_array (if there's a lst_array and no lst_range).
