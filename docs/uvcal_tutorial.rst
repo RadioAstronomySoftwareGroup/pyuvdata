@@ -97,8 +97,8 @@ UVCal: Reading/writing
 ----------------------
 Calibration files using UVCal.
 
-a) Reading a cal fits gain calibration file.
-********************************************
+a) Reading a CalFITS gain calibration file.
+*******************************************
 .. code-block:: python
 
   >>> import os
@@ -147,8 +147,8 @@ a) Reading a cal fits gain calibration file.
 .. image:: Images/abs_gains.png
     :width: 600
 
-b) FHD cal to cal fits
-***********************
+b) FHD cal to CalFITS
+*********************
 .. code-block:: python
 
   >>> import os
@@ -178,6 +178,21 @@ b) FHD cal to cal fits
   ...    use_future_array_shapes=True,
   ... )
   >>> fhd_cal.write_calfits(os.path.join('.', 'tutorial_cal.fits'), clobber=True)
+
+
+b) CalFITS to CalH5
+*******************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
+  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
+  >>> # Can optionally specify the ``file_type`` to either method
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+
+  >>> cal.write_calh5(os.path.join('.', 'tutorial_cal.calh5'), clobber=True)
 
 
 UVCal: Initializing from a UVData object
