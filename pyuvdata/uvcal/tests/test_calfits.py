@@ -15,7 +15,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-from pyuvdata.uvcal.tests import time_array_to_time_range
+from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
@@ -606,3 +606,67 @@ def test_write_freq_spacing_not_channel_width(gain_data, tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
+
+
+@pytest.mark.parametrize(
+    ["caltype", "param_dict"],
+    [
+        [
+            "gain",
+            {
+                "antenna_nums": np.array([65, 96, 9, 97, 89, 22, 20, 72]),
+                "freq_chans": np.arange(2, 9),
+                "times": np.arange(2, 5),
+                "jones": ["xx", "yy"],
+            },
+        ],
+        [
+            "delay",
+            {
+                "antenna_nums": np.array([65, 96, 9, 97, 89, 22, 20, 72]),
+                "times": 0,
+                "jones": -5,
+            },
+        ],
+    ],
+)
+def test_calfits_partial_read(gain_data, delay_data, tmp_path, caltype, param_dict):
+    if caltype == "gain":
+        calobj = gain_data
+    else:
+        calobj = delay_data
+
+    orig_time_array = calobj.time_array
+
+    for par, val in param_dict.items():
+        if par == "times":
+            param_dict[par] = orig_time_array[val]
+
+    extend_jones_axis(calobj, input_flag=False, total_quality=False)
+
+    write_file = str(tmp_path / "outtest.calfits")
+    calobj.write_calfits(write_file, clobber=True)
+
+    calobj2 = calobj.copy()
+
+    calobj2.select(**param_dict)
+
+    msg = [
+        'Warning: select on read keyword set, but file_type is "calfits" which '
+        "does not support select on read. Entire file will be read and then select "
+        "will be performed"
+    ]
+
+    if caltype == "delay":
+        msg.append(
+            "When converting a delay-style cal to future array shapes the flag_array "
+            "(and input_flag_array if it exists) must drop the frequency axis so that "
+            "it will be the same shape as the delay_array"
+        )
+
+    with uvtest.check_warnings(UserWarning, match=msg):
+        calobj3 = UVCal.from_file(
+            write_file, use_future_array_shapes=True, **param_dict
+        )
+
+    assert calobj2 == calobj3
