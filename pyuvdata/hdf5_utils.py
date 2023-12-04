@@ -2,6 +2,8 @@
 # Copyright (c) 2023 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with HDF5 files."""
+from __future__ import annotations
+
 from functools import cached_property
 from pathlib import Path
 from typing import Any

@@ -504,7 +504,7 @@ class UVParameter:
                     if not silent:
                         print(
                             f"{self.name} parameter value is not an array, "
-                            "but other is not"
+                            "but other is an array"
                         )
                     return False
                 try:
