@@ -7974,6 +7974,7 @@ class UVData(UVBase):
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
             string to append to the end of the history.
+
         """
         # build up history string as we go
         history_update_string = "  Downselected to specific "
@@ -8179,127 +8180,18 @@ class UVData(UVBase):
             else:
                 blt_inds = ant_blt_inds
 
-        have_times = times is not None
-        have_time_range = time_range is not None
-        have_lsts = lsts is not None
-        have_lst_range = lst_range is not None
-        if (
-            np.count_nonzero([have_times, have_time_range, have_lsts, have_lst_range])
-            > 1
-        ):
-            raise ValueError(
-                "Only one of [times, time_range, lsts, lst_range] may be "
-                "specified per selection operation."
-            )
-
-        if times is not None:
-            times = uvutils._get_iterable(times)
-            if np.array(times).ndim > 1:
-                times = np.array(times).flatten()
-
-            time_blt_inds = np.zeros(0, dtype=np.int64)
-            for jd in times:
-                if np.any(
-                    np.isclose(
-                        self.time_array,
-                        jd,
-                        rtol=self._time_array.tols[0],
-                        atol=self._time_array.tols[1],
-                    )
-                ):
-                    time_blt_inds = np.append(
-                        time_blt_inds,
-                        np.where(
-                            np.isclose(
-                                self.time_array,
-                                jd,
-                                rtol=self._time_array.tols[0],
-                                atol=self._time_array.tols[1],
-                            )
-                        )[0],
-                    )
-                else:
-                    raise ValueError(
-                        "Time {t} is not present in the time_array".format(t=jd)
-                    )
-
-        if time_range is not None:
-            if np.size(time_range) != 2:
-                raise ValueError("time_range must be length 2.")
-
-            time_blt_inds = np.nonzero(
-                (self.time_array <= time_range[1]) & (self.time_array >= time_range[0])
-            )[0]
-            if time_blt_inds.size == 0:
-                raise ValueError(
-                    f"No elements in time range between {time_range[0]} and "
-                    f"{time_range[1]}."
-                )
-
-        if lsts is not None:
-            if np.any(np.asarray(lsts) > 2 * np.pi):
-                warnings.warn(
-                    "The lsts parameter contained a value greater than 2*pi. "
-                    "LST values are assumed to be in radians, not hours."
-                )
-            lsts = uvutils._get_iterable(lsts)
-            if np.array(lsts).ndim > 1:
-                lsts = np.array(lsts).flatten()
-
-            time_blt_inds = np.zeros(0, dtype=np.int64)
-            for lst in lsts:
-                if np.any(
-                    np.isclose(
-                        self.lst_array,
-                        lst,
-                        rtol=self._lst_array.tols[0],
-                        atol=self._lst_array.tols[1],
-                    )
-                ):
-                    time_blt_inds = np.append(
-                        time_blt_inds,
-                        np.where(
-                            np.isclose(
-                                self.lst_array,
-                                lst,
-                                rtol=self._lst_array.tols[0],
-                                atol=self._lst_array.tols[1],
-                            )
-                        )[0],
-                    )
-                else:
-                    raise ValueError(f"LST {lst} is not present in the lst_array")
-
-        if lst_range is not None:
-            if np.size(lst_range) != 2:
-                raise ValueError("lst_range must be length 2.")
-            if np.any(np.asarray(lst_range) > 2 * np.pi):
-                warnings.warn(
-                    "The lst_range contained a value greater than 2*pi. "
-                    "LST values are assumed to be in radians, not hours."
-                )
-            if lst_range[1] < lst_range[0]:
-                # we're wrapping around LST = 2*pi = 0
-                lst_range_1 = [lst_range[0], 2 * np.pi]
-                lst_range_2 = [0, lst_range[1]]
-                time_blt_inds1 = np.nonzero(
-                    (self.lst_array <= lst_range_1[1])
-                    & (self.lst_array >= lst_range_1[0])
-                )[0]
-                time_blt_inds2 = np.nonzero(
-                    (self.lst_array <= lst_range_2[1])
-                    & (self.lst_array >= lst_range_2[0])
-                )[0]
-                time_blt_inds = np.union1d(time_blt_inds1, time_blt_inds2)
-            else:
-                time_blt_inds = np.nonzero(
-                    (self.lst_array <= lst_range[1]) & (self.lst_array >= lst_range[0])
-                )[0]
-            if time_blt_inds.size == 0:
-                raise ValueError(
-                    f"No elements in LST range between {lst_range[0]} and "
-                    f"{lst_range[1]}."
-                )
+        time_blt_inds = uvutils._select_times_helper(
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            obj_time_array=self.time_array,
+            obj_time_range=None,
+            obj_lst_array=self.lst_array,
+            obj_lst_range=None,
+            time_tols=self._time_array.tols,
+            lst_tols=self._lst_array.tols,
+        )
 
         if times is not None or time_range is not None:
             if n_selects > 0:

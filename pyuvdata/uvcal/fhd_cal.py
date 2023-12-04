@@ -267,10 +267,12 @@ class FHDCal(UVCal):
             self.ref_antenna_name = settings_lines["ref_antenna_name"][0]
             self.Nsources = int(settings_lines["n_sources"][0])
             self.sky_catalog = settings_lines["catalog_name"][0]
-            self.baseline_range = [
-                float(settings_lines["min_cal_baseline"][0]),
-                float(settings_lines["max_cal_baseline"][0]),
-            ]
+            self.baseline_range = np.asarray(
+                [
+                    float(settings_lines["min_cal_baseline"][0]),
+                    float(settings_lines["max_cal_baseline"][0]),
+                ]
+            )
             galaxy_model = int(settings_lines["galaxy_model"][0])
             if len(settings_lines["diffuse_model"]) > 0:
                 diffuse_model = settings_lines["diffuse_model"][0]
@@ -306,10 +308,12 @@ class FHDCal(UVCal):
                 cal_data["ref_antenna_name"][0].decode("utf8").strip()
             )
             self.Nsources = int(cal_data["skymodel"][0]["n_sources"][0])
-            self.baseline_range = [
-                float(cal_data["min_cal_baseline"][0]),
-                float(cal_data["max_cal_baseline"][0]),
-            ]
+            self.baseline_range = np.asarray(
+                [
+                    float(cal_data["min_cal_baseline"][0]),
+                    float(cal_data["max_cal_baseline"][0]),
+                ]
+            )
 
             galaxy_model = cal_data["skymodel"][0]["galaxy_model"][0]
             diffuse_model = cal_data["skymodel"][0]["diffuse_model"][0]

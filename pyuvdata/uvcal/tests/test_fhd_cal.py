@@ -35,9 +35,12 @@ settings_file_multi = [
 
 
 @pytest.mark.parametrize("raw", [True, False])
-def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path):
+@pytest.mark.parametrize("file_type", ["calfits", "calh5"])
+def test_read_fhdcal_write_read_calfits_h5(
+    raw, fhd_cal_raw, fhd_cal_fit, tmp_path, file_type
+):
     """
-    FHD cal to calfits loopback test.
+    FHD cal to calfits/calh5 loopback test.
 
     Read in FHD cal files, write out as calfits, read back in and check for
     object equality.
@@ -52,10 +55,12 @@ def test_read_fhdcal_write_read_calfits(raw, fhd_cal_raw, fhd_cal_fit, tmp_path)
 
     assert np.max(fhd_cal.gain_array) < 2.0
 
-    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
-    fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
-    assert fhd_cal == calfits_cal
+    outfile = str(tmp_path / ("outtest_FHDcal_1061311664." + file_type))
+    write_method = "write_" + file_type
+    getattr(fhd_cal, write_method)(outfile)
+
+    cal_out = UVCal.from_file(outfile, use_future_array_shapes=True)
+    assert fhd_cal == cal_out
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
