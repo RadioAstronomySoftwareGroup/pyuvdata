@@ -69,6 +69,7 @@ napoleon_custom_sections = [
     ("UVH5", "params_style"),
     ("MWA FITS", "params_style"),
     ("MIR", "params_style"),
+    ("CalH5", "params_style"),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
