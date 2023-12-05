@@ -234,3 +234,9 @@ def test_new_uvcal_with_history(uvd_kw, uvc_only_kw):
     uvd = new_uvdata(**uvd_kw)
     uvc = new_uvcal_from_uvdata(uvd, history="my substring", **uvc_only_kw)
     assert "my substring" in uvc.history
+
+
+def test_new_uvcal_ant_array_list(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+    uvc = new_uvcal_from_uvdata(uvd, ant_array=[1, 2, 3], **uvc_only_kw)
+    assert np.array_equal(np.array([1, 2], dtype=np.uint64), uvc.ant_array)
