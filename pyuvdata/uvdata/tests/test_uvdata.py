@@ -4287,6 +4287,16 @@ def test_check_freq_spacing_flex_spw(sma_mir, chan_width, msg):
         sma_mir._check_freq_spacing()
 
 
+def test_check_freq_spacing_single_chan_spw(sma_mir):
+    sma_mir.flex_spw_id_array[-1] = 5
+    spw_list = sma_mir.spw_array.tolist()
+    spw_list.append(5)
+    sma_mir.spw_array = np.asarray(spw_list)
+    spacing_error, chanwidth_error = sma_mir._check_freq_spacing()
+    assert not spacing_error
+    assert not chanwidth_error
+
+
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
 @pytest.mark.parametrize("future_shapes", [True, False])
