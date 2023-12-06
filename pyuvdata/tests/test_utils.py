@@ -4026,6 +4026,24 @@ def test_read_slicing():
     data = uvutils._index_dset(dset, slices)
     assert data.shape == tuple(shape)
 
+    # Handling bool arrays
+    bool_arr = np.zeros((100,), dtype=bool)
+    index_arr = np.arange(1, 100, 2)
+    bool_arr[index_arr] = True
+    assert uvutils._convert_to_slices(bool_arr) == uvutils._convert_to_slices(index_arr)
+
+    # Index return on fail
+    index_arr[0] = 0
+    bool_arr[0:2] = [True, False]
+
+    for item in [index_arr, bool_arr]:
+        result, check = uvutils._convert_to_slices(
+            item, max_nslice=1, return_index_on_fail=True
+        )
+        assert not check
+        assert len(result) == 1
+        assert result[0] is item
+
 
 @pytest.mark.parametrize(
     "blt_order",
@@ -4336,3 +4354,26 @@ def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
             uvutils.check_surface_based_positions(
                 telescope_loc=loc, telescope_frame=frame
             )
+
+
+def test_determine_pol_order_err():
+    with pytest.raises(ValueError, match='order must be either "AIPS" or "CASA".'):
+        uvutils.determine_pol_order([], "ABC")
+
+
+@pytest.mark.parametrize(
+    "pols,aips_order,casa_order",
+    [
+        [[-8, -7, -6, -5], [3, 2, 1, 0], [3, 1, 0, 2]],
+        [[-5, -6, -7, -8], [0, 1, 2, 3], [0, 2, 3, 1]],
+        [[1, 2, 3, 4], [0, 1, 2, 3], [0, 1, 2, 3]],
+    ],
+)
+@pytest.mark.parametrize("order", ["CASA", "AIPS"])
+def test_pol_order(pols, aips_order, casa_order, order):
+    check = uvutils.determine_pol_order(pols, order=order)
+
+    if order == "CASA":
+        assert all(check == casa_order)
+    if order == "AIPS":
+        assert all(check == aips_order)
