@@ -331,7 +331,7 @@ class MS(UVData):
 
         data_descrip_table.done()
 
-    def _write_ms_feed(self, filepath):
+    def _write_ms_feed(self, filepath, pol_order):
         """
         Write out the feed information into a CASA table.
 
@@ -339,7 +339,9 @@ class MS(UVData):
         ----------
         filepath : str
             path to MS (without FEED suffix)
-
+        pol_order : slice or list of int
+            Ordering of the polarization axis on write, only used if not writing a
+            flex-pol dataset.
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -353,7 +355,7 @@ class MS(UVData):
             spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
 
             # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-            pol_str = uvutils.polnum2str(self.polarization_array)
+            pol_str = uvutils.polnum2str(self.polarization_array[pol_order])
         else:
             nfeeds_table *= self.Nspws
             spectral_window_id_table = np.repeat(
@@ -778,7 +780,7 @@ class MS(UVData):
 
         observation_table.done()
 
-    def _write_ms_polarization(self, filepath):
+    def _write_ms_polarization(self, filepath, pol_order):
         """
         Write out the polarization information into a CASA table.
 
@@ -786,7 +788,9 @@ class MS(UVData):
         ----------
         filepath : str
             path to MS (without POLARIZATION suffix)
-
+        pol_order : slice or list of int
+            Ordering of the polarization axis on write, only used if not writing a
+            flex-pol dataset.
         """
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
@@ -794,7 +798,7 @@ class MS(UVData):
         pol_table = tables.table(filepath + "::POLARIZATION", ack=False, readonly=False)
 
         if self.flex_spw_polarization_array is None:
-            pol_str = uvutils.polnum2str(self.polarization_array)
+            pol_str = uvutils.polnum2str(self.polarization_array[pol_order])
             feed_pols = {
                 feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
             }
@@ -809,7 +813,10 @@ class MS(UVData):
                 "CORR_TYPE",
                 0,
                 np.array(
-                    [POL_AIPS2CASA_DICT[aipspol] for aipspol in self.polarization_array]
+                    [
+                        POL_AIPS2CASA_DICT[pol]
+                        for pol in self.polarization_array[pol_order]
+                    ]
                 ),
             )
             pol_table.putcell("CORR_PRODUCT", 0, pol_tuples)
@@ -1075,6 +1082,7 @@ class MS(UVData):
         self,
         filepath,
         force_phase=False,
+        flip_conj=False,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -1095,6 +1103,13 @@ class MS(UVData):
             timestamp.
         clobber : bool
             Option to overwrite the file if it already exists.
+        flip_conj : bool
+            If set to True, and the UVW coordinates are flipped (i.e., multiplied by
+            -1) and the visibilities are complex conjugated prior to write, such that
+            the data are written with the "opposite" conjugation scheme to what UVData
+            normally uses.  Note that this is only needed for specific subset of
+            applications that read MS-formated data, and should only be used by expert
+            users. Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -1130,6 +1145,13 @@ class MS(UVData):
                 print("File exists; clobbering")
             else:
                 raise IOError("File exists; skipping")
+
+        # Determine polarization order for writing out in CASA standard order, check
+        # if this order can be represented by a single slice.
+        pol_order = uvutils.determine_pol_order(self.polarization_array, order="CASA")
+        [pol_order], _ = uvutils._convert_to_slices(
+            pol_order, max_nslice=1, return_index_on_fail=True
+        )
 
         # CASA does not have a way to handle "unprojected" data in the way that UVData
         # objects can, so we need to check here whether or not any such data exists
@@ -1187,9 +1209,14 @@ class MS(UVData):
             # about ordering, so just write the data-related arrays as is to disk
             for attr, col in zip(attr_list, col_list):
                 if self.future_array_shapes:
-                    ms.putcol(col, getattr(self, attr))
+                    temp_vals = getattr(self, attr)[:, :, pol_order]
                 else:
-                    ms.putcol(col, np.squeeze(getattr(self, attr), axis=1))
+                    temp_vals = getattr(self, attr)[:, 0, :, pol_order]
+
+                if flip_conj and (attr == "data_array"):
+                    temp_vals = np.conj(temp_vals)
+
+                ms.putcol(col, temp_vals)
 
             # Band-averaged weights are used for some things in CASA - calculate them
             # here using median nsamples.
@@ -1202,7 +1229,7 @@ class MS(UVData):
             ant_1_array = self.ant_1_array
             ant_2_array = self.ant_2_array
             integration_time = self.integration_time
-            uvw_array = self.uvw_array
+            uvw_array = self.uvw_array * (-1 if flip_conj else 1)
             scan_number_array = self.scan_number_array
         else:
             # If we have _more_ than one spectral window, then we need to handle each
@@ -1227,11 +1254,17 @@ class MS(UVData):
             last_row = 0
             for scan_num in sorted(np.unique(self.scan_number_array)):
                 # Select all data from the scan
-                scan_screen = self.scan_number_array == scan_num
+                scan_screen = np.where(self.scan_number_array == scan_num)[0]
+
+                # See if we can represent scan_screen with a single slice, which
+                # reduces overhead of copying a new array.
+                [scan_slice], _ = uvutils._convert_to_slices(
+                    scan_screen, max_nslice=1, return_index_on_fail=True
+                )
 
                 # Get the number of records inside the scan, where 1 record = 1 spw in
                 # 1 baseline at 1 time
-                Nrecs = np.sum(scan_screen)
+                Nrecs = len(scan_screen)
 
                 # Record which SPW/"Data Description" this data is matched to
                 data_desc_array[last_row : last_row + (Nrecs * self.Nspws)] = np.repeat(
@@ -1240,7 +1273,7 @@ class MS(UVData):
 
                 # Record index positions
                 blt_map_array[last_row : last_row + (Nrecs * self.Nspws)] = np.tile(
-                    np.where(scan_screen)[0], self.Nspws
+                    scan_screen, self.Nspws
                 )
 
                 # Extract out the relevant data out of our data-like arrays that
@@ -1248,11 +1281,18 @@ class MS(UVData):
                 val_dict = {}
                 for attr, col in zip(attr_list, col_list):
                     if self.future_array_shapes:
-                        val_dict[col] = getattr(self, attr)[scan_screen]
+                        val_dict[col] = getattr(self, attr)[scan_slice]
                     else:
                         val_dict[col] = np.squeeze(
-                            getattr(self, attr)[scan_screen], axis=1
+                            getattr(self, attr)[scan_slice], axis=1
                         )
+
+                    # Have to do this separately since uou can't supply multiple index
+                    # arrays at once.
+                    val_dict[col] = val_dict[col][:, :, pol_order]
+
+                if flip_conj:
+                    val_dict["DATA"] = np.conj(val_dict["DATA"])
 
                 # This is where the bulk of the heavy lifting is - use the per-spw
                 # channel masks to record one spectral window at a time.
@@ -1278,7 +1318,7 @@ class MS(UVData):
             ant_2_array = self.ant_2_array[blt_map_array]
             integration_time = self.integration_time[blt_map_array]
             time_array = time_array[blt_map_array]
-            uvw_array = self.uvw_array[blt_map_array]
+            uvw_array = self.uvw_array[blt_map_array] * (-1 if flip_conj else 1)
             scan_number_array = self.scan_number_array[blt_map_array]
 
         # Write out the units of the visibilities, post a warning if its not in Jy since
@@ -1341,12 +1381,12 @@ class MS(UVData):
 
         self._write_ms_antenna(filepath)
         self._write_ms_data_description(filepath)
-        self._write_ms_feed(filepath)
+        self._write_ms_feed(filepath, pol_order=pol_order)
         self._write_ms_field(filepath)
         self._write_ms_source(filepath)
         self._write_ms_spectralwindow(filepath)
         self._write_ms_pointing(filepath)
-        self._write_ms_polarization(filepath)
+        self._write_ms_polarization(filepath, pol_order=pol_order)
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
 
@@ -1743,6 +1783,9 @@ class MS(UVData):
         pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
         flex_pol = None
 
+        # Check to see if we want to allow flex pol, in which case each data_desc will
+        # get assigned it's own spectral window with a potentially different
+        # polarization per window (which we separately record).
         if (
             allow_flex_pol
             and all_single_pol
@@ -1754,6 +1797,7 @@ class MS(UVData):
                 ]
                 data_dict[key]["POL_IDX"] = np.array([0])
             pol_list = np.array([0])
+            npols = 1
             flex_pol = np.array(
                 [spw_dict[key]["POL"] for key in sorted(spw_dict.keys())], dtype=int
             )
@@ -2329,7 +2373,8 @@ class MS(UVData):
         self.freq_array = np.expand_dims(self.freq_array, 0)
 
         # order polarizations
-        self.reorder_pols(order=pol_order, run_check=False)
+        if pol_order is not None:
+            self.reorder_pols(order=pol_order, run_check=False)
 
         if use_future_array_shapes:
             self.use_future_array_shapes()
