@@ -1010,3 +1010,56 @@ def test_ms_bad_history(sma_mir, tmp_path):
     # Make sure the history is actually preserved correctly.
     sma_ms = UVData.from_file(filename, use_future_array_shapes=True)
     assert sma_mir.history in sma_ms.history
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_flip_conj(nrao_uv, tmp_path):
+    filename = os.path.join(tmp_path, "flip_conj.ms")
+    nrao_uv.set_uvws_from_antenna_positions()
+
+    with uvtest.check_warnings(
+        UserWarning, match="Writing in the MS file that the units of the data are unca"
+    ):
+        nrao_uv.write_ms(filename, flip_conj=True)
+
+    with uvtest.check_warnings(
+        UserWarning, match="UVW orientation appears to be flipped,"
+    ):
+        uv = UVData.from_file(filename, use_future_array_shapes=True)
+
+    assert nrao_uv == uv
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_flip_conj_multispw(sma_mir, tmp_path):
+    sma_mir._set_app_coords_helper()
+    filename = os.path.join(tmp_path, "flip_conj_multispw.ms")
+
+    sma_mir.write_ms(filename, flip_conj=True)
+    with uvtest.check_warnings(
+        UserWarning, match="UVW orientation appears to be flipped,"
+    ):
+        ms_uv = UVData.from_file(filename, use_future_array_shapes=True)
+
+    # MS doesn't have the concept of an "instrument" name like FITS does, and instead
+    # defaults to the telescope name. Make sure that checks out here.
+    assert sma_mir.instrument == "SWARM"
+    assert ms_uv.instrument == "SMA"
+    sma_mir.instrument = ms_uv.instrument
+
+    # Quick check for history here
+    assert ms_uv.history != sma_mir.history
+    ms_uv.history = sma_mir.history
+
+    # Only MS has extra keywords, verify those look as expected.
+    assert ms_uv.extra_keywords == {"DATA_COL": "DATA", "observer": "SMA"}
+    assert sma_mir.extra_keywords == {}
+    sma_mir.extra_keywords = ms_uv.extra_keywords
+
+    # Make sure the filenames line up as expected.
+    assert sma_mir.filename == ["sma_test.mir"]
+    assert ms_uv.filename == ["flip_conj_multispw.ms"]
+    sma_mir.filename = ms_uv.filename = None
+
+    assert sma_mir == ms_uv
