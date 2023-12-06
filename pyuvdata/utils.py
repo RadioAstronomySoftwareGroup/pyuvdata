@@ -1250,6 +1250,42 @@ def reorder_conj_pols(pols):
     return conj_order
 
 
+def determine_pol_order(pols, order="AIPS"):
+    """
+    Determine order of input polarization numbers.
+
+    Determines the order by which to sort a given list of polarizations, according to
+    the ordering scheme. Two orders are currently supported: "AIPS" and "CASA". The
+    main difference between the two is the grouping of same-handed polarizations for
+    AIPS (whereas CASA orders the polarizations such that same-handed pols are on the
+    ends of the array).
+
+    Parameters
+    ----------
+    pols : array_like of str or int
+        Polarization array (strings or ints).
+    order : str
+        Polarization ordering scheme, either "CASA" or "AIPS".
+
+    Returns
+    -------
+    index_array : ndarray of int
+        Indices to reorder polarization array.
+    """
+    if order == "AIPS":
+        index_array = np.argsort(np.abs(pols))
+    elif order == "CASA":
+        casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6, 0])
+        pol_inds = []
+        for pol in pols:
+            pol_inds.append(np.where(casa_order == pol)[0][0])
+        index_array = np.argsort(pol_inds)
+    else:
+        raise ValueError('order must be either "AIPS" or "CASA".')
+
+    return index_array
+
+
 def LatLonAlt_from_XYZ(xyz, frame="ITRS", check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
@@ -5706,27 +5742,39 @@ def _get_dset_shape(dset, indices):
     return dset_shape, indices
 
 
-def _convert_to_slices(indices, max_nslice_frac=0.1):
+def _convert_to_slices(
+    indices, max_nslice_frac=0.1, max_nslice=None, return_index_on_fail=False
+):
     """
     Convert list of indices to a list of slices.
 
     Parameters
     ----------
     indices : list
-        A 1D list of integers for array indexing.
+        A 1D list of integers for array indexing (boolean ndarrays are also supported).
     max_nslice_frac : float
         A float from 0 -- 1. If the number of slices
         needed to represent input 'indices' divided by len(indices)
         exceeds this fraction, then we determine that we cannot
         easily represent 'indices' with a list of slices.
+    max_nslice : int
+        Optional argument, defines the maximum number of slices for determining if
+        `indices` can be easily represented with a list of slices. If set, then
+        the argument supplied to `max_nslice_frac` is ignored.
+    return_index_on_fail : bool
+        If set to True and the list of input indexes cannot easily be respresented by
+        a list of slices (as defined by `max_nslice` or `max_nslice_frac`), then return
+        the input list of index values instead of a list of suboptimal slices.
 
     Returns
     -------
-    list
-        list of slice objects used to represent indices
-    bool
+    slice_list : list
+        Nominally the list of slice objects used to represent indices. However, if
+        `return_index_on_fail=True` and input indexes cannot easily be respresented,
+        return a 1-element list containing the input for `indices`.
+    check : bool
         If True, indices is easily represented by slices
-        (max_nslice_frac condition met), otherwise False
+        (`max_nslice_frac` or `max_nslice` conditions met), otherwise False.
 
     Notes
     -----
@@ -5734,60 +5782,72 @@ def _convert_to_slices(indices, max_nslice_frac=0.1):
         if: indices = [1, 2, 3, 4, 10, 11, 12, 13, 14]
         then: slices = [slice(1, 5, 1), slice(11, 15, 1)]
     """
-    # check for integer index
-    if isinstance(indices, (int, np.integer)):
-        indices = [indices]
-    # check for already a slice
+    # check for already a slice or a single index position
     if isinstance(indices, slice):
         return [indices], True
+    if isinstance(indices, (int, np.integer)):
+        return [slice(indices, indices + 1, 1)], True
+
+    # check for boolean index
+    if isinstance(indices, np.ndarray) and (indices.dtype == bool):
+        eval_ind = np.where(indices)[0]
+    else:
+        eval_ind = indices
     # assert indices is longer than 2, or return trivial solutions
-    if len(indices) == 0:
+    if len(eval_ind) == 0:
         return [slice(0, 0, 0)], False
-    elif len(indices) == 1:
-        return [slice(indices[0], indices[0] + 1, 1)], True
-    elif len(indices) == 2:
-        return [slice(indices[0], indices[1] + 1, indices[1] - indices[0])], True
+    if len(eval_ind) <= 2:
+        return [
+            slice(eval_ind[0], eval_ind[-1] + 1, max(eval_ind[-1] - eval_ind[0], 1))
+        ], True
+
+    # Catch the simplest case of "give me a single slice or exit"
+    if (max_nslice == 1) and return_index_on_fail:
+        step = eval_ind[1] - eval_ind[0]
+        if all(np.diff(eval_ind) == step):
+            return [slice(eval_ind[0], eval_ind[-1] + 1, step)], True
+        return [indices], False
 
     # setup empty slices list
-    Ninds = len(indices)
+    Ninds = len(eval_ind)
     slices = []
 
     # iterate over indices
-    for i, ind in enumerate(indices):
-        if i == 0:
-            # start the first slice object
-            start = ind
-            last_step = indices[i + 1] - ind
+    start = last_step = None
+    for ind in eval_ind:
+        if last_step is None:
+            # Check if this is the first slice, in which case start is None
+            if start is None:
+                start = ind
+                continue
+            last_step = ind - start
+            last_ind = ind
             continue
 
         # calculate step from previous index
-        step = ind - indices[i - 1]
+        step = ind - last_ind
 
         # if step != last_step, this ends the slice
         if step != last_step:
             # append to list
-            slices.append(slice(start, indices[i - 1] + 1, last_step))
-
-            # check if this is the last element
-            if i == Ninds - 1:
-                # append last element
-                slices.append(slice(ind, ind + 1, 1))
-                continue
+            slices.append(slice(start, last_ind + 1, last_step))
 
             # setup next step
             start = ind
-            last_step = indices[i + 1] - ind
+            last_step = None
 
-        # check if this is the last element
-        elif i == Ninds - 1:
-            # end slice and append
-            slices.append(slice(start, ind + 1, step))
+        last_ind = ind
 
-    # determine whether slices are a reasonable representation
-    Nslices = len(slices)
-    passed = (float(Nslices) / len(indices)) < max_nslice_frac
+    # Append the last slice
+    slices.append(slice(start, ind + 1, last_step))
 
-    return slices, passed
+    # determine whether slices are a reasonable representation, and determine max_nslice
+    # if only max_nslice_frac was supplied.
+    if max_nslice is None:
+        max_nslice = max_nslice_frac * Ninds
+    check = len(slices) <= max_nslice
+
+    return [indices] if (not check and return_index_on_fail) else slices, check
 
 
 def _get_slice_len(s, axlen):
