@@ -79,7 +79,7 @@ def test_extra_parameter_iter():
     for prop in telescope_obj.extra():
         extra.append(prop)
     for a in extra_parameters:
-        a in extra, "expected attribute " + a + " not returned in extra iterator"
+        assert a in extra, "expected attribute " + a + " not returned in extra iterator"
 
 
 def test_unexpected_parameters():

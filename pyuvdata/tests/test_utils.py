@@ -2819,7 +2819,7 @@ def test_strict_cliques():
     adj_link[-1] = frozenset({5, 6, 7, 8, 1})
 
     with pytest.raises(ValueError, match="Non-isolated cliques found in graph."):
-        uvutils._find_cliques(adj_link, strict=True),
+        uvutils._find_cliques(adj_link, strict=True)
 
 
 def test_reorder_conj_pols_non_list():

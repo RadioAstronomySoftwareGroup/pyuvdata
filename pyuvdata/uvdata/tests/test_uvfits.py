@@ -926,7 +926,7 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
                 "The integration time is not specified and only one time",
             ],
         ):
-            uv_out.read(write_file2, use_future_array_shapes=True),
+            uv_out.read(write_file2, use_future_array_shapes=True)
 
     return
 
