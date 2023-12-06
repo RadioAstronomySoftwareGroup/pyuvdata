@@ -4826,14 +4826,10 @@ class UVData(UVBase):
                     "contain integers and be length Npols."
                 )
             index_array = order
-        elif order == "AIPS":
-            index_array = np.argsort(np.abs(self.polarization_array))
-        elif order == "CASA":
-            casa_order = np.array([1, 2, 3, 4, -1, -3, -4, -2, -5, -7, -8, -6])
-            pol_inds = []
-            for pol in self.polarization_array:
-                pol_inds.append(np.where(casa_order == pol)[0][0])
-            index_array = np.argsort(pol_inds)
+        elif (order == "AIPS") or (order == "CASA"):
+            index_array = uvutils.determine_pol_order(
+                self.polarization_array, order=order
+            )
         else:
             raise ValueError(
                 "order must be one of: 'AIPS', 'CASA', or an "
@@ -10755,9 +10751,9 @@ class UVData(UVBase):
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'
-        pol_order : str
+        pol_order : str or None
             Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'.
+            'CASA', 'AIPS', or None (no reordering). Default is 'AIPS'.
         background_lsts : bool
             When set to True, the lst_array is calculated in a background thread.
         run_check : bool
@@ -11639,9 +11635,9 @@ class UVData(UVBase):
         data_column : str
             name of CASA data column to read into data_array. Options are:
             'DATA', 'MODEL', or 'CORRECTED_DATA'.
-        pol_order : str
+        pol_order : str or None
             Option to specify polarizations order convention, options are
-            'CASA' or 'AIPS'.
+            'CASA', 'AIPS', or None (no reordering). Default is 'AIPS'.
         ignore_single_chan : bool
             Option to ignore single channel spectral windows in measurement sets to
             limit object size. Some measurement sets (e.g., those from ALMA) use single
@@ -12673,6 +12669,7 @@ class UVData(UVBase):
         self,
         filename,
         force_phase=False,
+        flip_conj=False,
         clobber=False,
         run_check=True,
         check_extra=True,
@@ -12692,6 +12689,13 @@ class UVData(UVBase):
         force_phase : bool
             Option to automatically phase unprojected data to zenith of the first
             timestamp.
+        flip_conj : bool
+            If set to True, and the UVW coordinates are flipped (i.e., multiplied by
+            -1) and the visibilities are complex conjugated prior to write, such that
+            the data are written with the "opposite" conjugation scheme to what UVData
+            normally uses.  Note that this is only needed for specific subset of
+            applications that read MS-formated data, and should only be used by expert
+            users. Default is False.
         clobber : bool
             Option to overwrite the file if it already exists.
         run_check : bool
@@ -12727,6 +12731,7 @@ class UVData(UVBase):
         ms_obj.write_ms(
             filename,
             force_phase=force_phase,
+            flip_conj=flip_conj,
             clobber=clobber,
             run_check=run_check,
             check_extra=check_extra,
