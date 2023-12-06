@@ -176,7 +176,7 @@ def test_mir_raw_data(mir_data, tmp_path):
 
     mir_data._write_cross_data(filepath)
     # Sub out the file we need to read from
-    mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
+    mir_data._file_dict = {filepath: list(mir_data._file_dict.values())[0]}
     raw_data = mir_data._read_data("cross", return_vis=False)
 
     assert raw_data.keys() == mir_data.raw_data.keys()
@@ -201,7 +201,7 @@ def test_mir_auto_data(mir_data, tmp_path):
     mir_data._write_auto_data(filepath)
     # Sub out the file we need to read from, and fix a couple of attributes that changed
     # since we are no longer spoofing values (after reading in data from old-style file)
-    mir_data._file_dict = {filepath: item for item in mir_data._file_dict.values()}
+    mir_data._file_dict = {filepath: list(mir_data._file_dict.values())[0]}
     mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
     int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(reindex=True)
     mir_data._file_dict[filepath]["auto"]["int_dict"] = int_dict

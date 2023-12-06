@@ -209,7 +209,7 @@ def test_read_yaml_override(cst_efield_2freq_mod):
             beam_type="efield",
             telescope_name="test",
             use_future_array_shapes=True,
-        ),
+        )
 
     assert beam1 == beam2
 

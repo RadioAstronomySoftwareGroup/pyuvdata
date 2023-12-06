@@ -9539,7 +9539,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     uvobj.nsample_array = uvobj.nsample_array.astype(np.float16)
 
     with uvtest.check_warnings(UserWarning, "eq_coeffs vary by frequency"):
-        uvobj.frequency_average(n_chan_to_avg=2),
+        uvobj.frequency_average(n_chan_to_avg=2)
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
