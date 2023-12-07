@@ -2854,11 +2854,9 @@ def test_beam_area_healpix(
     assert np.allclose(xx_area, xx_area)
     yy_area = healpix_norm.get_beam_area("YY")
     assert np.allclose(yy_area / xx_area, np.ones(numfreqs))
-    # nt.assert_almost_equal(yy_area / xx_area, 1.0, places=5)
     xx_area = healpix_norm.get_beam_sq_area("XX")
     yy_area = healpix_norm.get_beam_sq_area("YY")
     assert np.allclose(yy_area / xx_area, np.ones(numfreqs))
-    # nt.assert_almost_equal(yy_area / xx_area, 1.0, places=5)
 
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array it
     # just uses it

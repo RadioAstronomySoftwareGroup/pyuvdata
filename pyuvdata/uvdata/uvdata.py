@@ -1814,8 +1814,7 @@ class UVData(UVBase):
 
         dict_list = [self.phase_center_catalog[cat_id] for cat_id in cat_id_list]
 
-        # We want to check and actually see which fields we need to
-        # print
+        # We want to check and actually see which fields we need to print
         any_lon = any_lat = any_frame = any_epoch = any_times = False
         any_pm_ra = any_pm_dec = any_dist = any_vrad = False
 
