@@ -183,6 +183,7 @@ class UVCal(UVBase):
             "Array of frequencies, center of the channel, "
             "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz."
             "Not required if future_array_shapes=True and wide_band=True."
+            "Should not be set if future_array_shapes=True and wide_band=True."
         )
         # TODO: Spw axis to be collapsed in future release
         self._freq_array = uvp.UVParameter(
@@ -198,7 +199,7 @@ class UVCal(UVBase):
             "future_array_shapes=False, then it is a "
             "single value of type = float, otherwise it is an array of shape "
             "(Nfreqs,), type = float."
-            "Not required if future_array_shapes=True and wide_band=True."
+            "Should not be set if future_array_shapes=True and wide_band=True."
         )
         self._channel_width = uvp.UVParameter(
             "channel_width", description=desc, expected_type=float, tols=1e-3
@@ -209,6 +210,7 @@ class UVCal(UVBase):
             "solutions are valid for. If future_array_shapes is False it is a "
             "length 2 array with [start_frequency, end_frequency], otherwise it is an "
             "array of shape (Nspws, 2). Units are Hz."
+            "Should not be set if cal_type='gain' and wide_band=False."
         )
         self._freq_range = uvp.UVParameter(
             "freq_range",
@@ -1012,8 +1014,6 @@ class UVCal(UVBase):
         self._freq_range.form = (2,)
         if self.freq_range is not None:
             self.freq_range = self.freq_range[0, :].tolist()
-        else:
-            self.freq_range = [np.min(self.freq_array), np.max(self.freq_array)]
 
     def set_telescope_params(self, overwrite=False):
         """
@@ -1307,6 +1307,31 @@ class UVCal(UVBase):
                         "All values in the flex_spw_id_array must exist in the "
                         "spw_array."
                     )
+        # warn if freq_range or freq_array set when it shouldn't be
+        if (
+            self.cal_type == "gain"
+            and not self.wide_band
+            and self.freq_range is not None
+        ):
+            warnings.warn(
+                "The freq_range attribute should not be set if cal_type='gain' "
+                "and wide_band=False. This will become an error in version 3.0.",
+                DeprecationWarning,
+            )
+        if self.wide_band:
+            if self.freq_array is not None:
+                warnings.warn(
+                    "The freq_array attribute should not be set if wide_band=True. "
+                    "This will become an error in version 3.0.",
+                    DeprecationWarning,
+                )
+
+            if self.channel_width is not None:
+                warnings.warn(
+                    "The channel_width attribute should not be set if wide_band=True. "
+                    "This will become an error in version 3.0.",
+                    DeprecationWarning,
+                )
 
         if self.input_flag_array is not None:
             warnings.warn(
@@ -1820,10 +1845,17 @@ class UVCal(UVBase):
 
             if self.Nspws > 1:
                 # Reorder the spw-axis items based on their first appearance in the data
+                orig_spw_array = self.spw_array
                 unique_index = np.sort(
                     np.unique(self.flex_spw_id_array, return_index=True)[1]
                 )
                 self.spw_array = self.flex_spw_id_array[unique_index]
+                spw_index = np.asarray(
+                    [np.nonzero(orig_spw_array == spw)[0][0] for spw in self.spw_array]
+                )
+                if self.freq_range is not None and self.future_array_shapes:
+                    # this can go away in v3 becuse freq_range will always be None
+                    self.freq_range = self.freq_range[spw_index, :]
 
         if (self.future_array_shapes or self.flex_spw) and not self.wide_band:
             self.channel_width = self.channel_width[index_array]
@@ -2159,6 +2191,7 @@ class UVCal(UVBase):
         self._set_gain()
         self._set_wide_band(wide_band=False)
         self.channel_width = channel_width
+        self.freq_range = None
         self.gain_array = gain_array
         self.delay_array = None
         if self.quality_array is not None:
@@ -2706,16 +2739,15 @@ class UVCal(UVBase):
                     ]
                 )
                 if this.freq_range is not None and other.freq_range is not None:
+                    # this can be removed in v3.0
                     if this.future_array_shapes:
                         this.freq_range = np.concatenate(
                             [this.freq_range, other.freq_range], axis=0
                         )
                         this.freq_range = this.freq_range[spw_index, :]
                     else:
-                        this.freq_range = [
-                            min([this.freq_range[0], other.freq_range[0]]),
-                            max([this.freq_range[1], other.freq_range[1]]),
-                        ]
+                        temp = np.concatenate([this.freq_range, other.freq_range])
+                        this.freq_range = np.asarray([np.min(temp), np.max(temp)])
                 elif this.freq_range is not None or other.freq_range is not None:
                     warnings.warn(
                         "One object has the freq_range set and one does not. Combined "
@@ -2747,7 +2779,17 @@ class UVCal(UVBase):
                     ):
                         subsort_order = f_order[select_mask]
                         f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
+
+                spw_sort_index = np.asarray(
+                    [
+                        np.nonzero(this.spw_array == spw)[0][0]
+                        for spw in sorted(this.spw_array)
+                    ]
+                )
                 this.spw_array = np.array(sorted(this.spw_array))
+                if this.freq_range is not None and this.future_array_shapes:
+                    # this can be removed in v3.0
+                    this.freq_range = this.freq_range[spw_sort_index, :]
             else:
                 if this_has_spw_id or other_has_spw_id:
                     this.flex_spw_id_array = np.full(
@@ -3699,7 +3741,7 @@ class UVCal(UVBase):
                         temp = np.concatenate(
                             ([this.freq_range] + [obj.freq_range for obj in other])
                         )
-                        this.freq_range = [np.min(temp), np.max(temp)]
+                        this.freq_range = np.array([np.min(temp), np.max(temp)])
                 elif np.any(freq_range_exists):
                     warnings.warn(
                         "Some objects have the freq_range set and some do not. "

@@ -594,11 +594,10 @@ class CALFITS(UVCal):
             self.gain_scale = hdr.pop("GNSCALE", None)
             self.x_orientation = hdr.pop("XORIENT")
             self.cal_type = hdr.pop("CALTYPE")
+
+            # old files might have a freq range for gain types but we don't want them
             if self.cal_type == "delay":
                 self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
-            else:
-                if "FRQRANGE" in hdr:
-                    self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
 
             self.cal_style = hdr.pop("CALSTYLE")
             if self.cal_style == "sky":

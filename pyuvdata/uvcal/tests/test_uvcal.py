@@ -764,6 +764,10 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
             "Nfreqs will be required to be 1 for wide_band cals (including all "
             "delay cals) starting in version 3.0",
             "The input_flag_array is deprecated and will be removed in version 2.5",
+            "The freq_array attribute should not be set if wide_band=True. This will "
+            "become an error in version 3.0.",
+            "The channel_width attribute should not be set if wide_band=True. This "
+            "will become an error in version 3.0.",
         ],
     ):
         delay_obj.check()
@@ -1114,6 +1118,8 @@ def test_select_times(
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
+@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
+@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_select_frequencies(
@@ -1178,13 +1184,21 @@ def test_select_frequencies(
         freqs_to_keep = calobj.freq_array[0, [0, 2, 4, 6, 8]]
     warn_type = [UserWarning]
     msg = ["Selected frequencies are not contiguous."]
+    extra_warn_type = []
+    extra_msg = []
     if caltype == "delay":
-        warn_type += [DeprecationWarning]
-        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
+        extra_warn_type += [DeprecationWarning]
+        extra_msg += [
+            "The input_flag_array is deprecated and will be removed in version 2.5"
+        ]
         if future_shapes:
-            warn_type += [DeprecationWarning]
-            msg += ["Nfreqs will be required to be 1 for wide_band cals"]
-    with uvtest.check_warnings(warn_type, match=msg):
+            extra_warn_type += [DeprecationWarning] * 3
+            extra_msg += [
+                "Nfreqs will be required to be 1 for wide_band cals",
+                "The freq_array attribute should not be set if wide_band=True",
+                "The channel_width attribute should not be set if wide_band=True",
+            ]
+    with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
         calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
@@ -1203,13 +1217,7 @@ def test_select_frequencies(
         freqs_to_keep = calobj2.freq_array[0, [0, 5, 6]]
     warn_type = [UserWarning]
     msg = ["Selected frequencies are not evenly spaced."]
-    if caltype == "delay":
-        warn_type += [DeprecationWarning]
-        msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
-        if future_shapes:
-            warn_type += [DeprecationWarning]
-            msg += ["Nfreqs will be required to be 1 for wide_band cals"]
-    with uvtest.check_warnings(warn_type, match=msg):
+    with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
         calobj2.select(frequencies=freqs_to_keep)
 
     with pytest.raises(
@@ -1221,6 +1229,7 @@ def test_select_frequencies(
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
@@ -1266,7 +1275,15 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
             calobj2.freq_range[index, 1] = np.max(
                 np.squeeze(calobj2.freq_array)[spw_inds]
             )
-        calobj2.check()
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match=[
+                "The freq_range attribute should not be set if cal_type='gain' and "
+                "wide_band=False. This will become an error in version 3.0.",
+                "The input_flag_array is deprecated and will be removed in version 2.5",
+            ],
+        ):
+            calobj2.check()
 
     calobj2.select(frequencies=freqs_to_keep)
 
@@ -1335,6 +1352,8 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
     assert calobj3 == calobj2
 
 
+@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
+@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
@@ -1520,6 +1539,8 @@ def test_select_polarizations(
     pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
 
 
+@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
+@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
@@ -2298,6 +2319,7 @@ def test_add_antennas_multispw(future_shapes, multi_spw_gain, quality, method):
     assert calobj == calobj_full
 
 
+@pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -2346,6 +2368,9 @@ def test_add_frequencies(future_shapes, gain_data, method):
         )[np.newaxis, :]
     else:
         calobj.freq_range = None
+        calobj2.freq_range = np.array(
+            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+        )
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     if future_shapes:
@@ -2355,8 +2380,11 @@ def test_add_frequencies(future_shapes, gain_data, method):
     calobj.total_quality_array = tqa
     msg = [
         "flex_spw_id_array is not set. It will be required starting in version 3.0 "
-        "for non-wide-band objects"
+        "for non-wide-band objects",
+        "The freq_range attribute should not be set if cal_type='gain' and "
+        "wide_band=False. This will become an error in version 3.0.",
     ]
+    warn_type = [DeprecationWarning, DeprecationWarning]
     if method == "fast_concat":
         msg.extend(
             [
@@ -2366,6 +2394,7 @@ def test_add_frequencies(future_shapes, gain_data, method):
                 "Combined object will not have it set.",
             ]
         )
+        warn_type.extend([UserWarning, UserWarning])
     else:
         msg.extend(
             [
@@ -2375,10 +2404,9 @@ def test_add_frequencies(future_shapes, gain_data, method):
                 "object will not have it set.",
             ]
         )
+        warn_type.extend([UserWarning, UserWarning])
 
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning, UserWarning], match=msg
-    ):
+    with uvtest.check_warnings(warn_type, match=msg):
         getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
@@ -2398,13 +2426,13 @@ def test_add_frequencies(future_shapes, gain_data, method):
         tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
+    calobj.freq_range = np.array([np.min(calobj.freq_array), np.max(calobj.freq_array)])
+    calobj2.freq_range = np.array(
+        [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+    )
     if future_shapes:
-        calobj.freq_range = np.array(
-            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-        )[np.newaxis, :]
-        calobj2.freq_range = np.array(
-            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-        )[np.newaxis, :]
+        calobj.freq_range = calobj.freq_range[np.newaxis, :]
+        calobj2.freq_range = calobj2.freq_range[np.newaxis, :]
 
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
@@ -2505,11 +2533,17 @@ def test_add_frequencies(future_shapes, gain_data, method):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:One object has the freq_range set and one does not")
+@pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:Some objects have the freq_range set")
 @pytest.mark.parametrize("future_shapes", [True, False])
-@pytest.mark.parametrize("split_f_ind", [3, 5])
-@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_gain):
+@pytest.mark.parametrize(
+    ["split_f_ind", "freq_range1", "freq_range2"],
+    [[5, True, True], [3, False, False], [5, True, False]],
+)
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add_frequencies_multispw(
+    future_shapes, split_f_ind, method, freq_range1, freq_range2, multi_spw_gain
+):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
 
@@ -2524,7 +2558,6 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
-    calobj_full2 = calobj.copy()
     if future_shapes:
         freqs1 = calobj.freq_array[np.arange(0, split_f_ind)]
         freqs2 = calobj.freq_array[np.arange(split_f_ind, calobj.Nfreqs)]
@@ -2533,59 +2566,100 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_
         freqs2 = calobj.freq_array[0, np.arange(split_f_ind, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
-    if split_f_ind == 5:
+
+    warn_type = []
+    msg = []
+    if freq_range1:
+        warn_type.append(DeprecationWarning)
+        msg.append(
+            "The freq_range attribute should not be set if cal_type='gain' and "
+            "wide_band=False. This will become an error in version 3.0."
+        )
+        if future_shapes:
+            calobj.freq_range = np.array(
+                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+            )[np.newaxis, :]
+        else:
+            calobj.freq_range = np.array(
+                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+            )
+    else:
+        calobj.freq_range = None
+
+    if freq_range2:
+        warn_type.append(DeprecationWarning)
+        msg.append(
+            "The freq_range attribute should not be set if cal_type='gain' and "
+            "wide_band=False. This will become an error in version 3.0."
+        )
         if future_shapes:
             calobj2.freq_range = np.array(
                 [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
             )[np.newaxis, :]
         else:
-            calobj2.freq_range = None
-        calobj_full.freq_range = None
-        warn_type = UserWarning
+            calobj2.freq_range = np.array(
+                [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+            )
+    else:
+        calobj2.freq_range = None
+
+    if freq_range1 != freq_range2:
+        warn_type.append(UserWarning)
         if method == "fast_concat":
-            msg = (
+            msg.append(
                 "Some objects have the freq_range set and some do not. "
                 "Combined object will not have it set."
             )
         else:
-            msg = (
+            msg.append(
                 "One object has the freq_range set and one does not. Combined "
                 "object will not have it set."
             )
+    elif freq_range1:
+        warn_type.append(DeprecationWarning)
+        msg.append(
+            "The freq_range attribute should not be set if cal_type='gain' and "
+            "wide_band=False. This will become an error in version 3.0."
+        )
+
+    if freq_range1 and freq_range2:
+        if future_shapes:
+            calobj_full.freq_range = np.concatenate(
+                [calobj.freq_range, calobj2.freq_range], axis=0
+            )
+        else:
+            calobj_full.freq_range = np.array(
+                [np.min(calobj_full.freq_array), np.max(calobj_full.freq_array)]
+            )
     else:
+        calobj_full.freq_range = None
+
+    if len(warn_type) == 0:
         warn_type = None
         msg = ""
 
     if method == "fast_concat":
-        kwargs = {"axis": "freq", "inplace": True}
+        kwargs = {"axis": "freq"}
     else:
         kwargs = {}
 
     with uvtest.check_warnings(warn_type, match=msg):
-        getattr(calobj, method)(calobj2, **kwargs)
+        calobj_sum = getattr(calobj, method)(calobj2, **kwargs)
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
-        calobj.history,
+        calobj_sum.history,
     )
-    calobj.history = calobj_full.history
-    assert calobj == calobj_full
+    calobj_sum.history = calobj_full.history
+    assert calobj_sum == calobj_full
 
     # test adding out of order
-    calobj = calobj_full2.copy()
-    calobj.select(frequencies=freqs1)
-    if split_f_ind == 5:
-        if future_shapes:
-            calobj.freq_range = np.array(
-                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-            )[np.newaxis, :]
-
     if method == "fast_concat":
         if split_f_ind == 5:
-            calobj2.fast_concat(calobj, axis="freq", inplace=True)
+            calobj_sum = calobj2.fast_concat(calobj, axis="freq")
         else:
             with pytest.raises(
                 ValueError,
@@ -2594,27 +2668,24 @@ def test_add_frequencies_multispw(future_shapes, split_f_ind, method, multi_spw_
                 "frequency axis. Most file formats do not support such "
                 "non-grouping of data.",
             ):
-                calobj2.fast_concat(calobj, axis="freq", inplace=True)
+                calobj_sum = calobj2.fast_concat(calobj, axis="freq")
             return
     else:
-        calobj2 += calobj
+        calobj_sum = calobj2 + calobj
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
-        calobj2.history,
+        calobj_sum.history,
     )
-    calobj2.history = calobj_full.history
-    if split_f_ind == 5 and future_shapes:
-        assert calobj_full._freq_range != calobj2._freq_range
-        calobj_full.freq_range = calobj2.freq_range
+    calobj_sum.history = calobj_full.history
 
     if method == "fast_concat":
         # need to sort object first
-        calobj2.reorder_freqs(channel_order="freq", spw_order="number")
-    assert calobj2 == calobj_full
+        calobj_sum.reorder_freqs(channel_order="freq", spw_order="number")
+    assert calobj_sum == calobj_full
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
