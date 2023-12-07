@@ -5847,7 +5847,10 @@ def _convert_to_slices(
         max_nslice = max_nslice_frac * Ninds
     check = len(slices) <= max_nslice
 
-    return [indices] if (not check and return_index_on_fail) else slices, check
+    if return_index_on_fail and not check:
+        return [indices], check
+    else:
+        return slices, check
 
 
 def _get_slice_len(s, axlen):
