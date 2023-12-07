@@ -4,16 +4,19 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- Added a `check_surface_based_positions` positions method for verifying antenna
-positions are near surface of whatever celestial body their positions are referenced to
-(either the Earth or Moon, currently).
 - Added a switch to `UVData.write_ms` called `flip_conj`, which allows a user to write
 out data with the baseline conjugation scheme flipped from the standard `UVData`
 convention.
 - Added the `utils.determine_pol_order` method for determining polarization
 order based on a specified scheme ("AIPS" or "CASA").
+- Added a `check_surface_based_positions` positions method for verifying antenna
+positions are near surface of whatever celestial body their positions are referenced to
+(either the Earth or Moon, currently).
 
 ### Changed
+- Changed `UVData.write_ms` to sort polarizations based on CASA-preferred ordering.
+- Added some functionality to the `utils._convert_to_slices` method to enable quick
+assessment of whether an indexing array can be replaced by a single slice.
 - Increased the tolerance to 75 mas (equivalent to 5 ms time error) for a warning about
 values in `lst_array` not conforming to expectations for `UVData`, `UVCal`, and `UVFlag`
 (was 1 mas) inside of `check`. Additionally, added a keyword to `check` enable the
@@ -21,9 +24,6 @@ tolerance value to be user-specified.
 - Changed the behavior of checking of telescope location to look at the combination of
 `antenna_positions` and `telescope_location` together for `UVData`, `UVCal`, and `UVFlag`.
 Additionally, failing this check results in a warning (was an error).
-- Changed `UVData.write_ms` to sort polarizations based on CASA-preferred ordering.
-- Added some functionality to the `utils._convert_to_slices` method to enable quick
-assessment of whether an indexing array can be replaced by a single slice.
 
 ## [2.4.1] - 2023-10-13
 
