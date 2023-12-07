@@ -1023,7 +1023,6 @@ class MWACorrFITS(UVData):
         # look for small autos and flag
         auto_inds = self.ant_1_array == self.ant_2_array
         autos = self.data_array.real[auto_inds, :, 0:2]
-        # auto_flags = self.flag_array[auto_inds, :, 0:2]
         autos = autos.reshape(self.Ntimes, self.Nants_data, self.Nfreqs, 2)
         # find autos below threshold
         small_auto_flags = np.logical_and(autos != 0, autos <= threshold)
