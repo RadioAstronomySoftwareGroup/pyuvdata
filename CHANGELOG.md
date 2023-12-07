@@ -25,6 +25,14 @@ tolerance value to be user-specified.
 `antenna_positions` and `telescope_location` together for `UVData`, `UVCal`, and `UVFlag`.
 Additionally, failing this check results in a warning (was an error).
 
+### Deprecated
+- Having `freq_range` defined on non-wide-band gain style UVCal objects.
+- Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
+
+### Fixed
+- A couple of small bugs related to handling of the `freq_range` parameter in the
+`reorder_freqs` and `__add__` methods on `UVCal`.
+
 ## [2.4.1] - 2023-10-13
 
 ### Added
