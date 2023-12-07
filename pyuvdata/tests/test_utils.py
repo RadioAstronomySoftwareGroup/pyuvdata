@@ -4027,12 +4027,15 @@ def test_read_slicing():
     assert data.shape == tuple(shape)
 
     # Handling bool arrays
-    bool_arr = np.zeros((100,), dtype=bool)
-    index_arr = np.arange(1, 100, 2)
+    bool_arr = np.zeros((10000,), dtype=bool)
+    index_arr = np.arange(1, 10000, 2)
     bool_arr[index_arr] = True
     assert uvutils._convert_to_slices(bool_arr) == uvutils._convert_to_slices(index_arr)
+    assert uvutils._convert_to_slices(bool_arr, return_index_on_fail=True) == (
+        uvutils._convert_to_slices(index_arr, return_index_on_fail=True)
+    )
 
-    # Index return on fail
+    # Index return on fail with two slices
     index_arr[0] = 0
     bool_arr[0:2] = [True, False]
 
@@ -4040,6 +4043,17 @@ def test_read_slicing():
         result, check = uvutils._convert_to_slices(
             item, max_nslice=1, return_index_on_fail=True
         )
+        assert not check
+        assert len(result) == 1
+        assert result[0] is item
+
+    # Check a more complicated pattern w/ just the max_slice_frac defined
+    index_arr = np.arange(0, 100) ** 2
+    bool_arr[:] = False
+    bool_arr[index_arr] = True
+
+    for item in [index_arr, bool_arr]:
+        result, check = uvutils._convert_to_slices(item, return_index_on_fail=True)
         assert not check
         assert len(result) == 1
         assert result[0] is item
