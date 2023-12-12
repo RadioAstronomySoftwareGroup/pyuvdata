@@ -8239,10 +8239,10 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     inds01 = uv_object.antpair2ind(0, 1)
     initial_int_time = uv_object.integration_time[inds01][0]
     # time array is in jd, integration time is in sec
-    uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
-    uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-2] += (initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-1] += (3 * initial_int_time / 2) / (24 * 3600)
     uv_object.set_lsts_from_time_array()
-    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    uv_object.integration_time[inds01][-2:] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
     min_integration_time = 2 * np.amin(uv_object.integration_time)
     # check that there are no warnings about inconsistencies between
@@ -8297,10 +8297,10 @@ def test_downsample_in_time_varying_int_time_partial_flags(hera_uvh5):
     inds01 = uv_object.antpair2ind(0, 1)
     initial_int_time = uv_object.integration_time[inds01][0]
     # time array is in jd, integration time is in sec
-    uv_object.time_array[inds01[-2]] += (initial_int_time / 2) / (24 * 3600)
-    uv_object.time_array[inds01[-1]] += (3 * initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-2] += (initial_int_time / 2) / (24 * 3600)
+    uv_object.time_array[inds01][-1] += (3 * initial_int_time / 2) / (24 * 3600)
     uv_object.set_lsts_from_time_array()
-    uv_object.integration_time[inds01[-2:]] += initial_int_time
+    uv_object.integration_time[inds01][-2:] += initial_int_time
     uv_object.Ntimes = np.unique(uv_object.time_array).size
 
     # add a flag on last time
