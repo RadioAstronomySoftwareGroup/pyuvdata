@@ -789,44 +789,6 @@ class UVData(UVBase):
     def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
 
-    def determine_blt_order(self) -> tuple[str] | tuple[str, str] | None:
-        """Determine, set and return the baseline-time ordering."""
-        if self.blt_order is not None:
-            return self.blt_order
-
-        order = uvutils.determine_blt_ordering(
-            time_array=self.time_array,
-            baseline_array=self.baseline_array,
-            ant_1_array=self.ant_1_array,
-            ant_2_array=self.ant_2_array,
-            n_bls=self.Nbls,
-            n_times=self.Ntimes,
-        )
-        self.blt_order = order
-        return order
-
-    def set_rectangularity(self, force: bool = False) -> bool:
-        """Whether blts axis is rectangular.
-
-        That is, this is true if the blts can be reshaped to ``(Ntimes, Nbls)`` OR
-        ``(Nbls, Ntimes)``. This requires each baseline to have the same number of times
-        associated, AND the blt ordering to either be (time, baseline) or
-        (baseline,time).
-        """
-        if self.blts_are_rectangular is not None and not force:
-            return
-
-        rect, timefirst = uvutils.determine_rectangularity(
-            time_array=self.time_array,
-            baseline_array=self.baseline_array,
-            nbls=self.Nbls,
-            ntimes=self.Ntimes,
-            blt_order=self.blt_order,
-        )
-
-        self.blts_are_rectangular = rect
-        self.time_axis_faster_than_bls = timefirst
-
     def _set_flex_spw(self):
         """
         Set flex_spw to True, and adjust required parameters.
@@ -4898,15 +4860,13 @@ class UVData(UVBase):
         ----------
         force : bool, optional
             Whether to foce setting the rectangularity attributes, even if they are
-            unset. Default is to leave them unset if they are not already set, but
-            otherwise just ensure correctness.
+            already set (this reduces computation if they are already set and correct).
 
         Returns
         -------
         None
         """
-        if not force and self.blts_are_rectangular is None:
-            self.time_axis_faster_than_bls = None
+        if self.blts_are_rectangular is not None and not force:
             return
 
         rect, time = uvutils.determine_rectangularity(
@@ -4918,6 +4878,22 @@ class UVData(UVBase):
         )
         self.blts_are_rectangular = rect
         self.time_axis_faster_than_bls = time
+
+    def determine_blt_order(self) -> tuple[str] | tuple[str, str] | None:
+        """Determine, set and return the baseline-time ordering."""
+        if self.blt_order is not None:
+            return self.blt_order
+
+        order = uvutils.determine_blt_order(
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            Nbls=self.Nbls,
+            Ntimes=self.Ntimes,
+        )
+        self.blt_order = order
+        return order
 
     def reorder_blts(
         self,
