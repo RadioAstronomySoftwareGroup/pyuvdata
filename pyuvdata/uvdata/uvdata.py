@@ -794,22 +794,6 @@ class UVData(UVBase):
     def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
 
-    def determine_blt_order(self) -> tuple[str] | tuple[str, str] | None:
-        """Determine, set and return the baseline-time ordering."""
-        if self.blt_order is not None:
-            return self.blt_order
-
-        order = uvutils.determine_blt_ordering(
-            time_array=self.time_array,
-            baseline_array=self.baseline_array,
-            ant_1_array=self.ant_1_array,
-            ant_2_array=self.ant_2_array,
-            n_bls=self.Nbls,
-            n_times=self.Ntimes,
-        )
-        self.blt_order = order
-        return order
-
     def _set_flex_spw(self):
         """
         Set flex_spw to True, and adjust required parameters.
@@ -4916,6 +4900,22 @@ class UVData(UVBase):
         )
         self.blts_are_rectangular = rect
         self.time_axis_faster_than_bls = time
+
+    def determine_blt_order(self) -> tuple[str] | tuple[str, str] | None:
+        """Determine, set and return the baseline-time ordering."""
+        if self.blt_order is not None:
+            return self.blt_order
+
+        order = uvutils.determine_blt_order(
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            Nbls=self.Nbls,
+            Ntimes=self.Ntimes,
+        )
+        self.blt_order = order
+        return order
 
     def reorder_blts(
         self,
