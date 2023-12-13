@@ -10666,6 +10666,9 @@ class UVData(UVBase):
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are applied prior to any potential spectral
             averaging (as triggered by using the `rechunk` keyword).
+        swarm_only : bool
+            By default, only SMA SWARM data is loaded. If set to false, this will also
+            enable loading of older ASIC data.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -11502,6 +11505,7 @@ class UVData(UVBase):
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
+        swarm_only=True,
         recompute_nbls: bool | None = None,
     ):
         """
@@ -11905,6 +11909,9 @@ class UVData(UVBase):
             "flexible polarization", which compresses the polarization-axis of various
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
+        swarm_only : bool
+            By default, only SMA SWARM data is loaded. If set to false, this will also
+            enable loading of older ASIC data.
         compass_soln : str
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are applied prior to any potential spectral

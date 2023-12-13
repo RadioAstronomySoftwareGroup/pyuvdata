@@ -50,6 +50,7 @@ class Mir(UVData):
         pseudo_cont=False,
         rechunk=None,
         compass_soln=None,
+        swarm_only=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -102,6 +103,8 @@ class Mir(UVData):
                 select_where += [("corrchunk", "eq", corrchunk)]
             elif not pseudo_cont:
                 select_where += [("corrchunk", "ne", 0)]
+            if swarm_only:
+                select_where += [("correlator", "eq", 1)]
 
         if select_where:
             mir_data.select(where=select_where)
