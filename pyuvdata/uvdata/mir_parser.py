@@ -3689,7 +3689,7 @@ class MirParser(object):
                 self.vis_data, shift_tuple_list, inplace=True, flag_adj=flag_adj
             )
 
-    def _make_v3_compliant(self):
+    def _make_v3_compliant(self, swarm_only=True):
         """
         Update MIR metadata for export to UVData.
 
@@ -3698,6 +3698,12 @@ class MirParser(object):
         populated in MIR file versions < 3, in order to make in minimally compliant
         with what the Mir.read method needs for populating a UVData object. Only data
         sets recorded prior to 2020 need these modifications.
+
+        Parameters
+        ----------
+        swarm_only : bool
+            If set to True, selects only SWARM data (i.e., no ASIC data).
+            Default is True.
         """
         if "filever" in self.codes_data.get_code_names():
             if self.codes_data["filever"][0] != "2":
@@ -3721,7 +3727,8 @@ class MirParser(object):
         # First thing -- we only want modern (i.e., SWARM) data, since the older (ASIC)
         # data is not currently supported by the data handling tools, due to changes
         # in the underlying file format.
-        self.select(where=("correlator", "eq", 1))
+        if swarm_only:
+            self.select(where=("correlator", "eq", 1))
 
         # Get SMA coordinates for various data-filling stuff
         sma_lat, sma_lon, sma_alt = get_telescope("SMA").telescope_location_lat_lon_alt
