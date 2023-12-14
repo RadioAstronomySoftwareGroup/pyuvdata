@@ -104,7 +104,7 @@ if not is_platform_windows():
 
 astroquery_reqs = ["astroquery>=0.4.4"]
 casa_reqs = ["python-casacore>=3.3.1"]
-cst_reqs = ["pyyaml>=5.1"]
+cst_reqs = ["pyyaml>=5.3"]
 hdf5_compression_reqs = ["hdf5plugin>=3.1.0"]
 healpix_reqs = ["astropy_healpix>=0.6"]
 lunar_reqs = ["lunarsky>=0.2.1"]
