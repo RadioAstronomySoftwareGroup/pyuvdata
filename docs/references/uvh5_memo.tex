@@ -38,7 +38,7 @@ Revised July 14, 2022
 \label{sec:intro}
 This memo introduces a new HDF5\footnote{\url{https://www.hdfgroup.org/}}-based
 file format of a UVData object in
-\verb+pyuvdata+\footnote{\url{https://github.com/HERA-Team/pyuvdata}}, a python
+\verb+pyuvdata+\footnote{\url{https://github.com/RadioAstronomySoftwareGroup/pyuvdata}}, a python
 package that provides an interface to interferometric data. Here, we describe
 the required and optional elements and the structure of this file format, called
 \textit{UVH5}.
@@ -83,7 +83,7 @@ required by the UVH5 format, again because the HDF5 file is self-documenting in
 this regard. However, be warned that most UVH5 files ``in the wild'' typically
 feature compression of datasets in the \verb+Data+ group.
 
-In the disucssion below, we discuss required and optional datasets in the
+In the discussion below, we discuss required and optional datasets in the
 various groups. We note in parenthesis the corresponding attribute of a UVData
 object. Note that in nearly all cases, the names are coincident, to make things
 as transparent as possible to the user.
@@ -271,7 +271,7 @@ And may include:
 	  Typically this is set either to ``file'' if it originates from a file read operation, and ``user'' if
 	  it was added because of a call to the \verb+phase()+ method in \verb+pyuvdata+. But it
 	  can also be set to contain more detailed information.
-	\end{itemize}
+	\end{itemize} (\textit{phase\_center\_catalog})
 \item \textbf{phase\_center\_id\_array}: \textit{int}
 A one dimensional array of length Nblts containing the cat\_id from the phase\_center\_catalog
 that each baseline-time is phased to. (\textit{phase\_center\_id\_array})
@@ -298,7 +298,7 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
 \item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
   version (and the one described in this memo) is Version 1.0. Note it should be
   a string, such as \verb+`1.0'+. See Sec.~\ref{sec:version_history} for the
-  version history of the HDF5 specification. (\textit{version})
+  version history of the HDF5 specification. (No corresponding UVData attribute)
 \end{itemize}
 
 \subsection{Optional Parameters}
@@ -341,7 +341,7 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
   phase center is normal to the chosen UV plane for phasing. Used for
   interoperability with the FHD
-  package\footnote{\url{https://github.com/EoRImaging/FHD}}.
+  package\footnote{\url{https://github.com/EoRImaging/FHD}}. (\textit{uvplane\_reference\_time})
 \item \textbf{lst\_array}: \textit{float} An array corresponding to the local
   sidereal time of the center of each observation in the data in units of
   radians. If it is not specified, it is calculated from the latitude/longitude
