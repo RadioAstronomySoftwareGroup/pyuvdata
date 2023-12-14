@@ -157,7 +157,7 @@ Optional:
 * lunarsky >=0.2.1 (for working with simulated datasets for lunar telescopes)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
 * python-casacore >= 3.3.1 (for working with CASA measurement sets)
-* pyyaml >= 5.1 (for working with settings files for CST beam files)
+* pyyaml >= 5.3 (for working with settings files for CST beam files)
 
 
 The numpy and astropy versions are important, so make sure these are up to date.
