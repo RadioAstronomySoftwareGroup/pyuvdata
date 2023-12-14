@@ -14,6 +14,7 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- added support for python 3.12
 - Changed `UVData.write_ms` to sort polarizations based on CASA-preferred ordering.
 - Added some functionality to the `utils._convert_to_slices` method to enable quick
 assessment of whether an indexing array can be replaced by a single slice.
@@ -26,6 +27,7 @@ tolerance value to be user-specified.
 Additionally, failing this check results in a warning (was an error).
 
 ### Deprecated
+- Dropped support for python 3.8
 - Having `freq_range` defined on non-wide-band gain style UVCal objects.
 - Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
 
