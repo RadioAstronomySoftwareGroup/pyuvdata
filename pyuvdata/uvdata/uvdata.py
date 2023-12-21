@@ -12104,6 +12104,7 @@ class UVData(UVBase):
                         pseudo_cont=pseudo_cont,
                         rechunk=rechunk,
                         compass_soln=compass_soln,
+                        swarm_only=swarm_only,
                         recompute_nbls=recompute_nbls,
                         time_axis_faster_than_bls=time_axis_faster_than_bls,
                         blts_are_rectangular=blts_are_rectangular,
@@ -12225,6 +12226,7 @@ class UVData(UVBase):
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
                             compass_soln=compass_soln,
+                            swarm_only=swarm_only,
                         )
 
                         uv_list.append(uv2)
@@ -12477,6 +12479,7 @@ class UVData(UVBase):
                     pseudo_cont=pseudo_cont,
                     rechunk=rechunk,
                     compass_soln=compass_soln,
+                    swarm_only=swarm_only,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
