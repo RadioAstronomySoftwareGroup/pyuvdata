@@ -38,6 +38,10 @@ NEW_VIS_HEADER = [("inhid", "<i4"), ("record_size", "<i4")]
 OLD_VIS_DTYPE = np.dtype(">i2")
 NEW_VIS_DTYPE = np.dtype("<i2")
 
+# Define padded entries per spectra -- used to be a feature in older vis data
+OLD_VIS_PAD = 4
+NEW_VIS_PAD = 0
+
 # Define the packed data header fields for autocorrelations (should be static)
 OLD_AUTO_HEADER = [
     ("antenna", "<i4"),
@@ -2362,8 +2366,10 @@ class MirMetaData(object):
         self,
         *,
         data_dtype=None,
-        data_nvals=2,
-        scale_data=True,
+        data_nvals=None,
+        pad_nvals=None,
+        scale_data=None,
+        hdr_fmt=None,
         use_mask=True,
         reindex=False,
     ):
@@ -2408,6 +2414,7 @@ class MirMetaData(object):
             needs to average the spectrum over; default is 1).
         """
         val_size = data_dtype.itemsize
+        header_size = np.dtype(hdr_fmt).itemsize
         rec_size_arr = self._get_record_size_info(
             val_size=val_size * data_nvals,
             pad_size=val_size if scale_data else 0,
@@ -2436,10 +2443,10 @@ class MirMetaData(object):
             hkey_subarr = hkey_arr[rec_idx]
             rec_size_subarr = rec_size_arr[rec_idx] // val_size
             if reindex:
-                eidx_arr = np.cumsum(rec_size_subarr)
+                eidx_arr = np.cumsum(rec_size_subarr) + pad_nvals
                 sidx_arr = eidx_arr - rec_size_subarr
             else:
-                sidx_arr = dataoff_arr[rec_idx]
+                sidx_arr = dataoff_arr[rec_idx] + pad_nvals
                 eidx_arr = sidx_arr + rec_size_subarr
 
             # Plug in the start/end index positions for each spectral record.
@@ -2461,9 +2468,8 @@ class MirMetaData(object):
                 "record_size": record_size,
                 "record_start": record_start,
             }
-            # Note the +8 here accounts for 2 int32s that are used to mark the inhid
-            # and record size within the sch_read file itself.
-            record_start += record_size + 8
+            # Now that we're at the end of the record, add the header size.
+            record_start += record_size + header_size
         return int_dict, recpos_dict
 
     def _make_key_mask(
