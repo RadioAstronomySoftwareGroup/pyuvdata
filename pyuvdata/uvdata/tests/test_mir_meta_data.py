@@ -16,87 +16,252 @@ import numpy as np
 import pytest
 
 from ... import tests as uvtest
-from ..mir_meta_data import MirMetaData, MirMetaError
+from ...data import DATA_PATH
+from ..mir_meta_data import (
+    NEW_VIS_DTYPE,
+    MirAcData,
+    MirAntposData,
+    MirBlData,
+    MirCodesData,
+    MirEngData,
+    MirInData,
+    MirMetaData,
+    MirMetaError,
+    MirSpData,
+    MirWeData,
+)
+
+sma_mir_test_file = os.path.join(DATA_PATH, "sma_test.mir")
+
+
+@pytest.fixture(scope="session")
+def mir_in_data_main():
+    yield MirInData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_in_data(mir_data_main):
-    yield mir_data_main.in_data.copy()
+def mir_in_data(mir_in_data_main):
+    yield mir_in_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_bl_data_main():
+    yield MirBlData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_bl_data(mir_data_main):
-    yield mir_data_main.bl_data.copy()
+def mir_bl_data(mir_bl_data_main):
+    yield mir_bl_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_sp_data_main():
+    yield MirSpData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_sp_data(mir_data_main):
-    yield mir_data_main.sp_data.copy()
+def mir_sp_data(mir_sp_data_main):
+    yield mir_sp_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_eng_data_main():
+    yield MirEngData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_eng_data(mir_data_main):
-    yield mir_data_main.eng_data.copy()
+def mir_eng_data(mir_eng_data_main):
+    yield mir_eng_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_we_data_main():
+    yield MirWeData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_codes_data(mir_data_main):
-    yield mir_data_main.codes_data.copy()
+def mir_we_data(mir_we_data_main):
+    yield mir_we_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_codes_data_main():
+    yield MirCodesData(sma_mir_test_file)
 
 
 @pytest.fixture(scope="function")
-def mir_ac_data(mir_data_main):
-    yield mir_data_main.ac_data.copy()
+def mir_codes_data(mir_codes_data_main):
+    yield mir_codes_data_main.copy()
 
 
-def test_mir_meta_init(mir_data):
-    """
-    Test that the initialization of MirMetaData objects behave as expected. This
-    includes subtypes that are part of the MirParser class.
-    """
-    attr_list = list(mir_data._metadata_attrs.keys())
-    # Drop "ac_data", since it's a synthetic table
-    attr_list.remove("ac_data")
+@pytest.fixture(scope="function")
+def mir_ac_data_main():
+    yield MirAcData(sma_mir_test_file, nchunks=8)
 
-    for item in attr_list:
-        # antpos_data is a little special, since it's a text file, so we can't use the
-        # generic read function for MirMetaData here.
-        attr = getattr(mir_data, item)
-        if item != "antpos_data":
-            # Read in the metadata w/ the generic read
-            meta_attr = MirMetaData(
-                attr._filetype,
-                attr.dtype,
-                attr._header_key,
-                attr._binary_dtype,
-                attr._pseudo_header_key,
-                mir_data.filepath,
+
+@pytest.fixture(scope="function")
+def mir_ac_data(mir_ac_data_main):
+    yield mir_ac_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def mir_antpos_data_main():
+    yield MirAntposData(sma_mir_test_file)
+
+
+@pytest.fixture(scope="function")
+def mir_antpos_data(mir_antpos_data_main):
+    yield mir_antpos_data_main.copy()
+
+
+@pytest.fixture(scope="session")
+def check_meta_init():
+    def check_meta_init_func(obj):
+        # Create a new object based on the parent class, and check that it initializes
+        # as expected (basically, make sure we've got the plumbing all correct).
+        obj_list = [sma_mir_test_file, obj._data, obj._data]
+        dtype_list = [obj.dtype, obj.dtype, None]
+        err_list = ["filename init", "data init w/ dtype", "data init w/o dtype"]
+        for target, dtype, err_msg in zip(obj_list, dtype_list, err_list):
+            meta_obj = MirMetaData(
+                target,
+                filetype=obj._filetype,
+                dtype=dtype,
+                header_key_name=obj._header_key,
+                binary_dtype=obj._binary_dtype,
+                pseudo_header_key_names=obj._pseudo_header_key,
             )
             # Now make a placeholder subtype
-            new_attr = type(attr)()
+            new_obj = type(obj)()
 
             # Plug in the __dict__, which _should_ transfer over all the writable attrs
-            new_attr.__dict__ = meta_attr.__dict__
-            assert attr == new_attr
+            new_obj.__dict__ = meta_obj.__dict__
 
-        new_attr = type(attr)(mir_data.filepath)
-        assert attr == new_attr
+            assert obj == new_obj, "MirMetaData init failed on %s" % err_msg
+
+    yield check_meta_init_func
 
 
-def test_mir_meta_iter(mir_data):
+@pytest.fixture(scope="session")
+def check_init_int():
+    def check_init_int_func(obj):
+        nvals = 156
+        new_obj = type(obj)(nvals)
+        # Check to make sure that if we pass an int, we get a blank array with the
+        # right number of records that contains all zeros (or equiv)
+        assert len(new_obj) == nvals, "zero init for %s failed" % obj._filetype
+        assert all(new_obj._mask), "zero init mask for %s failed" % obj._filetype
+        assert np.array_equal(new_obj._data, np.zeros(nvals, dtype=obj.dtype)), (
+            "zero init data for %s failed" % obj._filetype
+        )
+
+    yield check_init_int_func
+
+
+@pytest.fixture(scope="session")
+def check_init_data_err():
+    def check_init_data_err_func(obj):
+        wrong_data = np.arange(201)
+        # Make sure we get the error message we expect w/ an unexpected dtype
+        with pytest.raises(
+            AssertionError, match="ndarray dtype must match object dtype."
+        ):
+            type(obj)(wrong_data)
+
+    yield check_init_data_err_func
+
+
+@pytest.fixture(scope="session")
+def check_init_data():
+    def check_init_data_func(obj):
+        # If we have a data array, we should be able to instantiate the an equal object
+        assert obj == type(obj)(obj._data), "data init for %s failed" % obj._filetype
+
+    yield check_init_data_func
+
+
+@pytest.fixture(scope="session")
+def check_init(check_meta_init, check_init_int, check_init_data, check_init_data_err):
+    def check_init_func(obj, do_meta=True):
+        if do_meta:
+            check_meta_init(obj)
+        check_init_int(obj)
+        check_init_data(obj)
+        check_init_data_err(obj)
+
+    yield check_init_func
+
+
+@pytest.fixture(scope="session")
+def check_iter():
+    def check_iter_func(obj):
+        for idx, item in enumerate(obj):
+            assert obj._data[idx] == item
+
+        obj._mask[1::2] = False
+        for idx, item in enumerate(obj):
+            assert obj._data[2 * idx] == item
+
+    yield check_iter_func
+
+
+def test_mir_in_data_init(mir_in_data, check_init):
+    """Check that the various methods of initializing in_data work as expected"""
+    check_init(mir_in_data)
+
+
+def test_mir_bl_data_init(mir_bl_data, check_init):
+    """Check that the various methods of initializing bl_data work as expected"""
+    check_init(mir_bl_data)
+
+
+def test_mir_sp_data_init(mir_sp_data, check_init):
+    """Check that the various methods of initializing sp_data work as expected"""
+    check_init(mir_sp_data)
+
+
+def test_mir_eng_data_init(mir_eng_data, check_init):
+    """Check that the various methods of initializing eng_data work as expected"""
+    check_init(mir_eng_data)
+
+
+def test_mir_we_data_init(mir_we_data, check_init):
+    """Check that the various methods of initializing we_data work as expected"""
+    check_init(mir_we_data)
+
+
+def test_mir_codes_data_init(mir_codes_data, check_init):
+    """Check that the various methods of initializing codes_data work as expected"""
+    check_init(mir_codes_data)
+
+
+def test_mir_ac_data_init(mir_ac_data, check_init):
+    """Check that the various methods of initializing ac_data work as expected"""
+    # ac_data is special in that it's read is different from a normal MirMetaData
+    # object (due to it being a synthetic set of headers), so skip the meta init check.
+    check_init(mir_ac_data, do_meta=False)
+
+
+def test_mir_antpos_data_init(mir_antpos_data, check_init):
+    """Check that the various methods of initializing codes_data work as expected"""
+    # antennas is special in that it's read is different from a normal MirMetaData
+    # object (due to it being a text vs binary file), so skip the meta init check.
+    check_init(mir_antpos_data, do_meta=False)
+
+
+def test_mir_meta_iter(mir_antpos_data):
     """
     Test that MirMetaData objects iterate as expected, which is that they should yield
     the full group for each index position (similar to ndarray).
     """
     # Test the unflagged case
-    in_data = mir_data.in_data
-    for idx, item in enumerate(in_data):
-        assert in_data._data[idx] == item
+    for idx, item in enumerate(mir_antpos_data):
+        assert mir_antpos_data._data[idx] == item
 
     # Now the flagged case
-    in_data._mask[1::2] = False
-    for idx, item in enumerate(in_data):
-        assert in_data._data[2 * idx] == item
+    mir_antpos_data._mask[1::2] = False
+    for idx, item in enumerate(mir_antpos_data):
+        assert mir_antpos_data._data[2 * idx] == item
 
 
 def test_mir_meta_copy(mir_in_data):
@@ -210,19 +375,19 @@ def test_mir_meta_where_mask(mir_sp_data):
     assert np.all(where_arr[1::2])
 
 
-def test_mir_meta_where_multidim(mir_data):
-    we_mask = mir_data.we_data.where("flags", "eq", 0)
-    assert len(we_mask) == len(mir_data.we_data)
+def test_mir_meta_where_multidim(mir_we_data):
+    we_mask = mir_we_data.where("flags", "eq", 0)
+    assert len(we_mask) == len(mir_we_data)
     assert we_mask.ndim == 1
     assert np.all(we_mask)
 
 
-def test_mir_meta_where_pseudo_key(mir_data):
-    eng_keys = mir_data.eng_data.where("tsys", "gt", 0, return_header_keys=True)
+def test_mir_meta_where_pseudo_key(mir_eng_data):
+    eng_keys = mir_eng_data.where("tsys", "gt", 0, return_header_keys=True)
     assert isinstance(eng_keys, list)
     for key in eng_keys:
         assert isinstance(key, tuple)
-        assert key in mir_data.eng_data._header_key_index_dict
+        assert key in mir_eng_data._header_key_index_dict
 
 
 @pytest.mark.parametrize(
@@ -427,6 +592,13 @@ def test_mir_meta_sort_by_header_key(mir_bl_data):
     assert np.all(mir_bl_copy._data["blhid"] == mir_bl_copy._data["blhid"])
 
 
+def test_group_by_err(mir_eng_data):
+    with pytest.raises(
+        ValueError, match="Cannot specify header_key and set return_index=True."
+    ):
+        mir_eng_data.group_by(["inhid"], header_key=[1, 2, 3], return_index=True)
+
+
 @pytest.mark.parametrize(
     "fields,args,mask_data,comp_dict",
     [
@@ -435,6 +607,12 @@ def test_mir_meta_sort_by_header_key(mir_bl_data):
         ["inhid", {"use_mask": False}, True, {1: list(range(1, 21))}],
         ["inhid", {}, False, {1: list(range(1, 21))}],
         ["inhid", {"return_index": True}, False, {1: list(range(20))}],
+        [
+            "blhid",
+            {"use_mask": False, "header_key": np.arange(1, 6)},
+            False,
+            {1: [1, 2, 3, 4, 5]},
+        ],
         [
             ["inhid", "corrchunk"],
             {"return_index": True},
@@ -529,6 +707,34 @@ def test_mir_meta_update_fields(mir_bl_data):
     assert np.all(mir_bl_data["iant2"] == [1, 1, 1, 1])
 
 
+def test_mir_meta_write_std_roundtrip(
+    mir_in_data, mir_bl_data, mir_sp_data, mir_eng_data, mir_we_data, tmp_path
+):
+    """Test a standard roundtrip"""
+    for obj in [mir_in_data, mir_bl_data, mir_sp_data, mir_eng_data, mir_we_data]:
+        filepath = os.path.join(tmp_path, "meta_write_std_roundtrip")
+        obj.write(filepath)
+        new_obj = type(obj)(filepath)
+        assert obj == new_obj, "Failed on %s compare" % obj.filetype
+
+
+def test_mir_meta_write_bdtype_roundtrip(mir_antpos_data, mir_codes_data, tmp_path):
+    """Test roundtrip w/ a file whose binary dtype is different than obj dtype"""
+    filepath = os.path.join(tmp_path, "meta_write_std_roundtrip")
+    for obj in [mir_antpos_data, mir_codes_data]:
+        obj.write(filepath)
+        new_obj = type(obj)(filepath)
+        assert obj == new_obj, "Failed on %s compare" % obj.filetype
+
+
+def test_mir_meta_write_synth_roundtrip(mir_ac_data, tmp_path):
+    """Test roundtrip w/ a synthetic data type"""
+    filepath = os.path.join(tmp_path, "meta_write_std_roundtrip")
+    mir_ac_data.write(filepath)
+    mir_ac_new = MirAcData(filepath)
+    assert mir_ac_data == mir_ac_new
+
+
 def test_mir_meta_write_errs(mir_sp_data, tmp_path):
     filepath = os.path.join(tmp_path, "meta_write_errs")
     mir_sp_data.write(filepath)
@@ -558,6 +764,8 @@ def test_mir_meta_write_append(mir_sp_data, tmp_path):
     mir_sp_data._mask[1::2] = False
     mir_sp_data.write(filepath, append_data=True, check_index=True)
     new_obj.read(filepath)
+    mir_sp_data._mask[:] = True
+
     assert mir_sp_data == new_obj
 
 
@@ -688,18 +896,18 @@ def test_mir_meta_add_concat(mir_bl_data, method):
     assert np.all(result._mask[4:])
 
 
-def test_mir_sp_recalc_dataoff(mir_sp_data):
+def test_mir_sp_recalc_dataoff(mir_sp_data: MirSpData):
     dataoff_arr = mir_sp_data["dataoff"].copy()
 
     # Now update one mask position, a pseudo-cont record
     pseudo_rec_size = 18
     mir_sp_data._mask[0] = False
-    mir_sp_data._recalc_dataoff()
+    mir_sp_data._recalc_dataoff(data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True)
     assert np.all(mir_sp_data["dataoff"] == (dataoff_arr[1:] - pseudo_rec_size))
 
     # Now flag all the pseudo-cont records
     mir_sp_data._mask[[0, 5, 10, 15]] = False
-    mir_sp_data._recalc_dataoff()
+    mir_sp_data._recalc_dataoff(data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True)
     assert np.all(
         mir_sp_data["dataoff"]
         == np.concatenate(
@@ -713,29 +921,39 @@ def test_mir_sp_recalc_dataoff(mir_sp_data):
     )
 
     # Finally, ignore the mask when doing dataoff and make sure it returns correctly
-    mir_sp_data._recalc_dataoff(use_mask=False)
+    mir_sp_data._recalc_dataoff(
+        data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True, use_mask=False
+    )
     assert np.all(mir_sp_data._data["dataoff"] == dataoff_arr)
 
 
 def test_mir_meta_get_record_size_info_errs():
     with pytest.raises(TypeError, match="Cannot use this method on objects other than"):
-        MirMetaData(None, None, None)._get_record_size_info()
+        MirMetaData()._get_record_size_info()
 
 
 @pytest.mark.parametrize(
-    "attr,val_size,rec_size_arr",
-    [["sp_data", 2, ([18] + ([65538] * 4)) * 4], ["ac_data", 4, [65536] * 16]],
+    "attr,val_size,pad_size,rec_size_arr",
+    [["sp_data", 4, 2, ([18] + ([65538] * 4)) * 4], ["ac_data", 4, 0, [65536] * 32]],
 )
-def test_mir_meta_get_record_size_info(mir_data, attr, val_size, rec_size_arr):
-    comp_rec_size, comp_val = getattr(mir_data, attr)._get_record_size_info()
-    assert val_size == comp_val
-    assert np.all(comp_rec_size == rec_size_arr)
+def test_mir_meta_get_record_size_info(
+    mir_sp_data, mir_ac_data, attr, val_size, pad_size, rec_size_arr
+):
+    if attr == "sp_data":
+        attr_obj = mir_sp_data
+    elif attr == "ac_data":
+        attr_obj = mir_ac_data
+
+    comp_rec_size = attr_obj._get_record_size_info(val_size=val_size, pad_size=pad_size)
+    assert np.array_equal(comp_rec_size, rec_size_arr)
 
 
 @pytest.mark.parametrize("reindex", [True, False])
 @pytest.mark.parametrize("use_mask", [True, False])
 @pytest.mark.parametrize("mod_mask", [True, False])
-def test_mir_meta_generate_recpos_dict(mir_sp_data, reindex, use_mask, mod_mask):
+def test_mir_meta_generate_recpos_dict(
+    mir_sp_data: MirSpData, reindex, use_mask, mod_mask
+):
     if mod_mask:
         mir_sp_data._mask[::2] = False
 
@@ -746,7 +964,11 @@ def test_mir_meta_generate_recpos_dict(mir_sp_data, reindex, use_mask, mod_mask)
         dataoff_arr = np.cumsum(rec_size_arr) - rec_size_arr
 
     int_dict, sp_dict = mir_sp_data._generate_recpos_dict(
-        use_mask=use_mask, reindex=reindex
+        data_dtype=NEW_VIS_DTYPE,
+        data_nvals=2,
+        scale_data=True,
+        use_mask=use_mask,
+        reindex=reindex,
     )
     assert int_dict == {
         1: {
@@ -827,6 +1049,7 @@ def test_mir_codes_where_errs(mir_codes_data, args, kwargs, err_type, err_msg):
             {"return_header_keys": False},
             (92 * [False]) + [True] + (6 * [False]),
         ],
+        [("rec", "eq", 230), {}, [0]],
     ],
 )
 def test_mir_codes_where(mir_codes_data, args, kwargs, output):
@@ -922,10 +1145,23 @@ def test_mir_codes_generate_new_header_keys(mir_codes_data, code_row, update_dic
     assert update_dict == mir_codes_copy._generate_new_header_keys(mir_codes_data)
 
 
-def test_mir_acdata_read_errs(mir_data):
-    with pytest.raises(AssertionError) as err:
-        mir_data.ac_data.read(mir_data.filepath, nchunks=1)
-    str(err.value).startswith("Could not determine auto-correlation record size.")
+@pytest.mark.parametrize("nchunks", [None, 1])
+def test_mir_acdata_read_warn(mir_ac_data: MirAcData, nchunks):
+    mir_ac_data._nchunks = nchunks
+    with uvtest.check_warnings(
+        UserWarning, "Auto-correlation records appear to be the incorrect size"
+    ):
+        mir_ac_data.read(sma_mir_test_file)
+
+
+def test_mir_acdata_new_write(mir_ac_data, tmp_path):
+    filepath = os.path.join(tmp_path, "meta_ac_read_write")
+    mir_ac_copy = mir_ac_data.copy()
+
+    mir_ac_data.write(filepath)
+    mir_ac_data.read(filepath)
+
+    assert mir_ac_data == mir_ac_copy
 
 
 def test_mir_make_key_mask_cipher(mir_ac_data, mir_eng_data):
@@ -954,7 +1190,7 @@ def test_mir_make_key_mask(mir_in_data, mir_bl_data, mir_sp_data):
 
     assert np.array_equal(mir_sp_data["sphid"], [6, 7, 8, 9, 10, 16, 17, 18, 19, 20])
 
-    # Finally, set the single ingtegration as bad, and make sure it cascades down
+    # Finally, set the single integration as bad, and make sure it cascades down
     mir_in_data._mask[:] = False
     mir_bl_data._make_key_mask(mir_in_data, reverse=True)
     mir_sp_data._make_key_mask(mir_bl_data, reverse=True)
@@ -962,3 +1198,16 @@ def test_mir_make_key_mask(mir_in_data, mir_bl_data, mir_sp_data):
     assert not any(mir_in_data._mask)
     assert not any(mir_bl_data._mask)
     assert not any(mir_sp_data._mask)
+
+
+def test_bad_codes(mir_codes_data, tmp_path):
+    filepath = os.path.join(tmp_path, "bad_codes")
+    bad_codes_copy = mir_codes_data.copy()
+
+    # Simulate a bad data entry, based on real life examples...
+    bad_codes_copy._data = bad_codes_copy._data.astype(mir_codes_data._binary_dtype)
+    bad_codes_copy._data[0][0] = b"filever\x00\xca"
+    bad_codes_copy.write(filepath)
+
+    new_codes = MirCodesData(filepath)
+    assert mir_codes_data == new_codes

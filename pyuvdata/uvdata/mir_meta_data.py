@@ -25,6 +25,32 @@ __all__ = [
     "MirAcData",
 ]
 
+# Define the packed data header fields for cross-correlations (should be static)
+OLD_VIS_HEADER = [
+    ("inhid", ">i4"),
+    ("form", "S4"),
+    ("nbytes", ">i4"),
+    ("record_size", ">i4"),
+]
+NEW_VIS_HEADER = [("inhid", "<i4"), ("record_size", "<i4")]
+
+# Define packed data vis format, namely that they flip endianness
+OLD_VIS_DTYPE = np.dtype(">i2")
+NEW_VIS_DTYPE = np.dtype("<i2")
+
+# Define the packed data header fields for autocorrelations (should be static)
+OLD_AUTO_HEADER = [
+    ("antenna", "<i4"),
+    ("nchunks", "<i4"),
+    ("inhid", "<i4"),
+    ("dhrs", "<f8"),
+]
+NEW_AUTO_HEADER = NEW_VIS_HEADER  # Creating this in case we want to change later
+
+# Define packed data vis format, which should be small endian floats
+OLD_AUTO_DTYPE = np.dtype("<f4")
+NEW_AUTO_DTYPE = OLD_AUTO_DTYPE  # Creating this in case we want to change later
+
 # MIR structure definitions. Note that because these are all binaries, we need to
 # specify the endianness so that we don't potentially muck that on different machines
 
@@ -475,7 +501,8 @@ class MirMetaError(Exception):
     they can be caught and handled within methods of the MirParser class.
     """
 
-    pass
+    def __init__(self, message="A MirMetaData object has a problem."):
+        super().__init__(message)
 
 
 class MirMetaData(object):
@@ -492,21 +519,26 @@ class MirMetaData(object):
 
     def __init__(
         self,
-        filetype,
-        dtype,
-        header_key_name,
+        obj=None,
+        *,
+        filetype=None,
+        dtype=None,
+        header_key_name=None,
         binary_dtype=None,
         pseudo_header_key_names=None,
-        filepath=None,
     ):
         """
         Initialize a MirMetaData object.
 
         Parameters
         ----------
-        filetype : str
-            Name corresponding to a filetype in a Mir data set that the object is
-            populated by (where the full path is filepath + "/" + filetype).
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         dtype : dtype
             Numpy-based description of the binary data stored in the file.
         header_key_name : str or None
@@ -531,8 +563,21 @@ class MirMetaData(object):
         self._header_key_index_dict = None
         self._stored_values = {}
 
-        if filepath is not None:
-            self.read(filepath)
+        if obj is None:
+            return
+        if isinstance(obj, str):
+            self.read(filepath=obj)
+            return
+
+        if isinstance(obj, int):
+            self._data = np.zeros(obj, dtype=dtype)
+        elif isinstance(obj, np.ndarray):
+            self._data = obj
+            if self.dtype is None:
+                self.dtype = obj.dtype
+            assert self.dtype == obj.dtype, "ndarray dtype must match object dtype."
+        self._mask = np.ones(self._size, dtype=bool)
+        self._set_header_key_index_dict()
 
     @property
     def _size(self):
@@ -569,7 +614,15 @@ class MirMetaData(object):
         # TODO: Consider caching value as usage expands
         return np.sum(self._mask)
 
-    def __eq__(self, other, verbose=False, ignore_params=None, use_mask=False):
+    def __eq__(
+        self,
+        other=None,
+        *,
+        verbose=False,
+        ignore_params=None,
+        use_mask=False,
+        comp_mask=True,
+    ):
         """
         Compare MirMetaData objects for equality.
 
@@ -579,14 +632,17 @@ class MirMetaData(object):
             Object of the same type to compare to.
         verbose : bool
             Whether to print out the differences between the two objects, if any are
-            found. Default is False.
+            found. Default is True.
         ignore_params : list of str or None
             Optional argument, which can be used to specify whether to ignore certain
             attributes when comparing objects. By default, no attributes are ignored.
         use_mask : bool
             Whether or not to ignore the internal mask when performing the comparison.
-            If set to True, will only compare those entries where the mask is set to
+            If set to True, will only compare those values where the mask is set to
             True. Default is False.
+        comp_mask : bool
+            Whether or not to compare the masks themselves when comparing the individual
+            objects. Default is True.
 
         Returns
         -------
@@ -638,6 +694,13 @@ class MirMetaData(object):
         # At this point we are ready to do our field-by-field comparison.
         # I say these objects are the same -- prove me wrong!
         is_eq = True
+
+        # Start with the mask comparison first.
+        if comp_mask and not np.array_equal(self._mask, other._mask):
+            verbose_print("%s masks are different." % name)
+            is_eq = False
+
+        # Move on to the data comparisons
         for item in comp_fields:
             left_vals = self.get_value(item, index=this_idx)
             right_vals = other.get_value(item, index=other_idx)
@@ -653,7 +716,15 @@ class MirMetaData(object):
 
         return is_eq
 
-    def __ne__(self, other, verbose=False, ignore_params=None, use_mask=False):
+    def __ne__(
+        self,
+        other=None,
+        *,
+        verbose=False,
+        ignore_params=None,
+        use_mask=False,
+        comp_mask=True,
+    ):
         """
         Compare MirMetaData objects for inequality.
 
@@ -667,6 +738,13 @@ class MirMetaData(object):
         ignore_params : list of str
             Optional argument, which can be used to specify whether to ignore certain
             attributes when comparing objects. By default, no attributes are ignored.
+        use_mask : bool
+            Whether or not to ignore the internal mask when performing the comparison.
+            If set to True, will only compare those values where the mask is set to
+            True. Default is False.
+        comp_mask : bool
+            Whether or not to compare the masks themselves when comparing the individual
+            objects. Default is True.
 
         Returns
         -------
@@ -674,11 +752,15 @@ class MirMetaData(object):
             Value describing whether the two objects do not contain the same data.
         """
         return not self.__eq__(
-            other, verbose=verbose, ignore_params=ignore_params, use_mask=use_mask
+            other,
+            verbose=verbose,
+            ignore_params=ignore_params,
+            use_mask=use_mask,
+            comp_mask=comp_mask,
         )
 
     def __add__(
-        self, other, inplace=False, merge=None, overwrite=None, discard_flagged=False
+        self, other, *, inplace=False, merge=None, overwrite=None, discard_flagged=False
     ):
         """
         Combine two MirMetaData objects.
@@ -757,7 +839,7 @@ class MirMetaData(object):
 
         return new_obj
 
-    def __iadd__(self, other, merge=None, overwrite=None, discard_flagged=False):
+    def __iadd__(self, other, *, merge=None, overwrite=None, discard_flagged=False):
         """
         In-place addition of two MirMetaData objects.
 
@@ -834,7 +916,13 @@ class MirMetaData(object):
         return copy_obj
 
     def where(
-        self, select_field, select_comp, select_val, mask=None, return_header_keys=False
+        self,
+        select_field=None,
+        select_comp=None,
+        select_val=None,
+        *,
+        mask=None,
+        return_header_keys=False,
     ):
         """
         Find where metadata match a given set of selection criteria.
@@ -1084,6 +1172,7 @@ class MirMetaData(object):
     def get_value(
         self,
         field_name,
+        *,
         use_mask=None,
         where=None,
         and_where_args=True,
@@ -1192,8 +1281,9 @@ class MirMetaData(object):
 
     def set_value(
         self,
-        field_name,
-        value,
+        field_name=None,
+        value=None,
+        *,
         use_mask=None,
         where=None,
         and_where_args=True,
@@ -1300,7 +1390,13 @@ class MirMetaData(object):
         self.set_value(field_name=field_name, value=value)
 
     def _generate_mask(
-        self, where=None, and_where_args=True, header_key=None, index=None
+        self,
+        *,
+        where=None,
+        and_where_args=True,
+        header_key=None,
+        index=None,
+        inverse=False,
     ):
         """
         Generate a boolean mask based on selection criteria.
@@ -1343,12 +1439,19 @@ class MirMetaData(object):
             Array of boolean values, with length equal to that of the object itself.
         """
         idx_arr = self._index_query(False, where, and_where_args, header_key, index)
-        new_mask = np.zeros(self._size, dtype=bool)
 
-        new_mask[idx_arr] = True
+        # If selecting all array elements, just flip the operation
+        if idx_arr is Ellipsis:
+            idx_arr = []
+            inverse = not inverse
+
+        gen_func = np.ones if inverse else np.zeros
+        new_mask = gen_func(self._size, dtype=bool)
+
+        new_mask[idx_arr] = not inverse
         return new_mask
 
-    def get_mask(self, where=None, and_where_args=True, header_key=None, index=None):
+    def get_mask(self, *, where=None, and_where_args=True, header_key=None, index=None):
         """
         Get value of the mask at a set of locations..
 
@@ -1393,6 +1496,7 @@ class MirMetaData(object):
 
     def set_mask(
         self,
+        *,
         mask=None,
         where=None,
         and_where_args=True,
@@ -1478,6 +1582,7 @@ class MirMetaData(object):
 
     def get_header_keys(
         self,
+        *,
         use_mask=None,
         where=None,
         and_where_args=True,
@@ -1625,7 +1730,8 @@ class MirMetaData(object):
 
     def group_by(
         self,
-        group_fields,
+        group_fields=None,
+        *,
         use_mask=True,
         where=None,
         header_key=None,
@@ -1782,7 +1888,7 @@ class MirMetaData(object):
         self.set_mask(reset=True)
         self._set_header_key_index_dict()
 
-    def _update_fields(self, update_dict, raise_err=False):
+    def _update_fields(self, update_dict=None, raise_err=False):
         """
         Update fields within a MirMetaData object.
 
@@ -1867,7 +1973,9 @@ class MirMetaData(object):
         if rebuild_index:
             self._set_header_key_index_dict()
 
-    def _add_check(self, other, merge=None, overwrite=None, discard_flagged=False):
+    def _add_check(
+        self, other=None, *, merge=None, overwrite=None, discard_flagged=False
+    ):
         """
         Check if two MirMetaData objects contain conflicting header key values.
 
@@ -2059,7 +2167,7 @@ class MirMetaData(object):
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
-    def read(self, filepath):
+    def read(self, filepath=None):
         """
         Read in data for a MirMetaData object from disk.
 
@@ -2096,7 +2204,7 @@ class MirMetaData(object):
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
 
-    def _writefile(self, filepath, append_data, datamask=...):
+    def _writefile(self, filepath=None, *, append_data=False, datamask=...):
         """
         Write _data attribute to disk.
 
@@ -2121,7 +2229,9 @@ class MirMetaData(object):
             else:
                 self._data[datamask].astype(self._binary_dtype).tofile(file)
 
-    def write(self, filepath, overwrite=False, append_data=False, check_index=False):
+    def write(
+        self, filepath=None, *, overwrite=False, append_data=False, check_index=False
+    ):
         """
         Write a metadata object to disk.
 
@@ -2189,38 +2299,24 @@ class MirMetaData(object):
             # If we haven't done so yet, create the data mask now.
             datamask = ... if np.all(self._mask) else self._mask
 
-        self._writefile(writepath, append_data, datamask)
+        self._writefile(writepath, append_data=append_data, datamask=datamask)
 
-    def _get_record_size_info(self, use_mask=True):
-        if isinstance(self, MirSpData):
-            # Each channel is 2 bytes in length
-            val_size = 2
-            # Each channel has two values (real + imag)
-            n_val = 2
-            # Each vis record has an extra int16 that acts as a common exponent
-            n_pad = 1
-        elif isinstance(self, MirAcData):
-            # Each channel is 4 bytes in length (float32)
-            val_size = 4
-            # Each channel has one values (real-only)
-            n_val = 1
-            # There are no "extra" components of auto records
-            n_pad = 0
-        else:
+    def _get_record_size_info(self, *, val_size=None, pad_size=None, use_mask=True):
+        if not isinstance(self, (MirSpData, MirAcData)):
             raise TypeError(
                 "Cannot use this method on objects other than MirSpData"
                 "and MirAcData types."
             )
 
-        # Calculate the individual record sizes here. Each record contains 1 int16
-        # (common exponent) + 2 * nch values.
-        rec_size_arr = val_size * (
-            n_pad + (n_val * self.get_value("nch", use_mask=use_mask).astype(int))
+        rec_size_arr = pad_size + (
+            val_size * self.get_value("nch", use_mask=use_mask).astype(int)
         )
 
-        return rec_size_arr, val_size
+        return rec_size_arr
 
-    def _recalc_dataoff(self, use_mask=True):
+    def _recalc_dataoff(
+        self, *, data_dtype=None, data_nvals=2, scale_data=True, use_mask=True
+    ):
         """
         Calculate the offsets of each spectral record for packed data.
 
@@ -2240,7 +2336,11 @@ class MirMetaData(object):
             mask is set to True. If set to False, use all records in the object,
             regardless of mask status. Default is True.
         """
-        rec_size_arr, _ = self._get_record_size_info(use_mask=use_mask)
+        rec_size_arr = self._get_record_size_info(
+            val_size=data_dtype.itemsize * data_nvals,
+            pad_size=data_dtype.itemsize if scale_data else 0,
+            use_mask=use_mask,
+        )
 
         # Create an array to plug values into
         offset_arr = np.zeros_like(rec_size_arr)
@@ -2258,7 +2358,15 @@ class MirMetaData(object):
             )
             self.set_value("dataoff", offset_arr, use_mask=use_mask)
 
-    def _generate_recpos_dict(self, use_mask=True, reindex=False):
+    def _generate_recpos_dict(
+        self,
+        *,
+        data_dtype=None,
+        data_nvals=2,
+        scale_data=True,
+        use_mask=True,
+        reindex=False,
+    ):
         """
         Generate a set of dicts for indexing of data.
 
@@ -2299,8 +2407,12 @@ class MirMetaData(object):
             position of the spectral record), and "chan_avg" (number of channels ones
             needs to average the spectrum over; default is 1).
         """
-        rec_size_arr, val_size = self._get_record_size_info(use_mask=use_mask)
-
+        val_size = data_dtype.itemsize
+        rec_size_arr = self._get_record_size_info(
+            val_size=val_size * data_nvals,
+            pad_size=val_size if scale_data else 0,
+            use_mask=use_mask,
+        )
         int_dict = {}
         recpos_dict = {}
 
@@ -2337,7 +2449,12 @@ class MirMetaData(object):
             }
 
             # Record size for int_dict is recorded in bytes, hence the * chan_size here
-            record_size = eidx_arr.max() * val_size
+            record_size = int(eidx_arr.max() * val_size)
+
+            # There's no way these should ever happen unless the metadata are bad,
+            # just check and make sure this isn't the case.
+            assert record_size > 0, "record_size not gtr than zero, metadata corrupted"
+            assert record_start >= 0, "record_start less than zero, metadata corrupted"
 
             int_dict[inhid] = {
                 "inhid": inhid,
@@ -2351,7 +2468,8 @@ class MirMetaData(object):
 
     def _make_key_mask(
         self,
-        other,
+        other=None,
+        *,
         reverse=False,
         use_mask=True,
         check_field=None,
@@ -2467,16 +2585,23 @@ class MirInData(MirMetaData):
     "in_read", which is where the online system records this information.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirInData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__("in_read", in_dtype, "inhid", None, None, filepath)
+        super().__init__(
+            obj=obj, filetype="in_read", dtype=in_dtype, header_key_name="inhid"
+        )
 
 
 class MirBlData(MirMetaData):
@@ -2489,16 +2614,23 @@ class MirBlData(MirMetaData):
     "per-baseline" here means per-integration, per-sideband, per-receiver/polarization.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirBlData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__("bl_read", bl_dtype, "blhid", None, None, filepath)
+        super().__init__(
+            obj=obj, filetype="bl_read", dtype=bl_dtype, header_key_name="blhid"
+        )
 
 
 class MirSpData(MirMetaData):
@@ -2512,16 +2644,23 @@ class MirSpData(MirMetaData):
     band number.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirSpData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__("sp_read", sp_dtype, "sphid", None, None, filepath)
+        super().__init__(
+            obj=obj, filetype="sp_read", dtype=sp_dtype, header_key_name="sphid"
+        )
 
 
 class MirWeData(MirMetaData):
@@ -2533,16 +2672,23 @@ class MirWeData(MirMetaData):
     "we_read", which is where the online system records this information.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirWeData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__("we_read", we_dtype, "ints", None, None, filepath)
+        super().__init__(
+            obj=obj, filetype="we_read", dtype=we_dtype, header_key_name="ints"
+        )
 
 
 class MirEngData(MirMetaData):
@@ -2557,17 +2703,25 @@ class MirEngData(MirMetaData):
     each entry.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirEngData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
         super().__init__(
-            "eng_read", eng_dtype, None, None, ("antenna", "inhid"), filepath
+            obj=obj,
+            filetype="eng_read",
+            dtype=eng_dtype,
+            pseudo_header_key_names=("antenna", "inhid"),
         )
 
 
@@ -2581,21 +2735,25 @@ class MirAntposData(MirMetaData):
     "iant1", "iant2").
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirAntposData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__("antennas", antpos_dtype, "antenna", None, None, None)
+        super().__init__(
+            obj=obj, filetype="antennas", dtype=antpos_dtype, header_key_name="antenna"
+        )
 
-        if filepath is not None:
-            self.read(filepath)
-
-    def read(self, filepath):
+    def read(self, filepath=None):
         """
         Read in data for a MirAntposData object from disk.
 
@@ -2604,7 +2762,7 @@ class MirAntposData(MirMetaData):
         filepath : str
             Path of the folder containing the metadata in question.
         """
-        with open(os.path.join(filepath, "antennas"), "r") as antennas_file:
+        with open(os.path.join(filepath, self._filetype), "r") as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
             ]
@@ -2617,7 +2775,7 @@ class MirAntposData(MirMetaData):
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
 
-    def _writefile(self, filepath, append_data, datamask=...):
+    def _writefile(self, filepath=None, *, append_data=False, datamask=...):
         """
         Write _data attribute to disk.
 
@@ -2672,24 +2830,23 @@ class MirCodesData(MirMetaData):
     process these string "codes".
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None):
         """
         Initialize a MirCodesData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
         """
-        super().__init__(
-            filetype="codes_read",
-            dtype=codes_dtype,
-            header_key_name=None,
-            binary_dtype=codes_binary_dtype,
-            pseudo_header_key_names=("icode", "v_name"),
-            filepath=filepath,
-        )
-
+        # Define some things up front. These are codes that should have multiple entries
+        # that are different every time, usually changing once an integration. They
+        # map to various "iXXX" indexing fields contained in other metadata tables.
         self._mutable_codes = [
             "project",
             "ref_time",
@@ -2736,6 +2893,14 @@ class MirCodesData(MirMetaData):
             "ddsmode": "iddsmode",
         }
 
+        super().__init__(
+            obj=obj,
+            filetype="codes_read",
+            dtype=codes_dtype,
+            binary_dtype=codes_binary_dtype,
+            pseudo_header_key_names=("icode", "v_name"),
+        )
+
     def __getitem__(self, item):
         """
         Get values for a particular field using get_value.
@@ -2776,7 +2941,13 @@ class MirCodesData(MirMetaData):
         return sorted(set(self.get_value("v_name")))
 
     def where(
-        self, select_field, select_comp, select_val, mask=None, return_header_keys=None
+        self,
+        select_field=None,
+        select_comp=None,
+        select_val=None,
+        *,
+        mask=None,
+        return_header_keys=None,
     ):
         """
         Find where metadata match a given set of selection criteria.
@@ -2840,7 +3011,11 @@ class MirCodesData(MirMetaData):
         """
         if select_field in self.dtype.fields:
             return super().where(
-                select_field, select_comp, select_val, mask, return_header_keys
+                select_field=select_field,
+                select_comp=select_comp,
+                select_val=select_val,
+                mask=mask,
+                return_header_keys=return_header_keys,
             )
 
         if select_field not in self._codes_index_dict:
@@ -2870,8 +3045,12 @@ class MirCodesData(MirMetaData):
                 select_val = str(select_val)
 
         data_mask = np.logical_and(
-            super().where("v_name", "eq", select_field, mask, False),
-            super().where("code", select_comp, select_val, mask, False),
+            super().where(
+                "v_name", "eq", select_field, mask=mask, return_header_keys=False
+            ),
+            super().where(
+                "code", select_comp, select_val, mask=mask, return_header_keys=False
+            ),
         )
 
         if return_header_keys or (return_header_keys is None):
@@ -2879,7 +3058,7 @@ class MirCodesData(MirMetaData):
         else:
             return data_mask
 
-    def get_codes(self, code_name, return_dict=None):
+    def get_codes(self, code_name=None, return_dict=None):
         """
         Get code strings for a given variable name in the metadata.
 
@@ -3083,20 +3262,32 @@ class MirAcData(MirMetaData):
     considerably in future releases.
     """
 
-    def __init__(self, filepath=None):
+    def __init__(self, obj=None, nchunks=None):
         """
         Initialize a MirAcData object.
 
         Parameters
         ----------
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
+        obj : str or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str is
+            supplied, then it is treated as the path to the Mir data folder containing
+            the metadata. If an int is supplied, a "blank" (zero-filled) array of
+            metadata is generated, with length of `obj`. If an ndarray is supplied, then
+            the supplied array is used as the underlying data set for the object (where
+            dtype of the array must match that appropriate for the object).
+        nchunks : int
+            Number of chunks to assume are recorded in the auto-correlation data. Note
+            that this parameter is only used with the "old-style" files (i.e., where
+            "ac_read" and "ach_read" are not present in the Mir file folder).
         """
-        self._old_fmt = False
-        self._old_fmt_int_dict = None
-        super().__init__("ac_read", ac_dtype, "achid", None, None, filepath)
+        self._old_format = False
+        self._old_format_int_dict = None
+        self._nchunks = nchunks
+        super().__init__(
+            obj=obj, filetype="ac_read", dtype=ac_dtype, header_key_name="achid"
+        )
 
-    def read(self, filepath, nchunks=8):
+    def read(self, filepath=None):
         """
         Read in data for a MirAcData object from disk.
 
@@ -3104,50 +3295,55 @@ class MirAcData(MirMetaData):
         ----------
         filepath : str
             Path of the folder containing the metadata in question.
-        nchunks : int
-            Number of chunks to assume are recorded in the auto-correlation data. Note
-            that this parameter is only used with the "old-style" files (i.e., where
-            "ac_read" and "ach_read" are not present in the Mir file folder).
         """
         old_ac_file = os.path.join(filepath, "autoCorrelations")
         new_ac_file = os.path.join(filepath, self._filetype)
         if not (os.path.exists(old_ac_file) and not os.path.exists(new_ac_file)):
-            self._old_fmt = False
+            self._old_format = False
             super().read(filepath)
             return
 
-        self._old_fmt = True
+        self._old_format = True
         file_size = os.path.getsize(old_ac_file)
-        hdr_dtype = np.dtype(
-            [("antenna", "<i4"), ("nChunks", "<i4"), ("inhid", "<i4"), ("dhrs", "<f8")]
-        )
-        # Cast this here just to avoid any potential overflow issues w/ shorter ints
-        nchunks = int(nchunks)
-        rec_size = 4 * 16384 * nchunks * 2
+        hdr_dtype = np.dtype(OLD_AUTO_HEADER)
+        nrx = 2
+        nchan = 16384
 
-        # This bit of code is to trap an unfortunately common problem with metadata
+        # If not set, try to capture he number of chunks from the first header
+        # from inside the file, and see if that parses the records evenly.
+        nchunks = self._nchunks
+        if nchunks is None:
+            nchunks = np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nchunks"][0]
+        nchunks = int(nchunks)
+
+        # Tabulate the total number of spectra
+        nspec = nrx * nchunks
+
+        # Determine the size of the packed data and of the full record (data + headers)
+        pack_size = OLD_AUTO_DTYPE.itemsize * nspec * nchan
+        rec_size = pack_size + hdr_dtype.itemsize
+
+        # This bit of code is to warn of an unfortunately common problem with metadata
         # of MIR autos not being correctly recorded.
-        if (file_size % (rec_size + hdr_dtype.itemsize)) != 0:
-            # If the file size doesn't go in evenly, then read in just the first
-            # record and try to figure it out.
-            nchunks = int(
-                np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nChunks"][0]
+        if (file_size % rec_size) != 0:
+            # If the file size doesn't go in evenly, raise a warning
+            warnings.warn(
+                "Auto-correlation records appear to be the incorrect size, be aware "
+                "that the file may be corrupted or nchunks may be incorrectly set."
             )
-            rec_size = 4 * 16384 * nchunks * 2
-            assert (
-                file_size % (rec_size + hdr_dtype.itemsize)
-            ) == 0, "Could not determine auto-correlation record size."
 
         # Pre-allocate the metadata array,
-        n_rec = file_size // (rec_size + hdr_dtype.itemsize)
-        ac_data = np.zeros(2 * nchunks * n_rec, dtype=ac_dtype)
+        nrec = file_size // rec_size
+        ac_data = np.zeros(nrx * nchunks * nrec, dtype=ac_dtype)
 
         # Set values that we know a priori
-        ac_data["nch"] = 16384
+        ac_data["nch"] = nchan
         ac_data["isb"] = 1
         ac_data["correlator"] = 1
 
-        # Grab some references to the values we need to plug in to.
+        # Grab some references (views) to the values we need to plug in to. This saves
+        # us a little work later of needing to rearrange this data into a single
+        # complex dtype which can be handled in one ndarray.
         dataoff_arr = ac_data["dataoff"]
         antenna_arr = ac_data["antenna"]
         chunk_arr = ac_data["corrchunk"]
@@ -3158,23 +3354,34 @@ class MirAcData(MirMetaData):
         last_inhid = None
         last_pos = 0
         rec_count = 0
+        dataoff_spec = np.arange(nspec) * OLD_AUTO_DTYPE.itemsize * nchan
 
         with open(old_ac_file, "rb") as auto_file:
-            for idx in range(n_rec):
+            for idx in range(nrec):
                 auto_vals = np.fromfile(
                     auto_file,
                     dtype=hdr_dtype,
                     count=1,
-                    offset=rec_size if idx else 0,  # Skip offset on first iteration
+                    offset=pack_size if idx else 0,  # Skip offset on first iteration
                 )[0]
                 if auto_vals["inhid"] != last_inhid:
-                    last_pos += rec_count * (rec_size + hdr_dtype.itemsize)
+                    # If this is a new inhid, start record keeping for it
+                    last_pos += rec_count * rec_size
                     rec_count = 0
                     last_inhid = auto_vals["inhid"]
 
+                    # Create a sub-dict for this particular record
+                    rec_dict = {
+                        "inhid": auto_vals["inhid"],
+                        "record_size": 0,
+                        "record_start": last_pos,
+                    }
+                    # Plug the subdict into the main dict
+                    int_dict[last_inhid] = rec_dict
+
                 # Setup some slices that we'll use for plugging in values
-                rxa_slice = slice(idx * 2 * nchunks, (idx + 1) * 2 * nchunks, 2)
-                rxb_slice = slice(1 + (idx * 2 * nchunks), (idx + 1) * 2 * nchunks, 2)
+                rxa_slice = slice(idx * nspec, (idx + 1) * nspec, 2)
+                rxb_slice = slice(1 + (idx * nspec), (idx + 1) * nspec, 2)
                 ac_slice = slice(rxa_slice.start, rxb_slice.stop)
 
                 # Plug in the entries that are changing on a per-record basis
@@ -3185,26 +3392,20 @@ class MirAcData(MirMetaData):
                 antrx_arr[rxb_slice] = 1
                 inhid_arr[ac_slice] = last_inhid
 
-                # Each auto record contains nchunks * nrec (always 2 here) spectra, each
-                # one 16384 values of 4-bytes a piece. The offset position is then the
-                # sum of the size of the precious records, plus the header size.
-                dataoff_rec = (np.arange(2 * nchunks) * 4 * 16384) + hdr_dtype.itemsize
-                # Also add the previous offset for the integration, and subtract 8
-                # to account for the packdata header size (which we are spoofing).
-                dataoff_rec += (rec_count * (rec_size + hdr_dtype.itemsize)) - 8
-
                 # Now plug in the dataoff values
-                dataoff_arr[ac_slice] = dataoff_rec
+                dataoff_arr[ac_slice] = dataoff_spec + (rec_count * rec_size)
+                # Tally one more record
                 rec_count += 1
-
-                int_dict[auto_vals["inhid"]] = {
-                    "inhid": auto_vals["inhid"],
-                    "record_size": (rec_count * (rec_size + hdr_dtype.itemsize)) - 8,
-                    "record_start": last_pos,
-                }
+                # Update the record size
+                rec_dict["record_size"] = (rec_count * rec_size) - hdr_dtype.itemsize
 
         # Copy the corrchunk values to iband, since they should be the same here.
         ac_data["iband"] = ac_data["corrchunk"]
+        # Plug in the data into the object
         self._data = ac_data
+        # Generate a blank (full) mask
         self._mask = np.ones(self._size, dtype=bool)
-        self._old_fmt_int_dict = int_dict
+        # Create header keys
+        self._set_header_key_index_dict()
+        # Store the int_dict into a special attribute for MirAcRead
+        self._old_format_int_dict = int_dict

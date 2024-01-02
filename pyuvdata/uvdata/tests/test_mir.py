@@ -17,22 +17,26 @@ import pytest
 from ... import UVData
 from ... import tests as uvtest
 from ...data import DATA_PATH
-from ...uvdata.mir import Mir
+from ...uvdata.mir import Mir, generate_sma_antpos_dict
 from ...uvdata.mir_parser import MirParser
 from ..uvdata import _future_array_shapes_warning
+
+sma_mir_test_file = os.path.join(DATA_PATH, "sma_test.mir")
 
 
 @pytest.fixture(scope="session")
 def sma_mir_filt_main():
     uv_object = UVData()
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
     with uvtest.check_warnings(
         UserWarning,
         match="The lst_array is not self-consistent with the time_array and telescope "
         "location. Consider recomputing with the `set_lsts_from_time_array` method.",
     ):
         uv_object.read(
-            testfile, pseudo_cont=True, corrchunk=0, use_future_array_shapes=True
+            sma_mir_test_file,
+            pseudo_cont=True,
+            corrchunk=0,
+            use_future_array_shapes=True,
         )
 
     uv_object.flag_array[:, : uv_object.Nfreqs // 2, 0] = True
@@ -256,7 +260,6 @@ def test_mir_partial_read(sma_mir):
     freq_chans_to_keep = np.arange(uv.Nfreqs // 2)
     uv2.select(freq_chans=freq_chans_to_keep)
 
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
     with uvtest.check_warnings(
         UserWarning,
         match=[
@@ -269,7 +272,9 @@ def test_mir_partial_read(sma_mir):
         ],
     ):
         uv3 = UVData.from_file(
-            testfile, freq_chans=freq_chans_to_keep, use_future_array_shapes=True
+            sma_mir_test_file,
+            freq_chans=freq_chans_to_keep,
+            use_future_array_shapes=True,
         )
     uv3.set_lsts_from_time_array()
     assert uv3 == uv2
@@ -295,14 +300,13 @@ def test_multi_nchan_spw_read(tmp_path):
     Read in Mir files, write out as uvfits, read back in and check for
     object equality.
     """
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
     uv_in = UVData()
     with uvtest.check_warnings(
         UserWarning,
         match="The lst_array is not self-consistent with the time_array and telescope "
         "location. Consider recomputing with the `set_lsts_from_time_array` method.",
     ):
-        uv_in.read_mir(testfile, corrchunk=[0, 1, 2, 3, 4])
+        uv_in.read_mir(sma_mir_test_file, corrchunk=[0, 1, 2, 3, 4])
     uv_in.set_lsts_from_time_array()
 
     dummyfile = os.path.join(tmp_path, "dummy.mirtest.uvfits")
@@ -650,8 +654,9 @@ def test_bad_pol_code(mir_data):
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_rechunk_on_read():
     """Test that rechunking on read works as expected."""
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_data = UVData.from_file(testfile, rechunk=16384, use_future_array_shapes=True)
+    uv_data = UVData.from_file(
+        sma_mir_test_file, rechunk=16384, use_future_array_shapes=True
+    )
 
     # Do some basic checks to make sure that this loaded correctly.
     assert uv_data.freq_array.size == 8
@@ -675,8 +680,9 @@ def test_rechunk_on_read():
     ],
 )
 def test_select_on_read(select_kwargs, sma_mir):
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    uv_data = UVData.from_file(testfile, use_future_array_shapes=True, **select_kwargs)
+    uv_data = UVData.from_file(
+        sma_mir_test_file, use_future_array_shapes=True, **select_kwargs
+    )
     uv_data.history = sma_mir.history
     uv_data.set_lsts_from_time_array()
     assert sma_mir == uv_data
@@ -766,3 +772,19 @@ def test_source_pos_change_warning(mir_data, tmp_path):
         UserWarning, "Position for 3c84 changes by more than an arcminute."
     ):
         mir_obj._init_from_mir_parser(mir_copy)
+
+
+def test_generate_sma_antpos_dict_errs():
+    with pytest.raises(ValueError, match="No such file or folder exists"):
+        generate_sma_antpos_dict("abcdefg")
+
+
+@pytest.mark.parametrize("use_file", [True, False])
+def test_generate_sma_antpos_dict(use_file, sma_mir):
+    filepath = sma_mir_test_file
+    if use_file:
+        filepath = os.path.join(filepath, "antennas")
+
+    ant_dict = generate_sma_antpos_dict(filepath)
+    for ant_num, xyz_pos in zip(sma_mir.antenna_numbers, sma_mir.antenna_positions):
+        assert np.allclose(ant_dict[ant_num], xyz_pos)
