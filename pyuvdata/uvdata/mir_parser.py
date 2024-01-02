@@ -20,10 +20,12 @@ from .mir_meta_data import (
     NEW_AUTO_HEADER,
     NEW_VIS_DTYPE,
     NEW_VIS_HEADER,
+    NEW_VIS_PAD,
     OLD_AUTO_DTYPE,
     OLD_AUTO_HEADER,
     OLD_VIS_DTYPE,
     OLD_VIS_HEADER,
+    OLD_VIS_PAD,
     MirAcData,
     MirAntposData,
     MirBlData,
@@ -427,7 +429,9 @@ class MirParser(object):
         return new_obj
 
     @staticmethod
-    def _scan_int_headers(filepath=None, hdr_fmt=None, *, old_int_dict=None):
+    def _scan_int_headers(
+        filepath=None, hdr_fmt=None, *, old_int_dict=None, return_headers=False
+    ):
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
@@ -453,6 +457,7 @@ class MirParser(object):
         # Check a few things up front to set behavior for this method
         file_size = os.path.getsize(filepath)
         no_rs = not any("record_size" in item for item in hdr_fmt)
+        int_list = []
 
         if old_int_dict is None:
             # If operating blindly, make sure headers have the needed information.
@@ -479,6 +484,7 @@ class MirParser(object):
                 int_vals = np.fromfile(
                     packdata_file, dtype=hdr_dtype, count=1, offset=delta_offset
                 )[0]
+                int_list.append(int_vals)
 
                 if old_int_dict is None:
                     # Grab some information from the header
@@ -522,7 +528,7 @@ class MirParser(object):
                     record_start = rs_list.pop(0) if len(rs_list) else file_size
                     delta_offset += record_start
 
-        return int_dict
+        return int_list if return_headers else int_dict
 
     def _fix_int_dict(self, data_type=None):
         """
@@ -1235,7 +1241,12 @@ class MirParser(object):
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
         int_dict, sp_dict = self.sp_data._generate_recpos_dict(
-            data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True, reindex=True
+            data_dtype=NEW_VIS_DTYPE,
+            data_nvals=2,
+            pad_nvals=NEW_VIS_PAD,
+            scale_data=True,
+            hdr_fmt=NEW_VIS_HEADER,
+            reindex=True,
         )
 
         # We can now open the file once, and write each array upon construction
@@ -1297,7 +1308,12 @@ class MirParser(object):
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
         int_dict, ac_dict = self.ac_data._generate_recpos_dict(
-            data_dtype=NEW_AUTO_DTYPE, data_nvals=1, scale_data=False, reindex=True
+            data_dtype=NEW_AUTO_DTYPE,
+            data_nvals=1,
+            pad_nvals=0,
+            scale_data=False,
+            hdr_fmt=NEW_AUTO_HEADER,
+            reindex=True,
         )
 
         # We can now open the file once, and write each array upon construction
@@ -2189,8 +2205,10 @@ class MirParser(object):
         if self._has_cross:
             int_dict, self._sp_dict = self.sp_data._generate_recpos_dict(
                 data_dtype=OLD_VIS_DTYPE if old_vis_format else NEW_VIS_DTYPE,
-                data_nvals=2,
-                scale_data=True,
+                data_nvals=2,  # Real + imag values
+                pad_nvals=OLD_VIS_PAD if old_vis_format else NEW_VIS_PAD,
+                scale_data=True,  # Crosses are packed w/ a common exponent
+                hdr_fmt=OLD_VIS_HEADER if old_vis_format else NEW_VIS_HEADER,
             )
             file_dict["cross"] = {
                 "int_dict": int_dict,
@@ -2217,8 +2235,10 @@ class MirParser(object):
                 filetype = "autoCorrelations"
             int_dict, self._ac_dict = self.ac_data._generate_recpos_dict(
                 data_dtype=OLD_AUTO_DTYPE if old_auto_format else NEW_AUTO_DTYPE,
-                data_nvals=1,
-                scale_data=False,
+                data_nvals=1,  # Real-only vals
+                pad_nvals=0,  # Autos have no padding, at least not currently.
+                scale_data=False,  # Auto data has no common scaling
+                hdr_fmt=OLD_AUTO_HEADER if old_vis_format else NEW_AUTO_HEADER,
             )
 
             file_dict["auto"] = {

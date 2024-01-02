@@ -235,7 +235,12 @@ def test_mir_auto_data(mir_data: MirParser, tmp_path):
     mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
     mir_data._file_dict[filepath]["auto"]["read_hdr_fmt"] = NEW_AUTO_HEADER
     int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(
-        data_dtype=NEW_AUTO_DTYPE, data_nvals=1, scale_data=False, reindex=True
+        data_dtype=NEW_AUTO_DTYPE,
+        data_nvals=1,
+        pad_nvals=0,
+        scale_data=False,
+        hdr_fmt=NEW_AUTO_HEADER,
+        reindex=True,
     )
     mir_data._file_dict[filepath]["auto"]["int_dict"] = int_dict
     auto_data = mir_data._read_data("auto")

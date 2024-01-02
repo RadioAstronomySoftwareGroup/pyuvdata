@@ -19,6 +19,7 @@ from ... import tests as uvtest
 from ...data import DATA_PATH
 from ..mir_meta_data import (
     NEW_VIS_DTYPE,
+    NEW_VIS_PAD,
     MirAcData,
     MirAntposData,
     MirBlData,
@@ -966,6 +967,7 @@ def test_mir_meta_generate_recpos_dict(
     int_dict, sp_dict = mir_sp_data._generate_recpos_dict(
         data_dtype=NEW_VIS_DTYPE,
         data_nvals=2,
+        pad_nvals=NEW_VIS_PAD,
         scale_data=True,
         use_mask=use_mask,
         reindex=reindex,
