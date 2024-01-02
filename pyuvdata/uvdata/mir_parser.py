@@ -70,6 +70,7 @@ class MirParser(object):
     def __init__(
         self,
         filepath=None,
+        *,
         auto_defaults=None,
         compass_soln=None,
         make_v3_compliant=None,
@@ -181,7 +182,7 @@ class MirParser(object):
 
         return self
 
-    def __eq__(self, other, verbose=True, metadata_only=False):
+    def __eq__(self, other, *, verbose=True, metadata_only=False):
         """
         Compare MirParser attributes for equality.
 
@@ -354,7 +355,7 @@ class MirParser(object):
 
         return is_eq
 
-    def __ne__(self, other, verbose=False, metadata_only=False):
+    def __ne__(self, other, *, verbose=False, metadata_only=False):
         """
         Compare two MirParser objects for inequality.
 
@@ -426,7 +427,7 @@ class MirParser(object):
         return new_obj
 
     @staticmethod
-    def _scan_int_headers(filepath=None, hdr_fmt=None, old_int_dict=None):
+    def _scan_int_headers(filepath=None, hdr_fmt=None, *, old_int_dict=None):
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
@@ -523,7 +524,7 @@ class MirParser(object):
 
         return int_dict
 
-    def _fix_int_dict(self, data_type):
+    def _fix_int_dict(self, data_type=None):
         """
         Fix an integration position dictionary.
 
@@ -582,6 +583,7 @@ class MirParser(object):
         file_dict=None,
         inhid_arr=None,
         data_type="cross",
+        *,
         use_mmap=False,
         raise_err=None,
     ):
@@ -1104,7 +1106,11 @@ class MirParser(object):
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
             packdata_dict = self._read_packdata(
-                self._file_dict, unique_inhid, data_type, use_mmap, raise_err=True
+                file_dict=self._file_dict,
+                inhid_arr=unique_inhid,
+                data_type=data_type,
+                use_mmap=use_mmap,
+                raise_err=True,
             )
         except MirPackdataError:
             # Catch an error that indicates that the metadata inside the vis file does
@@ -1115,7 +1121,10 @@ class MirParser(object):
             )
             self._fix_int_dict(data_type)
             packdata_dict = self._read_packdata(
-                self._file_dict, unique_inhid, data_type, use_mmap
+                file_dict=self._file_dict,
+                inhid_arr=unique_inhid,
+                data_type=data_type,
+                use_mmap=use_mmap,
             )
 
         # With the packdata in hand, start parsing the individual spectral records.
@@ -1176,7 +1185,7 @@ class MirParser(object):
         # Figure out which results we need to pass back
         return data_dict
 
-    def _write_cross_data(self, filepath, append_data=False, raise_err=True):
+    def _write_cross_data(self, filepath=None, *, append_data=False, raise_err=True):
         """
         Write cross-correlation data to disk.
 
@@ -1249,7 +1258,7 @@ class MirParser(object):
                 )
                 packdata[inhid].tofile(file)
 
-    def _write_auto_data(self, filepath, append_data=False, raise_err=True):
+    def _write_auto_data(self, filepath=None, *, append_data=False, raise_err=True):
         """
         Write auto-correlation data to disk.
 
@@ -1304,7 +1313,7 @@ class MirParser(object):
                 )
                 packdata[inhid].tofile(file)
 
-    def apply_tsys(self, invert=False, force=False, use_cont_det=None):
+    def apply_tsys(self, *, invert=False, force=False, use_cont_det=None):
         """
         Apply Tsys calibration to the visibilities.
 
@@ -1492,7 +1501,7 @@ class MirParser(object):
         # If you got to this point, it means that we've got agreement!
         return True
 
-    def _downselect_data(self, select_vis=None, select_raw=None, select_auto=None):
+    def _downselect_data(self, *, select_vis=None, select_raw=None, select_auto=None):
         """
         Downselect data attributes based on metadata..
 
@@ -1564,6 +1573,7 @@ class MirParser(object):
 
     def load_data(
         self,
+        *,
         load_auto=None,
         load_cross=None,
         load_raw=False,
@@ -1719,7 +1729,7 @@ class MirParser(object):
                 "auto", use_mmap=use_mmap, read_only=read_only
             )
 
-    def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
+    def unload_data(self, *, unload_vis=True, unload_raw=True, unload_auto=True):
         """
         Unload data from the MirParser object.
 
@@ -1924,7 +1934,7 @@ class MirParser(object):
 
         self.unload_data()
 
-    def save_mask(self, mask_name: str, overwrite=False):
+    def save_mask(self, mask_name: str = None, overwrite=False):
         """Save masks for later use."""
         if (mask_name in self._stored_masks) and not overwrite:
             raise ValueError(
@@ -2237,7 +2247,8 @@ class MirParser(object):
 
     def write(
         self,
-        filepath,
+        filepath=None,
+        *,
         overwrite=True,
         load_data=False,
         append_data=False,
@@ -2324,7 +2335,9 @@ class MirParser(object):
             self._write_auto_data(filepath, append_data=append_data, raise_err=False)
 
     @staticmethod
-    def _rechunk_data(data_dict, chan_avg_arr, inplace=False, rechunk_weights=False):
+    def _rechunk_data(
+        data_dict=None, chan_avg_arr=None, *, inplace=False, rechunk_weights=False
+    ):
         """
         Rechunk regular cross- and auto-correlation spectra.
 
@@ -2425,7 +2438,9 @@ class MirParser(object):
         return new_data_dict
 
     @staticmethod
-    def _rechunk_raw(raw_dict, chan_avg_arr, inplace=False, return_vis=False):
+    def _rechunk_raw(
+        raw_dict=None, chan_avg_arr=None, *, inplace=False, return_vis=False
+    ):
         """
         Rechunk a raw visibility spectrum.
 
@@ -2500,7 +2515,7 @@ class MirParser(object):
         # Finally, return the dict containing the raw data.
         return data_dict
 
-    def rechunk(self, chan_avg):
+    def rechunk(self, chan_avg=None):
         """
         Rechunk a MirParser object.
 
@@ -2590,7 +2605,7 @@ class MirParser(object):
             else:
                 self._rechunk_data(self.auto_data, chan_avg_arr, inplace=True)
 
-    def __add__(self, other, merge=None, overwrite=None, force=False, inplace=False):
+    def __add__(self, other, *, merge=None, overwrite=None, force=False, inplace=False):
         """
         Add two MirParser objects.
 
@@ -2891,7 +2906,7 @@ class MirParser(object):
 
         return new_obj
 
-    def __iadd__(self, other, merge=None, overwrite=False, force=False):
+    def __iadd__(self, other, *, merge=None, overwrite=False, force=False):
         """
         Add two MirMetaData objects in place.
 
@@ -2942,6 +2957,7 @@ class MirParser(object):
     def select(
         self,
         where=None,
+        *,
         and_where_args=True,
         and_mask=True,
         update_data=None,
@@ -3085,7 +3101,7 @@ class MirParser(object):
         # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(update_data=update_data)
 
-    def _read_compass_solns(self, filename):
+    def _read_compass_solns(self, filename=None):
         """
         Read COMPASS-formatted gains and flags.
 
@@ -3354,7 +3370,7 @@ class MirParser(object):
         self._compass_solns = self._read_compass_solns(filename)
 
     def _apply_compass_solns(
-        self, compass_soln_dict, vis_data, apply_flags=True, apply_bp=True
+        self, compass_soln_dict=None, vis_data=None, *, apply_flags=True, apply_bp=True
     ):
         """
         Apply COMPASS-derived gains and flagging.
@@ -3467,7 +3483,9 @@ class MirParser(object):
         return vis_data
 
     @staticmethod
-    def _generate_chanshift_kernel(chan_shift, kernel_type, alpha_fac=-0.5, tol=1e-3):
+    def _generate_chanshift_kernel(
+        chan_shift=None, kernel_type=None, *, alpha_fac=-0.5, tol=1e-3
+    ):
         """
         Calculate the kernel for shifting a spectrum a given number of channels.
 
@@ -3585,7 +3603,9 @@ class MirParser(object):
         return shift_tuple
 
     @staticmethod
-    def _chanshift_vis(vis_dict, shift_tuple_list, flag_adj=True, inplace=False):
+    def _chanshift_vis(
+        vis_dict=None, shift_tuple_list=None, *, flag_adj=True, inplace=False
+    ):
         """
         Frequency shift (i.e., "redoppler") visibility data.
 
@@ -3733,7 +3753,12 @@ class MirParser(object):
 
     @staticmethod
     def _chanshift_raw(
-        raw_dict, shift_tuple_list, flag_adj=True, inplace=False, return_vis=False
+        raw_dict=None,
+        shift_tuple_list=None,
+        *,
+        flag_adj=True,
+        inplace=False,
+        return_vis=False,
     ):
         """
         Frequency shift (i.e., "redoppler") raw data.
@@ -3825,6 +3850,7 @@ class MirParser(object):
     def redoppler_data(
         self,
         freq_shift=None,
+        *,
         kernel_type="cubic",
         tol=1e-3,
         flag_adj=True,
