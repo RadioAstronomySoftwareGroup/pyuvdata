@@ -9,6 +9,7 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not necessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
+import copy
 import os
 
 import h5py
@@ -16,7 +17,29 @@ import numpy as np
 import pytest
 
 from ... import tests as uvtest
-from ..mir_parser import MirMetaError, MirParser
+from ...data import DATA_PATH
+from ..mir_parser import (
+    NEW_AUTO_DTYPE,
+    NEW_AUTO_HEADER,
+    NEW_VIS_DTYPE,
+    NEW_VIS_HEADER,
+    OLD_AUTO_HEADER,
+    MirMetaError,
+    MirPackdataError,
+    MirParser,
+)
+
+
+@pytest.fixture(scope="session")
+def mir_data_main():
+    mir_data = MirParser()
+
+    yield mir_data._load_test_data(load_cross=True, load_auto=True, has_auto=True)
+
+
+@pytest.fixture(scope="function")
+def mir_data(mir_data_main):
+    yield mir_data_main.copy()
 
 
 @pytest.fixture(scope="module")
@@ -184,7 +207,7 @@ def test_mir_raw_data(mir_data, tmp_path):
     mir_data._write_cross_data(filepath)
     # Sub out the file we need to read from
     mir_data._file_dict = {filepath: list(mir_data._file_dict.values())[0]}
-    raw_data = mir_data._read_data("cross", return_vis=False)
+    raw_data = mir_data._read_data("cross", scale_data=False)
 
     assert raw_data.keys() == mir_data.raw_data.keys()
 
@@ -199,7 +222,7 @@ def test_mir_auto_data_errs(mir_data):
         mir_data._write_auto_data(None)
 
 
-def test_mir_auto_data(mir_data, tmp_path):
+def test_mir_auto_data(mir_data: MirParser, tmp_path):
     """
     Test reading and writing of auto data.
     """
@@ -210,7 +233,10 @@ def test_mir_auto_data(mir_data, tmp_path):
     # since we are no longer spoofing values (after reading in data from old-style file)
     mir_data._file_dict = {filepath: list(mir_data._file_dict.values())[0]}
     mir_data._file_dict[filepath]["auto"]["filetype"] = "ach_read"
-    int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(reindex=True)
+    mir_data._file_dict[filepath]["auto"]["read_hdr_fmt"] = NEW_AUTO_HEADER
+    int_dict, mir_data._ac_dict = mir_data.ac_data._generate_recpos_dict(
+        data_dtype=NEW_AUTO_DTYPE, data_nvals=1, scale_data=False, reindex=True
+    )
     mir_data._file_dict[filepath]["auto"]["int_dict"] = int_dict
     auto_data = mir_data._read_data("auto")
 
@@ -275,6 +301,14 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
 
     # Check for final equality with the above exceptions handled.
     assert mir_data == mir_copy
+
+
+def test_compass_read_err(mir_data: MirParser, compass_soln_file):
+    with pytest.raises(ValueError, match="Cannot call read_compass_solns"):
+        mir_data.read_compass_solns(compass_soln_file)
+
+    mir_data.unload_data()
+    mir_data.read_compass_solns(compass_soln_file)
 
 
 def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
@@ -360,6 +394,21 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
             assert (muck_solns != "none") == np.all(entry["flags"])
 
 
+def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file):
+    mir_data.unload_data()
+    mir_data.read_compass_solns(compass_soln_file)
+    mir_data.rechunk(16)
+    mir_data.load_data()
+
+    mir_copy = MirParser(
+        mir_data.filepath, compass_soln=compass_soln_file, has_auto=True
+    )
+    mir_copy.load_data()
+    mir_copy.rechunk(16)
+
+    assert mir_data == mir_copy
+
+
 @pytest.mark.parametrize(
     "field,comp,value,vis_keys",
     [
@@ -431,6 +480,7 @@ def test_eq_errs(mir_data):
         [False, "zero_data", None, False],
         [False, "unload_data", None, True],
         [False, "meta_attr", None, False],
+        [False, "_compass_solns", None, False],
     ],
 )
 @pytest.mark.parametrize("flip", [False, True])
@@ -455,6 +505,9 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
         mir_copy.unload_data()
     elif "meta_attr" == mod_attr:
         del mir_copy._metadata_attrs["ac_data"]
+    elif "_compass_solns" == mod_attr:
+        mir_data._compass_solns = {1: {1: {1: {1: 1}}}}
+        mir_copy._compass_solns = {}
     else:
         setattr(target_obj, mod_attr, mod_val)
 
@@ -463,25 +516,64 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
     assert mir_data.__ne__(mir_copy, metadata_only=metadata_only) != exp_state
 
 
-def test_scan_int_start_errs(mir_data):
-    """Verify _scan_int_start throws errors when expected."""
-    with pytest.raises(ValueError, match="Index value inhid in sch_read does not "):
-        mir_data._scan_int_start(
-            os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[-1]
+def test_scan_int_headers_errs():
+    """Verify _scan_int_headers throws errors when expected."""
+    with pytest.raises(MirPackdataError, match="Cannot read scan start if headers"):
+        MirParser._scan_int_headers(
+            os.path.join(DATA_PATH, "sma_test.mir/autoCorrelations"),
+            hdr_fmt=OLD_AUTO_HEADER,
         )
 
 
-def test_scan_int_start(mir_data):
+@pytest.mark.parametrize("use_dict", [True, False])
+def test_scan_int_headers(use_dict):
     """Verify that we can correctly scan integration starting periods."""
     true_dict = {1: {"inhid": 1, "record_size": 1048680, "record_start": 0}}
-    assert true_dict == mir_data._scan_int_start(
-        os.path.join(mir_data.filepath, "sch_read"), allowed_inhid=[1]
+    assert true_dict == MirParser._scan_int_headers(
+        os.path.join(DATA_PATH, "sma_test.mir/sch_read"),
+        hdr_fmt=NEW_VIS_HEADER,
+        old_int_dict=true_dict if use_dict else None,
     )
 
 
-def test_fix_int_dict(mir_data):
+def test_scan_int_header_bad_record_size():
+    with pytest.raises(MirPackdataError, match="record_size was negative/invalid."):
+        MirParser._scan_int_headers(
+            os.path.join(DATA_PATH, "sma_test.mir/autoCorrelations"),
+            hdr_fmt=OLD_AUTO_HEADER,
+            old_int_dict={1: {"inhid": 1, "record_size": -120, "record_start": 0}},
+        )
+
+
+def test_scan_int_header_record_conflict():
+    old_int_dict = {
+        1: {"inhid": 1, "record_size": 1048680, "record_start": 120},
+        2: {"inhid": 2, "record_size": 1048680, "record_start": 1048680},
+    }
+    new_dict = MirParser._scan_int_headers(
+        os.path.join(DATA_PATH, "sma_test.mir/sch_read"),
+        hdr_fmt=NEW_VIS_HEADER,
+        old_int_dict=old_int_dict,
+    )
+    assert new_dict == {}
+
+
+def test_fix_int_dict_auto(mir_data: MirParser):
+    """Verify that fix_init_dict behaves as expected for autos."""
+    # All the auto check can do is verify that things behave as expected when looking
+    # at inhid, since there's no record size information in the file.
+    file_dict_copy = copy.deepcopy(mir_data._file_dict)
+    mir_data._fix_int_dict("auto")
+
+    assert file_dict_copy == mir_data._file_dict
+
+
+def test_fix_int_dict_cross(mir_data):
     """Verify that we can fix a "bad" integration start record."""
-    bad_entry = {2: {"inhid": 1, "record_size": 120, "record_start": 120}}
+    bad_entry = {
+        2: {"inhid": 1, "record_size": 120, "record_start": 120},
+        3: {"inhid": 2, "record_size": 1048680, "record_start": 1048680},
+    }
 
     good_dict = {
         mir_data.filepath: {
@@ -490,15 +582,12 @@ def test_fix_int_dict(mir_data):
                     2: {"inhid": 1, "record_size": 1048680, "record_start": 0}
                 },
                 "filetype": "sch_read",
-                "ignore_header": False,
+                "read_hdr_fmt": NEW_VIS_HEADER,
+                "read_data_fmt": NEW_VIS_DTYPE,
+                "common_scale": True,
             }
         }
     }
-
-    # First, check that doing the autos throws a warning since it's a not a
-    # "true" int_dict but instead is synthetically generated
-    with uvtest.check_warnings(UserWarning, "Cannot fix auto file headers for "):
-        mir_data._fix_int_dict("auto")
 
     # Muck with the records so that the inhid does not match that on disk.
     mir_data.sp_data._data["inhid"][:] = 2
@@ -517,17 +606,37 @@ def test_fix_int_dict(mir_data):
     # Plug in the bad entry again
     mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"] = bad_entry.copy()
     with uvtest.check_warnings(UserWarning, "Values in int_dict do not match"):
-        mir_data._read_data("cross", return_vis=False)
+        mir_data._read_data("cross", scale_data=False)
 
     assert good_dict == mir_data._file_dict
 
     # Attempt to load the data
-    _ = mir_data._read_data("cross", return_vis=False)
+    _ = mir_data._read_data("cross", scale_data=False)
 
 
-def test_read_packdata_err(mir_data):
-    with pytest.raises(ValueError, match="inhid_arr contains keys not found in file_"):
-        mir_data._read_packdata(mir_data._file_dict, [1, 2])
+@pytest.mark.parametrize(
+    "kwargs,muck_int_dict,errfunc,errtype,errmsg",
+    [
+        [{"raise_err": True}, True, pytest.raises, MirPackdataError, "File indexing "],
+        [{}, True, uvtest.check_warnings, UserWarning, "File indexing information "],
+        [{"raise_err": True}, False, pytest.raises, ValueError, "inhid_arr contains "],
+        [{}, False, uvtest.check_warnings, UserWarning, "inhid_arr contains keys not"],
+    ],
+)
+def test_read_packdata_inhid_err(
+    kwargs, muck_int_dict, errfunc, errtype, errmsg, mir_data
+):
+    if muck_int_dict:
+        mir_data._file_dict[mir_data.filepath]["cross"]["int_dict"][1] = {
+            "inhid": 2,
+            "record_size": 1048680,
+            "record_start": 0,
+        }
+        inhid_arr = [1]
+    else:
+        inhid_arr = [1, 2]
+    with errfunc(errtype, match=errmsg):
+        mir_data._read_packdata(mir_data._file_dict, inhid_arr=inhid_arr, **kwargs)
 
 
 def test_read_packdata_mmap(mir_data):
@@ -548,10 +657,23 @@ def test_read_packdata_mmap(mir_data):
 @pytest.mark.parametrize("attr", ["_make_packdata", "_read_data"])
 def test_data_errs(mir_data, attr):
     with pytest.raises(ValueError, match="Argument for data_type not recognized"):
-        getattr(mir_data, attr)(None, None, None, None)
+        getattr(mir_data, attr)(None)
 
 
-def test_read_packdata__make_packdata(mir_data):
+@pytest.mark.parametrize(
+    "compass_soln,kwargs,err_msg",
+    [
+        [None, {}, "Cannot apply calibration if no tables loaded."],
+        [{}, {"scale_data": False}, "Cannot return raw data if setting apply_cal=True"],
+    ],
+)
+def test_read_data_errs(mir_data, compass_soln, kwargs, err_msg):
+    mir_data._compass_solns = compass_soln
+    with pytest.raises(ValueError, match=err_msg):
+        mir_data._read_data("cross", apply_cal=True, **kwargs)
+
+
+def test_read_packdata__make_packdata(mir_data: MirParser):
     """Verify that making packdata produces the same result as reading packdata"""
     mir_data.load_data(load_raw=True)
 
@@ -568,7 +690,7 @@ def test_read_packdata__make_packdata(mir_data):
 
     assert _read_data.keys() == make_data.keys()
     for key in _read_data.keys():
-        assert np.array_equal(_read_data[key], make_data[key])
+        assert np.array_equal(_read_data[key][0], make_data[key])
 
 
 def test_apply_tsys_errs(mir_data):
@@ -611,40 +733,76 @@ def test_apply_tsys_warn(mir_data):
     )
 
 
-def test_apply_tsys(mir_data):
-    """Test that apply_tsys works on vis_data as expected."""
+def test_apply_tsys_missing_recs(mir_data):
     mir_copy = mir_data.copy()
-    # Calculate the scaling factors directly. The factor of 2 comes from DSB -> SSB
-    rxa_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys"]) ** 0.5)
-    rxb_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys_rx2"]) ** 0.5)
-    # The first 5 records should be rxa, and 5 rxb, then 5 rxa, then 5 rxb
-    norm_list = np.concatenate(
-        (
-            np.ones(5) * rxa_norm,
-            np.ones(5) * rxb_norm,
-            np.ones(5) * rxa_norm,
-            np.ones(5) * rxb_norm,
-        )
-    )
-
     mir_data.unload_data()
     mir_data.load_data(load_cross=True, apply_tsys=False)
+
+    with uvtest.check_warnings(UserWarning, "Changing fields that tie to header"):
+        mir_copy.eng_data["antenna"] = [2, 3]
+
+    mir_copy.unload_data()
+    with uvtest.check_warnings(UserWarning, ["No tsys for blhid"] * 4):
+        mir_copy.load_data(load_cross=True, apply_tsys=True)
+
+    for key in mir_data.vis_data:
+        assert np.allclose(
+            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
+        )
+        assert all(mir_copy.vis_data[key]["flags"])
+
+
+@pytest.mark.parametrize("bad_vals", [False, True])
+@pytest.mark.parametrize("use_cont_det", [True, False])
+def test_apply_tsys(mir_data, use_cont_det, bad_vals):
+    """Test that apply_tsys works on vis_data as expected."""
+    mir_copy = mir_data.copy()
+    mir_copy._tsys_use_cont_det = use_cont_det
+
+    # Unload and load regular data without tsys application
+    mir_data.unload_data()
+    mir_data.load_data(load_cross=True, apply_tsys=False)
+
+    if bad_vals:
+        mir_copy.eng_data["tsys"] = 0.0
+        mir_copy.eng_data["tsys_rx2"] = 0.0
+        mir_copy.sp_data["wt"] = 0.0
+
+        for idict in mir_data.vis_data.values():
+            idict["flags"][:] = True
+        norm_list = np.ones(20)
+    elif use_cont_det:
+        # Calculate the scaling factors directly. The factor of 2 comes from DSB -> SSB
+        rxa_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys"]) ** 0.5)
+        rxb_norm = mir_data.jypk * 2 * (np.prod(mir_data.eng_data["tsys_rx2"]) ** 0.5)
+        # The first 5 records should be rxa, and 5 rxb, then 5 rxa, then 5 rxb
+        norm_list = np.array(
+            [rxa_norm] * 5 + [rxb_norm] * 5 + [rxa_norm] * 5 + [rxb_norm] * 5
+        )
+    else:
+        norm_list = (
+            2
+            * mir_data.jypk
+            * (mir_data.sp_data["wt"] / mir_data.in_data["rinteg"][0]) ** -0.5
+        )
+
     mir_copy.unload_data()
     mir_copy.load_data(load_cross=True, apply_tsys=True)
+
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
         assert np.allclose(
             norm_fac * mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
-        assert np.allclose(
+        assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
         )
 
     mir_copy.apply_tsys(invert=True)
-    for key, _ in zip(mir_data.vis_data.keys(), norm_list):
+    for key in mir_data.vis_data.keys():
         assert np.allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
-        assert np.allclose(
+        assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
         )
 
@@ -1744,6 +1902,90 @@ def test_fix_acdata(mir_data):
     assert np.all(
         ~np.isin(mir_data.ac_data["fsky"][:16], mir_data.sp_data["fsky"][1:5])
     )
+
+
+@pytest.mark.parametrize(
+    "mask_name,errtype,errmsg",
+    [
+        [123, ValueError, "mask_name must be a string."],
+        ["duplicate", ValueError, "There already exists a stored set of masks with"],
+    ],
+)
+def test_mir_save_mask_err(mir_data: MirParser, mask_name, errtype, errmsg):
+    if mask_name == "duplicate":
+        mir_data.save_mask("duplicate")
+    with pytest.raises(errtype, match=errmsg):
+        mir_data.save_mask(mask_name)
+
+
+@pytest.mark.parametrize(
+    "mask_name,errtype,errmsg",
+    [
+        ["123", ValueError, "No stored masks for this object."],
+        ["nomatch", ValueError, "No stored set of masks with the name"],
+    ],
+)
+def test_mir_restore_mask_err(mir_data: MirParser, mask_name, errtype, errmsg):
+    if mask_name == "nomatch":
+        mir_data.save_mask("test")
+    with pytest.raises(errtype, match=errmsg):
+        mir_data.restore_mask(mask_name)
+
+
+def test_mir_save_restore_mask_loop(mir_data: MirParser):
+    """Simple check to make sure saving/restoring of masks work as expected."""
+    mir_data.save_mask("start")
+    mir_copy = mir_data.copy()
+    # Deselect all records. Skip updating the data here to make the later comparison
+    # a little bit easier.
+    mir_copy.select(("inhid", "ne", 1), update_data=False)
+
+    # Make sure that an update actually happened.
+    assert mir_data != mir_copy
+
+    # Restore the old masks, make sure that the objects are now the same.
+    mir_copy.restore_mask("start")
+    assert mir_data == mir_copy
+
+
+@pytest.mark.parametrize("from_file", [False, True])
+def test_mir_fix_v3_noop(mir_data, from_file):
+    # The test file is already v3, so this should be identical
+    if from_file:
+        mir_copy = MirParser(
+            mir_data.filepath,
+            make_v3_compliant=True,
+            nchunks=8,
+            has_auto=True,
+            load_auto=True,
+            load_cross=True,
+        )
+    else:
+        mir_copy = mir_data.copy()
+        mir_copy._make_v3_compliant()
+
+    assert mir_copy == mir_data
+
+
+@pytest.mark.parametrize("muck_antrx", [False, True])
+def test_mir_fix_v3(mir_data, muck_antrx):
+    mir_data = MirParser()._load_test_data(has_auto=True)
+    mir_copy = mir_data.copy()
+    mir_copy.codes_data._data[0]["code"] = "2"
+    if muck_antrx:
+        mir_copy.bl_data["ant1rx"] = mir_copy.bl_data["ant2rx"] = 0
+
+    with uvtest.check_warnings(UserWarning, "Pre v.3 MIR file format detected"):
+        mir_copy._make_v3_compliant()
+
+    assert mir_copy.codes_data["filever"] == ["2"]
+    mir_copy.codes_data._data[0]["code"] = "3"
+
+    for item in ["lst", "ara", "adec", "mjd"]:
+        assert np.isclose(mir_copy.in_data[item], mir_data.in_data[item], atol=3e-4)
+        mir_copy.in_data[item] = mir_data.in_data[item]
+
+    assert mir_copy == mir_data
 
 
 # Below are a series of checks that are designed to check to make sure that the

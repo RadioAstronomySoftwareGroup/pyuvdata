@@ -16,6 +16,14 @@ import h5py
 import numpy as np
 
 from .mir_meta_data import (
+    NEW_AUTO_DTYPE,
+    NEW_AUTO_HEADER,
+    NEW_VIS_DTYPE,
+    NEW_VIS_HEADER,
+    OLD_AUTO_DTYPE,
+    OLD_AUTO_HEADER,
+    OLD_VIS_DTYPE,
+    OLD_VIS_HEADER,
     MirAcData,
     MirAntposData,
     MirBlData,
@@ -28,7 +36,22 @@ from .mir_meta_data import (
     MirWeData,
 )
 
-__all__ = ["MirParser"]
+__all__ = ["MirParser", "MirPackdataError"]
+
+
+class MirPackdataError(Exception):
+    """
+    Class for errors when ingesting packed MIR data.
+
+    This class is used to raise error when attempting to read "packed" data sets, which
+    are long byte arrays, within which data has been packed, intermixed with some basic
+    header information. Because the data can be irregularly shaped, file integrity
+    issues (e.g., flipped bits) can make the header information unparsable. This class
+    is used in practice to catch such errors.
+    """
+
+    def __init__(self, message="There was an error parsing a packed data file."):
+        super().__init__(message)
 
 
 class MirParser(object):
@@ -47,8 +70,11 @@ class MirParser(object):
     def __init__(
         self,
         filepath=None,
+        auto_defaults=None,
         compass_soln=None,
-        make_v3_compliant=False,
+        make_v3_compliant=None,
+        old_vis_format=None,
+        nchunks=None,
         has_auto=False,
         has_cross=True,
         load_auto=False,
@@ -115,6 +141,7 @@ class MirParser(object):
         self._has_auto = False
         self._has_cross = False
         self._tsys_applied = False
+        self._tsys_use_cont_det = True
         self._compass_solns = None
 
         # This value is the forward gain of the antenna (in units of Jy/K), which is
@@ -128,14 +155,31 @@ class MirParser(object):
         if filepath is not None:
             self.read(
                 filepath=filepath,
+                auto_defaults=auto_defaults,
                 compass_soln=compass_soln,
                 make_v3_compliant=make_v3_compliant,
+                old_vis_format=old_vis_format,
+                nchunks=nchunks,
                 has_auto=has_auto,
                 has_cross=has_cross,
                 load_auto=load_auto,
                 load_cross=load_cross,
                 load_raw=load_raw,
             )
+
+    def _load_test_data(self, **kwargs):
+        """
+        Load the pyuvdata test SMA data set.
+
+        This is a very simple convenience function for grabbing the test SMA data set in
+        the MirParser class. It's here mostly to make interactive testing (i.e., outside
+        of pytest) easier and faster, without having to worry about extra imports.
+        """
+        from ..data import DATA_PATH
+
+        self.__init__(os.path.join(DATA_PATH, "sma_test.mir"), **kwargs)
+
+        return self
 
     def __eq__(self, other, verbose=True, metadata_only=False):
         """
@@ -164,6 +208,16 @@ class MirParser(object):
             "raw_data": ["data", "scale_fac"],
             "vis_data": ["data", "flags"],
             "auto_data": ["data", "flags"],
+            "_stored_masks": [
+                "in_data",
+                "bl_data",
+                "sp_data",
+                "eng_data",
+                "we_data",
+                "codes_data",
+                "antpos_data",
+                "ac_data",
+            ],
         }
 
         # I say these objects are the same -- prove me wrong!
@@ -210,7 +264,7 @@ class MirParser(object):
             elif this_attr is None:
                 # If both are NoneType, we actually have nothing to do here
                 pass
-            elif item in ["auto_data", "raw_data", "vis_data"]:
+            elif item in data_comp_dict:
                 # Data-related attributes are a bit special, in that they are dicts
                 # of dicts (note this may change at some point).
                 if this_attr.keys() != other_attr.keys():
@@ -269,6 +323,25 @@ class MirParser(object):
                         f"{item} has different keys, left is {this_attr.keys()}, "
                         f"right is {other_attr.keys()}."
                     )
+            elif item == "_compass_solns":
+                is_eq = True
+                try:
+                    for i_key in this_attr:
+                        for j_key in this_attr[i_key]:
+                            for k_key in this_attr[i_key][j_key]:
+                                if is_eq:
+                                    arr1 = this_attr[i_key][j_key][k_key]
+                                    arr2 = other_attr[i_key][j_key][k_key]
+                                    # Note we use the two checks here b/c array_equal
+                                    # is much faster if it passes, and if it does
+                                    # python doesn't need to look at the second or arg
+                                    is_eq = np.array_equal(
+                                        arr1, arr2, equal_nan=True
+                                    ) or np.allclose(arr1, arr2, equal_nan=True)
+                except KeyError:
+                    is_eq = False
+                if not is_eq:
+                    verbose_print(f"{item} is different (skipping full print).")
             else:
                 # We don't have special handling for this attribute at this point, so
                 # we just use the generic __ne__ method.
@@ -353,7 +426,7 @@ class MirParser(object):
         return new_obj
 
     @staticmethod
-    def _scan_int_start(filepath, allowed_inhid=None):
+    def _scan_int_headers(filepath=None, hdr_fmt=None, old_int_dict=None):
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
@@ -361,10 +434,6 @@ class MirParser(object):
         ----------
         filepath : str
             Filepath is the path to the folder containing the Mir data set.
-        allowed_inhid : list of int
-            List of allowed integration header key numbers ("inhid") that should be in
-            this dataset. If a header key is not found in this list, then the method
-            will exit with an error. No default value (all values allowed).
 
         Returns
         -------
@@ -380,34 +449,77 @@ class MirParser(object):
             If a value on "inhid" is read from the file that does not match a value
             given in `allowed_inhid` (if set).
         """
+        # Check a few things up front to set behavior for this method
         file_size = os.path.getsize(filepath)
-        data_offset = 0
-        last_offset = 0
+        no_rs = not any("record_size" in item for item in hdr_fmt)
+
+        if old_int_dict is None:
+            # If operating blindly, make sure headers have the needed information.
+            if no_rs:
+                raise MirPackdataError(
+                    "Cannot read scan start if headers do not contain record size info."
+                )
+            record_start = delta_offset = 0
+        else:
+            # Re-draft the old int-dict based on record start, since that should be
+            # unique and also once ordered properly will allow us to zip through.
+            old_int_dict = {val["record_start"]: val for val in old_int_dict.values()}
+            rs_list = sorted(old_int_dict)
+            old_int_dict = {key: old_int_dict[key] for key in rs_list}
+
+            # Set the first record start/delta offset based on the first entry
+            record_start = delta_offset = rs_list.pop(0)
+
+        hdr_dtype = np.dtype(hdr_fmt)
         int_dict = {}
-        with open(filepath, "rb") as visibilities_file:
-            while data_offset < file_size:
+
+        with open(filepath, "rb") as packdata_file:
+            while record_start < (file_size - hdr_dtype.itemsize):
                 int_vals = np.fromfile(
-                    visibilities_file,
-                    dtype=np.dtype([("inhid", "<i4"), ("nbytes", "<i4")]),
-                    count=1,
-                    offset=last_offset,
+                    packdata_file, dtype=hdr_dtype, count=1, offset=delta_offset
                 )[0]
 
-                if allowed_inhid is not None:
-                    if not int_vals["inhid"] in allowed_inhid:
-                        raise ValueError(
-                            "Index value inhid in sch_read does not match list of "
-                            "allowed indices. The list of allowed values for inhid may "
-                            "be incomplete, or sch_read may have become corrupted in "
-                            "some way."
-                        )
-                int_dict[int_vals["inhid"]] = {
-                    "inhid": int_vals["inhid"],
-                    "record_size": int_vals["nbytes"],
-                    "record_start": data_offset,
-                }
-                last_offset = int_vals["nbytes"].astype(int)
-                data_offset += last_offset + 8
+                if old_int_dict is None:
+                    # Grab some information from the header
+                    inhid = int_vals["inhid"]
+                    record_size = int(int_vals["record_size"])
+                    delta_offset = record_size
+                else:
+                    inhid = old_int_dict[record_start]["inhid"]
+                    record_size = old_int_dict[record_start]["record_size"]
+                    # Check if this is a good record or not
+                    good_record = no_rs or record_size == int_vals["record_size"]
+                    good_record &= inhid == int_vals["inhid"]
+                    if not good_record:
+                        # If this isn't a good record, we can short-circuit recording
+                        # it by increasing it's size more than the file size, which will
+                        # fail the record_end check below.
+                        record_size = file_size + 1
+
+                record_end = record_start + hdr_dtype.itemsize + record_size
+
+                # If record_size is negative, this file is definitely corrupted, and
+                # there's not more we can do at this point from the file alone.
+                if record_size < 0:
+                    raise MirPackdataError("record_size was negative/invalid.")
+                if record_end <= file_size:
+                    # If the record end is within the file size, then add to the dict
+                    int_dict[inhid] = {
+                        "inhid": inhid,
+                        "record_size": record_size,
+                        "record_start": record_start,
+                    }
+
+                if old_int_dict is None:
+                    record_start = record_end
+                else:
+                    # If rs_list is empty, force the while loop to end by making the
+                    # record start at the end of the file. Otherwise calculate the
+                    # delta since the records _could_ have gaps if an integration has
+                    # otherwise been dropped.
+                    delta_offset = -(record_start + hdr_dtype.itemsize)
+                    record_start = rs_list.pop(0) if len(rs_list) else file_size
+                    delta_offset += record_start
 
         return int_dict
 
@@ -429,38 +541,52 @@ class MirParser(object):
             (auto-correlations).
         """
         for ifile, idict in self._file_dict.items():
-            # Don't attempt to fix kludged headers, since this implies that the file
-            # metadata cannot be trusted
-            if idict[data_type]["ignore_header"]:
-                warnings.warn(
-                    "Cannot fix %s file headers for %s, skipping." % (data_type, ifile)
-                )
-                continue
+            int_dict = idict[data_type]["int_dict"]
 
-            int_dict = copy.deepcopy(idict[data_type]["int_dict"])
+            try:
+                new_dict = self._scan_int_headers(
+                    os.path.join(ifile, idict[data_type]["filetype"]),
+                    hdr_fmt=idict[data_type]["read_hdr_fmt"],
+                )
+                # If we got to this point, it means that we successfully read in the
+                # full set of headers from the file, which we treat as trusted.
+            except MirPackdataError:
+                # If we reached this point, either record_size does not exist or is
+                # otherwise unreliable, such that we can't use _scan_int_headers
+                # blindly. Our only remaining option then is to work with the int_dict
+                # that we have in-hand and try to validate that.
+                new_dict = self._scan_int_headers(
+                    os.path.join(ifile, idict[data_type]["filetype"]),
+                    hdr_fmt=idict[data_type]["read_hdr_fmt"],
+                    old_int_dict=int_dict,
+                )
 
             # Each file's inhid is allowed to be different than the objects inhid --
             # this is used in cases when combining multiple files together (via
             # concat). Here, we make a mapping of "file-based" inhid values to that
             # stored in the object.
-            imap = {val["inhid"]: inhid for inhid, val in int_dict.items()}
+            inhid_map = {val["inhid"]: inhid for inhid, val in int_dict.items()}
 
-            # Make the new dict by scanning the sch_read file.
-            new_dict = self._scan_int_start(
-                os.path.join(ifile, idict[data_type]["filetype"]), list(imap)
-            )
+            # First, clear out any entries that don't have a match above
+            for key in set(inhid_map) - set(new_dict):
+                del int_dict[inhid_map[key]]
+                del inhid_map[key]
 
             # Go through the individual entries in each dict, and update them
             # with the "correct" values as determined by scanning through sch_read
             for key in new_dict:
-                int_dict[imap[key]] = new_dict[key]
-
-            idict[data_type]["int_dict"] = int_dict
+                int_dict[inhid_map[key]] = new_dict[key]
 
     @staticmethod
-    def _read_packdata(file_dict, inhid_arr, data_type="cross", use_mmap=False):
+    def _read_packdata(
+        file_dict=None,
+        inhid_arr=None,
+        data_type="cross",
+        use_mmap=False,
+        raise_err=None,
+    ):
         """
-        Read "sch_read" mir file into memory (@staticmethod).
+        Read packed data mir file into memory (@staticmethod).
 
         Parameters
         ----------
@@ -471,8 +597,9 @@ class MirParser(object):
             indexing information ("filetype": the name of the file in the Mir folder;
             "int_dict": per-integration information that is typically generated by the
             `_generate_recpos_dict` method of `MirParser.sp_data` and/or
-            `MirParser.ac_data`; "ignore_header": if set to True, disables checking
-            for header metadata consistency).
+            `MirParser.ac_data`; "read_hdr_fmt": format of packed data headers;
+            "read_data_fmt": dtype specifying the packed data type; "common_scale":
+            whether the data share a common exponent, typically for int-stored values).
         inhid_arr : sequence of int
             Integration header keys to read the packed data of.
         data_type : str
@@ -482,15 +609,20 @@ class MirParser(object):
             By default, the method will read all of the data into memory. However,
             if set to True, then the method will return mmap-based objects instead,
             which can be substantially faster on sparser reads.
+        raise_err : bool
+            By default, the method will raise a warning if something is internally
+            inconsistent with the headers in the file, which can happen if the data
+            are corrupted in some way. Setting this to True will cause an error to be
+            raised instead, and setting to False will cause no message to be raised.
 
         Returns
         -------
         int_data_dict : dict
             Dictionary of the data, where the keys are inhid and the values are
-            the 'raw' block of values recorded in "sch_read" for that inhid.
+            the 'raw' block of values recorded in binary format for that inhid.
         """
+        # Create a blank dict to plug values into
         int_data_dict = {}
-        int_dtype_dict = {}
 
         # We want to create a unique dtype for records of different sizes. This will
         # make it easier/faster to read in a sequence of integrations of the same size.
@@ -500,11 +632,6 @@ class MirParser(object):
             for rec_dict in idict[data_type]["int_dict"].values()
         }
 
-        for int_size in size_set:
-            int_dtype_dict[int_size] = np.dtype(
-                [("inhid", "<i4"), ("nbytes", "<i4"), ("packdata", "B", int_size)]
-            )
-
         key_set = list(inhid_arr)
         key_check = key_set.copy()
         # We add an extra key here, None, which cannot match any of the values in
@@ -512,6 +639,19 @@ class MirParser(object):
         # below into spitting out the last integration
         key_set.append(None)
         for filepath, indv_file_dict in file_dict.items():
+            # Sort out the header format and details
+            hdr_fmt = indv_file_dict[data_type]["read_hdr_fmt"]
+            hdr_size = np.dtype(hdr_fmt).itemsize
+            data_dtype = indv_file_dict[data_type]["read_data_fmt"]
+            common_scale = indv_file_dict[data_type]["common_scale"]
+
+            # Populate a list of packdata dtypes for easy use
+            int_dtype_dict = {}
+            for int_size in size_set:
+                int_dtype_dict[int_size] = np.dtype(
+                    hdr_fmt + [("packdata", "B", int_size)]
+                )
+
             # Initialize a few values before we start running through the data.
             int_dict = indv_file_dict[data_type]["int_dict"]
             inhid_list = []
@@ -535,7 +675,7 @@ class MirParser(object):
                     int_size = rec_dict["record_size"]
                     int_start = rec_dict["record_start"]
                 if (int_size != last_size) or (
-                    last_offset + (8 + last_size) * num_vals != int_start
+                    last_offset + (hdr_size + last_size) * num_vals != int_start
                 ):
                     # Numpy's fromfile works fastest when reading multiple instances
                     # of the same dtype. As long as the record sizes are the same, we
@@ -550,6 +690,8 @@ class MirParser(object):
                                 "num_vals": num_vals,
                                 "del_offset": del_offset,
                                 "start_offset": last_offset,
+                                "data_dtype": [data_dtype] * len(inhid_list),
+                                "common_scale": [common_scale] * len(inhid_list),
                             }
                         )
                     # Capture the difference between the last integration and this
@@ -575,12 +717,16 @@ class MirParser(object):
                     int_data_dict.update(
                         zip(
                             read_dict["inhid_list"],
-                            np.memmap(
-                                filename=filename,
-                                dtype=read_dict["int_dtype_dict"],
-                                mode="r",
-                                offset=read_dict["start_offset"],
-                                shape=(read_dict["num_vals"],),
+                            zip(
+                                np.memmap(
+                                    filename=filename,
+                                    dtype=read_dict["int_dtype_dict"],
+                                    mode="r",
+                                    offset=read_dict["start_offset"],
+                                    shape=(read_dict["num_vals"],),
+                                ),
+                                read_dict["data_dtype"],
+                                read_dict["common_scale"],
                             ),
                         )
                     )
@@ -592,38 +738,58 @@ class MirParser(object):
                         int_data_dict.update(
                             zip(
                                 read_dict["inhid_list"],
-                                np.fromfile(
-                                    visibilities_file,
-                                    dtype=read_dict["int_dtype_dict"],
-                                    count=read_dict["num_vals"],
-                                    offset=read_dict["del_offset"],
+                                zip(
+                                    np.fromfile(
+                                        visibilities_file,
+                                        dtype=read_dict["int_dtype_dict"],
+                                        count=read_dict["num_vals"],
+                                        offset=read_dict["del_offset"],
+                                    ),
+                                    read_dict["data_dtype"],
+                                    read_dict["common_scale"],
                                 ),
                             )
                         )
 
-            if not indv_file_dict[data_type]["ignore_header"]:
+            has_inhid = any("inhid" in item for item in hdr_fmt)
+            has_rs = any("record_size" in item for item in hdr_fmt)
+
+            # Skip the checks if there's nothing we need to check
+            if has_inhid or has_rs:
                 good_check = True
-                for inhid, idict in int_data_dict.items():
-                    if inhid not in int_dict:
-                        continue
-                    # There is very little to check in the packdata records, so make
-                    # sure that this entry corresponds to the inhid and size we expect.
-                    good_check &= idict["inhid"] == int_dict[inhid]["inhid"]
-                    good_check &= idict["nbytes"] == int_dict[inhid]["record_size"]
+                # Otherwise, zip through and check all items.
+                for inhid, (packdata, _, _) in int_data_dict.items():
+                    if inhid in int_dict:
+                        idict = int_dict[inhid]
+
+                        # There is very little to check in the packdata records, so make
+                        # sure this entry has the inhid and size we expect.
+                        if has_inhid and (idict["inhid"] != packdata["inhid"]):
+                            good_check = False
+                        if has_rs and (idict["record_size"] != packdata["record_size"]):
+                            good_check = False
 
                 if not good_check:
-                    raise MirMetaError(
-                        "File indexing information differs from that found in in "
-                        "file_dict. Cannot read in %s data." % data_type
-                    )
-
+                    if raise_err:
+                        raise MirPackdataError(
+                            "File indexing information differs from that found in in "
+                            "file_dict. Cannot read in %s data." % data_type
+                        )
+                    elif raise_err is None:
+                        warnings.warn(
+                            "File indexing information differs from that found in in "
+                            "file_dict. The %s data may be corrupted." % data_type
+                        )
         if len(key_check) != 0:
-            raise ValueError("inhid_arr contains keys not found in file_dict.")
+            if raise_err:
+                raise ValueError("inhid_arr contains keys not found in file_dict.")
+            elif raise_err is None:
+                warnings.warn("inhid_arr contains keys not found in file_dict.")
 
         return int_data_dict
 
     @staticmethod
-    def _make_packdata(int_dict, recpos_dict, data_dict, data_type):
+    def _make_packdata(int_dict=None, recpos_dict=None, data_dict=None, data_type=None):
         """
         Write packdata from raw_data or auto_data.
 
@@ -664,16 +830,18 @@ class MirParser(object):
             A dict whose keys correspond to the unique values of "inhid" in `sp_data`,
             and values correspond to the packed data arrays -- an ndarray with a
             custom dtype. Each packed data element contains three fields: "inhid" (
-            nominally matching the keys mentioned above), "nbytes" describing the size
-            of the packed data (in bytes), and "packdata", which is the packed raw
+            nominally matching the keys mentioned above), "record_size" describing the
+            size of the packed data (in bytes), and "packdata", which is the packed raw
             data.
         """
         if data_type == "cross":
-            val_dtype = "<i2"
-            is_cross = True
+            hdr_fmt = NEW_VIS_HEADER
+            data_dtype = NEW_VIS_DTYPE
+            scale_data = True
         elif data_type == "auto":
-            val_dtype = "<f4"
-            is_cross = False
+            hdr_fmt = NEW_AUTO_HEADER
+            data_dtype = NEW_AUTO_DTYPE
+            scale_data = False
         else:
             raise ValueError(
                 'Argument for data_type not recognized, must be "cross" or "auto".'
@@ -683,9 +851,10 @@ class MirParser(object):
         # individual visibilities we're packing in).
         int_dtype_dict = {}
         for int_size in {idict["record_size"] for idict in int_dict.values()}:
-            int_dtype_dict[int_size] = np.dtype(
-                [("inhid", "<i4"), ("nbytes", "<i4"), ("packdata", "B", int_size)]
-            )
+            int_dtype_dict[int_size] = np.dtype(hdr_fmt + [("packdata", "B", int_size)])
+
+        has_inhid = any("inhid" in item for item in hdr_fmt)
+        has_record_size = any("record_size" in item for item in hdr_fmt)
 
         # Now we start the heavy lifting -- start looping through the individual
         # integrations and pack them together.
@@ -699,22 +868,23 @@ class MirParser(object):
             recpos_subdict = recpos_dict[inhid]
 
             # Plug in the "easy" parts of packdata
-            int_data["inhid"] = inhid
-            int_data["nbytes"] = int_subdict["record_size"]
+            if has_inhid:
+                int_data["inhid"] = inhid
+            if has_record_size:
+                int_data["record_size"] = int_subdict["record_size"]
 
             # Now step through all of the spectral records and plug it in to the
             # main packdata array. In testing, this worked out to be a good degree
             # faster than running np.concat.
-            packdata = int_data["packdata"].view(val_dtype)
+            packdata = int_data["packdata"].view(data_dtype)
             for hid, recinfo in recpos_subdict.items():
                 data_record = data_dict[hid]
                 start_idx = recinfo["start_idx"]
-                end_idx = recinfo["end_idx"]
-                if is_cross:
+                if scale_data:
                     packdata[start_idx] = data_record["scale_fac"]
-                    packdata[(start_idx + 1) : end_idx] = data_record["data"]
-                else:
-                    packdata[start_idx:end_idx] = data_record["data"]
+                    start_idx += 1
+
+                packdata[start_idx : recinfo["end_idx"]] = data_record["data"]
 
             int_data_dict[inhid] = int_data
 
@@ -848,7 +1018,13 @@ class MirParser(object):
         return raw_dict
 
     def _read_data(
-        self, data_type, return_vis=True, use_mmap=True, read_only=False, apply_cal=None
+        self,
+        data_type=None,
+        *,
+        scale_data=True,
+        use_mmap=True,
+        read_only=False,
+        apply_cal=None,
     ):
         """
         Read "sch_read" mir file into a list of ndarrays.
@@ -858,10 +1034,12 @@ class MirParser(object):
         data_type : str
             Type of data to read, must either be "cross" (cross-correlations) or "auto"
             (auto-correlations).
-        return_vis : bool
-            If set to True, will return a dictionary containing the visibilities read
-            in the "normal" format. If set to False, will return a dictionary containing
-            the visibilities read in the "raw" format. Default is True.
+        scale_data : bool
+            If set to True and data are stored in a "commonly scaled"/compact format (as
+            the visibilities typically are), return a dictionary containing the data in
+            a scaled/floating point format. If set to False, will return a dictionary
+            containing the data read in the compact format. Default is True. This
+            argument is ignored if the data are not scaled.
         use_mmap : bool
             If False, then each integration record needs to be read in before it can
             be parsed on a per-spectral record basis (which can be slow if only reading
@@ -877,19 +1055,21 @@ class MirParser(object):
         Returns
         -------
         data_dict : dict
-            A dictionary, whose the keys are matched to individual values of sphid in
-            `sp_data`, and each entry contains a dict with two items. If
-            `return_vis=False` then a "raw data" dict is passed, with keys "scale_fac",
-            an np.int16 which describes the common exponent for the spectrum, and
-            "data", an array of np.int16 (of length equal to twice that found in
-            `sp_data["nch"]` for the corresponding value of sphid) containing the
-            compressed visibilities.  Note that entries equal to -32768 aren't possible
-            with the compression scheme used for MIR, and so this value is used to mark
-            flags. If `return_vis=True`, then a "vis data" dict is passed, with keys
-            "data", an array of np.complex64 containing the visibilities, and
-            "flags", an array of bool containing the per-channel flags of the
-            spectrum (both are of length equal to `sp_data["nch"]` for the
-            corresponding value of sphid).
+            A dictionary, whose the keys are matched to individual header keys -- if
+            `data_type="auto"`, then values of achid in `ac_data` are used; if
+            `data_type="cross"`, then  values of sphid in `sp_data`, are used. Matched
+            to each of these keys is a dict with two items. If the data are "compressed"
+            (like is typical for visibilities) and `scale_data=True`,  then a "raw data"
+            dict is passed, with keys "scale_fac", an np.int16 which describes the
+            common exponent for the spectrum, and "data", an array of typically np.int16
+            (of length equal to twice that found in "nch" for the corresponding metadata
+            container (n.b, the maximum negative interger value, -32768 for int16,
+            aren't possible with the compression scheme used for MIR, so this value is
+            used to mark flags). Otherwise this dict containts three keys: "data", an
+            array of np.complex64 containing the visibilities, "flags", an array of bool
+            containing the per-channel flags of the spectrum, and "weights", which
+            contains the per-channel weights for the spectrum (all of length equal to
+            `"nch"` in the relvant metadata container).
         """
         if data_type not in ["auto", "cross"]:
             raise ValueError(
@@ -898,28 +1078,24 @@ class MirParser(object):
         if apply_cal:
             if self._compass_solns is None:
                 raise ValueError("Cannot apply calibration if no tables loaded.")
-            if not return_vis:
+            if not scale_data:
                 raise ValueError("Cannot return raw data if setting apply_cal=True")
-        elif apply_cal is None and return_vis:
+        elif apply_cal is None and scale_data:
             apply_cal = self._compass_solns is not None
 
-        is_cross = data_type == "cross"
-        if is_cross:
+        if data_type == "cross":
             if apply_cal:
                 chavg_call = partial(self._rechunk_data, inplace=True)
             else:
                 chavg_call = partial(
-                    self._rechunk_raw, inplace=True, return_vis=return_vis
+                    self._rechunk_raw, inplace=True, return_vis=scale_data
                 )
             data_map = self._sp_dict
             data_metadata = "sp_data"
-            val_type = "<i2"
         else:
             chavg_call = partial(self._rechunk_data, inplace=True)
             data_map = self._ac_dict
             data_metadata = "ac_data"
-            val_type = "<f4"
-            return_vis = False
 
         group_dict = getattr(self, data_metadata).group_by("inhid")
         unique_inhid = list(group_dict)
@@ -928,9 +1104,9 @@ class MirParser(object):
             # Begin the process of reading the data in, stuffing the "packdata" arrays
             # (to be converted into "raw" data) into the dict below.
             packdata_dict = self._read_packdata(
-                self._file_dict, unique_inhid, data_type, use_mmap
+                self._file_dict, unique_inhid, data_type, use_mmap, raise_err=True
             )
-        except MirMetaError:
+        except MirPackdataError:
             # Catch an error that indicates that the metadata inside the vis file does
             # not match that in _file_dict, and attempt to fix the problem.
             warnings.warn(
@@ -947,7 +1123,8 @@ class MirParser(object):
         for inhid in unique_inhid:
             # Pop here lets us delete this at the end (and hopefully let garbage
             # collection do it's job correctly).
-            packdata = packdata_dict.pop(inhid)["packdata"].view(val_type)
+            packdata, data_dtype, common_scale = packdata_dict.pop(inhid)
+            packdata = packdata["packdata"].view(data_dtype)
             hid_subarr = group_dict[inhid]
             dataoff_subdict = data_map[inhid]
 
@@ -962,7 +1139,7 @@ class MirParser(object):
                 end_idx = dataoff["end_idx"]
                 chan_avg_arr[idx] = dataoff["chan_avg"]
 
-                if is_cross:
+                if common_scale:
                     temp_dict[hid] = {
                         "scale_fac": packdata[start_idx],
                         "data": packdata[(start_idx + 1) : end_idx],
@@ -975,14 +1152,14 @@ class MirParser(object):
                         "weights": np.ones_like(data_arr),
                     }
 
-            if apply_cal and is_cross:
+            if apply_cal and common_scale:
                 temp_dict = self._convert_raw_to_vis(temp_dict)
                 temp_dict = self._apply_compass_solns(self._compass_solns, temp_dict)
 
             if np.all(chan_avg_arr == 1):
                 if apply_cal:
                     pass
-                elif return_vis:
+                elif scale_data and common_scale:
                     temp_dict = self._convert_raw_to_vis(temp_dict)
                 elif not read_only:
                     for idict in temp_dict.values():
@@ -1048,7 +1225,9 @@ class MirParser(object):
         # duplicate copies of the data which can cause the memory footprint to balloon,
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
-        int_dict, sp_dict = self.sp_data._generate_recpos_dict(reindex=True)
+        int_dict, sp_dict = self.sp_data._generate_recpos_dict(
+            data_dtype=NEW_VIS_DTYPE, data_nvals=2, scale_data=True, reindex=True
+        )
 
         # We can now open the file once, and write each array upon construction
         with open(
@@ -1063,7 +1242,10 @@ class MirParser(object):
                     )
 
                 packdata = self._make_packdata(
-                    {inhid: int_dict[inhid]}, {inhid: sp_dict[inhid]}, raw_dict, "cross"
+                    int_dict={inhid: int_dict[inhid]},
+                    recpos_dict={inhid: sp_dict[inhid]},
+                    data_dict=raw_dict,
+                    data_type="cross",
                 )
                 packdata[inhid].tofile(file)
 
@@ -1105,7 +1287,9 @@ class MirParser(object):
         # duplicate copies of the data which can cause the memory footprint to balloon,
         # So we want to just create one packdata entry at a time. To do that, we
         # actually need to segment sp_data by the integration ID.
-        int_dict, ac_dict = self.ac_data._generate_recpos_dict(reindex=True)
+        int_dict, ac_dict = self.ac_data._generate_recpos_dict(
+            data_dtype=NEW_AUTO_DTYPE, data_nvals=1, scale_data=False, reindex=True
+        )
 
         # We can now open the file once, and write each array upon construction
         with open(
@@ -1113,14 +1297,14 @@ class MirParser(object):
         ) as file:
             for inhid in int_dict:
                 packdata = self._make_packdata(
-                    {inhid: int_dict[inhid]},
-                    {inhid: ac_dict[inhid]},
-                    self.auto_data,
-                    "auto",
+                    int_dict={inhid: int_dict[inhid]},
+                    recpos_dict={inhid: ac_dict[inhid]},
+                    data_dict=self.auto_data,
+                    data_type="auto",
                 )
                 packdata[inhid].tofile(file)
 
-    def apply_tsys(self, invert=False, force=False, use_cont_det=True):
+    def apply_tsys(self, invert=False, force=False, use_cont_det=None):
         """
         Apply Tsys calibration to the visibilities.
 
@@ -1155,7 +1339,7 @@ class MirParser(object):
                 "invert=True to apply the correction first."
             )
 
-        if use_cont_det:
+        if use_cont_det or (use_cont_det is None and self._tsys_use_cont_det):
             # Create a dictionary here to map antenna pair + integration time step with
             # a sqrt(tsys) value. Note that the last index here is the receiver number,
             # which technically has a different keyword under which the system
@@ -1232,16 +1416,19 @@ class MirParser(object):
                 self.sp_data["wt"], where=(wt_arr != 0), out=norm_arr
             )
             norm_arr = (
-                np.sqrt(norm_arr)
-                * (self.jypk * 2.0)
-                / self.in_data.get_value("rinteg", header_key=self.sp_data["inhid"])
+                self.jypk
+                * 2.0
+                * np.sqrt(
+                    norm_arr
+                    * self.in_data.get_value("rinteg", header_key=self.sp_data["inhid"])
+                )
             )
 
             if invert:
                 for arr in [norm_arr, wt_arr]:
                     arr = np.reciprocal(arr, where=(arr != 0), out=arr)
 
-            for sphid, norm_val, wt_val in zip(self.sp_data["sphid"], wt_arr, norm_arr):
+            for sphid, norm_val, wt_val in zip(self.sp_data["sphid"], norm_arr, wt_arr):
                 vis_dict = self.vis_data[sphid]
                 if norm_val == 0.0:
                     vis_dict["flags"][:] = True
@@ -1509,7 +1696,7 @@ class MirParser(object):
         # Finally, if we didn't downselect or convert, load the data from disk now.
         if load_cross:
             data_dict = self._read_data(
-                "cross", return_vis=load_vis, use_mmap=use_mmap, read_only=read_only
+                "cross", scale_data=load_vis, use_mmap=use_mmap, read_only=read_only
             )
 
             setattr(self, "vis_data" if load_vis else "raw_data", data_dict)
@@ -1529,7 +1716,7 @@ class MirParser(object):
         # already have the auto_data loaded, we can bypass this step.
         if load_auto:
             self.auto_data = self._read_data(
-                "auto", return_vis=False, use_mmap=use_mmap, read_only=read_only
+                "auto", use_mmap=use_mmap, read_only=read_only
             )
 
     def unload_data(self, unload_vis=True, unload_raw=True, unload_auto=True):
@@ -1591,7 +1778,20 @@ class MirParser(object):
             previously unloaded if possible, otherwise unload the data.
         """
         mask_update = False
-        # Start by cascading the filters up -- from largest metadata tables to the
+
+        # There's one check to do up front, which is to make sure that there's data
+        # that actually matches the integration headers (to avoid loading data that
+        # does not exist on disk). We only run this on bl_data, since it's the smallest
+        # metadata block that's specific to the visibilities
+        # TODO: Add a similar check for the autos and ac_data
+        if self._has_cross:
+            where_list = [
+                ("inhid", "eq", list(idict["cross"]["int_dict"]))
+                for idict in self._file_dict.values()
+            ]
+            mask_update |= self.bl_data.set_mask(where=where_list, and_where_args=False)
+
+        # Now start by cascading the filters up -- from largest metadata tables to the
         # smallest. First up, spec win -> baseline
         if not np.all(self.sp_data.get_mask()):
             mask_update |= self.bl_data._make_key_mask(self.sp_data)
@@ -1882,8 +2082,12 @@ class MirParser(object):
     def read(
         self,
         filepath=None,
+        *,
+        auto_defaults=True,
         compass_soln=None,
-        make_v3_compliant=False,
+        make_v3_compliant=None,
+        old_vis_format=None,
+        nchunks=None,
         has_auto=False,
         has_cross=True,
         load_auto=False,
@@ -1908,6 +2112,13 @@ class MirParser(object):
             Convert the metadata required for filling a UVData object into a
             v3-compliant format. Only applicable if MIR file format is v1 or v2.
             Default is False.
+        old_vis_format : bool
+            Prior to the v1 data format, older visibility data was recorded with
+            different header fields and endianness (big-endian versus the current
+            little-endian format). If set to True, data are assumed to be in this "old"
+            format, if set to False, data are assumed to be in the current format.
+            Default behavior is to attempt to automatically determine old versus new
+            based on metadata.
         has_auto : bool
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
@@ -1919,14 +2130,37 @@ class MirParser(object):
         load_raw : bool
             Flag to load raw data into memory. Default is False.
         """
+        # If auto-defaults are turned on, we can use the codes information within the
+        # file to determine a few things. Use this to automatically handle a few
+        # different things that change between the major file versions. Note that this
+        # is meant to be a stopgap solution
+        if auto_defaults or all(
+            item is None
+            for item in [auto_defaults, make_v3_compliant, old_vis_format, nchunks]
+        ):
+            temp_codes = MirCodesData(filepath)
+            filever = 1
+            if "filever" in temp_codes.get_code_names():
+                filever = int(temp_codes["filever"][0])
+            # If v0, v1, or v2, we need to plug in the neccessary metadata for making
+            # the conversion to UVData feasible.
+            make_v3_compliant = filever < 3
+
+            # If this is a converted v0 file, from the ASIC era, with the old vis format
+            old_vis_format = filever == 0
+
+            # Newer datasets have a problem with the recorded nchunks value, so force
+            # that to be 8 here for all more modern data.
+            nchunks = 8 if (filever > 2) else None
+
         # These functions will read in the major blocks of metadata that get plugged
         # in to the various attributes of the MirParser object. Note that "_read"
         # objects contain the whole data set, while "_data" contains that after
         # filtering (more on that below).
-
         if has_auto:
             self._metadata_attrs["ac_data"] = self.ac_data
             self._has_auto = True
+            self.ac_data._nchunks = nchunks
         else:
             self._clear_auto()
             load_auto = False
@@ -1943,11 +2177,17 @@ class MirParser(object):
         # it faster to read in the data.
         file_dict = {}
         if self._has_cross:
-            int_dict, self._sp_dict = self.sp_data._generate_recpos_dict()
+            int_dict, self._sp_dict = self.sp_data._generate_recpos_dict(
+                data_dtype=OLD_VIS_DTYPE if old_vis_format else NEW_VIS_DTYPE,
+                data_nvals=2,
+                scale_data=True,
+            )
             file_dict["cross"] = {
                 "int_dict": int_dict,
                 "filetype": "sch_read",
-                "ignore_header": False,
+                "read_hdr_fmt": OLD_VIS_HEADER if old_vis_format else NEW_VIS_HEADER,
+                "read_data_fmt": OLD_VIS_DTYPE if old_vis_format else NEW_VIS_DTYPE,
+                "common_scale": True,
             }
 
         # If we need to update metadata for V3 compliance, do that now, since we fill
@@ -1957,20 +2197,28 @@ class MirParser(object):
 
         if self._has_auto:
             filetype = "ach_read"
-            old_fmt = self.ac_data._old_fmt
-            if old_fmt:
+            old_auto_format = self.ac_data._old_format
+            if old_auto_format:
                 # If we have the old-style file we are working with, then we need to
                 # do two things: first, clean up entries that don't actually have any
                 # data in them (the old format recorded lots of blank data to disk),
                 # and plug in some missing metadata.
                 self._fix_acdata()
                 filetype = "autoCorrelations"
-            int_dict, self._ac_dict = self.ac_data._generate_recpos_dict()
+            int_dict, self._ac_dict = self.ac_data._generate_recpos_dict(
+                data_dtype=OLD_AUTO_DTYPE if old_auto_format else NEW_AUTO_DTYPE,
+                data_nvals=1,
+                scale_data=False,
+            )
 
             file_dict["auto"] = {
-                "int_dict": self.ac_data._old_fmt_int_dict if old_fmt else int_dict,
+                "int_dict": (
+                    self.ac_data._old_format_int_dict if old_auto_format else int_dict
+                ),
                 "filetype": filetype,
-                "ignore_header": old_fmt,
+                "read_hdr_fmt": OLD_AUTO_HEADER if old_auto_format else NEW_AUTO_HEADER,
+                "read_data_fmt": OLD_AUTO_DTYPE if old_auto_format else NEW_AUTO_DTYPE,
+                "common_scale": False,
             }
 
         self._file_dict = {filepath: file_dict}
@@ -2050,8 +2298,14 @@ class MirParser(object):
         # Write out the various metadata fields
         for attr in self._metadata_attrs:
             if attr in ["sp_data", "ac_data"]:
+                data_nvals = 2 if (attr == "sp_data") else 1
+                data_dtype = NEW_VIS_DTYPE if (attr == "sp_data") else NEW_AUTO_DTYPE
+                scale_data = attr == "sp_data"
+
                 mir_meta_obj = self._metadata_attrs[attr].copy()
-                mir_meta_obj._recalc_dataoff()
+                mir_meta_obj._recalc_dataoff(
+                    data_dtype=data_dtype, data_nvals=data_nvals, scale_data=scale_data
+                )
             else:
                 mir_meta_obj = self._metadata_attrs[attr]
 
@@ -2476,13 +2730,13 @@ class MirParser(object):
         else:
             # What if we are NOT going to merge the two files? Then we want to verify
             # that we actually have two unique datasets. We do that by checking the
-            # metadata objects and checking for any matches.
+            # metadata objects and checking for any matches (ignoring masks).
             bad_attr = []
             update_dict = {}
             for item in self._metadata_attrs:
                 this_attr = self._metadata_attrs[item]
                 other_attr = other._metadata_attrs[item]
-                if this_attr == other_attr:
+                if this_attr.__eq__(other_attr, comp_mask=False):
                     bad_attr.append(item)
                     if not force:
                         continue
@@ -2577,7 +2831,9 @@ class MirParser(object):
                 for datatype, datatype_dict in file_dict.items():
                     new_obj._file_dict[filename][datatype] = {
                         "filetype": datatype_dict["filetype"],
-                        "ignore_header": datatype_dict["ignore_header"],
+                        "read_hdr_fmt": copy.deepcopy(datatype_dict["read_hdr_fmt"]),
+                        "read_data_fmt": copy.deepcopy(datatype_dict["read_data_fmt"]),
+                        "common_scale": datatype_dict["common_scale"],
                     }
                     new_obj._file_dict[filename][datatype]["int_dict"] = {
                         inhid_dict.get(inhid, inhid): idict.copy()
@@ -3089,6 +3345,12 @@ class MirParser(object):
             If the COMPASS solutions do not appear to overlap in time with that in
             the MirParser object.
         """
+        if not (self.vis_data is None and self.raw_data is None):
+            raise ValueError(
+                "Cannot call read_compass_solns when data have already been loaded, "
+                "call unload_data first in order to resolve this error."
+            )
+
         self._compass_solns = self._read_compass_solns(filename)
 
     def _apply_compass_solns(
@@ -3747,7 +4009,7 @@ class MirParser(object):
         )
 
         # Tally the JD dates, since that's used for various helper functions
-        jd_arr = Time(mjd_arr, format="mjd", scale="tt").utc.jd
+        jd_arr = Time(mjd_arr, format="mjd", scale="utc").utc.jd
 
         # Calculate the LST at the time of obs
         lst_arr = (12.0 / np.pi) * uvutils.get_lst_for_time(
@@ -3776,17 +4038,13 @@ class MirParser(object):
         # earlier tracks, no version demarcation notes it).
         if np.all(self.bl_data["ant1rx"] == 0) and np.all(self.bl_data["ant2rx"] == 0):
             ipol = self.bl_data["ipol"]
-            if np.all(ipol == 0):
-                irec = self.bl_data["irec"]
-                # Make sure we recognized all the rx code values, otherwise we may
-                # misidentify RxA vs RxB data.
-                assert np.all(np.isin(irec, [0, 1, 2, 3])), "Bad RX codes detected."
-                antrx = np.isin(irec, [2, 3]).astype("<i2")
-                self.bl_data["ant1rx"] = antrx
-                self.bl_data["ant2rx"] = antrx
-            else:
-                self.bl_data["ant1rx"] = np.isin(ipol, [1, 2])
-                self.bl_data["ant2rx"] = np.isin(ipol, [1, 3])
+            irec = self.bl_data["irec"]
+
+            ant1list = [1, 2] if any(ipol) else [2, 3]
+            ant2list = [1, 3] if any(ipol) else [2, 3]
+            checklist = ipol if any(ipol) else irec
+            self.bl_data["ant1rx"] = np.isin(checklist, ant1list).astype("<i2")
+            self.bl_data["ant2rx"] = np.isin(checklist, ant2list).astype("<i2")
 
         # Next, the old data had uvws calculated in wavelengths by _sideband_, so we
         # need to update those. Note we only have to check ant1rx here because if
@@ -3827,12 +4085,11 @@ class MirParser(object):
         for idx in range(2):
             for jdx in range(2):
                 mask = (rx_idx == idx) & (sb_idx == jdx)
-                if not np.any(mask):
-                    continue
-                scale_fac = np.median(exp_bl_length[mask] / meas_bl_length[mask])
-                u_vals[mask] *= scale_fac
-                v_vals[mask] *= scale_fac
-                w_vals[mask] *= scale_fac
+                if np.any(mask):
+                    scale_fac = np.median(exp_bl_length[mask] / meas_bl_length[mask])
+                    u_vals[mask] *= scale_fac
+                    v_vals[mask] *= scale_fac
+                    w_vals[mask] *= scale_fac
 
         self.bl_data["u"] = u_vals
         self.bl_data["v"] = v_vals

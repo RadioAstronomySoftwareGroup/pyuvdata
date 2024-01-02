@@ -125,10 +125,9 @@ def sma_mir(sma_mir_main):
 
 @pytest.fixture(scope="session")
 def mir_data_main():
-    testfile = os.path.join(DATA_PATH, "sma_test.mir")
-    mir_data = MirParser(testfile, load_cross=True, load_auto=True, has_auto=True)
+    mir_data = MirParser()
 
-    yield mir_data
+    yield mir_data._load_test_data(load_cross=True, load_auto=True, has_auto=True)
 
 
 @pytest.fixture(scope="function")

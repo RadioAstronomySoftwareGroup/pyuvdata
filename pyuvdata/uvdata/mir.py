@@ -17,7 +17,54 @@ from ..docstrings import copy_replace_short_description
 from . import mir_parser
 from .uvdata import UVData
 
-__all__ = ["Mir"]
+__all__ = ["generate_sma_antpos_dict", "Mir"]
+
+
+def generate_sma_antpos_dict(filepath):
+    """
+    Create a dictionary of antenna positions.
+
+    This is a convenience function for reading in a MIR-styled antennas file, and
+    converting that into a dictionary which can elsewhere be used to, for example,
+    update baseline positions.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the file or folder (if the file containing the information is named the
+        MIR-typical "antennas") containing the antenna positions.
+
+    Returns
+    -------
+    ant_dict : dict
+        Dicitonary of antenna positions, with antenna number used as key, and a
+        3-element array with the positions of the telescope (in XYZ coordinates relative
+        to array center, as is typical for pyuvdata).
+    """
+    from .mir_meta_data import MirAntposData
+
+    if not os.path.exists(filepath):
+        raise ValueError("No such file or folder exists")
+
+    mir_antpos = MirAntposData()
+
+    if os.path.isfile(filepath):
+        # If this is a file, we want to load that in directly rather than looking at
+        # the default filename (used when importing solns rather than a full data set)
+        mir_antpos._filetype = os.path.basename(filepath)
+        filepath = os.path.dirname(filepath)
+
+    # Load in the data
+    mir_antpos.read(filepath)
+
+    # We need the antenna positions in ECEF, rather than the native rotECEF format that
+    # they are stored in. Get the longitude info, and use the appropriate function in
+    # utils to get these values the way that we want them.
+    _, lon, _ = get_telescope("SMA")._telescope_location.lat_lon_alt()
+    mir_antpos["xyz_pos"] = uvutils.ECEF_from_rotECEF(mir_antpos["xyz_pos"], lon)
+
+    # Create a dictionary that can be used for updates.
+    return {item["antenna"]: item["xyz_pos"] for item in mir_antpos}
 
 
 class Mir(UVData):
