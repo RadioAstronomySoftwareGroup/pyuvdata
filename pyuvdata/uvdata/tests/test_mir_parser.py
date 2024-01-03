@@ -316,7 +316,7 @@ def test_compass_read_err(mir_data: MirParser, compass_soln_file):
     mir_data.read_compass_solns(compass_soln_file)
 
 
-def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
+def test_compass_flag_sphid_apply(mir_data: MirParser, compass_soln_file):
     """
     Test COMPASS per-sphid flagging.
 
@@ -326,10 +326,12 @@ def test_compass_flag_sphid_apply(mir_data, compass_soln_file):
     for entry in mir_data.vis_data.values():
         entry["flags"][:] = False
 
-    compass_solns = mir_data._read_compass_solns(compass_soln_file)
-    mir_data._apply_compass_solns(
-        compass_solns, mir_data.vis_data, apply_bp=False, apply_flags=True
-    )
+    assert mir_data._compass_bp_soln is None
+    vis_data = mir_data.vis_data
+    mir_data.vis_data = None
+    mir_data.read_compass_solns(compass_soln_file, load_flags=True, load_bandpass=False)
+    mir_data.vis_data = vis_data
+    mir_data._apply_compass_solns(mir_data.vis_data)
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
             assert not np.all(entry["flags"][1::2])
@@ -348,14 +350,19 @@ def test_compass_flag_static_apply(mir_data, compass_soln_file):
         entry["flags"][-1] = True
 
     mir_data.in_data["mjd"] += 1
+
+    vis_data = mir_data.vis_data
+    mir_data.vis_data = None
     with uvtest.check_warnings(
         UserWarning, "No metadata from COMPASS matches that in this data set."
     ):
-        compass_solns = mir_data._read_compass_solns(compass_soln_file)
+        mir_data.read_compass_solns(
+            compass_soln_file, load_flags=True, load_bandpass=False
+        )
 
-    mir_data._apply_compass_solns(
-        compass_solns, mir_data.vis_data, apply_bp=False, apply_flags=True
-    )
+    assert mir_data._compass_bp_soln is None
+    mir_data.vis_data = vis_data
+    mir_data._apply_compass_solns(mir_data.vis_data)
 
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
@@ -365,7 +372,7 @@ def test_compass_flag_static_apply(mir_data, compass_soln_file):
 
 
 @pytest.mark.parametrize("muck_solns", ["none", "some", "all"])
-def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
+def test_compass_bp_apply(mir_data: MirParser, compass_soln_file, muck_solns):
     """
     Test COMPASS bandpass calibration.
 
@@ -381,15 +388,23 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
         if muck_solns == "all":
             mir_data.bl_data["iant2"] += 1
 
+    vis_data = mir_data.vis_data
+    mir_data.vis_data = None
+
     with uvtest.check_warnings(
         None if (muck_solns == "none") else UserWarning,
         None if (muck_solns == "none") else "No metadata from COMPASS matches",
     ):
-        compass_solns = mir_data._read_compass_solns(compass_soln_file)
+        mir_data.read_compass_solns(
+            compass_soln_file, load_flags=False, load_bandpass=True
+        )
 
-    mir_data._apply_compass_solns(
-        compass_solns, mir_data.vis_data, apply_bp=True, apply_flags=False
-    )
+    assert mir_data._compass_static_flags is None
+    assert mir_data._compass_sphid_flags is None
+
+    mir_data.vis_data = vis_data
+
+    mir_data._apply_compass_solns(mir_data.vis_data)
 
     for key, entry in mir_data.vis_data.items():
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
@@ -397,6 +412,16 @@ def test_compass_bp_apply(mir_data, compass_soln_file, muck_solns):
             # temp value above, otherwise none should
             assert np.allclose(entry["data"], tempval * (1 + (muck_solns == "none")))
             assert (muck_solns != "none") == np.all(entry["flags"])
+
+
+def test_compass_no_op(mir_data: MirParser, compass_soln_file):
+    mir_data.read_compass_solns(
+        compass_soln_file, load_flags=False, load_bandpass=False
+    )
+    assert not mir_data._has_compass_soln
+    assert mir_data._compass_bp_soln is None
+    assert mir_data._compass_sphid_flags is None
+    assert mir_data._compass_static_flags is None
 
 
 def test_compass_rechunk_routing(mir_data: MirParser, compass_soln_file):
@@ -668,12 +693,12 @@ def test_data_errs(mir_data, attr):
 @pytest.mark.parametrize(
     "compass_soln,kwargs,err_msg",
     [
-        [None, {}, "Cannot apply calibration if no tables loaded."],
-        [{}, {"scale_data": False}, "Cannot return raw data if setting apply_cal=True"],
+        [False, {}, "Cannot apply calibration if no tables loaded."],
+        [True, {"scale_data": False}, "Cannot return raw data if setting apply_cal=Tr"],
     ],
 )
 def test_read_data_errs(mir_data, compass_soln, kwargs, err_msg):
-    mir_data._compass_solns = compass_soln
+    mir_data._has_compass_soln = compass_soln
     with pytest.raises(ValueError, match=err_msg):
         mir_data._read_data("cross", apply_cal=True, **kwargs)
 
