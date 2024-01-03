@@ -6030,10 +6030,9 @@ class UVData(UVBase):
         Parameters
         ----------
         update_vis : bool
-            Option to update visibilities when recalculating uvws to correct for
-            phasing errors from using the `old` method. This should only be set to False
-            in limited circumstances (e.g., when certain metadata like exact times are
-            not trusted), as misuse can significantly corrupt data.
+            Option to update visibilities when recalculating uvws to. This should only
+            be set to False in limited circumstances (e.g., when certain metadata like
+            exact times are not trusted), as misuse can significantly corrupt data.
 
         """
         telescope_location = self.telescope_location_lat_lon_alt
@@ -6069,6 +6068,90 @@ class UVData(UVBase):
         # need to update the uvw's and we are home free.
         self.uvw_array = new_uvw
         return
+
+    def update_antenna_positions(
+        self, new_positions=None, delta_antpos=False, update_vis=True
+    ):
+        """
+        Update antenna positions and associated (meta)data.
+
+        This method will update the antenna positions for a UVData object, and
+        correspondingly will adjust the uvw-coordinates for each of the baselines, as
+        well as the phases of the visibilities (if requested).
+
+        Parameters
+        ----------
+        new_positions : dict
+            Dictionary containing new antenna positions, where the key is the antenna
+            number (which should match to an entry in UVData.antenna_numbers), and the
+            value is a 3-element array corresponding to the ECEF/MCMF position relative
+            to the array center.
+        delta_antpos : bool
+            When set to True, uvws are updated be calculating the difference between
+            the old and new antenna positions. Thiis option should be used with care,
+            and should only be used when warrented (e.g., antenna positions are stored
+            with higher positions than the baselines). Default is False.
+        update_vis : bool
+            Option to update visibilities when recalculating uvws to. This should only
+            be set to False in limited circumstances (e.g., when certain metadata like
+            exact times are not trusted), as misuse can significantly corrupt data.
+        """
+        new_antpos = self.antenna_positions.copy()
+        for idx, ant in enumerate(self.antenna_numbers):
+            try:
+                new_antpos[idx] = new_positions[ant]
+            except KeyError:
+                # If no updated position is found, then just keep going
+                pass
+
+        if np.array_equal(new_antpos, self.antenna_positions):
+            warnings.warn("No antenna positions appear to have changed, returning.")
+            return
+
+        if delta_antpos:
+            # We want to calculate the _relative_ changes in uvw for the new positions.
+            # Take advantage of the distributive property of matrix multiplication,
+            # where R(A - B) == R(A) - R(B), and R is the rotation matrix, A is the
+            # upated antenna positions, and B is the old positions. I.e., this is the
+            # same as independently calculating uvws from old and new and subtracting
+            # one from the other.
+            delta_uvw = uvutils.calc_uvw(
+                app_ra=self.phase_center_app_ra,
+                app_dec=self.phase_center_app_dec,
+                frame_pa=self.phase_center_frame_pa,
+                lst_array=self.lst_array,
+                use_ant_pos=True,
+                antenna_positions=new_antpos - self.antenna_positions,
+                antenna_numbers=self.antenna_numbers,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                telescope_lat=self.telescope_location_lat_lon_alt[0],
+                telescope_lon=self.telescope_location_lat_lon_alt[1],
+            )
+
+            # Calculate the new uvw values, relate to the old ones, and add that to
+            # what has been recorded as the uvw-array.
+            if update_vis:
+                # If requested, update the visibilities at this time. Note we screen
+                # out the unprojected baselines since no phases are touched for them.
+                # Also Note that the old values here are being treated as zeros since
+                # we've calcualted relative deltas.
+                self._apply_w_proj(
+                    0.0,
+                    delta_uvw[:, 2],  # <-- w-col of the uvws
+                    select_mask=self._check_for_cat_type("unprojected"),
+                )
+
+            # Assign the new antenna position values.
+            self.antenna_positions = new_antpos
+
+            # Finally, add the deltas to the original uvw array.
+            self.uvw_array += delta_uvw
+        else:
+            # Otherwise under "normal" circumstances, just plug in the new values and
+            # update the uvws accordingly.
+            self.antenna_positions = new_antpos
+            self.set_uvws_from_antenna_positions(update_vis=update_vis)
 
     def fix_phase(self, use_ant_pos=True):
         """
