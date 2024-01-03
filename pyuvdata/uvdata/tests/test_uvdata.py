@@ -12605,3 +12605,29 @@ def test_select_catalog_name(carma_miriad):
         uv_id.history = uv_name.history = None
 
         assert uv_name == uv_id
+
+
+def test_update_antenna_positions_no_op(sma_mir, sma_mir_main):
+    """Test no-op condition for updating antenna positions."""
+    with uvtest.check_warnings(UserWarning, "No antenna positions appear to have chan"):
+        sma_mir.update_antenna_positions({-1: [0, 0, 0]})
+
+    assert sma_mir == sma_mir_main
+
+
+@pytest.mark.parametrize("delta_antpos", [False, True])
+def test_update_antenna_positions(sma_mir, delta_antpos):
+    # Call this now to mitigate minor metadata recording errors.
+    if not delta_antpos:
+        sma_mir.set_uvws_from_antenna_positions()
+    sma_copy = sma_mir.copy()
+
+    new_positions = dict(zip(sma_mir.antenna_numbers, sma_mir.antenna_positions.copy()))
+
+    # Introduce a small delta to all ants so that the positions are different
+    sma_mir.antenna_positions += 1
+    sma_mir.update_antenna_positions(
+        new_positions=new_positions, delta_antpos=delta_antpos
+    )
+
+    assert sma_mir == sma_copy
