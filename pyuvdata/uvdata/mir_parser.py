@@ -581,7 +581,7 @@ class MirParser(object):
 
             # Go through the individual entries in each dict, and update them
             # with the "correct" values as determined by scanning through sch_read
-            for key in new_dict:
+            for key in inhid_map:
                 int_dict[inhid_map[key]] = new_dict[key]
 
     @staticmethod
