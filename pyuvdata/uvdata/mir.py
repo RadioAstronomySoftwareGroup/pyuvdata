@@ -98,6 +98,7 @@ class Mir(UVData):
         rechunk=None,
         compass_soln=None,
         swarm_only=True,
+        codes_check=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -110,9 +111,14 @@ class Mir(UVData):
         # Use the mir_parser to read in metadata, which can be used to select data.
         # We want to sure that the mir file is v3 compliant, since correctly filling
         # values into a UVData object depends on that.
-        mir_data = mir_parser.MirParser(
-            filepath=filepath, compass_soln=compass_soln, make_v3_compliant=True
-        )
+        mir_data = mir_parser.MirParser(filepath=filepath, compass_soln=compass_soln)
+
+        if codes_check:
+            where_list = []
+            for code in mir_data.codes_data._mutable_codes:
+                if code in mir_data.codes_data.get_code_names():
+                    where_list.append((code, "eq", list(mir_data.codes_data[code])))
+            mir_data.select(where=where_list)
 
         if select_where is None:
             select_where = []
