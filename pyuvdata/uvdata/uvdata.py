@@ -6018,9 +6018,10 @@ class UVData(UVBase):
         Parameters
         ----------
         update_vis : bool
-            Option to update visibilities when recalculating uvws to. This should only
-            be set to False in limited circumstances (e.g., when certain metadata like
-            exact times are not trusted), as misuse can significantly corrupt data.
+            Option to update visibilities based on the new uvws (only has an effect if
+            visibilities have been phased). This should only be set to False in limited
+            circumstances (e.g., when certain metadata like exact times are not
+            trusted), as misuse can significantly corrupt data.
 
         """
         telescope_location = self.telescope_location_lat_lon_alt
@@ -6076,14 +6077,15 @@ class UVData(UVBase):
             value is a 3-element array corresponding to the ECEF/MCMF position relative
             to the array center.
         delta_antpos : bool
-            When set to True, uvws are updated be calculating the difference between
-            the old and new antenna positions. Thiis option should be used with care,
-            and should only be used when warrented (e.g., antenna positions are stored
-            with higher positions than the baselines). Default is False.
+            When set to True, uvws are updated by calculating the difference between
+            the old and new antenna positions. This option should be used with care,
+            and should only be used when warranted (e.g., antenna positions are stored
+            with higher precision than the baselines). Default is False.
         update_vis : bool
-            Option to update visibilities when recalculating uvws to. This should only
-            be set to False in limited circumstances (e.g., when certain metadata like
-            exact times are not trusted), as misuse can significantly corrupt data.
+            Option to update visibilities based on the new uvws (only has an effect if
+            visibilities have been phased). This should only be set to False in limited
+            circumstances (e.g., when certain metadata like exact times are not
+            trusted), as misuse can significantly corrupt data.
         """
         new_antpos = self.antenna_positions.copy()
         for idx, ant in enumerate(self.antenna_numbers):
