@@ -5315,14 +5315,13 @@ class UVData(UVBase):
         new_w_vals: float or ndarray of float
             New w-coordinates for the baselines, in units of meters. Can either be a
             solitary float (helpful for unphasing data, where new_w_vals can be set to
-            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
+            0.0) or an array of shape (Nblts,).
         old_w_vals: float or ndarray of float
             Old w-coordinates for the baselines, in units of meters. Can either be a
             solitary float (helpful for unphasing data, where new_w_vals can be set to
-            0.0) or an array of shape (Nselect,) (which is Nblts if select_mask=None).
+            0.0) or an array of shape (Nblts,).
         select_mask: ndarray of bool
-            Array is of shape (Nblts,), where the sum of all enties marked True is
-            equal to Nselect (mentioned above).
+            Array is of shape (Nblts,), which identifies which records to change.
 
         Raises
         ------
@@ -5335,71 +5334,60 @@ class UVData(UVBase):
             return
 
         if select_mask is None:
-            select_len = self.Nblts
+            select_mask = ...
         else:
             try:
                 inv_mask = np.ones(self.Nblts, dtype=bool)
                 inv_mask[select_mask] = False
-                select_mask = ~inv_mask
-                select_len = np.sum(select_mask)
+
+                if all(inv_mask):
+                    # If nothing is selected, then bail
+                    return
+
+                # If everything is selected by the mask, then no entries pop up in the
+                # inverse, in which case it's faster to use the Ellipsis
+                select_mask = ~inv_mask if any(inv_mask) else ...
             except IndexError as err:
                 raise IndexError(
-                    "select_mask must be an array-like, either of ints with shape "
+                    "select_mask must be an array-like, either of bool with shape "
                     "(Nblts), or of ints within the range (-Nblts, Nblts)."
                 ) from err
 
         # Promote everything to float64 ndarrays if they aren't already
         old_w_vals = np.array(old_w_vals, dtype=np.float64)
-        old_w_vals.shape += (1,) if (old_w_vals.ndim == 0) else ()
         new_w_vals = np.array(new_w_vals, dtype=np.float64)
-        new_w_vals.shape += (1,) if (new_w_vals.ndim == 0) else ()
 
-        # Make sure the lengths of everything make sense
-        new_val_len = len(new_w_vals)
-        old_val_len = len(old_w_vals)
-
-        if new_val_len not in [1, select_len]:
+        if old_w_vals.shape not in [(), (1,), (self.Nblts,)]:
             raise IndexError(
-                f"The length of new_w_vals is wrong (expected 1 or {select_len}, "
-                f"got {new_val_len})!"
+                f"The length of old_w_vals is wrong (expected 1 or {self.Nblts}, "
+                f"got {old_w_vals.size})!"
             )
-        if old_val_len not in [1, select_len]:
+        if new_w_vals.shape not in [(), (1,), (self.Nblts,)]:
             raise IndexError(
-                f"The length of old_w_vals is wrong (expected 1 or {select_len}, "
-                f"got {old_val_len})!"
+                f"The length of new_w_vals is wrong (expected 1 or {self.Nblts}, "
+                f"got {new_w_vals.size})!"
             )
 
-        # Calculate the difference in w terms as a function of freq. Note that the
-        # 1/c is there to speed of processing (faster to multiply than divide)
+        # Calculate the difference in w terms.
+        delta_w = (new_w_vals - old_w_vals).reshape(-1, 1)
+
+        # Convert w into wavelengths as a function of freq. Note that the
+        # 1/c is there to speed of processing (faster to multiply than divide).
+        # Check for singleton w arrays, in which case no select mask gets applied.
         delta_w_lambda = (
-            (new_w_vals - old_w_vals).reshape(-1, 1)
+            delta_w[... if delta_w.shape[0] == 1 else select_mask]
             * (1.0 / const.c.to("m/s").value)
             * self.freq_array.reshape(1, self.Nfreqs)
         )
-        if select_mask is None or np.all(select_mask):
-            # If all the w values are changing, it turns out to be twice as fast
-            # to ditch any sort of selection mask and just do the full multiply.
-            if self.future_array_shapes:
-                self.data_array *= np.exp(
-                    (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
-                )
-            else:
-                self.data_array *= np.exp(
-                    (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
-                )
-        elif np.any(select_mask):
-            # In the case we are _not_ doing all baselines, use a selection mask to
-            # only update the values we need. In the worse case, it slows down the
-            # processing by ~2x, but it can save a lot on time and memory if only
-            # needing to update a select number of baselines.
-            if self.future_array_shapes:
-                self.data_array[select_mask] *= np.exp(
-                    (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
-                )
-            else:
-                self.data_array[select_mask] *= np.exp(
-                    (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
-                )
+
+        if self.future_array_shapes:
+            self.data_array[select_mask] *= np.exp(
+                (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
+            )
+        else:
+            self.data_array[select_mask] *= np.exp(
+                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
+            )
 
     def unproject_phase(
         self, use_ant_pos=True, select_mask=None, cat_name="unprojected"
@@ -5455,7 +5443,7 @@ class UVData(UVBase):
             to_enu=True,
         )
 
-        self._apply_w_proj(0.0, self.uvw_array[select_mask_use, 2], select_mask_use)
+        self._apply_w_proj(0.0, self.uvw_array[:, 2], select_mask=select_mask_use)
         self.uvw_array = new_uvw
 
         # remove/update phase center
@@ -5609,7 +5597,7 @@ class UVData(UVBase):
             cat_dist = dist
             cat_vrad = vrad
 
-        if cat_epoch is None:
+        if (cat_epoch is None) and (cat_type != "unprojected"):
             cat_epoch = 1950.0 if (cat_frame in ["fk4", "fk4noeterms"]) else 2000.0
         if isinstance(cat_epoch, str) or isinstance(cat_epoch, Time):
             cat_epoch = Time(cat_epoch).to_value(
@@ -5847,18 +5835,21 @@ class UVData(UVBase):
         # Check and see if we have any unprojected objects, in which case
         # their w-values should be zeroed out.
 
-        if select_mask is not None:
+        if select_mask is None:
+            # If no selection mask is specified, then use the Ellipsis to access
+            # the full array (and not have to check for None later on)
+            select_mask = ...
+        else:
             if len(select_mask) != self.Nblts:
                 raise IndexError("Selection mask must be of length Nblts.")
             if not isinstance(select_mask[0], (bool, np.bool_)):
                 raise ValueError("Selection mask must be a boolean array")
-            time_array = time_array[select_mask]
-            lst_array = lst_array[select_mask]
-            uvw_array = uvw_array[select_mask, :]
-            ant_1_array = ant_1_array[select_mask]
-            ant_2_array = ant_2_array[select_mask]
-            if isinstance(old_w_vals, np.ndarray):
-                old_w_vals = old_w_vals[select_mask]
+
+        time_array = time_array[select_mask]
+        lst_array = lst_array[select_mask]
+        uvw_array = uvw_array[select_mask, :]
+        ant_1_array = ant_1_array[select_mask]
+        ant_2_array = ant_2_array[select_mask]
 
         # We got the meta-data, now handle calculating the apparent coordinates.
         # First, check if we need to look up the phase center in question
@@ -5930,9 +5921,17 @@ class UVData(UVBase):
             force_update=True,
         )
 
+        # Extract out information for applying w-projection
+        if cat_type == "unprojected":
+            new_w_vals = 0.0
+        else:
+            # Create a blank array and fill in w-vals based on the selection mask, so
+            # that the full array is the right shape when calling _apply_w-p
+            new_w_vals = np.zeros(self.Nblts)
+            new_w_vals[select_mask] = new_uvw[:, 2]
+
         # Now its time to update the raw data. This will return empty if
         # metadata_only is set to True.
-        new_w_vals = 0.0 if (cat_type == "unprojected") else new_uvw[:, 2]
         self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
 
         # Finally, we now take it upon ourselves to update some metadata. What we
@@ -6055,6 +6054,7 @@ class UVData(UVBase):
             # At least some are phased
             if update_vis:
                 old_w_vals = self.uvw_array[:, 2].copy()
+                # Treat the unprojected values as having no w-proj previously
                 old_w_vals[unprojected_blts] = 0.0
                 self._apply_w_proj(new_uvw[:, 2], old_w_vals)
             else:
