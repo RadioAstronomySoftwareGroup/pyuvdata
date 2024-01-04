@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a the `UVData.update_antenna_positions` method to enable making antenna
+position updates with corresponding updates the uvw-coordinates and visibility phases.
 - Added a switch to `UVData.write_ms` called `flip_conj`, which allows a user to write
 out data with the baseline conjugation scheme flipped from the standard `UVData`
 convention.
