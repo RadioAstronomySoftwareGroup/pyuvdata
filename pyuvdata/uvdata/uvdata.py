@@ -5934,28 +5934,17 @@ class UVData(UVBase):
         # metadata_only is set to True.
         self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
 
-        # Finally, we now take it upon ourselves to update some metadata. What we
-        # do here will depend a little bit on whether or not we have a selection
-        # mask active, since most everything is affected by that.
-        if select_mask is not None:
-            self.uvw_array[select_mask] = new_uvw
-            self.phase_center_app_ra[select_mask] = new_app_ra
-            self.phase_center_app_dec[select_mask] = new_app_dec
-            self.phase_center_frame_pa[select_mask] = new_frame_pa
-            self.phase_center_id_array[select_mask] = cat_id
-        else:
-            self.uvw_array = new_uvw
-            self.phase_center_app_ra = new_app_ra
-            self.phase_center_app_dec = new_app_dec
-            self.phase_center_frame_pa = new_frame_pa
-            self.phase_center_id_array[:] = cat_id
+        # Finally, we now take it upon ourselves to update some metadata.
+        self.uvw_array[select_mask] = new_uvw
+        self.phase_center_app_ra[select_mask] = new_app_ra
+        self.phase_center_app_dec[select_mask] = new_app_dec
+        self.phase_center_frame_pa[select_mask] = new_frame_pa
+        self.phase_center_id_array[select_mask] = cat_id
 
         # If not multi phase center, make sure to update the ra/dec values, since
         # otherwise we'll have no record of source properties.
         if cleanup_old_sources:
             self._clear_unused_phase_centers()
-        # All done w/ the new phase method
-        return
 
     def phase_to_time(
         self, time, phase_frame="icrs", use_ant_pos=True, select_mask=None
