@@ -12625,19 +12625,30 @@ def test_update_antenna_positions_no_op(sma_mir, sma_mir_main):
     assert sma_mir == sma_mir_main
 
 
+@pytest.mark.parametrize("flip_antpos", [False, True])
 @pytest.mark.parametrize("delta_antpos", [False, True])
-def test_update_antenna_positions(sma_mir, delta_antpos):
+def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
     # Call this now to mitigate minor metadata recording errors.
-    if not delta_antpos:
-        sma_mir.set_uvws_from_antenna_positions()
+    sma_mir.set_uvws_from_antenna_positions()
+
     sma_copy = sma_mir.copy()
 
-    new_positions = dict(zip(sma_mir.antenna_numbers, sma_mir.antenna_positions.copy()))
+    if flip_antpos:
+        # Flip the coords and antpos to see if we get back to where we are supposed to
+        # be in the uvws (though we'll ignore the data in this case).
+        sma_mir.uvw_array *= -1
+        sma_mir.antenna_positions *= -1
+    else:
+        # Introduce a small delta to all ants so that the positions are different
+        sma_mir.antenna_positions += 1
 
-    # Introduce a small delta to all ants so that the positions are different
-    sma_mir.antenna_positions += 1
+    new_positions = dict(zip(sma_copy.antenna_numbers, sma_copy.antenna_positions))
+
     sma_mir.update_antenna_positions(
         new_positions=new_positions, delta_antpos=delta_antpos
     )
+
+    if flip_antpos:
+        sma_mir.data_array = sma_copy.data_array
 
     assert sma_mir == sma_copy
