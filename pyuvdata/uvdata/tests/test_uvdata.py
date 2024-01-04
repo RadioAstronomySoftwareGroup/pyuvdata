@@ -1224,14 +1224,9 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.parametrize("future_shapes", [True, False])
-def test_cotter_phasing(future_shapes):
+def test_cotter_phasing(future_shapes, uv_phase_comp):
     """Use MWA files phased to 2 different places to test phasing."""
-    file1 = os.path.join(DATA_PATH, "1133866760.uvfits")
-    file2 = os.path.join(DATA_PATH, "1133866760_rephase.uvfits")
-    uvd1 = UVData()
-    uvd2 = UVData()
-    uvd1.read_uvfits(file1, use_future_array_shapes=future_shapes)
-    uvd2.read_uvfits(file2, use_future_array_shapes=future_shapes)
+    uvd1, uvd2 = uv_phase_comp
 
     uvd1_drift = uvd1.copy()
     uvd1_drift.unproject_phase()
@@ -1305,6 +1300,19 @@ def test_cotter_phasing(future_shapes):
     uvd1.unproject_phase()
     uvd1_drift.unproject_phase()
     assert uvd1 == uvd1_drift
+
+
+@pytest.mark.parametrize("future_shapes", [True, False])
+def test_phasing_unprojected(future_shapes, sma_mir):
+    # Make sure that unprojected via phasing and unproject_phase works the same.
+    sma_copy = sma_mir.copy()
+
+    sma_mir.unproject_phase()
+    sma_copy.phase(
+        cat_name="unprojected", cat_type="unprojected", phase_frame=None, epoch=None
+    )
+
+    assert sma_mir == sma_copy
 
 
 def test_set_uvws(hera_uvh5):
@@ -10839,7 +10847,9 @@ def test_apply_w_no_ops(hera_uvh5, future_shapes):
     assert hera_uvh5 == hera_copy
 
     # And now with a selection mask applied
-    hera_uvh5._apply_w_proj([0.0, 1.0], [0.0, 1.0], [0, 1])
+    hera_uvh5._apply_w_proj(
+        np.arange(hera_uvh5.Nblts), np.arange(hera_uvh5.Nblts), [0, 1]
+    )
     assert hera_uvh5 == hera_copy
 
 
