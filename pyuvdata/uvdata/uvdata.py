@@ -5318,10 +5318,10 @@ class UVData(UVBase):
             0.0) or an array of shape (Nblts,).
         old_w_vals: float or ndarray of float
             Old w-coordinates for the baselines, in units of meters. Can either be a
-            solitary float (helpful for unphasing data, where new_w_vals can be set to
-            0.0) or an array of shape (Nblts,).
+            solitary float (helpful for phasing unprojected data, where old_w_vals can
+            be set to 0.0) or an array of shape (Nblts,).
         select_mask: ndarray of bool
-            Array is of shape (Nblts,), which identifies which records to change.
+            Array of shape (Nblts,), which identifies which records to change.
 
         Raises
         ------
