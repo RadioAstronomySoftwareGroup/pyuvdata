@@ -210,9 +210,10 @@ you will need the following packages:
 * pytest >= 6.2
 * pytest-cases >= 3.6.9
 * pytest-cov
-* cython >=0.23  (This is necessary for coverage reporting of cython extensions)
+* cython >=0.23
 * coverage
 * pre-commit
+* matplotlib
 * sphinx
 * pypandoc
 
