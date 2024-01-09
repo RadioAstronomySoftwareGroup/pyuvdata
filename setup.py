@@ -127,7 +127,7 @@ test_reqs = all_optional_reqs + [
     "coverage",
     "pre-commit",
 ]
-doc_reqs = ["sphinx", "pypandoc"]
+doc_reqs = ["matplotlib", "sphinx", "pypandoc"]
 
 setup_args = {
     "name": "pyuvdata",

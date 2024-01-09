@@ -17,6 +17,8 @@ def setup_and_teardown_package(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp("uvdata_tests")
     try:
         os.chdir(tmp_path)
+        if not os.path.exists("Images"):
+            os.makedirs("Images")
         yield
     finally:
         os.chdir(cwd)
