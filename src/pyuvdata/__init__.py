@@ -47,7 +47,7 @@ warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 from .telescopes import Telescope  # noqa
 from .telescopes import get_telescope  # noqa  # NB: get_telescopes is deprecated
-from .uvbeam import UVBeam  # noqa
+from .uvbeam import BeamInterface, GaussianBeam, UVBeam  # noqa
 from .uvcal import UVCal  # noqa
 from .uvdata import FastUVH5Meta  # noqa
 from .uvdata import UVData  # noqa
@@ -59,6 +59,8 @@ __all__ = [
     "UVCal",
     "UVFlag",
     "UVBeam",
+    "BeamInterface",
+    "GaussianBeam",
     "Telescope",
     "get_telescope",
 ]

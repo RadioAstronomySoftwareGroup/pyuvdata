@@ -13,7 +13,6 @@ from .uvbeam import _convert_feeds_to_pols
 __all__ = ["AnalyticBeam", "GaussianBeam"]
 
 
-# TODO: write the `update_cross_pols` method.
 # TODO: write a `to_uvbeam` method to allow for interpolation testing/exploration
 
 
@@ -67,7 +66,7 @@ class AnalyticBeam(ABC):
                     raise ValueError
         else:
             feed_array = ["x", "y"]
-        self.feed_array = feed_array
+        self.feed_array = np.asarray(feed_array)
 
         if self.feed_array is not None:
             self.Nfeeds = self.feed_array.size
@@ -182,7 +181,6 @@ class AnalyticBeam(ABC):
 
         """
 
-    @abstractmethod
     def power_eval(self, az_array, za_array, freq_array):
         """
         Evaluate the power at the given coordinates.
@@ -303,8 +301,7 @@ class GaussianBeam(AnalyticBeam):
             self.spectral_index = spectral_index
             self.reference_freq = reference_freq
 
-        if diameter is not None:
-            self.diameter = diameter
+        self.diameter = diameter
 
     def get_sigmas(self, freq_array):
         """
@@ -346,6 +343,8 @@ class GaussianBeam(AnalyticBeam):
             data_array[0, fn, :, :] = values / 2.0
             data_array[1, fn, :, :] = values / 2.0
 
+        return data_array
+
     def _power_eval(self, az_array, za_array, freq_array):
         """Evaluate the power at the given coordinates."""
         sigmas = self.get_sigmas(freq_array)
@@ -360,3 +359,5 @@ class GaussianBeam(AnalyticBeam):
             # For power beams the first axis is shallow because we don't have to worry
             # about polarization.
             data_array[0, fn, :, :] = values
+
+        return data_array
