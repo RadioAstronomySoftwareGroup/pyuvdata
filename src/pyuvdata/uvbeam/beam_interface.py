@@ -30,12 +30,13 @@ class BeamInterface:
         The beam type, either "efield" or "power".
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or EN and NE).
-        Used if beam is an AnalyticBeam and beam_type is "power" and if input UVBeam is
-        and Efield beam but beam_type is "power".
+        Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
+        beam_type is "power".
+        Ignored otherwise (the cross pol inclusion is set by the beam object.)
 
     """
 
-    def __init__(self, beam, beam_type=None, include_cross_pols=True):
+    def __init__(self, beam, beam_type=None, include_cross_pols=None):
         if not isinstance(beam, UVBeam) or isinstance(beam, AnalyticBeam):
             raise ValueError("beam must be a UVBeam or an AnalyticBeam instance.")
         self.beam = beam
@@ -59,9 +60,6 @@ class BeamInterface:
             # AnalyticBeam
             self._isuvbeam = False
             self.beam_type = beam_type
-            existing_cross_pols = self.Npols > self.Nfeeds
-            if existing_cross_pols != include_cross_pols:
-                self.beam.update_cross_pols(include_cross_pols=include_cross_pols)
 
     def compute_response(
         self,
