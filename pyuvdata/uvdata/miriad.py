@@ -1946,7 +1946,7 @@ class Miriad(UVData):
         uv.add_var("source", "a")
         uv.add_var("ra", "d")
         uv.add_var("dec", "d")
-        uv.add_var("inttime", "d")
+        uv.add_var("inttime", "r")
 
         uv.add_var("epoch", "r")
         uv.add_var("phsframe", "a")  # Non-standard MIRIAD keyword
@@ -2027,7 +2027,7 @@ class Miriad(UVData):
             this_j = self.ant_2_array[viscnt]
 
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
-            uv["inttime"] = self.integration_time[viscnt].astype(np.double)
+            uv["inttime"] = self.integration_time[viscnt].astype(np.float32)
 
             cat_id = self.phase_center_id_array[viscnt]
             uv["source"] = self.phase_center_catalog[cat_id]["cat_name"]
