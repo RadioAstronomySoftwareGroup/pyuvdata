@@ -1786,8 +1786,6 @@ class Miriad(UVData):
             # same to our tolerances
             uv["sdf"] = np.median(self.channel_width) * freq_dir / 1e9  # Hz -> GHz
 
-        # NB: restfreq should go in here at some point
-        #####################################################
         uv.add_var("telescop", "a")
         uv["telescop"] = self.telescope_name
         uv.add_var("latitud", "d")
@@ -1795,6 +1793,20 @@ class Miriad(UVData):
         uv.add_var("longitu", "d")
         uv["longitu"] = self.telescope_location_lat_lon_alt[1].astype(np.double)
         uv.add_var("nants", "i")
+        
+        
+        # DCP 2024.01.12 - Adding defaults required for basic imaging
+        #############################################################
+        for k in ("restfreq", "vsource", "veldop"):
+            uv.add_var(k, "d")
+            uv[k] = 0.0
+        
+        for k in ("jyperk", "systemp"):
+            uv.add_var(k, "r")
+            uv[k] = 1.0
+        
+        warnings.warn("writing default values for restfreq, vsource, veldop, jyperk, and systemp")
+
 
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
