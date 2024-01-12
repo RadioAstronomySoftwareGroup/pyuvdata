@@ -1797,14 +1797,18 @@ class Miriad(UVData):
         
         # DCP 2024.01.12 - Adding defaults required for basic imaging
         #############################################################
-        for k in ("restfreq", "vsource", "veldop"):
-            uv.add_var(k, "d")
-            uv[k] = 0.0
-        
-        for k in ("jyperk", "systemp"):
-            uv.add_var(k, "r")
-            uv[k] = 1.0
-        
+        miriad_defaults = {
+            "restfreq": ("d", np.float64(0.0)),
+            "jyperk":   ("r", np.float32(1.0)),
+            "systemp":  ("r", np.float32(1.0)),
+            "veldop":   ("r", np.float32(0.0)),
+            "vsource":  ("r", np.float32(0.0))
+        }
+
+        for key, (miriad_dtype, val) in miriad_defaults.items():
+            uv.add_var(key, miriad_dtype)
+            uv[key] = val
+
         warnings.warn("writing default values for restfreq, vsource, veldop, jyperk, and systemp")
 
 
