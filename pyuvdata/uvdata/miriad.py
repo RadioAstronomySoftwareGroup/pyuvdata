@@ -1786,8 +1786,6 @@ class Miriad(UVData):
             # same to our tolerances
             uv["sdf"] = np.median(self.channel_width) * freq_dir / 1e9  # Hz -> GHz
 
-        # NB: restfreq should go in here at some point
-        #####################################################
         uv.add_var("telescop", "a")
         uv["telescop"] = self.telescope_name
         uv.add_var("latitud", "d")
@@ -1795,6 +1793,24 @@ class Miriad(UVData):
         uv.add_var("longitu", "d")
         uv["longitu"] = self.telescope_location_lat_lon_alt[1].astype(np.double)
         uv.add_var("nants", "i")
+        
+        
+        # DCP 2024.01.12 - Adding defaults required for basic imaging
+        #############################################################
+        miriad_defaults = {
+            "restfreq": ("d", np.float64(0.0)),
+            "jyperk":   ("r", np.float32(1.0)),
+            "systemp":  ("r", np.float32(1.0)),
+            "veldop":   ("r", np.float32(0.0)),
+            "vsource":  ("r", np.float32(0.0))
+        }
+
+        for key, (miriad_dtype, val) in miriad_defaults.items():
+            uv.add_var(key, miriad_dtype)
+            uv[key] = val
+
+        warnings.warn("writing default values for restfreq, vsource, veldop, jyperk, and systemp")
+
 
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
@@ -1946,7 +1962,7 @@ class Miriad(UVData):
         uv.add_var("source", "a")
         uv.add_var("ra", "d")
         uv.add_var("dec", "d")
-        uv.add_var("inttime", "d")
+        uv.add_var("inttime", "r")
 
         uv.add_var("epoch", "r")
         uv.add_var("phsframe", "a")  # Non-standard MIRIAD keyword
@@ -2027,7 +2043,7 @@ class Miriad(UVData):
             this_j = self.ant_2_array[viscnt]
 
             uv["lst"] = miriad_lsts[viscnt].astype(np.double)
-            uv["inttime"] = self.integration_time[viscnt].astype(np.double)
+            uv["inttime"] = self.integration_time[viscnt].astype(np.float32)
 
             cat_id = self.phase_center_id_array[viscnt]
             uv["source"] = self.phase_center_catalog[cat_id]["cat_name"]
