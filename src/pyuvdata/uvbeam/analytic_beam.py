@@ -19,7 +19,6 @@ __all__ = ["AnalyticBeam", "GaussianBeam"]
 
 
 # TODO: write a `to_uvbeam` method to allow for interpolation testing/exploration
-# TODO: do we want to support different normalizations of analytic beams?
 
 
 class AnalyticBeam(ABC):
@@ -43,10 +42,15 @@ class AnalyticBeam(ABC):
     Parameters
     ----------
     feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. N & E or x & y or R & L.
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or EN and NE) for
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
 
     """
 
@@ -61,6 +65,7 @@ class AnalyticBeam(ABC):
         *,
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
+        x_orientation: Literal["east", "north"] = "east",
     ):
         if self.basis_vector_type is not None:
             if self.basis_vector_type not in self.basis_vec_dict:
@@ -71,9 +76,8 @@ class AnalyticBeam(ABC):
             self.Naxes_vec = self.basis_vec_dict[self.basis_vector_type]
 
         if feed_array is not None:
-            # TODO: think about rotated dipoles
             for feed in feed_array:
-                allowed_feeds = ["N", "E", "x", "y", "R", "L"]
+                allowed_feeds = ["n", "e", "x", "y", "r", "l"]
                 if feed not in allowed_feeds:
                     raise ValueError(f"Feeds must be one of: {allowed_feeds}")
         else:
@@ -81,14 +85,12 @@ class AnalyticBeam(ABC):
         self.feed_array = np.asarray(feed_array)
 
         self.Nfeeds = self.feed_array.size
+        self.x_orientation = x_orientation
 
-        # TODO: Add x_orientation here if needed.
         self.polarization_array, _ = _convert_feeds_to_pols(
-            self.feed_array, include_cross_pols
+            self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
         self.Npols = self.polarization_array.size
-
-        # TODO: think about where x_orientation should live, here or on interface class
 
     def __iter__(self):
         """
@@ -191,21 +193,12 @@ class AnalyticBeam(ABC):
         if az_array.shape != za_array.shape:
             raise ValueError("az_array and za_array must have the same shape.")
 
-    def _get_empty_data_array(
-        self,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-        beam_type: str = "efield",
-    ):
+    def _get_empty_data_array(self, npts: int, nfreqs: int, beam_type: str = "efield"):
         """Get the empty data to fill in the eval methods."""
         if beam_type == "efield":
-            feed_pol_size = self.Nfeeds
+            return np.zeros((self.Naxes_vec, self.Nfeeds, nfreqs, npts), dtype=float)
         else:
-            feed_pol_size = self.Npols
-        return np.zeros(
-            (self.Naxes_vec, feed_pol_size, freq_array.size, az_array.size), dtype=float
-        )
+            return np.zeros((1, self.Npols, nfreqs, npts), dtype=float)
 
     @abstractmethod
     def _efield_eval(
@@ -388,9 +381,9 @@ class GaussianBeam(AnalyticBeam):
         The reference frequency for the beam width power law, required if `sigma` is not
         None and `spectral_index` is not zero. Ignored if `sigma` is None.
     feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. N & E or x & y or R & L.
+        Feeds to define this beam for, e.g. n & e or x & y or r & l.
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or EN and NE) for
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
 
     """
@@ -468,14 +461,11 @@ class GaussianBeam(AnalyticBeam):
         values = np.exp(
             -(za_array[np.newaxis, ...] ** 2) / (2 * sigmas[:, np.newaxis] ** 2)
         )
-        data_array = self._get_empty_data_array(az_array, za_array, freq_array)
+        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
         # This is different than what is in pyuvsim because it means that we have the
         # same response to any polarized source in both feeds. We think this is correct
         # for an azimuthally symmetric analytic beam but it is a change.
         # On pyuvsim we essentially have each basis vector go into only one feed.
-        # TODO: do we want to support different normalizations of analytic beams?
-        # The divide by two yield peak normalized power beams but
-        # *not* peak normalized Efield beams
         for fn in np.arange(self.Nfeeds):
             data_array[0, fn, :, :] = values / np.sqrt(2.0)
             data_array[1, fn, :, :] = values / np.sqrt(2.0)
@@ -495,7 +485,7 @@ class GaussianBeam(AnalyticBeam):
             -(za_array[np.newaxis, ...] ** 2) / (sigmas[:, np.newaxis] ** 2)
         )
         data_array = self._get_empty_data_array(
-            az_array, za_array, freq_array, beam_type="power"
+            az_array.size, freq_array.size, beam_type="power"
         )
         for fn in np.arange(self.Npols):
             # For power beams the first axis is shallow because we don't have to worry
@@ -514,9 +504,9 @@ class AiryBeam(AnalyticBeam):
     diameter : float
         Dish diameter in meters.
     feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. N & E or x & y or R & L.
+        Feeds to define this beam for, e.g. n & e or x & y or r & l.
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or EN and NE) for
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
 
     """
@@ -541,7 +531,7 @@ class AiryBeam(AnalyticBeam):
         freq_array: npt.NDArray[np.float],
     ):
         """Evaluate the efield at the given coordinates."""
-        data_array = self._get_empty_data_array(az_array, za_array, freq_array)
+        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
         za_grid, f_grid = np.meshgrid(za_array, freq_array)
         kvals = (2.0 * np.pi) * f_grid / speed_of_light.to("m/s").value
@@ -556,9 +546,6 @@ class AiryBeam(AnalyticBeam):
         # same response to any polarized source in both feeds. We think this is correct
         # for an azimuthally symmetric analytic beam but it is a change.
         # On pyuvsim we essentially have each basis vector go into only one feed.
-        # TODO: do we want to support different normalizations of analytic beams?
-        # The divide by two yield peak normalized power beams but
-        # *not* peak normalized Efield beams
         for fn in np.arange(self.Nfeeds):
             data_array[0, fn, :, :] = values / np.sqrt(2.0)
             data_array[1, fn, :, :] = values / np.sqrt(2.0)
@@ -571,9 +558,9 @@ class AiryBeam(AnalyticBeam):
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
     ):
-        """Evaluate the efield at the given coordinates."""
+        """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
-            az_array, za_array, freq_array, beam_type="power"
+            az_array.size, freq_array.size, beam_type="power"
         )
 
         za_grid, f_grid = np.meshgrid(za_array, freq_array)
@@ -593,6 +580,86 @@ class AiryBeam(AnalyticBeam):
         return data_array
 
 
+class ShortDipoleBeam(AnalyticBeam):
+    """
+    Define an analytic short (Hertzian) dipole beam for two crossed dipoles.
+
+    Parameters
+    ----------
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+        for the power beam.
+    x_orientation : str
+        The orientation of the dipole labeled 'x'. The default ("east") means
+        that the x dipole is aligned east-west and that the y dipole is aligned
+        north-south.
+
+    """
+
+    basis_vector_type = "az_za"
+
+    def __init__(
+        self,
+        *,
+        x_orientation: Literal["east", "north"] = "east",
+        include_cross_pols: bool = True,
+    ):
+        feed_array = ["e", "n"]
+
+        super().__init__(
+            feed_array=feed_array,
+            include_cross_pols=include_cross_pols,
+            x_orientation=x_orientation,
+        )
+
+    def _efield_eval(
+        self,
+        az_array: npt.NDArray[np.float],
+        za_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[np.float],
+    ):
+        """Evaluate the efield at the given coordinates."""
+        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
+
+        az_fgrid = np.repeat(az_array[np.newaxis], freq_array.size, axis=0)
+        za_fgrid = np.repeat(za_array[np.newaxis], freq_array.size, axis=0)
+
+        # The first dimension is for [azimuth, zenith angle] in that order
+        # the second dimension is for feed [e, n] in that order
+        data_array[0, 0] = -np.sin(az_fgrid)
+        data_array[0, 1] = np.cos(az_fgrid)
+        data_array[1, 0] = np.cos(za_fgrid) * np.cos(az_fgrid)
+        data_array[1, 1] = np.cos(za_fgrid) * np.sin(az_fgrid)
+
+        return data_array
+
+    def _power_eval(
+        self,
+        az_array: npt.NDArray[np.float],
+        za_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[np.float],
+    ):
+        """Evaluate the power at the given coordinates."""
+        data_array = self._get_empty_data_array(
+            az_array.size, freq_array.size, beam_type="power"
+        )
+
+        az_fgrid = np.repeat(az_array[np.newaxis], freq_array.size, axis=0)
+        za_fgrid = np.repeat(za_array[np.newaxis], freq_array.size, axis=0)
+
+        # these are just the sum in quadrature of the efield components.
+        # some trig work is done to reduce the number of cos/sin evaluations
+        data_array[0, 0] = 1 - (np.sin(za_fgrid) * np.cos(az_fgrid)) ** 2
+        data_array[0, 1] = 1 - (np.sin(za_fgrid) * np.sin(az_fgrid)) ** 2
+
+        if self.Npols > self.Nfeeds:
+            # cross pols are included
+            data_array[0, 2] = -np.sin(za_fgrid) ** 2 * np.sin(2.0 * az_fgrid) / 2.0
+            data_array[0, 3] = data_array[0, 2]
+
+        return data_array
+
+
 class UniformBeam(AnalyticBeam):
     """
     Define a uniform beam.
@@ -600,9 +667,9 @@ class UniformBeam(AnalyticBeam):
     Parameters
     ----------
     feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. N & E or x & y or R & L.
+        Feeds to define this beam for, e.g. n & e or x & y or r & l.
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or EN and NE) for
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
 
     """
@@ -624,15 +691,12 @@ class UniformBeam(AnalyticBeam):
         freq_array: npt.NDArray[np.float],
     ):
         """Evaluate the efield at the given coordinates."""
-        data_array = self._get_empty_data_array(az_array, za_array, freq_array)
+        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
         # This is different than what is in pyuvsim because it means that we have the
         # same response to any polarized source in both feeds. We think this is correct
         # for an azimuthally symmetric analytic beam but it is a change.
         # On pyuvsim we essentially have each basis vector go into only one feed.
-        # TODO: do we want to support different normalizations of analytic beams?
-        # The divide by two yield peak normalized power beams but
-        # *not* peak normalized Efield beams
         data_array = data_array + 1.0 / np.sqrt(2.0)
 
         return data_array
@@ -643,9 +707,9 @@ class UniformBeam(AnalyticBeam):
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
     ):
-        """Evaluate the efield at the given coordinates."""
+        """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
-            az_array, za_array, freq_array, beam_type="power"
+            az_array.size, freq_array.size, beam_type="power"
         )
 
         data_array = data_array + 1.0

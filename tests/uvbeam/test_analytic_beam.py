@@ -9,7 +9,7 @@ import pytest
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
-from pyuvdata import AiryBeam, GaussianBeam, UniformBeam, UVBeam
+from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
 from pyuvdata.uvbeam.analytic_beam import AnalyticBeam
 
 
@@ -50,7 +50,7 @@ def test_airy_beam_values(source_grid):
     np.testing.assert_allclose(beam_vals, expected_data)
 
 
-def test_uv_beam_widths():
+def test_airy_uv_beam_widths():
     # Check that the width of the Airy disk beam in UV space corresponds with
     # the dish diameter.
     diameter_m = 25.0
@@ -192,6 +192,38 @@ def test_diameter_to_sigma():
         )
 
 
+def test_short_dipole_beam(source_grid):
+    beam = ShortDipoleBeam()
+
+    az_vals, za_vals, freqs = source_grid
+
+    nsrcs = az_vals.size
+    n_freqs = freqs.size
+
+    efield_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
+
+    expected_data = np.zeros((2, 2, n_freqs, nsrcs), dtype=float)
+
+    expected_data[0, 0] = -np.sin(az_vals)
+    expected_data[0, 1] = np.cos(az_vals)
+    expected_data[1, 0] = np.cos(za_vals) * np.cos(az_vals)
+    expected_data[1, 1] = np.cos(za_vals) * np.sin(az_vals)
+
+    np.testing.assert_allclose(efield_vals, expected_data)
+
+    power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
+    print(power_vals.shape)
+    expected_data = np.zeros((1, 4, n_freqs, nsrcs), dtype=float)
+    print(expected_data.shape)
+
+    expected_data[0, 0] = 1 - np.sin(za_vals) ** 2 * np.cos(az_vals) ** 2
+    expected_data[0, 1] = 1 - np.sin(za_vals) ** 2 * np.sin(az_vals) ** 2
+    expected_data[0, 2] = -np.sin(za_vals) ** 2 * np.sin(2.0 * az_vals) / 2.0
+    expected_data[0, 3] = -np.sin(za_vals) ** 2 * np.sin(2.0 * az_vals) / 2.0
+
+    np.testing.assert_allclose(power_vals, expected_data)
+
+
 def test_uniform_beam(source_grid):
     beam = UniformBeam()
 
@@ -212,6 +244,7 @@ def test_uniform_beam(source_grid):
         [AiryBeam, {"diameter": 14.0}],
         [GaussianBeam, {"diameter": 14.0}],
         [UniformBeam, {}],
+        [ShortDipoleBeam, {}],
     ],
 )
 def test_power_analytic_beam(beam_obj, kwargs, source_grid):
@@ -224,9 +257,29 @@ def test_power_analytic_beam(beam_obj, kwargs, source_grid):
     efield_vals = beam.efield_eval(az_vals, za_vals, freqs)
     power_vals = beam.power_eval(az_vals, za_vals, freqs)
 
+    # check power beams are peak normalized
+    assert np.max(power_vals) == 1.0
+
     np.testing.assert_allclose(
-        efield_vals[0, 0] ** 2 + efield_vals[1, 0] ** 2, power_vals[0, 0]
+        efield_vals[0, 0] ** 2 + efield_vals[1, 0] ** 2,
+        power_vals[0, 0],
+        rtol=0,
+        atol=1e-15,
     )
+
+    np.testing.assert_allclose(
+        efield_vals[0, 1] ** 2 + efield_vals[1, 1] ** 2,
+        power_vals[0, 1],
+        rtol=0,
+        atol=1e-15,
+    )
+
+    cross_power = (
+        efield_vals[0, 0] * efield_vals[0, 1] + efield_vals[1, 0] * efield_vals[1, 1]
+    )
+    np.testing.assert_allclose(cross_power, power_vals[0, 2], rtol=0, atol=1e-15)
+
+    np.testing.assert_allclose(cross_power, power_vals[0, 3], rtol=0, atol=1e-15)
 
 
 def test_eval_errors(source_grid):
@@ -296,7 +349,7 @@ def test_comparison(compare_beam, equality, operation):
     [
         [
             {"feed_array": "w"},
-            re.escape("Feeds must be one of: ['N', 'E', 'x', 'y', 'R', 'L']"),
+            re.escape("Feeds must be one of: ['n', 'e', 'x', 'y', 'r', 'l']"),
         ],
         [{}, "One of diameter or sigma must be set but not both."],
         [
