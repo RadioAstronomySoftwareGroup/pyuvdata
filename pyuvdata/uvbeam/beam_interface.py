@@ -32,7 +32,7 @@ class BeamInterface:
     beam_type : str
         The beam type, either "efield" or "power".
     include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or EN and NE).
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne).
         Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
         beam_type is "power".
         Ignored otherwise (the cross pol inclusion is set by the beam object.)
