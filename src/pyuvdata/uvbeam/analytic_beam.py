@@ -92,7 +92,7 @@ class AnalyticBeam(ABC):
         )
         self.Npols = self.polarization_array.size
 
-    def __iter__(self):
+    def __iter__(self) -> str:
         """
         Iterate over all attributes.
 
@@ -110,7 +110,7 @@ class AnalyticBeam(ABC):
         for a in attribute_list:
             yield a
 
-    def __eq__(self, other: Any, silent: bool = False):
+    def __eq__(self, other: Any, silent: bool = False) -> bool:
         """Equality method."""
         if isinstance(other, self.__class__):
             # First check that the set of attrs is the same
@@ -193,7 +193,9 @@ class AnalyticBeam(ABC):
         if az_array.shape != za_array.shape:
             raise ValueError("az_array and za_array must have the same shape.")
 
-    def _get_empty_data_array(self, npts: int, nfreqs: int, beam_type: str = "efield"):
+    def _get_empty_data_array(
+        self, npts: int, nfreqs: int, beam_type: str = "efield"
+    ) -> npt.NDArray[np.float]:
         """Get the empty data to fill in the eval methods."""
         if beam_type == "efield":
             return np.zeros((self.Naxes_vec, self.Nfeeds, nfreqs, npts), dtype=float)
@@ -206,7 +208,7 @@ class AnalyticBeam(ABC):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """
         Evaluate the efield at the given coordinates.
 
@@ -237,7 +239,7 @@ class AnalyticBeam(ABC):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """
         Evaluate the efield at the given coordinates.
 
@@ -269,7 +271,7 @@ class AnalyticBeam(ABC):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """
         Evaluate the power at the given coordinates.
 
@@ -300,7 +302,7 @@ class AnalyticBeam(ABC):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """
         Evaluate the power at the given coordinates.
 
@@ -327,7 +329,7 @@ class AnalyticBeam(ABC):
         return self._power_eval(az_array, za_array, freq_array)
 
 
-def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[np.float]):
+def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[np.float]) -> float:
     """
     Find the sigma that gives a beam width similar to an Airy disk.
 
@@ -425,7 +427,7 @@ class GaussianBeam(AnalyticBeam):
 
         self.diameter = diameter
 
-    def get_sigmas(self, freq_array: npt.NDArray[np.float]):
+    def get_sigmas(self, freq_array: npt.NDArray[np.float]) -> npt.NDArray[np.float]:
         """
         Get the sigmas for the gaussian beam using the diameter (if defined).
 
@@ -454,7 +456,7 @@ class GaussianBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the efield at the given coordinates."""
         sigmas = self.get_sigmas(freq_array)
 
@@ -477,7 +479,7 @@ class GaussianBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the power at the given coordinates."""
         sigmas = self.get_sigmas(freq_array)
 
@@ -529,7 +531,7 @@ class AiryBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -557,7 +559,7 @@ class AiryBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"
@@ -617,7 +619,7 @@ class ShortDipoleBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -638,7 +640,7 @@ class ShortDipoleBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"
@@ -689,7 +691,7 @@ class UniformBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -706,7 +708,7 @@ class UniformBeam(AnalyticBeam):
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
-    ):
+    ) -> npt.NDArray[np.float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"
