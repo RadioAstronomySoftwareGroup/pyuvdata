@@ -3,7 +3,10 @@
 # Licensed under the 2-clause BSD License
 
 """Definition for BeamInterface object."""
+import copy
 import warnings
+
+import numpy as np
 
 from .analytic_beam import AnalyticBeam
 from .uvbeam import UVBeam
@@ -119,9 +122,22 @@ class BeamInterface:
                 spline_opts=spline_opts,
             )
         else:
-            if self.beam_type == "efield":
-                interp_data = self.efield_eval(az_array, za_array, freq_array)
+            if az_za_grid:
+                if az_array is None or za_array is None:
+                    raise ValueError(
+                        "If az_za_grid is set to True, az_array and za_array must be "
+                        "provided."
+                    )
+                az_array_use, za_array_use = np.meshgrid(az_array, za_array)
+                az_array_use = az_array_use.flatten()
+                za_array_use = za_array_use.flatten()
             else:
-                interp_data = self.power_eval(az_array, za_array, freq_array)
+                az_array_use = copy.copy(az_array)
+                za_array_use = copy.copy(za_array)
+
+            if self.beam_type == "efield":
+                interp_data = self.efield_eval(az_array_use, za_array_use, freq_array)
+            else:
+                interp_data = self.power_eval(az_array_use, za_array_use, freq_array)
 
         return interp_data
