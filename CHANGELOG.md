@@ -38,6 +38,8 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Improved performance for `antpair2ind` and `_key2inds` by using the
+`blts_are_rectangular` parameter, and also by caching the results. To improve performance of the cache, the resulting indices are returned as slices whenever possible.
 - Changed the way files are passed for reading FHD files. Rather than one list including
 all the types of files, each file type (e.g. params, obs, layout) must be passed to
 their own parameter. This makes the API for reading FHD data files more similar to the
