@@ -336,3 +336,32 @@ def phased_array_beam_1freq(phased_array_beam_2freq):
 
     yield beam
     del beam
+
+
+@pytest.fixture()
+def az_za_deg_grid():
+    az_array = np.deg2rad(np.linspace(0, 350, 36))
+    za_array = np.deg2rad(np.linspace(0, 90, 10))
+    freqs = np.linspace(100, 200, 11) * 1e8
+
+    az_vals, za_vals = np.meshgrid(az_array, za_array)
+
+    return az_vals.flatten(), za_vals.flatten(), freqs
+
+
+@pytest.fixture()
+def xy_grid():
+    nfreqs = 20
+    freqs = np.linspace(100e6, 130e6, nfreqs)
+
+    xy_half_n = 250
+    zmax = np.radians(90)  # Degrees
+    arr = np.arange(-xy_half_n, xy_half_n)
+    x_arr, y_arr = np.meshgrid(arr, arr)
+    x_arr = x_arr.flatten()
+    y_arr = y_arr.flatten()
+    radius = np.sqrt(x_arr**2 + y_arr**2) / float(xy_half_n)
+    za_array = radius * zmax
+    az_array = np.arctan2(y_arr, x_arr)
+
+    return az_array, za_array, freqs
