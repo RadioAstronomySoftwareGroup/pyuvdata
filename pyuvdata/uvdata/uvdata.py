@@ -111,6 +111,17 @@ def _warn_old_phase_attr(__name):
     warnings.warn(warn_str, DeprecationWarning)
 
 
+def _clear_antpair2ind_cache(self):
+    """Clear the antpair2ind cache."""
+    self.__antpair2ind_cache = {}
+    self.__key2ind_cache = {}
+
+
+def _clear_key2ind_cache(self):
+    """Clear the antpair2ind cache."""
+    self.__key2ind_cache = {}
+
+
 class UVData(UVBase):
     """
     A class for defining a radio interferometer dataset.
@@ -256,15 +267,6 @@ class UVData(UVBase):
             tols=uvutils.RADIAN_TOL,
         )
 
-        def clear_antpair2ind_cache(self):
-            """Clear the antpair2ind cache."""
-            self.__antpair2ind_cache = {}
-            self.__key2ind_cache = {}
-
-        def clear_key2ind_cache(self):
-            """Clear the antpair2ind cache."""
-            self.__key2ind_cache = {}
-
         desc = (
             "Array of numbers for the first antenna, which is matched to that in "
             "the antenna_numbers attribute. Shape (Nblts), type = int."
@@ -275,7 +277,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
-            setter=clear_antpair2ind_cache,
+            setter=_clear_antpair2ind_cache,
         )
 
         desc = (
@@ -288,7 +290,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
-            setter=clear_antpair2ind_cache,
+            setter=_clear_antpair2ind_cache,
         )
 
         desc = (
@@ -337,7 +339,7 @@ class UVData(UVBase):
             expected_type=int,
             acceptable_vals=list(np.arange(-8, 5)),
             form=("Npols",),
-            setter=clear_key2ind_cache,
+            setter=_clear_key2ind_cache,
         )
 
         desc = (
@@ -3911,23 +3913,9 @@ class UVData(UVBase):
                 raise KeyError(f"Polarization {orig_pol} not found in data.")
 
         # Convert to slices if possible
-        def slicify(ind):
-            if ind is None or isinstance(ind, slice):
-                return ind
-            if len(ind) == 0:
-                return None
-
-            if len(set(np.ediff1d(ind))) <= 1:
-                return slice(
-                    ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1
-                )
-            else:
-                # can't slicify
-                return ind
-
-        blt_ind1 = slicify(blt_ind1)
-        blt_ind2 = slicify(blt_ind2)
-        pol_ind = (slicify(pol_ind[0]), slicify(pol_ind[1]))
+        blt_ind1 = uvutils.slicify(blt_ind1)
+        blt_ind2 = uvutils.slicify(blt_ind2)
+        pol_ind = (uvutils.slicify(pol_ind[0]), uvutils.slicify(pol_ind[1]))
 
         self.__key2ind_cache[key] = (blt_ind1, blt_ind2, pol_ind)
         return (blt_ind1, blt_ind2, pol_ind)
@@ -4019,7 +4007,7 @@ class UVData(UVBase):
             Array of unique antennas with data associated with them.
         """
         if self.blts_are_rectangular:
-            if self.blt_order == ("baseline", "time"):
+            if self.time_axis_faster_than_bls:
                 ant1 = self.ant_1_array[:: self.Ntimes]
                 ant2 = self.ant_2_array[:: self.Ntimes]
             else:
