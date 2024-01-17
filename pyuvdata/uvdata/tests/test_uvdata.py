@@ -6756,7 +6756,7 @@ def test_quick_redundant_vs_redundant_test_array(grid_alg, pyuvsim_redundant):
         grp = []
         grp.extend(bl.compressed())
         for other_bls in reds:
-            if set(reds.compressed()).issubset(other_bls.compressed()):
+            if set(reds.compressed()).issubset(other_bls.compressed()):  # noqa: B038
                 grp.extend(other_bls.compressed())
         grp = np.unique(grp).tolist()
         groups.append(grp)
@@ -6798,7 +6798,7 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(grid_alg, casa_uvfit
         grp = []
         grp.extend(bl.compressed())
         for other_bls in reds:
-            if set(reds.compressed()).issubset(other_bls.compressed()):
+            if set(reds.compressed()).issubset(other_bls.compressed()):  # noqa: B038
                 grp.extend(other_bls.compressed())
         grp = np.unique(grp).tolist()
         groups.append(grp)
@@ -12762,15 +12762,17 @@ def test_antpair2ind_rect_not_ordered(hera_uvh5):
     hera_uvh5.reorder_blts(order="baseline", minor_order="time")
 
     assert hera_uvh5.blts_are_rectangular
-    inds = hera_uvh5.antpair2ind((0, 1), ordered=False)
 
-    assert inds == hera_uvh5.antpair2ind((1, 0), ordered=True)
+    print(hera_uvh5.get_antpairs())
+
+    inds = hera_uvh5.antpair2ind((0, 1), ordered=True)
+
+    assert np.all(inds == hera_uvh5.antpair2ind((1, 0), ordered=False))
 
 
 def test_antpair2ind_not_rect_not_ordered(hera_uvh5):
-    hera_uvh5.reorder_blts(order="ant1")
-
+    hera_uvh5.reorder_blts(order=np.random.permutation(hera_uvh5.Nblts))
     assert not hera_uvh5.blts_are_rectangular
-    inds = hera_uvh5.antpair2ind((0, 1), ordered=False)
+    inds = hera_uvh5.antpair2ind((1, 0), ordered=False)
 
-    assert inds == hera_uvh5.antpair2ind((1, 0), ordered=True)
+    assert np.all(inds == hera_uvh5.antpair2ind((0, 1), ordered=True))
