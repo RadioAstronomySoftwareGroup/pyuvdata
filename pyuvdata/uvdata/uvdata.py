@@ -34,7 +34,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
-EMPTY_INDX = np.array([], dtype=np.int64)
 
 reporting_request = (
     " Please report this in our issue log, we have not been able to find a file with "
