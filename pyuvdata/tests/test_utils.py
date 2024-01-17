@@ -4550,3 +4550,13 @@ def test_pol_order(pols, aips_order, casa_order, order):
         assert all(check == casa_order)
     if order == "AIPS":
         assert all(check == aips_order)
+
+
+def test_slicify():
+    assert uvutils.slicify(None) is None
+    assert uvutils.slicify(slice(None)) == slice(None)
+    assert uvutils.slicify([]) is None
+    assert uvutils.slicify([1, 2, 3]) == slice(1, 4, 1)
+    assert uvutils.slicify([1]) == slice(1, 2, 1)
+    assert uvutils.slicify([0, 2, 4]) == slice(0, 5, 2)
+    assert uvutils.slicify([0, 1, 2, 7]) == [0, 1, 2, 7]
