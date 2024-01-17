@@ -3,10 +3,14 @@
 # Licensed under the 2-clause BSD License
 
 """Definition for BeamInterface object."""
+from __future__ import annotations
+
 import copy
 import warnings
+from typing import Literal
 
 import numpy as np
+import numpy.typing as npt
 
 from .analytic_beam import AnalyticBeam
 from .uvbeam import UVBeam
@@ -39,8 +43,13 @@ class BeamInterface:
 
     """
 
-    def __init__(self, beam, beam_type=None, include_cross_pols=None):
-        if not isinstance(beam, UVBeam) or isinstance(beam, AnalyticBeam):
+    def __init__(
+        self,
+        beam: AnalyticBeam | UVBeam,
+        beam_type: Literal["efield", "power"] | None = None,
+        include_cross_pols: bool | None = None,
+    ):
+        if not isinstance(beam, UVBeam) and not isinstance(beam, AnalyticBeam):
             raise ValueError("beam must be a UVBeam or an AnalyticBeam instance.")
         self.beam = beam
         if isinstance(beam, UVBeam):
@@ -66,13 +75,13 @@ class BeamInterface:
 
     def compute_response(
         self,
-        az_array,
-        za_array,
-        freq_array,
-        az_za_grid=False,
-        freq_interp_tol=None,
-        reuse_spline=False,
-        spline_opts=None,
+        az_array: npt.NDArray[np.float],
+        za_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[np.float],
+        az_za_grid: bool = False,
+        freq_interp_tol: float = 1.0,
+        reuse_spline: bool = False,
+        spline_opts: dict | None = None,
     ):
         """
         Calculate beam responses, by interpolating UVBeams or evaluating AnalyticBeams.
@@ -136,8 +145,12 @@ class BeamInterface:
                 za_array_use = copy.copy(za_array)
 
             if self.beam_type == "efield":
-                interp_data = self.efield_eval(az_array_use, za_array_use, freq_array)
+                interp_data = self.beam.efield_eval(
+                    az_array_use, za_array_use, freq_array
+                )
             else:
-                interp_data = self.power_eval(az_array_use, za_array_use, freq_array)
+                interp_data = self.beam.power_eval(
+                    az_array_use, za_array_use, freq_array
+                )
 
         return interp_data
