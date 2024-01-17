@@ -4992,7 +4992,6 @@ IRREG_POL = [0, 1, 3]
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "ind1, ind2, indp, squeeze, force_copy",
     [
@@ -5011,16 +5010,11 @@ IRREG_POL = [0, 1, 3]
         (SINGLE_IND, None, REG_POL, "full", False),
     ],
 )
-def test_smart_slicing(
-    casa_uvfits, future_shapes, ind1, ind2, indp, squeeze, force_copy
-):
+def test_smart_slicing(casa_uvfits, ind1, ind2, indp, squeeze, force_copy):
     # Test function to slice data
     uv = casa_uvfits
 
-    if future_shapes:
-        uv.use_future_array_shapes()
-    else:
-        uv.use_current_array_shapes()
+    uv.use_future_array_shapes()
 
     if ind1 is None:
         polind = (None, indp)
@@ -5073,18 +5067,11 @@ def test_smart_slicing(
         else:
             assert not d.flags.writeable
 
-        if future_shapes:
-            uv.data_array[bltinds[1], 0, polidx[0]] = 5.43
-            if copy_made:
-                assert d[1, 0, 0] != uv.data_array[bltinds[1], 0, polidx[0]]
-            else:
-                assert d[1, 0, 0] == uv.data_array[bltinds[1], 0, polidx[0]]
+        uv.data_array[bltinds[1], 0, polidx[0]] = 5.43
+        if copy_made:
+            assert d[1, 0, 0] != uv.data_array[bltinds[1], 0, polidx[0]]
         else:
-            uv.data_array[bltinds[1], 0, 0, polidx[0]] = 5.43
-            if copy_made:
-                assert d[1, 0, 0] != uv.data_array[bltinds[1], 0, 0, polidx[0]]
-            else:
-                assert d[1, 0, 0] == uv.data_array[bltinds[1], 0, 0, polidx[0]]
+            assert d[1, 0, 0] == uv.data_array[bltinds[1], 0, polidx[0]]
 
 
 @pytest.mark.parametrize("kind", ["data", "flags", "nsamples", "times", "lsts"])
