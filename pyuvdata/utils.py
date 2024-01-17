@@ -6285,3 +6285,16 @@ def determine_rectangularity(
         if (np.diff(baseline_array, axis=0) != 0).any():
             return False, False
         return True, False
+
+
+def slicify(ind):
+    if ind is None or isinstance(ind, slice):
+        return ind
+    if len(ind) == 0:
+        return None
+
+    if len(set(np.ediff1d(ind))) <= 1:
+        return slice(ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1)
+    else:
+        # can't slicify
+        return ind
