@@ -13,22 +13,11 @@ from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBea
 from pyuvdata.uvbeam.analytic_beam import AnalyticBeam
 
 
-@pytest.fixture()
-def source_grid():
-    az_array = np.deg2rad(np.linspace(0, 350, 36))
-    za_array = np.deg2rad(np.linspace(0, 90, 10))
-    freqs = np.linspace(100, 200, 11) * 1e8
-
-    az_vals, za_vals = np.meshgrid(az_array, za_array)
-
-    return az_vals.flatten(), za_vals.flatten(), freqs
-
-
-def test_airy_beam_values(source_grid):
+def test_airy_beam_values(az_za_deg_grid):
     diameter_m = 14.0
     beam = AiryBeam(diameter=diameter_m)
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = az_za_deg_grid
 
     beam_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
     nsrcs = az_vals.size
@@ -50,49 +39,39 @@ def test_airy_beam_values(source_grid):
     np.testing.assert_allclose(beam_vals, expected_data)
 
 
-def test_airy_uv_beam_widths():
+def test_airy_uv_beam_widths(xy_grid):
     # Check that the width of the Airy disk beam in UV space corresponds with
     # the dish diameter.
     diameter_m = 25.0
     beam = AiryBeam(diameter=diameter_m)
 
-    Nfreqs = 20
-    freqs = np.linspace(100e6, 130e6, Nfreqs)
+    az_array, za_array, freqs = xy_grid
+
     wavelengths = speed_of_light.to("m/s").value / freqs
 
-    N = 250
-    Npix = 500
-    zmax = np.radians(90)  # Degrees
-    arr = np.arange(-N, N)
-    x_arr, y_arr = np.meshgrid(arr, arr)
-    x_arr = x_arr.flatten()
-    y_arr = y_arr.flatten()
-    radius = np.sqrt(x_arr**2 + y_arr**2) / float(N)
-    za_array = radius * zmax
-    az_array = np.arctan2(y_arr, x_arr)
     beam_vals = beam.efield_eval(az_array=az_array, za_array=za_array, freq_array=freqs)
 
     ebeam = beam_vals[0, 0, :, :]
-    ebeam = ebeam.reshape(Nfreqs, Npix, Npix)
+    npix_side = int(np.sqrt(az_array.size))
+    ebeam = ebeam.reshape(freqs.size, npix_side, npix_side)
     beam_kern = np.fft.fft2(ebeam, axes=(1, 2))
     beam_kern = np.fft.fftshift(beam_kern, axes=(1, 2))
     for i, bk in enumerate(beam_kern):
         # Cutoff at half a % of the maximum value in Fourier space.
         thresh = np.max(np.abs(bk)) * 0.005
         points = np.sum(np.abs(bk) >= thresh)
-        # 2*sin(zmax) = fov extent projected onto the xy plane
-        upix = 1 / (2 * np.sin(zmax))
+        upix = 1 / (2 * np.sin(np.max(za_array)))
         area = np.sum(points) * upix**2
         kern_radius = np.sqrt(area / np.pi)
         assert np.isclose(diameter_m / wavelengths[i], kern_radius, rtol=0.5)
 
 
 @pytest.mark.parametrize("sigma_type", ["efield", "power"])
-def test_achromatic_gaussian_beam(source_grid, sigma_type):
+def test_achromatic_gaussian_beam(az_za_deg_grid, sigma_type):
     sigma_rad = np.deg2rad(5)
     beam = GaussianBeam(sigma=sigma_rad, sigma_type=sigma_type)
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = az_za_deg_grid
     nsrcs = az_vals.size
     n_freqs = freqs.size
 
@@ -151,7 +130,7 @@ def test_chromatic_gaussian():
     np.testing.assert_allclose(sig_f, 2 * hwhm / 2.355, atol=1e-3)
 
 
-def test_diameter_to_sigma():
+def test_diameter_to_sigma(az_za_deg_grid):
     # The integrals of an Airy power beam and a Gaussian power beam, within
     # the first Airy null, should be close if the Gaussian width is set to the
     # Airy width.
@@ -159,16 +138,9 @@ def test_diameter_to_sigma():
     abm = AiryBeam(diameter=diameter_m)
     gbm = GaussianBeam(diameter=diameter_m)
 
-    Nfreqs = 20
-    freqs = np.linspace(100e6, 130e6, Nfreqs)
+    az_array, za_array, freqs = az_za_deg_grid
+
     wavelengths = speed_of_light.to("m/s").value / freqs
-
-    N = 250
-    Npix = 501
-    zmax = np.radians(40)  # Degrees
-
-    az_array = np.linspace(-zmax, zmax, Npix)
-    za_array = np.array([0.0] * (N + 1) + [np.pi] * N)
 
     airy_vals = abm._power_eval(
         az_array=az_array.flatten(), za_array=za_array.flatten(), freq_array=freqs
@@ -182,7 +154,7 @@ def test_diameter_to_sigma():
     airy_vals = airy_vals[0, 0]
     gauss_vals = gauss_vals[0, 0]
 
-    for fi in range(Nfreqs):
+    for fi in range(freqs.size):
         null = 1.22 * wavelengths[fi] / diameter_m
         inds = np.where(np.abs(za_array) < null)
 
@@ -192,10 +164,10 @@ def test_diameter_to_sigma():
         )
 
 
-def test_short_dipole_beam(source_grid):
+def test_short_dipole_beam(az_za_deg_grid):
     beam = ShortDipoleBeam()
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = az_za_deg_grid
 
     nsrcs = az_vals.size
     n_freqs = freqs.size
@@ -224,10 +196,10 @@ def test_short_dipole_beam(source_grid):
     np.testing.assert_allclose(power_vals, expected_data)
 
 
-def test_uniform_beam(source_grid):
+def test_uniform_beam(az_za_deg_grid):
     beam = UniformBeam()
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = az_za_deg_grid
 
     nsrcs = az_vals.size
     n_freqs = freqs.size
@@ -247,10 +219,10 @@ def test_uniform_beam(source_grid):
         [ShortDipoleBeam, {}],
     ],
 )
-def test_power_analytic_beam(beam_obj, kwargs, source_grid):
+def test_power_analytic_beam(beam_obj, kwargs, xy_grid):
     # Check that power beam evaluation matches electric field amp**2 for analytic beams.
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = xy_grid
 
     beam = beam_obj(**kwargs)
 
@@ -282,11 +254,11 @@ def test_power_analytic_beam(beam_obj, kwargs, source_grid):
     np.testing.assert_allclose(cross_power, power_vals[0, 3], rtol=0, atol=1e-15)
 
 
-def test_eval_errors(source_grid):
+def test_eval_errors(az_za_deg_grid):
     diameter_m = 14.0
     beam = AiryBeam(diameter=diameter_m)
 
-    az_vals, za_vals, freqs = source_grid
+    az_vals, za_vals, freqs = az_za_deg_grid
 
     az_mesh, za_mesh = np.meshgrid(az_vals, za_vals)
 
