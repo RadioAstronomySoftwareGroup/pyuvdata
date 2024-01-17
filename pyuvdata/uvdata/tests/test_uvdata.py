@@ -12763,3 +12763,34 @@ def test_antpair2ind_not_rect_not_ordered(hera_uvh5):
     inds = hera_uvh5.antpair2ind((1, 0), ordered=False)
 
     assert np.all(inds == hera_uvh5.antpair2ind((0, 1), ordered=True))
+
+
+def test_antpair2ind_unordered_both_exist(hera_uvh5):
+    # Make a new object that has conjugated baselines in it as well.
+    conj = hera_uvh5.copy()
+    conj.conjugate_bls()
+    full = conj.concat(hera_uvh5)
+
+    inds_ordered = full.antpair2ind((0, 1), ordered=True)
+    inds_unordered = full.antpair2ind((0, 1), ordered=False)
+
+    idxs = np.arange(full.Nblts)
+    assert len(idxs[inds_ordered]) < len(idxs[inds_unordered])
+
+
+def test_key2inds_nonexistent_pol(hera_uvh5):
+    with pytest.raises(KeyError, match="Polarization -7 not found in data"):
+        hera_uvh5._key2inds((1, 0, -7))
+
+
+def test_get_ants_rectangular(hera_uvh5):
+    hera_uvh5.blts_are_rectangular = False  # even if its true...
+    ants = np.sort(hera_uvh5.get_ants())
+
+    hera_uvh5.reorder_blts(order="baseline", minor_order="time")
+    ants1 = np.sort(hera_uvh5.get_ants())
+    assert np.all(ants1 == ants)
+
+    hera_uvh5.reorder_blts(order="time", minor_order="baseline")
+    ants1 = np.sort(hera_uvh5.get_ants())
+    assert np.all(ants1 == ants)
