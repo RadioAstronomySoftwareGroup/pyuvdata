@@ -1354,9 +1354,6 @@ def LatLonAlt_from_XYZ(xyz, frame="ITRS", check_acceptability=True):
         lla = _utils._lla_from_xyz(xyz, _utils.Body.Earth.value)
     elif frame == "MCMF":
         lla = _utils._lla_from_xyz(xyz, _utils.Body.Moon.value)
-
-        # lla = erfa.gc2gde(LUNAR_RADIUS, 0.0, xyz.T)
-        # lla = np.asarray((lla[1], lla[0], lla[2]))  # Swap lon/lat
     else:
         raise ValueError(
             f'No spherical to cartesian transform defined for frame "{frame}".'
