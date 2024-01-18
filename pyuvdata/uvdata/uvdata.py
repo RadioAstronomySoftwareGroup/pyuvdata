@@ -2463,7 +2463,6 @@ class UVData(UVBase):
             latitude=latitude,
             longitude=longitude,
             altitude=altitude,
-            astrometry_lib=astrometry_library,
             frame=self._telescope_location.frame,
             ellipsoid=self._telescope_location.ellipsoid,
             astrometry_library=astrometry_library,
@@ -2506,9 +2505,9 @@ class UVData(UVBase):
                 dist = temp_dict.get("cat_dist")
 
                 app_ra[select_mask], app_dec[select_mask] = uvutils.calc_app_coords(
-                    lon_val,
-                    lat_val,
-                    frame,
+                    lon_coord=lon_val,
+                    lat_coord=lat_val,
+                    coord_frame=frame,
                     coord_epoch=epoch,
                     coord_times=time_val,
                     pm_ra=pm_ra,
@@ -2592,7 +2591,9 @@ class UVData(UVBase):
         formats cannot, so we just consider it forbidden.
         """
         if self.flex_spw:
-            uvutils._check_flex_spw_contiguous(self.spw_array, self.flex_spw_id_array)
+            uvutils._check_flex_spw_contiguous(
+                spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
+            )
 
     def _check_freq_spacing(self, *, raise_errors=True):
         """
@@ -4410,9 +4411,12 @@ class UVData(UVBase):
             Antenna numbers matching ordering of antpos, shape=(Nants,)
 
         """
+        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
         antpos = uvutils.ENU_from_ECEF(
             (self.antenna_positions + self.telescope_location),
-            *self.telescope_location_lat_lon_alt,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
             frame=self._telescope_location.frame,
             ellipsoid=self._telescope_location.ellipsoid,
         )
@@ -4913,10 +4917,10 @@ class UVData(UVBase):
             return
 
         rect, time = uvutils.determine_rectangularity(
-            self.time_array,
-            self.baseline_array,
-            self.Nbls,
-            self.Ntimes,
+            time_array=self.time_array,
+            baseline_array=self.baseline_array,
+            nbls=self.Nbls,
+            ntimes=self.Ntimes,
             blt_order=self.blt_order,
         )
         self.blts_are_rectangular = rect
@@ -5344,7 +5348,7 @@ class UVData(UVBase):
 
         return
 
-    def _apply_w_proj(self, new_w_vals, old_w_vals, *, select_mask=None):
+    def _apply_w_proj(self, *, new_w_vals, old_w_vals, select_mask=None):
         """
         Apply corrections based on changes to w-coord.
 
@@ -5483,7 +5487,9 @@ class UVData(UVBase):
             to_enu=True,
         )
 
-        self._apply_w_proj(0.0, self.uvw_array[:, 2], select_mask=select_mask_use)
+        self._apply_w_proj(
+            new_w_vals=0.0, old_w_vals=self.uvw_array[:, 2], select_mask=select_mask_use
+        )
         self.uvw_array = new_uvw
 
         # remove/update phase center
@@ -5907,11 +5913,11 @@ class UVData(UVBase):
         # Now calculate position angles.
         if not phase_frame == "altaz":
             new_frame_pa = uvutils.calc_frame_pos_angle(
-                time_array,
-                new_app_ra,
-                new_app_dec,
-                self.telescope_location_lat_lon_alt,
-                phase_frame,
+                time_array=time_array,
+                app_ra=new_app_ra,
+                app_dec=new_app_dec,
+                telescope_loc=self.telescope_location_lat_lon_alt,
+                ref_frame=phase_frame,
                 ref_epoch=epoch,
                 telescope_frame=self._telescope_location.frame,
                 ellipsoid=self._telescope_location.ellipsoid,
@@ -5967,7 +5973,9 @@ class UVData(UVBase):
 
         # Now its time to update the raw data. This will return empty if
         # metadata_only is set to True.
-        self._apply_w_proj(new_w_vals, old_w_vals, select_mask=select_mask)
+        self._apply_w_proj(
+            new_w_vals=new_w_vals, old_w_vals=old_w_vals, select_mask=select_mask
+        )
 
         # Finally, we now take it upon ourselves to update some metadata.
         self.uvw_array[select_mask] = new_uvw
@@ -6081,7 +6089,7 @@ class UVData(UVBase):
                 old_w_vals = self.uvw_array[:, 2].copy()
                 # Treat the unprojected values as having no w-proj previously
                 old_w_vals[unprojected_blts] = 0.0
-                self._apply_w_proj(new_uvw[:, 2], old_w_vals)
+                self._apply_w_proj(new_w_vals=new_uvw[:, 2], old_w_vals=old_w_vals)
             else:
                 warnings.warn(
                     "Recalculating uvw_array without adjusting visibility "
@@ -6163,8 +6171,8 @@ class UVData(UVBase):
                 # Also Note that the old values here are being treated as zeros since
                 # we've calcualted relative deltas.
                 self._apply_w_proj(
-                    0.0,
-                    delta_uvw[:, 2],  # <-- w-col of the uvws
+                    new_w_vals=0.0,
+                    old_w_vals=delta_uvw[:, 2],  # <-- w-col of the uvws
                     select_mask=self._check_for_cat_type("unprojected"),
                 )
 
