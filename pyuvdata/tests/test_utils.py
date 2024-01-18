@@ -28,8 +28,8 @@ ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 # Moon
-ref_latlonalt_moon = tuple(np.deg2rad(x) for x in (0.6875, 24.433, 0))
-ref_xyz_moon = (1581421.16194946, 718462.9979381, 20843.20350155)
+ref_latlonalt_moon = (0.6875 * np.pi / 180.0, 24.433 * np.pi / 180.0, 0.3)
+ref_xyz_moon = (1581421.70811685, 718463.24607001, 20793.21701724)
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
