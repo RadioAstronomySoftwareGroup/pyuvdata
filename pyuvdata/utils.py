@@ -6285,7 +6285,8 @@ def determine_rectangularity(
         return True, False
 
 
-def slicify(ind):
+def slicify(ind: slice | None | IterableType[int]) -> slice | None | IterableType[int]:
+    """Convert an iterable of integers into a slice object if possible."""
     if ind is None or isinstance(ind, slice):
         return ind
     if len(ind) == 0:
