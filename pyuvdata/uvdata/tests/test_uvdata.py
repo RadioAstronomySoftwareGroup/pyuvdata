@@ -12767,13 +12767,14 @@ def test_antpair2ind_not_rect_not_ordered(hera_uvh5):
 
 def test_antpair2ind_unordered_both_exist(hera_uvh5):
     # Make a new object that has conjugated baselines in it as well.
+    hera_uvh5.set_rectangularity()
     hera_uvh5.conjugate_bls("ant1<ant2")
     full = hera_uvh5.copy()
-    full.conjugate_bls("ant2<ant1")
-    full.fast_concat(hera_uvh5, axis="blt")
 
-    print(full.get_antpairs())
-    print(hera_uvh5.get_antpairs())
+    full.conjugate_bls("ant2<ant1")
+    full.fast_concat(hera_uvh5, axis="blt", inplace=True)
+    full.select(bls=[(0, 1), (1, 0)], inplace=True)
+    full.reorder_blts(order="time", minor_order="baseline")
     inds_ordered = full.antpair2ind((0, 1), ordered=True)
     inds_unordered = full.antpair2ind((0, 1), ordered=False)
 
