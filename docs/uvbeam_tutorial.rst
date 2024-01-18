@@ -288,18 +288,27 @@ a) Selecting a range of Zenith Angles
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> import matplotlib.pyplot as plt
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
+  >>> # Make a new object with a reduced zenith angle range with the select method
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
   >>> # plot zenith angle cut through beams
-  >>> plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0], # doctest: +SKIP
-  ...         new_beam.axis2_array, new_beam.data_array[0, 0, 0, 0, :, 0], 'r')
-  >>> plt.xscale('log') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
-  >>> plt.ylabel('Power') # doctest: +SKIP
-  >>> plt.show() # doctest: +SKIP
+  >>> fig, ax = plt.subplots(1, 1)
+  >>> _ = ax.plot(np.rad2deg(beam.axis2_array), beam.data_array[0, 0, 0, :, 0], label="original")
+  >>> _ = ax.plot(np.rad2deg(new_beam.axis2_array), new_beam.data_array[0, 0, 0, :, 0], 'r', label="cut down")
+  >>> _ = ax.set_xscale('log')
+  >>> _ = ax.set_yscale('log')
+  >>> _ = ax.set_xlabel('Zenith Angle (degrees)')
+  >>> _ = ax.set_ylabel('Power')
+  >>> _ = fig.legend(loc="upper right", bbox_to_anchor=[0.9,0.88])
+  >>> plt.show()  # doctest: +SKIP
+  >>> plt.savefig("Images/beam_cut.png", bbox_inches='tight')
+  >>> plt.clf()
+
+.. image:: Images/beam_cut.png
+  :width: 600
 
 a) Selecting Feeds or Polarizations
 ***********************************
