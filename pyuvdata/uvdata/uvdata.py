@@ -110,17 +110,6 @@ def _warn_old_phase_attr(__name):
     warnings.warn(warn_str, DeprecationWarning)
 
 
-def _clear_antpair2ind_cache(self):
-    """Clear the antpair2ind cache."""
-    self.__antpair2ind_cache = {}
-    self.__key2ind_cache = {}
-
-
-def _clear_key2ind_cache(self):
-    """Clear the antpair2ind cache."""
-    self.__key2ind_cache = {}
-
-
 class UVData(UVBase):
     """
     A class for defining a radio interferometer dataset.
@@ -276,7 +265,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
-            setter=_clear_antpair2ind_cache,
+            setter=self._clear_antpair2ind_cache,
         )
 
         desc = (
@@ -289,7 +278,7 @@ class UVData(UVBase):
             expected_type=int,
             form=("Nblts",),
             acceptable_range=(0, 2147483647),
-            setter=_clear_antpair2ind_cache,
+            setter=self._clear_antpair2ind_cache,
         )
 
         desc = (
@@ -338,7 +327,7 @@ class UVData(UVBase):
             expected_type=int,
             acceptable_vals=list(np.arange(-8, 5)),
             form=("Npols",),
-            setter=_clear_key2ind_cache,
+            setter=self._clear_key2ind_cache,
         )
 
         desc = (
@@ -789,6 +778,17 @@ class UVData(UVBase):
         self.__key2ind_cache = {}
 
         super(UVData, self).__init__()
+
+    @staticmethod
+    def _clear_antpair2ind_cache(obj):
+        """Clear the antpair2ind cache."""
+        obj.__antpair2ind_cache = {}
+        obj.__key2ind_cache = {}
+
+    @staticmethod
+    def _clear_key2ind_cache(obj):
+        """Clear the antpair2ind cache."""
+        obj.__key2ind_cache = {}
 
     @staticmethod
     @combine_docstrings(new_uvdata, style=DocstringStyle.NUMPYDOC)
@@ -3680,7 +3680,13 @@ class UVData(UVBase):
             use_miriad_convention=use_miriad_convention,
         )
 
-    def antpair2ind(self, ant1, ant2=None, *, ordered=True) -> np.ndarray | slice:
+    def antpair2ind(
+        self,
+        ant1: int | tuple[int, int],
+        ant2: int | None = None,
+        *,
+        ordered: bool = True,
+    ) -> np.ndarray | slice | None:
         """
         Get indices along the baseline-time axis for a given antenna pair.
 
@@ -3701,7 +3707,8 @@ class UVData(UVBase):
         inds : ndarray of int-64 or slice
             If possible, returns a slice object that can be used to index the blt
             axis and get back the data associated with antpair. If not, returns indices
-            of the antpair along the baseline-time axis.
+            of the antpair along the baseline-time axis. If the antpair does not exist
+            in the data, returns None.
         """
         # check for expanded antpair or key
         if ant2 is None:
@@ -3805,11 +3812,16 @@ class UVData(UVBase):
             Note if a cross-pol baseline is requested, the polarization will
             also be reversed so the appropriate correlations are returned.
             e.g. asking for (1, 2, 'xy') may return conj(2, 1, 'yx'), which
-            is equivalent to the requesting baseline. See utils.conj_pol() for
+            is equivalent to the requested baseline. See utils.conj_pol() for
             complete conjugation mapping.
-        pol_ind : tuple of ndarray of int
+        pol_ind : tuple of ndarray of int or slice or None
             polarization indices for blt_ind1 and blt_ind2
 
+        Raises
+        ------
+        KeyError
+            If the requested key is not in the data at all (either in given form
+            or its conjugate).
         """
         orig_key = key
 
@@ -4774,9 +4786,7 @@ class UVData(UVBase):
                 self.ant_1_array[index_array], self.ant_2_array[index_array]
             )
             self.Nbls = np.unique(self.baseline_array).size
-
-            self.__antpair2ind_cache = {}
-            self._key2ind_cache = {}
+            self._clear_antpair2ind_cache(self)
 
     def reorder_pols(
         self,
