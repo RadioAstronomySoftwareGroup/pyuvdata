@@ -999,15 +999,12 @@ def test_driftscan(tmp_path, paper_miriad):
         cat_type="driftscan",
         cat_name="drift_alt80",
     )
-    warn_list = ["This object has a driftscan phase center. Miriad does not really ",
-                 "writing default values for restfreq, vsource, veldop,"
-                 " jyperk, and systemp"
-                ]
-    
-    with uvtest.check_warnings(
-        UserWarning,
-        match=warn_list,
-    ):
+    warn_list = [
+        "This object has a driftscan phase center. Miriad does not really ",
+        "writing default values for restfreq, vsource, veldop," " jyperk, and systemp",
+    ]
+
+    with uvtest.check_warnings(UserWarning, match=warn_list):
         uv2.write_miriad(testfile, clobber=True)
 
     uv3 = UVData.from_file(testfile, use_future_array_shapes=True)
@@ -1088,7 +1085,7 @@ def test_miriad_extra_keywords_errors(
     uv_in, _, testfile = uv_in_paper
 
     uvw_warn_str = "The uvw_array does not match the expected values"
-   
+
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
     if warnstr is None:
@@ -1105,7 +1102,7 @@ def test_miriad_extra_keywords_errors(
     else:
         warn_str_list = [
             warnstr,
-            "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
         ]
         with uvtest.check_warnings(UserWarning, warn_str_list):
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
@@ -1279,7 +1276,7 @@ def test_miriad_antenna_diameters(uv_in_paper):
         match=[
             "The uvw_array does not match the expected values",
             "Antenna diameters are not uniform",
-            "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
         ],
     ):
         uv_in.write_miriad(write_file, clobber=True)
