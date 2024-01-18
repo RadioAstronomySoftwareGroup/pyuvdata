@@ -999,13 +999,14 @@ def test_driftscan(tmp_path, paper_miriad):
         cat_type="driftscan",
         cat_name="drift_alt80",
     )
-    warn_str_list = ["This object has a driftscan phase center. Miriad does not really ",
-                     "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
-                     ]
+    warn_list = ["This object has a driftscan phase center. Miriad does not really ",
+                 "writing default values for restfreq, vsource, veldop,"
+                 " jyperk, and systemp"
+                ]
     
     with uvtest.check_warnings(
         UserWarning,
-        match=warn_str_list,
+        match=warn_list,
     ):
         uv2.write_miriad(testfile, clobber=True)
 
@@ -1087,15 +1088,13 @@ def test_miriad_extra_keywords_errors(
     uv_in, _, testfile = uv_in_paper
 
     uvw_warn_str = "The uvw_array does not match the expected values"
-    def_warn_str = "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
+   
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
     if warnstr is None:
         warnstr_list = [uvw_warn_str]
     else:
         warnstr_list = [warnstr, uvw_warn_str]
-
-
 
     with uvtest.check_warnings(UserWarning, warnstr_list):
         uv_in.check()
@@ -1104,7 +1103,11 @@ def test_miriad_extra_keywords_errors(
         with pytest.raises(TypeError, match=errstr):
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
     else:
-        with uvtest.check_warnings(UserWarning, [warnstr, def_warn_str]):
+        warn_str_list = [
+            warnstr,
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
+        ]
+        with uvtest.check_warnings(UserWarning, warn_str_list):
             uv_in.write_miriad(testfile, clobber=True, run_check=False)
 
 
