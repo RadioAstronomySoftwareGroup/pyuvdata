@@ -1552,7 +1552,7 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
         np.ascontiguousarray(altitude, dtype=np.float64),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        _utils.Body.Earth.value if frame == "ITRS" else _utils.body.Moon.value,
+        _utils.Body.Earth.value if frame == "ITRS" else _utils.Body.Moon.value,
     )
     enu = enu.T
 
