@@ -1794,7 +1794,7 @@ class Miriad(UVData):
         uv.add_var("longitu", "d")
         uv["longitu"] = self.telescope_location_lat_lon_alt[1].astype(np.double)
         uv.add_var("nants", "i")
-        
+
         # DCP 2024.01.12 - Adding defaults required for basic imaging
         #############################################################
         miriad_defaults = {
@@ -1802,16 +1802,17 @@ class Miriad(UVData):
             "jyperk": ("r", np.float32(1.0)),
             "systemp": ("r", np.float32(1.0)),
             "veldop": ("r", np.float32(0.0)),
-            "vsource": ("r", np.float32(0.0))
+            "vsource": ("r", np.float32(0.0)),
         }
 
         for key, (miriad_dtype, val) in miriad_defaults.items():
             uv.add_var(key, miriad_dtype)
             uv[key] = val
 
-        warnings.warn("writing default values for restfreq, vsource, "
-                      "veldop, jyperk, and systemp"
-                      )
+        warnings.warn(
+            "writing default values for restfreq, vsource, "
+            "veldop, jyperk, and systemp"
+        )
 
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
