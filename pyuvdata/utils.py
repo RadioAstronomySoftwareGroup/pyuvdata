@@ -406,7 +406,7 @@ def _test_array_constant_spacing(array, *, tols=None):
     return _test_array_constant(array_diff, tols=tols)
 
 
-def _check_flex_spw_contiguous(spw_array, flex_spw_id_array):
+def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
     """
     Check if the spectral windows are contiguous for flex_spw datasets.
 
@@ -507,7 +507,9 @@ def _check_freq_spacing(
     elif flex_spw:
         # Check to make sure that the flexible spectral window has indicies set up
         # correctly (grouped together) for this check
-        _check_flex_spw_contiguous(spw_array, flex_spw_id_array)
+        _check_flex_spw_contiguous(
+            spw_array=spw_array, flex_spw_id_array=flex_spw_id_array
+        )
         diff_chanwidth = np.diff(channel_width)
         freq_dir = []
         # We want to grab unique spw IDs, in the order that they appear in the data
@@ -546,10 +548,10 @@ def _check_freq_spacing(
             chanwidth_error = True
     else:
         freq_dir = np.sign(np.mean(freq_spacing))
-        if not _test_array_constant(freq_spacing, freq_tols):
+        if not _test_array_constant(freq_spacing, tols=freq_tols):
             spacing_error = True
         if future_array_shapes:
-            if not _test_array_constant(channel_width, freq_tols):
+            if not _test_array_constant(channel_width, tols=freq_tols):
                 spacing_error = True
             else:
                 if not np.isclose(
@@ -1384,7 +1386,7 @@ def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability
     return lla[0], lla[1], lla[2]
 
 
-def XYZ_from_LatLonAlt(latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
+def XYZ_from_LatLonAlt(latitude, longitude, altitude, *, frame="ITRS", ellipsoid=None):
     """
     Calculate ECEF x,y,z from lat/lon/alt values.
 
@@ -1673,9 +1675,8 @@ def old_uvw_calc(ra, dec, initial_uvw):
     This method should not be used and is only retained for testing the
     undo_old_uvw_calc method, which is needed for fixing phases.
 
-    This code expects input uvws or positions relative to the telescope
-    location in the same frame that ra/dec are in (e.g. icrs or gcrs) and
-    returns phased ones in the same frame.
+    This code expects input uvws relative to the telescope location in the same frame
+    that ra/dec are in (e.g. icrs or gcrs) and returns phased ones in the same frame.
 
     Parameters
     ----------
@@ -1827,7 +1828,7 @@ def cart3_to_polar2(xyz_array):
     return lon_array, lat_array
 
 
-def _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
+def _rotate_matmul_wrapper(*, xyz_array, rot_matrix, n_rot):
     """
     Apply a rotation matrix to a series of vectors.
 
@@ -1872,7 +1873,7 @@ def _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot):
     return rotated_xyz
 
 
-def _rotate_one_axis(xyz_array, rot_amount, rot_axis):
+def _rotate_one_axis(*, xyz_array, rot_amount, rot_axis):
     """
     Rotate an array of 3D positions around the a single axis (x, y, or z).
 
@@ -1945,15 +1946,19 @@ def _rotate_one_axis(xyz_array, rot_amount, rot_axis):
         # else is done.
         return np.transpose(
             _rotate_matmul_wrapper(
-                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot
+                xyz_array=np.transpose(xyz_array, axes=[2, 1, 0]),
+                rot_matrix=rot_matrix,
+                n_rot=n_rot,
             ),
             axes=[2, 1, 0],
         )
     else:
-        return _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+        return _rotate_matmul_wrapper(
+            xyz_array=xyz_array, rot_matrix=rot_matrix, n_rot=n_rot
+        )
 
 
-def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
+def _rotate_two_axis(*, xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
     """
     Rotate an array of 3D positions sequentially around a pair of axes (x, y, or z).
 
@@ -2001,14 +2006,22 @@ def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         return deepcopy(xyz_array)
     elif no_rot1:
         # If rot_amount1 is None, then ignore it and just work w/ the 2nd rotation
-        return _rotate_one_axis(xyz_array, rot_amount2, rot_axis2)
+        return _rotate_one_axis(
+            xyz_array=xyz_array, rot_amount=rot_amount2, rot_axis=rot_axis2
+        )
     elif no_rot2:
         # If rot_amount2 is None, then ignore it and just work w/ the 1st rotation
-        return _rotate_one_axis(xyz_array, rot_amount1, rot_axis1)
+        return _rotate_one_axis(
+            xyz_array=xyz_array, rot_amount=rot_amount1, rot_axis=rot_axis1
+        )
     elif rot_axis1 == rot_axis2:
         # Capture the case where someone wants to do a sequence of rotations on the same
         # axis. Also known as just rotating a single axis.
-        return _rotate_one_axis(xyz_array, rot_amount1 + rot_amount2, rot_axis1)
+        return _rotate_one_axis(
+            xyz_array=xyz_array,
+            rot_amount=rot_amount1 + rot_amount2,
+            rot_axis=rot_axis1,
+        )
 
     # Figure out how many individual rotation matricies we need, accounting for the
     # fact that these can either be floats or ndarrays.
@@ -2083,13 +2096,17 @@ def _rotate_two_axis(xyz_array, rot_amount1, rot_amount2, rot_axis1, rot_axis2):
         # swap the n_vector and  n_rot axes, and then swap them back once everything
         # else is done.
         return np.transpose(
-            _rotate_matmul_wrapper(
-                np.transpose(xyz_array, axes=[2, 1, 0]), rot_matrix, n_rot
+            _rotate_matmul_wrapper(  # xyz_array, rot_matrix, n_rot
+                xyz_array=np.transpose(xyz_array, axes=[2, 1, 0]),
+                rot_matrix=rot_matrix,
+                n_rot=n_rot,
             ),
             axes=[2, 1, 0],
         )
     else:
-        return _rotate_matmul_wrapper(xyz_array, rot_matrix, n_rot)
+        return _rotate_matmul_wrapper(
+            xyz_array=xyz_array, rot_matrix=rot_matrix, n_rot=n_rot
+        )
 
 
 def calc_uvw(
@@ -2277,9 +2294,15 @@ def calc_uvw(
         ant_rot_vectors = np.reshape(
             np.transpose(
                 _rotate_one_axis(
-                    _rotate_two_axis(ant_vectors, unique_gha, unique_dec, 2, 1),
-                    unique_pa,
-                    0,
+                    xyz_array=_rotate_two_axis(
+                        xyz_array=ant_vectors,
+                        rot_amount1=unique_gha,
+                        rot_amount2=unique_dec,
+                        rot_axis1=2,
+                        rot_axis2=1,
+                    ),
+                    rot_amount=unique_pa,
+                    rot_axis=0,
                 ),
                 axes=[0, 2, 1],
             ),
@@ -2345,30 +2368,34 @@ def calc_uvw(
         # up on the map). This is a much easier transform to handle.
         if np.all(gha_delta_array == 0.0) and np.all(old_app_dec == app_dec):
             new_coords = _rotate_one_axis(
-                uvw_array[:, [2, 0, 1], np.newaxis],
-                frame_pa - (0.0 if old_frame_pa is None else old_frame_pa),
-                0,
+                xyz_array=uvw_array[:, [2, 0, 1], np.newaxis],
+                rot_amount=frame_pa - (0.0 if old_frame_pa is None else old_frame_pa),
+                rot_axis=0,
             )[:, :, 0]
         else:
             new_coords = _rotate_two_axis(
-                _rotate_two_axis(  # Yo dawg, I heard you like rotation matricies...
-                    uvw_array[:, [2, 0, 1], np.newaxis],
-                    0.0 if (from_enu or old_frame_pa is None) else (-old_frame_pa),
-                    (-telescope_lat) if from_enu else (-old_app_dec),
-                    0,
-                    1,
+                xyz_array=_rotate_two_axis(
+                    xyz_array=uvw_array[:, [2, 0, 1], np.newaxis],
+                    rot_amount1=(
+                        0.0 if (from_enu or old_frame_pa is None) else (-old_frame_pa)
+                    ),
+                    rot_amount2=(-telescope_lat) if from_enu else (-old_app_dec),
+                    rot_axis1=0,
+                    rot_axis2=1,
                 ),
-                gha_delta_array,
-                telescope_lat if to_enu else app_dec,
-                2,
-                1,
+                rot_amount1=gha_delta_array,
+                rot_amount2=telescope_lat if to_enu else app_dec,
+                rot_axis1=2,
+                rot_axis2=1,
             )
 
             # One final rotation applied here, to compensate for the fact that we want
             # the Dec-axis of our image (Fourier dual to the v-axis) to be aligned with
             # the chosen frame, if we not in ENU coordinates
             if not to_enu:
-                new_coords = _rotate_one_axis(new_coords, frame_pa, 0)
+                new_coords = _rotate_one_axis(
+                    xyz_array=new_coords, rot_amount=frame_pa, rot_axis=0
+                )
 
             # Finally drop the now-vestigal last axis of the array
             new_coords = new_coords[:, :, 0]
@@ -2381,8 +2408,8 @@ def calc_uvw(
 
 def transform_sidereal_coords(
     *,
-    lon,
-    lat,
+    longitude,
+    latitude,
     in_coord_frame,
     out_coord_frame,
     in_coord_epoch=None,
@@ -2439,8 +2466,8 @@ def transform_sidereal_coords(
         Latidudinal coordinates, in units of radians. Output will be an ndarray
         if any inputs were, with shape (Ncoords,) or (Ntimes,), depending on inputs.
     """
-    lon_coord = lon * units.rad
-    lat_coord = lat * units.rad
+    lon_coord = longitude * units.rad
+    lat_coord = latitude * units.rad
 
     # Check here to make sure that lat_coord and lon_coord are the same length,
     # either 1 or len(time_array)
@@ -2637,7 +2664,6 @@ def transform_icrs_to_app(
             "Requested coordinate transformation library is not supported, please "
             "select either 'erfa', 'novas', or 'astropy' for astrometry_library."
         )
-
     ra_coord = ra * units.rad
     dec_coord = dec * units.rad
 
@@ -2968,6 +2994,7 @@ def transform_icrs_to_app(
 
 
 def transform_app_to_icrs(
+    *,
     time_array,
     app_ra,
     app_dec,
@@ -3173,7 +3200,7 @@ def transform_app_to_icrs(
     return icrs_ra, icrs_dec
 
 
-def calc_parallactic_angle(app_ra, app_dec, lst_array, telescope_lat):
+def calc_parallactic_angle(*, app_ra, app_dec, lst_array, telescope_lat):
     """
     Calculate the parallactic angle between RA/Dec and the AltAz frame.
 
@@ -3195,6 +3222,7 @@ def calc_parallactic_angle(app_ra, app_dec, lst_array, telescope_lat):
 
 
 def calc_frame_pos_angle(
+    *,
     time_array,
     app_ra,
     app_dec,
@@ -3332,6 +3360,7 @@ def calc_frame_pos_angle(
 def lookup_jplhorizons(
     target_name,
     time_array,
+    *,
     telescope_loc=None,
     high_cadence=False,
     force_indv_lookup=None,
@@ -3535,7 +3564,7 @@ def lookup_jplhorizons(
 
 
 def interpolate_ephem(
-    time_array, ephem_times, ephem_ra, ephem_dec, ephem_dist=None, ephem_vel=None
+    *, time_array, ephem_times, ephem_ra, ephem_dec, ephem_dist=None, ephem_vel=None
 ):
     """
     Interpolates ephemerides to give positions for requested times.
@@ -3665,6 +3694,7 @@ def interpolate_ephem(
 
 
 def calc_app_coords(
+    *,
     lon_coord,
     lat_coord,
     coord_frame="icrs",
@@ -3811,8 +3841,8 @@ def calc_app_coords(
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
-                lon=lon_coord,
-                lat=lat_coord,
+                longitude=lon_coord,
+                latitude=lat_coord,
                 in_coord_frame=coord_frame,
                 out_coord_frame="icrs",
                 in_coord_epoch=coord_epoch,
@@ -3845,12 +3875,15 @@ def calc_app_coords(
         unique_app_dec = unique_app_dec + np.zeros_like(unique_app_ra)
     elif coord_type == "ephem":
         interp_ra, interp_dec, _, _ = interpolate_ephem(
-            unique_time_array, coord_times, lon_coord, lat_coord
+            time_array=unique_time_array,
+            ephem_times=coord_times,
+            ephem_ra=lon_coord,
+            ephem_dec=lat_coord,
         )
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
-                lon=interp_ra,
-                lat=interp_dec,
+                longitude=interp_ra,
+                latitude=interp_dec,
                 in_coord_frame=coord_frame,
                 out_coord_frame="icrs",
                 in_coord_epoch=coord_epoch,
@@ -3966,15 +3999,20 @@ def calc_sidereal_coords(
         ellipsoid = "SPHERE"
 
     icrs_ra, icrs_dec = transform_app_to_icrs(
-        time_array, app_ra, app_dec, telescope_loc, telescope_frame, ellipsoid=ellipsoid
+        time_array=time_array,
+        app_ra=app_ra,
+        app_dec=app_dec,
+        telescope_loc=telescope_loc,
+        telescope_frame=telescope_frame,
+        ellipsoid=ellipsoid,
     )
 
     if coord_frame == "icrs":
         ref_ra, ref_dec = (icrs_ra, icrs_dec)
     else:
         ref_ra, ref_dec = transform_sidereal_coords(
-            lon=icrs_ra,
-            lat=icrs_dec,
+            longitude=icrs_ra,
+            latitude=icrs_dec,
             in_coord_frame="icrs",
             out_coord_frame=coord_frame,
             out_coord_epoch=epoch,
@@ -3985,8 +4023,8 @@ def calc_sidereal_coords(
 
 
 def get_lst_for_time(
-    *,
     jd_array=None,
+    *,
     latitude=None,
     longitude=None,
     altitude=None,
@@ -4535,7 +4573,12 @@ def uvw_track_generator(
     )
 
     frame_pa = calc_frame_pos_angle(
-        time_array, app_ra, app_dec, site_loc, coord_frame, ref_epoch=coord_epoch
+        time_array=time_array,
+        app_ra=app_ra,
+        app_dec=app_dec,
+        telescope_loc=site_loc,
+        ref_frame=coord_frame,
+        ref_epoch=coord_epoch,
     )
 
     uvws = calc_uvw(
@@ -4623,7 +4666,7 @@ def _find_cliques(adj, strict=False):
     return loc_gps
 
 
-def find_clusters(location_ids, location_vectors, tol, strict=False):
+def find_clusters(*, location_ids, location_vectors, tol, strict=False):
     """
     Find clusters of vectors (e.g. redundant baselines, times).
 
@@ -4657,7 +4700,7 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
     return loc_gps
 
 
-def find_clusters_grid(baselines, baseline_vecs, tol=1.0):
+def find_clusters_grid(location_ids, location_vectors, tol=1.0):
     """
     Find redundant groups using a gridding algorithm developed by the HERA team.
 
@@ -4714,8 +4757,8 @@ def find_clusters_grid(baselines, baseline_vecs, tol=1.0):
         return
 
     baseline_ind_conj = []
-    for bl_i, bl in enumerate(baselines):
-        delta = tuple(np.round(baseline_vecs[bl_i] / grid_size).astype(int))
+    for bl_i, bl in enumerate(location_ids):
+        delta = tuple(np.round(location_vectors[bl_i] / grid_size).astype(int))
         new_key = check_neighbors(delta)
         if new_key is not None:
             # this has a match
@@ -4804,11 +4847,18 @@ def get_baseline_redundancies(
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
     if use_grid_alg:
-        output = find_clusters_grid(baselines, baseline_vecs, tol=1.0)
+        output = find_clusters_grid(
+            location_ids=baselines, location_vectors=baseline_vecs, tol=tol
+        )
         bl_gps, baseline_ind_conj = output
     else:
         try:
-            bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
+            bl_gps = find_clusters(
+                location_ids=baselines,
+                location_vectors=baseline_vecs,
+                tol=tol,
+                strict=True,
+            )
         except ValueError as exc:
             raise ValueError(
                 "Some baselines are falling into multiple redundant groups. "
@@ -4828,7 +4878,12 @@ def get_baseline_redundancies(
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, *, tol=1.0, include_autos=False, use_grid_alg=None
+    antenna_numbers,
+    antenna_positions,
+    *,
+    tol=1.0,
+    include_autos=False,
+    use_grid_alg=None,
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -5513,16 +5568,18 @@ def uvcalibrate(
             except KeyError:
                 uvcal_ant2_num = None
 
-            uvcal_key1 = (uvcal_ant1_num, feed1)
-            uvcal_key2 = (uvcal_ant2_num, feed2)
             if (uvcal_ant1_num is None or uvcal_ant2_num is None) or not (
-                uvcal_use._has_key(*uvcal_key1) and uvcal_use._has_key(*uvcal_key2)
+                uvcal_use._key_exists(antnum=uvcal_ant1_num, jpol=feed1)
+                and uvcal_use._key_exists(antnum=uvcal_ant2_num, jpol=feed2)
             ):
                 if uvdata.future_array_shapes:
                     uvdata.flag_array[blt_inds, :, pol_ind] = True
                 else:
                     uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
                 continue
+
+            uvcal_key1 = (uvcal_ant1_num, feed1)
+            uvcal_key2 = (uvcal_ant2_num, feed2)
             if flip_gain_conj:
                 gain = (
                     np.conj(uvcal_use.get_gains(uvcal_key1))
@@ -6037,7 +6094,7 @@ def _get_dset_shape(dset, indices):
 
 
 def _convert_to_slices(
-    indices, max_nslice_frac=0.1, max_nslice=None, return_index_on_fail=False
+    indices, *, max_nslice_frac=0.1, max_nslice=None, return_index_on_fail=False
 ):
     """
     Convert list of indices to a list of slices.

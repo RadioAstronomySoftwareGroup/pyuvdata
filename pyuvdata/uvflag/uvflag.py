@@ -197,8 +197,8 @@ class UVFlag(UVBase):
 
     def __init__(
         self,
-        *,
         indata=None,
+        *,
         mode="metric",
         copy_flags=False,
         waterfall=False,
@@ -976,7 +976,9 @@ class UVFlag(UVBase):
             self._flex_spw_id_array.required = False
 
         # first run the basic check from UVBase
-        super().check(check_extra, run_check_acceptability)
+        super().check(
+            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+        )
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
