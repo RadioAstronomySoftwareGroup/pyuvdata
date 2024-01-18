@@ -4038,7 +4038,7 @@ class UVData(UVBase):
             Array of unique baselines with data associated with them.
         """
         if self.blts_are_rectangular:
-            if self.blt_order == ("baseline", "time"):
+            if self.time_axis_faster_than_bls:
                 return self.baseline_array[:: self.Ntimes]
             else:
                 return self.baseline_array[: self.Nbls]
@@ -7552,6 +7552,8 @@ class UVData(UVBase):
             this.filename = uvutils._combine_filenames(this.filename, obj.filename)
         if this.filename is not None:
             this._filename.form = len(this.filename)
+
+        this.set_rectangularity(force=True)
 
         # Check final object is self-consistent
         if run_check:
