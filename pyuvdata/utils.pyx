@@ -13,27 +13,41 @@ import warnings
 cimport cython
 cimport numpy
 from libc.math cimport atan2, cos, sin, sqrt
-
+import enum
 # This initializes the numpy 1.7 c-api.
 # cython 3.0 will do this by default.
 # We may be able to just remove this then.
 numpy.import_array()
 
+cdef class Ellipsoid:
+  cdef readonly numpy.float64_t gps_a, gps_b, e_squared, e_prime_squared, b_div_a2
+
+  @cython.cdivision
+  def __init__(self, numpy.float64_t gps_a, numpy.float64_t gps_b):
+    self.gps_a = gps_a
+    self.gps_b = gps_b
+    self.b_div_a2 = (self.gps_b / self.gps_a)**2
+    self.e_squared = (1 - self.b_div_a2)
+    self.e_prime_squared = (self.b_div_a2**-1 - 1)
+
+
+#A python interface for different celestial bodies
 # in order to not have circular dependencies
 # define transformation parameters here
 # parameters for transforming between xyz & lat/lon/alt
-cdef numpy.float64_t _gps_a = 6378137
-cdef numpy.float64_t _gps_b = 6356752.31424518
-cdef numpy.float64_t _e2 = 6.69437999014e-3
-cdef numpy.float64_t _ep2 = 6.73949674228e-3
-# this one is useful in the xyz from lla calculation
-cdef numpy.float64_t b_div_a2 = (_gps_b / _gps_a)**2
+class Body(enum.Enum):
+  Earth = Ellipsoid(6378137, 6356752.31424518)
+  # moon data taken from https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
+  # with radius from spice_utils
+  Moon = Ellipsoid(1737.1e3, 1737.1e3 * (1 - 0.0012))
+
 
 # expose up to python
-gps_a = _gps_a
-gps_b = _gps_b
-e_squared = _e2
-e_prime_squared = _ep2
+# keep for consistent API though these really shouldn't be used anymore
+gps_a = Body.Earth.value.gps_a
+gps_b =  Body.Earth.value.gps_b
+e_squared =  Body.Earth.value.e_squared
+e_prime_squared =  Body.Earth.value.e_prime_squared
 
 ctypedef fused int_or_float:
     numpy.uint64_t
@@ -259,6 +273,7 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
 @cython.cdivision(True)
 cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
   numpy.float64_t[:, ::1] xyz,
+  Ellipsoid body,
 ):
   cdef Py_ssize_t ind
   cdef int ndim = 2
@@ -274,16 +289,16 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _lla_from_xyz(
   # GPS positions PDF in docs/references folder
   for ind in range(n_pts):
     gps_p = sqrt(xyz[0, ind] ** 2 + xyz[1, ind] ** 2)
-    gps_theta = atan2(xyz[2, ind] * _gps_a, gps_p * _gps_b)
+    gps_theta = atan2(xyz[2, ind] * body.gps_a, gps_p * body.gps_b)
 
     _lla[0, ind] = atan2(
-      xyz[2, ind] + _ep2 * _gps_b * sin(gps_theta) ** 3,
-      gps_p - _e2 * _gps_a * cos(gps_theta) ** 3,
+      xyz[2, ind] + body.e_prime_squared * body.gps_b * sin(gps_theta) ** 3,
+      gps_p - body.e_squared * body.gps_a * cos(gps_theta) ** 3,
     )
 
     _lla[1, ind] = atan2(xyz[1, ind], xyz[0, ind])
 
-    _lla[2, ind] = (gps_p / cos(lla[0, ind])) - _gps_a / sqrt(1.0 - _e2 * sin(lla[0, ind]) ** 2)
+    _lla[2, ind] = (gps_p / cos(lla[0, ind])) - body.gps_a / sqrt(1.0 - body.e_squared * sin(lla[0, ind]) ** 2)
 
   return lla
 
@@ -294,6 +309,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz_from_latlonalt(
   numpy.float64_t[::1] _lat,
   numpy.float64_t[::1] _lon,
   numpy.float64_t[::1] _alt,
+  Ellipsoid body,
 ):
   cdef Py_ssize_t i
   cdef int ndim = 2
@@ -312,12 +328,12 @@ cpdef numpy.ndarray[dtype=numpy.float64_t, ndim=2] _xyz_from_latlonalt(
     cos_lat = cos(_lat[ind])
     cos_lon = cos(_lon[ind])
 
-    gps_n = _gps_a / sqrt(1.0 - _e2 * sin_lat ** 2)
+    gps_n = body.gps_a / sqrt(1.0 - body.e_squared * sin_lat ** 2)
 
     _xyz[0, ind] = (gps_n + _alt[ind]) * cos_lat * cos_lon
     _xyz[1, ind] = (gps_n + _alt[ind]) * cos_lat * sin_lon
 
-    _xyz[2, ind] = (b_div_a2 * gps_n + _alt[ind]) * sin_lat
+    _xyz[2, ind] = (body.b_div_a2 * gps_n + _alt[ind]) * sin_lat
   return xyz
 
 # this function takes memoryviews as inputs
@@ -329,6 +345,7 @@ cpdef numpy.ndarray[numpy.float64_t, ndim=2] _ENU_from_ECEF(
   numpy.float64_t[::1] _lat,
   numpy.float64_t[::1] _lon,
   numpy.float64_t[::1] _alt,
+  Ellipsoid body,
 ):
   cdef Py_ssize_t i
   cdef int ndim = 2
@@ -340,7 +357,7 @@ cpdef numpy.ndarray[numpy.float64_t, ndim=2] _ENU_from_ECEF(
 
   # we want a memoryview of the xyz of the center
   # this looks a little silly but we don't have to define 2 different things
-  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt).T[0]
+  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt, body).T[0]
 
   cdef numpy.ndarray[numpy.float64_t, ndim=2] _enu = numpy.PyArray_EMPTY(ndim, dims, numpy.NPY_FLOAT64, 0)
   cdef numpy.float64_t[:, ::1] enu = _enu
@@ -379,6 +396,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_from_ENU(
   numpy.float64_t[::1] _lat,
   numpy.float64_t[::1] _lon,
   numpy.float64_t[::1] _alt,
+  Ellipsoid body,
 ):
   cdef Py_ssize_t i
   cdef int ndim = 2
@@ -392,7 +410,7 @@ cpdef numpy.ndarray[dtype=numpy.float64_t] _ECEF_from_ENU(
 
   # we want a memoryview of the xyz of the center
   # this looks a little silly but we don't have to define 2 different things
-  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt).T[0]
+  cdef numpy.float64_t[:] xyz_center = _xyz_from_latlonalt(_lat, _lon, _alt, body).T[0]
 
   sin_lat = sin(_lat[0])
   cos_lat = cos(_lat[0])

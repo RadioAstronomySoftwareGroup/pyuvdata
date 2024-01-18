@@ -17,7 +17,6 @@ import erfa
 import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
-from astropy.coordinates.matrix_utilities import rotation_matrix
 from astropy.time import Time
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
@@ -1352,10 +1351,12 @@ def LatLonAlt_from_XYZ(xyz, frame="ITRS", check_acceptability=True):
             )
     # this helper function returns one 2D array because it is less overhead for cython
     if frame == "ITRS":
-        lla = _utils._lla_from_xyz(xyz)
+        lla = _utils._lla_from_xyz(xyz, _utils.Body.Earth.value)
     elif frame == "MCMF":
-        lla = erfa.gc2gde(LUNAR_RADIUS, 0.0, xyz.T)
-        lla = np.asarray((lla[1], lla[0], lla[2]))  # Swap lon/lat
+        lla = _utils._lla_from_xyz(xyz, _utils.Body.Moon.value)
+
+        # lla = erfa.gc2gde(LUNAR_RADIUS, 0.0, xyz.T)
+        # lla = np.asarray((lla[1], lla[0], lla[2]))  # Swap lon/lat
     else:
         raise ValueError(
             f'No spherical to cartesian transform defined for frame "{frame}".'
@@ -1407,15 +1408,19 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, frame="ITRS"):
             "latitude, longitude and altitude must all have the same length"
         )
     if frame == "ITRS":
-        xyz = _utils._xyz_from_latlonalt(latitude, longitude, altitude)
-        xyz = xyz.T
+        xyz = _utils._xyz_from_latlonalt(
+            latitude, longitude, altitude, _utils.Body.Earth.value
+        )
     elif frame == "MCMF":
-        xyz = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
+        xyz = _utils._xyz_from_latlonalt(
+            latitude, longitude, altitude, _utils.Body.Moon.value
+        )
     else:
         raise ValueError(
             f'No cartesian to spherical transform defined for frame "{frame}".'
         )
 
+    xyz = xyz.T
     if n_pts == 1:
         return xyz[0]
 
@@ -1541,26 +1546,18 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS"):
             f" of the radius of the {world}"
         )
 
-    if frame == "ITRS":
-        # the cython utility expects (3, Npts) for faster manipulation
-        # transpose after we get the array back to match the expected shape
-        enu = _utils._ENU_from_ECEF(
-            xyz,
-            np.ascontiguousarray(latitude, dtype=np.float64),
-            np.ascontiguousarray(longitude, dtype=np.float64),
-            np.ascontiguousarray(altitude, dtype=np.float64),
-        )
-        enu = enu.T
-
-    elif frame == "MCMF":
-        xyz_cent = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
-        ecef_to_enu = np.matmul(
-            rotation_matrix(-longitude, "z", unit="rad"),
-            rotation_matrix(latitude, "y", unit="rad"),
-        ).T
-
-        ecef_to_enu = ecef_to_enu[[2, 1, 0]]
-        enu = np.dot(ecef_to_enu, (xyz.T - xyz_cent).T).T
+    # the cython utility expects (3, Npts) for faster manipulation
+    # transpose after we get the array back to match the expected shape
+    enu = _utils._ENU_from_ECEF(
+        xyz,
+        np.ascontiguousarray(latitude, dtype=np.float64),
+        np.ascontiguousarray(longitude, dtype=np.float64),
+        np.ascontiguousarray(altitude, dtype=np.float64),
+        # we have already forced the frame to conform to our options
+        # and if we  don't have moon we have already errored.
+        _utils.Body.Earth.value if frame == "ITRS" else _utils.body.Moon.value,
+    )
+    enu = enu.T
 
     if squeeze:
         enu = np.squeeze(enu)
@@ -1611,25 +1608,18 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS"):
         enu = enu[np.newaxis, :]
     enu = np.ascontiguousarray(enu.T, dtype=np.float64)
 
-    if frame == "ITRS":
-        # the cython utility expects (3, Npts) for faster manipulation
-        # transpose after we get the array back to match the expected shape
-        xyz = _utils._ECEF_from_ENU(
-            enu,
-            np.ascontiguousarray(latitude, dtype=np.float64),
-            np.ascontiguousarray(longitude, dtype=np.float64),
-            np.ascontiguousarray(altitude, dtype=np.float64),
-        )
-        xyz = xyz.T
-    elif frame == "MCMF":
-        xyz_cent = erfa.gd2gce(LUNAR_RADIUS, 0.0, longitude, latitude, altitude)
-        ecef_to_enu = np.matmul(
-            rotation_matrix(-longitude, "z", unit="rad"),
-            rotation_matrix(latitude, "y", unit="rad"),
-        ).T
-        enu_to_ecef = np.linalg.inv(ecef_to_enu[[2, 1, 0]])
-        xyz_rel = np.dot(enu_to_ecef, enu)
-        xyz = xyz_cent + xyz_rel.T
+    # the cython utility expects (3, Npts) for faster manipulation
+    # transpose after we get the array back to match the expected shape
+    xyz = _utils._ECEF_from_ENU(
+        enu,
+        np.ascontiguousarray(latitude, dtype=np.float64),
+        np.ascontiguousarray(longitude, dtype=np.float64),
+        np.ascontiguousarray(altitude, dtype=np.float64),
+        # we have already forced the frame to conform to our options
+        # and if we  don't have moon we have already errored.
+        _utils.Body.Earth.value if frame == "ITRS" else _utils.Body.Moon.value,
+    )
+    xyz = xyz.T
 
     if squeeze:
         xyz = np.squeeze(xyz)
