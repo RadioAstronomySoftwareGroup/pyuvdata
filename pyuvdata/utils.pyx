@@ -7,13 +7,13 @@
 
 # python imports
 import warnings
+import enum
 
 # cython imports
 
 cimport cython
 cimport numpy
 from libc.math cimport atan2, cos, sin, sqrt
-import enum
 # This initializes the numpy 1.7 c-api.
 # cython 3.0 will do this by default.
 # We may be able to just remove this then.
@@ -31,10 +31,7 @@ cdef class Ellipsoid:
     self.e_prime_squared = (self.b_div_a2**-1 - 1)
 
 
-#A python interface for different celestial bodies
-# in order to not have circular dependencies
-# define transformation parameters here
-# parameters for transforming between xyz & lat/lon/alt
+# A python interface for different celestial bodies
 class Body(enum.Enum):
   Earth = Ellipsoid(6378137, 6356752.31424518)
   # moon data taken from https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
@@ -43,6 +40,9 @@ class Body(enum.Enum):
 
 
 # expose up to python
+# in order to not have circular dependencies
+# define transformation parameters here
+# parameters for transforming between xyz & lat/lon/alt
 # keep for consistent API though these really shouldn't be used anymore
 gps_a = Body.Earth.value.gps_a
 gps_b =  Body.Earth.value.gps_b
