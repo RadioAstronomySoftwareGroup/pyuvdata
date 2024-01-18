@@ -5,15 +5,17 @@
 # distutils: language = c
 # cython: linetrace=True
 
+import enum
+
 # python imports
 import warnings
-import enum
 
 # cython imports
 
 cimport cython
 cimport numpy
 from libc.math cimport atan2, cos, sin, sqrt
+
 # This initializes the numpy 1.7 c-api.
 # cython 3.0 will do this by default.
 # We may be able to just remove this then.
