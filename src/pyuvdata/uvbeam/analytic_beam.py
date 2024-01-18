@@ -367,14 +367,15 @@ class GaussianBeam(AnalyticBeam):
     Parameters
     ----------
     sigma : float
-        standard deviation in radians for the gaussian beam.
+        Standard deviation in radians for the gaussian beam. Only one of sigma
+        and diameter should be set.
     sigma_type : str
         Either "efield" or "power" to indicate whether the sigma specifies the size of
         the efield or power beam. Ignored if `sigma` is None.
     diameter : float
         Dish diameter in meters to use to define the size of the gaussian beam, by
         matching the FWHM of the gaussian to the FWHM of an Airy disk. This will result
-        in a frequency dependent beam.
+        in a frequency dependent beam.  Only one of sigma and diameter should be set.
     spectral_index : float
         Option to scale the gaussian beam width as a power law with frequency. If set
         to anything other than zero, the beam will be frequency dependent and the
