@@ -1213,3 +1213,32 @@ def test_bad_codes(mir_codes_data, tmp_path):
 
     new_codes = MirCodesData(filepath)
     assert mir_codes_data == new_codes
+
+
+@pytest.mark.parametrize(
+    "has_file,kwargs,err_type,err_msg",
+    [
+        [None, {}, ValueError, "filepath must be of type str."],
+        [False, {}, FileNotFoundError, "No file found"],
+        [True, {"invert_check": True}, FileExistsError, "File already exists"],
+    ],
+)
+def test_gen_filepath_errs(tmp_path, has_file, kwargs, err_type, err_msg):
+    mir_meta_obj = MirMetaData(filetype="test")
+    if has_file:
+        with open(os.path.join(tmp_path, "test"), "a"):
+            pass
+
+    if has_file is not None:
+        # Make sure nothing happens if the check is disabled.
+        mir_meta_obj._gen_filepath(filepath=str(tmp_path), check=False, **kwargs)
+
+    print(tmp_path)
+    print(type(str(tmp_path)))
+    print(has_file)
+
+    # Finally, check for the error
+    with pytest.raises(err_type, match=err_msg):
+        mir_meta_obj._gen_filepath(
+            filepath=None if has_file is None else str(tmp_path), **kwargs
+        )

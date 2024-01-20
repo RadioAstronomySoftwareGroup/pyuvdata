@@ -2171,6 +2171,55 @@ class MirMetaData(object):
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
+    def _gen_filepath(self, filepath=None, *, check=True, invert_check=False):
+        """
+        Supply the path to the file for read/write operations.
+
+        Parameters
+        ----------
+        filepath : str
+            Either the file to write to, or if providing the name of an existing folder,
+            the name of the folder to write in (with the file name set by the _filetype
+            attribute, which is automatically set for various subclasses of
+            MirMetaData). No default.
+        check : bool
+            If set to True, checks if the file exists, and if so, raises a warning.
+            Default is True.
+        invert_check : bool
+            Only applicable if `check=True`. If set to True, changes the check so that
+            an error is raised if the file exists.
+
+        Returns
+        -------
+        fullpath : str
+            The full path to the file to be read/written.
+
+        Raises
+        ------
+        ValueError
+            If filepath is not an str.
+        FileExistsError
+            If running the check and a file is found (and `invert_check=True`).
+        FileNotFoundError
+            If running the check and no file is found (and `invert_check=False`).
+        """
+        if not isinstance(filepath, str):
+            raise ValueError("filepath must be of type str.")
+
+        if os.path.isdir(filepath):
+            filepath = os.path.join(os.path.abspath(filepath), self._filetype)
+
+        if check:
+            if os.path.exists(filepath) and invert_check:
+                raise FileExistsError(
+                    "File already exists, must set overwrite or append_data to True, "
+                    "or delete the file %s in order to proceed." % filepath
+                )
+            elif not (os.path.exists(filepath) or invert_check):
+                raise FileNotFoundError("No file found with the path %s." % filepath)
+
+        return filepath
+
     def read(self, filepath=None):
         """
         Read in data for a MirMetaData object from disk.
@@ -2181,7 +2230,7 @@ class MirMetaData(object):
             Path of the folder containing the metadata in question.
         """
         self._data = np.fromfile(
-            os.path.join(filepath, self._filetype),
+            self._gen_filepath(filepath),
             dtype=self.dtype if self._binary_dtype is None else self._binary_dtype,
         )
 
@@ -2266,19 +2315,11 @@ class MirMetaData(object):
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
 
-        writepath = os.path.join(os.path.abspath(filepath), self._filetype)
+        writepath = self._gen_filepath(
+            filepath, check=not (overwrite or append_data), invert_check=True
+        )
 
-        if os.path.exists(writepath):
-            if not (append_data or overwrite):
-                raise FileExistsError(
-                    "File already exists, must set overwrite or append_data to True, "
-                    "or delete the file %s in order to proceed." % filepath
-                )
-        else:
-            # Just set these now to forgo the potential check below.
-            append_data = False
-
-        if append_data and check_index:
+        if os.path.exists(writepath) and append_data and check_index:
             copy_obj = self.copy(skip_data=True)
             copy_obj.read(filepath)
             try:
@@ -2768,7 +2809,7 @@ class MirAntposData(MirMetaData):
         filepath : str
             Path of the folder containing the metadata in question.
         """
-        with open(os.path.join(filepath, self._filetype), "r") as antennas_file:
+        with open(self._gen_filepath(filepath), "r") as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
             ]
@@ -3302,15 +3343,19 @@ class MirAcData(MirMetaData):
         filepath : str
             Path of the folder containing the metadata in question.
         """
-        old_ac_file = os.path.join(filepath, "autoCorrelations")
-        new_ac_file = os.path.join(filepath, self._filetype)
-        if not (os.path.exists(old_ac_file) and not os.path.exists(new_ac_file)):
+        try:
+            # Start from the assumption that the 'new' style file is used, which will
+            # error with a FileNotFoundError if the new file doesn't exist.
             self._old_format = False
-            super().read(filepath)
-            return
+            return super().read(filepath)
+        except FileNotFoundError:
+            # If FileNotFoundError is thrown, try loading the "old" stype file.
+            # Note that this step below will also fail if the file does not exists.
+            filepath = self._gen_filepath(os.path.join(filepath, "autoCorrelations"))
 
+        # Assume that we have the old file format at this point, and proceed accordingly
         self._old_format = True
-        file_size = os.path.getsize(old_ac_file)
+        file_size = os.path.getsize(filepath)
         hdr_dtype = np.dtype(OLD_AUTO_HEADER)
         nrx = 2
         nchan = 16384
@@ -3319,7 +3364,7 @@ class MirAcData(MirMetaData):
         # from inside the file, and see if that parses the records evenly.
         nchunks = self._nchunks
         if nchunks is None:
-            nchunks = np.fromfile(old_ac_file, dtype=hdr_dtype, count=1)["nchunks"][0]
+            nchunks = np.fromfile(filepath, dtype=hdr_dtype, count=1)["nchunks"][0]
         nchunks = int(nchunks)
 
         # Tabulate the total number of spectra
@@ -3362,7 +3407,7 @@ class MirAcData(MirMetaData):
         rec_count = 0
         dataoff_spec = np.arange(nspec) * OLD_AUTO_DTYPE.itemsize * nchan
 
-        with open(old_ac_file, "rb") as auto_file:
+        with open(filepath, "rb") as auto_file:
             for idx in range(nrec):
                 auto_vals = np.fromfile(
                     auto_file,

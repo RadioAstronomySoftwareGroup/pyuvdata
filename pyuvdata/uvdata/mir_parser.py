@@ -73,7 +73,6 @@ class MirParser(object):
         self,
         filepath=None,
         *,
-        auto_defaults=None,
         compass_soln=None,
         make_v3_compliant=None,
         old_vis_format=None,
@@ -100,8 +99,20 @@ class MirParser(object):
             bandpass gains solutions, which are loaded into the object.
         make_v3_compliant : bool
             Convert the metadata required for filling a UVData object into a
-            v3-compliant format. Only applicable if MIR file format is v1 or v2.
-            Default is False.
+            v3-compliant format. Only applicable if MIR file version is v1 or v2.
+            Default behavior is to set this to True if the file version is v1 or v2.
+        old_vis_format : bool
+            Prior to the v1 data format, older visibility data was recorded with
+            different header fields and endianness (big-endian versus the current
+            little-endian format). If set to True, data are assumed to be in this "old"
+            format, if set to False, data are assumed to be in the current format.
+            Default behavior is to attempt to automatically determine old versus new
+            based on metadata, and set this value accordingly.
+        nchunks : int
+            Only used if `has_auto=True` is set, this value is used to set the number
+            of spectral windows in a single auto-correlation set. The default behavior
+            is to set this value automatically depending on file version. This setting
+            should only be used by advanced users in specialized circumstances.
         has_auto : bool
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
@@ -161,7 +172,6 @@ class MirParser(object):
         if filepath is not None:
             self.read(
                 filepath=filepath,
-                auto_defaults=auto_defaults,
                 compass_soln=compass_soln,
                 make_v3_compliant=make_v3_compliant,
                 old_vis_format=old_vis_format,
@@ -1064,7 +1074,7 @@ class MirParser(object):
         Returns
         -------
         data_dict : dict
-            A dictionary, whose the keys are matched to individual header keys -- if
+            A dictionary, whose keys are matched to individual header keys -- if
             `data_type="auto"`, then values of achid in `ac_data` are used; if
             `data_type="cross"`, then  values of sphid in `sp_data`, are used. Matched
             to each of these keys is a dict with two items. If the data are "compressed"
@@ -1072,13 +1082,13 @@ class MirParser(object):
             dict is passed, with keys "scale_fac", an np.int16 which describes the
             common exponent for the spectrum, and "data", an array of typically np.int16
             (of length equal to twice that found in "nch" for the corresponding metadata
-            container (n.b, the maximum negative interger value, -32768 for int16,
+            container (n.b, the maximum negative integer value, -32768 for int16,
             aren't possible with the compression scheme used for MIR, so this value is
-            used to mark flags). Otherwise this dict containts three keys: "data", an
+            used to mark flags). Otherwise this dict contains three keys: "data", an
             array of np.complex64 containing the visibilities, "flags", an array of bool
             containing the per-channel flags of the spectrum, and "weights", which
             contains the per-channel weights for the spectrum (all of length equal to
-            `"nch"` in the relvant metadata container).
+            `"nch"` in the relevant metadata container).
         """
         if data_type not in ["auto", "cross"]:
             raise ValueError(
@@ -2110,7 +2120,6 @@ class MirParser(object):
         self,
         filepath=None,
         *,
-        auto_defaults=True,
         compass_soln=None,
         make_v3_compliant=None,
         old_vis_format=None,
@@ -2137,15 +2146,20 @@ class MirParser(object):
             bandpass gains solutions, which are loaded into the object.
         make_v3_compliant : bool
             Convert the metadata required for filling a UVData object into a
-            v3-compliant format. Only applicable if MIR file format is v1 or v2.
-            Default is False.
+            v3-compliant format. Only applicable if MIR file version is v1 or v2.
+            Default behavior is to set this to True if the file version is v1 or v2.
         old_vis_format : bool
             Prior to the v1 data format, older visibility data was recorded with
             different header fields and endianness (big-endian versus the current
             little-endian format). If set to True, data are assumed to be in this "old"
             format, if set to False, data are assumed to be in the current format.
             Default behavior is to attempt to automatically determine old versus new
-            based on metadata.
+            based on metadata, and set this value accordingly.
+        nchunks : int
+            Only used if `has_auto=True` is set, this value is used to set the number
+            of spectral windows in a single auto-correlation set. The default behavior
+            is to set this value automatically depending on file version. This setting
+            should only be used by advanced users in specialized circumstances.
         has_auto : bool
             Flag to read auto-correlation data. Default is False.
         has_cross : bool
@@ -2160,22 +2174,26 @@ class MirParser(object):
         # If auto-defaults are turned on, we can use the codes information within the
         # file to determine a few things. Use this to automatically handle a few
         # different things that change between the major file versions. Note that this
-        # is meant to be a stopgap solution
-        if auto_defaults or all(
-            item is None
-            for item in [auto_defaults, make_v3_compliant, old_vis_format, nchunks]
-        ):
-            temp_codes = MirCodesData(filepath)
-            filever = 1
-            if "filever" in temp_codes.get_code_names():
+        # is meant to be a stopgap solution.
+        filever = None
+        if None in [make_v3_compliant, old_vis_format, nchunks]:
+            try:
+                temp_codes = MirCodesData(filepath)
                 filever = int(temp_codes["filever"][0])
-            # If v0, v1, or v2, we need to plug in the neccessary metadata for making
+            except MirMetaError:
+                # v1 is the only version without this particular code.
+                filever = 1
+
+        if make_v3_compliant is None:
+            # If v0, v1, or v2, we need to plug in the necessary metadata for making
             # the conversion to UVData feasible.
             make_v3_compliant = filever < 3
 
+        if old_vis_format is None:
             # If this is a converted v0 file, from the ASIC era, with the old vis format
             old_vis_format = filever == 0
 
+        if nchunks is None:
             # Newer datasets have a problem with the recorded nchunks value, so force
             # that to be 8 here for all more modern data.
             nchunks = 8 if (filever > 2) else None
@@ -4040,8 +4058,7 @@ class MirParser(object):
 
         from astropy.time import Time
 
-        from pyuvdata import get_telescope
-
+        from .. import get_telescope
         from .. import utils as uvutils
 
         # First thing -- we only want modern (i.e., SWARM) data, since the older (ASIC)
