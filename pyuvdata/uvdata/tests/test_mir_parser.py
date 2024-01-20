@@ -312,6 +312,8 @@ def test_compass_read_err(mir_data: MirParser, compass_soln_file):
     with pytest.raises(ValueError, match="Cannot call read_compass_solns"):
         mir_data.read_compass_solns(compass_soln_file)
 
+    # MirParser will complain if data are already loaded when attempting to read in
+    # the COMPASS solutions, so unloading it should allow it resolve the error above.
     mir_data.unload_data()
     mir_data.read_compass_solns(compass_soln_file)
 
