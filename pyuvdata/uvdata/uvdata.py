@@ -10669,6 +10669,10 @@ class UVData(UVBase):
         swarm_only : bool
             By default, only SMA SWARM data is loaded. If set to false, this will also
             enable loading of older ASIC data.
+        codes_check : bool
+            Option to check the cross-check the internal metadata codes, and deselect
+            data without valid matches, useful for automatically handling various data
+            recording issues. Default is True.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             before writing the file.
@@ -11506,6 +11510,7 @@ class UVData(UVBase):
         rechunk=None,
         compass_soln=None,
         swarm_only=True,
+        codes_check=True,
         recompute_nbls: bool | None = None,
     ):
         """
@@ -11916,6 +11921,12 @@ class UVData(UVBase):
             Optional argument, specifying the path of COMPASS-derived flagging and
             bandpass gains solutions, which are applied prior to any potential spectral
             averaging (as triggered by using the `rechunk` keyword).
+        codes_check : bool
+            Option to check the cross-check the internal MIR metadata, and deselect
+            data without valid matches, useful for automatically handling various data
+            recording issues. Default is True. Note this is different than the various
+            checks done on the UVData object itself (controlled by other keywords listed
+            here).
 
         Raises
         ------
@@ -12094,6 +12105,7 @@ class UVData(UVBase):
                         remove_flagged_ants=remove_flagged_ants,
                         phase_to_pointing_center=phase_to_pointing_center,
                         nsample_array_dtype=nsample_array_dtype,
+                        # mir
                         corrchunk=corrchunk,
                         receivers=receivers,
                         sidebands=sidebands,
@@ -12105,6 +12117,8 @@ class UVData(UVBase):
                         rechunk=rechunk,
                         compass_soln=compass_soln,
                         swarm_only=swarm_only,
+                        codes_check=codes_check,
+                        # other
                         recompute_nbls=recompute_nbls,
                         time_axis_faster_than_bls=time_axis_faster_than_bls,
                         blts_are_rectangular=blts_are_rectangular,
@@ -12222,11 +12236,15 @@ class UVData(UVBase):
                             phase_to_pointing_center=phase_to_pointing_center,
                             nsample_array_dtype=nsample_array_dtype,
                             # MIR
-                            corrchunk=corrchunk,
+                            mir_select_where=mir_select_where,
+                            apply_tsys=apply_tsys,
+                            apply_flags=apply_flags,
+                            apply_dedoppler=apply_dedoppler,
                             pseudo_cont=pseudo_cont,
                             rechunk=rechunk,
                             compass_soln=compass_soln,
                             swarm_only=swarm_only,
+                            codes_check=codes_check,
                         )
 
                         uv_list.append(uv2)
@@ -12480,6 +12498,7 @@ class UVData(UVBase):
                     rechunk=rechunk,
                     compass_soln=compass_soln,
                     swarm_only=swarm_only,
+                    codes_check=codes_check,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

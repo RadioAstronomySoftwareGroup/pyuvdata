@@ -446,18 +446,39 @@ class MirParser(object):
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
+        This is an internal helper function not meant to be called by users, but
+        instead is a low-level helper function. This function is used to create or
+        otherwise fix a previously generated integration header dictionary (typically
+        first created from the metadata). This function will scan through the data file
+        and recover the header information.
+
         Parameters
         ----------
         filepath : str
             Filepath is the path to the folder containing the Mir data set.
+        hdr_fmt : list
+            List describing header fields for each integration record, given as a list
+            of 2-element tuples (as appropriate for a structured array, see the docs
+            of numpy.dtype for further details). No default.
+        old_int_dict : dict
+            Previously build int_dict, typically constructed by _generate_recpos_dict.
+            If supplied, the method will use the information in this dictionary to map
+            old header values to new ones, and will cross-check information to make sure
+            that header information matches where expected.
+        return_headers : bool
+            If set to True, the method will return the header values scanned from the
+            file instead. Sometimes useful for debugging. Default is False.
 
         Returns
         -------
         int_dict : dict
-            Dictionary containing the indexes from sch_read, where keys match to the
+            Dictionary containing the indexes from data file, where keys match to the
             inhid indexes, and the values contain a two-element tuple, with the length
             of the packdata array (in bytes) the relative offset (also in bytes) of
-            the record within the sch_read file.
+            the record within the file. Only returned if `return_headers=False`.
+        int_list : list
+            List containing the scanned header values from the file, sometimes used
+            in debugging. Only returned if `return_headers=True`.
 
         Raises
         ------
@@ -1070,6 +1091,10 @@ class MirParser(object):
         read_only : bool
             Only applicable if `return_vis=False` and `use_mmap=True`. If set to True,
             will return back data arrays which are read-only. Default is False.
+        apply_cal : bool
+            If True, COMPASS-based bandpass and flags solutions will be applied upon
+            reading in of data. By default, the solutions will be applied if they have
+            been previously loaded into the object.
 
         Returns
         -------
@@ -1357,6 +1382,10 @@ class MirParser(object):
             Normally the method will check if tsys has already been applied (or not
             applied yet, if `invert=True`), and will throw an error if that is the case.
             If set to True, this check will be bypassed. Default is False.
+        use_cont_det : bool
+            If set to True, use the continuum tsys data for calculating system
+            temperatures. If set to False, the spectral tsys data will be applied if
+            available. Default is True.
         """
         if self.vis_data is None:
             raise ValueError(
@@ -1962,7 +1991,22 @@ class MirParser(object):
         self.unload_data()
 
     def save_mask(self, mask_name: str = None, overwrite=False):
-        """Save masks for later use."""
+        """
+        Save masks for later use.
+
+        This method will store selection masks, that can later be reloaded. This can
+        be useful for temporarily down-selecting data for various operations (allowing
+        one to restore the old selection mask after that is complete).
+
+        Parameters
+        ----------
+        mask_name : str
+            Name under which to store the mask. No default.
+        overwrite : bool
+            If set to False and attempting to save a mask whose name is already stored,
+            an error is thrown. If set to True, and existing masks stored under the name
+            given will be overwritten. Default is False.
+        """
         if (mask_name in self._stored_masks) and not overwrite:
             raise ValueError(
                 "There already exists a stored set of masks with the name %s, "
@@ -1982,7 +2026,21 @@ class MirParser(object):
         self._stored_masks[mask_name] = mask_dict
 
     def restore_mask(self, mask_name: str, run_update=True):
-        """Restore stored masks."""
+        """
+        Restore stored masks.
+
+        This method will restore selection masks that have been previously saved.
+
+        Parameters
+        ----------
+        mask_name : str
+            Name of the previously stored mask to restore.
+        run_update : bool
+            By default, the method will cross-check internal masks and, if needed, will
+            unload or downselect the visibility/autocorrelation data to match the
+            records selected. Setting this to False will bypass this check. This should
+            only be used by advanced users, as this can produce unexpected behaviors.
+        """
         if len(self._stored_masks) == 0:
             raise ValueError("No stored masks for this object.")
 
@@ -3393,6 +3451,12 @@ class MirParser(object):
         ----------
         filename : str
             Name of the file containing the COMPASS flags and gains solutions.
+        load_flags : bool
+            If set to True, the COMPASS flags will be read into the MirParser object.
+            Default is True.
+        load_gains : bool
+            If set to True, the COMPASS gains will be read into the MirParser object.
+            Default is True.
 
         Raises
         ------
@@ -3432,13 +3496,17 @@ class MirParser(object):
 
         Parameters
         ----------
-        compass_soln_dict : dict
-            A dict containing the the various flagging and gains tables from COMPASS,
-            as returned by `_read_compass_solns`.
-        apply_flags : bool
-            If True (default), apply COMPASS flags to the data set.
-        apply_bp : bool
-            If True (default), apply COMPASS bandpass solutions.
+        vis_data : dict
+            Dictionary containing visibility data, to which flags/bandpass solutions
+            will be applied. Note that the format of this dict should match that of
+            the `vis_data` attribute (see `MirParser._convert_raw_to_vis` for a more
+            complete description.).
+
+        Returns
+        -------
+        vis_data : dict
+            Dictionary containing the flagged/calibrated data. Note that this will be
+            the same object as the input parameter by the same name.
 
         Raises
         ------
@@ -4036,12 +4104,6 @@ class MirParser(object):
         populated in MIR file versions < 3, in order to make in minimally compliant
         with what the Mir.read method needs for populating a UVData object. Only data
         sets recorded prior to 2020 need these modifications.
-
-        Parameters
-        ----------
-        swarm_only : bool
-            If set to True, selects only SWARM data (i.e., no ASIC data).
-            Default is True.
         """
         if "filever" in self.codes_data.get_code_names():
             if self.codes_data["filever"][0] != "2":
@@ -4121,8 +4183,8 @@ class MirParser(object):
             self.bl_data["ant1rx"] = np.isin(checklist, ant1list).astype("<i2")
             self.bl_data["ant2rx"] = np.isin(checklist, ant2list).astype("<i2")
 
-        # Next, the old data had uvws calculated in wavelengths by _sideband_, so we
-        # need to update those. Note we only have to check ant1rx here because if
+        # Next, the old data had uvw values calculated in wavelengths by _sideband_, so
+        # we need to update those. Note we only have to check ant1rx here because if
         # ant1rx != ant1rx2, this is a pol track, and the tunings (and scaling) are
         # identical anyways.
         rx_idx = self.bl_data["ant1rx"]
@@ -4139,7 +4201,7 @@ class MirParser(object):
 
         # Antenna positions are always stored in meters, so we can use this to get the
         # total distance between antennas. Note that we have to do this b/c of some
-        # ambiguity of which frequency exactly the uvws are calculated at.
+        # ambiguity of which frequency exactly the uvw values are calculated at.
         ant_dict = {}
         for ant1, pos1 in zip(*self.antpos_data[("antenna", "xyz_pos")]):
             temp_dict = {}
