@@ -14,8 +14,14 @@ from astropy import constants as const
 from astropy.io import fits
 from astropy.time import Time
 from docstring_parser import DocstringStyle
-from scipy.integrate import simpson
 from scipy.special import erf
+
+try:
+    # TODO: Make this the only line we use once scipy >= 1.11 is required.
+    from scipy.integrate import simpson
+except ImportError:
+    # Fallback to simps if working with an older version of scipy
+    from scipy.integrate import simps as simpson
 
 from pyuvdata.data import DATA_PATH
 
