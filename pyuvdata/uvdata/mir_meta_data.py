@@ -543,6 +543,9 @@ class MirMetaData(object):
             metadata is generated, with length of `obj`. If an ndarray is supplied, then
             the supplied array is used as the underlying data set for the object (where
             dtype of the array must match that appropriate for the object).
+        filetype : str
+            Name of the type MirMetaData object, which is then used as the file name
+            that is read from/written to within the folder specified by the path.
         dtype : dtype
             Numpy-based description of the binary data stored in the file.
         header_key_name : str or None
@@ -553,8 +556,6 @@ class MirMetaData(object):
             Required if `header_key_name` is `None`. Used to identify a group of fields,
             which when taken in combination, can be used as a unique identifier. Can
             be set either to `None` (if not used) or otherwise a tuple of strings.
-        filepath : str
-            Optional argument specifying the path to the Mir data folder.
         """
         self._filetype = filetype
         self.dtype = dtype
@@ -1067,14 +1068,14 @@ class MirMetaData(object):
             are instead combined via an element-wise "or" operator. Default is True.
             If supplied, the argument for `mask` will be combined with the output from
             the calls to `where` with the same logic.
-        index : sequence of ints
-            Index positions of the array. Note that this is typically what you are
-            calling this method for, but is included as an argument to simplify
-            argument processing for various calls.
         header_key : sequence of ints or tuples
             Header key values to get the index position for, which are always recorded
             as ints. If the object has no header key, but instead a pseudo header key,
             a sequence of tuples (matching the pseudo keys) should be supplied.
+        index : sequence of ints
+            Index positions of the array. Note that this is typically what you are
+            calling this method for, but is included as an argument to simplify
+            argument processing for various calls.
 
         Returns
         -------
@@ -1436,6 +1437,9 @@ class MirMetaData(object):
         index : sequence of int
             Optional argument, specifies the index positions at which to set the mask to
             True. Cannot be specified with `header_key` or `where`.
+        inverse : bool
+            Optional argument to invert the selection mask (i.e., set mask to False
+            where selection conditions are met rather than True). Default is False.
 
         Returns
         -------
@@ -1754,7 +1758,22 @@ class MirMetaData(object):
             Field or list of fields to group the data by. Must be one of the fields
             within the dtype of this object.
         use_mask : bool
-            If True, consider only data where the internal mask is marked True.
+            If True, consider only data where the internal mask is marked True. Default
+            is True.
+        where : tuple of sequence of tuples
+            Optional argument, each tuple is used to call the `where` method to identify
+            which index positions match the given criteria. Can be supplied as a
+            sequence of tuples rather than a single tuple, but each much be of length
+            3, where the first argument is the `select_field` argument, the second is
+            the `select_comp` argument, and the last is the `select_val` argument. See
+            the documentation of `where` for more details. Cannot be specified with
+            `index` or `header_key`.
+        header_key : sequence of ints or tuples
+            Optional argument, values to match against the header key field, in order to
+            determine which entries of the array to extract. For example, if the header
+            key field "hid" has the values [2, 4, 6, 8], setting this argument to [2, 8]
+            will set the mask at index positions [0, 3] to True. Cannot be specified
+            with `index` or `where`.
         return_index : bool
             If False, return the header key values (or pseudo-key tuples) for each
             element of the group. If True, return instead the index position of the
@@ -2346,7 +2365,37 @@ class MirMetaData(object):
 
         self._writefile(writepath, append_data=append_data, datamask=datamask)
 
-    def _get_record_size_info(self, *, val_size=None, pad_size=None, use_mask=True):
+    def _get_record_size_info(self, *, val_size=None, pad_size=0, use_mask=True):
+        """
+        Calculate the size of each spectral record in number of entries.
+
+        Calculates the size of each auto/cross correlation, used for parsing and
+        creating packed data arrays for read and write operations.
+
+        Parameters
+        ----------
+        val_size : int
+            Size of each channel in number of bytes. E.g., visibilities are commonly
+            stored as complex int16, which would correspond to 4 bytes.
+        pad_size : int
+            Spectral records sometimes contain "subheader" information that's not part
+            of the raw data. The length of this subheader is specified here, in number
+            of bytes. Default is 0.
+        use_mask : bool
+            If True, consider only data where the internal mask is marked True. Default
+            is True.
+
+        Returns
+        -------
+        rec_size_arr : ndarray of int
+            Array that contains the length (in bytes) of each spectral record for the
+            corresponding entry in the MirMetaData object.
+
+        Raises
+        ------
+        TypeError
+            If the object is not a MirSpData or MirAcData type.
+        """
         if not isinstance(self, (MirSpData, MirAcData)):
             raise TypeError(
                 "Cannot use this method on objects other than MirSpData"
@@ -2360,7 +2409,7 @@ class MirMetaData(object):
         return rec_size_arr
 
     def _recalc_dataoff(
-        self, *, data_dtype=None, data_nvals=2, scale_data=True, use_mask=True
+        self, *, data_dtype=None, data_nvals=None, scale_data=None, use_mask=True
     ):
         """
         Calculate the offsets of each spectral record for packed data.
@@ -2376,6 +2425,15 @@ class MirMetaData(object):
 
         Parameters
         ----------
+        data_dtype : numpy dtype
+            "Simple" dtype (i.e.., not a structured array) that describes the individual
+            data values, typically np.int16 or np.float32. No default.
+        data_nvals : int
+            Number of values per channel entry. Typically, for real-only data this is 1,
+            and for complex data this is 2. No default.
+        scale_data : bool
+            Whether or not the data are packed with a common exponent (typically done
+            for the visibilities but not the autos). No default.
         use_mask : bool
             If set to True, evaluate/calculate for only those records where the internal
             mask is set to True. If set to False, use all records in the object,
@@ -2408,8 +2466,8 @@ class MirMetaData(object):
         *,
         data_dtype=None,
         data_nvals=None,
-        pad_nvals=None,
         scale_data=None,
+        pad_nvals=None,
         hdr_fmt=None,
         use_mask=True,
         reindex=False,
@@ -2424,6 +2482,22 @@ class MirMetaData(object):
 
         Parameters
         ----------
+        data_dtype : numpy dtype
+            "Simple" dtype (i.e.., not a structured array) that describes the individual
+            data values, typically np.int16 or np.float32. No default.
+        data_nvals : int
+            Number of values per channel entry. Typically, for real-only data this is 1,
+            and for complex data this is 2. No default.
+        scale_data : bool
+            Whether or not the data are packed with a common exponent (typically done
+            for the visibilities but not the autos). No default.
+        pad_nvals :  int
+            Number of added values in the subheader for each spectral record, separate
+            from the common scale factor value. No default.
+        hdr_fmt : list
+            List describing header fields for each integration record, given as a list
+            of 2-element tuples (as appropriate for a structured array, see the docs
+            of numpy.dtype for further details). No default.
         use_mask : bool
             If set to True, evaluate/calculate for only those records where the internal
             mask is set to True. If set to False, use all records in the object,
@@ -2948,7 +3022,7 @@ class MirCodesData(MirMetaData):
             pseudo_header_key_names=("icode", "v_name"),
         )
 
-    def __getitem__(self, item):
+    def __getitem__(self, field_name):
         """
         Get values for a particular field using get_value.
 
@@ -2970,10 +3044,10 @@ class MirCodesData(MirMetaData):
             value for that entry. Otherwise, a dictionary mapping the indexing codes
             (type int) and code string (type str) to one another.
         """
-        if item in self.dtype.fields:
-            return super().__getitem__(item)
+        if field_name in self.dtype.fields:
+            return super().__getitem__(field_name)
         else:
-            return self.get_codes(item)
+            return self.get_codes(field_name)
 
     def get_code_names(self):
         """

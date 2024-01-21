@@ -37,7 +37,7 @@ def generate_sma_antpos_dict(filepath):
     Returns
     -------
     ant_dict : dict
-        Dicitonary of antenna positions, with antenna number used as key, and a
+        Dictionary of antenna positions, with antenna number used as key, and a
         3-element array with the positions of the telescope (in XYZ coordinates relative
         to array center, as is typical for pyuvdata).
     """
@@ -505,7 +505,7 @@ class Mir(UVData):
         self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
 
-        # Get a list of the current inhids for later
+        # Get a list of the current inhid values for later
         inhid_list = mir_data.in_data["inhid"].copy()
 
         # Store a backup of the selection masks
@@ -761,7 +761,7 @@ class Mir(UVData):
                 cat_id=int(sou_id),
             )
 
-            # See if the ra/dec positions change by more than an arcmin, and if so,
+            # See if the ra/dec positions change by more than an arcminute, and if so,
             # raise a warning to the user since this isn't common.
             dist_check = angular_separation(
                 source_ra[0], source_dec[0], source_ra, source_dec
