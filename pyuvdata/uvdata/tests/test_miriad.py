@@ -929,11 +929,16 @@ def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
             "cat_dist"
         ][0]
 
-    with uvtest.check_warnings(
-        UserWarning,
-        match="Some visibility times did not match ephem times so the ra and dec "
+    warn_str = [
+        "Some visibility times did not match ephem times so the ra and dec "
         "values for those visibilities were interpolated or set to the closest time "
         "if they would have required extrapolation.",
+        "writing default values for restfreq, vsource, veldop," " jyperk, and systemp"        
+    ]
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=warn_str
     ):
         uv_in.write_miriad(testfile, clobber=True)
     uv2 = UVData.from_file(testfile, use_future_array_shapes=True)
