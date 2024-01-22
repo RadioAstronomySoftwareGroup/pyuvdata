@@ -93,7 +93,7 @@ a) Reading a cal fits gain calibration file.
 
   >>> import os
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> import matplotlib.pyplot as plt
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.gain.calfits')
@@ -124,12 +124,18 @@ a) Reading a cal fits gain calibration file.
   (19, 10, 5, 1)
 
   >>> # plot abs of all gains for first time and first jones component.
-  >>> for ant in range(cal.Nants_data): # doctest: +SKIP
-  ...    plt.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, 0, :, 0, 0]))
-  >>> plt.xlabel('Frequency (Hz)') # doctest: +SKIP
-  >>> plt.ylabel('Abs(gains)') # doctest: +SKIP
+  >>> fig, ax = plt.subplots(1, 1)
+  >>> for ant in range(cal.Nants_data):
+  ...    _ = ax.plot(cal.freq_array.flatten(), np.abs(cal.gain_array[ant, :, 0, 0]), label=f"ant {ant}")
+  >>> _ = ax.set_xlabel('Frequency (Hz)')
+  >>> _ = ax.set_ylabel('Abs(gains)')
+  >>> _ = fig.legend(bbox_to_anchor=(1.08, 0.5), loc="outside center right")
   >>> plt.show() # doctest: +SKIP
+  >>> plt.savefig("Images/abs_gains.png", bbox_inches='tight')
+  >>> plt.clf()
 
+.. image:: Images/abs_gains.png
+    :width: 600
 
 b) FHD cal to cal fits
 ***********************
