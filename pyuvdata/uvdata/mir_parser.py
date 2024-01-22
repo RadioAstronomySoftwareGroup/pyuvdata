@@ -2238,8 +2238,10 @@ class MirParser(object):
             try:
                 temp_codes = MirCodesData(filepath)
                 filever = int(temp_codes["filever"][0])
-            except MirMetaError:
-                # v1 is the only version without this particular code.
+            except MirMetaError:  # pragma: nocover
+                # v1 is the only version without this particular code. Don't cover this
+                # since it's a particular file version that we don't want to have to
+                # add to the testing data depot.
                 filever = 1
 
         if make_v3_compliant is None:
