@@ -16,6 +16,8 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Changed `MWACorrFits.corrcorrect_simps` method to use the `scipy.integrate.simpson`
+method rather than the `scipy.integrate.simps` method to fix deprecation warnings.
 - added support for python 3.12, dropped support for python 3.8.
 - Updated minimum dependency versions: pyyaml>=5.3
 - Changed `UVData.write_ms` to sort polarizations based on CASA-preferred ordering.
