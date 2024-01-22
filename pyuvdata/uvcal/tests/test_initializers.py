@@ -114,6 +114,14 @@ def test_new_uvcal_jones_array(uvc_kw):
     custom = new_uvcal(jones_array=np.array([-1, -3]), **uvc)
     assert custom.Njones == 2
 
+    linear_alt = new_uvcal(jones_array=["xx", "yy"], **uvc)
+    assert linear_alt.Njones == 2
+    assert np.allclose(linear_alt.jones_array, np.array([-5, -6]))
+
+    linear_physical = new_uvcal(jones_array=["nn", "ee", "ne", "en"], **uvc)
+    assert linear_physical.Njones == 4
+    assert np.allclose(linear_physical.jones_array, np.array([-5, -6, -7, -8]))
+
 
 def test_new_uvcal_set_sky(uvc_kw):
     uvc = {k: v for k, v in uvc_kw.items() if k != "cal_style"}
