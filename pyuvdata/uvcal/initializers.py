@@ -11,7 +11,7 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from .. import __version__
+from .. import __version__, utils
 from ..docstrings import combine_docstrings
 from ..uvdata.initializers import (
     XORIENTMAP,
@@ -210,6 +210,8 @@ def new_uvcal(
     if cal_type not in ("gain", "delay"):
         raise ValueError(f"cal_type must be either 'gain' or 'delay', got {cal_type}")
 
+    x_orientation = XORIENTMAP[x_orientation.lower()]
+
     if isinstance(jones_array, str):
         if jones_array == "linear":
             jones_array = np.array([-5, -6, -7, -8])
@@ -217,13 +219,13 @@ def new_uvcal(
             jones_array = np.array([-1, -2, -3, -4])
     else:
         jones_array = np.array(jones_array)
+        if jones_array.dtype.kind != "i":
+            jones_array = utils.jstr2num(jones_array, x_orientation=x_orientation)
 
     history += (
         f"Object created by new_uvcal() at {Time.now().iso} using "
         f"pyuvdata version {__version__}."
     )
-
-    x_orientation = XORIENTMAP[x_orientation.lower()]
 
     if cal_style not in ("redundant", "sky"):
         raise ValueError(f"cal_style must be 'redundant' or 'sky', got {cal_style}")

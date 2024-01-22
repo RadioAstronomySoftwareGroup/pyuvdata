@@ -274,6 +274,41 @@ See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_h
   >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
 
+
+UVBeam: Instantiating from arrays in memory
+-------------------------------------------
+``pyuvdata`` can also be used to create a UVBeam object from arrays in memory. This
+is useful for mocking up data for testing or for creating a UVBeam object from
+simulated data. Instead of instantiating a blank object and setting each required
+parameter, you can use the ``.new()`` static method, which deals with the task
+of creating a consistent object from a minimal set of inputs
+
+.. code-block:: python
+
+  >>> from pyuvdata import UVBeam
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> uvb = UVBeam.new(
+  ...     telescope_name="test",
+  ...     feed_name="short dipole",
+  ...     feed_version="1.0",
+  ...     model_name="hertzian",
+  ...     model_version="1.0",
+  ...     data_normalization="physical",
+  ...     freq_array=np.linspace(100e6, 200e6, 10),
+  ...     x_orientation = "east",
+  ...     feed_array = ["e", "n"],
+  ...     axis1_array=np.deg2rad(np.linspace(-180, 179, 360)),
+  ...     axis2_array=np.deg2rad(np.linspace(0, 90, 181)),
+  ... )
+
+Notice that you need only provide the required parameters, and the rest will be
+filled in with sensible defaults.
+
+See the full documentation for the method
+:func:`pyuvdata.uvbeam.UVBeam.new` for more information.
+
+
 UVBeam: Selecting data
 ----------------------
 The :meth:`pyuvdata.UVBeam.select` method lets you select specific image axis indices
