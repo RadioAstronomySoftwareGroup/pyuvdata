@@ -290,6 +290,79 @@ approximation, and there is an option to instead use a slower integral implement
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> uvd.write_uvfits(write_file)
 
+j) SMA MIR -> ms
+****************
+The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
+users prefer to convert to the CASA-based Measurement Set (MS) format for further
+processing. The :meth:`pyuvdata.UVData.read_mir` method (and by extension,
+:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
+specific to the MIR format. These keywords fall broadly into two groups: selection, and
+visibility handling.
+
+In addition to the selection keywords supported with UVData objects, there are three
+extra keywords supported for MIR data sets. The first is ``corrchunk``, which allows one
+to specify a (typically DSB) correlator window. The second is ``receiver``, which allows
+one to select a particular receiver type (generally some combination of '230', '240',
+'345', and/or '400'), each of which is used to target a different band and/or
+polarization. The third is ``sideband``, which allows one to select which sidebands to
+load (with the two options being 'l' for lower and 'u' for upper). For example, one can
+load in a MIR data set while selecting a single correlator window for a single receiver
+with only the lower sideband:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Construct the list of files
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> uvd.read(data_path, corrchunk=1, receivers='230', sidebands='l')
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
+  >>> uvd.write_ms(write_file)
+
+In addition to the above keywords, there's also a ``pseudo_cont`` keyword (set to
+``False`` by default), which allows one to load the "pseudo-continuum" data (with one
+value per spectral window). Finally, there is a ``select_where``` keyword that allows
+advanced users to pass more complex selection criteria (more details of which can be
+found in the documentation for :meth:`pyuvdata.mir_parser.MirParser`).
+
+As for visibility handling keywords, the one most commonly invoked is the ``rechunk``
+keyword, which allows users to spectrally average the data on read (and therefore
+reducing the memory/disk space needed to complete read and write operations). For
+example, the native resolution of the test MIR dataset is 140 kHz -- to average this
+down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
+via the following:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Construct the list of files
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> uvd.read(data_path, rechunk=64)
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
+  >>> uvd.write_ms(write_file)
+
+There's a pair additional keywords related to visibility handling -- ``apply_tsys``
+(normalize the data using system temperature measurements to produces values in
+uncalibrated Jy) and ``apply_flags`` (apply on-line flags) are defaulted to ``True``,
+but can be set to ``False`` if desired.
+
+One additional item worth noting: reading and writing of MIR data will on occasion
+generate a warning message about the LSTs not being correct. This warning is spurious,
+and a byproduct how LST values are calculated at time of write (polled average versus
+calculated based on the timestamp/integration midpoint), and can safely be ignored.
+
+
 UVData: Instantiating from arrays in memory
 -------------------------------------------
 ``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
