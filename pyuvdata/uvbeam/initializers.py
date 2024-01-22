@@ -1,4 +1,8 @@
-"""From-memory initializers for UVCal objects."""
+# -*- mode: python; coding: utf-8 -*-
+# Copyright (c) 2024 Radio Astronomy Software Group
+# Licensed under the 2-clause BSD License
+
+"""From-memory initializers for UVBeam objects."""
 from __future__ import annotations
 
 from typing import Literal
@@ -10,18 +14,16 @@ from astropy.time import Time
 from .. import __version__, utils
 from ..uvdata.initializers import XORIENTMAP
 
-# todo: spw_array??
-
 
 def new_uvbeam(
     *,
     telescope_name: str,
-    feed_name: str,
-    feed_version: str,
-    model_name: str,
-    model_version: str,
     data_normalization: Literal["physical", "peak", "solid_angle"],
     freq_array: npt.NDArray[np.float],
+    feed_name: str = "default",
+    feed_version: str = "0.0",
+    model_name: str = "default",
+    model_version: str = "0.0",
     feed_array: npt.NDArray[np.str] | None = None,
     polarization_array: npt.NDArray[np.str | np.int]
     | list[str | int]
@@ -51,31 +53,28 @@ def new_uvbeam(
     ----------
     telescope_name : str
         Telescope name.
-    feed_name : str
-        Name of physical feed
-    feed_version : str
-        Version of physical feed.
-    model_name : str
-        Name of beam model.
-    model_version: str
-        Version of beam model.
-           uvc.telescope_name = telescope_name
     data_normalization : str
-        "Normalization standard of data_array, options are: "
-        '"physical", "peak" or "solid_angle". Physical normalization '
-        "means that the frequency dependence of the antenna sensitivity "
-        "is included in the data_array while the frequency dependence "
-        "of the receiving chain is included in the bandpass_array. "
-        "Peak normalized means that for each frequency the data_array"
-        "is separately normalized such that the peak is 1 (so the beam "
-        "is dimensionless) and all direction-independent frequency "
-        'dependence is moved to the bandpass_array (if the beam_type is "efield", '
-        "then peak normalized means that the absolute value of the peak is 1). "
-        "Solid angle normalized means the peak normalized "
-        "beam is divided by the integral of the beam over the sphere, "
-        "so the beam has dimensions of 1/stradian."
+        Normalization standard of data_array, options are: "physical", "peak" or
+        "solid_angle". Physical normalization means that the frequency dependence
+        of the antenna sensitivity is included in the data_array while the
+        frequency dependence of the receiving chain is included in the
+        bandpass_array. Peak normalized means that for each frequency the
+        data_array is separately normalized such that the peak is 1 (so the beam
+        is dimensionless) and all direction-independent frequency dependence is
+        moved to the bandpass_array (if the beam_type is "efield", then peak
+        normalized means that the absolute value of the peak is 1). Solid angle
+        normalized means the peak normalize beam is divided by the integral of
+        the beam over the sphere, so the beam has dimensions of 1/steradian.
     freq_array : ndarray of float
         Array of frequencies in Hz.
+    feed_name : str
+        Name of the physical feed.
+    feed_version : str
+        Version of the physical feed.
+    model_name : str
+        Name of the beam model.
+    model_version: str
+        Version of the beam model.
     feed_array : ndarray of str
         Array of feed orientations. Options are: n/e or x/y or r/l. Must be
         provided for an E-field beam.
@@ -346,17 +345,18 @@ def new_uvbeam(
 
     # Set data parameters
     if uvb.beam_type == "efield":
-        if uvb.pixel_coordinate_system == "healpix":
-            data_shape = (uvb.Naxes_vec, uvb.Nfeeds, uvb.Nfreqs, uvb.Npixels)
-        else:
-            data_shape = (uvb.Naxes_vec, uvb.Nfeeds, uvb.Nfreqs, uvb.Naxes2, uvb.Naxes1)
         data_type = complex
+        polax = uvb.Nfeeds
     else:
-        if uvb.pixel_coordinate_system == "healpix":
-            data_shape = (uvb.Naxes_vec, uvb.Npols, uvb.Nfreqs, uvb.Npixels)
-        else:
-            data_shape = (uvb.Naxes_vec, uvb.Npols, uvb.Nfreqs, uvb.Naxes2, uvb.Naxes1)
         data_type = float
+        polax = uvb.Npols
+
+    if uvb.pixel_coordinate_system == "healpix":
+        pixax = (uvb.Npixels,)
+    else:
+        pixax = (uvb.Naxes2, uvb.Naxes1)
+
+    data_shape = (uvb.Naxes_vec, polax, uvb.Nfreqs) + pixax
 
     if data_array is not None:
         if not isinstance(data_array, np.ndarray):

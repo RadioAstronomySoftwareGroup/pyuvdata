@@ -21,10 +21,6 @@ ph_params = [
 def uvb_common_kw():
     return {
         "telescope_name": "mock",
-        "feed_name": "short dipole",
-        "feed_version": "1.0",
-        "model_name": "hertzian",
-        "model_version": "1.0",
         "data_normalization": "physical",
         "freq_array": np.linspace(100e6, 200e6, 10),
     }
