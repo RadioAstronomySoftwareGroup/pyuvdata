@@ -290,10 +290,6 @@ of creating a consistent object from a minimal set of inputs
   >>> import numpy as np
   >>> uvb = UVBeam.new(
   ...     telescope_name="test",
-  ...     feed_name="short dipole",
-  ...     feed_version="1.0",
-  ...     model_name="hertzian",
-  ...     model_version="1.0",
   ...     data_normalization="physical",
   ...     freq_array=np.linspace(100e6, 200e6, 10),
   ...     x_orientation = "east",
