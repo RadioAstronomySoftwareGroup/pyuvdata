@@ -471,21 +471,22 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, future_shapes, tmp_path):
     uvd3.remove_flex_pol(combine_spws=False)
     assert uvd2 != uvd3
 
-
     exp_warning = None
     warn_str = ""
 
     if filetype in ["uvfits", "miriad"]:
         warn_str = [
-            ("combine_spws is True but there are not matched spws for all "
-            "polarizations, so spws will not be combined.")
+            (
+                "combine_spws is True but there are not matched spws for all "
+                "polarizations, so spws will not be combined."
+            )
         ]
         exp_warning = UserWarning
 
     if filetype == "miriad":
         warn_str.append(
             "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
-       )
+        )
 
     with uvtest.check_warnings(exp_warning, warn_str):
         if filetype == "uvfits":
