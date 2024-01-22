@@ -70,6 +70,17 @@ def nrao_uv(nrao_uv_main):
 
     return
 
+@pytest.fixture(scope="function")
+def nrao_uv_legacy():
+    """Make function level NRAO ms object, legacy array shapes."""
+    uvobj = UVData()
+    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    uvobj.read(testfile, use_future_array_shapes=False)
+
+    yield uvobj
+
+    del uvobj
+
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
@@ -1063,3 +1074,13 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     sma_mir.filename = ms_uv.filename = None
 
     assert sma_mir == ms_uv
+
+def test_read_ms_write_miriad(nrao_uv, nrao_uv_legacy, tmp_path):
+    """
+    write ms from future and legacy array shapes.
+    """
+    testfile_l = os.path.join(tmp_path, "outtest_legacy.ms")
+    testfile_f = os.path.join(tmp_path, "outtest_future.ms")
+
+    nrao_uv.write_ms(testfile_l)
+    nrao_uv_legacy.write_ms(testfile_f)
