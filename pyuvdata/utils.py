@@ -111,7 +111,10 @@ JONES_STR2NUM_DICT = {"Jxx": -5, "Jyy": -6, "Jxy": -7, "Jyx": -8,
 JONES_NUM2STR_DICT = {-1: "Jrr", -2: "Jll", -3: "Jrl", -4: "Jlr",
                       -5: "Jxx", -6: "Jyy", -7: "Jxy", -8: "Jyx"}
 
-# maps uvdata pols to input feed polarizations
+# maps uvdata pols to input feed polarizations. Note that this dict is also used for
+# CASA MS writing, so the pseudo-stokes parameters are included here to provide mapping
+# to a consistent (if non-physical) set of feeds for the pseudo-stokes visibilities,
+# which are nominally supported by the CASA MS format.
 POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
                     "xy": ["x", "y"], "yx": ["y", "x"],
                     "ee": ["e", "e"], "nn": ["n", "n"],
