@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a brief tutorial on how to convert SMA MIR data into MS format (with some notes
+on SMA specific keywords than can be used).
+- Added the `Mir.generate_sma_antpos_dict` method for reading in SMA-formatted antenna
+position files into a dict (which can be passed to `UVData.update_antenna_positions`).
+- Added handling for older formatted (so called "ASIC-era") MIR files from SMA, as well
+as more recent file formats that preceded pyuvdata support (circa 2020, v1/v2 of the
+MIR file format).
+- Added the ability to save/load selection masks in `MirParser` objects.
 - Fixed a bug when trying to write a MS with a legacy array shape (but note legacy shape
 will be deprecated in upcoming releases).
 - Improved support for MIRIAD UV files, and added `use_miriad_convention` flag to the
@@ -28,6 +36,10 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Made `MirParser` more robust against metadata indexing errors.
+- Made `MirParser` handling of autocorrelation data more robust.
+- Improved hooks for handling and loading of COMPASS solutions into `MirParser` objects.
+- Fixed handling of weights to be consistent with tsys scaling method in `MirParser`.
 - Changed `MWACorrFits.corrcorrect_simps` method to use the `scipy.integrate.simpson`
 method rather than the `scipy.integrate.simps` method to fix deprecation warnings.
 - added support for python 3.12, dropped support for python 3.8.
