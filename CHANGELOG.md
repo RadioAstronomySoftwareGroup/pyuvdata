@@ -50,6 +50,9 @@ fully tested and didn't work properly.
 - Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
 
 ### Fixed
+- A small bug (mostly affecting continuous integration) that threw an error when the
+IERS service was down and when tests were using `test.check_warnings` to look for no
+warnings thrown (i.e., where `match=None`).
 - A couple of small bugs related to handling of the `freq_range` parameter in the
 `reorder_freqs` and `__add__` methods on `UVCal`.
 
