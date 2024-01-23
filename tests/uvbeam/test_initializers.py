@@ -45,6 +45,11 @@ def uvb_efield_kw():
 
 @pytest.fixture()
 def uvb_power_kw():
+    return {"polarization_array": ["xx", "yy", "xy", "yx"]}
+
+
+@pytest.fixture()
+def uvb_power_nocross_kw():
     return {"polarization_array": ["xx", "yy"]}
 
 
@@ -75,31 +80,37 @@ def test_new_uvcal_simplest(
     uvb_healpix_kw,
     uvb_efield_kw,
     uvb_power_kw,
+    uvb_power_nocross_kw,
     coord_sys,
     beam_type,
 ):
     if coord_sys == "az_za":
-        kw_use = {**uvb_common_kw, **uvb_azza_kw}
+        kw_coord = {**uvb_common_kw, **uvb_azza_kw}
     else:
-        kw_use = {**uvb_common_kw, **uvb_healpix_kw}
+        kw_coord = {**uvb_common_kw, **uvb_healpix_kw}
 
     if beam_type == "efield":
-        kw_use = {**kw_use, **uvb_efield_kw}
+        kw_use = {**kw_coord, **uvb_efield_kw}
     else:
-        kw_use = {**kw_use, **uvb_power_kw}
+        kw_use = {**kw_coord, **uvb_power_kw}
+        kw_no_cross_use = {**kw_coord, **uvb_power_nocross_kw}
 
     uvb = UVBeam.new(**kw_use)
     assert uvb.Nfreqs == 10
     if beam_type == "efield":
         assert uvb.Nfeeds == 2
     else:
-        assert uvb.Npols == 2
+        assert uvb.Npols == 4
 
     if uvb.pixel_coordinate_system == "healpix":
         assert uvb.Npixels == 12 * uvb.nside**2
     else:
         assert uvb.Naxes1 == 360
         assert uvb.Naxes2 == 181
+
+    if beam_type == "power":
+        uvb_no_cross = UVBeam.new(**kw_no_cross_use)
+        assert uvb_no_cross.Npols == 2
 
 
 def test_x_orientation(uvb_azza_efield_kw):

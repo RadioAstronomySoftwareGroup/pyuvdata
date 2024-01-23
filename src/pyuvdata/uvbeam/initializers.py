@@ -45,6 +45,7 @@ def new_uvbeam(
     coupling_matrix: npt.NDArray[np.float] | None = None,
     data_array: npt.NDArray[np.float] | None = None,
     history: str = "",
+    **kwargs,
 ):
     r"""Create a new UVBeam object with default parameters.
 
@@ -242,6 +243,12 @@ def new_uvbeam(
     if x_orientation is not None:
         uvb.x_orientation = utils.XORIENTMAP[x_orientation.lower()]
 
+    for k, v in kwargs.items():
+        if hasattr(uvb, k):
+            setattr(uvb, k, v)
+        else:
+            raise ValueError(f"Unrecognized keyword argument: {k}")
+
     if basis_vector_array is not None:
         if uvb.pixel_coordinate_system == "healpix":
             bv_shape = (uvb.Naxes_vec, uvb.Ncomponents_vec, uvb.Npixels)
@@ -346,6 +353,9 @@ def new_uvbeam(
         polax = uvb.Nfeeds
     else:
         data_type = float
+        for pol in uvb.polarization_array:
+            if pol in [-3, -4, -7, -8]:
+                data_type = complex
         polax = uvb.Npols
 
     if uvb.pixel_coordinate_system == "healpix":
