@@ -13,12 +13,10 @@ import numpy.typing as npt
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
-from .uvbeam import _convert_feeds_to_pols
+from ..docstrings import combine_docstrings
+from .uvbeam import UVBeam, _convert_feeds_to_pols
 
 __all__ = ["AnalyticBeam", "GaussianBeam"]
-
-
-# TODO: write a `to_uvbeam` method to allow for interpolation testing/exploration
 
 
 class AnalyticBeam(ABC):
@@ -63,10 +61,12 @@ class AnalyticBeam(ABC):
     def __init__(
         self,
         *,
+        name: str,
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
         x_orientation: Literal["east", "north"] = "east",
     ):
+        self.name = name
         if self.basis_vector_type is not None:
             if self.basis_vector_type not in self.basis_vec_dict:
                 raise ValueError(
@@ -263,7 +263,7 @@ class AnalyticBeam(ABC):
         """
         self._check_eval_inputs(az_array, za_array, freq_array)
 
-        return self._efield_eval(az_array, za_array, freq_array)
+        return self._efield_eval(az_array, za_array, freq_array).astype(complex)
 
     @abstractmethod
     def _power_eval(
@@ -319,14 +319,114 @@ class AnalyticBeam(ABC):
 
         Returns
         -------
-        array_like of float
+        array_like of float or complex
             An array of beam values. The shape of the evaluated data will be:
-            (1, Npols, freq_array.size, az_array.size)
+            (1, Npols, freq_array.size, az_array.size). The dtype will be
+            a complex type if cross-pols are included, otherwise it will be a
+            float type.
 
         """
         self._check_eval_inputs(az_array, za_array, freq_array)
 
-        return self._power_eval(az_array, za_array, freq_array)
+        if self.Npols > self.Nfeeds:
+            # cross pols are included
+            expected_type = complex
+        else:
+            expected_type = float
+
+        return self._power_eval(az_array, za_array, freq_array).astype(expected_type)
+
+    @combine_docstrings(UVBeam.new)
+    def to_uvbeam(
+        self,
+        freq_array: npt.NDArray[np.float],
+        beam_type: Literal["efield", "power"] = "power",
+        pixel_coordinate_system: Literal["az_za", "orthoslant_zenith", "healpix"]
+        | None = None,
+        **kwargs,
+    ):
+        """Generate a UVBeam object from an AnalyticBeam object.
+
+        This method evaluates the analytic beam at a set of locations to
+        create a UVBeam object. This can be useful for testing and some other
+        operations, but it is of course an approximation.
+
+        Parameters
+        ----------
+        freq_array : ndarray of float
+            Array of frequencies in Hz to evaluate the beam at.
+        beam_type : str
+            Beam type, either "efield" or "power".
+        pixel_coordinate_system : str
+            Pixel coordinate system, options are "az_za", "orthoslant_zenith" and
+            "healpix". Forced to be "healpix" if ``nside`` is given and by
+            *default* set to "az_za" if not. Currently, only "az_za" and "healpix"
+            are implemented.
+
+        """
+        if beam_type not in ["efield", "power"]:
+            raise ValueError("Beam type must be 'efield' or 'power'")
+
+        if beam_type == "efield":
+            feed_array = self.feed_array
+            polarization_array = None
+        else:
+            feed_array = None
+            polarization_array = self.polarization_array
+
+        if pixel_coordinate_system is not None and pixel_coordinate_system not in [
+            "az_za",
+            "healpix",
+        ]:
+            raise NotImplementedError(
+                "Currently this method only supports 'az_za' and 'healpix' "
+                "pixel_coordinate_systems."
+            )
+
+        uvb = UVBeam.new(
+            telescope_name="Analytic Beam",
+            data_normalization="physical",
+            feed_name=self.name,
+            feed_version="1.0",
+            model_name=self.name,
+            model_version="1.0",
+            freq_array=freq_array,
+            feed_array=feed_array,
+            polarization_array=polarization_array,
+            x_orientation=self.x_orientation,
+            **kwargs,
+        )
+
+        if uvb.pixel_coordinate_system == "healpix":
+            try:
+                from astropy_healpix import HEALPix
+            except ImportError as e:  # pragma: no cover
+                raise ImportError(
+                    "astropy_healpix is not installed but is "
+                    "required for healpix functionality. "
+                    "Install 'astropy-healpix' using conda or pip."
+                ) from e
+            hp_obj = HEALPix(nside=uvb.nside, ordering=uvb.ordering)
+            az_array, za_array = hp_obj.healpix_to_lonlat(uvb.pixel_array)
+        else:
+            az_array, za_array = np.meshgrid(uvb.axis1_array, uvb.axis2_array)
+            az_array = az_array.flatten()
+            za_array = za_array.flatten()
+
+        if beam_type == "efield":
+            eval_function = "efield_eval"
+        else:
+            eval_function = "power_eval"
+
+        data_array = getattr(self, eval_function)(az_array, za_array, freq_array)
+
+        if uvb.pixel_coordinate_system == "az_za":
+            data_array = data_array.reshape(uvb.data_array.shape)
+
+        uvb.data_array = data_array
+
+        uvb.check()
+        return uvb
 
 
 def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[np.float]) -> float:
@@ -404,12 +504,14 @@ class GaussianBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
+        name = "Analytic Gaussian, "
 
         if (diameter is None and sigma is None) or (
             diameter is not None and sigma is not None
         ):
             raise ValueError("One of diameter or sigma must be set but not both.")
+
+        self.diameter = diameter
 
         if sigma is not None:
             if sigma_type == "efield":
@@ -425,8 +527,15 @@ class GaussianBeam(AnalyticBeam):
                 reference_freq = 1.0
             self.spectral_index = spectral_index
             self.reference_freq = reference_freq
+            description_str = f"E-field sigma={self.sigma}"
+        else:
+            description_str = f"equivalent diameter={self.diameter}"
 
-        self.diameter = diameter
+        name += description_str
+
+        super().__init__(
+            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
+        )
 
     def get_sigmas(self, freq_array: npt.NDArray[np.float]) -> npt.NDArray[np.float]:
         """
@@ -523,7 +632,11 @@ class AiryBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
+        name = f"Analytic Airy, diameter={diameter}"
+
+        super().__init__(
+            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
+        )
 
         self.diameter = diameter
 
@@ -609,7 +722,10 @@ class ShortDipoleBeam(AnalyticBeam):
     ):
         feed_array = ["e", "n"]
 
+        name = "Analytic Hertzian Dipole"
+
         super().__init__(
+            name=name,
             feed_array=feed_array,
             include_cross_pols=include_cross_pols,
             x_orientation=x_orientation,
@@ -685,7 +801,11 @@ class UniformBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
+        name = "Uniform"
+
+        super().__init__(
+            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
+        )
 
     def _efield_eval(
         self,
