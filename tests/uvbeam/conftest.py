@@ -339,9 +339,16 @@ def phased_array_beam_1freq(phased_array_beam_2freq):
 
 
 @pytest.fixture()
-def az_za_deg_grid():
+def az_za_coords():
     az_array = np.deg2rad(np.linspace(0, 350, 36))
     za_array = np.deg2rad(np.linspace(0, 90, 10))
+
+    return az_array, za_array
+
+
+@pytest.fixture()
+def az_za_deg_grid(az_za_coords):
+    az_array, za_array = az_za_coords
     freqs = np.linspace(100, 200, 11) * 1e8
 
     az_vals, za_vals = np.meshgrid(az_array, za_array)
