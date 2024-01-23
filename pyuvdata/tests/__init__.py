@@ -126,11 +126,12 @@ class WarningsChecker(warnings.catch_warnings):
             warnings.filterwarnings("ignore", message="time is out of IERS range")
 
             test_message = []
-            for message in self.match:
-                if message is None:
-                    test_message.append(False)
-                else:
-                    test_message.append(message.startswith("LST values stored in "))
+            if self.match is not None:
+                for message in self.match:
+                    if message is None:
+                        test_message.append(False)
+                    else:
+                        test_message.append(message.startswith("LST values stored in "))
             if not any(test_message):
                 warnings.filterwarnings("ignore", message="LST values stored in ")
 
