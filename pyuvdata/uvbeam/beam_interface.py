@@ -18,7 +18,6 @@ from .uvbeam import UVBeam
 # Other methods we may want to include:
 #  - beam area
 #  - beam squared area
-#  - efield to power
 #  - efield_to_pstokes
 
 
