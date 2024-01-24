@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new `freq_interp_kind` parameter to `UVBeam.interp`, `UVBeam._interp_az_za_rect_spline`
+and `UVBeam._interp_healpix_bilinear` to allow the frequency interpolation
+specification to be passed into the methods. Note this defaults to "cubic" rather
+than "linear" (the old default for the attribute of the same name on UVBeam objects)
+because several groups have found that a linear interpolation leads to nasty
+artifacts in visibility simulations for EoR applications.
+- A new `UVBeam.new()` method (based on new function `new_uvbeam`) that creates a new,
+self-consistent `UVBeam` object from scratch from a set of flexible input parameters.
 - Added a the `UVData.update_antenna_positions` method to enable making antenna
 position updates with corresponding updates the uvw-coordinates and visibility phases.
 - Added a switch to `UVData.write_ms` called `flip_conj`, which allows a user to write
@@ -16,6 +24,8 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Changed `MWACorrFits.corrcorrect_simps` method to use the `scipy.integrate.simpson`
+method rather than the `scipy.integrate.simps` method to fix deprecation warnings.
 - added support for python 3.12, dropped support for python 3.8.
 - Updated minimum dependency versions: pyyaml>=5.3
 - Changed `UVData.write_ms` to sort polarizations based on CASA-preferred ordering.
@@ -30,6 +40,12 @@ tolerance value to be user-specified.
 Additionally, failing this check results in a warning (was an error).
 
 ### Deprecated
+- The `freq_interp_kind` attribute on UVBeams.
+- The `spw_array` and `Nspws` attributes on UVBeam objects. Also the
+`unset_spw_params`  and `set_spw_params` parameters to the `use_future_array_shapes`
+and `use_current_array_shapes` methods on UVBeam objects.
+- Upper case feed names (e.g. "N" or "E") in UVBeam.feed_array. This was never
+fully tested and didn't work properly.
 - Having `freq_range` defined on non-wide-band gain style UVCal objects.
 - Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
 

@@ -253,9 +253,6 @@ class BeamFITS(UVBeam):
                             "UVBeam does not support having a spectral window axis "
                             "larger than one."
                         )
-                    if not use_future_array_shapes:
-                        self.Nspws = 1
-                        self.spw_array = np.array([0])
 
             if n_dimensions > ax_nums["basisvec"] - 1:
                 if (
@@ -268,12 +265,7 @@ class BeamFITS(UVBeam):
                         "NAXIS" + str(ax_nums["basisvec"]), None
                     )
 
-            if (
-                self.Nspws is None or self.Naxes_vec is None
-            ) and self.beam_type == "power":
-                if self.Nspws is None and not use_future_array_shapes:
-                    self.Nspws = 1
-                    self.spw_array = np.array([0])
+            if self.Naxes_vec is None and self.beam_type == "power":
                 if self.Naxes_vec is None:
                     self.Naxes_vec = 1
 
@@ -365,7 +357,6 @@ class BeamFITS(UVBeam):
             self.model_name = primary_header.pop("MODEL", None)
             self.model_version = primary_header.pop("MODELVER", None)
             self.x_orientation = primary_header.pop("XORIENT", None)
-            self.freq_interp_kind = primary_header.pop("FINTERP", None)
 
             self.history = str(primary_header.get("HISTORY", ""))
             if not uvutils._check_history_version(
@@ -662,12 +653,6 @@ class BeamFITS(UVBeam):
 
         if self.x_orientation is not None:
             primary_header["XORIENT"] = self.x_orientation
-
-        if self.freq_interp_kind is not None:
-            primary_header["FINTERP"] = (
-                self.freq_interp_kind,
-                "frequency " "interpolation kind (scipy interp1d)",
-            )
 
         if self.beam_type == "efield":
             primary_header["FEEDLIST"] = "[" + ", ".join(self.feed_array) + "]"
