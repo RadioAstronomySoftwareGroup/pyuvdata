@@ -1211,7 +1211,7 @@ class MS(UVData):
                 if self.future_array_shapes:
                     temp_vals = getattr(self, attr)[:, :, pol_order]
                 else:
-                    temp_vals = getattr(self, attr)[:, 0, :][..., pol_order]
+                    temp_vals = np.squeeze(getattr(self, attr), axis=1)[..., pol_order]
 
                 if flip_conj and (attr == "data_array"):
                     temp_vals = np.conj(temp_vals)
