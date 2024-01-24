@@ -10,12 +10,15 @@ import warnings
 import numpy as np
 from astropy import units
 from astropy.coordinates import Angle
+from docstring_parser import DocstringStyle
 from scipy import interpolate
 
 from .. import _uvbeam
 from .. import parameter as uvp
 from .. import utils as uvutils
+from ..docstrings import combine_docstrings
 from ..uvbase import UVBase
+from . import initializers
 
 __all__ = ["UVBeam"]
 
@@ -78,16 +81,6 @@ class UVBeam(UVBase):
         # add the UVParameters to the class
         self._Nfreqs = uvp.UVParameter(
             "Nfreqs", description="Number of frequency channels", expected_type=int
-        )
-
-        self._Nspws = uvp.UVParameter(
-            "Nspws",
-            description="Number of spectral windows "
-            "(ie non-contiguous spectral chunks). "
-            "More than one spectral window is not "
-            "currently supported.",
-            expected_type=int,
-            required=False,
         )
 
         desc = (
@@ -258,7 +251,7 @@ class UVBeam(UVBase):
 
         desc = (
             "Array of feed orientations. shape (Nfeeds). "
-            'options are: N/E or x/y or R/L. Not required if beam_type is "power".'
+            'options are: n/e or x/y or r/l. Not required if beam_type is "power".'
         )
         self._feed_array = uvp.UVParameter(
             "feed_array",
@@ -266,7 +259,7 @@ class UVBeam(UVBase):
             required=False,
             expected_type=str,
             form=("Nfeeds",),
-            acceptable_vals=["N", "E", "x", "y", "R", "L"],
+            acceptable_vals=["N", "E", "x", "y", "R", "L", "n", "e", "r", "l"],
         )
 
         self._Npols = uvp.UVParameter(
@@ -303,14 +296,6 @@ class UVBeam(UVBase):
             expected_type=float,
             tols=1e-3,
         )  # mHz
-
-        self._spw_array = uvp.UVParameter(
-            "spw_array",
-            description="Array of spectral window Numbers, shape (Nspws)",
-            form=("Nspws",),
-            expected_type=int,
-            required=False,
-        )
 
         desc = (
             "Normalization standard of data_array, options are: "
@@ -443,14 +428,14 @@ class UVBeam(UVBase):
 
         desc = (
             'Required if antenna_type = "phased_array". Element coordinate '
-            "system, options are: N-E or x-y"
+            "system, options are: n-e or x-y"
         )
         self._element_coordinate_system = uvp.UVParameter(
             "element_coordinate_system",
             required=False,
             description=desc,
             expected_type=str,
-            acceptable_vals=["N-E", "x-y"],
+            acceptable_vals=["n-e", "x-y"],
         )
 
         desc = (
@@ -518,19 +503,6 @@ class UVBeam(UVBase):
             expected_type=str,
             acceptable_vals=["east", "north"],
         )
-
-        desc = (
-            "String indicating frequency interpolation kind. "
-            "See scipy.interpolate.interp1d for details. Default is linear."
-        )
-        self._freq_interp_kind = uvp.UVParameter(
-            "freq_interp_kind",
-            required=False,
-            form="str",
-            expected_type=str,
-            description=desc,
-        )
-        self.freq_interp_kind = "linear"
 
         desc = (
             "Any user supplied extra keywords, type=dict. Keys should be "
@@ -623,6 +595,74 @@ class UVBeam(UVBase):
 
         super(UVBeam, self).__init__()
 
+    @staticmethod
+    @combine_docstrings(initializers.new_uvbeam, style=DocstringStyle.NUMPYDOC)
+    def new(**kwargs):
+        """
+        Create a new UVBeam object.
+
+        All parameters are passed through to
+        the :func:`~pyuvdata.uvbeam.initializers.new_uvbeam` function.
+
+        Returns
+        -------
+        UVBeam
+            A new UVBeam object.
+        """
+        return initializers.new_uvbeam(**kwargs)
+
+    def __setattr__(self, __name: str, __value) -> None:
+        """Raise DeprecationWarnings for setting freq_interp_kind."""
+        if __name == "freq_interp_kind":
+            warnings.warn(
+                "The freq_interp_kind attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6. "
+                "Instead, pass the desired function to the `interp` or "
+                "`to_healpix` methods. ",
+                DeprecationWarning,
+            )
+        elif __name == "spw_array":
+            warnings.warn(
+                "The spw_array attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6.",
+                DeprecationWarning,
+            )
+        elif __name == "Nspws":
+            warnings.warn(
+                "The Nspws attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6.",
+                DeprecationWarning,
+            )
+        return super().__setattr__(__name, __value)
+
+    def __getattr__(self, __name: str):
+        """Raise DeprecationWarnings for interpolation_function."""
+        if __name == "freq_interp_kind":
+            warnings.warn(
+                "The freq_interp_kind attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6."
+                "Instead, pass the desired function to the `interp` or "
+                "`to_healpix` methods. ",
+                DeprecationWarning,
+            )
+            return None
+        elif __name == "spw_array":
+            warnings.warn(
+                "The spw_array attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6.",
+                DeprecationWarning,
+            )
+            return None
+        elif __name == "Nspws":
+            warnings.warn(
+                "The Nspws attribute on UVBeam objects is "
+                "deprecated and support for it will be removed in version 2.6.",
+                DeprecationWarning,
+            )
+            return None
+        # Error if attribute not found
+        return self.__getattribute__(__name)
+
     def _freq_params(self):
         """List of strings giving the parameters shaped like the freq_array."""
         form = self._freq_array.form
@@ -656,7 +696,7 @@ class UVBeam(UVBase):
         )
         self.future_array_shapes = True
 
-    def use_future_array_shapes(self, unset_spw_params=True):
+    def use_future_array_shapes(self, unset_spw_params=None):
         """
         Change the array shapes of this object to match the planned future shapes.
 
@@ -667,10 +707,16 @@ class UVBeam(UVBase):
         Parameters
         ----------
         unset_spw_params : bool
-            Option to unset the (now optional) spectral window related parameters
-            (spw_array and Nspws).
+            Deprecated and has no effect.
 
         """
+        if unset_spw_params is not None:
+            warnings.warn(
+                "The unset_spw_params parameter is deprecated and has no effect. "
+                "This will become an error in version 2.6.",
+                DeprecationWarning,
+            )
+
         if self.future_array_shapes:
             return
         self._set_future_array_shapes()
@@ -686,11 +732,7 @@ class UVBeam(UVBase):
         if self.s_parameters is not None:
             self.s_parameters = self.s_parameters[:, 0, :]
 
-        if unset_spw_params:
-            self.spw_array = None
-            self.Nspws = None
-
-    def use_current_array_shapes(self, set_spw_params=True):
+    def use_current_array_shapes(self, set_spw_params=None):
         """
         Change the array shapes of this object to match the current future shapes.
 
@@ -700,9 +742,7 @@ class UVBeam(UVBase):
         Parameters
         ----------
         set_spw_params : bool
-            Option to set the spectral window related parameters (spw_array and Nspws)
-            to their default values if they are not set. These parameters are optional,
-            but were required in the past.
+            Deprecated and has no effect.
 
         """
         warnings.warn(
@@ -710,6 +750,13 @@ class UVBeam(UVBase):
             "are no longer supported.",
             DeprecationWarning,
         )
+
+        if set_spw_params is not None:
+            warnings.warn(
+                "The set_spw_params parameter is deprecated and has no effect. "
+                "This will become an error in version 2.6.",
+                DeprecationWarning,
+            )
 
         if not self.future_array_shapes:
             return
@@ -739,9 +786,6 @@ class UVBeam(UVBase):
             if this_prop is not None:
                 setattr(self, prop_name, this_prop[np.newaxis, :])
 
-        if self.spw_array is None and self.Nspws is None and set_spw_params:
-            self.Nspws = 1
-            self.spw_array = np.array([0])
         self.future_array_shapes = False
 
     def _set_cs_params(self):
@@ -1027,10 +1071,24 @@ class UVBeam(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
-        # check that basis_vector_array are basis vectors
+        # check that basis_vector_array are not longer than 1
         if self.basis_vector_array is not None:
             if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
                 raise ValueError("basis vectors must have lengths of 1 or less.")
+
+        # issue warning for deprecated values in feed_array
+        if self.beam_type == "efield":
+            warn_feed = []
+            for feed in self.feed_array:
+                if feed in ["N", "E", "R", "L"]:
+                    warn_feed.append(feed)
+            if len(warn_feed) > 0:
+                warnings.warn(
+                    f"Feed array has values {warn_feed} that are deprecated. "
+                    "Values in feed_array should be lower case. This will become "
+                    "an error in version 2.6",
+                    DeprecationWarning,
+                )
 
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in list(self.extra_keywords.keys()):
@@ -1592,7 +1650,7 @@ class UVBeam(UVBase):
         az_array,
         za_array,
         freq_array,
-        freq_interp_kind="linear",
+        freq_interp_kind="cubic",
         freq_interp_tol=1.0,
         polarizations=None,
         reuse_spline=False,
@@ -1884,7 +1942,7 @@ class UVBeam(UVBase):
         az_array,
         za_array,
         freq_array,
-        freq_interp_kind="linear",
+        freq_interp_kind="cubic",
         freq_interp_tol=1.0,
         polarizations=None,
         reuse_spline=False,
@@ -2093,6 +2151,7 @@ class UVBeam(UVBase):
         az_array=None,
         za_array=None,
         interpolation_function=None,
+        freq_interp_kind=None,
         az_za_grid=False,
         healpix_nside=None,
         healpix_inds=None,
@@ -2136,6 +2195,14 @@ class UVBeam(UVBase):
             Specify the interpolation function to use. Defaults to: "az_za_simple" for
             objects with the "az_za" pixel_coordinate_system and "healpix_simple" for
             objects with the "healpix" pixel_coordinate_system.
+        freq_interp_kind : str
+            Interpolation method to use frequency. See scipy.interpolate.interp1d
+            for details. Defaults to the freq_interp_kind attribute on the object
+            if it is set (setting it is deprecated), otherwise it defaults to:
+            "cubic" (Note that this is a change. It used to default to "linear"
+            when it was assigned to the object. However, multiple groups have
+            found that a linear interpolation leads to nasty artifacts in
+            visibility simulations for EoR applications.)
         az_za_grid : bool
             Option to treat the `az_array` and `za_array` as the input vectors
             for points on a mesh grid.
@@ -2220,8 +2287,24 @@ class UVBeam(UVBase):
                     f"pixel_coordinate_system: {self.pixel_coordinate_system}"
                 )
 
-        if self.freq_interp_kind is None:
-            raise ValueError("freq_interp_kind must be set on object first")
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", "The freq_interp_kind attribute on UVBeam objects"
+            )
+            if freq_interp_kind is None and self.freq_interp_kind is None:
+                freq_interp_kind = "cubic"
+            elif freq_interp_kind is not None and self.freq_interp_kind is not None:
+                if freq_interp_kind != self.freq_interp_kind:
+                    warnings.warn(
+                        "The freq_interp_kind parameter was set but it does not "
+                        "match the freq_interp_kind attribute on the object. "
+                        "Using the one passed to this method."
+                    )
+
+            if freq_interp_kind is not None:
+                kind_use = freq_interp_kind
+            else:
+                kind_use = self.freq_interp_kind
 
         if return_coupling is True and self.antenna_type != "phased_array":
             raise ValueError(
@@ -2245,7 +2328,6 @@ class UVBeam(UVBase):
         interp_func_name = interpolation_function
         interp_func = self.interpolation_function_dict[interpolation_function]["func"]
 
-        kind_use = self.freq_interp_kind
         if freq_array is not None:
             # get frequency distances
             freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
@@ -2342,7 +2424,6 @@ class UVBeam(UVBase):
                 else:
                     new_uvb.freq_array = freq_array.reshape(1, -1)
                 new_uvb.bandpass_array = interp_bandpass
-                new_uvb.freq_interp_kind = kind_use
 
                 if self.antenna_type == "phased_array":
                     new_uvb.coupling_matrix = interp_coupling_matrix
@@ -2358,7 +2439,7 @@ class UVBeam(UVBase):
                         warnings.warn(
                             f"Input object has {param_name} defined but we do not "
                             "currently support interpolating it in frequency. Returned "
-                            "object will not have it set to None."
+                            "object will have it set to None."
                         )
                         setattr(new_uvb, param_name, None)
 
@@ -2422,9 +2503,7 @@ class UVBeam(UVBase):
                 f" using pyuvdata with interpolation_function = {interp_func_name}"
             )
             if freq_array is not None:
-                history_update_string += (
-                    f" and freq_interp_kind = {new_uvb.freq_interp_kind}"
-                )
+                history_update_string += f" and freq_interp_kind = {kind_use}"
             history_update_string += "."
             new_uvb.history = new_uvb.history + history_update_string
             new_uvb.data_array = interp_data

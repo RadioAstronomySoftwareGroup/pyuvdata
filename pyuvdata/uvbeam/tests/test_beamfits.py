@@ -102,8 +102,6 @@ def test_read_cst_write_read_fits_efield(cst_efield_1freq, future_shapes, tmp_pa
 
     beam_out = UVBeam()
 
-    beam_in.freq_interp_kind = "linear"
-
     write_file = str(tmp_path / "outtest_beam.fits")
 
     beam_in.write_beamfits(write_file, clobber=True)

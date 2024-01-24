@@ -200,9 +200,6 @@ class CSTBeam(UVBeam):
         self.freq_array = np.zeros((1, self.Nfreqs))
         self.bandpass_array = np.zeros((1, self.Nfreqs))
 
-        if not use_future_array_shapes:
-            self.Nspws = 1
-            self.spw_array = np.array([0])
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 

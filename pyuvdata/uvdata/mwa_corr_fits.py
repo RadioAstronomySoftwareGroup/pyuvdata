@@ -310,7 +310,7 @@ def corrcorrect_simps(rho, sig1, sig2):
     x = np.linspace(0, rho, 11, dtype=np.float64)
     khat = np.zeros((11, rho.size), dtype=np.float64)
     khat = _corr_fits.get_khat(x, sig1, sig2)
-    integrated_khat = simpson(khat, x, axis=0)
+    integrated_khat = simpson(khat, x=x, axis=0)
     return integrated_khat
 
 

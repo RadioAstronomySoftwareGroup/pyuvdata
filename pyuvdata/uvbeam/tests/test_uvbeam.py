@@ -73,15 +73,12 @@ def uvbeam_data():
         "feed_array",
         "polarization_array",
         "basis_vector_array",
-        "Nspws",
-        "spw_array",
         "extra_keywords",
         "Nelements",
         "element_coordinate_system",
         "element_location_array",
         "delay_array",
         "x_orientation",
-        "freq_interp_kind",
         "gain_array",
         "coupling_matrix",
         "reference_impedance",
@@ -275,14 +272,22 @@ def test_future_array_shapes(
     beam2 = beam.copy()
 
     # test the no-op
-    beam.use_future_array_shapes()
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The unset_spw_params parameter is deprecated and has no effect. "
+        "This will become an error in version 2.6.",
+    ):
+        beam.use_future_array_shapes(unset_spw_params=True)
 
     with uvtest.check_warnings(
-        DeprecationWarning, match="This method will be removed in version 3.0"
+        [DeprecationWarning] * 2,
+        match=[
+            "This method will be removed in version 3.0",
+            "The set_spw_params parameter is deprecated and has no effect. "
+            "This will become an error in version 2.6.",
+        ],
     ):
-        beam.use_current_array_shapes()
-    assert beam.Nspws == 1
-    assert beam.spw_array is not None
+        beam.use_current_array_shapes(set_spw_params=False)
     beam.check()
 
     # test the no-op
@@ -292,11 +297,39 @@ def test_future_array_shapes(
         beam.use_current_array_shapes()
 
     beam.use_future_array_shapes()
-    assert beam.Nspws is None
-    assert beam.spw_array is None
     beam.check()
 
     assert beam == beam2
+
+
+@pytest.mark.parametrize("param", ["freq_interp_kind", "spw_array", "Nspws"])
+def test_deprecated_params(cst_efield_2freq, param):
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=f"The {param} attribute on UVBeam objects is "
+        "deprecated and support for it will be removed in version 2.6.",
+    ):
+        getattr(cst_efield_2freq, param)
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=f"The {param} attribute on UVBeam objects is "
+        "deprecated and support for it will be removed in version 2.6.",
+    ):
+        setattr(cst_efield_2freq, param, "foo")
+
+    assert getattr(cst_efield_2freq, param) == "foo"
+
+
+def test_deprecated_feed_names(cst_efield_2freq):
+    cst_efield_2freq.feed_array = np.array(["N", "E"])
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Feed array has values ['N', 'E'] that are deprecated. Values in "
+        "feed_array should be lower case. This will become an error in version 2.6",
+    ):
+        cst_efield_2freq.check()
 
 
 def test_set_cs_params(cst_efield_2freq):
@@ -483,14 +516,24 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_efield_to_power(future_shapes, cst_efield_2freq_cut, cst_power_2freq_cut):
+@pytest.mark.parametrize(
+    ["future_shapes", "physical_orientation"], [[True, False], [False, True]]
+)
+def test_efield_to_power(
+    future_shapes, physical_orientation, cst_efield_2freq_cut, cst_power_2freq_cut
+):
     efield_beam = cst_efield_2freq_cut
     power_beam = cst_power_2freq_cut
 
     if not future_shapes:
         efield_beam.use_current_array_shapes()
         power_beam.use_current_array_shapes()
+
+    if physical_orientation:
+        efield_beam.feed_array = np.array(["e", "n"])
+        power_beam.polarization_array = np.array(
+            uvutils.polstr2num(["ee", "nn"], x_orientation=power_beam.x_orientation)
+        )
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
 
@@ -690,6 +733,7 @@ def test_freq_interpolation(
     interp_arrays = beam.interp(
         freq_array=freq_orig_vals,
         freq_interp_tol=0.0,
+        freq_interp_kind="linear",
         return_bandpass=True,
         return_coupling=need_coupling,
     )
@@ -719,6 +763,7 @@ def test_freq_interpolation(
     interp_arrays = beam.interp(
         freq_array=freq_orig_vals,
         freq_interp_tol=1.0,
+        freq_interp_kind="cubic",
         return_bandpass=True,
         return_coupling=need_coupling,
     )
@@ -756,8 +801,15 @@ def test_freq_interpolation(
         exp_warnings.append(
             f"Input object has {param_name} defined but we do not "
             "currently support interpolating it in frequency. Returned "
-            "object will not have it set to None."
+            "object will have it set to None."
         )
+    # check setting freq_interp_kind on object also works
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The freq_interp_kind attribute on UVBeam objects is "
+        "deprecated and support for it will be removed in version 2.6. ",
+    ):
+        beam.freq_interp_kind = "linear"
     with uvtest.check_warnings(UserWarning, match=exp_warnings):
         new_beam_obj = beam.interp(
             freq_array=freq_orig_vals, freq_interp_tol=0.0, new_object=True
@@ -767,9 +819,9 @@ def test_freq_interpolation(
         np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
     else:
         np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
-    assert new_beam_obj.freq_interp_kind == "linear"
     # test that saved functions are erased in new obj
     assert not hasattr(new_beam_obj, "saved_interp_functions")
+    assert "freq_interp_kind = linear" in new_beam_obj.history
     assert beam.history != new_beam_obj.history
     new_beam_obj.history = beam.history
     # add back optional params to get equality:
@@ -777,9 +829,20 @@ def test_freq_interpolation(
         setattr(new_beam_obj, param_name, getattr(beam, param_name))
     assert beam == new_beam_obj
 
-    with uvtest.check_warnings(UserWarning, match=exp_warnings):
+    with uvtest.check_warnings(
+        [UserWarning] * (len(exp_warnings) + 1),
+        match=exp_warnings
+        + [
+            "The freq_interp_kind parameter was set but it does not "
+            "match the freq_interp_kind attribute on the object. "
+            "Using the one passed to this method."
+        ],
+    ):
         new_beam_obj = beam.interp(
-            freq_array=freq_orig_vals, freq_interp_tol=1.0, new_object=True
+            freq_array=freq_orig_vals,
+            freq_interp_tol=1.0,
+            freq_interp_kind="cubic",
+            new_object=True,
         )
     assert isinstance(new_beam_obj, UVBeam)
     if future_shapes:
@@ -787,8 +850,7 @@ def test_freq_interpolation(
     else:
         np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
     # assert interp kind is 'nearest' when within tol
-    assert new_beam_obj.freq_interp_kind == "nearest"
-    new_beam_obj.freq_interp_kind = "linear"
+    assert "freq_interp_kind = nearest" in new_beam_obj.history
     assert beam.history != new_beam_obj.history
     new_beam_obj.history = beam.history
     # add back optional params to get equality:
@@ -803,6 +865,7 @@ def test_freq_interpolation(
         new_beam_obj = beam.interp(
             freq_array=np.linspace(123e6, 150e6, num=5),
             freq_interp_tol=0.0,
+            freq_interp_kind="linear",
             new_object=True,
         )
 
@@ -815,7 +878,6 @@ def test_freq_interpolation(
         np.testing.assert_array_almost_equal(
             new_beam_obj.freq_array[0], np.linspace(123e6, 150e6, num=5)
         )
-    assert new_beam_obj.freq_interp_kind == "linear"
     # test that saved functions are erased in new obj
     assert not hasattr(new_beam_obj, "saved_interp_functions")
     assert beam.history != new_beam_obj.history
@@ -855,18 +917,6 @@ def test_freq_interpolation(
     ):
         beam_singlef.interp(freq_array=np.array([150e6]))
 
-    # assert freq_interp_kind ValueError
-    beam.freq_interp_kind = None
-    with pytest.raises(
-        ValueError, match="freq_interp_kind must be set on object first"
-    ):
-        beam.interp(
-            az_array=beam.axis1_array,
-            za_array=beam.axis2_array,
-            freq_array=freq_orig_vals,
-            polarizations=["xx"],
-        )
-
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
 @pytest.mark.parametrize("future_shapes", [True, False])
@@ -879,7 +929,6 @@ def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
 
     # make a new object with more frequencies
     freqs = np.linspace(123e6, 150e6, 4)
-    power_beam.freq_interp_kind = "linear"
 
     optional_freq_params = [
         "receiver_temperature_array",
@@ -892,10 +941,12 @@ def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
         exp_warnings.append(
             f"Input object has {param_name} defined but we do not "
             "currently support interpolating it in frequency. Returned "
-            "object will not have it set to None."
+            "object will have it set to None."
         )
     with uvtest.check_warnings(UserWarning, match=exp_warnings):
-        pbeam = power_beam.interp(freq_array=freqs, new_object=True)
+        pbeam = power_beam.interp(
+            freq_array=freqs, freq_interp_kind="linear", new_object=True
+        )
 
     # modulate the data
     pbeam.data_array[..., 1] *= 2
@@ -903,7 +954,6 @@ def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
 
     # interpolate cubic on real data
     freqs = np.linspace(123e6, 150e6, 10)
-    pbeam.freq_interp_kind = "cubic"
     pb_int = pbeam.interp(freq_array=freqs)[0]
 
     # interpolate cubic on complex data and compare to ensure they are the same
@@ -993,7 +1043,7 @@ def test_spatial_interpolation_samepoints(
         exp_warnings.append(
             f"Input object has {param_name} defined but we do not "
             "currently support interpolating it in frequency. Returned "
-            "object will not have it set to None."
+            "object will have it set to None."
         )
     with uvtest.check_warnings(UserWarning, match=exp_warnings):
         new_beam = uvbeam.interp(
@@ -1003,7 +1053,6 @@ def test_spatial_interpolation_samepoints(
             freq_array=freq_orig_vals,
             new_object=True,
         )
-    assert new_beam.freq_interp_kind == "nearest"
     assert new_beam.history == (
         uvbeam.history + " Interpolated in "
         "frequency and to a new azimuth/zenith "
@@ -1013,7 +1062,6 @@ def test_spatial_interpolation_samepoints(
     )
     # make histories & freq_interp_kind equal
     new_beam.history = uvbeam.history
-    new_beam.freq_interp_kind = "linear"
     # add back optional params to get equality:
     for param_name in optional_freq_params:
         setattr(new_beam, param_name, getattr(uvbeam, param_name))
@@ -1087,51 +1135,59 @@ def test_spatial_interpolation_everyother(
     )
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
-    interp_data_array, interp_basis_vector = uvbeam.interp(
-        az_array=az_interp_vals, za_array=za_interp_vals, freq_array=freq_interp_vals
+    _, _ = uvbeam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
     )
 
     if beam_type == "power":
         # Test requesting separate polarizations on different calls
         # while reusing splines.
-        interp_data_array, interp_basis_vector = uvbeam.interp(
+        _, _ = uvbeam.interp(
             az_array=az_interp_vals[:2],
             za_array=za_interp_vals[:2],
             freq_array=freq_interp_vals,
+            freq_interp_kind="linear",
             polarizations=["xx"],
             reuse_spline=True,
         )
 
-        interp_data_array, interp_basis_vector = uvbeam.interp(
+        _, _ = uvbeam.interp(
             az_array=az_interp_vals[:2],
             za_array=za_interp_vals[:2],
             freq_array=freq_interp_vals,
+            freq_interp_kind="linear",
             polarizations=["yy"],
             reuse_spline=True,
         )
 
     # test reusing the spline fit.
-    orig_data_array, interp_basis_vector = uvbeam.interp(
+    orig_data_array, _ = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
         reuse_spline=True,
     )
 
-    reused_data_array, interp_basis_vector = uvbeam.interp(
+    reused_data_array, _ = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
         reuse_spline=True,
     )
     assert np.all(reused_data_array == orig_data_array)
 
     # test passing spline options
     spline_opts = {"kx": 4, "ky": 4}
-    quartic_data_array, interp_basis_vector = uvbeam.interp(
+    quartic_data_array, _ = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
         spline_opts=spline_opts,
     )
 
@@ -1139,16 +1195,18 @@ def test_spatial_interpolation_everyother(
     assert np.allclose(quartic_data_array, orig_data_array, atol=1e-10)
     assert not np.all(quartic_data_array == orig_data_array)
 
-    select_data_array_orig, interp_basis_vector = uvbeam.interp(
+    select_data_array_orig, _ = uvbeam.interp(
         az_array=az_interp_vals[0:1],
         za_array=za_interp_vals[0:1],
         freq_array=np.array([127e6]),
+        freq_interp_kind="linear",
     )
 
-    select_data_array_reused, interp_basis_vector = uvbeam.interp(
+    select_data_array_reused, _ = uvbeam.interp(
         az_array=az_interp_vals[0:1],
         za_array=za_interp_vals[0:1],
         freq_array=np.array([127e6]),
+        freq_interp_kind="linear",
         reuse_spline=True,
     )
     assert np.allclose(select_data_array_orig, select_data_array_reused)
@@ -1226,7 +1284,7 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         uvbeam.interp(az_array=az_interp_vals, za_array=za_interp_vals + np.pi / 2)
 
     # test no errors only frequency interpolation
-    interp_data_array, interp_basis_vector = uvbeam.interp(freq_array=freq_interp_vals)
+    _, _ = uvbeam.interp(freq_array=freq_interp_vals, freq_interp_kind="linear")
 
     # assert polarization value error
     with pytest.raises(
@@ -1394,7 +1452,7 @@ def test_healpix_interpolation(
     message = [
         f"Input object has {param_name} defined but we do not "
         "currently support interpolating it in frequency. Returned "
-        "object will not have it set to None."
+        "object will have it set to None."
         for param_name in [
             "receiver_temperature_array",
             "loss_array",
@@ -1407,6 +1465,7 @@ def test_healpix_interpolation(
             healpix_inds=hpx_efield_beam.pixel_array[pixel_inds],
             healpix_nside=hpx_efield_beam.nside,
             freq_array=np.array([np.mean(freq_orig_vals)]),
+            freq_interp_kind="linear",
             new_object=True,
         )
     assert "Interpolated in frequency and to a new healpix grid" in interp_beam.history
@@ -1930,14 +1989,16 @@ def test_select_feeds(
 ):
     if antenna_type == "simple":
         efield_beam = cst_efield_1freq
+        efield_beam.feed_array = np.array(["n", "e"])
+        feeds_to_keep = ["e"]
     else:
         efield_beam = phased_array_beam_2freq
+        feeds_to_keep = ["x"]
 
     if not future_shapes:
         efield_beam.use_current_array_shapes()
 
     old_history = efield_beam.history
-    feeds_to_keep = ["x"]
 
     if antenna_type == "phased_array":
         expected_warning = UserWarning
@@ -2831,7 +2892,6 @@ def test_beam_area_healpix(
     numfreqs = healpix_norm.freq_array.shape[-1]
     beam_int = healpix_norm.get_beam_area(pol="xx")
     beam_sq_int = healpix_norm.get_beam_sq_area(pol="xx")
-    print(beam_int.shape)
     assert beam_int.shape[0] == numfreqs
     assert beam_sq_int.shape[0] == numfreqs
 

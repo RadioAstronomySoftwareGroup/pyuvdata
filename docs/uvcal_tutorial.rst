@@ -191,6 +191,42 @@ data-like arrays as well, filled with zeros.
   [ 0  1 11 12 13 23 24 25]
 
 
+UVCal: Instantiating from arrays in memory
+------------------------------------------
+``pyuvdata`` can also be used to create a UVCal object from arrays in memory. This
+is useful for mocking up data for testing or for creating a UVCal object from
+simulated data. Instead of instantiating a blank object and setting each required
+parameter, you can use the ``.new()`` static method, which deals with the task
+of creating a consistent object from a minimal set of inputs
+
+.. code-block:: python
+
+  >>> from pyuvdata import UVCal
+  >>> from astropy.coordinates import EarthLocation
+  >>> import numpy as np
+  >>> uvc = UVCal.new(
+  ...     gain_convention = "multiply",
+  ...     x_orientation = "east",
+  ...     cal_style = "redundant",
+  ...     freq_array = np.linspace(1e8, 2e8, 100),
+  ...     jones_array = ["ee", "nn"],
+  ...     antenna_positions = {
+  ...         0: [0.0, 0.0, 0.0],
+  ...         1: [0.0, 0.0, 1.0],
+  ...         2: [0.0, 0.0, 2.0],
+  ...     },
+  ...     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
+  ...     telescope_name = "test",
+  ...     time_array = np.linspace(2459855, 2459856, 20),
+  ... )
+
+Notice that you need only provide the required parameters, and the rest will be
+filled in with sensible defaults.
+
+See the full documentation for the method
+:func:`pyuvdata.uvcal.UVCal.new` for more information.
+
+
 UVCal: Quick data access
 ------------------------
 Method for quick data access, similar to those on :class:`pyuvdata.UVData`
