@@ -1233,10 +1233,6 @@ def test_gen_filepath_errs(tmp_path, has_file, kwargs, err_type, err_msg):
         # Make sure nothing happens if the check is disabled.
         mir_meta_obj._gen_filepath(filepath=str(tmp_path), check=False, **kwargs)
 
-    print(tmp_path)
-    print(type(str(tmp_path)))
-    print(has_file)
-
     # Finally, check for the error
     with pytest.raises(err_type, match=err_msg):
         mir_meta_obj._gen_filepath(
