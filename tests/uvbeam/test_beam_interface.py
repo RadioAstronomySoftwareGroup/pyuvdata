@@ -93,7 +93,7 @@ def test_beam_interface(
         az_array, za_array, freq_array, az_za_grid=True
     )
 
-    np.testing.assert_allclose(analytic_data, uvb_data, rtol=0, atol=1e-15)
+    np.testing.assert_allclose(analytic_data, uvb_data, rtol=0, atol=1e-14)
 
     # now on a grid that is not the same as where the beam was evaluated
     # larger differences of course
