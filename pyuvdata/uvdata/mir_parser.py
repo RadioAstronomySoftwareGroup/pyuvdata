@@ -2016,9 +2016,6 @@ class MirParser(object):
         if not isinstance(mask_name, str):
             raise ValueError("mask_name must be a string.")
 
-        for name in self._metadata_attrs:
-            self._metadata_attrs[name]
-
         mask_dict = {}
         for name, attr in self._metadata_attrs.items():
             mask_dict[name] = attr._mask.copy()
@@ -3467,7 +3464,8 @@ class MirParser(object):
             the MirParser object.
         """
         if not load_flags and not load_bandpass:
-            # Insert snarky no-op comment here
+            # You say you want solutions, but you don't want any solutions?
+            # You're tearing me apart, Lisa! (no-op return)
             return
         if not (self.vis_data is None and self.raw_data is None):
             raise ValueError(
