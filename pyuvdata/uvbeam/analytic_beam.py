@@ -56,24 +56,31 @@ class AnalyticBeam(ABC):
     # In that case, the Naxes_vec would be 3 rather than 2
     basis_vec_dict = {"az_za": 2}
 
-    basis_vector_type = None
+    @property
+    @abstractmethod
+    def basis_vector_type(self):
+        """Require that a basis_vector_type is defined in concrete classes."""
+        pass
+
+    @property
+    @abstractmethod
+    def name(self):
+        """Require that a name is defined in concrete classes."""
+        pass
 
     def __init__(
         self,
         *,
-        name: str,
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
         x_orientation: Literal["east", "north"] = "east",
     ):
-        self.name = name
-        if self.basis_vector_type is not None:
-            if self.basis_vector_type not in self.basis_vec_dict:
-                raise ValueError(
-                    f"basis_vector_type is {self.basis_vector_type}, must be one of "
-                    f"{list(self.basis_vec_dict.keys())}"
-                )
-            self.Naxes_vec = self.basis_vec_dict[self.basis_vector_type]
+        if self.basis_vector_type not in self.basis_vec_dict:
+            raise ValueError(
+                f"basis_vector_type is {self.basis_vector_type}, must be one of "
+                f"{list(self.basis_vec_dict.keys())}"
+            )
+        self.Naxes_vec = self.basis_vec_dict[self.basis_vector_type]
 
         if feed_array is not None:
             for feed in feed_array:
@@ -492,6 +499,7 @@ class GaussianBeam(AnalyticBeam):
     """
 
     basis_vector_type = "az_za"
+    name = "Analytic Gaussian"
 
     def __init__(
         self,
@@ -504,8 +512,6 @@ class GaussianBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        name = "Analytic Gaussian, "
-
         if (diameter is None and sigma is None) or (
             diameter is not None and sigma is not None
         ):
@@ -518,24 +524,27 @@ class GaussianBeam(AnalyticBeam):
                 self.sigma = sigma
             else:
                 self.sigma = np.sqrt(2) * sigma
+            description_str = f", E-field sigma={self.sigma}"
 
-            if (spectral_index != 0.0) and (reference_freq is None):
-                raise ValueError(
-                    "reference_freq must be set if `spectral_index` is not zero."
+            if spectral_index != 0.0:
+                if reference_freq is None:
+                    raise ValueError(
+                        "reference_freq must be set if `spectral_index` is not zero."
+                    )
+                description_str += (
+                    f", spectral index={spectral_index}, "
+                    f"reference freq={reference_freq} Hz"
                 )
-            elif reference_freq is None:
+            if reference_freq is None:
                 reference_freq = 1.0
             self.spectral_index = spectral_index
             self.reference_freq = reference_freq
-            description_str = f"E-field sigma={self.sigma}"
         else:
-            description_str = f"equivalent diameter={self.diameter}"
+            description_str = f", equivalent diameter={self.diameter} m"
 
-        name += description_str
+        self.name += description_str
 
-        super().__init__(
-            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
-        )
+        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
     def get_sigmas(self, freq_array: npt.NDArray[np.float]) -> npt.NDArray[np.float]:
         """
@@ -624,6 +633,7 @@ class AiryBeam(AnalyticBeam):
     """
 
     basis_vector_type = "az_za"
+    name = "Analytic Airy"
 
     def __init__(
         self,
@@ -632,11 +642,9 @@ class AiryBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        name = f"Analytic Airy, diameter={diameter}"
+        self.name += f", diameter={diameter} m"
 
-        super().__init__(
-            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
-        )
+        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
         self.diameter = diameter
 
@@ -713,6 +721,7 @@ class ShortDipoleBeam(AnalyticBeam):
     """
 
     basis_vector_type = "az_za"
+    name = "Analytic Short Dipole"
 
     def __init__(
         self,
@@ -722,10 +731,7 @@ class ShortDipoleBeam(AnalyticBeam):
     ):
         feed_array = ["e", "n"]
 
-        name = "Analytic Hertzian Dipole"
-
         super().__init__(
-            name=name,
             feed_array=feed_array,
             include_cross_pols=include_cross_pols,
             x_orientation=x_orientation,
@@ -794,6 +800,7 @@ class UniformBeam(AnalyticBeam):
     """
 
     basis_vector_type = "az_za"
+    name = "Analytic Uniform"
 
     def __init__(
         self,
@@ -801,11 +808,7 @@ class UniformBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        name = "Uniform"
-
-        super().__init__(
-            name=name, feed_array=feed_array, include_cross_pols=include_cross_pols
-        )
+        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
     def _efield_eval(
         self,

@@ -38,6 +38,8 @@ def test_airy_beam_values(az_za_deg_grid):
 
     np.testing.assert_allclose(beam_vals, expected_data)
 
+    assert beam.name == f"Analytic Airy, diameter={diameter_m} m"
+
 
 def test_airy_uv_beam_widths(xy_grid):
     # Check that the width of the Airy disk beam in UV space corresponds with
@@ -95,6 +97,8 @@ def test_achromatic_gaussian_beam(az_za_deg_grid, sigma_type):
 
     np.testing.assert_allclose(beam_vals, expected_data)
 
+    assert beam.name == f"Analytic Gaussian, E-field sigma={sigma_use}"
+
 
 def test_chromatic_gaussian():
     """
@@ -115,11 +119,11 @@ def test_chromatic_gaussian():
     ):
         GaussianBeam(sigma=sigma, spectral_index=alpha)
 
-    A = GaussianBeam(sigma=sigma, reference_freq=freqs[0], spectral_index=alpha)
+    beam = GaussianBeam(sigma=sigma, reference_freq=freqs[0], spectral_index=alpha)
 
     # Get the widths at each frequency.
 
-    vals = A.efield_eval(az, za, freqs)
+    vals = beam.efield_eval(az, za, freqs)
     # pick out a single polarization direction and feed
     vals = vals[0, 0]
 
@@ -129,6 +133,11 @@ def test_chromatic_gaussian():
     sig_f = sigma * (freqs / freqs[0]) ** alpha
     np.testing.assert_allclose(sig_f, 2 * hwhm / 2.355, atol=1e-3)
 
+    assert beam.name == (
+        f"Analytic Gaussian, E-field sigma={sigma}, spectral index={alpha}, "
+        f"reference freq={freqs[0]} Hz"
+    )
+
 
 def test_diameter_to_sigma(az_za_deg_grid):
     # The integrals of an Airy power beam and a Gaussian power beam, within
@@ -137,6 +146,8 @@ def test_diameter_to_sigma(az_za_deg_grid):
     diameter_m = 25.0
     abm = AiryBeam(diameter=diameter_m)
     gbm = GaussianBeam(diameter=diameter_m)
+
+    assert gbm.name == f"Analytic Gaussian, equivalent diameter={diameter_m} m"
 
     az_array, za_array, freqs = az_za_deg_grid
 
@@ -195,6 +206,8 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     np.testing.assert_allclose(power_vals, expected_data)
 
+    assert beam.name == "Analytic Short Dipole"
+
 
 def test_uniform_beam(az_za_deg_grid):
     beam = UniformBeam()
@@ -208,6 +221,8 @@ def test_uniform_beam(az_za_deg_grid):
 
     expected_data = np.ones((2, 2, n_freqs, nsrcs), dtype=float) / np.sqrt(2.0)
     np.testing.assert_allclose(beam_vals, expected_data)
+
+    assert beam.name == "Analytic Uniform"
 
 
 @pytest.mark.parametrize(
@@ -320,7 +335,7 @@ def test_comparison(compare_beam, equality, operation):
     ["beam_kwargs", "err_msg"],
     [
         [
-            {"feed_array": "w"},
+            {"feed_array": "w", "diameter": 5},
             re.escape("Feeds must be one of: ['n', 'e', 'x', 'y', 'r', 'l']"),
         ],
         [{}, "One of diameter or sigma must be set but not both."],
@@ -338,6 +353,7 @@ def test_beamerrs(beam_kwargs, err_msg):
 def test_bad_basis_vector_type():
     class BadBeam(AnalyticBeam):
         basis_vector_type = "healpix"
+        name = "bad beam"
 
         def _efield_eval(
             self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
