@@ -5,6 +5,7 @@
 import numpy as np
 import pytest
 
+import pyuvdata.tests as uvtest
 from pyuvdata import AiryBeam, BeamInterface, GaussianBeam, ShortDipoleBeam, UniformBeam
 
 
@@ -35,22 +36,55 @@ def xy_grid_coarse():
         [ShortDipoleBeam, {}],
     ],
 )
-@pytest.mark.parametrize("beam_type", ["efield", "power"])
-def test_beam_interface(beam_obj, kwargs, beam_type, az_za_coords, xy_grid_coarse):
+@pytest.mark.parametrize("init_beam_type", ["efield", "power"])
+@pytest.mark.parametrize("final_beam_type", ["efield", "power"])
+def test_beam_interface(
+    beam_obj, kwargs, init_beam_type, final_beam_type, az_za_coords, xy_grid_coarse
+):
     az_array, za_array = az_za_coords
     nfreqs = 20
     freq_array = np.linspace(100e6, 150e6, nfreqs)
 
+    if "include_cross_pols" in kwargs.keys():
+        include_cross_pols = kwargs["include_cross_pols"]
+    else:
+        include_cross_pols = True
+
     analytic = beam_obj(**kwargs)
     uvb = analytic.to_uvbeam(
-        beam_type=beam_type,
+        beam_type=init_beam_type,
         freq_array=freq_array,
         axis1_array=az_array,
         axis2_array=za_array,
     )
 
-    bi_analytic = BeamInterface(analytic, beam_type)
-    bi_uvbeam = BeamInterface(uvb)
+    bi_analytic = BeamInterface(analytic, final_beam_type)
+
+    if final_beam_type != init_beam_type:
+        if final_beam_type == "efield":
+            with pytest.raises(
+                ValueError,
+                match="Input beam is a power UVBeam but beam_type is specified as "
+                "'efield'. It's not possible to convert a power beam to an "
+                "efield beam, either provide an efield UVBeam or do not "
+                "specify `beam_type`.",
+            ):
+                BeamInterface(uvb, final_beam_type)
+            return
+
+        warn_type = UserWarning
+        msg = (
+            "Input beam is an efield UVBeam but beam_type is specified as "
+            "'power'. Converting efield beam to power."
+        )
+    else:
+        warn_type = None
+        msg = ""
+
+    with uvtest.check_warnings(warn_type, match=msg):
+        bi_uvbeam = BeamInterface(
+            uvb, final_beam_type, include_cross_pols=include_cross_pols
+        )
 
     analytic_data = bi_analytic.compute_response(
         az_array, za_array, freq_array, az_za_grid=True

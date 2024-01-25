@@ -46,7 +46,7 @@ class BeamInterface:
         self,
         beam: AnalyticBeam | UVBeam,
         beam_type: Literal["efield", "power"] | None = None,
-        include_cross_pols: bool | None = None,
+        include_cross_pols: bool = True,
     ):
         if not isinstance(beam, UVBeam) and not isinstance(beam, AnalyticBeam):
             raise ValueError("beam must be a UVBeam or an AnalyticBeam instance.")
@@ -56,16 +56,17 @@ class BeamInterface:
             if beam_type is None or beam_type == beam.beam_type:
                 self.beam_type = beam.beam_type
             elif beam_type == "power":
-                warnings.Warn(
-                    "`beam` is an efield UVBeam but `beam_type` is specified as "
+                warnings.warn(
+                    "Input beam is an efield UVBeam but beam_type is specified as "
                     "'power'. Converting efield beam to power."
                 )
                 self.beam.efield_to_power(calc_cross_pols=include_cross_pols)
             else:
                 raise ValueError(
-                    "`beam` is a power UVBeam but `beam_type` is specified as 'efield'."
-                    "It's not possible to convert a power beam to an efield beam, "
-                    "either provide an efield UVBeam or do not specify `beam_type`."
+                    "Input beam is a power UVBeam but beam_type is specified as "
+                    "'efield'. It's not possible to convert a power beam to an "
+                    "efield beam, either provide an efield UVBeam or do not "
+                    "specify `beam_type`."
                 )
         else:
             # AnalyticBeam
