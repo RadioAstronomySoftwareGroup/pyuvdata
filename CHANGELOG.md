@@ -4,8 +4,13 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- New optional spatial interpolation method, ``interpolation_function="az_za_map_coordinates"`` that improves the linear
-interpolation speed for data in ``az_za`` coordinates.
+- New analytic beam classes: AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam
+that support evaluating either the efield or power beam in any direction and frequency.
+- A new BeamInterface class that provides a unified interface to UVBeam and analytic
+beam objects to get beam responses in any direction and frequency (via
+interpolation or evaluation as appropriate).
+- New optional spatial interpolation method, ``interpolation_function="az_za_map_coordinates"``
+that improves the linear interpolation speed for data in ``az_za`` coordinates.
 - New UVParameter `pol_convention` on `UVData` and `UVCal`. This specifies the convention
 assumed for converting linear to stokes polarizations -- either "sum" or "avg". Also
 added to `uvcalibrate` to apply from the `UVCal` to the `UVData`.
