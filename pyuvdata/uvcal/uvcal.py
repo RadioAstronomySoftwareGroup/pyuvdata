@@ -250,13 +250,14 @@ class UVCal(UVBase):
             "Array of antenna polarization integers, shape (Njones). "
             "linear pols -5:-8 (jxx, jyy, jxy, jyx)."
             "circular pols -1:-4 (jrr, jll. jrl, jlr)."
+            "unknown 0."
         )
 
         self._jones_array = uvp.UVParameter(
             "jones_array",
             description=desc,
             expected_type=int,
-            acceptable_vals=list(np.arange(-8, 0)),
+            acceptable_vals=list(np.arange(-8, 1)),
             form=("Njones",),
         )
 
