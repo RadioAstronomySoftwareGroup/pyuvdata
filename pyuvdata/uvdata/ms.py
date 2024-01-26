@@ -14,6 +14,7 @@ import numpy as np
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
+from .. import ms_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
@@ -31,76 +32,6 @@ try:
 except ImportError as error:  # pragma: no cover
     casa_present = False
     casa_error = error
-
-"""
-This dictionary defines the mapping between CASA polarization numbers and
-AIPS polarization numbers
-"""
-# convert from casa polarization integers to pyuvdata
-POL_CASA2AIPS_DICT = {
-    1: 1,
-    2: 2,
-    3: 3,
-    4: 4,
-    5: -1,
-    6: -3,
-    7: -4,
-    8: -2,
-    9: -5,
-    10: -7,
-    11: -8,
-    12: -6,
-}
-
-POL_AIPS2CASA_DICT = {
-    aipspol: casapol for casapol, aipspol in POL_CASA2AIPS_DICT.items()
-}
-
-VEL_DICT = {
-    "REST": 0,
-    "LSRK": 1,
-    "LSRD": 2,
-    "BARY": 3,
-    "GEO": 4,
-    "TOPO": 5,
-    "GALACTO": 6,
-    "LGROUP": 7,
-    "CMB": 8,
-    "Undefined": 64,
-}
-
-
-# In CASA 'J2000' refers to a specific frame -- FK5 w/ an epoch of
-# J2000. We'll plug that in here directly, noting that CASA has an
-# explicit list of supported reference frames, located here:
-# casa.nrao.edu/casadocs/casa-5.0.0/reference-material/coordinate-frames
-
-COORD_UVDATA2CASA_DICT = {
-    "J2000": ("fk5", 2000.0),  # mean equator and equinox at J2000.0 (FK5)
-    "JNAT": None,  # geocentric natural frame
-    "JMEAN": None,  # mean equator and equinox at frame epoch
-    "JTRUE": None,  # true equator and equinox at frame epoch
-    "APP": ("gcrs", 2000.0),  # apparent geocentric position
-    "B1950": ("fk4", 1950.0),  # mean epoch and ecliptic at B1950.0.
-    "B1950_VLA": ("fk4", 1979.0),  # mean epoch (1979.9) and ecliptic at B1950.0
-    "BMEAN": None,  # mean equator and equinox at frame epoch
-    "BTRUE": None,  # true equator and equinox at frame epoch
-    "GALACTIC": None,  # Galactic coordinates
-    "HADEC": None,  # topocentric HA and declination
-    "AZEL": None,  # topocentric Azimuth and Elevation (N through E)
-    "AZELSW": None,  # topocentric Azimuth and Elevation (S through W)
-    "AZELNE": None,  # topocentric Azimuth and Elevation (N through E)
-    "AZELGEO": None,  # geodetic Azimuth and Elevation (N through E)
-    "AZELSWGEO": None,  # geodetic Azimuth and Elevation (S through W)
-    "AZELNEGEO": None,  # geodetic Azimuth and Elevation (N through E)
-    "ECLIPTIC": None,  # ecliptic for J2000 equator and equinox
-    "MECLIPTIC": None,  # ecliptic for mean equator of date
-    "TECLIPTIC": None,  # ecliptic for true equator of date
-    "SUPERGAL": None,  # supergalactic coordinates
-    "ITRF": None,  # coordinates wrt ITRF Earth frame
-    "TOPO": None,  # apparent topocentric position
-    "ICRS": ("icrs", 2000.0),  # International Celestial reference system
-}
 
 
 class MS(UVData):
@@ -430,7 +361,7 @@ class MS(UVData):
 
         if var_ref:
             var_ref_dict = {
-                key: value for value, key in enumerate(COORD_UVDATA2CASA_DICT.keys())
+                key: val for val, key in enumerate(ms_utils.COORD_PYUVDATA2CASA_DICT)
             }
             col_ref_dict = {
                 "PHASE_DIR": "PhaseDir_Ref",
@@ -736,7 +667,7 @@ class MS(UVData):
             sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
             # TODO: These are placeholders for now, but should be replaced with
             # actual frequency reference info (once UVData handles that)
-            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["TOPO"])
+            sw_table.putcell("MEAS_FREQ_REF", idx, ms_utils.VEL_DICT["TOPO"])
             sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
 
         sw_table.done()
@@ -819,7 +750,7 @@ class MS(UVData):
                 0,
                 np.array(
                     [
-                        POL_AIPS2CASA_DICT[pol]
+                        ms_utils.POL_AIPS2CASA_DICT[pol]
                         for pol in self.polarization_array[pol_order]
                     ]
                 ),
@@ -840,111 +771,12 @@ class MS(UVData):
 
                 pol_table.addrows()
                 pol_table.putcell(
-                    "CORR_TYPE", idx, np.array([POL_AIPS2CASA_DICT[spw_pol]])
+                    "CORR_TYPE", idx, np.array([ms_utils.POL_AIPS2CASA_DICT[spw_pol]])
                 )
                 pol_table.putcell("CORR_PRODUCT", idx, pol_tuples)
                 pol_table.putcell("NUM_CORR", idx, self.Npols)
 
         pol_table.done()
-
-    def _ms_hist_to_string(self, history_table):
-        """
-        Convert a CASA history table into a string for the uvdata history parameter.
-
-        Also stores messages column as a list for consitency with other uvdata types
-
-        Parameters
-        ----------
-        history_table : a casa table object
-            CASA table with history information.
-
-        Returns
-        -------
-        str
-            string enconding complete casa history table converted with a new
-            line denoting rows and a ';' denoting column breaks.
-        pyuvdata_written :  bool
-            boolean indicating whether or not this MS was written by pyuvdata.
-
-        """
-        # string to store all the casa history info
-        history_str = ""
-        pyuvdata_written = False
-
-        # Do not touch the history table if it has no information
-        if history_table.nrows() > 0:
-            history_str = "Begin measurement set history\n"
-
-            try:
-                app_params = history_table.getcol("APP_PARAMS")["array"]
-                history_str += "APP_PARAMS;"
-            except RuntimeError:
-                app_params = None
-            try:
-                cli_command = history_table.getcol("CLI_COMMAND")["array"]
-                history_str += "CLI_COMMAND;"
-            except RuntimeError:
-                cli_command = None
-            application = history_table.getcol("APPLICATION")
-            message = history_table.getcol("MESSAGE")
-            obj_id = history_table.getcol("OBJECT_ID")
-            obs_id = history_table.getcol("OBSERVATION_ID")
-            origin = history_table.getcol("ORIGIN")
-            priority = history_table.getcol("PRIORITY")
-            times = history_table.getcol("TIME")
-            history_str += (
-                "APPLICATION;MESSAGE;OBJECT_ID;OBSERVATION_ID;ORIGIN;PRIORITY;TIME\n"
-            )
-            # Now loop through columns and generate history string
-            ntimes = len(times)
-            cols = [application, message, obj_id, obs_id, origin, priority, times]
-            if cli_command is not None:
-                cols.insert(0, cli_command)
-            if app_params is not None:
-                cols.insert(0, app_params)
-
-            # if this MS was written by pyuvdata, some history that originated in
-            # pyuvdata is in the MS history table. We separate that out since it doesn't
-            # really belong to the MS history block (and so round tripping works)
-            pyuvdata_line_nos = [
-                line_no
-                for line_no, line in enumerate(application)
-                if "pyuvdata" in line
-            ]
-
-            for tbrow in range(ntimes):
-                # first check to see if this row was put in by pyuvdata.
-                # If so, don't mix them in with the MS stuff
-                if tbrow in pyuvdata_line_nos:
-                    continue
-
-                newline = ";".join([str(col[tbrow]) for col in cols]) + "\n"
-                history_str += newline
-
-            history_str += "End measurement set history.\n"
-
-            # make a list of lines that are MS specific (i.e. not pyuvdata lines)
-            ms_line_nos = np.arange(ntimes).tolist()
-            for count, line_no in enumerate(pyuvdata_line_nos):
-                # Subtract off the count, since the line_no will effectively
-                # change with each call to pop on the list
-                ms_line_nos.pop(line_no - count)
-
-            # Handle the case where there is no history but pyuvdata
-            if len(ms_line_nos) == 0:
-                ms_line_nos = [-1]
-
-            if len(pyuvdata_line_nos) > 0:
-                pyuvdata_written = True
-                for line_no in pyuvdata_line_nos:
-                    if line_no < min(ms_line_nos):
-                        # prepend these lines to the history
-                        history_str = message[line_no] + "\n" + history_str
-                    else:
-                        # append these lines to the history
-                        history_str += message[line_no] + "\n"
-
-        return history_str, pyuvdata_written
 
     def _write_ms_history(self, filepath):
         """
@@ -1396,62 +1228,6 @@ class MS(UVData):
         self._write_ms_observation(filepath)
         self._write_ms_history(filepath)
 
-    def _parse_casa_frame_ref(self, ref_name, *, raise_error=True):
-        """
-        Interpret a CASA frame into an astropy-friendly frame and epoch.
-
-        Parameters
-        ----------
-        ref_name : str
-            Name of the CASA-based spatial coordinate reference frame.
-        raise_error : bool
-            Whether to raise an error if the name has no match. Default is True, if set
-            to false will raise a warning instead.
-
-        Returns
-        -------
-        frame_name : str
-            Name of the frame. Typically matched to the UVData attribute
-            `phase_center_frame`.
-        epoch_val : float
-            Epoch value for the given frame, in Julian years unless `frame_name="FK4"`,
-            in which case the value is in Besselian years. Typically matched to the
-            UVData attribute `phase_center_epoch`.
-
-        Raises
-        ------
-        ValueError
-            If the CASA coordinate frame does not match the known supported list of
-            frames for CASA.
-        NotImplementedError
-            If using a CASA coordinate frame that does not yet have a corresponding
-            astropy frame that is supported by pyuvdata.
-        """
-        frame_name = None
-        epoch_val = None
-        try:
-            frame_tuple = COORD_UVDATA2CASA_DICT[ref_name]
-            if frame_tuple is None:
-                message = f"Support for the {ref_name} frame is not yet supported."
-                if raise_error:
-                    raise NotImplementedError(message)
-                else:
-                    warnings.warn(message)
-            else:
-                frame_name = frame_tuple[0]
-                epoch_val = frame_tuple[1]
-        except KeyError as err:
-            message = (
-                f"The coordinate frame {ref_name} is not one of the supported frames "
-                "for measurement sets."
-            )
-            if raise_error:
-                raise ValueError(message) from err
-            else:
-                warnings.warn(message)
-
-        return frame_name, epoch_val
-
     def _parse_pyuvdata_frame_ref(self, frame_name, epoch_val, *, raise_error=True):
         """
         Interpret a UVData pair of frame + epoch into a CASA frame name.
@@ -1485,7 +1261,9 @@ class MS(UVData):
         # handle this. For now, this just does a reverse lookup on the limited frames
         # supported by UVData objects, although eventually it can be expanded to support
         # more native MS frames.
-        reverse_dict = {ref: key for key, ref in COORD_UVDATA2CASA_DICT.items()}
+        reverse_dict = {
+            ref: key for key, ref in ms_utils.COORD_PYUVDATA2CASA_DICT.items()
+        }
 
         ref_name = None
         try:
@@ -1688,7 +1466,7 @@ class MS(UVData):
 
             field_list = np.unique(field_arr)
             pol_list = [
-                POL_CASA2AIPS_DICT[key]
+                ms_utils.POL_CASA2AIPS_DICT[key]
                 for key in data_desc_dict[data_desc_key]["CORR_TYPE"]
             ]
 
@@ -1787,7 +1565,7 @@ class MS(UVData):
             data_dict[key]["POL_IDX"] = pol_idx.astype(int)
             all_single_pol = all_single_pol and (len(pol_idx) == 1)
 
-        pol_list = [POL_CASA2AIPS_DICT[key] for key in pol_list]
+        pol_list = [ms_utils.POL_CASA2AIPS_DICT[key] for key in pol_list]
         flex_pol = None
 
         # Check to see if we want to allow flex pol, in which case each data_desc will
@@ -1992,17 +1770,13 @@ class MS(UVData):
         self._filename.form = (1,)
 
         # get the history info
-        pyuvdata_written = False
-        if tables.tableexists(filepath + "/HISTORY"):
-            self.history, pyuvdata_written = self._ms_hist_to_string(
-                tables.table(filepath + "/HISTORY", ack=False)
+        try:
+            self.history, pyuvdata_written = ms_utils.read_ms_hist(
+                filepath, self.pyuvdata_version_str, check_origin=True
             )
-            if not uvutils._check_history_version(
-                self.history, self.pyuvdata_version_str
-            ):
-                self.history += self.pyuvdata_version_str
-        else:
+        except FileNotFoundError:
             self.history = self.pyuvdata_version_str
+            pyuvdata_written = False
 
         data_desc_dict = {}
         tb_desc = tables.table(filepath + "/DATA_DESCRIPTION", ack=False)
@@ -2297,7 +2071,7 @@ class MS(UVData):
             )
 
         if "Ref" in measinfo_keyword.keys():
-            frame_tuple = self._parse_casa_frame_ref(measinfo_keyword["Ref"])
+            frame_tuple = ms_utils._parse_casa_frame_ref(measinfo_keyword["Ref"])
             phase_center_frame = frame_tuple[0]
             phase_center_epoch = frame_tuple[1]
         else:
@@ -2334,7 +2108,7 @@ class MS(UVData):
             ra_val, dec_val = tb_field.getcell("PHASE_DIR", field_idx)[0]
             field_name = field_name_list[field_idx]
             if ref_dir_colname is not None:
-                frame_tuple = self._parse_casa_frame_ref(
+                frame_tuple = ms_utils._parse_casa_frame_ref(
                     ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
                 )
             else:
