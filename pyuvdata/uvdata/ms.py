@@ -2067,7 +2067,7 @@ class MS(UVData):
         if (spw_list is None) and (field_list is None) and (pol_list is None):
             raise ValueError(
                 "No valid data available in the MS file. If this file contains "
-                "single channel data, set ignore_single_channel=True when calling "
+                "single channel data, set ignore_single_chan=False when calling "
                 "read_ms."
             )
 
