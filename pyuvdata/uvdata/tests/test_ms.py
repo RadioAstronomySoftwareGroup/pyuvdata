@@ -70,6 +70,7 @@ def nrao_uv(nrao_uv_main):
 
     return
 
+
 @pytest.fixture(scope="function")
 def nrao_uv_legacy():
     """Make function level NRAO ms object, legacy array shapes."""
