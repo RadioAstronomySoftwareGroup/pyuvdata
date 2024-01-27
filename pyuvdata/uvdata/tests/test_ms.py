@@ -1075,7 +1075,7 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
 
     assert sma_mir == ms_uv
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-def test_read_ms_write_miriad(nrao_uv, nrao_uv_legacy, tmp_path):
+def test_read_ms_write_miriad_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
     """
     write ms from future and legacy array shapes.
     """
