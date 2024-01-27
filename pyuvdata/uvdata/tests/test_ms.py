@@ -1074,6 +1074,9 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     sma_mir.filename = ms_uv.filename = None
 
     assert sma_mir == ms_uv
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 def test_read_ms_write_miriad_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
     """
