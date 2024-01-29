@@ -59,11 +59,9 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                (
-                    latitude,
-                    longitude,
-                    altitude,
-                ) = self.telescope_location_lat_lon_alt_degrees
+                (latitude, longitude, altitude) = (
+                    self.telescope_location_lat_lon_alt_degrees
+                )
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,

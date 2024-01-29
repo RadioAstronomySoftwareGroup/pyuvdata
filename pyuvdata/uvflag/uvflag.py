@@ -3229,22 +3229,18 @@ class UVFlag(UVBase):
         else:
             uv_object = self.copy()
 
-        (
-            blt_inds,
-            ant_inds,
-            freq_inds,
-            pol_inds,
-            history_update_string,
-        ) = uv_object._select_preprocess(
-            antenna_nums=antenna_nums,
-            ant_str=ant_str,
-            bls=bls,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            ant_inds=ant_inds,
+        (blt_inds, ant_inds, freq_inds, pol_inds, history_update_string) = (
+            uv_object._select_preprocess(
+                antenna_nums=antenna_nums,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                times=times,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                ant_inds=ant_inds,
+            )
         )
 
         # do select operations on everything except data_array, flag_array

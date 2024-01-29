@@ -25,13 +25,13 @@ def new_uvbeam(
     model_name: str = "default",
     model_version: str = "0.0",
     feed_array: npt.NDArray[np.str] | None = None,
-    polarization_array: npt.NDArray[np.str | np.int]
-    | list[str | int]
-    | tuple[str | int]
-    | None = None,
+    polarization_array: (
+        npt.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
+    ) = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
-    pixel_coordinate_system: Literal["az_za", "orthoslant_zenith", "healpix"]
-    | None = None,
+    pixel_coordinate_system: (
+        Literal["az_za", "orthoslant_zenith", "healpix"] | None
+    ) = None,
     axis1_array: npt.NDArray[np.float] | None = None,
     axis2_array: npt.NDArray[np.float] | None = None,
     nside: int | None = None,

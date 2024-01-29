@@ -110,15 +110,14 @@ def astrometry_args():
     )
 
     if hasmoon:
-        (
-            default_args["moon_app_ra"],
-            default_args["moon_app_dec"],
-        ) = uvutils.transform_icrs_to_app(
-            default_args["time_array"],
-            default_args["icrs_ra"],
-            default_args["icrs_dec"],
-            default_args["moon_telescope_loc"],
-            telescope_frame="mcmf",
+        (default_args["moon_app_ra"], default_args["moon_app_dec"]) = (
+            uvutils.transform_icrs_to_app(
+                default_args["time_array"],
+                default_args["icrs_ra"],
+                default_args["icrs_dec"],
+                default_args["moon_telescope_loc"],
+                telescope_frame="mcmf",
+            )
         )
 
         default_args["moon_app_coord"] = SkyCoord(
@@ -403,40 +402,18 @@ def enu_mcmf_info():
 
 def test_xyz_from_latlonalt(enu_ecef_info):
     """Test calculating xyz from lat lot alt."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     assert np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3)
 
 
 def test_enu_from_ecef(enu_ecef_info):
     """Test calculating ENU from ECEF coordinates."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
 
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
@@ -445,20 +422,9 @@ def test_enu_from_ecef(enu_ecef_info):
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
 def test_enu_from_mcmf(enu_mcmf_info):
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_mcmf_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_mcmf_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame="mcmf")
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame="mcmf")
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
@@ -479,20 +445,9 @@ def test_invalid_frame():
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
 def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
     """Test ENU_from_ECEF input shape errors."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     if shape_type == "transpose":
         xyz = xyz.T.copy()
@@ -511,20 +466,9 @@ def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
 
 def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     """Test ENU_from_ECEF input magnitude errors."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # error checking
     with pytest.raises(ValueError) as cm:
@@ -554,20 +498,9 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
 
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
 def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
     if shape_type == "transpose":
@@ -585,20 +518,9 @@ def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
 
 def test_ecef_from_enu_single(enu_ecef_info):
     """Test single coordinate transform."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # check passing a single value
     enu_single = uvutils.ENU_from_ECEF(xyz[0, :], center_lat, center_lon, center_alt)
@@ -608,20 +530,9 @@ def test_ecef_from_enu_single(enu_ecef_info):
 
 def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
     """Test single coordinate roundtrip."""
-    (
-        center_lat,
-        center_lon,
-        center_alt,
-        lats,
-        lons,
-        alts,
-        x,
-        y,
-        z,
-        east,
-        north,
-        up,
-    ) = enu_ecef_info
+    (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
+        enu_ecef_info
+    )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # check passing a single value
     enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt)
@@ -1571,13 +1482,9 @@ def test_jphl_lookup():
 
     # If we can't connect to JPL-Horizons, then skip this test and don't outright fail.
     try:
-        [
-            ephem_times,
-            ephem_ra,
-            ephem_dec,
-            ephem_dist,
-            ephem_vel,
-        ] = uvutils.lookup_jplhorizons("Sun", 2456789.0)
+        [ephem_times, ephem_ra, ephem_dec, ephem_dist, ephem_vel] = (
+            uvutils.lookup_jplhorizons("Sun", 2456789.0)
+        )
     except (SSLError, RequestException) as err:
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
@@ -2581,12 +2488,10 @@ def test_redundancy_finder():
             bl_positions_new = uvd.uvw_array
             bl_positions_new[bi] += sh
 
-            (
-                baseline_groups_new,
-                vec_bin_centers,
-                lens,
-            ) = uvutils.get_baseline_redundancies(
-                uvd.baseline_array, bl_positions_new, tol=hightol
+            (baseline_groups_new, vec_bin_centers, lens) = (
+                uvutils.get_baseline_redundancies(
+                    uvd.baseline_array, bl_positions_new, tol=hightol
+                )
             )
 
             for gi, gp in enumerate(baseline_groups_new):
@@ -2617,24 +2522,18 @@ def test_redundancy_finder():
     # Check with conjugated baseline redundancies returned
     # Ensure at least one baseline has u==0 and v!=0 (for coverage of this case)
     bl_positions[16, 0] = 0
-    (
-        baseline_groups,
-        vec_bin_centers,
-        lens,
-        conjugates,
-    ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+    (baseline_groups, vec_bin_centers, lens, conjugates) = (
+        uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+        )
     )
 
     # restore baseline (16,0) and repeat to get correct groups
     bl_positions = bl_pos_backup
-    (
-        baseline_groups,
-        vec_bin_centers,
-        lens,
-        conjugates,
-    ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+    (baseline_groups, vec_bin_centers, lens, conjugates) = (
+        uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+        )
     )
 
     # Apply flips to compare with get_antenna_redundancies().
@@ -2677,13 +2576,10 @@ def test_high_tolerance_redundancy_error():
     tol = 20.05  # meters
 
     with pytest.raises(ValueError) as cm:
-        (
-            baseline_groups,
-            vec_bin_centers,
-            lens,
-            conjugates,
-        ) = uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+        (baseline_groups, vec_bin_centers, lens, conjugates) = (
+            uvutils.get_baseline_redundancies(
+                uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+            )
         )
     assert "Some baselines are falling into" in str(cm.value)
 
@@ -2734,13 +2630,10 @@ def test_redundancy_finder_fully_redundant_array():
     tol = 1  # meters
     bl_positions = uvd.uvw_array
 
-    (
-        baseline_groups,
-        vec_bin_centers,
-        lens,
-        conjugates,
-    ) = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+    (baseline_groups, vec_bin_centers, lens, conjugates) = (
+        uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+        )
     )
 
     # Only 1 set of redundant baselines

@@ -1717,11 +1717,9 @@ class UVBeam(UVBase):
                 freq_array, kind=freq_interp_kind, tol=freq_interp_tol
             )
             if self.antenna_type == "phased_array":
-                (
-                    input_data_array,
-                    interp_bandpass,
-                    interp_coupling_matrix,
-                ) = interp_arrays
+                (input_data_array, interp_bandpass, interp_coupling_matrix) = (
+                    interp_arrays
+                )
             else:
                 input_data_array, interp_bandpass = interp_arrays
             input_nfreqs = freq_array.size
@@ -2018,11 +2016,9 @@ class UVBeam(UVBase):
                 freq_array, kind=freq_interp_kind, tol=freq_interp_tol
             )
             if self.antenna_type == "phased_array":
-                (
-                    input_data_array,
-                    interp_bandpass,
-                    interp_coupling_matrix,
-                ) = interp_arrays
+                (input_data_array, interp_bandpass, interp_coupling_matrix) = (
+                    interp_arrays
+                )
             else:
                 input_data_array, interp_bandpass = interp_arrays
             input_nfreqs = freq_array.size
@@ -3310,9 +3306,9 @@ class UVBeam(UVBase):
         if self.future_array_shapes:
             this.bandpass_array[np.ix_(freq_t2o)] = other.bandpass_array
             if this.receiver_temperature_array is not None:
-                this.receiver_temperature_array[
-                    np.ix_(freq_t2o)
-                ] = other.receiver_temperature_array
+                this.receiver_temperature_array[np.ix_(freq_t2o)] = (
+                    other.receiver_temperature_array
+                )
             if this.loss_array is not None:
                 this.loss_array[np.ix_(freq_t2o)] = other.loss_array
             if this.mismatch_array is not None:
@@ -3334,17 +3330,17 @@ class UVBeam(UVBase):
             this.bandpass_array[np.ix_([0], freq_t2o)] = other.bandpass_array
 
             if this.receiver_temperature_array is not None:
-                this.receiver_temperature_array[
-                    np.ix_([0], freq_t2o)
-                ] = other.receiver_temperature_array
+                this.receiver_temperature_array[np.ix_([0], freq_t2o)] = (
+                    other.receiver_temperature_array
+                )
             if this.loss_array is not None:
                 this.loss_array[np.ix_([0], freq_t2o)] = other.loss_array
             if this.mismatch_array is not None:
                 this.mismatch_array[np.ix_([0], freq_t2o)] = other.mismatch_array
             if this.s_parameters is not None:
-                this.s_parameters[
-                    np.ix_(np.arange(4), [0], freq_t2o)
-                ] = other.s_parameters
+                this.s_parameters[np.ix_(np.arange(4), [0], freq_t2o)] = (
+                    other.s_parameters
+                )
 
             if this.antenna_type == "phased_array":
                 this.coupling_matrix[

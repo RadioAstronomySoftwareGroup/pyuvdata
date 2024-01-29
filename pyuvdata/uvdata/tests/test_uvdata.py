@@ -6426,12 +6426,9 @@ def test_redundancy_contract_expand(
         # the test file has groups that are either all not conjugated or all conjugated.
         # need to conjugate some so we have mixed groups to properly test the average
         # method.
-        (
-            orig_red_gps,
-            orig_centers,
-            orig_lengths,
-            orig_conjugates,
-        ) = uv0.get_redundancies(tol, include_conjugates=True)
+        (orig_red_gps, orig_centers, orig_lengths, orig_conjugates) = (
+            uv0.get_redundancies(tol, include_conjugates=True)
+        )
         blt_inds_to_conj = []
         for gp in orig_red_gps:
             if len(gp) > 1:
@@ -11310,9 +11307,9 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
         uv_in_bad2.gst0 = None
         uv_in_bad2.rdate = None
         uv_in_bad2.timesys = None
-    uv_in_bad2.phase_center_catalog[1][
-        "info_source"
-    ] = uv_in_bad_copy.phase_center_catalog[1]["info_source"]
+    uv_in_bad2.phase_center_catalog[1]["info_source"] = (
+        uv_in_bad_copy.phase_center_catalog[1]["info_source"]
+    )
     uv_in_bad2.extra_keywords = uv_in_bad_copy.extra_keywords
     assert uv_in_bad2 == uv_in_bad_copy
 
@@ -12349,9 +12346,9 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
         for idx, spw in enumerate(uvd2.spw_array):
             new_spw = spw_renumber_dict[spw]
             new_spw_array[idx] = new_spw
-            uvd2.flex_spw_id_array[
-                np.nonzero(uvd2.flex_spw_id_array == spw)[0]
-            ] = new_spw
+            uvd2.flex_spw_id_array[np.nonzero(uvd2.flex_spw_id_array == spw)[0]] = (
+                new_spw
+            )
         uvd2.spw_array = new_spw_array
         uvd2.check()
 

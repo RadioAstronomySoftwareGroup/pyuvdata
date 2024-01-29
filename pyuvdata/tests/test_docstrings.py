@@ -1,4 +1,5 @@
 """Tests of the docstrings module."""
+
 from docstring_parser import DocstringReturns, DocstringStyle
 
 from pyuvdata.docstrings import combine_docstrings

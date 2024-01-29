@@ -727,9 +727,9 @@ class BeamFITS(UVBeam):
                 "STOKES",
                 "Polarization integers, see uvbeam memo",
             )
-            primary_header[
-                "CRVAL" + str(ax_nums["feed_pol"])
-            ] = self.polarization_array[0]
+            primary_header["CRVAL" + str(ax_nums["feed_pol"])] = (
+                self.polarization_array[0]
+            )
             primary_header["CDELT" + str(ax_nums["feed_pol"])] = pol_spacing
 
             # handle case where data_array is complex (e.g. for xy beams)
@@ -848,33 +848,37 @@ class BeamFITS(UVBeam):
                 basisvec_ax_nums = reg_basisvec_ax_nums
 
                 # set up first image axis
-                basisvec_header[
-                    "CTYPE" + str(basisvec_ax_nums["img_ax1"])
-                ] = fits_axisname_dict[
-                    self.coordinate_system_dict[self.pixel_coordinate_system]["axes"][0]
-                ]
-                basisvec_header[
-                    "CRVAL" + str(basisvec_ax_nums["img_ax1"])
-                ] = deg_axis1_array[0]
+                basisvec_header["CTYPE" + str(basisvec_ax_nums["img_ax1"])] = (
+                    fits_axisname_dict[
+                        self.coordinate_system_dict[self.pixel_coordinate_system][
+                            "axes"
+                        ][0]
+                    ]
+                )
+                basisvec_header["CRVAL" + str(basisvec_ax_nums["img_ax1"])] = (
+                    deg_axis1_array[0]
+                )
                 basisvec_header["CRPIX" + str(basisvec_ax_nums["img_ax1"])] = 1
-                basisvec_header[
-                    "CDELT" + str(basisvec_ax_nums["img_ax1"])
-                ] = deg_axis1_spacing
+                basisvec_header["CDELT" + str(basisvec_ax_nums["img_ax1"])] = (
+                    deg_axis1_spacing
+                )
                 basisvec_header["CUNIT" + str(basisvec_ax_nums["img_ax1"])] = "deg"
 
                 # set up second image axis
-                basisvec_header[
-                    "CTYPE" + str(basisvec_ax_nums["img_ax2"])
-                ] = fits_axisname_dict[
-                    self.coordinate_system_dict[self.pixel_coordinate_system]["axes"][1]
-                ]
-                basisvec_header[
-                    "CRVAL" + str(basisvec_ax_nums["img_ax2"])
-                ] = deg_axis2_array[0]
+                basisvec_header["CTYPE" + str(basisvec_ax_nums["img_ax2"])] = (
+                    fits_axisname_dict[
+                        self.coordinate_system_dict[self.pixel_coordinate_system][
+                            "axes"
+                        ][1]
+                    ]
+                )
+                basisvec_header["CRVAL" + str(basisvec_ax_nums["img_ax2"])] = (
+                    deg_axis2_array[0]
+                )
                 basisvec_header["CRPIX" + str(basisvec_ax_nums["img_ax2"])] = 1
-                basisvec_header[
-                    "CDELT" + str(basisvec_ax_nums["img_ax2"])
-                ] = deg_axis2_spacing
+                basisvec_header["CDELT" + str(basisvec_ax_nums["img_ax2"])] = (
+                    deg_axis2_spacing
+                )
                 basisvec_header["CUNIT" + str(basisvec_ax_nums["img_ax2"])] = "deg"
 
             # set up vector component axis (length Ncomponents_vec)

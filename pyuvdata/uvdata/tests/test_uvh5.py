@@ -1794,9 +1794,9 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, future_shapes, tm
                     partial_uvh5.flag_array[blt_idx, :, freq_idx, pol_idx] = flags[
                         iblt, :, ifreq, ipol
                     ]
-                    partial_uvh5.nsample_array[
-                        blt_idx, :, freq_idx, pol_idx
-                    ] = nsamples[iblt, :, ifreq, ipol]
+                    partial_uvh5.nsample_array[blt_idx, :, freq_idx, pol_idx] = (
+                        nsamples[iblt, :, ifreq, ipol]
+                    )
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
@@ -3237,9 +3237,9 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
                     partial_uvh5.flag_array[blt_idx, :, freq_idx, pol_idx] = flags[
                         iblt, :, ifreq, ipol
                     ]
-                    partial_uvh5.nsample_array[
-                        blt_idx, :, freq_idx, pol_idx
-                    ] = nsamples[iblt, :, ifreq, ipol]
+                    partial_uvh5.nsample_array[blt_idx, :, freq_idx, pol_idx] = (
+                        nsamples[iblt, :, ifreq, ipol]
+                    )
 
     # read in the file and make sure it matches
     partial_uvh5_file = UVData()
