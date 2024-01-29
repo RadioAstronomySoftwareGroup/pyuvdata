@@ -328,14 +328,9 @@ def test_unexpected_parameters(uvcal_data):
 
 def test_unexpected_attributes(uvcal_data):
     """Test for extra attributes."""
-    (
-        uv_cal_object,
-        _,
-        required_properties,
-        _,
-        extra_properties,
-        other_properties,
-    ) = uvcal_data
+    (uv_cal_object, _, required_properties, _, extra_properties, other_properties) = (
+        uvcal_data
+    )
     expected_attributes = required_properties + extra_properties + other_properties
     attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] != "_"]
     for a in attributes:

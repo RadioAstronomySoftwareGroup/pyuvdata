@@ -3246,9 +3246,9 @@ class UVCal(UVBase):
                     this.quality_array[
                         np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
                     ] = other.quality_array
-                this.flag_array[
-                    np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
-                ] = other.flag_array
+                this.flag_array[np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)] = (
+                    other.flag_array
+                )
                 if this.total_quality_array is not None:
                     if other.total_quality_array is not None:
                         this.total_quality_array[

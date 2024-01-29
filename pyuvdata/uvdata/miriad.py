@@ -665,11 +665,9 @@ class Miriad(UVData):
 
         """
         # load miriad variables
-        (
-            default_miriad_variables,
-            other_miriad_variables,
-            extra_miriad_variables,
-        ) = self._load_miriad_variables(uv)
+        (default_miriad_variables, other_miriad_variables, extra_miriad_variables) = (
+            self._load_miriad_variables(uv)
+        )
 
         # dict of extra variables
         check_variables = {}
@@ -934,9 +932,11 @@ class Miriad(UVData):
                 raise ValueError(err_msg)
             # convert to pol integer if string
             polarizations = [
-                p
-                if isinstance(p, (int, np.integer))
-                else uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                (
+                    p
+                    if isinstance(p, (int, np.integer))
+                    else uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                )
                 for p in polarizations
             ]
             # iterate through all possible pols and reject if not in pols

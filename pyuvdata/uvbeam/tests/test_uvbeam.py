@@ -740,12 +740,9 @@ def test_freq_interpolation(
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
     else:
-        (
-            interp_data,
-            interp_basis_vector,
-            interp_bandpass,
-            interp_coupling_matrix,
-        ) = interp_arrays
+        (interp_data, interp_basis_vector, interp_bandpass, interp_coupling_matrix) = (
+            interp_arrays
+        )
     assert isinstance(interp_data, np.ndarray)
     assert isinstance(interp_bandpass, np.ndarray)
     np.testing.assert_array_almost_equal(beam.bandpass_array, interp_bandpass)
@@ -770,12 +767,9 @@ def test_freq_interpolation(
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
     else:
-        (
-            interp_data,
-            interp_basis_vector,
-            interp_bandpass,
-            interp_coupling_matrix,
-        ) = interp_arrays
+        (interp_data, interp_basis_vector, interp_bandpass, interp_coupling_matrix) = (
+            interp_arrays
+        )
     assert isinstance(interp_data, np.ndarray)
     assert isinstance(interp_bandpass, np.ndarray)
     np.testing.assert_array_almost_equal(beam.bandpass_array, interp_bandpass)

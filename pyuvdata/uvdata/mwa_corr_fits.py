@@ -736,9 +736,9 @@ class MWACorrFITS(UVData):
         # make a mask where data actually is so coarse channels that
         # are split into two files don't overwrite eachother
         data_mask = coarse_chan_data != 0
-        self.data_array[:, freq_ind : freq_ind + num_fine_chans, :][
-            data_mask
-        ] = coarse_chan_data[data_mask]
+        self.data_array[:, freq_ind : freq_ind + num_fine_chans, :][data_mask] = (
+            coarse_chan_data[data_mask]
+        )
 
         return
 
@@ -766,10 +766,11 @@ class MWACorrFITS(UVData):
         # some flag files are shorter than data; assume same end time
         blt_ind = self.Nblts - len(flags)
         flags = flags[:, :, np.newaxis]
-        self.flag_array[
-            blt_ind:, freq_ind : freq_ind + num_fine_chans, :
-        ] = np.logical_or(
-            self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :], flags
+        self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :] = (
+            np.logical_or(
+                self.flag_array[blt_ind:, freq_ind : freq_ind + num_fine_chans, :],
+                flags,
+            )
         )
 
     def van_vleck_correction(
@@ -951,14 +952,14 @@ class MWACorrFITS(UVData):
                     ].flatten()
                     # correct real
                     kap = van_vleck_crosses_int(khat.real, sig1, sig2, cheby_approx)
-                    self.data_array.real[
-                        k, :, j, np.array([yy, yx, xy, xx])
-                    ] = kap.reshape(self.Npols, self.Ntimes)
+                    self.data_array.real[k, :, j, np.array([yy, yx, xy, xx])] = (
+                        kap.reshape(self.Npols, self.Ntimes)
+                    )
                     # correct imaginary
                     kap = van_vleck_crosses_int(khat.imag, sig1, sig2, cheby_approx)
-                    self.data_array.imag[
-                        k, :, j, np.array([yy, yx, xy, xx])
-                    ] = kap.reshape(self.Npols, self.Ntimes)
+                    self.data_array.imag[k, :, j, np.array([yy, yx, xy, xx])] = (
+                        kap.reshape(self.Npols, self.Ntimes)
+                    )
             # correct yx autos
             for k in good_autos:
                 for j in range(self.Nfreqs):

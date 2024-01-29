@@ -1,4 +1,5 @@
 """Functions for dealing with merging docstrings."""
+
 import copy
 import typing as tp
 from collections import ChainMap

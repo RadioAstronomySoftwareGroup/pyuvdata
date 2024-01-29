@@ -263,11 +263,10 @@ def configure_blt_rectangularity(
             antpairs[:, 0], antpairs[:, 1], len(np.unique(unique_antpairs))
         )
 
-        (
-            blts_are_rectangular,
-            time_axis_faster_than_bls,
-        ) = utils.determine_rectangularity(
-            time_array=times, baseline_array=baselines, nbls=nbl, ntimes=nt
+        (blts_are_rectangular, time_axis_faster_than_bls) = (
+            utils.determine_rectangularity(
+                time_array=times, baseline_array=baselines, nbls=nbl, ntimes=nt
+            )
         )
 
     return (
