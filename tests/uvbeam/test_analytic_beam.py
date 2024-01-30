@@ -378,3 +378,44 @@ def test_bad_basis_vector_type():
         match=re.escape("basis_vector_type is healpix, must be one of ['az_za']"),
     ):
         BadBeam()
+
+
+def test_to_uvbeam_errors():
+    beam = GaussianBeam(sigma=0.02)
+
+    with pytest.raises(ValueError, match="Beam type must be 'efield' or 'power'"):
+        beam.to_uvbeam(
+            freq_array=np.linspace(100, 200, 5),
+            beam_type="foo",
+            axis1_array=np.deg2rad(np.linspace(0, 360, 36, endpoint=False)),
+            axis2_array=np.deg2rad(np.linspace(0, 90, 10)),
+        )
+
+    with pytest.raises(
+        NotImplementedError,
+        match="Currently this method only supports 'az_za' and 'healpix' "
+        "pixel_coordinate_systems.",
+    ):
+        beam.to_uvbeam(
+            freq_array=np.linspace(100, 200, 5),
+            beam_type="efield",
+            axis1_array=np.deg2rad(np.linspace(0, 360, 36, endpoint=False)),
+            axis2_array=np.deg2rad(np.linspace(0, 90, 10)),
+            pixel_coordinate_system="orthoslant_zenith",
+        )
+
+    allowed_coord_sys = list(UVBeam().coordinate_system_dict.keys())
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Unknown coordinate system foo. UVBeam supported coordinate systems "
+            f"are: {allowed_coord_sys}."
+        ),
+    ):
+        beam.to_uvbeam(
+            freq_array=np.linspace(100, 200, 5),
+            beam_type="efield",
+            axis1_array=np.deg2rad(np.linspace(0, 360, 36, endpoint=False)),
+            axis2_array=np.deg2rad(np.linspace(0, 90, 10)),
+            pixel_coordinate_system="foo",
+        )
