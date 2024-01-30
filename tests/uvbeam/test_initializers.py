@@ -210,6 +210,19 @@ def test_phased_array(phased_array_efield, phased_array_beam_2freq, rm_param):
         )
 
 
+def test_kwargs(uvb_azza_efield_kw):
+    uvb_azza_efield_kw["reference_impedance"] = 50.0
+
+    uvb = UVBeam.new(**uvb_azza_efield_kw)
+
+    assert uvb.reference_impedance == 50.0
+
+    uvb_azza_efield_kw["foo"] = "bar"
+
+    with pytest.raises(ValueError, match="Unrecognized keyword argument: foo"):
+        UVBeam.new(**uvb_azza_efield_kw)
+
+
 def test_no_feed_pol_error(uvb_common_kw):
     with pytest.raises(
         ValueError,

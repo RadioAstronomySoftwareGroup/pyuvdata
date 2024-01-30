@@ -482,6 +482,90 @@ def ECEF_from_ENU(
     return xyz
 
 
+def hpx_latlon_to_zenithangle_azimuth(hpx_lat, hpx_lon):
+    """
+    Convert from healpix lat/lon to UVBeam za/az convention.
+
+    Note that this is different (unfortunately) from the conversion between
+    the UVBeam Zenith Angle, Azimuth coordinate system and the astropy Alt/Az
+    coordinate system. The astropy Azimuth runs the opposite direction and
+    has a different starting angle than UVBeam's Azimuth because they are both
+    right handed coordinate systems but Altitude moves the opposite direction
+    than Zenith Angle does.
+
+    The conversion used in this code sets the Healpix latitude to 90-zenith angle
+    but it does not change the origin or direction for the azimuthal angle. This
+    convention was set early in the development of UVBeam and we preserve it to
+    preserve backwards compatibility.
+
+    Parameters
+    ----------
+    hpx_lat: float or array of float
+        Healpix latiudinal coordinate in radians.
+    hpx_lon: float or array of float
+        Healpix longitudinal coordinate in radians.
+
+    Returns
+    -------
+    zenith_angle: float or array of float
+        In radians
+    azimuth: float or array of float
+        In radians in uvbeam convention: North of East(East=0, North=pi/2)
+
+    """
+    input_alt = np.asarray(hpx_lat)
+    input_az = np.asarray(hpx_lon)
+    if input_alt.shape != input_az.shape:
+        raise ValueError("shapes of hpx_lat and hpx_lon values must match.")
+
+    zenith_angle = np.pi / 2 - hpx_lat
+    azimuth = hpx_lon
+
+    return zenith_angle, azimuth
+
+
+def zenithangle_azimuth_to_hpx_latlon(zenith_angle, azimuth):
+    """
+    Convert from UVBeam az/za convention to healpix lat/lon.
+
+    Note that this is different (unfortunately) from the conversion between
+    the UVBeam Zenith Angle, Azimuth coordinate system and the astropy Alt/Az
+    coordinate system. The astropy Azimuth runs the opposite direction and
+    has a different starting angle than UVBeam's Azimuth because they are both
+    right handed coordinate systems but Altitude moves the opposite direction
+    than Zenith Angle does.
+
+    The conversion used in this code sets the Healpix latitude to 90-zenith angle
+    but it does not change the origin or direction for the azimuthal angle. This
+    convention was set early in the development of UVBeam and we preserve it to
+    preserve backwards compatibility.
+
+    Parameters
+    ----------
+    zenith_angle: float, array_like of float
+        Zenith angle in radians
+    azimuth: float, array_like of float
+        Azimuth in radians in uvbeam convention: North of East(East=0, North=pi/2)
+
+    Returns
+    -------
+    hpx_lat: float or array of float
+        Healpix latiudinal coordinate in radians.
+    hpx_lon: float or array of float
+        Healpix longitudinal coordinate in radians.
+
+    """
+    input_za = np.array(zenith_angle)
+    input_az = np.array(azimuth)
+    if input_za.shape != input_az.shape:
+        raise ValueError("shapes of zenith_angle and azimuth values must match.")
+
+    lat_array = np.pi / 2 - zenith_angle
+    lon_array = azimuth
+
+    return lat_array, lon_array
+
+
 def check_surface_based_positions(
     *,
     telescope_loc=None,
