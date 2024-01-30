@@ -13,6 +13,7 @@ import numpy.typing as npt
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
+from .. import utils
 from ..docstrings import combine_docstrings
 from .uvbeam import UVBeam, _convert_feeds_to_pols
 
@@ -60,13 +61,11 @@ class AnalyticBeam(ABC):
     @abstractmethod
     def basis_vector_type(self):
         """Require that a basis_vector_type is defined in concrete classes."""
-        pass
 
     @property
     @abstractmethod
     def name(self):
         """Require that a name is defined in concrete classes."""
-        pass
 
     def __init__(
         self,
@@ -347,9 +346,10 @@ class AnalyticBeam(ABC):
     def to_uvbeam(
         self,
         freq_array: npt.NDArray[np.float],
-        beam_type: Literal["efield", "power"] = "power",
-        pixel_coordinate_system: Literal["az_za", "orthoslant_zenith", "healpix"]
-        | None = None,
+        beam_type: Literal["efield", "power"] = "efield",
+        pixel_coordinate_system: (
+            Literal["az_za", "orthoslant_zenith", "healpix"] | None
+        ) = None,
         **kwargs,
     ):
         """Generate a UVBeam object from an AnalyticBeam object.
@@ -381,14 +381,19 @@ class AnalyticBeam(ABC):
             feed_array = None
             polarization_array = self.polarization_array
 
-        if pixel_coordinate_system is not None and pixel_coordinate_system not in [
-            "az_za",
-            "healpix",
-        ]:
-            raise NotImplementedError(
-                "Currently this method only supports 'az_za' and 'healpix' "
-                "pixel_coordinate_systems."
-            )
+        if pixel_coordinate_system is not None:
+            allowed_coord_sys = list(UVBeam().coordinate_system_dict.keys())
+            if pixel_coordinate_system not in allowed_coord_sys:
+                raise ValueError(
+                    f"Unknown coordinate system {pixel_coordinate_system}. UVBeam "
+                    f"supported coordinate systems are: {allowed_coord_sys}."
+                )
+
+            if pixel_coordinate_system not in ["az_za", "healpix"]:
+                raise NotImplementedError(
+                    "Currently this method only supports 'az_za' and 'healpix' "
+                    "pixel_coordinate_systems."
+                )
 
         uvb = UVBeam.new(
             telescope_name="Analytic Beam",
@@ -413,8 +418,12 @@ class AnalyticBeam(ABC):
                     "required for healpix functionality. "
                     "Install 'astropy-healpix' using conda or pip."
                 ) from e
-            hp_obj = HEALPix(nside=uvb.nside, ordering=uvb.ordering)
-            az_array, za_array = hp_obj.healpix_to_lonlat(uvb.pixel_array)
+            hp_obj = HEALPix(nside=uvb.nside, order=uvb.ordering)
+            hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(uvb.pixel_array)
+            za_array, az_array = utils.coordinates.hpx_latlon_to_zenithangle_azimuth(
+                hpx_lat.radian, hpx_lon.radian
+            )
+
         else:
             az_array, za_array = np.meshgrid(uvb.axis1_array, uvb.axis2_array)
             az_array = az_array.flatten()

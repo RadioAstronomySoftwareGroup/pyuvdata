@@ -77,7 +77,7 @@ class BeamInterface:
         self,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[np.float] | None,
         az_za_grid: bool = False,
         freq_interp_tol: float = 1.0,
         reuse_spline: bool = False,
@@ -89,18 +89,20 @@ class BeamInterface:
         Parameters
         ----------
         az_array : array_like of floats, optional
-            Azimuth values to interpolate to in radians, either specifying the
-            azimuth positions for every interpolation point or specifying the
-            azimuth vector for a meshgrid if az_za_grid is True.
+            Azimuth values to compute the response for in radians, either
+            specifying the azimuth positions for every interpolation point or
+            specifying the azimuth vector for a meshgrid if az_za_grid is True.
         za_array : array_like of floats, optional
-            Zenith values to interpolate to in radians, either specifying the
-            zenith positions for every interpolation point or specifying the
-            zenith vector for a meshgrid if az_za_grid is True.
+            Zenith values to compute the response for in radians, either
+            specifying the zenith positions for every interpolation point or
+            specifying the zenith vector for a meshgrid if az_za_grid is True.
+        freq_array : array_like of floats or None
+            Frequency values to compute the response for in Hz. If beam is a UVBeam
+            this can be set to None to get the responses at the UVBeam frequencies.
+            It must be a numpy array if beam is an analytic beam.
         az_za_grid : bool
             Option to treat the `az_array` and `za_array` as the input vectors
             for points on a mesh grid.
-        freq_array : array_like of floats, optional
-            Frequency values to interpolate to.
         freq_interp_tol : float
             Frequency distance tolerance [Hz] of nearest neighbors.
             If *all* elements in freq_array have nearest neighbor distances within
@@ -120,6 +122,11 @@ class BeamInterface:
             An array of computed values, shape (Naxes_vec, Nfeeds or Npols,
             freq_array.size, az_array.size)
         """
+        if not isinstance(az_array, np.ndarray) or az_array.ndim != 1:
+            raise ValueError("az_array must be a one-dimensional numpy array")
+        if not isinstance(za_array, np.ndarray) or za_array.ndim != 1:
+            raise ValueError("za_array must be a one-dimensional numpy array")
+
         if self._isuvbeam:
             interp_data, _ = self.beam.interp(
                 az_array=az_array,
@@ -131,12 +138,9 @@ class BeamInterface:
                 spline_opts=spline_opts,
             )
         else:
+            if not isinstance(freq_array, np.ndarray) or freq_array.ndim != 1:
+                raise ValueError("freq_array must be a one-dimensional numpy array")
             if az_za_grid:
-                if az_array is None or za_array is None:
-                    raise ValueError(
-                        "If az_za_grid is set to True, az_array and za_array must be "
-                        "provided."
-                    )
                 az_array_use, za_array_use = np.meshgrid(az_array, za_array)
                 az_array_use = az_array_use.flatten()
                 za_array_use = za_array_use.flatten()
