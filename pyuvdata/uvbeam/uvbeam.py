@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
 from scipy import interpolate
 
@@ -2114,8 +2113,12 @@ class UVBeam(UVBase):
             interp_basis_vector = None
 
         hp_obj = HEALPix(nside=self.nside, order=self.ordering)
-        lat_array = Angle(np.pi / 2, units.radian) - Angle(za_array, units.radian)
-        lon_array = Angle(az_array, units.radian)
+        lat_array, lon_array = uvutils.zenithangle_azimuth_to_hpx_latlon(
+            za_array, az_array
+        )
+        lon_array = lon_array * units.rad
+        lat_array = lat_array * units.rad
+
         for index3 in range(input_nfreqs):
             for index0 in range(self.Naxes_vec):
                 for index2 in range(Npol_feeds):
@@ -2337,6 +2340,9 @@ class UVBeam(UVBase):
         interp_func = self.interpolation_function_dict[interpolation_function]["func"]
 
         if freq_array is not None:
+            if freq_array.ndim != 1:
+                raise ValueError("freq_array must be one-dimensional")
+
             # get frequency distances
             freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
             nearest_dist = np.min(freq_dists, axis=1)
@@ -2381,9 +2387,9 @@ class UVBeam(UVBase):
                 healpix_inds = np.arange(hp_obj.npix)
 
             hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(healpix_inds)
-
-            za_array_use = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
-            az_array_use = hpx_lon.radian
+            za_array_use, az_array_use = uvutils.hpx_latlon_to_zenithangle_azimuth(
+                hpx_lat.radian, hpx_lon.radian
+            )
 
         extra_keyword_dict = {}
         if interp_func == "_interp_az_za_rect_spline":
@@ -2607,15 +2613,15 @@ class UVBeam(UVBase):
 
         pixels = np.arange(hp_obj.npix)
         hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
-
-        hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
-        hpx_phi = hpx_lon.radian
+        hpx_zen_ang, hpx_az = uvutils.hpx_latlon_to_zenithangle_azimuth(
+            hpx_lat.radian, hpx_lon.radian
+        )
 
         inds_to_use = _uvbeam.find_healpix_indices(
             np.ascontiguousarray(self.axis2_array, dtype=np.float64),
             np.ascontiguousarray(self.axis1_array, dtype=np.float64),
-            np.ascontiguousarray(hpx_theta, dtype=np.float64),
-            np.ascontiguousarray(hpx_phi, dtype=np.float64),
+            np.ascontiguousarray(hpx_zen_ang, dtype=np.float64),
+            np.ascontiguousarray(hpx_az, dtype=np.float64),
             np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
         )
 

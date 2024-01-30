@@ -604,6 +604,38 @@ def test_mwa_ecef_conversion():
     assert np.allclose(rot_xyz.T, xyz)
 
 
+def test_hpx_latlon_az_za():
+    zenith_angle = np.deg2rad(np.linspace(0, 90, 10))
+    azimuth = np.deg2rad(np.linspace(0, 360, 36, endpoint=False))
+    az_mesh, za_mesh = np.meshgrid(azimuth, zenith_angle)
+
+    hpx_lat = np.deg2rad(np.linspace(90, 0, 10))
+    hpx_lon = np.deg2rad(np.linspace(0, 360, 36, endpoint=False))
+    lon_mesh, lat_mesh = np.meshgrid(hpx_lon, hpx_lat)
+
+    with pytest.raises(
+        ValueError, match="shapes of zenith_angle and azimuth values must match."
+    ):
+        uvutils.zenithangle_azimuth_to_hpx_latlon(zenith_angle, azimuth)
+
+    calc_lat, calc_lon = uvutils.zenithangle_azimuth_to_hpx_latlon(za_mesh, az_mesh)
+
+    print(np.min(calc_lat), np.max(calc_lat))
+    print(np.min(lat_mesh), np.max(lat_mesh))
+    np.testing.assert_allclose(calc_lat, lat_mesh)
+    np.testing.assert_allclose(calc_lon, lon_mesh)
+
+    with pytest.raises(
+        ValueError, match="shapes of hpx_lat and hpx_lon values must match."
+    ):
+        uvutils.hpx_latlon_to_zenithangle_azimuth(hpx_lat, hpx_lon)
+
+    calc_za, calc_az = uvutils.hpx_latlon_to_zenithangle_azimuth(lat_mesh, lon_mesh)
+
+    np.testing.assert_allclose(calc_za, za_mesh)
+    np.testing.assert_allclose(calc_az, az_mesh)
+
+
 @pytest.mark.parametrize(
     "input1,input2,msg",
     (
