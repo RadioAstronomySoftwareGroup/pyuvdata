@@ -1617,3 +1617,17 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
         ValueError, match="The data are not all phased to a sidereal source"
     ):
         hera_uvh5.write_uvfits(tmp_path)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_convention(casa_uvfits, tmp_path):
+    """
+    Reading multiple files at once using "axis" keyword.
+    """
+    uv_full = casa_uvfits
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    uv_full.write_uvfits(testfile1, use_miriad_convention=True)
+
+    hdu = fits.open(testfile1)
+    print(hdu[0].data["BASELINE"])
