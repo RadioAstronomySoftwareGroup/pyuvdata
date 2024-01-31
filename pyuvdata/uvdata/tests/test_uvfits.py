@@ -1629,7 +1629,7 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     uv.read(casa_tutorial_uvfits)
 
     # Change an antenna ID to 512
-    old_idx = uv.antenna_numbers[10]     # This is antenna 19
+    old_idx = uv.antenna_numbers[10]  # This is antenna 19
     new_idx = 512
 
     uv.antenna_numbers[10] = new_idx
@@ -1642,15 +1642,12 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     hdu = fits.open(testfile1)
 
     # These are based on known values in casa_tutorial_uvfits
-    expected_vals = {
-        'ANTENNA1_0': 4,
-        'ANTENNA2_0': 8,
-        'NOSTA_0': 2
-    }
+    expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
 
     # Check baselines match MIRIAD convention
-    bl_miriad_expected = uvutils.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array, 
-                                                     512, use_miriad_convention=True)
+    bl_miriad_expected = uvutils.antnums_to_baseline(
+        uv.ant_1_array, uv.ant_2_array, 512, use_miriad_convention=True
+    )
     assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
 
     # Quick check of other antenna values

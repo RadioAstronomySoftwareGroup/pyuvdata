@@ -799,7 +799,9 @@ def baseline_to_antnums(baseline, Nants_telescope):
         return ant1.item(0), ant2.item(0)
 
 
-def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False, use_miriad_convention=False):
+def antnums_to_baseline(
+    ant1, ant2, Nants_telescope, attempt256=False, use_miriad_convention=False
+):
     """
     Get the baseline number corresponding to two given antenna numbers.
 
@@ -820,7 +822,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False, use_miria
     use_miriad_convention : bool
         Option to use the MIRIAD convention where BASELINE id is
             if ant2 < 256:
-                bl = 256 * ant1 + ant2 
+                bl = 256 * ant1 + ant2
             else:
                 bl = 2048 * ant1 + ant2 + 2**16
         Note antennas should be 1-indexed (start at 1, not 0)
@@ -857,7 +859,7 @@ def antnums_to_baseline(ant1, ant2, Nants_telescope, attempt256=False, use_miria
         np.ascontiguousarray(ant2, dtype=np.uint64),
         attempt256=attempt256,
         nants_less2048=nants_less2048,
-        use_miriad_convention=use_miriad_convention
+        use_miriad_convention=use_miriad_convention,
     )
     if return_array:
         return baseline
