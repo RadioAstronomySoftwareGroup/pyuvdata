@@ -791,6 +791,7 @@ class UVFITS(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=False,
+        use_miriad_convention=False,
     ):
         """
         Write the data to a uvfits file.
@@ -827,6 +828,15 @@ class UVFITS(UVData):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
+        use_miriad_convention : bool
+            Option to use the MIRIAD baseline convention, and write to BASELINE column.
+            This supports up to 2048 antennas, where baseline ID is given by
+                if ant2 < 256:
+                    bl = 256 * ant1 + ant2
+                else:
+                    bl = 2048 * ant1 + ant2 + 2**16
+            This mode is required for UVFITS files to be readable by MIRIAD.
+            Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
 
         Raises
         ------
@@ -1000,8 +1010,20 @@ class UVFITS(UVData):
             time_array1 = self.time_array - jd_midnight
         int_time_array = self.integration_time
 
+        # If using MIRIAD convention, we need 1-indexed data
+        if use_miriad_convention:
+            if np.min(self.antenna_numbers) == 0:
+                self.antenna_numbers += 1
+                self.ant_1_array += 1
+                self.ant_2_array += 1
+
+        # Generate baseline IDs
+        attempt256 = False if use_miriad_convention else True
         baselines_use = self.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array, attempt256=True
+            self.ant_1_array,
+            self.ant_2_array,
+            attempt256=attempt256,
+            use_miriad_convention=use_miriad_convention,
         )
         # Set up dictionaries for populating hdu
         # Antenna arrays are populated with actual antenna numbers,
@@ -1077,7 +1099,11 @@ class UVFITS(UVData):
             pscal_dict["DATE2   "] = 1.0
             pzero_dict["DATE2   "] = 0.0
             parnames_use.append("DATE2   ")
-        if np.max(self.ant_1_array) < 255 and np.max(self.ant_2_array) < 255:
+
+        if use_miriad_convention:
+            # MIRIAD requires BASELINE column.
+            parnames_use.append("BASELINE")
+        elif np.max(self.ant_1_array) < 255 and np.max(self.ant_2_array) < 255:
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
             # Otherwise just use the antenna arrays

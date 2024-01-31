@@ -1617,3 +1617,40 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
         ValueError, match="The data are not all phased to a sidereal source"
     ):
         hera_uvh5.write_uvfits(tmp_path)
+
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_miriad_convention(casa_uvfits, tmp_path):
+    """
+    Test writing a MIRIAD-compatible UVFITS file
+    """
+    uv = UVData()
+    uv.read(casa_tutorial_uvfits)
+
+    # Change an antenna ID to 512
+    old_idx = uv.antenna_numbers[10]  # This is antenna 19
+    new_idx = 512
+
+    uv.antenna_numbers[10] = new_idx
+    uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
+    uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
+
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    uv.write_uvfits(testfile1, use_miriad_convention=True)
+
+    hdu = fits.open(testfile1)
+
+    # These are based on known values in casa_tutorial_uvfits
+    expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
+
+    # Check baselines match MIRIAD convention
+    bl_miriad_expected = uvutils.antnums_to_baseline(
+        uv.ant_1_array, uv.ant_2_array, 512, use_miriad_convention=True
+    )
+    assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
+
+    # Quick check of other antenna values
+    assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"]
+    assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"]
+    assert hdu[1].data["NOSTA"][0] == expected_vals["NOSTA_0"]

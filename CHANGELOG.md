@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new `freq_interp_kind` parameter to `UVBeam.interp`, `UVBeam._interp_az_za_rect_spline`
+and `UVBeam._interp_healpix_bilinear` to allow the frequency interpolation
+specification to be passed into the methods. Note this defaults to "cubic" rather
+than "linear" (the old default for the attribute of the same name on UVBeam objects)
+because several groups have found that a linear interpolation leads to nasty
+artifacts in visibility simulations for EoR applications.
+- A new `UVBeam.new()` method (based on new function `new_uvbeam`) that creates a new,
+self-consistent `UVBeam` object from scratch from a set of flexible input parameters.
 - Added a the `UVData.update_antenna_positions` method to enable making antenna
 position updates with corresponding updates the uvw-coordinates and visibility phases.
 - Added a switch to `UVData.write_ms` called `flip_conj`, which allows a user to write
@@ -32,10 +40,19 @@ tolerance value to be user-specified.
 Additionally, failing this check results in a warning (was an error).
 
 ### Deprecated
+- The `freq_interp_kind` attribute on UVBeams.
+- The `spw_array` and `Nspws` attributes on UVBeam objects. Also the
+`unset_spw_params`  and `set_spw_params` parameters to the `use_future_array_shapes`
+and `use_current_array_shapes` methods on UVBeam objects.
+- Upper case feed names (e.g. "N" or "E") in UVBeam.feed_array. This was never
+fully tested and didn't work properly.
 - Having `freq_range` defined on non-wide-band gain style UVCal objects.
 - Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
 
 ### Fixed
+- A small bug (mostly affecting continuous integration) that threw an error when the
+IERS service was down and when tests were using `test.check_warnings` to look for no
+warnings thrown (i.e., where `match=None`).
 - A couple of small bugs related to handling of the `freq_range` parameter in the
 `reorder_freqs` and `__add__` methods on `UVCal`.
 

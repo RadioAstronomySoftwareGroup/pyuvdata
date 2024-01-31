@@ -3603,7 +3603,7 @@ class UVData(UVBase):
         """
         return uvutils.baseline_to_antnums(baseline, self.Nants_telescope)
 
-    def antnums_to_baseline(self, ant1, ant2, attempt256=False):
+    def antnums_to_baseline(self, ant1, ant2, attempt256=False, use_miriad_convention=False):
         """
         Get the baseline number corresponding to two given antenna numbers.
 
@@ -3616,14 +3616,24 @@ class UVData(UVBase):
         attempt256 : bool
             Option to try to use the older 256 standard used in many uvfits files
             (will use 2048 standard if there are more than 256 antennas).
-
+        use_miriad_convention : bool
+            Option to use the MIRIAD convention where BASELINE id is
+                if ant2 < 256:
+                    bl = 256 * ant1 + ant2 
+                else:
+                    bl = 2048 * ant1 + ant2 + 2**16
+            Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
+            
         Returns
         -------
         int or array of int
             baseline number corresponding to the two antenna numbers.
         """
+        # set attempt256 to false if using miriad convention
+        attempt256 = False if use_miriad_convention else attempt256
         return uvutils.antnums_to_baseline(
-            ant1, ant2, self.Nants_telescope, attempt256=attempt256
+            ant1, ant2, self.Nants_telescope, attempt256=attempt256, 
+            use_miriad_convention=use_miriad_convention,
         )
 
     def antpair2ind(self, ant1, ant2=None, ordered=True):
@@ -12826,6 +12836,7 @@ class UVData(UVBase):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=False,
+        use_miriad_convention=False,
     ):
         """
         Write the data to a uvfits file.
@@ -12865,6 +12876,15 @@ class UVData(UVBase):
         fix_autos : bool
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is False.
+        use_miriad_convention : bool
+            Option to use the MIRIAD baseline convention, and write to BASELINE column.
+            This supports up to 2048 antennas, where baseline ID is given by
+                if ant2 < 256:
+                    bl = 256 * ant1 + ant2 
+                else:
+                    bl = 2048 * ant1 + ant2 + 2**16
+            Note antennas should be 1-indexed (start at 1, not 0). This mode is required
+            for UVFITS files to be readable by MIRIAD.
 
         Raises
         ------
@@ -12904,6 +12924,7 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_miriad_convention=use_miriad_convention,
         )
         del uvfits_obj
 

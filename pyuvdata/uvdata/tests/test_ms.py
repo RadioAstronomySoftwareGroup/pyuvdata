@@ -70,6 +70,7 @@ def nrao_uv(nrao_uv_main):
 
     return
 
+
 @pytest.fixture(scope="function")
 def nrao_uv_legacy():
     """Make function level NRAO ms object, legacy array shapes."""
@@ -1075,7 +1076,12 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
 
     assert sma_mir == ms_uv
 
-def test_read_ms_write_miriad(nrao_uv, nrao_uv_legacy, tmp_path):
+
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units "
+                            "of the data are")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+def test_read_ms_write_miriad_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
     """
     write ms from future and legacy array shapes.
     """
