@@ -174,9 +174,9 @@ cdef inline void _antnum_to_bl_2048_miriad(
 
   for i in range(nbls):
     if ant2[i] >= 255:
-      baselines[i] = 2048 * (ant1[i] + 1) + (ant2[i] + 1) + 2 ** 16
+      baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
     else:
-      baselines[i] = 256 * (ant1[i] + 1) + (ant2[i] + 1) 
+      baselines[i] = 256 * (ant1[i]) + (ant2[i]) 
   return
 
 @cython.boundscheck(False)

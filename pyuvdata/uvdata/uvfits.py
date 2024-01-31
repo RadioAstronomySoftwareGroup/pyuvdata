@@ -1009,7 +1009,14 @@ class UVFITS(UVData):
         else:
             time_array1 = self.time_array - jd_midnight
         int_time_array = self.integration_time
-        
+
+        # If using MIRIAD convention, we need 1-indexed data
+        if use_miriad_convention:
+            if np.min(self.antenna_numbers) == 0:
+                self.antenna_numbers += 1
+                self.ant_1_array += 1
+                self.ant_2_array += 1
+
         # Generate baseline IDs
         attempt256 = False if use_miriad_convention else True
         baselines_use = self.antnums_to_baseline(
@@ -1033,11 +1040,6 @@ class UVFITS(UVData):
             "SUBARRAY": np.ones_like(self.ant_1_array),
             "INTTIM  ": int_time_array,
         }
-
-        if use_miriad_convention:
-            # Convert to 1-based indexes
-            group_parameter_dict["ANTENNA1"] += 1
-            group_parameter_dict["ANTENNA2"] += 1
 
         id_offset = int(0 in self.phase_center_catalog)
         group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
