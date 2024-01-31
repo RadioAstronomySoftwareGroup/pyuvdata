@@ -3622,15 +3622,18 @@ class UVData(UVBase):
                     bl = 256 * ant1 + ant2 
                 else:
                     bl = 2048 * ant1 + ant2 + 2**16
-            Note antennas should be 1-indexed (start at 1, not 0)
+            Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
             
         Returns
         -------
         int or array of int
             baseline number corresponding to the two antenna numbers.
         """
+        # set attempt256 to false if using miriad convention
+        attempt256 = False if use_miriad_convention else attempt256
         return uvutils.antnums_to_baseline(
-            ant1, ant2, self.Nants_telescope, attempt256=attempt256
+            ant1, ant2, self.Nants_telescope, attempt256=attempt256, 
+            use_miriad_convention=use_miriad_convention,
         )
 
     def antpair2ind(self, ant1, ant2=None, ordered=True):
@@ -12921,6 +12924,7 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             check_autos=check_autos,
             fix_autos=fix_autos,
+            use_miriad_convention=use_miriad_convention,
         )
         del uvfits_obj
 
