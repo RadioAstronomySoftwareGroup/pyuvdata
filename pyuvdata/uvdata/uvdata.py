@@ -3779,6 +3779,7 @@ class UVData(UVBase):
             if inds.size == 0:
                 inds = None
 
+        inds = uvutils.slicify(inds)
         self.__antpair2ind_cache[(ant1, ant2, ordered)] = inds
         return inds
 
@@ -3926,8 +3927,6 @@ class UVData(UVBase):
                 raise KeyError(f"Polarization {orig_pol} not found in data.")
 
         # Convert to slices if possible
-        blt_ind1 = uvutils.slicify(blt_ind1)
-        blt_ind2 = uvutils.slicify(blt_ind2)
         pol_ind = (uvutils.slicify(pol_ind[0]), uvutils.slicify(pol_ind[1]))
 
         self.__key2ind_cache[key] = (blt_ind1, blt_ind2, pol_ind)
