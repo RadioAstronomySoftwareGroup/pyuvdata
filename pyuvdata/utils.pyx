@@ -148,7 +148,6 @@ cdef inline void _antnum_to_bl_2147483648(
     baselines[i] = large_mod * (ant1[i]) + (ant2[i]) + bl_large
   return
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cdef inline void _antnum_to_bl_2048(
@@ -161,6 +160,23 @@ cdef inline void _antnum_to_bl_2048(
 
   for i in range(nbls):
     baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
+  return
+
+@cython.boundscheck(False)
+@cython.wraparound(False)
+cdef inline void _antnum_to_bl_2048_miriad(
+  numpy.uint64_t[::1] ant1,
+  numpy.uint64_t[::1] ant2,
+  numpy.uint64_t[::1] baselines,
+  int nbls,
+):
+  cdef Py_ssize_t i
+
+  for i in range(nbls):
+    if ant2[i] >= 256:
+      baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
+    else:
+      baselines[i] = 256 * (ant1[i]) + (ant2[i]) 
   return
 
 @cython.boundscheck(False)
@@ -182,7 +198,8 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
   numpy.uint64_t[::1] ant1,
   numpy.uint64_t[::1] ant2,
   bint attempt256=False,
-  bint nants_less2048=True
+  bint nants_less2048=True,
+  bint use_miriad_convention=False
 ):
   cdef int ndim = 1
   cdef int nbls = ant1.shape[0]
@@ -191,6 +208,7 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
   cdef numpy.uint64_t[::1] _bl = baseline
   cdef bint less255
   cdef bint ants_less2048
+
   # to ensure baseline numbers are unambiguous,
   # use the 2048 calculation for antennas >= 256
   # and use the 2147483648 calculation for antennas >= 2048
@@ -198,11 +216,18 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
     arraymax(ant1),
     arraymax(ant2),
   ) < 2048
-  if attempt256:
+
+  # Some UVFITS readers (e.g. MWA and AAVS) expect the 
+  # MIRIAD baseline convention.
+  if use_miriad_convention:
+      _antnum_to_bl_2048_miriad(ant1, ant2, _bl, nbls)
+
+  elif attempt256:
     less256 = max(
       arraymax(ant1),
       arraymax(ant2),
     ) < 256
+
     if less256:
       _antnum_to_bl_256(ant1, ant2, _bl, nbls)
 
