@@ -835,8 +835,8 @@ class UVFITS(UVData):
                     bl = 256 * ant1 + ant2 
                 else:
                     bl = 2048 * ant1 + ant2 + 2**16
-            Note antennas should be 1-indexed (start at 1, not 0). This mode is required
-            for UVFITS files to be readable by MIRIAD.
+            This mode is required for UVFITS files to be readable by MIRIAD.
+            Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
 
         Raises
         ------
@@ -1009,9 +1009,11 @@ class UVFITS(UVData):
         else:
             time_array1 = self.time_array - jd_midnight
         int_time_array = self.integration_time
-
+        
+        # Generate baseline IDs
+        attempt256 = False if use_miriad_convention else True
         baselines_use = self.antnums_to_baseline(
-            self.ant_1_array, self.ant_2_array, attempt256=True, 
+            self.ant_1_array, self.ant_2_array, attempt256=attempt256, 
             use_miriad_convention=use_miriad_convention
         )
         # Set up dictionaries for populating hdu
@@ -1031,6 +1033,11 @@ class UVFITS(UVData):
             "SUBARRAY": np.ones_like(self.ant_1_array),
             "INTTIM  ": int_time_array,
         }
+
+        if use_miriad_convention:
+            # Convert to 1-based indexes
+            group_parameter_dict["ANTENNA1"] += 1
+            group_parameter_dict["ANTENNA2"] += 1
 
         id_offset = int(0 in self.phase_center_catalog)
         group_parameter_dict["SOURCE  "] = self.phase_center_id_array + id_offset
@@ -1274,7 +1281,10 @@ class UVFITS(UVData):
         )
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # col3 = fits.Column(name="ORBPARAM", format="0D", array=Norb)
-        col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers)
+        if use_miriad_convention:
+            col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers+1)
+        else:
+            col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers)            
         col5 = fits.Column(name="MNTSTA", format="1J", array=mntsta)
         col6 = fits.Column(name="STAXOF", format="1E", array=staxof)
         col7 = fits.Column(name="POLTYA", format="1A", array=poltya)
