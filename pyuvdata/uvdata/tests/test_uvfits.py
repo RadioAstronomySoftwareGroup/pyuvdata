@@ -1679,7 +1679,7 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     testfile1 = str(tmp_path / "uv1.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
 
-    hdu = fits.open(testfile1)
+
 
     # These are based on known values in casa_tutorial_uvfits
     expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
@@ -1688,12 +1688,13 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     bl_miriad_expected = uvutils.antnums_to_baseline(
         uv.ant_1_array, uv.ant_2_array, 512, use_miriad_convention=True
     )
-    assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
+    with fits.open(testfile1) as hdu:
+        assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
 
-    # Quick check of other antenna values
-    assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"]
-    assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"]
-    assert hdu[1].data["NOSTA"][0] == expected_vals["NOSTA_0"]
+        # Quick check of other antenna values
+        assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"]
+        assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"]
+        assert hdu[1].data["NOSTA"][0] == expected_vals["NOSTA_0"]
 
     # Test that antennas get +1 if there is a 0-indexed antennas
     old_idx = uv.antenna_numbers[0]
@@ -1702,11 +1703,10 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
     uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
 
-    testfile1 = str(tmp_path / "uv1.uvfits")
+    testfile1 = str(tmp_path / "uv2.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
 
-    hdu = fits.open(testfile1)
-
-    assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"] + 1
-    assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"] + 1
-    assert hdu[1].data["NOSTA"][0] == 1  # expected_vals["NOSTA_0"]
+    with fits.open(testfile1) as hdu:
+        assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"] + 1
+        assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"] + 1
+        assert hdu[1].data["NOSTA"][0] == 1  # expected_vals["NOSTA_0"]
