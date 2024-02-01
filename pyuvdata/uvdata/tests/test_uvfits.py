@@ -1679,8 +1679,6 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     testfile1 = str(tmp_path / "uv1.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
 
-
-
     # These are based on known values in casa_tutorial_uvfits
     expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
 
