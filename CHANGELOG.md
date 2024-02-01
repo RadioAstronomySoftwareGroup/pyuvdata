@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- Fixed a bug when trying to write a MS with a legacy array shape (but note legacy shape 
+- Fixed a bug when trying to write a MS with a legacy array shape (but note legacy shape
 will be deprecated in upcoming releases).
 - Improved support for MIRIAD UV files, and added `use_miriad_convention` flag to the
 UVFITS writer code, so files with the MIRIAD `BASELINE` convention can be created.

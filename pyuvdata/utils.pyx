@@ -176,7 +176,7 @@ cdef inline void _antnum_to_bl_2048_miriad(
     if ant2[i] >= 255:
       baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
     else:
-      baselines[i] = 256 * (ant1[i]) + (ant2[i]) 
+      baselines[i] = 256 * (ant1[i]) + (ant2[i])
   return
 
 @cython.boundscheck(False)
@@ -217,7 +217,7 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t] antnums_to_baseline(
     arraymax(ant2),
   ) < 2048
 
-  # Some UVFITS readers (e.g. MWA and AAVS) expect the 
+  # Some UVFITS readers (e.g. MWA and AAVS) expect the
   # MIRIAD baseline convention.
   if use_miriad_convention:
       _antnum_to_bl_2048_miriad(ant1, ant2, _bl, nbls)
