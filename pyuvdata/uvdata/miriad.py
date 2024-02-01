@@ -508,25 +508,25 @@ class Miriad(UVData):
                             warn_string += (
                                 "latitude and longitude values do not "
                                 "match file values so they are not used "
-                                "for altiude."
+                                "for altitude."
                             )
                         elif not mean_lat_close:
                             warn_string += (
                                 "latitude value does not "
                                 "match file values so they are not used "
-                                "for altiude."
+                                "for altitude."
                             )
                         else:
                             warn_string += (
                                 "longitude value does not "
                                 "match file values so they are not used "
-                                "for altiude."
+                                "for altitude."
                             )
                         warnings.warn(warn_string)
 
                 else:
                     # This does not give a valid telescope_location. Instead
-                    # calculate it from the file lat/lon and sea level for altiude
+                    # calculate it from the file lat/lon and sea level for altitude
                     self.telescope_location_lat_lon_alt = (latitude, longitude, 0)
                     warn_string = (
                         "Telescope location is set at sealevel at "
@@ -1817,7 +1817,7 @@ class Miriad(UVData):
         if self.antenna_diameters is not None:
             if not np.allclose(self.antenna_diameters, self.antenna_diameters[0]):
                 warnings.warn(
-                    "Antenna diameters are not uniform, but miriad only"
+                    "Antenna diameters are not uniform, but miriad only "
                     "supports a single diameter. Skipping."
                 )
             else:
