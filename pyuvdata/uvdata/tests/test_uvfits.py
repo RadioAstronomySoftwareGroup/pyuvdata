@@ -217,8 +217,10 @@ def test_break_read_uvfits(tmp_path):
 
     with pytest.raises(
         ValueError,
-        match="Telescope frame in file is foo. Only 'itrs' and 'mcmf' are currently "
-        "supported.",
+        match=(
+            "Telescope frame in file is foo. Only 'itrs' and 'mcmf' are currently "
+            "supported."
+        ),
     ):
         uvobj.read(write_file, read_data=False, use_future_array_shapes=True)
 
@@ -619,8 +621,10 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
             UserWarning,
             match=[
                 "Telescope EVLA is not in known_telescopes.",
-                "The baseline coordinates (uvws) in this file are specified in the "
-                "---NCP coordinate system",
+                (
+                    "The baseline coordinates (uvws) in this file are specified in the "
+                    "---NCP coordinate system"
+                ),
                 "The uvw_array does not match the expected values",
             ],
         ):
@@ -771,10 +775,14 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions",
-            "Found antenna numbers > 255 in this data set. This is permitted by "
-            "UVFITS ",
+            (
+                "The uvw_array does not match the expected values given the antenna "
+                "positions"
+            ),
+            (
+                "Found antenna numbers > 255 in this data set. This is permitted by "
+                "UVFITS "
+            ),
             "antnums_to_baseline: found antenna numbers > 255, using 2048 baseline",
         ],
     ):
@@ -837,12 +845,16 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "The telescope frame is set to '????', which generally indicates "
-            "ignorance. Defaulting the frame to 'itrs', but this may lead to other "
-            "warnings or errors.",
+            (
+                "The telescope frame is set to '????', which generally indicates "
+                "ignorance. Defaulting the frame to 'itrs', but this may lead to other "
+                "warnings or errors."
+            ),
             "Telescope EVLA is not in known_telescopes.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
+            (
+                "The uvw_array does not match the expected values given the antenna "
+                "positions."
+            ),
         ],
     ):
         uv_out.read(write_file2, use_future_array_shapes=True)
@@ -863,7 +875,7 @@ def test_readwriteread_error_timesys(tmp_path, casa_uvfits):
     with pytest.raises(ValueError) as cm:
         uv_in.write_uvfits(write_file)
     assert str(cm.value).startswith(
-        "This file has a time system IAT. " 'Only "UTC" time system files are supported'
+        'This file has a time system IAT. Only "UTC" time system files are supported'
     )
 
     return
@@ -943,8 +955,10 @@ def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "The uvw_array does not match the expected values given the antenna "
-            "positions",
+            (
+                "The uvw_array does not match the expected values given the antenna "
+                "positions"
+            ),
             "Some unflagged data has nsample = 0",
         ],
     ):
@@ -1022,8 +1036,10 @@ def test_extra_keywords_errors(
             ["str", "comment"],
             [
                 "hello",
-                "this is a very long comment that will be broken into several "
-                "lines\nif everything works properly.",
+                (
+                    "this is a very long comment that will be broken into several "
+                    "lines\nif everything works properly."
+                ),
             ],
         ],
     ),
@@ -1239,7 +1255,10 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "The uvw_array does not match the expected values given the antenna positions.",
+            (
+                "The uvw_array does not match the expected values given the antenna"
+                " positions."
+            ),
             "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
         ],
     ):
@@ -1270,7 +1289,10 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "The uvw_array does not match the expected values given the antenna positions.",
+            (
+                "The uvw_array does not match the expected values given the antenna"
+                " positions."
+            ),
             "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
         ],
     ):
@@ -1311,7 +1333,8 @@ def test_multi_files(casa_uvfits, tmp_path):
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
+        uv_full.history
+        + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1351,7 +1374,8 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], axis="freq", use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
+        uv_full.history
+        + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1395,7 +1419,8 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
+        uv_full.history
+        + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1582,12 +1607,10 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
 
     spw_dict = dict(zip(sma_uvfits.spw_array, sma_mir.spw_array))
 
-    assert np.all(
-        [
-            idx == spw_dict[jdx]
-            for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
-        ]
-    )
+    assert np.all([
+        idx == spw_dict[jdx]
+        for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
+    ])
     sma_uvfits.spw_array = sma_mir.spw_array
     sma_uvfits.flex_spw_id_array = sma_mir.flex_spw_id_array
 

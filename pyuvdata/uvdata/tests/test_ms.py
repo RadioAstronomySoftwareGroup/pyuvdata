@@ -100,8 +100,10 @@ def test_cotter_ms():
         [UserWarning] * 3 + [DeprecationWarning],
         match=[
             "Warning: select on read keyword set",
-            "telescope_location are not set or are being overwritten. Using known "
-            "values for MWA.",
+            (
+                "telescope_location are not set or are being overwritten. Using known "
+                "values for MWA."
+            ),
             "UVW orientation appears to be flipped,",
             _future_array_shapes_warning,
         ],
@@ -363,7 +365,10 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "The uvw_array does not match the expected values given the antenna positions.",
+            (
+                "The uvw_array does not match the expected values given the antenna"
+                " positions."
+            ),
             "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
         ],
     ):
@@ -695,10 +700,14 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, "
-            "using known location values for SZA.",
-            "The uvw_array does not match the expected values given the antenna "
-            "positions.",
+            (
+                "Altitude is not present in Miriad file, "
+                "using known location values for SZA."
+            ),
+            (
+                "The uvw_array does not match the expected values given the antenna "
+                "positions."
+            ),
             "pamatten in extra_keywords is a list, array or dict",
             "psys in extra_keywords is a list, array or dict",
             "psysattn in extra_keywords is a list, array or dict",
@@ -875,8 +884,10 @@ def test_ms_weights(sma_mir, tmp_path, onewin):
             "TEL_LOC",
             None,
             ValueError,
-            "Telescope frame in file is abc. Only 'itrs' and 'mcmf' are currently "
-            "supported.",
+            (
+                "Telescope frame in file is abc. Only 'itrs' and 'mcmf' are currently "
+                "supported."
+            ),
         ],
         [
             "timescale",
@@ -1085,7 +1096,7 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
 
 
 @pytest.mark.filterwarnings(
-    "ignore:Writing in the MS file that the units " "of the data are"
+    "ignore:Writing in the MS file that the units of the data are"
 )
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)

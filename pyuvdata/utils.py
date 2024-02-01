@@ -1446,13 +1446,11 @@ def rotECEF_from_ECEF(xyz, longitude):
 
     """
     angle = -1 * longitude
-    rot_matrix = np.array(
-        [
-            [np.cos(angle), -1 * np.sin(angle), 0],
-            [np.sin(angle), np.cos(angle), 0],
-            [0, 0, 1],
-        ]
-    )
+    rot_matrix = np.array([
+        [np.cos(angle), -1 * np.sin(angle), 0],
+        [np.sin(angle), np.cos(angle), 0],
+        [0, 0, 1],
+    ])
     return rot_matrix.dot(xyz.T).T
 
 
@@ -1475,13 +1473,11 @@ def ECEF_from_rotECEF(xyz, longitude):
 
     """
     angle = longitude
-    rot_matrix = np.array(
-        [
-            [np.cos(angle), -1 * np.sin(angle), 0],
-            [np.sin(angle), np.cos(angle), 0],
-            [0, 0, 1],
-        ]
-    )
+    rot_matrix = np.array([
+        [np.cos(angle), -1 * np.sin(angle), 0],
+        [np.sin(angle), np.cos(angle), 0],
+        [0, 0, 1],
+    ])
     return rot_matrix.dot(xyz.T).T
 
 
@@ -2176,8 +2172,7 @@ def calc_uvw(
             )
         if telescope_lat is None:
             raise ValueError(
-                "Must include telescope_lat to calculate baselines "
-                "in ENU coordinates!"
+                "Must include telescope_lat to calculate baselines in ENU coordinates!"
             )
     else:
         if ((app_ra is None) or (app_dec is None)) and frame_pa is None:
@@ -4011,8 +4006,7 @@ def get_lst_for_time(
     else:
         if not astrometry_library == "astropy":
             raise NotImplementedError(
-                "The MCMF frame is only supported with the 'astropy' astrometry "
-                "library"
+                "The MCMF frame is only supported with the 'astropy' astrometry library"
             )
         TimeClass = LTime
 
@@ -4024,8 +4018,7 @@ def get_lst_for_time(
             np.isin(status, (iers.TIME_BEFORE_IERS_RANGE, iers.TIME_BEYOND_IERS_RANGE))
         ):
             warnings.warn(
-                "time is out of IERS range, setting delta ut1 utc to "
-                "extrapolated value"
+                "time is out of IERS range, setting delta ut1 utc to extrapolated value"
             )
             times.delta_ut1_utc = delta
     if astrometry_library == "erfa":
@@ -4959,20 +4952,16 @@ def uvcalibrate(
     # have associated data in the UVCal object
     uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
     uvdata.antenna_names = np.asarray(uvdata.antenna_names)
-    uvdata_used_antnames = np.array(
-        [
-            uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
-            for antnum in uvdata_unique_nums
-        ]
-    )
+    uvdata_used_antnames = np.array([
+        uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
+        for antnum in uvdata_unique_nums
+    ])
     uvcal_unique_nums = np.unique(uvcal.ant_array)
     uvcal.antenna_names = np.asarray(uvcal.antenna_names)
-    uvcal_used_antnames = np.array(
-        [
-            uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
-            for antnum in uvcal_unique_nums
-        ]
-    )
+    uvcal_used_antnames = np.array([
+        uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
+        for antnum in uvcal_unique_nums
+    ])
 
     ant_arr_match = uvcal_used_antnames.tolist() == uvdata_used_antnames.tolist()
 
@@ -5661,8 +5650,9 @@ def parse_ants(uv, ant_str, print_toggle=False, x_orientation=None):
 
     if len(warned_pols) > 0:
         warnings.warn(
-            "Warning: Polarization {p} is not present in "
-            "the polarization_array".format(p=(",").join(warned_pols).upper())
+            "Warning: Polarization {p} is not present in the polarization_array".format(
+                p=(",").join(warned_pols).upper()
+            )
         )
 
     return ant_pairs_nums, polarizations
@@ -6071,21 +6061,19 @@ def determine_blt_order(
             if not on_bl_boundary:
                 time_b = False
 
-        if not any(
-            (
-                time_bl,
-                time_a,
-                time_b,
-                time_bl,
-                bl_time,
-                a_time,
-                b_time,
-                bl_order,
-                a_order,
-                b_order,
-                time_order,
-            )
-        ):
+        if not any((
+            time_bl,
+            time_a,
+            time_b,
+            time_bl,
+            bl_time,
+            a_time,
+            b_time,
+            bl_order,
+            a_order,
+            b_order,
+            time_order,
+        )):
             break
 
     if Nbls > 1 and Ntimes > 1:
