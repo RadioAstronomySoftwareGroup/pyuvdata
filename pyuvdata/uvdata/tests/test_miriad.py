@@ -282,8 +282,10 @@ def test_read_write_read_carma(tmp_path):
     for item in list(uv_in.extra_keywords.keys()):
         if isinstance(uv_in.extra_keywords[item], dict):
             uv_in.extra_keywords.pop(item)
+
         elif isinstance(uv_in.extra_keywords[item], list):
             uv_in.extra_keywords.pop(item)
+
         elif isinstance(uv_in.extra_keywords[item], np.ndarray):
             uv_in.extra_keywords.pop(item)
 
@@ -746,6 +748,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     rot_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos[rot_ants, :], longitude + np.pi)
     modified_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
     modified_antpos[rot_ants, :] = rot_antpos
+
     # zero out bad locations (these are checked on read)
     modified_antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
     modified_antpos = modified_antpos.T.flatten() / const.c.to("m/ns").value
