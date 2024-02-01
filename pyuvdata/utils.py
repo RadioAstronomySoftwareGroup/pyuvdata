@@ -821,10 +821,8 @@ def antnums_to_baseline(
         will be used. Default is False.
     use_miriad_convention : bool
         Option to use the MIRIAD convention where BASELINE id is
-            if ant2 < 256:
-                bl = 256 * ant1 + ant2
-            else:
-                bl = 2048 * ant1 + ant2 + 2**16
+        `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
+        `bl = 2048 * ant1 + ant2 + 2**16`.
         Note antennas should be 1-indexed (start at 1, not 0)
 
     Returns
