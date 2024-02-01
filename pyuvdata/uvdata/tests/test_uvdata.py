@@ -11128,7 +11128,11 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
             uv_in_bad_copy.write_uvfits(outfile)
         elif file_type == "miriad":
             outfile = os.path.join(tmp_path, "test_bad_phase.uv")
-            uv_in_bad_copy.write_miriad(outfile)
+            with uvtest.check_warnings(
+                UserWarning,
+                "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
+            ):
+                uv_in_bad_copy.write_miriad(outfile, clobber=True)
 
     with uvtest.check_warnings(read_warn_type, match=read_warn_msg):
         with warnings.catch_warnings():
