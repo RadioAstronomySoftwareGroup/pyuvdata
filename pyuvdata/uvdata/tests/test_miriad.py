@@ -47,65 +47,65 @@ paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 # This is a dictionary of warning strings to aid warning checks
 warn_dict = {
     "default_vals": "writing default values for restfreq, vsource, veldop, "
-                    "jyperk, and systemp",
+    "jyperk, and systemp",
     "uvw_mismatch": "The uvw_array does not match the expected values "
-                    "given the antenna positions",
+    "given the antenna positions",
     "driftscan": "This object has a driftscan phase center. Miriad does not really ",
     "long_key": "key test_long_key in extra_keywords is longer than 8 characters.",
     "ant_diameters": "Antenna diameters are not uniform, but miriad "
-                         "only supports a single diameter.",
+    "only supports a single diameter.",
     "time_mismatch": "Some visibility times did not match ephem times so the ra and dec "
-                     "values for those visibilities were interpolated or set to "
-                     "the closest time if they would have required extrapolation.",  
+    "values for those visibilities were interpolated or set to "
+    "the closest time if they would have required extrapolation.",
     "altitude_missing_miriad": "Altitude is not present in Miriad file, and telescope",
     "altitude_missing_lat_long": "Altitude is not present in file and latitude and longitude "
-                        "values do not match",
+    "values do not match",
     "altitude_missing_long": "Altitude is not present in file and longitude value does not match",
     "altitude_missing_lat": "Altitude is not present in file and latitude value does not match",
     "altitude_missing_foo": "Altitude is not present in Miriad file, and "
-                        "telescope foo is not in known_telescopes. "
-                        "Telescope location will be set using antenna positions.",
+    "telescope foo is not in known_telescopes. "
+    "Telescope location will be set using antenna positions.",
     "no_telescope_loc": "Telescope location is not set, but antenna "
-                        "positions are present. Mean antenna latitude "
-                        "and longitude values match file values, so "
-                        "telescope_position will be set using the mean "
-                        "of the antenna altitudes",
+    "positions are present. Mean antenna latitude "
+    "and longitude values match file values, so "
+    "telescope_position will be set using the mean "
+    "of the antenna altitudes",
     "unknown_telescope_foo": "Telescope foo is not in known_telescopes.",
     "unclear_projection": "It is not clear from the file if the data are "
-                          "projected or not.",
+    "projected or not.",
     "telescope_at_sealevel": "Telescope location is set at sealevel at the file lat/lon "
-                            "coordinates. Antenna positions are present, but the mean antenna "
-                            "position does not give a telescope_location on the surface of the "
-                            "earth. Antenna positions do not appear to be on the surface of the "
-                            "earth and will be treated as relative.",
+    "coordinates. Antenna positions are present, but the mean antenna "
+    "position does not give a telescope_location on the surface of the "
+    "earth. Antenna positions do not appear to be on the surface of the "
+    "earth and will be treated as relative.",
     "telescope_at_sealevel_lat": "Telescope location is set at sealevel at the file lat/lon coordinates. "
-                                 "Antenna positions are present, but the mean antenna latitude value does " 
-                                 "not match file values so they are not used for altitude.",
+    "Antenna positions are present, but the mean antenna latitude value does "
+    "not match file values so they are not used for altitude.",
     "telescope_at_sealevel_lat_long": "Telescope location is set at sealevel at the file lat/lon coordinates. "
-                                      "Antenna positions are present, but the mean antenna latitude and longitude values do not match file values "
-                                      "so they are not used for altitude.",
+    "Antenna positions are present, but the mean antenna latitude and longitude values do not match file values "
+    "so they are not used for altitude.",
     "telescope_at_sealevel_foo": "Altitude is not present in Miriad file, and telescope foo is not in known_telescopes.",
     "phase_type_deprecated": "The phase_type parameter is deprecated, use the projected parameter "
-                             "instead.",
+    "instead.",
     "no_telescope_loc": "Telescope location is not set, but antenna positions are "
-                        "present. Mean antenna latitude and longitude values match file "
-                        "values, so telescope_position will be set using the mean of the "
-                        "antenna altitudes",
+    "present. Mean antenna latitude and longitude values match file "
+    "values, so telescope_position will be set using the mean of the "
+    "antenna altitudes",
     "projection_false_offset": "projected is False, but RA, Dec is off from lst, latitude by more than "
-                               "1.0 deg",
-    }
+    "1.0 deg",
+}
 
 
-def _write_miriad(uv: UVData, filename: str, warn: str=None, **kwargs):
-    """ Write miriad file, capturing warnings for pytest 
-    
+def _write_miriad(uv: UVData, filename: str, warn: str = None, **kwargs):
+    """Write miriad file, capturing warnings for pytest
+
     Parameters:
     -----------
     uv: UVData
         uvdata object to call write_miriad on
     filename: str
         Name of file to write to
-    warn: str or None  
+    warn: str or None
         warnings to catch. Defaults to catch 'writing default values ...'
     """
     if warn is None:
@@ -427,7 +427,7 @@ def test_miriad_read_warning_lat_lon_corrected():
         [
             "Altitude is not present in Miriad file, using known location "
             "altitude value for PAPER and lat/lon from file.",
-            warn_dict["uvw_mismatch"]
+            warn_dict["uvw_mismatch"],
         ],
     ):
         miriad_uv.read(
@@ -519,7 +519,7 @@ def test_wronglatlon():
             warn_dict["altitude_missing_long"],
             warn_dict["projection_false_offset"],
             warn_dict["uvw_mismatch"],
-            warn_dict["unclear_projection"]
+            warn_dict["unclear_projection"],
         ],
     ):
         uv_in.read(lonfile, use_future_array_shapes=True)
@@ -541,7 +541,7 @@ def test_wronglatlon():
             warn_dict["altitude_missing_miriad"],
             warn_dict["no_telescope_loc"],
             warn_dict["unknown_telescope_foo"],
-            warn_dict["unclear_projection"]
+            warn_dict["unclear_projection"],
         ],
     ):
         uv_in.read(telescopefile, run_check=False, use_future_array_shapes=True)
@@ -590,7 +590,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
         UserWarning,
         [
             warn_dict["altitude_missing_foo"],
-            warn_dict["altitude_missing_foo"], # raised twice
+            warn_dict["altitude_missing_foo"],  # raised twice
             warn_dict["no_telescope_loc"],
             warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
@@ -624,7 +624,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             warn_dict["telescope_at_sealevel_foo"],
             warn_dict["projection_false_offset"],
             warn_dict["unknown_telescope_foo"],
-            warn_dict["uvw_mismatch"]
+            warn_dict["uvw_mismatch"],
         ],
     ):
         uv_out.read(testfile, use_future_array_shapes=True)
@@ -777,10 +777,7 @@ def test_singletimeselect_unprojected(uv_in_paper):
     # also check that setting phase_type works
     with uvtest.check_warnings(
         [DeprecationWarning, UserWarning],
-        match=[
-            warn_dict["phase_type_deprecated"],
-            warn_dict["uvw_mismatch"],
-        ],
+        match=[warn_dict["phase_type_deprecated"], warn_dict["uvw_mismatch"]],
     ):
         uv_out.read(testfile, phase_type="drift", use_future_array_shapes=True)
         assert uv_in == uv_out
@@ -946,9 +943,13 @@ def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
         uv_in.phase_center_catalog[1]["cat_dist"] = uv_in.phase_center_catalog[1][
             "cat_dist"
         ][0]
-    
-    _write_miriad(uv_in, testfile, clobber=True, 
-                  warn=[warn_dict["default_vals"], warn_dict["time_mismatch"]])
+
+    _write_miriad(
+        uv_in,
+        testfile,
+        clobber=True,
+        warn=[warn_dict["default_vals"], warn_dict["time_mismatch"]],
+    )
     uv2 = UVData.from_file(testfile, use_future_array_shapes=True)
 
     uv2._update_phase_center_id(0, 1)
@@ -1106,11 +1107,21 @@ def test_miriad_extra_keywords_errors(
 
     if errstr is not None:
         with pytest.raises(TypeError, match=errstr):
-            _write_miriad(uv_in, testfile, clobber=True, run_check=False, 
-                          warn=[errstr, warn_dict["default_vals"]])
+            _write_miriad(
+                uv_in,
+                testfile,
+                clobber=True,
+                run_check=False,
+                warn=[errstr, warn_dict["default_vals"]],
+            )
     else:
-        _write_miriad(uv_in, testfile, clobber=True, run_check=False, 
-                      warn=[warn_dict["default_vals"], warn_dict["long_key"]])
+        _write_miriad(
+            uv_in,
+            testfile,
+            clobber=True,
+            run_check=False,
+            warn=[warn_dict["default_vals"], warn_dict["long_key"]],
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1179,7 +1190,13 @@ def test_breakread_miriad(uv_in_paper, tmp_path):
 
     uv_in_copy = uv_in.copy()
     uv_in_copy.Nblts += 10
-    _write_miriad(uv_in_copy, testfile, clobber=True, run_check=False, warn=warn_dict["default_vals"])
+    _write_miriad(
+        uv_in_copy,
+        testfile,
+        clobber=True,
+        run_check=False,
+        warn=warn_dict["default_vals"],
+    )
     with uvtest.check_warnings(
         UserWarning, "Nblts does not match the number of unique blts in the data"
     ):
@@ -1187,7 +1204,13 @@ def test_breakread_miriad(uv_in_paper, tmp_path):
 
     uv_in_copy = uv_in.copy()
     uv_in_copy.Nbls += 10
-    _write_miriad(uv_in_copy, testfile, clobber=True, run_check=False, warn=warn_dict["default_vals"])
+    _write_miriad(
+        uv_in_copy,
+        testfile,
+        clobber=True,
+        run_check=False,
+        warn=warn_dict["default_vals"],
+    )
     with uvtest.check_warnings(
         UserWarning, "Nbls does not match the number of unique baselines in the data"
     ):
@@ -1195,7 +1218,13 @@ def test_breakread_miriad(uv_in_paper, tmp_path):
 
     uv_in_copy = uv_in.copy()
     uv_in_copy.Ntimes += 10
-    _write_miriad(uv_in_copy, testfile, clobber=True, run_check=False, warn=warn_dict["default_vals"])
+    _write_miriad(
+        uv_in_copy,
+        testfile,
+        clobber=True,
+        run_check=False,
+        warn=warn_dict["default_vals"],
+    )
     with uvtest.check_warnings(
         UserWarning, "Ntimes does not match the number of unique times in the data"
     ):
@@ -1276,10 +1305,16 @@ def test_miriad_antenna_diameters(uv_in_paper):
         np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
     )
     uv_in.antenna_diameters[1] = 15.0
-    _write_miriad(uv_in, write_file, clobber=True, 
-                      warn=[warn_dict["uvw_mismatch"], 
-                            warn_dict["default_vals"], 
-                            warn_dict["ant_diameters"]])
+    _write_miriad(
+        uv_in,
+        write_file,
+        clobber=True,
+        warn=[
+            warn_dict["uvw_mismatch"],
+            warn_dict["default_vals"],
+            warn_dict["ant_diameters"],
+        ],
+    )
     uv_out.read(write_file, use_future_array_shapes=True)
     assert uv_out.antenna_diameters is None
     uv_out.antenna_diameters = uv_in.antenna_diameters
@@ -1785,7 +1820,13 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
 
     uv_in_copy = uv_in.copy()
     uv_in_copy.antenna_positions = None
-    _write_miriad(uv_in_copy, write_file, clobber=True, run_check=False, warn=warn_dict["default_vals"])
+    _write_miriad(
+        uv_in_copy,
+        write_file,
+        clobber=True,
+        run_check=False,
+        warn=warn_dict["default_vals"],
+    )
     with uvtest.check_warnings(
         UserWarning, "Antenna positions are not present in the file.", nwarnings=2
     ):
@@ -1803,14 +1844,15 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     ants_with_data = list(set(uv_in_copy.ant_1_array).union(uv_in_copy.ant_2_array))
     ant_ind = np.where(uv_in_copy.antenna_numbers == ants_with_data[0])[0]
     uv_in_copy.antenna_positions[ant_ind, :] = [0, 0, 0]
-    _write_miriad(uv_in_copy, write_file, clobber=True, no_antnums=True, 
-                  warn=[warn_dict["default_vals"], warn_dict["uvw_mismatch"]])
+    _write_miriad(
+        uv_in_copy,
+        write_file,
+        clobber=True,
+        no_antnums=True,
+        warn=[warn_dict["default_vals"], warn_dict["uvw_mismatch"]],
+    )
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "antenna number",
-            warn_dict["uvw_mismatch"],
-        ],
+        UserWarning, ["antenna number", warn_dict["uvw_mismatch"]]
     ):
         uv_out.read(write_file, use_future_array_shapes=True)
 
@@ -1833,8 +1875,14 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     uv_in.antenna_numbers = np.array(new_nums)
     uv_in.antenna_names = new_names
     uv_in.Nants_telescope = len(uv_in.antenna_numbers)
-    _write_miriad(uv_in, write_file, clobber=True, no_antnums=True, run_check=False, 
-                  warn=warn_dict["default_vals"])
+    _write_miriad(
+        uv_in,
+        write_file,
+        clobber=True,
+        no_antnums=True,
+        run_check=False,
+        warn=warn_dict["default_vals"],
+    )
     with uvtest.check_warnings(
         UserWarning, "Antenna positions are not present in the file.", nwarnings=2
     ):
