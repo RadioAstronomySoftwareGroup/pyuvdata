@@ -119,7 +119,7 @@ all_optional_reqs = (
     + novas_reqs
 )
 test_reqs = all_optional_reqs + [
-    "pytest>=6.2",
+    "pytest>=6.2, <8.0",
     "pytest-xdist",
     "pytest-cases>=3.6.9",
     "pytest-cov",
