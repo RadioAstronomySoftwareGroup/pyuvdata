@@ -1694,3 +1694,19 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"]
     assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"]
     assert hdu[1].data["NOSTA"][0] == expected_vals["NOSTA_0"]
+
+    # Test that antennas get +1 if there is a 0-indexed antennas
+    old_idx = uv.antenna_numbers[0]
+    new_idx = 0
+    uv.antenna_numbers[0] = new_idx
+    uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
+    uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
+
+    testfile1 = str(tmp_path / "uv1.uvfits")
+    uv.write_uvfits(testfile1, use_miriad_convention=True)
+
+    hdu = fits.open(testfile1)
+
+    assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"] + 1
+    assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"] + 1
+    assert hdu[1].data["NOSTA"][0] == 1 #expected_vals["NOSTA_0"]
