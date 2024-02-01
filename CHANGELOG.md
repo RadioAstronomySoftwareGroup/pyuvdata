@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Fixed a bug when trying to write a MS with a legacy array shape (but note legacy shape 
+will be deprecated in upcoming releases).
+- Improved support for MIRIAD UV files, and added `use_miriad_convention` flag to the
+UVFITS writer code, so files with the MIRIAD `BASELINE` convention can be created.
 - A new `freq_interp_kind` parameter to `UVBeam.interp`, `UVBeam._interp_az_za_rect_spline`
 and `UVBeam._interp_healpix_bilinear` to allow the frequency interpolation
 specification to be passed into the methods. Note this defaults to "cubic" rather
