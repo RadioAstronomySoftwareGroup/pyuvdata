@@ -1236,7 +1236,14 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     uvfits_uv = casa_uvfits
     miriad_uv = UVData()
     testfile = str(tmp_path / "outtest_miriad")
-    uvfits_uv.write_miriad(testfile, clobber=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna positions.",
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
+        ],
+    ):
+        uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
@@ -1260,7 +1267,14 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
 
     # check that setting it works after selecting a single time
     uvfits_uv.select(times=uvfits_uv.time_array[0])
-    uvfits_uv.write_miriad(testfile, clobber=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna positions.",
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
+        ],
+    ):
+        uvfits_uv.write_miriad(testfile, clobber=True)
     miriad_uv.read_miriad(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
@@ -1621,6 +1635,10 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings(
+    "ignore:The shapes of several attributes will be changing "
+    "in the future to remove the deprecated spectral window axis."
+)
 def test_miriad_convention(casa_uvfits, tmp_path):
     """
     Test writing a MIRIAD-compatible UVFITS file
