@@ -1444,11 +1444,13 @@ def rotECEF_from_ECEF(xyz, longitude):
 
     """
     angle = -1 * longitude
-    rot_matrix = np.array([
-        [np.cos(angle), -1 * np.sin(angle), 0],
-        [np.sin(angle), np.cos(angle), 0],
-        [0, 0, 1],
-    ])
+    rot_matrix = np.array(
+        [
+            [np.cos(angle), -1 * np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1],
+        ]
+    )
     return rot_matrix.dot(xyz.T).T
 
 
@@ -1471,11 +1473,13 @@ def ECEF_from_rotECEF(xyz, longitude):
 
     """
     angle = longitude
-    rot_matrix = np.array([
-        [np.cos(angle), -1 * np.sin(angle), 0],
-        [np.sin(angle), np.cos(angle), 0],
-        [0, 0, 1],
-    ])
+    rot_matrix = np.array(
+        [
+            [np.cos(angle), -1 * np.sin(angle), 0],
+            [np.sin(angle), np.cos(angle), 0],
+            [0, 0, 1],
+        ]
+    )
     return rot_matrix.dot(xyz.T).T
 
 
@@ -4950,16 +4954,20 @@ def uvcalibrate(
     # have associated data in the UVCal object
     uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
     uvdata.antenna_names = np.asarray(uvdata.antenna_names)
-    uvdata_used_antnames = np.array([
-        uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
-        for antnum in uvdata_unique_nums
-    ])
+    uvdata_used_antnames = np.array(
+        [
+            uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
+            for antnum in uvdata_unique_nums
+        ]
+    )
     uvcal_unique_nums = np.unique(uvcal.ant_array)
     uvcal.antenna_names = np.asarray(uvcal.antenna_names)
-    uvcal_used_antnames = np.array([
-        uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
-        for antnum in uvcal_unique_nums
-    ])
+    uvcal_used_antnames = np.array(
+        [
+            uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
+            for antnum in uvcal_unique_nums
+        ]
+    )
 
     ant_arr_match = uvcal_used_antnames.tolist() == uvdata_used_antnames.tolist()
 
@@ -6059,19 +6067,21 @@ def determine_blt_order(
             if not on_bl_boundary:
                 time_b = False
 
-        if not any((
-            time_bl,
-            time_a,
-            time_b,
-            time_bl,
-            bl_time,
-            a_time,
-            b_time,
-            bl_order,
-            a_order,
-            b_order,
-            time_order,
-        )):
+        if not any(
+            (
+                time_bl,
+                time_a,
+                time_b,
+                time_bl,
+                bl_time,
+                a_time,
+                b_time,
+                bl_order,
+                a_order,
+                b_order,
+                time_order,
+            )
+        ):
             break
 
     if Nbls > 1 and Ntimes > 1:

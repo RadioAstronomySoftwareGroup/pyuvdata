@@ -1333,8 +1333,7 @@ def test_multi_files(casa_uvfits, tmp_path):
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1374,8 +1373,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], axis="freq", use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1419,8 +1417,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -1607,10 +1604,12 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
 
     spw_dict = dict(zip(sma_uvfits.spw_array, sma_mir.spw_array))
 
-    assert np.all([
-        idx == spw_dict[jdx]
-        for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
-    ])
+    assert np.all(
+        [
+            idx == spw_dict[jdx]
+            for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
+        ]
+    )
     sma_uvfits.spw_array = sma_mir.spw_array
     sma_uvfits.flex_spw_id_array = sma_mir.flex_spw_id_array
 
