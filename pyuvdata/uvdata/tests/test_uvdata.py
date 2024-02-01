@@ -1442,8 +1442,7 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
 
     uv_sum = uv1 + uv2
     assert uvutils._check_histories(
-        uv_obj.history
-        + "  Downselected to specific phase center IDs using pyuvdata.  "
+        uv_obj.history + "  Downselected to specific phase center IDs using pyuvdata.  "
         "Combined data along baseline-time axis using pyuvdata.",
         uv_sum.history,
     )
@@ -2703,12 +2702,14 @@ def test_select(casa_uvfits, future_shapes):
         for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
     ]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
-    Nblts_select = np.sum([
-        bi & (ai & pi) & ti
-        for (bi, ai, pi, ti) in zip(
-            blts_blt_select, blts_ant_select, blts_pair_select, blts_time_select
-        )
-    ])
+    Nblts_select = np.sum(
+        [
+            bi & (ai & pi) & ti
+            for (bi, ai, pi, ti) in zip(
+                blts_blt_select, blts_ant_select, blts_pair_select, blts_time_select
+            )
+        ]
+    )
 
     uv_object2 = uv_object.copy()
     uv_object2.select(
@@ -2742,8 +2743,7 @@ def test_select(casa_uvfits, future_shapes):
         assert p in pols_to_keep
 
     assert uvutils._check_histories(
-        old_history
-        + "  Downselected to "
+        old_history + "  Downselected to "
         "specific baseline-times, antennas, "
         "baselines, times, frequencies, "
         "polarizations using pyuvdata.",
@@ -2810,12 +2810,14 @@ def test_select_with_lst(casa_uvfits, future_shapes):
         for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
     ]
     blts_lst_select = [lst in lsts_to_keep for lst in uv_object.lst_array]
-    Nblts_select = np.sum([
-        bi & (ai & pi) & li
-        for (bi, ai, pi, li) in zip(
-            blts_blt_select, blts_ant_select, blts_pair_select, blts_lst_select
-        )
-    ])
+    Nblts_select = np.sum(
+        [
+            bi & (ai & pi) & li
+            for (bi, ai, pi, li) in zip(
+                blts_blt_select, blts_ant_select, blts_pair_select, blts_lst_select
+            )
+        ]
+    )
 
     uv_object2 = uv_object.copy()
     uv_object2.select(
@@ -2849,8 +2851,7 @@ def test_select_with_lst(casa_uvfits, future_shapes):
         assert p in pols_to_keep
 
     assert uvutils._check_histories(
-        old_history
-        + "  Downselected to "
+        old_history + "  Downselected to "
         "specific baseline-times, antennas, "
         "baselines, lsts, frequencies, "
         "polarizations using pyuvdata.",
@@ -2874,8 +2875,7 @@ def test_select_not_inplace(casa_uvfits):
     uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
     uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
     assert uvutils._check_histories(
-        old_history
-        + "  Downselected to "
+        old_history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -3483,8 +3483,7 @@ def test_sum_vis(casa_uvfits, future_shapes):
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)
     assert uvutils._check_histories(
-        uv_half.history
-        + " Visibilities summed using pyuvdata. Unique part of second "
+        uv_half.history + " Visibilities summed using pyuvdata. Unique part of second "
         "object history follows.  testing the history.",
         uv_summed.history,
     )
@@ -3616,8 +3615,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -3656,8 +3654,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization axis "
         "using pyuvdata.",
@@ -3683,8 +3680,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(times=times[len(times) // 2 :])
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time axis "
         "using pyuvdata.",
@@ -3704,8 +3700,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(blt_inds=ind2)
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
         "using pyuvdata.",
@@ -3742,8 +3737,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv1 += uv3
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
         "using pyuvdata. Combined data along "
@@ -3766,24 +3760,27 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     )
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times, polarizations using "
         "pyuvdata. Combined data along "
         "baseline-time, polarization axis "
         "using pyuvdata.",
         uv1.history,
     )
-    blt_ind1 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[0 : len(times) // 2]
-    ])
-    blt_ind2 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[len(times) // 2 :]
-    ])
+    blt_ind1 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[0 : len(times) // 2]
+        ]
+    )
+    blt_ind2 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[len(times) // 2 :]
+        ]
+    )
     # Zero out missing data in reference object
     if future_shapes:
         uv_ref.data_array[blt_ind1, :, 2:] = 0.0
@@ -3811,24 +3808,27 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times, frequencies using "
         "pyuvdata. Combined data along "
         "baseline-time, frequency axis using "
         "pyuvdata.",
         uv1.history,
     )
-    blt_ind1 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[0 : len(times) // 2]
-    ])
-    blt_ind2 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[len(times) // 2 :]
-    ])
+    blt_ind1 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[0 : len(times) // 2]
+        ]
+    )
+    blt_ind2 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[len(times) // 2 :]
+        ]
+    )
     # Zero out missing data in reference object
     if future_shapes:
         uv_ref.data_array[blt_ind1, 32:, :] = 0.0
@@ -3855,8 +3855,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -3969,8 +3968,7 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Unique part of next "
         "object history follows.  testing the history.",
         uv_new.history,
@@ -3980,11 +3978,9 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
 
     uv_new = uv1.__add__(uv2, verbose_history=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
-        "follows.  "
-        + uv2.history,
+        "follows.  " + uv2.history,
         uv_new.history,
     )
 
@@ -4014,8 +4010,7 @@ def test_add_unprojected(casa_uvfits):
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency "
         "axis using pyuvdata.",
@@ -4031,8 +4026,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization "
         "axis using pyuvdata.",
@@ -4049,8 +4043,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(times=times[len(times) // 2 :])
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -4070,8 +4063,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(blt_inds=ind2)
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -4093,24 +4085,27 @@ def test_add_unprojected(casa_uvfits):
     )
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times, polarizations using "
         "pyuvdata. Combined data along "
         "baseline-time, polarization "
         "axis using pyuvdata.",
         uv1.history,
     )
-    blt_ind1 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[0 : len(times) // 2]
-    ])
-    blt_ind2 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[len(times) // 2 :]
-    ])
+    blt_ind1 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[0 : len(times) // 2]
+        ]
+    )
+    blt_ind2 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[len(times) // 2 :]
+        ]
+    )
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, :, 2:] = 0.0
     uv_ref.nsample_array[blt_ind1, :, 2:] = 0.0
@@ -4130,24 +4125,27 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
     uv1 += uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times, frequencies using "
         "pyuvdata. Combined data along "
         "baseline-time, frequency "
         "axis using pyuvdata.",
         uv1.history,
     )
-    blt_ind1 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[0 : len(times) // 2]
-    ])
-    blt_ind2 = np.array([
-        ind
-        for ind in range(uv_full.Nblts)
-        if uv_full.time_array[ind] in times[len(times) // 2 :]
-    ])
+    blt_ind1 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[0 : len(times) // 2]
+        ]
+    )
+    blt_ind2 = np.array(
+        [
+            ind
+            for ind in range(uv_full.Nblts)
+            if uv_full.time_array[ind] in times[len(times) // 2 :]
+        ]
+    )
     # Zero out missing data in reference object
     uv_ref.data_array[blt_ind1, 32:, :] = 0.0
     uv_ref.nsample_array[blt_ind1, 32:, :] = 0.0
@@ -4166,8 +4164,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -4211,8 +4208,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1 + uv2
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata.  Unique part of next "
         "object history follows.  testing the history.",
         uv_new.history,
@@ -4222,11 +4218,9 @@ def test_add_unprojected(casa_uvfits):
 
     uv_new = uv1.__add__(uv2, verbose_history=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
-        "follows."
-        + uv2.history,
+        "follows." + uv2.history,
         uv_new.history,
     )
 
@@ -4437,8 +4431,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv1.fast_concat([uv2, uv3], "freq", inplace=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
         "using pyuvdata.",
@@ -4505,8 +4498,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv3.select(polarizations=uv3.polarization_array[3:4])
     uv1.fast_concat([uv2, uv3], "polarization", inplace=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization axis "
         "using pyuvdata.",
@@ -4551,8 +4543,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv3.select(times=times[(len(times) // 3) * 2 :])
     uv1.fast_concat([uv2, uv3], "blt", inplace=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time axis "
         "using pyuvdata.",
@@ -4571,8 +4562,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(blt_inds=ind2)
     uv1.fast_concat(uv2, "blt", inplace=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
         "using pyuvdata.",
@@ -4624,8 +4614,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.fast_concat(uv1, "blt", inplace=True)
 
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -4693,8 +4682,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1.fast_concat(uv2, "blt", inplace=False)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to "
+        uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
         "axis using pyuvdata.",
@@ -4796,8 +4784,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1.fast_concat(uv2, "polarization")
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Unique part of next "
         "object history follows. testing the history.",
         uv_new.history,
@@ -4807,11 +4794,9 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
 
     uv_new = uv1.fast_concat(uv2, "polarization", verbose_history=True)
     assert uvutils._check_histories(
-        uv_full.history
-        + "  Downselected to specific polarizations using pyuvdata. "
+        uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
-        "follows."
-        + uv2.history,
+        "follows." + uv2.history,
         uv_new.history,
     )
 
@@ -6441,9 +6426,12 @@ def test_redundancy_contract_expand(
         # the test file has groups that are either all not conjugated or all conjugated.
         # need to conjugate some so we have mixed groups to properly test the average
         # method.
-        (orig_red_gps, orig_centers, orig_lengths, orig_conjugates) = (
-            uv0.get_redundancies(tol, include_conjugates=True)
-        )
+        (
+            orig_red_gps,
+            orig_centers,
+            orig_lengths,
+            orig_conjugates,
+        ) = uv0.get_redundancies(tol, include_conjugates=True)
         blt_inds_to_conj = []
         for gp in orig_red_gps:
             if len(gp) > 1:
@@ -9060,12 +9048,14 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
         # Make multiple spws
         uvobj._set_flex_spw()
         spw_nchan = int(uvobj.Nfreqs / 4)
-        uvobj.flex_spw_id_array = np.concatenate((
-            np.full(spw_nchan, 0, dtype=int),
-            np.full(spw_nchan, 1, dtype=int),
-            np.full(spw_nchan, 2, dtype=int),
-            np.full(spw_nchan, 3, dtype=int),
-        ))
+        uvobj.flex_spw_id_array = np.concatenate(
+            (
+                np.full(spw_nchan, 0, dtype=int),
+                np.full(spw_nchan, 1, dtype=int),
+                np.full(spw_nchan, 2, dtype=int),
+                np.full(spw_nchan, 3, dtype=int),
+            )
+        )
         uvobj.spw_array = np.arange(4)
         uvobj.Nspws = 4
         if not future_shapes:
@@ -9163,12 +9153,14 @@ def test_frequency_average_uneven(
         # Make multiple spws
         uvobj._set_flex_spw()
         spw_nchan = int(uvobj.Nfreqs / 4)
-        uvobj.flex_spw_id_array = np.concatenate((
-            np.full(spw_nchan, 0, dtype=int),
-            np.full(spw_nchan, 1, dtype=int),
-            np.full(spw_nchan, 2, dtype=int),
-            np.full(spw_nchan, 3, dtype=int),
-        ))
+        uvobj.flex_spw_id_array = np.concatenate(
+            (
+                np.full(spw_nchan, 0, dtype=int),
+                np.full(spw_nchan, 1, dtype=int),
+                np.full(spw_nchan, 2, dtype=int),
+                np.full(spw_nchan, 3, dtype=int),
+            )
+        )
         uvobj.spw_array = np.arange(4)
         uvobj.Nspws = 4
         if not future_shapes:
@@ -11318,9 +11310,9 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
         uv_in_bad2.gst0 = None
         uv_in_bad2.rdate = None
         uv_in_bad2.timesys = None
-    uv_in_bad2.phase_center_catalog[1]["info_source"] = (
-        uv_in_bad_copy.phase_center_catalog[1]["info_source"]
-    )
+    uv_in_bad2.phase_center_catalog[1][
+        "info_source"
+    ] = uv_in_bad_copy.phase_center_catalog[1]["info_source"]
     uv_in_bad2.extra_keywords = uv_in_bad_copy.extra_keywords
     assert uv_in_bad2 == uv_in_bad_copy
 
@@ -12357,9 +12349,9 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
         for idx, spw in enumerate(uvd2.spw_array):
             new_spw = spw_renumber_dict[spw]
             new_spw_array[idx] = new_spw
-            uvd2.flex_spw_id_array[np.nonzero(uvd2.flex_spw_id_array == spw)[0]] = (
-                new_spw
-            )
+            uvd2.flex_spw_id_array[
+                np.nonzero(uvd2.flex_spw_id_array == spw)[0]
+            ] = new_spw
         uvd2.spw_array = new_spw_array
         uvd2.check()
 

@@ -1722,9 +1722,9 @@ class UVData(UVBase):
                     )
 
         # Set everything to the first cat ID in the list
-        self.phase_center_id_array[np.isin(self.phase_center_id_array, cat_id_list)] = (
-            cat_id_list[0]
-        )
+        self.phase_center_id_array[
+            np.isin(self.phase_center_id_array, cat_id_list)
+        ] = cat_id_list[0]
 
         # Finally, remove the defunct cat IDs
         for cat_id in cat_id_list[1:]:
@@ -1843,79 +1843,99 @@ class UVData(UVBase):
         col_list.append(
             {"hdr": ("ID", "#"), "fmt": "% 4i", "field": " %4s ", "name": "cat_id"}
         )
-        col_list.append({
-            "hdr": ("Cat Entry", "Name"),
-            "fmt": "%12s",
-            "field": " %12s ",
-            "name": "cat_name",
-        })
+        col_list.append(
+            {
+                "hdr": ("Cat Entry", "Name"),
+                "fmt": "%12s",
+                "field": " %12s ",
+                "name": "cat_name",
+            }
+        )
         col_list.append(
             {"hdr": ("Type", ""), "fmt": "%12s", "field": " %12s ", "name": "cat_type"}
         )
 
         if any_lon:
-            col_list.append({
-                "hdr": ("Az/Lon/RA", "hours" if hms_format else "deg"),
-                "fmt": "% 3i:%02i:%05.2f",
-                "field": " %12s " if hms_format else " %13s ",
-                "name": "cat_lon",
-            })
+            col_list.append(
+                {
+                    "hdr": ("Az/Lon/RA", "hours" if hms_format else "deg"),
+                    "fmt": "% 3i:%02i:%05.2f",
+                    "field": " %12s " if hms_format else " %13s ",
+                    "name": "cat_lon",
+                }
+            )
         if any_lat:
-            col_list.append({
-                "hdr": ("El/Lat/Dec", "deg"),
-                "fmt": "%1s%2i:%02i:%05.2f",
-                "field": " %12s ",
-                "name": "cat_lat",
-            })
+            col_list.append(
+                {
+                    "hdr": ("El/Lat/Dec", "deg"),
+                    "fmt": "%1s%2i:%02i:%05.2f",
+                    "field": " %12s ",
+                    "name": "cat_lat",
+                }
+            )
         if any_frame:
-            col_list.append({
-                "hdr": ("Frame", ""),
-                "fmt": "%5s",
-                "field": " %5s ",
-                "name": "cat_frame",
-            })
+            col_list.append(
+                {
+                    "hdr": ("Frame", ""),
+                    "fmt": "%5s",
+                    "field": " %5s ",
+                    "name": "cat_frame",
+                }
+            )
         if any_epoch:
-            col_list.append({
-                "hdr": ("Epoch", ""),
-                "fmt": "%7s",
-                "field": " %7s ",
-                "name": "cat_epoch",
-            })
+            col_list.append(
+                {
+                    "hdr": ("Epoch", ""),
+                    "fmt": "%7s",
+                    "field": " %7s ",
+                    "name": "cat_epoch",
+                }
+            )
         if any_times:
-            col_list.append({
-                "hdr": ("   Ephem Range   ", "Start-MJD    End-MJD"),
-                "fmt": " %8.2f  % 8.2f",
-                "field": " %20s ",
-                "name": "cat_times",
-            })
+            col_list.append(
+                {
+                    "hdr": ("   Ephem Range   ", "Start-MJD    End-MJD"),
+                    "fmt": " %8.2f  % 8.2f",
+                    "field": " %20s ",
+                    "name": "cat_times",
+                }
+            )
         if any_pm_ra:
-            col_list.append({
-                "hdr": ("PM-Ra", "mas/yr"),
-                "fmt": "%.4g",
-                "field": " %6s ",
-                "name": "cat_pm_ra",
-            })
+            col_list.append(
+                {
+                    "hdr": ("PM-Ra", "mas/yr"),
+                    "fmt": "%.4g",
+                    "field": " %6s ",
+                    "name": "cat_pm_ra",
+                }
+            )
         if any_pm_dec:
-            col_list.append({
-                "hdr": ("PM-Dec", "mas/yr"),
-                "fmt": "%.4g",
-                "field": " %6s ",
-                "name": "cat_pm_dec",
-            })
+            col_list.append(
+                {
+                    "hdr": ("PM-Dec", "mas/yr"),
+                    "fmt": "%.4g",
+                    "field": " %6s ",
+                    "name": "cat_pm_dec",
+                }
+            )
         if any_dist:
-            col_list.append({
-                "hdr": ("Dist", "pc"),
-                "fmt": "%.1e",
-                "field": " %7s ",
-                "name": "cat_dist",
-            })
+            col_list.append(
+                {
+                    "hdr": ("Dist", "pc"),
+                    "fmt": "%.1e",
+                    "field": " %7s ",
+                    "name": "cat_dist",
+                }
+            )
         if any_vrad:
-            col_list.append({
-                "hdr": ("V_rad", "km/s"),
-                "fmt": "%.4g",
-                "field": " %6s ",
-                "name": "cat_vrad",
-            })
+            col_list.append(
+                {
+                    "hdr": ("V_rad", "km/s"),
+                    "fmt": "%.4g",
+                    "field": " %6s ",
+                    "name": "cat_vrad",
+                }
+            )
 
         top_str = ""
         bot_str = ""
@@ -3072,10 +3092,12 @@ class UVData(UVBase):
         # Only these pols have "true" auto-correlations, that we'd expect
         # to be real only. Select on only them
         auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
-        pol_screen = np.array([
-            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
-            for pol in self.polarization_array
-        ])
+        pol_screen = np.array(
+            [
+                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                for pol in self.polarization_array
+            ]
+        )
 
         # Make sure we actually have work to do here, otherwise skip all of this
         if (np.any(pol_screen) and np.any(auto_screen)) and not (
@@ -3434,10 +3456,12 @@ class UVData(UVBase):
                 # to be real only. Select on only them
                 auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
                 if self.flex_spw_polarization_array is not None:
-                    pol_screen = np.array([
-                        uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
-                        for pol in self.flex_spw_polarization_array
-                    ])
+                    pol_screen = np.array(
+                        [
+                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            for pol in self.flex_spw_polarization_array
+                        ]
+                    )
                     # There should be a better way...
                     spw_inds = np.zeros_like(self.flex_spw_id_array)
                     for spw_ind, spw in enumerate(self.spw_array):
@@ -3445,10 +3469,12 @@ class UVData(UVBase):
                         spw_inds[these_freq_inds] = spw_ind
                     freq_screen = pol_screen[spw_inds]
                 else:
-                    pol_screen = np.array([
-                        uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
-                        for pol in self.polarization_array
-                    ])
+                    pol_screen = np.array(
+                        [
+                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            for pol in self.polarization_array
+                        ]
+                    )
 
                 # Check autos if they have imag component -- doing iscomplex first and
                 # then pol select was faster in every case checked in test files.
@@ -4002,9 +4028,7 @@ class UVData(UVBase):
                     out = np.squeeze(out, axis=1)
         elif squeeze != "none":
             raise ValueError(
-                '"'
-                + str(squeeze)
-                + '" is not a valid option for squeeze.'
+                '"' + str(squeeze) + '" is not a valid option for squeeze.'
                 'Only "default", "none", or "full" are allowed.'
             )
 
@@ -4746,13 +4770,13 @@ class UVData(UVBase):
                 orig_data_array = copy.copy(self.data_array)
                 for pol_ind in np.arange(self.Npols):
                     if self.future_array_shapes:
-                        self.data_array[index_array, :, new_pol_inds[pol_ind]] = (
-                            np.conj(orig_data_array[index_array, :, pol_ind])
-                        )
+                        self.data_array[
+                            index_array, :, new_pol_inds[pol_ind]
+                        ] = np.conj(orig_data_array[index_array, :, pol_ind])
                     else:
-                        self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = (
-                            np.conj(orig_data_array[index_array, :, :, pol_ind])
-                        )
+                        self.data_array[
+                            index_array, :, :, new_pol_inds[pol_ind]
+                        ] = np.conj(orig_data_array[index_array, :, :, pol_ind])
 
             ant_1_vals = self.ant_1_array[index_array]
             ant_2_vals = self.ant_2_array[index_array]
@@ -5449,9 +5473,9 @@ class UVData(UVBase):
         self.phase_center_app_ra[select_mask_use] = self.lst_array[
             select_mask_use
         ].copy()
-        self.phase_center_app_dec[select_mask_use] = (
-            self.telescope_location_lat_lon_alt[0]
-        )
+        self.phase_center_app_dec[
+            select_mask_use
+        ] = self.telescope_location_lat_lon_alt[0]
         self.phase_center_frame_pa[select_mask_use] = 0
 
         return
@@ -5500,12 +5524,16 @@ class UVData(UVBase):
         # instance of a UVData object.
         if lookup_name and (cat_name not in name_dict):
             if (cat_type is None) or (cat_type == "ephem"):
-                [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
-                    uvutils.lookup_jplhorizons(
-                        cat_name,
-                        time_array,
-                        telescope_loc=self.telescope_location_lat_lon_alt,
-                    )
+                [
+                    cat_times,
+                    cat_lon,
+                    cat_lat,
+                    cat_dist,
+                    cat_vrad,
+                ] = uvutils.lookup_jplhorizons(
+                    cat_name,
+                    time_array,
+                    telescope_loc=self.telescope_location_lat_lon_alt,
                 )
                 cat_type = "ephem"
                 cat_pm_ra = cat_pm_dec = None
@@ -5608,12 +5636,16 @@ class UVData(UVBase):
             if check_ephem and (info_source == "jplh"):
                 # Concat the two time ranges to make sure that we cover both the
                 # requested time range _and_ the original time range.
-                [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
-                    uvutils.lookup_jplhorizons(
-                        cat_name,
-                        np.concatenate((np.reshape(time_array, -1), cat_times)),
-                        telescope_loc=self.telescope_location_lat_lon_alt,
-                    )
+                [
+                    cat_times,
+                    cat_lon,
+                    cat_lat,
+                    cat_dist,
+                    cat_vrad,
+                ] = uvutils.lookup_jplhorizons(
+                    cat_name,
+                    np.concatenate((np.reshape(time_array, -1), cat_times)),
+                    telescope_loc=self.telescope_location_lat_lon_alt,
                 )
             elif check_ephem:
                 # The ephem was user-supplied during the call to the phase method,
@@ -6412,14 +6444,22 @@ class UVData(UVBase):
         # Create blt arrays for convenience
         prec_t = -2 * np.floor(np.log10(this._time_array.tols[-1])).astype(int)
         prec_b = 8
-        this_blts = np.array([
-            "_".join(["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)])
-            for blt in zip(this.time_array, this.baseline_array)
-        ])
-        other_blts = np.array([
-            "_".join(["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)])
-            for blt in zip(other.time_array, other.baseline_array)
-        ])
+        this_blts = np.array(
+            [
+                "_".join(
+                    ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
+                )
+                for blt in zip(this.time_array, this.baseline_array)
+            ]
+        )
+        other_blts = np.array(
+            [
+                "_".join(
+                    ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
+                )
+                for blt in zip(other.time_array, other.baseline_array)
+            ]
+        )
         # Check we don't have overlapping data
         both_pol, this_pol_ind, other_pol_ind = np.intersect1d(
             this.polarization_array, other.polarization_array, return_indices=True
@@ -6813,10 +6853,12 @@ class UVData(UVBase):
                         [this_flexpol_dict[key] for key in this.spw_array]
                     )
                 # Need to sort out the order of the individual windows first.
-                f_order = np.concatenate([
-                    np.where(this.flex_spw_id_array == idx)[0]
-                    for idx in sorted(this.spw_array)
-                ])
+                f_order = np.concatenate(
+                    [
+                        np.where(this.flex_spw_id_array == idx)[0]
+                        for idx in sorted(this.spw_array)
+                    ]
+                )
 
                 # With spectral windows sorted, check and see if channels within
                 # windows need sorting. If they are ordered in ascending or descending
@@ -6880,11 +6922,13 @@ class UVData(UVBase):
             p_order = np.argsort(np.abs(this.polarization_array))
             if not self.metadata_only:
                 if this.future_array_shapes:
-                    zero_pad = np.zeros((
-                        this.data_array.shape[0],
-                        this.data_array.shape[1],
-                        len(pnew_inds),
-                    ))
+                    zero_pad = np.zeros(
+                        (
+                            this.data_array.shape[0],
+                            this.data_array.shape[1],
+                            len(pnew_inds),
+                        )
+                    )
                     this.data_array = np.concatenate(
                         [this.data_array, zero_pad], axis=2
                     )
@@ -6895,12 +6939,14 @@ class UVData(UVBase):
                         [this.flag_array, 1 - zero_pad], axis=2
                     ).astype(np.bool_)
                 else:
-                    zero_pad = np.zeros((
-                        this.data_array.shape[0],
-                        1,
-                        this.data_array.shape[2],
-                        len(pnew_inds),
-                    ))
+                    zero_pad = np.zeros(
+                        (
+                            this.data_array.shape[0],
+                            1,
+                            this.data_array.shape[2],
+                            len(pnew_inds),
+                        )
+                    )
                     this.data_array = np.concatenate(
                         [this.data_array, zero_pad], axis=3
                     )
@@ -6937,20 +6983,20 @@ class UVData(UVBase):
         if not self.metadata_only:
             if this.future_array_shapes:
                 this.data_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.data_array
-                this.nsample_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = (
-                    other.nsample_array
-                )
+                this.nsample_array[
+                    np.ix_(blt_t2o, freq_t2o, pol_t2o)
+                ] = other.nsample_array
                 this.flag_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.flag_array
             else:
-                this.data_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.data_array
-                )
-                this.nsample_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.nsample_array
-                )
-                this.flag_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.flag_array
-                )
+                this.data_array[
+                    np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)
+                ] = other.data_array
+                this.nsample_array[
+                    np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)
+                ] = other.nsample_array
+                this.flag_array[
+                    np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)
+                ] = other.flag_array
 
             # Fix ordering
             baxis_num = 0
@@ -7631,9 +7677,7 @@ class UVData(UVBase):
         ):
             if this.extra_keywords[intersection] != other.extra_keywords[intersection]:
                 warnings.warn(
-                    "Keyword "
-                    + intersection
-                    + " in _extra_keywords is different "
+                    "Keyword " + intersection + " in _extra_keywords is different "
                     "in the two objects. Taking the first object's entry."
                 )
 
@@ -8670,23 +8714,26 @@ class UVData(UVBase):
             uv_obj = self.copy()
 
         # Figure out which index positions we want to hold on to.
-        (blt_inds, freq_inds, pol_inds, history_update_string) = (
-            uv_obj._select_preprocess(
-                antenna_nums,
-                antenna_names,
-                ant_str,
-                bls,
-                frequencies,
-                freq_chans,
-                times,
-                time_range,
-                lsts,
-                lst_range,
-                polarizations,
-                blt_inds,
-                phase_center_ids,
-                catalog_names,
-            )
+        (
+            blt_inds,
+            freq_inds,
+            pol_inds,
+            history_update_string,
+        ) = uv_obj._select_preprocess(
+            antenna_nums,
+            antenna_names,
+            ant_str,
+            bls,
+            frequencies,
+            freq_chans,
+            times,
+            time_range,
+            lsts,
+            lst_range,
+            polarizations,
+            blt_inds,
+            phase_center_ids,
+            catalog_names,
         )
 
         # Call the low-level selection method.
@@ -9906,9 +9953,9 @@ class UVData(UVBase):
                             reg_mask[ax0_inds, this_chan, :, ax2_inds], axis=1
                         )
                         ff_inds = np.nonzero(fully_flagged)
-                        reg_mask[ax0_inds[ff_inds], this_chan, :, ax2_inds[ff_inds]] = (
-                            False
-                        )
+                        reg_mask[
+                            ax0_inds[ff_inds], this_chan, :, ax2_inds[ff_inds]
+                        ] = False
                 if this_ragged:
                     ax0_inds, ax2_inds = np.nonzero(
                         final_flag_array[:, final_spw_chans[spw][-1], :]
@@ -10240,10 +10287,12 @@ class UVData(UVBase):
                     )
                     conj_inds = conj_group_inds[np.array(conj_orientation)]
                     # check that the integration times are all the same
-                    int_times = np.concatenate((
-                        self.integration_time[regular_inds],
-                        self.integration_time[conj_inds],
-                    ))
+                    int_times = np.concatenate(
+                        (
+                            self.integration_time[regular_inds],
+                            self.integration_time[conj_inds],
+                        )
+                    )
                     if not np.all(
                         np.abs(int_times - new_obj.integration_time[obj_time_ind])
                         < new_obj._integration_time.tols[1]
@@ -10255,14 +10304,18 @@ class UVData(UVBase):
                         )
 
                     if not self.metadata_only:
-                        vis_to_avg = np.concatenate((
-                            self.data_array[regular_inds],
-                            np.conj(self.data_array[conj_inds]),
-                        ))
-                        nsample_to_avg = np.concatenate((
-                            self.nsample_array[regular_inds],
-                            self.nsample_array[conj_inds],
-                        ))
+                        vis_to_avg = np.concatenate(
+                            (
+                                self.data_array[regular_inds],
+                                np.conj(self.data_array[conj_inds]),
+                            )
+                        )
+                        nsample_to_avg = np.concatenate(
+                            (
+                                self.nsample_array[regular_inds],
+                                self.nsample_array[conj_inds],
+                            )
+                        )
                         flags_to_avg = np.concatenate(
                             (self.flag_array[regular_inds], self.flag_array[conj_inds])
                         )
@@ -12832,7 +12885,7 @@ class UVData(UVBase):
             that they are real-only in data_array. Default is False.
         use_miriad_convention : bool
             Option to use the MIRIAD baseline convention, and write to BASELINE column.
-            This mode is required for UVFITS files with >256 antennas to be 
+            This mode is required for UVFITS files with >256 antennas to be
             readable by MIRIAD, and supports up to 2048 antennas.
             The MIRIAD baseline ID is given by
             `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
@@ -13232,10 +13285,12 @@ class UVData(UVBase):
         for pol in pol_list:
             try:
                 feed_pols = uvutils.POL_TO_FEED_DICT[uvutils.POL_NUM2STR_DICT[pol]]
-                pol_groups.append([
-                    pol_list.index(uvutils.POL_STR2NUM_DICT[item + item])
-                    for item in feed_pols
-                ])
+                pol_groups.append(
+                    [
+                        pol_list.index(uvutils.POL_STR2NUM_DICT[item + item])
+                        for item in feed_pols
+                    ]
+                )
             except KeyError:
                 # If we run into a key error, it means that one of the dicts above does
                 # not have a match to the given polarization, in which case assume that
