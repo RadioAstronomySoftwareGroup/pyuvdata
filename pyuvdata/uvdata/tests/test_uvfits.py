@@ -1709,4 +1709,4 @@ def test_miriad_convention(casa_uvfits, tmp_path):
 
     assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"] + 1
     assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"] + 1
-    assert hdu[1].data["NOSTA"][0] == 1 #expected_vals["NOSTA_0"]
+    assert hdu[1].data["NOSTA"][0] == 1  # expected_vals["NOSTA_0"]
