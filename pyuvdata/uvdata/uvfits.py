@@ -824,12 +824,11 @@ class UVFITS(UVData):
             that they are real-only in data_array. Default is False.
         use_miriad_convention : bool
             Option to use the MIRIAD baseline convention, and write to BASELINE column.
-            This supports up to 2048 antennas, where baseline ID is given by
-                if ant2 < 256:
-                    bl = 256 * ant1 + ant2
-                else:
-                    bl = 2048 * ant1 + ant2 + 2**16
-            This mode is required for UVFITS files to be readable by MIRIAD.
+            This mode is required for UVFITS files with >256 antennas to be 
+            readable by MIRIAD, and supports up to 2048 antennas.
+            The MIRIAD baseline ID is given by
+            `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
+            `bl = 2048 * ant1 + ant2 + 2**16`.
             Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
 
         Raises
