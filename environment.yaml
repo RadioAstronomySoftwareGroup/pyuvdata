@@ -16,7 +16,7 @@ dependencies:
   - pre-commit
   - pyerfa>=2.0
   - pypandoc
-  - pytest>=6.2.0
+  - pytest>=6.2.0,<8.0
   - pytest-cases>=3.6.9
   - pytest-cov
   - pytest-xdist
