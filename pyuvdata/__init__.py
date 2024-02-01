@@ -17,7 +17,7 @@ try:  # pragma: nocover
 
     __version__ = version_str
 
-except (LookupError, ImportError):
+except (LookupError, ImportError): # pragma: no cover
     try:
         # Set the version automatically from the package details.
         __version__ = version("pyuvdata")

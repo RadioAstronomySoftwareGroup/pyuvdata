@@ -1319,10 +1319,13 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv_full = casa_uvfits
     testfile1 = str(tmp_path / "uv1.uvfits")
     testfile2 = str(tmp_path / "uv2.uvfits")
+
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
+
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
+
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
     uv1.read(
@@ -1363,10 +1366,13 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     uv_full = casa_uvfits
     testfile1 = str(tmp_path / "uv1.uvfits")
     testfile2 = str(tmp_path / "uv2.uvfits")
+
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
+
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
+
     uv1.write_uvfits(testfile1)
     uv2.write_uvfits(testfile2)
 
@@ -1622,6 +1628,7 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
     for cat_name in sma_mir.phase_center_catalog.keys():
         this_cat = sma_mir.phase_center_catalog[cat_name]
         other_cat = sma_uvfits.phase_center_catalog[cat_name]
+
         assert np.isclose(this_cat["cat_lat"], other_cat["cat_lat"])
         assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
     sma_uvfits.phase_center_catalog = sma_mir.phase_center_catalog
