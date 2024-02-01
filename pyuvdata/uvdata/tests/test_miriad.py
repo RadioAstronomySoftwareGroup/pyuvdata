@@ -46,53 +46,81 @@ paper_miriad_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA")
 
 # This is a dictionary of warning strings to aid warning checks
 warn_dict = {
-    "default_vals": "writing default values for restfreq, vsource, veldop, "
-    "jyperk, and systemp",
-    "uvw_mismatch": "The uvw_array does not match the expected values "
-    "given the antenna positions",
+    "default_vals": (
+        "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
+    ),
+    "uvw_mismatch": (
+        "The uvw_array does not match the expected values given the antenna positions"
+    ),
     "driftscan": "This object has a driftscan phase center. Miriad does not really ",
     "long_key": "key test_long_key in extra_keywords is longer than 8 characters.",
-    "ant_diameters": "Antenna diameters are not uniform, but miriad "
-    "only supports a single diameter.",
-    "time_mismatch": "Some visibility times did not match ephem times so the ra and dec "
-    "values for those visibilities were interpolated or set to "
-    "the closest time if they would have required extrapolation.",
+    "ant_diameters": (
+        "Antenna diameters are not uniform, but miriad only supports a single diameter."
+    ),
+    "time_mismatch": (
+        "Some visibility times did not match ephem times so the ra and dec "
+        "values for those visibilities were interpolated or set to "
+        "the closest time if they would have required extrapolation."
+    ),
     "altitude_missing_miriad": "Altitude is not present in Miriad file, and telescope",
-    "altitude_missing_lat_long": "Altitude is not present in file and latitude and longitude "
-    "values do not match",
-    "altitude_missing_long": "Altitude is not present in file and longitude value does not match",
-    "altitude_missing_lat": "Altitude is not present in file and latitude value does not match",
-    "altitude_missing_foo": "Altitude is not present in Miriad file, and "
-    "telescope foo is not in known_telescopes. "
-    "Telescope location will be set using antenna positions.",
-    "no_telescope_loc": "Telescope location is not set, but antenna "
-    "positions are present. Mean antenna latitude "
-    "and longitude values match file values, so "
-    "telescope_position will be set using the mean "
-    "of the antenna altitudes",
+    "altitude_missing_lat_long": (
+        "Altitude is not present in file and latitude and longitude values do not match"
+    ),
+    "altitude_missing_long": (
+        "Altitude is not present in file and longitude value does not match"
+    ),
+    "altitude_missing_lat": (
+        "Altitude is not present in file and latitude value does not match"
+    ),
+    "altitude_missing_foo": (
+        "Altitude is not present in Miriad file, and "
+        "telescope foo is not in known_telescopes. "
+        "Telescope location will be set using antenna positions."
+    ),
+    "no_telescope_loc": (
+        "Telescope location is not set, but antenna "
+        "positions are present. Mean antenna latitude "
+        "and longitude values match file values, so "
+        "telescope_position will be set using the mean "
+        "of the antenna altitudes"
+    ),
     "unknown_telescope_foo": "Telescope foo is not in known_telescopes.",
-    "unclear_projection": "It is not clear from the file if the data are "
-    "projected or not.",
-    "telescope_at_sealevel": "Telescope location is set at sealevel at the file lat/lon "
-    "coordinates. Antenna positions are present, but the mean antenna "
-    "position does not give a telescope_location on the surface of the "
-    "earth. Antenna positions do not appear to be on the surface of the "
-    "earth and will be treated as relative.",
-    "telescope_at_sealevel_lat": "Telescope location is set at sealevel at the file lat/lon coordinates. "
-    "Antenna positions are present, but the mean antenna latitude value does "
-    "not match file values so they are not used for altitude.",
-    "telescope_at_sealevel_lat_long": "Telescope location is set at sealevel at the file lat/lon coordinates. "
-    "Antenna positions are present, but the mean antenna latitude and longitude values do not match file values "
-    "so they are not used for altitude.",
-    "telescope_at_sealevel_foo": "Altitude is not present in Miriad file, and telescope foo is not in known_telescopes.",
-    "phase_type_deprecated": "The phase_type parameter is deprecated, use the projected parameter "
-    "instead.",
-    "no_telescope_loc": "Telescope location is not set, but antenna positions are "
-    "present. Mean antenna latitude and longitude values match file "
-    "values, so telescope_position will be set using the mean of the "
-    "antenna altitudes",
-    "projection_false_offset": "projected is False, but RA, Dec is off from lst, latitude by more than "
-    "1.0 deg",
+    "unclear_projection": (
+        "It is not clear from the file if the data are projected or not."
+    ),
+    "telescope_at_sealevel": (
+        "Telescope location is set at sealevel at the file lat/lon "
+        "coordinates. Antenna positions are present, but the mean antenna "
+        "position does not give a telescope_location on the surface of the "
+        "earth. Antenna positions do not appear to be on the surface of the "
+        "earth and will be treated as relative."
+    ),
+    "telescope_at_sealevel_lat": (
+        "Telescope location is set at sealevel at the file lat/lon coordinates. "
+        "Antenna positions are present, but the mean antenna latitude value does "
+        "not match file values so they are not used for altitude."
+    ),
+    "telescope_at_sealevel_lat_long": (
+        "Telescope location is set at sealevel at the file lat/lon coordinates. Antenna"
+        " positions are present, but the mean antenna latitude and longitude values do"
+        " not match file values so they are not used for altitude."
+    ),
+    "telescope_at_sealevel_foo": (
+        "Altitude is not present in Miriad file, and telescope foo is not in"
+        " known_telescopes."
+    ),
+    "phase_type_deprecated": (
+        "The phase_type parameter is deprecated, use the projected parameter instead."
+    ),
+    "no_telescope_loc": (
+        "Telescope location is not set, but antenna positions are "
+        "present. Mean antenna latitude and longitude values match file "
+        "values, so telescope_position will be set using the mean of the "
+        "antenna altitudes"
+    ),
+    "projection_false_offset": (
+        "projected is False, but RA, Dec is off from lst, latitude by more than 1.0 deg"
+    ),
 }
 
 
@@ -152,8 +180,10 @@ def test_read_write_read_atca(tmp_path, future_shapes):
     with uvtest.check_warnings(
         [UserWarning] * 6 + [DeprecationWarning],
         [
-            "Altitude is not present in Miriad file, and "
-            "telescope ATCA is not in known_telescopes. ",
+            (
+                "Altitude is not present in Miriad file, and "
+                "telescope ATCA is not in known_telescopes. "
+            ),
             "Telescope ATCA is not in known_telescopes.",
             "Altitude is not present",
             warn_dict["telescope_at_sealevel"],
@@ -232,8 +262,10 @@ def test_read_write_read_carma(tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, "
-            "using known location values for SZA.",
+            (
+                "Altitude is not present in Miriad file, "
+                "using known location values for SZA."
+            ),
             warn_dict["uvw_mismatch"],
             "pamatten in extra_keywords is a list, array or dict",
             "psys in extra_keywords is a list, array or dict",
@@ -305,8 +337,10 @@ def test_read_carma_miriad_write_ms(tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, "
-            "using known location values for SZA.",
+            (
+                "Altitude is not present in Miriad file, "
+                "using known location values for SZA."
+            ),
             warn_dict["uvw_mismatch"],
             "pamatten in extra_keywords is a list, array or dict",
             "psys in extra_keywords is a list, array or dict",
@@ -425,8 +459,10 @@ def test_miriad_read_warning_lat_lon_corrected():
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, using known location "
-            "altitude value for PAPER and lat/lon from file.",
+            (
+                "Altitude is not present in Miriad file, using known location "
+                "altitude value for PAPER and lat/lon from file."
+            ),
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -653,10 +689,12 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
         [
             warn_dict["altitude_missing_foo"],
             warn_dict["altitude_missing_foo"],
-            "Telescope location is set at sealevel at the "
-            "file lat/lon coordinates. Antenna positions "
-            "are present, but the mean antenna longitude "
-            "value does not match",
+            (
+                "Telescope location is set at sealevel at the "
+                "file lat/lon coordinates. Antenna positions "
+                "are present, but the mean antenna longitude "
+                "value does not match"
+            ),
             warn_dict["projection_false_offset"],
             warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
@@ -730,15 +768,19 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Altitude is not present in Miriad file, and "
-            "telescope foo is not in known_telescopes. "
-            "Telescope location will be set using antenna positions.",
+            (
+                "Altitude is not present in Miriad file, and "
+                "telescope foo is not in known_telescopes. "
+                "Telescope location will be set using antenna positions."
+            ),
             "Altitude is not present ",
-            "Telescope location is set at sealevel at the "
-            "file lat/lon coordinates. Antenna positions "
-            "are present, but the mean antenna position "
-            "does not give a telescope_location on the "
-            "surface of the earth.",
+            (
+                "Telescope location is set at sealevel at the "
+                "file lat/lon coordinates. Antenna positions "
+                "are present, but the mean antenna position "
+                "does not give a telescope_location on the "
+                "surface of the earth."
+            ),
             warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
@@ -1922,7 +1964,8 @@ def test_multi_files(casa_uvfits, tmp_path):
 
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
+        uv_full.history
+        + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
         " pyuvdata.",
@@ -1948,7 +1991,8 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], axis="freq", use_future_array_shapes=True)
     # Check history is correct, before replacing and doing a full object check
     assert uvutils._check_histories(
-        uv_full.history + "  Downselected to "
+        uv_full.history
+        + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
         " pyuvdata.",
@@ -2032,17 +2076,23 @@ def test_file_with_bad_extra_words():
     fname = os.path.join(DATA_PATH, "test_miriad_changing_extra.uv")
     uv = UVData()
     warn_message = [
-        "Altitude is not present in Miriad file, "
-        "using known location values for PAPER.",
+        (
+            "Altitude is not present in Miriad file, "
+            "using known location values for PAPER."
+        ),
         "Mean of empty slice.",
         "invalid value encountered",
         "npols=4 but found 1 pols in data file",
         "Mean of empty slice.",
         "invalid value encountered",
-        "antenna number 0 has visibilities associated with it, but it has a "
-        "position of (0,0,0)",
-        "antenna number 26 has visibilities associated with it, "
-        "but it has a position of (0,0,0)",
+        (
+            "antenna number 0 has visibilities associated with it, but it has a "
+            "position of (0,0,0)"
+        ),
+        (
+            "antenna number 26 has visibilities associated with it, "
+            "but it has a position of (0,0,0)"
+        ),
     ]
     warn_category = (
         [UserWarning]
