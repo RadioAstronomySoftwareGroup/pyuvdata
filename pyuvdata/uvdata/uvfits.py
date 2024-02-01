@@ -59,9 +59,11 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                (latitude, longitude, altitude) = (
-                    self.telescope_location_lat_lon_alt_degrees
-                )
+                (
+                    latitude,
+                    longitude,
+                    altitude,
+                ) = self.telescope_location_lat_lon_alt_degrees
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
@@ -157,11 +159,13 @@ class UVFITS(UVData):
         # setting the dtype below enforces double precision
         self.uvw_array = (-1) * (
             np.array(
-                np.stack((
-                    vis_hdu.data.par(uvw_names[0]),
-                    vis_hdu.data.par(uvw_names[1]),
-                    vis_hdu.data.par(uvw_names[2]),
-                )),
+                np.stack(
+                    (
+                        vis_hdu.data.par(uvw_names[0]),
+                        vis_hdu.data.par(uvw_names[1]),
+                        vis_hdu.data.par(uvw_names[2]),
+                    )
+                ),
                 dtype=self._uvw_array.expected_type,
             )
             * const.c.to("m/s").value
@@ -437,11 +441,13 @@ class UVFITS(UVData):
                     np.tile(abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
                 ).flatten()
                 self.freq_array = np.reshape(
-                    np.transpose((
-                        ref_freq
-                        + fq_hdu.data["IF FREQ"]
-                        + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
-                    )),
+                    np.transpose(
+                        (
+                            ref_freq
+                            + fq_hdu.data["IF FREQ"]
+                            + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
+                        )
+                    ),
                     (1, -1),
                 )
             else:
@@ -824,7 +830,7 @@ class UVFITS(UVData):
             that they are real-only in data_array. Default is False.
         use_miriad_convention : bool
             Option to use the MIRIAD baseline convention, and write to BASELINE column.
-            This mode is required for UVFITS files with >256 antennas to be 
+            This mode is required for UVFITS files with >256 antennas to be
             readable by MIRIAD, and supports up to 2048 antennas.
             The MIRIAD baseline ID is given by
             `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
