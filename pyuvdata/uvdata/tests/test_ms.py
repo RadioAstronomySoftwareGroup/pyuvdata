@@ -360,7 +360,14 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     ms_uv = nrao_uv
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
-    ms_uv.write_miriad(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "The uvw_array does not match the expected values given the antenna positions.",
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp",
+        ],
+    ):
+        ms_uv.write_miriad(testfile)
     miriad_uv.read(testfile, use_future_array_shapes=True)
 
     # make sure filenames are what we expect
@@ -1077,11 +1084,12 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
     assert sma_mir == ms_uv
 
 
-@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units "
-                            "of the data are")
+@pytest.mark.filterwarnings(
+    "ignore:Writing in the MS file that the units " "of the data are"
+)
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-def test_read_ms_write_miriad_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
+def test_read_ms_write_ms_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
     """
     write ms from future and legacy array shapes.
     """
