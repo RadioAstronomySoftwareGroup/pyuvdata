@@ -4,7 +4,6 @@
 
 """Class for reading MS calibration tables."""
 
-import os
 import warnings
 
 import numpy as np
@@ -46,19 +45,14 @@ class MSCal(UVCal):
         run_check_acceptability=True,
         astrometry_library=None,
     ):
-        """Read gains from an MS calibration table."""
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        if not os.path.exists(filepath):
-            raise ValueError("No file found with the path %s." % filepath)
+        """Read in an MS-formatted gains table."""
+        # Use the utility function to verify this actually is an MS file
+        ms_utils._ms_utils_call_checks(filepath)
 
         # Set some initial things from the get go -- no legacy support
         self._set_flex_spw()
         self._set_future_array_shapes()
 
-        # Use the utility function to verify this actually is an MS file
-        ms_utils._ms_utils_call_checks(filepath)
         # True by fiat!
         self.flex_spw = self.future_array_shapes = True
         self.filename = filepath
