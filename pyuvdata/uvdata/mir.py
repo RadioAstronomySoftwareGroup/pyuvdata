@@ -257,6 +257,7 @@ class Mir(UVData):
             # Now populate the fields with the relevant data from the object
             self.data_array[blt_idx, pol_idx, ch_slice] = np.conj(vis_rec["data"])
             self.flag_array[blt_idx, pol_idx, ch_slice] = vis_rec["flags"]
+            self.nsample_array[blt_idx, pol_idx, ch_slice] = vis_rec["weights"]
 
         # Drop the data from the MirParser object once we have it loaded up.
         mir_data.unload_data()
@@ -504,6 +505,7 @@ class Mir(UVData):
         # blt, pol, freq).
         self.data_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.complex64)
         self.flag_array = np.ones((Nblts, Npols, Nfreqs), dtype=bool)
+        self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
 
         # Get a list of the current inhid values for later
         inhid_list = mir_data.in_data["inhid"].copy()
@@ -517,7 +519,7 @@ class Mir(UVData):
         # the whole block in one go, since this will save us 2x in memory.
         inhid_step = len(inhid_list)
         if (mir_data.vis_data is None) and (mir_data.auto_data is None):
-            inhid_step = (inhid_step // 4) + 1
+            inhid_step = (inhid_step // 8) + 1
 
         for start in range(0, len(inhid_list), inhid_step):
             # If no data is loaded, load up a quarter of the data at a time. This
@@ -547,21 +549,6 @@ class Mir(UVData):
                 # those in case we mucked with them earlier (so that subsequent selects
                 # behave as expected).
                 obj._mask = backup_masks[item].copy()
-
-        # Now handle the weights
-        self.nsample_array = np.zeros((Nblts, Npols, Nfreqs), dtype=np.float32)
-        for sp_rec, window in zip(mir_data.sp_data, spdx_list):
-            blt_idx = blhid_blt_order[sp_rec["blhid"]]
-            ch_slice = spdx_dict[window]["ch_slice"]
-            pol_idx = spdx_dict[window]["pol_idx"]
-            # The "wt" column is calculated as (integ time)/(T_DSB ** 2), but we want
-            # units of Jy**-2. To do this, we just need to multiply by one of the
-            # forward gain of the antenna (130 Jy/K for SMA) squared and the channel
-            # width. The factor of 2**2 (4) arises because we need to convert T_DSB**2
-            # to T_SSB**2.
-            self.nsample_array[blt_idx, pol_idx, ch_slice] = (
-                ((130.0 * 2.0) ** (-2.0)) * sp_rec["wt"] * np.abs(1e6 * sp_rec["fres"])
-            )
 
         # Now assign our flexible arrays to the object itself
         self.freq_array = freq_array

@@ -961,28 +961,24 @@ class MirParser(object):
         # way to covert the compressed data into the "normal" format. Some notes:
         #   1) The setup below is actually faster than ldexp, probably because of
         #      the specific dtype we are using.
-        #   2) Casting 2 as float32 will appropriately cast sp_raw values into float32
-        #      as well.
+        #   2) Casting scale_fac as float32 will appropriately cast sp_raw values into
+        #      float32 as well.
         #   3) I only check for the "special" value for flags in the real component. A
         #      little less robust (both real and imag are marked), but faster and
         #      barring data corruption, this shouldn't be an issue (and a single bad
         #      channel sneaking through is okay).
         #   4) pairs of float32 -> complex64 is super fast and efficient.
-        vis_dict = {
-            sphid: {
-                "data": ((np.float32(2) ** sp_raw["scale_fac"]) * sp_raw["data"]).view(
-                    dtype=np.complex64
-                ),
-                "flags": sp_raw["data"][::2] == -32768,
-                "weights": np.ones(len(sp_raw["data"]) >> 1, dtype=np.float32),
-            }
-            for sphid, sp_raw in raw_dict.items()
-        }
+        vis_dict = {}
+        for sphid, sp_raw in raw_dict.items():
+            raw_data = sp_raw["data"]
+            data = (np.exp2(np.float32(sp_raw["scale_fac"])) * raw_data).view(
+                np.complex64
+            )
+            flags = raw_data[::2] == -32768
+            data[flags] = 0.0
+            weights = (~flags).astype(np.float32)
 
-        # In testing, flagging the bad channels out after-the-fact was significantly
-        # faster than trying to modify in situ w/ the call above.
-        for item in vis_dict.values():
-            item["data"][item["flags"]] = 0.0
+            vis_dict[sphid] = {"data": data, "flags": flags, "weights": weights}
 
         return vis_dict
 
@@ -1520,7 +1516,8 @@ class MirParser(object):
             raise ValueError("Cannot apply flags if vis_data are not loaded.")
 
         for sphid, flagval in zip(self.sp_data["sphid"], self.sp_data["flags"]):
-            self.vis_data[sphid]["flags"][:] = bool(flagval)
+            if bool(flagval):
+                self.vis_data[sphid]["flags"][:] = True
 
     def _check_data_index(self):
         """
@@ -2432,7 +2429,12 @@ class MirParser(object):
 
     @staticmethod
     def _rechunk_data(
-        data_dict=None, chan_avg_arr=None, *, inplace=False, rechunk_weights=False
+        data_dict=None,
+        chan_avg_arr=None,
+        *,
+        inplace=False,
+        weight_data=True,
+        norm_weights=True,
     ):
         """
         Rechunk regular cross- and auto-correlation spectra.
@@ -2456,10 +2458,12 @@ class MirParser(object):
             If True, entries in `vis_dict` will be updated with spectrally averaged
             data. If False (default), then the method will construct a new dict that
             will contain the spectrally averaged data.
-        rechunk_weights : bool
+        weight_data : bool
+            If True, data are weighted prior to averaging. Default is True.
+        norm_weights : bool
             If True, will normalize the rechunked weights to account for the increased
             bandwidth of the individual channels -- needed for accurately calculating
-            the "absolute" weights. Default is False, as most calls to this function
+            the "absolute" weights. Default is True, as most calls to this function
             are done before absolute calibration is applied (e.g., via `apply_tsys`).
 
         Returns
@@ -2473,7 +2477,10 @@ class MirParser(object):
 
         new_data_dict = data_dict if inplace else {}
 
-        for chan_avg, (hkey, vis_data) in zip(chan_avg_arr, data_dict.items()):
+        for chan_avg, hkey in zip(chan_avg_arr, data_dict):
+            # Pull out the dict that we need.
+            vis_data = data_dict[hkey]
+
             # If there isn't anything to average, we can skip the heavy lifting
             # and just proceed on to the next record.
             if chan_avg == 1:
@@ -2481,53 +2488,56 @@ class MirParser(object):
                     new_data_dict[hkey] = copy.deepcopy(vis_data)
                 continue
 
-            # Otherwise, we need to first get a handle on which data is "good"
-            # for spectrally averaging over.
+            # Figure out which entries have values we want to used based on flags
             good_mask = ~vis_data["flags"].reshape((-1, chan_avg))
+            data_arr = vis_data["data"].reshape(good_mask.shape)
+            weight_arr = vis_data["weights"].reshape(good_mask.shape)
 
-            # We need to count the number of valid visibilities that goes into each
-            # new channel, so that we can normalize appropriately later. Note we cast
-            # to float32 here, since the data are complex64 (and so there's no extra
-            # casting required, but we get the benefit of only multiplying real-only
-            # and complex data).
-            temp_count = good_mask.sum(axis=-1, dtype=np.float32)
+            # Sum across all of the channels now, tabulating the sum of all of the
+            # weights (either all ones or whatever is in the weights spectrum).
+            if weight_data:
+                # Tabulate the weights, which are just summed across the channels
+                temp_weights = np.sum(weight_arr, axis=1, where=good_mask, initial=0)
+                temp_vis = np.sum(
+                    (data_arr * weight_arr), axis=1, where=good_mask, initial=0
+                )
+                norm_vals = temp_weights
+            else:
+                temp_vis = np.sum(data_arr, axis=1, where=good_mask, initial=0)
+                norm_vals = np.sum(good_mask, axis=1, dtype=np.float32)
 
-            # Need to mask out when we have no counts, since it'll produce a divide
-            # by zero error. As an added bonus, this will let us zero out any channels
-            # without any valid visibilities.
-            temp_count = np.reciprocal(
-                temp_count, where=(temp_count != 0), out=temp_count
-            )
+                # The weights here are in Jy**-2, so take the reciprocal, sum,
+                # reciprocal, and normalize (by the num of channels ** 2) to get what
+                # the weights "should" be in the nominal Jy**-2 units.
+                # variance of each channel (without accounting for)
+                temp_weights = np.sum(
+                    np.reciprocal(weight_arr, where=good_mask),
+                    where=good_mask,
+                    axis=1,
+                    initial=0,
+                )
+                temp_weights = np.reciprocal(
+                    temp_weights, where=(temp_weights != 0), out=temp_weights
+                ) * (norm_vals**2)
 
             # Now take the sum of all valid visibilities, multiplied by the
             # normalization factor.
-            temp_vis = temp_count * (
-                vis_data["data"].reshape((-1, chan_avg)).sum(where=good_mask, axis=-1)
+            temp_vis = np.divide(
+                temp_vis, norm_vals, where=(norm_vals != 0), out=temp_vis
             )
 
-            # Assuming no weighting applied, we need to calculate the sum of the
-            # variances for the individual channels to get a per (rechunked) channel
-            # variance, from which we can tabulate weights.
-            temp_weights = temp_count * np.reciprocal(
-                vis_data["weights"].reshape((-1, chan_avg)), where=good_mask
-            ).sum(where=good_mask, axis=-1)
-
-            # If weighting has already been applied (i.e., not just "nsamples"), then
+            # If weighting has not already been applied (i.e., just "nsamples") then
             # we need to do a bit extra accounting here to track the fact that we've
-            # now upped the bandwidth in this particular channel.
-            if rechunk_weights:
-                temp_weights *= temp_count
-
-            # Get the weights back into Jy**-2 units.
-            temp_weights = np.reciprocal(
-                temp_weights, where=(temp_weights != 0), out=temp_weights
-            )
+            # upped the bandwidth in this particular channel (and therefore the max
+            # value this should take on is 1.0).
+            if norm_weights:
+                temp_weights *= 1.0 / chan_avg
 
             # Finally, plug the spectrally averaged data back into the dict, flagging
             # channels with no valid data.
             new_data_dict[hkey] = {
                 "data": temp_vis,
-                "flags": temp_count == 0,
+                "flags": temp_weights == 0,
                 "weights": temp_weights,
             }
 
@@ -2695,7 +2705,7 @@ class MirParser(object):
                     self.vis_data,
                     chan_avg_arr,
                     inplace=True,
-                    rechunk_weights=self._tsys_applied,
+                    norm_weights=(not self._tsys_applied),
                 )
                 self._rechunk_raw(self.raw_data, chan_avg_arr, inplace=True)
             else:
@@ -3329,7 +3339,7 @@ class MirParser(object):
 
                     # Now generate re-weighting solns based on per-chanel SEFD
                     # measurements calculated by COMPASS.
-                    weight_soln = np.zeros_like(dict1["sefd_data"])
+                    weight_soln = np.zeros(dict1["sefd_data"].shape, dtype=np.float32)
                     weight_flags = dict1["sefd_flags"] | dict2["sefd_flags"]
                     weight_soln = np.reciprocal(
                         dict1["sefd_data"] * dict2["sefd_data"],

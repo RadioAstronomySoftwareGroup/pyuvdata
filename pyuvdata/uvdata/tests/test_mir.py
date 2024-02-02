@@ -736,10 +736,11 @@ def test_dedoppler_data(mir_data, sma_mir):
     # Make sure things differ
     assert sma_mir != mir_uv
 
-    # The only two things affected should be data_array and flag_array in the object,
-    # everything else should be identical.
+    # The only two things affected should be data_array, flag_array, and n_samples in
+    # the object, everything else should be identical.
     mir_uv.data_array = sma_mir.data_array
     mir_uv.flag_array = sma_mir.flag_array
+    mir_uv.nsample_array = sma_mir.nsample_array
     assert sma_mir == mir_uv
 
 
