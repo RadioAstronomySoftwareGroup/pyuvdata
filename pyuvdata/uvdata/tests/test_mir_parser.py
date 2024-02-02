@@ -1147,6 +1147,7 @@ def test_rechunk_cross(inplace):
         }
     }
     check_vals = np.arange(1024) + np.flip(np.arange(1024) * 1j)
+    vis_orig = copy.deepcopy(vis_data)
 
     # First up, test no averaging
     vis_copy = MirParser._rechunk_data(vis_data, [1], inplace=inplace)
@@ -1158,8 +1159,8 @@ def test_rechunk_cross(inplace):
     assert np.all(vis_data[25624]["data"] == check_vals)
     assert np.all(vis_data[25624]["weights"] == np.ones(1024))
 
-    # Next, test averaging w/o flags
-    vis_copy = MirParser._rechunk_data(vis_data, [4], inplace=inplace)
+    # Next, test averaging w/o flags and weighting
+    vis_copy = MirParser._rechunk_data(vis_data, [4], inplace=inplace, weight_data=True)
     check_vals = np.mean(check_vals.reshape(256, 4), axis=1)
 
     assert (vis_copy is vis_data) == inplace
@@ -1167,16 +1168,39 @@ def test_rechunk_cross(inplace):
     assert np.all(vis_copy[25624]["flags"] == np.zeros(256, dtype=bool))
     assert np.all(vis_copy[25624]["data"] == check_vals)
     assert np.all(vis_copy[25624]["weights"] == np.ones(256))
-    vis_data = vis_copy
+    vis_data = copy.deepcopy(vis_orig)
 
-    # Finally, check what happens if we flag data
-    vis_data[25624]["flags"][1:] = True
-    vis_copy = MirParser._rechunk_data(vis_data, [128], inplace=inplace)
+    # Next, test averaging w/o weighting and w/o flags
+    vis_copy = MirParser._rechunk_data(
+        vis_data, [4], inplace=inplace, weight_data=False
+    )
+    assert np.all(vis_copy[25624]["flags"] == np.zeros(256, dtype=bool))
+    assert np.all(vis_copy[25624]["data"] == check_vals)
+    assert np.all(vis_copy[25624]["weights"] == np.ones(256))
+    vis_data = copy.deepcopy(vis_orig)
+
+    # Check what happens if we flag data
+    vis_data[25624]["flags"][4:] = True
+    vis_copy = MirParser._rechunk_data(
+        vis_data, [512], inplace=inplace, norm_weights=False
+    )
+    assert (vis_copy is vis_data) == inplace
+    assert vis_data.keys() == vis_copy.keys()
+    assert np.all(vis_copy[25624]["flags"] == [False, True])
+    assert np.all(vis_copy[25624]["weights"] == [4.0, 0.0])
+    assert np.all(vis_copy[25624]["data"] == [check_vals[0], 0.0])
+    vis_data = copy.deepcopy(vis_orig)
+
+    # And lastly, check what happens if weights are not rechunked (nsamples weights)
+    vis_data[25624]["flags"][4:] = True
+    vis_copy = MirParser._rechunk_data(
+        vis_data, [512], inplace=inplace, norm_weights=True
+    )
     assert (vis_copy is vis_data) == inplace
     assert vis_data.keys() == vis_copy.keys()
     assert np.all(vis_copy[25624]["flags"] == [False, True])
     assert np.all(vis_copy[25624]["data"] == [check_vals[0], 0.0])
-    assert np.all(vis_copy[25624]["weights"] == [1.0, 0.0])
+    assert np.all(vis_copy[25624]["weights"] == [1 / 128, 0.0])
 
 
 @pytest.mark.parametrize("inplace", [True, False])
