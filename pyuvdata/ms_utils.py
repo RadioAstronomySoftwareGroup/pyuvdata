@@ -431,9 +431,9 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
     return phase_center_catalog
 
 
-def read_time_scale(tb_main, *, raise_error=False):
-    """Read time scale from TIME column in MS table."""
-    timescale = tb_main.getcolkeyword("TIME", "MEASINFO")["Ref"]
+def read_time_scale(ms_table, *, raise_error=False):
+    """Read time scale from TIME column in an MS table."""
+    timescale = ms_table.getcolkeyword("TIME", "MEASINFO")["Ref"]
     if timescale.lower() not in Time.SCALES:
         msg = (
             "This file has a timescale that is not supported by astropy. "
