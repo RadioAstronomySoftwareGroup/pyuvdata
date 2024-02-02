@@ -33,7 +33,7 @@ jobs:
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
-          CIBW_TEST_REQUIRES: packaging pytest pytest-cov pytest-cases
+          CIBW_TEST_REQUIRES: packaging pytest<8.0 pytest-cov pytest-cases
           CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
           CIBW_TEST_SKIP: "*-macosx_arm64"
 
