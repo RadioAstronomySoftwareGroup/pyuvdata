@@ -28,7 +28,6 @@ no_casa_message = (
 casa_present = True
 try:
     import casacore.tables as tables
-    import casacore.tables.tableutil as tableutil
 except ImportError as error:  # pragma: no cover
     casa_present = False
     casa_error = error
@@ -161,76 +160,6 @@ class MS(UVData):
         # skeleton measurement set.
         return tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
 
-    def _write_ms_antenna(self, filepath):
-        """
-        Write out the antenna information into a CASA table.
-
-        Parameters
-        ----------
-        filepath : str
-            Path to MS (without ANTENNA suffix).
-        """
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        antenna_table = tables.table(filepath + "::ANTENNA", ack=False, readonly=False)
-
-        # Note: measurement sets use the antenna number as an index into the antenna
-        # table. This means that if the antenna numbers do not start from 0 and/or are
-        # not contiguous, empty rows need to be inserted into the antenna table
-        # (this is somewhat similar to miriad)
-        nants_table = np.max(self.antenna_numbers) + 1
-        antenna_table.addrows(nants_table)
-
-        ant_names_table = [""] * nants_table
-        for ai, num in enumerate(self.antenna_numbers):
-            ant_names_table[num] = self.antenna_names[ai]
-
-        # There seem to be some variation on whether the antenna names are stored
-        # in the NAME or STATION column (importuvfits puts them in the STATION column
-        # while Cotter and the MS definition doc puts them in the NAME column).
-        # The MS definition doc suggests that antenna names belong in the NAME column
-        # and the telescope name belongs in the STATION column (it gives the example of
-        # GREENBANK for this column.) so we follow that here. For a reconfigurable
-        # array, the STATION can be though of as the "pad" name, which is distinct from
-        # the antenna name/number, and nominally fixed in position.
-        antenna_table.putcol("NAME", ant_names_table)
-        antenna_table.putcol("STATION", ant_names_table)
-
-        # Antenna positions in measurement sets appear to be in absolute ECEF
-        ant_pos_absolute = self.antenna_positions + self.telescope_location.reshape(
-            1, 3
-        )
-        ant_pos_table = np.zeros((nants_table, 3), dtype=np.float64)
-        for ai, num in enumerate(self.antenna_numbers):
-            ant_pos_table[num, :] = ant_pos_absolute[ai, :]
-
-        antenna_table.putcol("POSITION", ant_pos_table)
-        if self.antenna_diameters is not None:
-            ant_diam_table = np.zeros((nants_table), dtype=np.float64)
-            # This is here is suppress an error that arises when one has antennas of
-            # different diameters (which CASA can't handle), since otherwise the
-            # "padded" antennas have zero diameter (as opposed to any real telescope).
-            if len(np.unique(self.antenna_diameters)) == 1:
-                ant_diam_table[:] = self.antenna_diameters[0]
-            else:
-                for ai, num in enumerate(self.antenna_numbers):
-                    ant_diam_table[num] = self.antenna_diameters[ai]
-            antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
-
-        # Add telescope frame
-        if self._telescope_location.frame == "itrs":
-            # MS uses "ITRF" while astropy uses "itrs". They are the same.
-            ant_ref_frame = "ITRF"
-        else:
-            ant_ref_frame = self._telescope_location.frame.upper()
-            # TODO: ask Karto what the best way is to put in the lunar ellipsoid
-        meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
-        meas_info_dict["Ref"] = ant_ref_frame
-        antenna_table.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)
-
-        antenna_table.done()
-
     def _write_ms_data_description(self, filepath):
         """
         Write out the data description information into a CASA table.
@@ -327,107 +256,6 @@ class MS(UVData):
         feed_table.putcol("SPECTRAL_WINDOW_ID", spectral_window_id_table)
         feed_table.done()
 
-    def _write_ms_field(self, filepath):
-        """
-        Write out the field information into a CASA table.
-
-        Parameters
-        ----------
-        filepath : str
-            path to MS (without FIELD suffix)
-
-        """
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        field_table = tables.table(filepath + "::FIELD", ack=False, readonly=False)
-        time_val = (
-            Time(np.median(self.time_array), format="jd", scale="utc").mjd * 86400.0
-        )
-        n_poly = 0
-
-        var_ref = False
-        for ind, phase_dict in enumerate(self.phase_center_catalog.values()):
-            if ind == 0:
-                sou_frame = phase_dict["cat_frame"]
-                sou_epoch = phase_dict["cat_epoch"]
-                continue
-
-            if (sou_frame != phase_dict["cat_frame"]) or (
-                sou_epoch != phase_dict["cat_epoch"]
-            ):
-                var_ref = True
-                break
-
-        if var_ref:
-            var_ref_dict = {
-                key: val for val, key in enumerate(ms_utils.COORD_PYUVDATA2CASA_DICT)
-            }
-            col_ref_dict = {
-                "PHASE_DIR": "PhaseDir_Ref",
-                "DELAY_DIR": "DelayDir_Ref",
-                "REFERENCE_DIR": "RefDir_Ref",
-            }
-            for key in col_ref_dict.keys():
-                fieldcoldesc = tables.makearrcoldesc(
-                    col_ref_dict[key],
-                    0,
-                    valuetype="int",
-                    datamanagertype="StandardStMan",
-                    datamanagergroup="field standard manager",
-                )
-                del fieldcoldesc["desc"]["shape"]
-                del fieldcoldesc["desc"]["ndim"]
-                del fieldcoldesc["desc"]["_c_order"]
-
-                field_table.addcols(fieldcoldesc)
-                field_table.getcolkeyword(key, "MEASINFO")
-
-        ref_frame = self._parse_pyuvdata_frame_ref(sou_frame, sou_epoch)
-        for col in ["PHASE_DIR", "DELAY_DIR", "REFERENCE_DIR"]:
-            meas_info_dict = field_table.getcolkeyword(col, "MEASINFO")
-            meas_info_dict["Ref"] = ref_frame
-            if var_ref:
-                rev_ref_dict = {value: key for key, value in var_ref_dict.items()}
-                meas_info_dict["TabRefTypes"] = [
-                    rev_ref_dict[key] for key in sorted(rev_ref_dict.keys())
-                ]
-                meas_info_dict["TabRefCodes"] = np.arange(
-                    len(rev_ref_dict.keys()), dtype=np.int32
-                )
-                meas_info_dict["VarRefCol"] = col_ref_dict[col]
-
-            field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
-
-        sou_id_list = list(self.phase_center_catalog)
-
-        for idx, sou_id in enumerate(sou_id_list):
-            cat_dict = self.phase_center_catalog[sou_id]
-
-            phase_dir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
-            if (cat_dict["cat_type"] == "ephem") and (phase_dir.ndim == 3):
-                phase_dir = np.median(phase_dir, axis=2)
-
-            sou_name = cat_dict["cat_name"]
-            ref_dir = self._parse_pyuvdata_frame_ref(
-                cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref
-            )
-
-            field_table.addrows()
-
-            field_table.putcell("DELAY_DIR", idx, phase_dir)
-            field_table.putcell("PHASE_DIR", idx, phase_dir)
-            field_table.putcell("REFERENCE_DIR", idx, phase_dir)
-            field_table.putcell("NAME", idx, sou_name)
-            field_table.putcell("NUM_POLY", idx, n_poly)
-            field_table.putcell("TIME", idx, time_val)
-            field_table.putcell("SOURCE_ID", idx, sou_id)
-            if var_ref:
-                for key in col_ref_dict.keys():
-                    field_table.putcell(col_ref_dict[key], idx, var_ref_dict[ref_dir])
-
-        field_table.done()
-
     def _write_ms_source(self, filepath):
         """
         Write out the source information into a CASA table.
@@ -443,7 +271,7 @@ class MS(UVData):
 
         source_desc = tables.complete_ms_desc("SOURCE")
         source_table = tables.table(
-            filepath + "/SOURCE",
+            filepath + "::SOURCE",
             tabledesc=source_desc,
             dminfo=tables.makedminfo(source_desc),
             ack=False,
@@ -499,15 +327,6 @@ class MS(UVData):
                 source_table.putcell("DIRECTION", row_count, sou_dir[idx])
                 source_table.putcell("PROPER_MOTION", row_count, pm_dir)
                 row_count += 1
-
-        # We have one final thing we need to do here, which is to link the SOURCE table
-        # to the main table, since it's not included in the list of default subtables.
-        # You are _supposed_ to be able to provide a string, but it looks like that
-        # functionality is actually broken in CASA. Fortunately, supplying the whole
-        # table does seem to work (as least w/ casscore v3.3.1).
-        ms = tables.table(filepath, readonly=False, ack=False)
-        ms.putkeyword("SOURCE", source_table)
-        ms.done()
 
         source_table.done()
 
@@ -603,115 +422,6 @@ class MS(UVData):
 
         pointing_table.done()
 
-    def _write_ms_spectralwindow(self, filepath):
-        """
-        Write out the spectral information into a CASA table.
-
-        Parameters
-        ----------
-        filepath : str
-            path to MS (without SPECTRAL_WINDOW suffix)
-
-        """
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        sw_table = tables.table(
-            filepath + "::SPECTRAL_WINDOW", ack=False, readonly=False
-        )
-
-        if self.future_array_shapes:
-            freq_array = self.freq_array
-            ch_width = self.channel_width
-        else:
-            freq_array = self.freq_array[0]
-            ch_width = np.zeros_like(freq_array) + self.channel_width
-
-        spwidcoldesc = tables.makearrcoldesc(
-            "ASSOC_SPW_ID",
-            0,
-            valuetype="int",
-            ndim=-1,
-            datamanagertype="StandardStMan",
-            datamanagergroup="SpW optional column Standard Manager",
-            comment="Associated spectral window id",
-        )
-        del spwidcoldesc["desc"]["shape"]
-        sw_table.addcols(spwidcoldesc)
-
-        spwassoccoldesc = tables.makearrcoldesc(
-            "ASSOC_NATURE",
-            "",
-            valuetype="string",
-            ndim=-1,
-            datamanagertype="StandardStMan",
-            datamanagergroup="SpW optional column Standard Manager",
-            comment="Nature of association with other spectral window",
-        )
-        sw_table.addcols(spwassoccoldesc)
-
-        for idx, spw_id in enumerate(self.spw_array):
-            if self.flex_spw:
-                ch_mask = self.flex_spw_id_array == spw_id
-            else:
-                ch_mask = np.ones(freq_array.shape, dtype=bool)
-            sw_table.addrows()
-            sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
-            sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
-            sw_table.putcell("ASSOC_SPW_ID", idx, spw_id)
-            sw_table.putcell("ASSOC_NATURE", idx, "")  # Blank for now
-            sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
-            sw_table.putcell("CHAN_WIDTH", idx, ch_width[ch_mask])
-            sw_table.putcell("EFFECTIVE_BW", idx, ch_width[ch_mask])
-            sw_table.putcell("TOTAL_BANDWIDTH", idx, np.sum(ch_width[ch_mask]))
-            sw_table.putcell("RESOLUTION", idx, ch_width[ch_mask])
-            # TODO: These are placeholders for now, but should be replaced with
-            # actual frequency reference info (once UVData handles that)
-            sw_table.putcell("MEAS_FREQ_REF", idx, ms_utils.VEL_DICT["TOPO"])
-            sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
-
-        sw_table.done()
-
-    def _write_ms_observation(self, filepath):
-        """
-        Write out the observation information into a CASA table.
-
-        Parameters
-        ----------
-        filepath : str
-            path to MS (without OBSERVATION suffix)
-
-        """
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        observation_table = tables.table(
-            filepath + "::OBSERVATION", ack=False, readonly=False
-        )
-        observation_table.addrows()
-        observation_table.putcell("TELESCOPE_NAME", 0, self.telescope_name)
-
-        # It appears that measurement sets do not have a concept of a telescope location
-        # We add it here as a non-standard column in order to round trip it properly
-        name_col_desc = tableutil.makearrcoldesc(
-            "TELESCOPE_LOCATION",
-            self.telescope_location[0],
-            shape=[3],
-            valuetype="double",
-        )
-        observation_table.addcols(name_col_desc)
-        observation_table.putcell("TELESCOPE_LOCATION", 0, self.telescope_location)
-
-        extra_upper = [key.upper() for key in self.extra_keywords.keys()]
-        if "OBSERVER" in extra_upper:
-            key_ind = extra_upper.index("OBSERVER")
-            key = list(self.extra_keywords.keys())[key_ind]
-            observation_table.putcell("OBSERVER", 0, self.extra_keywords[key])
-        else:
-            observation_table.putcell("OBSERVER", 0, self.telescope_name)
-
-        observation_table.done()
-
     def _write_ms_polarization(self, filepath, pol_order):
         """
         Write out the polarization information into a CASA table.
@@ -777,143 +487,6 @@ class MS(UVData):
                 pol_table.putcell("NUM_CORR", idx, self.Npols)
 
         pol_table.done()
-
-    def _write_ms_history(self, filepath):
-        """
-        Parse the history into an MS history table.
-
-        If the history string contains output from `_ms_hist_to_string`, parse that back
-        into the MS history table.
-
-        Parameters
-        ----------
-        filepath : str
-            path to MS (without HISTORY suffix)
-        history : str
-            A history string that may or may not contain output from
-            `_ms_hist_to_string`.
-
-        """
-        if not casa_present:  # pragma: no cover
-            raise ImportError(no_casa_message) from casa_error
-
-        app_params = []
-        cli_command = []
-        application = []
-        message = []
-        obj_id = []
-        obs_id = []
-        origin = []
-        priority = []
-        times = []
-        ms_history = "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in self.history
-
-        if ms_history:
-            # this history contains info from an MS history table. Need to parse it.
-
-            ms_header_line_no = None
-            ms_end_line_no = None
-            pre_ms_history_lines = []
-            post_ms_history_lines = []
-            for line_no, line in enumerate(self.history.splitlines()):
-                if not ms_history:
-                    continue
-
-                if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in line:
-                    ms_header_line_no = line_no
-                    # we don't need this line anywhere below so continue
-                    continue
-
-                if "End measurement set history" in line:
-                    ms_end_line_no = line_no
-                    # we don't need this line anywhere below so continue
-                    continue
-
-                if ms_header_line_no is not None and ms_end_line_no is None:
-                    # this is part of the MS history block. Parse it.
-                    line_parts = line.split(";")
-                    if len(line_parts) != 9:
-                        # If the line has the wrong number of elements, then the history
-                        # is mangled and we shouldn't try to parse it -- just record
-                        # line-by-line as we do with any other pyuvdata history.
-                        warnings.warn(
-                            "Failed to parse prior history of MS file, "
-                            "switching to standard recording method."
-                        )
-                        pre_ms_history_lines = post_ms_history_lines = []
-                        ms_history = False
-                        continue
-
-                    app_params.append(line_parts[0])
-                    cli_command.append(line_parts[1])
-                    application.append(line_parts[2])
-                    message.append(line_parts[3])
-                    obj_id.append(int(line_parts[4]))
-                    obs_id.append(int(line_parts[5]))
-                    origin.append(line_parts[6])
-                    priority.append(line_parts[7])
-                    times.append(np.float64(line_parts[8]))
-                elif ms_header_line_no is None:
-                    # this is before the MS block
-                    if "Begin measurement set history" not in line:
-                        pre_ms_history_lines.append(line)
-                else:
-                    # this is after the MS block
-                    post_ms_history_lines.append(line)
-
-            for line_no, line in enumerate(pre_ms_history_lines):
-                app_params.insert(line_no, "")
-                cli_command.insert(line_no, "")
-                application.insert(line_no, "pyuvdata")
-                message.insert(line_no, line)
-                obj_id.insert(line_no, 0)
-                obs_id.insert(line_no, -1)
-                origin.insert(line_no, "pyuvdata")
-                priority.insert(line_no, "INFO")
-                times.insert(line_no, Time.now().mjd * 3600.0 * 24.0)
-
-            for line in post_ms_history_lines:
-                app_params.append("")
-                cli_command.append("")
-                application.append("pyuvdata")
-                message.append(line)
-                obj_id.append(0)
-                obs_id.append(-1)
-                origin.append("pyuvdata")
-                priority.append("INFO")
-                times.append(Time.now().mjd * 3600.0 * 24.0)
-
-        if not ms_history:
-            # no prior MS history detected in the history. Put all of our history in
-            # the message column
-            for line in self.history.splitlines():
-                app_params.append("")
-                cli_command.append("")
-                application.append("pyuvdata")
-                message.append(line)
-                obj_id.append(0)
-                obs_id.append(-1)
-                origin.append("pyuvdata")
-                priority.append("INFO")
-                times.append(Time.now().mjd * 3600.0 * 24.0)
-
-        history_table = tables.table(filepath + "::HISTORY", ack=False, readonly=False)
-
-        nrows = len(message)
-        history_table.addrows(nrows)
-
-        # the first two lines below break on python-casacore < 3.1.0
-        history_table.putcol("APP_PARAMS", np.asarray(app_params)[:, np.newaxis])
-        history_table.putcol("CLI_COMMAND", np.asarray(cli_command)[:, np.newaxis])
-        history_table.putcol("APPLICATION", application)
-        history_table.putcol("MESSAGE", message)
-        history_table.putcol("OBJECT_ID", obj_id)
-        history_table.putcol("OBSERVATION_ID", obs_id)
-        history_table.putcol("ORIGIN", origin)
-        history_table.putcol("PRIORITY", priority)
-        history_table.putcol("TIME", times)
-
-        history_table.done()
 
     def write_ms(
         self,
@@ -1217,73 +790,16 @@ class MS(UVData):
 
         ms.done()
 
-        self._write_ms_antenna(filepath)
+        ms_utils.write_ms_antenna(filepath, self)
         self._write_ms_data_description(filepath)
         self._write_ms_feed(filepath, pol_order=pol_order)
-        self._write_ms_field(filepath)
-        self._write_ms_source(filepath)
-        self._write_ms_spectralwindow(filepath)
+        ms_utils.write_ms_field(filepath, self)
+        ms_utils.write_ms_history(filepath, self.history)
+        ms_utils.write_ms_observation(filepath, self)
         self._write_ms_pointing(filepath)
         self._write_ms_polarization(filepath, pol_order=pol_order)
-        self._write_ms_observation(filepath)
-        self._write_ms_history(filepath)
-
-    def _parse_pyuvdata_frame_ref(self, frame_name, epoch_val, *, raise_error=True):
-        """
-        Interpret a UVData pair of frame + epoch into a CASA frame name.
-
-        Parameters
-        ----------
-        frame_name : str
-            Name of the frame. Typically matched to the UVData attribute
-            `phase_center_frame`.
-        epoch_val : float
-            Epoch value for the given frame, in Julian years unless `frame_name="FK4"`,
-            in which case the value is in Besselian years. Typically matched to the
-            UVData attribute `phase_center_epoch`.
-        raise_error : bool
-            Whether to raise an error if the name has no match. Default is True, if set
-            to false will raise a warning instead.
-
-        Returns
-        -------
-        ref_name : str
-            Name of the CASA-based spatial coordinate reference frame.
-
-        Raises
-        ------
-        ValueError
-            If the provided coordinate frame and/or epoch value has no matching
-            counterpart to those supported in CASA.
-
-        """
-        # N.B. -- this is something of a stub for a more sophisticated function to
-        # handle this. For now, this just does a reverse lookup on the limited frames
-        # supported by UVData objects, although eventually it can be expanded to support
-        # more native MS frames.
-        reverse_dict = {
-            ref: key for key, ref in ms_utils.COORD_PYUVDATA2CASA_DICT.items()
-        }
-
-        ref_name = None
-        try:
-            ref_name = reverse_dict[
-                (str(frame_name), 2000.0 if (epoch_val is None) else float(epoch_val))
-            ]
-        except KeyError as err:
-            epoch_msg = (
-                "no epoch" if epoch_val is None else f"epoch {format(epoch_val, 'g')}"
-            )
-            message = (
-                f"Frame {frame_name} ({epoch_msg}) does not have a "
-                "corresponding match to supported frames in the MS file format."
-            )
-            if raise_error:
-                raise ValueError(message) from err
-            else:
-                warnings.warn(message)
-
-        return ref_name
+        self._write_ms_source(filepath)
+        ms_utils.write_ms_spectral_window(filepath, self)
 
     def _read_ms_main(
         self,
