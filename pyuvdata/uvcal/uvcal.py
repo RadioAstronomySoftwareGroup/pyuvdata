@@ -616,6 +616,89 @@ class UVCal(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
+        desc = (
+            "Optional when reading an MS cal table. Retains the scan number when "
+            "reading a measurement set. Shape (Nblts), type = int."
+        )
+        self._scan_number_array = uvp.UVParameter(
+            "scan_number_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Dictionary that acts as a catalog, containing information on individual "
+            "phase centers. Keys are the catalog IDs of the different phase centers in "
+            "the object (matched to the parameter `phase_center_id_array`). At a "
+            "minimum, each dictionary must contain the keys: "
+            "'cat_name' giving the phase center name (this does not have to be unique, "
+            "non-unique values can be used to indicate sets of phase centers that make "
+            "up a mosaic observation), "
+            "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
+            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
+            "Az/El, NOT the same as the old `phase_type`='drift') or 'unprojected' "
+            "(baseline coordinates in ENU, but data are not phased, similar to "
+            "the old `phase_type`='drift')"
+            "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
+            "astropy). "
+            "Other optional keys include "
+            "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
+            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
+            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
+            "'cat_pm_ra' (proper motion in RA), "
+            "'cat_pm_dec' (proper motion in Dec), "
+            "'cat_dist' (physical distance to the source in parsec, useful if parallax "
+            "is important, either a single value or a one dimensional array of length "
+            "Npts --the number of ephemeris data points-- for ephem type phase "
+            "centers.), "
+            "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers.), and "
+            "'info_source' (describes where catalog info came from). "
+            "Most typically used with MS calibration tables."
+        )
+        self._phase_center_catalog = uvp.UVParameter(
+            "phase_center_catalog", description=desc, expected_type=dict, required=False
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Maps individual indices along the Ntimes axis to a key in "
+            "`phase_center_catalog`, which maps to a dict containing the other "
+            "metadata for each phase center. Used to specify where the data were "
+            "phased to when calibration tables were derived. Most typically used when "
+            "reading MS calibration tables. Shape (Nblts), type = int."
+        )
+        self._phase_center_id_array = uvp.UVParameter(
+            "phase_center_id_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
+        desc = (
+            "Optional parameter, array of antenna diameters in meters. Used by CASA to "
+            "construct a default beam if no beam is supplied."
+        )
+        self._antenna_diameters = uvp.UVParameter(
+            "antenna_diameters",
+            required=False,
+            description=desc,
+            form=("Nants_telescope",),
+            expected_type=float,
+            tols=1e-3,  # 1 mm
+        )
+
         super(UVCal, self).__init__()
 
     @staticmethod
@@ -4797,8 +4880,12 @@ class UVCal(UVBase):
             from . import calh5
 
             other_obj = calh5.CalH5()
+        elif filetype == "ms":
+            from . import ms_cal
+
+            other_obj = ms_cal.MSCal()
         else:
-            raise ValueError("filetype must be calh5 or calfits.")
+            raise ValueError("filetype must be calh5, calfits, or ms.")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -5199,6 +5286,36 @@ class UVCal(UVBase):
             self._convert_from_filetype(fhd_cal_obj)
             del fhd_cal_obj
 
+    def read_ms_cal(self, filename, **kwargs):
+        """
+        Read in data from an MS calibration table.
+
+        Parameters
+        ----------
+            filename : str
+                The measurement set to read from.
+            run_check : bool
+                Option to check for the existence and proper shapes of
+                parameters after reading in the file.
+            check_extra : bool
+                Option to check optional parameters as well as required ones.
+            run_check_acceptability : bool
+                Option to check acceptable range of the values of
+                parameters after reading in the file.
+            astrometry_library : str
+                Library used for calculating LSTs. Allowed options are 'erfa' (which
+                uses the pyERFA), 'novas' (which uses the python-novas library), and
+                'astropy' (which uses the astropy utilities). Default is erfa unless
+                the telescope_location frame is MCMF (on the moon), in which case the
+                default is astropy.
+        """
+        from . import ms_cal
+
+        ms_cal_obj = ms_cal.MSCal()
+        ms_cal_obj.read_ms_cal(filename, **kwargs)
+        self._convert_from_filetype(ms_cal_obj)
+        del ms_cal_obj
+
     def read(
         self,
         filename,
@@ -5375,15 +5492,34 @@ class UVCal(UVBase):
                 file_type = "calfits"
             elif "h5" in extension:
                 file_type = "calh5"
-            else:
-                raise ValueError(
-                    "File type could not be determined, use the "
-                    "file_type keyword to specify the type."
-                )
 
-        if file_type not in ["calfits", "fhd", "calh5"]:
+        if file_type is None:
+            # Nothing could be auto-determined, so let's jump to the next level and
+            # try to look at the file contents and see what's up. In paticular, if this
+            # is a directory, there's some additional clues for us to look for.
+            if multi:
+                file_test = filename[0]
+            else:
+                file_test = filename
+
+            if os.path.isdir(file_test):
+                # it's a directory, so it's either miriad, mir, or ms file type
+                if os.path.exists(os.path.join(file_test, "vartable")):
+                    # It's miriad.
+                    file_type = "miriad"
+                elif os.path.exists(os.path.join(file_test, "OBSERVATION")):
+                    # It's a measurement set.
+                    file_type = "ms"
+
+        if file_type is None:
             raise ValueError(
-                "The only supported file_types are 'calfits', 'calh5', and 'fhd'."
+                "File type could not be determined, use the "
+                "file_type keyword to specify the type."
+            )
+
+        if file_type not in ["calfits", "fhd", "calh5", "ms"]:
+            raise ValueError(
+                "The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'."
             )
 
         obs_file_use = None
@@ -5526,7 +5662,7 @@ class UVCal(UVBase):
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
         else:
-            if file_type in ["fhd", "calfits"]:
+            if file_type in ["fhd", "calfits", "ms"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -5610,6 +5746,14 @@ class UVCal(UVBase):
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
+                )
+            elif file_type == "ms":
+                self.read_ms_cal(
+                    filename,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
                     astrometry_library=astrometry_library,
                 )
 
@@ -5751,3 +5895,17 @@ class UVCal(UVBase):
         calh5_obj = self._convert_to_filetype("calh5")
         calh5_obj.write_calh5(filename, **kwargs)
         del calh5_obj
+
+    def write_ms_cal(self, filename, **kwargs):
+        """
+        Write the data to a MS calibration table.
+
+        Parameters
+        ----------
+        filename : str
+            The measurement set to write to.
+
+        """
+        ms_cal_obj = self._convert_to_filetype("ms")
+        ms_cal_obj.write_ms_cal(filename, **kwargs)
+        del ms_cal_obj

@@ -3,11 +3,13 @@
 # Licensed under the 2-clause BSD License
 """Utilities for working with MeasurementSet files."""
 
+import os
 import warnings
 
 import numpy as np
 from astropy.time import Time
 
+from . import __version__
 from . import utils as uvutils
 
 no_casa_message = (
@@ -17,7 +19,8 @@ no_casa_message = (
 casa_present = True
 casa_error = None
 try:
-    import casacore.tables as tables
+    from casacore import tables
+    from casacore.tables import tableutil
 except ImportError as error:  # pragma: no cover
     casa_present = False
     casa_error = error
@@ -93,15 +96,73 @@ COORD_PYUVDATA2CASA_DICT = {
 }
 
 
-def _ms_utils_call_checks(filepath):
+def _ms_utils_call_checks(filepath, invert_check=False):
     # Check for casa.
     if not casa_present:
         raise ImportError(no_casa_message) from casa_error
-
-    if not tables.tableexists(filepath):
+    if invert_check:
+        if os.path.exists(filepath):
+            raise FileExistsError(filepath + " already exists.")
+    elif not tables.tableexists(filepath):
         raise FileNotFoundError(
             filepath + " not found or not recognized as an MS table."
         )
+
+
+def _parse_pyuvdata_frame_ref(frame_name, epoch_val, *, raise_error=True):
+    """
+    Interpret a UVData pair of frame + epoch into a CASA frame name.
+
+    Parameters
+    ----------
+    frame_name : str
+        Name of the frame. Typically matched to the UVData attribute
+        `phase_center_frame`.
+    epoch_val : float
+        Epoch value for the given frame, in Julian years unless `frame_name="FK4"`,
+        in which case the value is in Besselian years. Typically matched to the
+        UVData attribute `phase_center_epoch`.
+    raise_error : bool
+        Whether to raise an error if the name has no match. Default is True, if set
+        to false will raise a warning instead.
+
+    Returns
+    -------
+    ref_name : str
+        Name of the CASA-based spatial coordinate reference frame.
+
+    Raises
+    ------
+    ValueError
+        If the provided coordinate frame and/or epoch value has no matching
+        counterpart to those supported in CASA.
+
+    """
+    # N.B. -- this is something of a stub for a more sophisticated function to
+    # handle this. For now, this just does a reverse lookup on the limited frames
+    # supported by UVData objects, although eventually it can be expanded to support
+    # more native MS frames.
+    reverse_dict = {ref: key for key, ref in COORD_PYUVDATA2CASA_DICT.items()}
+
+    ref_name = None
+    try:
+        ref_name = reverse_dict[
+            (str(frame_name), 2000.0 if (epoch_val is None) else float(epoch_val))
+        ]
+    except KeyError as err:
+        epoch_msg = (
+            "no epoch" if epoch_val is None else f"epoch {format(epoch_val, 'g')}"
+        )
+        message = (
+            f"Frame {frame_name} ({epoch_msg}) does not have a "
+            "corresponding match to supported frames in the MS file format."
+        )
+        if raise_error:
+            raise ValueError(message) from err
+        else:
+            warnings.warn(message)
+
+    return ref_name
 
 
 def _parse_casa_frame_ref(ref_name, *, raise_error=True):
@@ -311,6 +372,7 @@ def read_ms_ant(filepath, check_frame=True):
         # antenna names
         antenna_names = np.asarray(tb_ant.getcol("NAME"))[good_mask].tolist()
         station_names = np.asarray(tb_ant.getcol("STATION"))[good_mask].tolist()
+        ant_diameters = np.asarray(tb_ant.getcol("DISH_DIAMETER"))[good_mask].tolist()
 
     # Build a dict with all the relevant entries we need.
     ant_dict = {
@@ -319,6 +381,7 @@ def read_ms_ant(filepath, check_frame=True):
         "telescope_frame": telescope_frame,
         "antenna_names": antenna_names,
         "station_names": station_names,
+        "antenna_diameters": ant_diameters,
     }
 
     # Return the dict
@@ -406,12 +469,12 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
 
         field_dict["ra"][idx] = float(phase_dir[0, 0])
         field_dict["dec"][idx] = float(phase_dir[0, 1])
-        field_dict["source_id"] = int(tb_field.getcell("SOURCE_ID", idx))
+        field_dict["source_id"][idx] = int(tb_field.getcell("SOURCE_ID", idx))
 
     if not return_phase_center_catalog:
         return field_dict
 
-    phase_center_catalog = []
+    phase_center_catalog = {}
     for idx in range(n_rows):
         phase_center_catalog[field_dict["source_id"][idx]] = {
             "cat_name": field_dict["name"][idx],
@@ -450,3 +513,508 @@ def read_time_scale(ms_table, *, raise_error=False):
             timescale = "utc"
 
     return timescale.lower()
+
+
+def write_ms_antenna(
+    filepath,
+    uvobj=None,
+    *,
+    antenna_numbers=None,
+    antenna_names=None,
+    antenna_positions=None,
+    antenna_diameters=None,
+    telescope_location=None,
+    telescope_frame=None,
+):
+    """
+    Write out the antenna information into a CASA table.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to MS (without ANTENNA suffix).
+    """
+    _ms_utils_call_checks(filepath)
+    filepath += "::ANTENNA"
+
+    if uvobj is not None:
+        antenna_numbers = uvobj.antenna_numbers
+        antenna_names = uvobj.antenna_names
+        antenna_positions = uvobj.antenna_positions
+        antenna_diameters = uvobj.antenna_diameters
+        telescope_location = uvobj.telescope_location
+        telescope_frame = uvobj._telescope_location.frame
+
+    tabledesc = tables.required_ms_desc("ANTENNA")
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as antenna_table:
+        # Note: measurement sets use the antenna number as an index into the antenna
+        # table. This means that if the antenna numbers do not start from 0 and/or are
+        # not contiguous, empty rows need to be inserted into the antenna table
+        # (this is somewhat similar to miriad)
+        nants_table = np.max(antenna_numbers) + 1
+        antenna_table.addrows(nants_table)
+
+        ant_names_table = [""] * nants_table
+        for ai, num in enumerate(antenna_numbers):
+            ant_names_table[num] = antenna_names[ai]
+
+        # There seem to be some variation on whether the antenna names are stored
+        # in the NAME or STATION column (importuvfits puts them in the STATION column
+        # while Cotter and the MS definition doc puts them in the NAME column).
+        # The MS definition doc suggests that antenna names belong in the NAME column
+        # and the telescope name belongs in the STATION column (it gives the example of
+        # GREENBANK for this column.) so we follow that here. For a reconfigurable
+        # array, the STATION can be though of as the "pad" name, which is distinct from
+        # the antenna name/number, and nominally fixed in position.
+        antenna_table.putcol("NAME", ant_names_table)
+        antenna_table.putcol("STATION", ant_names_table)
+
+        # Antenna positions in measurement sets appear to be in absolute ECEF
+        ant_pos_absolute = antenna_positions + telescope_location.reshape(1, 3)
+        ant_pos_table = np.zeros((nants_table, 3), dtype=np.float64)
+        for ai, num in enumerate(antenna_numbers):
+            ant_pos_table[num, :] = ant_pos_absolute[ai, :]
+
+        antenna_table.putcol("POSITION", ant_pos_table)
+        if antenna_diameters is not None:
+            ant_diam_table = np.zeros((nants_table), dtype=np.float64)
+            # This is here is suppress an error that arises when one has antennas of
+            # different diameters (which CASA can't handle), since otherwise the
+            # "padded" antennas have zero diameter (as opposed to any real telescope).
+            if len(np.unique(antenna_diameters)) == 1:
+                ant_diam_table[:] = antenna_diameters[0]
+            else:
+                for ai, num in enumerate(antenna_numbers):
+                    ant_diam_table[num] = antenna_diameters[ai]
+            antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
+
+        # Add telescope frame
+        # TODO: ask Karto what the best way is to put in the lunar ellipsoid
+        telescope_frame = telescope_frame.upper()
+        telescope_frame = "ITRF" if (telescope_frame == "ITRS") else telescope_frame
+        meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
+        meas_info_dict["Ref"] = telescope_frame
+        antenna_table.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)
+
+
+def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=None):
+    """
+    Write out the field information into a CASA table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without FIELD suffix)
+
+    """
+    _ms_utils_call_checks(filepath)
+    filepath += "::FIELD"
+
+    if uvobj is not None:
+        phase_center_catalog = uvobj.phase_center_catalog
+        time_val = (
+            Time(np.median(uvobj.time_array), format="jd", scale="utc").mjd * 86400.0
+        )
+
+    tabledesc = tables.required_ms_desc("FIELD")
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as field_table:
+        n_poly = 0
+
+        var_ref = False
+        for ind, phase_dict in enumerate(phase_center_catalog.values()):
+            if ind == 0:
+                sou_frame = phase_dict["cat_frame"]
+                sou_epoch = phase_dict["cat_epoch"]
+                continue
+
+            if (sou_frame != phase_dict["cat_frame"]) or (
+                sou_epoch != phase_dict["cat_epoch"]
+            ):
+                var_ref = True
+                break
+
+        if var_ref:
+            var_ref_dict = {
+                key: val for val, key in enumerate(COORD_PYUVDATA2CASA_DICT)
+            }
+            col_ref_dict = {
+                "PHASE_DIR": "PhaseDir_Ref",
+                "DELAY_DIR": "DelayDir_Ref",
+                "REFERENCE_DIR": "RefDir_Ref",
+            }
+            for key in col_ref_dict.keys():
+                fieldcoldesc = tables.makearrcoldesc(
+                    col_ref_dict[key],
+                    0,
+                    valuetype="int",
+                    datamanagertype="StandardStMan",
+                    datamanagergroup="field standard manager",
+                )
+                del fieldcoldesc["desc"]["shape"]
+                del fieldcoldesc["desc"]["ndim"]
+                del fieldcoldesc["desc"]["_c_order"]
+
+                field_table.addcols(fieldcoldesc)
+                field_table.getcolkeyword(key, "MEASINFO")
+
+        ref_frame = _parse_pyuvdata_frame_ref(sou_frame, sou_epoch)
+        for col in ["PHASE_DIR", "DELAY_DIR", "REFERENCE_DIR"]:
+            meas_info_dict = field_table.getcolkeyword(col, "MEASINFO")
+            meas_info_dict["Ref"] = ref_frame
+            if var_ref:
+                rev_ref_dict = {value: key for key, value in var_ref_dict.items()}
+                meas_info_dict["TabRefTypes"] = [
+                    rev_ref_dict[key] for key in sorted(rev_ref_dict.keys())
+                ]
+                meas_info_dict["TabRefCodes"] = np.arange(
+                    len(rev_ref_dict.keys()), dtype=np.int32
+                )
+                meas_info_dict["VarRefCol"] = col_ref_dict[col]
+
+            field_table.putcolkeyword(col, "MEASINFO", meas_info_dict)
+
+        sou_id_list = list(phase_center_catalog)
+
+        for idx, sou_id in enumerate(sou_id_list):
+            cat_dict = phase_center_catalog[sou_id]
+
+            phase_dir = np.array([[cat_dict["cat_lon"], cat_dict["cat_lat"]]])
+            if (cat_dict["cat_type"] == "ephem") and (phase_dir.ndim == 3):
+                phase_dir = np.median(phase_dir, axis=2)
+
+            sou_name = cat_dict["cat_name"]
+            ref_dir = _parse_pyuvdata_frame_ref(
+                cat_dict["cat_frame"], cat_dict["cat_epoch"], raise_error=var_ref
+            )
+
+            field_table.addrows()
+
+            field_table.putcell("DELAY_DIR", idx, phase_dir)
+            field_table.putcell("PHASE_DIR", idx, phase_dir)
+            field_table.putcell("REFERENCE_DIR", idx, phase_dir)
+            field_table.putcell("NAME", idx, sou_name)
+            field_table.putcell("NUM_POLY", idx, n_poly)
+            field_table.putcell("TIME", idx, time_val)
+            field_table.putcell("SOURCE_ID", idx, sou_id)
+            if var_ref:
+                for key in col_ref_dict.keys():
+                    field_table.putcell(col_ref_dict[key], idx, var_ref_dict[ref_dir])
+
+
+def write_ms_history(filepath, history):
+    """
+    Parse the history into an MS history table.
+
+    If the history string contains output from `_ms_hist_to_string`, parse that back
+    into the MS history table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without HISTORY suffix)
+    history : str
+        A history string that may or may not contain output from
+        `_ms_hist_to_string`.
+
+    """
+    _ms_utils_call_checks(filepath)
+    filepath += "::HISTORY"
+
+    app_params = []
+    cli_command = []
+    application = []
+    message = []
+    obj_id = []
+    obs_id = []
+    origin = []
+    priority = []
+    times = []
+    ms_history = "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in history
+
+    if ms_history:
+        # this history contains info from an MS history table. Need to parse it.
+
+        ms_header_line_no = None
+        ms_end_line_no = None
+        pre_ms_history_lines = []
+        post_ms_history_lines = []
+        for line_no, line in enumerate(history.splitlines()):
+            if not ms_history:
+                continue
+
+            if "APP_PARAMS;CLI_COMMAND;APPLICATION;MESSAGE" in line:
+                ms_header_line_no = line_no
+                # we don't need this line anywhere below so continue
+                continue
+
+            if "End measurement set history" in line:
+                ms_end_line_no = line_no
+                # we don't need this line anywhere below so continue
+                continue
+
+            if ms_header_line_no is not None and ms_end_line_no is None:
+                # this is part of the MS history block. Parse it.
+                line_parts = line.split(";")
+                if len(line_parts) != 9:
+                    # If the line has the wrong number of elements, then the history
+                    # is mangled and we shouldn't try to parse it -- just record
+                    # line-by-line as we do with any other pyuvdata history.
+                    warnings.warn(
+                        "Failed to parse prior history of MS file, "
+                        "switching to standard recording method."
+                    )
+                    pre_ms_history_lines = post_ms_history_lines = []
+                    ms_history = False
+                    continue
+
+                app_params.append(line_parts[0])
+                cli_command.append(line_parts[1])
+                application.append(line_parts[2])
+                message.append(line_parts[3])
+                obj_id.append(int(line_parts[4]))
+                obs_id.append(int(line_parts[5]))
+                origin.append(line_parts[6])
+                priority.append(line_parts[7])
+                times.append(np.float64(line_parts[8]))
+            elif ms_header_line_no is None:
+                # this is before the MS block
+                if "Begin measurement set history" not in line:
+                    pre_ms_history_lines.append(line)
+            else:
+                # this is after the MS block
+                post_ms_history_lines.append(line)
+
+        for line_no, line in enumerate(pre_ms_history_lines):
+            app_params.insert(line_no, "")
+            cli_command.insert(line_no, "")
+            application.insert(line_no, "pyuvdata")
+            message.insert(line_no, line)
+            obj_id.insert(line_no, 0)
+            obs_id.insert(line_no, -1)
+            origin.insert(line_no, "pyuvdata")
+            priority.insert(line_no, "INFO")
+            times.insert(line_no, Time.now().mjd * 3600.0 * 24.0)
+
+        for line in post_ms_history_lines:
+            app_params.append("")
+            cli_command.append("")
+            application.append("pyuvdata")
+            message.append(line)
+            obj_id.append(0)
+            obs_id.append(-1)
+            origin.append("pyuvdata")
+            priority.append("INFO")
+            times.append(Time.now().mjd * 3600.0 * 24.0)
+
+    if not ms_history:
+        # no prior MS history detected in the history. Put all of our history in
+        # the message column
+        for line in history.splitlines():
+            app_params.append("")
+            cli_command.append("")
+            application.append("pyuvdata")
+            message.append(line)
+            obj_id.append(0)
+            obs_id.append(-1)
+            origin.append("pyuvdata")
+            priority.append("INFO")
+            times.append(Time.now().mjd * 3600.0 * 24.0)
+
+    tabledesc = tables.required_ms_desc("HISTORY")
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as history_table:
+        nrows = len(message)
+        history_table.addrows(nrows)
+
+        # the first two lines below break on python-casacore < 3.1.0
+        history_table.putcol("APP_PARAMS", np.asarray(app_params)[:, np.newaxis])
+        history_table.putcol("CLI_COMMAND", np.asarray(cli_command)[:, np.newaxis])
+        history_table.putcol("APPLICATION", application)
+        history_table.putcol("MESSAGE", message)
+        history_table.putcol("OBJECT_ID", obj_id)
+        history_table.putcol("OBSERVATION_ID", obs_id)
+        history_table.putcol("ORIGIN", origin)
+        history_table.putcol("PRIORITY", priority)
+        history_table.putcol("TIME", times)
+
+
+def write_ms_observation(filepath, uvobj):
+    """
+    Write out the observation information into a CASA table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without OBSERVATION suffix)
+
+    """
+    _ms_utils_call_checks(filepath)
+    filepath += "::OBSERVATION"
+
+    if uvobj is not None:
+        telescope_name = uvobj.telescope_name
+        telescope_location = uvobj.telescope_location
+        observer = telescope_name
+        for key in uvobj.extra_keywords:
+            if key.upper() == "OBSERVER":
+                observer = uvobj.extra_keywords[key]
+
+    tabledesc = tables.required_ms_desc("OBSERVATION")
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as observation_table:
+        observation_table.addrows()
+        observation_table.putcell("TELESCOPE_NAME", 0, telescope_name)
+
+        # It appears that measurement sets do not have a concept of a telescope location
+        # We add it here as a non-standard column in order to round trip it properly
+        name_col_desc = tableutil.makearrcoldesc(
+            "TELESCOPE_LOCATION", telescope_location[0], shape=[3], valuetype="double"
+        )
+        observation_table.addcols(name_col_desc)
+        observation_table.putcell("TELESCOPE_LOCATION", 0, telescope_location)
+        observation_table.putcell("OBSERVER", 0, observer)
+
+
+def write_ms_spectral_window(
+    filepath=None,
+    uvobj=None,
+    *,
+    freq_array=None,
+    channel_width=None,
+    spw_array=None,
+    flex_spw_id_array=None,
+    use_future_array_shapes=True,
+):
+    """
+    Write out the spectral information into a CASA table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without SPECTRAL_WINDOW suffix)
+
+    """
+    _ms_utils_call_checks(filepath)
+    filepath += "::SPECTRAL_WINDOW"
+
+    if uvobj is not None:
+        freq_array = uvobj.freq_array
+        channel_width = uvobj.channel_width
+        spw_array = uvobj.spw_array
+        flex_spw_id_array = uvobj.flex_spw_id_array
+        use_future_array_shapes = uvobj.future_array_shapes
+
+    if not use_future_array_shapes:
+        freq_array = freq_array[0]
+        channel_width = np.full_like(freq_array, channel_width)
+
+    # Construct a couple of columns we're going to use that are not part of
+    # the MS v2.0 baseline format (though are useful for pyuvdata objects).
+    tabledesc = tables.required_ms_desc("SPECTRAL_WINDOW")
+    extended_desc = tables.complete_ms_desc("SPECTRAL_WINDOW")
+    tabledesc["ASSOC_SPW_ID"] = extended_desc["ASSOC_SPW_ID"]
+    tabledesc["ASSOC_NATURE"] = extended_desc["ASSOC_NATURE"]
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as sw_table:
+        for idx, spw_id in enumerate(spw_array):
+            if flex_spw_id_array is None:
+                ch_mask = np.ones(freq_array.shape, dtype=bool)
+            else:
+                ch_mask = flex_spw_id_array == spw_id
+            sw_table.addrows()
+            sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
+            sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
+            sw_table.putcell("ASSOC_SPW_ID", idx, spw_id)
+            sw_table.putcell("ASSOC_NATURE", idx, "")  # Blank for now
+            sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
+            sw_table.putcell("CHAN_WIDTH", idx, channel_width[ch_mask])
+            sw_table.putcell("EFFECTIVE_BW", idx, channel_width[ch_mask])
+            sw_table.putcell("TOTAL_BANDWIDTH", idx, np.sum(channel_width[ch_mask]))
+            sw_table.putcell("RESOLUTION", idx, channel_width[ch_mask])
+            # TODO: These are placeholders for now, but should be replaced with
+            # actual frequency reference info (once pyuvdata handles that)
+            sw_table.putcell("MEAS_FREQ_REF", idx, VEL_DICT["TOPO"])
+            sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
+
+
+def init_ms_cal_file(filename):
+    """Initialize an MS calibration file."""
+    standard_desc = tables.required_ms_desc()
+    tabledesc = {}
+    tabledesc["TIME"] = standard_desc["TIME"]
+    tabledesc["FIELD_ID"] = standard_desc["FIELD_ID"]
+    tabledesc["ANTENNA1"] = standard_desc["ANTENNA1"]
+    tabledesc["ANTENNA2"] = standard_desc["ANTENNA2"]
+    tabledesc["INTERVAL"] = standard_desc["INTERVAL"]
+    tabledesc["SCAN_NUMBER"] = standard_desc["SCAN_NUMBER"]
+    tabledesc["OBSERVATION_ID"] = standard_desc["OBSERVATION_ID"]
+    # This is kind of a weird aliasing that's done for tables -- may not be always true,
+    # but this seems to be needed as of now (circa 2024).
+    tabledesc["SPECTRAL_WINDOW_ID"] = standard_desc["DATA_DESC_ID"]
+
+    for field in tabledesc:
+        # Option seems to be set to 5 for the above fields, based on CASA testing
+        tabledesc[field]["option"] = 5
+
+    # FLAG and weight are _mostly_ standard, just needs ndim modified
+    tabledesc["FLAG"] = standard_desc["FLAG"]
+    tabledesc["WEIGHT"] = standard_desc["WEIGHT"]
+    tabledesc["FLAG"]["ndim"] = tabledesc["WEIGHT"]["ndim"] = -1
+
+    # PARAMERR and SNR are very similar to SIGMA, so we'll boot-strap from it, with
+    # the comments just being updated
+    tabledesc["PARAMERR"] = standard_desc["SIGMA"]
+    tabledesc["SNR"] = standard_desc["SIGMA"]
+    tabledesc["SNR"]["ndim"] = tabledesc["PARAMERR"]["ndim"] = -1
+    tabledesc["SNR"]["comment"] = "Signal-to-noise of the gain solution."
+    tabledesc["PARAMERR"]["comment"] = "Uncertainty in the gains."
+
+    tabledesc["CPARAM"] = tables.makearrcoldesc(
+        None,
+        None,
+        valuetype="complex",
+        ndim=-1,
+        datamanagertype="StandardStMan",
+        comment="Complex gain data.",
+    )["desc"]
+    del tabledesc["CPARAM"]["shape"]
+
+    for field in tabledesc:
+        tabledesc[field]["dataManagerGroup"] = "MSMTAB"
+
+    dminfo = tables.makedminfo(tabledesc)
+
+    with tables.table(
+        filename, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
+    ) as ms:
+        # Put some general stuff into the top level dict, default to wideband gains.
+        ms.putinfo(
+            {
+                "type": "Calibration",
+                "subType": "G Jones",
+                "readme": f"Written with pyuvdata version: {__version__}.",
+            }
+        )
+        # Finally, set up some de
+        ms.putkeyword("ParType", "Complex")
+        ms.putkeyword("MSName", "unknown")
+        ms.putkeyword("VisCal", "unknown")
+        ms.putkeyword("PolBasis", "unknown")
+        ms.putkeyword("CASA_Version", "unknown")
