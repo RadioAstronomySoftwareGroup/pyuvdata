@@ -12,12 +12,11 @@ import numpy as np
 import pytest
 from astropy.time import Time
 
-import pyuvdata.tests as uvtest
-import pyuvdata.utils as uvutils
-from pyuvdata import UVData
-from pyuvdata.data import DATA_PATH
-from pyuvdata.uvdata.ms import MS
-from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
+from ... import UVData
+from ... import tests as uvtest
+from ... import utils as uvutils
+from ...data import DATA_PATH
+from ..uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
 
@@ -488,29 +487,6 @@ def test_bad_col_name():
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
         uvobj.read(testfile, data_column="FOO", use_future_array_shapes=True)
-
-
-@pytest.mark.parametrize("check_warning", [True, False])
-@pytest.mark.parametrize(
-    "frame,epoch,msg",
-    (
-        ["fk5", 1991.1, "Frame fk5 (epoch 1991.1) does not have a corresponding match"],
-        ["fk4", 1991.1, "Frame fk4 (epoch 1991.1) does not have a corresponding match"],
-        ["icrs", 2021.0, "Frame icrs (epoch 2021) does not have a corresponding"],
-    ),
-)
-def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
-    """
-    Test errors with matching CASA frames to astropy frame/epochs
-    """
-    uvobj = MS()
-    if check_warning:
-        with uvtest.check_warnings(UserWarning, match=msg):
-            uvobj._parse_pyuvdata_frame_ref(frame, epoch, raise_error=False)
-    else:
-        with pytest.raises(ValueError) as cm:
-            uvobj._parse_pyuvdata_frame_ref(frame, epoch)
-        assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
