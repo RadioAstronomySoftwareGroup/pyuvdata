@@ -85,6 +85,10 @@ def uvcal_data():
         "extra_keywords",
         "gain_scale",
         "filename",
+        "scan_number_array",
+        "phase_center_catalog",
+        "phase_center_id_array",
+        "antenna_diameters",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
@@ -559,7 +563,7 @@ def test_set_redundant(gain_data):
 
 def test_convert_filetype(gain_data):
     # error testing
-    with pytest.raises(ValueError, match="filetype must be calh5 or calfits."):
+    with pytest.raises(ValueError, match="filetype must be calh5, calfits, or ms."):
         gain_data._convert_to_filetype("uvfits")
 
 
@@ -4096,7 +4100,7 @@ def test_read_errors():
 
     with pytest.raises(
         ValueError,
-        match="The only supported file_types are 'calfits', 'calh5', and 'fhd'.",
+        match="The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'.",
     ):
         UVCal.from_file(gainfile, file_type="foo")
 
