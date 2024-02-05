@@ -51,11 +51,11 @@ class MSCal(UVCal):
         # Use the utility function to verify this actually is an MS file
         ms_utils._ms_utils_call_checks(filepath)
 
-        # Set some initial things from the get go -- no legacy support
-        self._set_flex_spw()
+        # Set some initial things from the get go -- no legacy support!
         self._set_future_array_shapes()
+
+        # I think all casa-based stuff is sky-based.
         self._set_sky()
-        self._set_gain()
 
         self.filename = filepath
 
@@ -76,25 +76,36 @@ class MSCal(UVCal):
             )
 
         if main_info_dict["subType"] == "G Jones":
-            self._set_gain
             # This is a so-called "wideband" gains calibration table, i.e. not bandpass
-            self.wide_band = True
-            self.cal_type = "gain"
-        elif main_info_dict["subType"] == "B Jones":
+            self._set_wide_band()
             self._set_gain
+        elif main_info_dict["subType"] == "B Jones":
             # This is a bandpass solution
-            self.wide_band = False
-            self.cal_type = "gain"
+            self._set_flex_spw()
+            self._set_gain()
         elif main_info_dict["subType"] == "K Jones":
             # This is a delay solution? Need to understand the units...
-            self.wide_band = True
-            self.cal_type = "delay"
-            raise NotImplementedError("No support yet for delay solutions.")
+            self._set_wide_band()
+            self._set_delay()
         else:
-            warnings.warn(
-                "Cannot recognize solution type, treating as wideband gain solutions."
+            # I don't know what this is, so don't proceed any further.
+            raise NotImplementedError(
+                "Calibration type %s is not recognized/supported by UVCal. Please file "
+                "an issue in our GitHub issue log so that we can add support it."
+                % main_info_dict["subType"]
             )
-            self.wide_band = True
+
+        par_type = tb_main.getkeyword("ParType")
+        if par_type == "Complex":
+            cal_column = "CPARAM"
+        elif par_type == "Float":
+            cal_column = "FPARAM"
+        else:
+            raise NotImplementedError(
+                "Parameter type %s is not recognized/supported by UVCal. Please file "
+                "an issue in our GitHub issue log so that we can add support it."
+                % par_type
+            )
 
         main_keywords = tb_main.getkeywords()
         for keyword in ["CASA_Version", "MSName"]:
@@ -158,9 +169,12 @@ class MSCal(UVCal):
                 "first entry as the default"
             )
 
-        self.ref_antenna_name = self.antenna_names[
-            np.where(self.antenna_numbers == ref_ant_array[0])[0][0]
-        ]
+        try:
+            self.ref_antenna_name = self.antenna_names[
+                np.where(self.antenna_numbers == ref_ant_array[0])[0][0]
+            ]
+        except IndexError:
+            self.ref_antenna_name = "unknown CASA reference antenna"
 
         spw_info = ms_utils.read_ms_spectral_window(filepath)
 
@@ -203,7 +217,7 @@ class MSCal(UVCal):
         self.sky_catalog = "CASA (import)"
 
         # MAIN LOOP
-        self.Njones = tb_main.getcell("CPARAM", 0).shape[1]
+        self.Njones = tb_main.getcell(cal_column, 0).shape[1]
         if main_keywords["PolBasis"].lower() == "unknown":
             warnings.warn(
                 "Unknown polarization basis for solutions, jones_array values "
@@ -246,7 +260,9 @@ class MSCal(UVCal):
         # Make a map to things.
         ant_dict = {ant: idx for idx, ant in enumerate(self.antenna_numbers)}
         cal_arr_shape = (self.Nants_data, self.Nfreqs, self.Ntimes, self.Njones)
-        ms_cal_soln = np.zeros(cal_arr_shape, dtype=complex)
+        ms_cal_soln = np.zeros(
+            cal_arr_shape, dtype=complex if (self.cal_type == "gain") else float
+        )
         self.quality_array = np.zeros(cal_arr_shape, dtype=float)
         self.flag_array = np.ones(cal_arr_shape, dtype=bool)
         self.total_quality_array = None  # Always None for now, no similar array in MS
@@ -257,7 +273,7 @@ class MSCal(UVCal):
             try:
                 ant_idx = ant_dict[tb_main.getcell("ANTENNA1", row_idx)]
                 time_val = tb_main.getcell("TIME", row_idx)
-                cal_soln = tb_main.getcell("CPARAM", row_idx)
+                cal_soln = tb_main.getcell(cal_column, row_idx)
                 cal_qual = tb_main.getcell("PARAMERR", row_idx)
                 cal_flag = tb_main.getcell("FLAG", row_idx)
                 field_id = tb_main.getcell("FIELD_ID", row_idx)
@@ -302,7 +318,8 @@ class MSCal(UVCal):
         if self.cal_type == "gain":
             self.gain_array = ms_cal_soln
         elif self.cal_type == "delay":
-            self.delay_array = ms_cal_soln
+            # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
+            self.delay_array = ms_cal_soln * 1e-9
 
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
 
@@ -322,8 +339,9 @@ class MSCal(UVCal):
                 ) from err
 
         # Initialize our calibration file, and get things set up with the appropriate
-        # columns for us to write to in the main table.
-        ms_utils.init_ms_cal_file(filename)
+        # columns for us to write to in the main table. This is a little different
+        # Depending on whether the table is a gains or delays file (complex vs floats).
+        ms_utils.init_ms_cal_file(filename, delay_table=(self.cal_type == "delay"))
 
         # There's a little bit of extra handling required here for the different gains
         # types, which are encoded in the first letter of the subtype name. Best docs
@@ -345,6 +363,13 @@ class MSCal(UVCal):
 
         if self.cal_type == "gain":
             casa_subtype = "G Jones" if self.wide_band else "B Jones"
+            cal_column = "CPARAM"
+            cal_array = self.gain_array
+        elif self.cal_type == "delay":
+            casa_subtype = "K Jones"
+            cal_column = "FPARAM"
+            # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds
+            cal_array = self.delay_array * 1e9
         else:
             raise NotImplementedError("Sorry, still working on this...")
 
@@ -384,7 +409,7 @@ class MSCal(UVCal):
 
             # Add all the rows we need up front, which will allow us to fill the
             # columns all in one shot.
-            ms.addrows(self.Ntimes * self.Nfreqs * Nants_casa)
+            ms.addrows(self.Ntimes * self.Nspws * Nants_casa)
 
             # Assume we have _more_ than one spectral window, where each needs to be
             # handled  separately, since they can have differing numbers of channels.
@@ -404,9 +429,14 @@ class MSCal(UVCal):
             # and then the more usual selections of per-time, per-ant1, etc.
 
             ant_array = np.tile(np.arange(Nants_casa), self.Ntimes * self.Nspws)
-            refant = self.antenna_numbers[
-                self.antenna_names.index(self.ref_antenna_name)
-            ]
+            try:
+                refant = self.antenna_numbers[
+                    self.antenna_names.index(self.ref_antenna_name)
+                ]
+            except ValueError:
+                # We don't know what the refant was, so mark this accordingly
+                refant = -1
+
             refant_array = np.full_like(ant_array, refant)
 
             # Time-based properties need to be repeated on Nants_casa, since the antenna
@@ -474,14 +504,14 @@ class MSCal(UVCal):
                 # We're going to leave a placeholder for SNR for now, since it's
                 # somewhat redundant and not totally clear how it's calculated.
                 data_dict = {
-                    "CPARAM": self.gain_array[:, spw_sel, :, :],
+                    cal_column: cal_array[:, spw_sel, :, :],
                     "FLAG": self.flag_array[:, spw_sel, :, :],
                     "PARAMERR": qual_arr,
                     "SNR": np.zeros_like(qual_arr),
                 }
-                # N.b. (Karto): WEIGHT was totally unfilled in every example file that
-                # I poked at that was generated via CASA. It iss possible it's not
-                # actually used for anything or is otherwise vestigial, so leave it be
+                # N.b. (Karto): WEIGHT was totally unfilled in every example file I
+                # poked at that was generated via CASA. It's possible it's not actually
+                # used for anything or is otherwise vestigial, so leave it be for now.
 
                 for item in data_dict:
                     subarr = data_dict[item]
@@ -521,8 +551,8 @@ class MSCal(UVCal):
         if self.phase_center_catalog is None:
             cat_dict = {
                 0: {
-                    "cat_lat": 0.0,
-                    "cat_lon": 0.0,
+                    "cat_lat": -1.0,
+                    "cat_lon": -1.0,
                     "cat_name": "unknown",
                     "cat_type": "sidereal",
                     "cat_frame": "icrs",
