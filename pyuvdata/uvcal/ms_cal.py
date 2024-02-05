@@ -61,7 +61,7 @@ class MSCal(UVCal):
 
         # get the history info from the ms_utils
         try:
-            self.history = ms_utils.read_ms_hist(filepath, self.pyuvdata_version_str)
+            self.history = ms_utils.read_ms_history(filepath, self.pyuvdata_version_str)
         except FileNotFoundError:
             self.history = self.pyuvdata_version_str
 
@@ -104,8 +104,8 @@ class MSCal(UVCal):
         # tb_field = tables.table(filepath + "/FIELD", ack=False)
 
         # open table with antenna location information
-        ant_info = ms_utils.read_ms_ant(filepath)
-        obs_info = ms_utils.read_ms_obs(filepath)
+        ant_info = ms_utils.read_ms_antenna(filepath)
+        obs_info = ms_utils.read_ms_observation(filepath)
 
         self.observer = obs_info["observer"]
         self.telescope_name = obs_info["telescope_name"]
@@ -162,7 +162,7 @@ class MSCal(UVCal):
             np.where(self.antenna_numbers == ref_ant_array[0])[0][0]
         ]
 
-        spw_info = ms_utils.read_ms_spw(filepath)
+        spw_info = ms_utils.read_ms_spectral_window(filepath)
 
         self.spw_array = spw_info["assoc_spw_id"]
         self.Nspws = len(self.spw_array)
@@ -286,7 +286,7 @@ class MSCal(UVCal):
         self.time_array = Time(
             self.time_array / 86400.0,
             format="mjd",
-            scale=ms_utils.read_time_scale(tb_main),
+            scale=ms_utils._get_time_scale(tb_main),
         ).utc.jd
 
         # There's a little bit of cleanup to do w/ field_id, since the values here
@@ -517,7 +517,7 @@ class MSCal(UVCal):
 
         # Alright, main table is done (and because w/ used `with`, already closed).
         # Finally, write all of the supporting tables that we need.
-        ms_utils.write_ms_antenna(filename, self)
+        ms_utils.write_ms_antenna(filename, uvobj=self)
         if self.phase_center_catalog is None:
             cat_dict = {
                 0: {
@@ -533,8 +533,8 @@ class MSCal(UVCal):
                 filename, phase_center_catalog=cat_dict, time_val=0.0
             )
         else:
-            ms_utils.write_ms_field(filename, self)
+            ms_utils.write_ms_field(filename, uvobj=self)
 
-        ms_utils.write_ms_history(filename, self.history)
-        ms_utils.write_ms_observation(filename, self)
-        ms_utils.write_ms_spectral_window(filename, self)
+        ms_utils.write_ms_history(filename, uvobj=self)
+        ms_utils.write_ms_observation(filename, uvobj=self)
+        ms_utils.write_ms_spectral_window(filename, uvobj=self)
