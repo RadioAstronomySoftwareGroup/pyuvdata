@@ -207,6 +207,8 @@ class MSCal(UVCal):
 
         # Just assume that the gain scale is always in Jy
         self.gain_scale = "Jy"
+        nchan = self.Nfreqs
+
         if self.wide_band:
             self.freq_range = np.vstack(
                 (
@@ -214,6 +216,12 @@ class MSCal(UVCal):
                     self.freq_array + (self.channel_width / 2),
                 )
             ).T
+            self.freq_array = None
+            self.channel_width = None
+            self.flex_spw_id_array = None
+            self.Nfreqs = 1
+            nchan = self.Nspws
+
         self.sky_catalog = "CASA (import)"
 
         # MAIN LOOP
@@ -259,7 +267,8 @@ class MSCal(UVCal):
 
         # Make a map to things.
         ant_dict = {ant: idx for idx, ant in enumerate(self.antenna_numbers)}
-        cal_arr_shape = (self.Nants_data, self.Nfreqs, self.Ntimes, self.Njones)
+        cal_arr_shape = (self.Nants_data, nchan, self.Ntimes, self.Njones)
+
         ms_cal_soln = np.zeros(
             cal_arr_shape, dtype=complex if (self.cal_type == "gain") else float
         )
@@ -417,7 +426,10 @@ class MSCal(UVCal):
             # slower and more memory-intensive than putcol).
             spw_sel_dict = {}
             for spw_id in self.spw_array:
-                spw_selection = self.flex_spw_id_array == spw_id
+                if self.wide_band:
+                    spw_selection = np.equal(self.spw_array, spw_id)
+                else:
+                    spw_selection = np.equal(self.flex_spw_id_array, spw_id)
                 spw_nchan = sum(spw_selection)
                 [spw_selection], _ = uvutils._convert_to_slices(
                     spw_selection, max_nslice=1, return_index_on_fail=True
