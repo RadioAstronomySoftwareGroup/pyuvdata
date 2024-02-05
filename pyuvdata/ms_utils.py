@@ -1409,7 +1409,7 @@ def init_ms_file(filepath):
     return tables.default_ms(filepath, ms_desc, tables.makedminfo(ms_desc))
 
 
-def init_ms_cal_file(filename):
+def init_ms_cal_file(filename, delay_table=False):
     """Initialize an MS calibration file."""
     standard_desc = tables.required_ms_desc()
     tabledesc = {}
@@ -1441,15 +1441,15 @@ def init_ms_cal_file(filename):
     tabledesc["SNR"]["comment"] = "Signal-to-noise of the gain solution."
     tabledesc["PARAMERR"]["comment"] = "Uncertainty in the gains."
 
-    tabledesc["CPARAM"] = tables.makearrcoldesc(
+    tabledesc["FPARAM" if delay_table else "CPARAM"] = tables.makearrcoldesc(
         None,
         None,
-        valuetype="complex",
+        valuetype="float" if delay_table else "complex",
         ndim=-1,
         datamanagertype="StandardStMan",
-        comment="Complex gain data.",
+        comment="Delay values." if delay_table else "Complex gain values.",
     )["desc"]
-    del tabledesc["CPARAM"]["shape"]
+    del tabledesc["FPARAM" if delay_table else "CPARAM"]["shape"]
 
     for field in tabledesc:
         tabledesc[field]["dataManagerGroup"] = "MSMTAB"
@@ -1463,12 +1463,12 @@ def init_ms_cal_file(filename):
         ms.putinfo(
             {
                 "type": "Calibration",
-                "subType": "G Jones",
+                "subType": "K Jones" if delay_table else "G Jones",
                 "readme": f"Written with pyuvdata version: {__version__}.",
             }
         )
         # Finally, set up some de
-        ms.putkeyword("ParType", "Complex")
+        ms.putkeyword("ParType", "Float" if delay_table else "Complex")
         ms.putkeyword("MSName", "unknown")
         ms.putkeyword("VisCal", "unknown")
         ms.putkeyword("PolBasis", "unknown")
