@@ -916,7 +916,7 @@ def read_ms_spectral_window(filepath):
 
         try:
             spw_dict["assoc_spw_id"] = [
-                int(idx) for idx in tb_spws.getcol("ASSOC_SPW_ID")
+                int(idx[0]) for idx in tb_spws.getcol("ASSOC_SPW_ID")
             ]
             spw_dict["spoof_spw_id"] = False
         except RuntimeError:
@@ -953,10 +953,16 @@ def write_ms_spectral_window(
     filepath += "::SPECTRAL_WINDOW"
 
     if uvobj is not None:
-        freq_array = uvobj.freq_array
-        channel_width = uvobj.channel_width
+        if "_freq_range" in uvobj and uvobj.freq_range is not None:
+            freq_array = np.mean(uvobj.freq_range, axis=-1)
+            channel_width = np.squeeze(np.diff(uvobj.freq_range, axis=-1), axis=-1)
+            flex_spw_id_array = np.array(uvobj.spw_array)
+        else:
+            freq_array = uvobj.freq_array
+            channel_width = uvobj.channel_width
+            flex_spw_id_array = uvobj.flex_spw_id_array
+
         spw_array = uvobj.spw_array
-        flex_spw_id_array = uvobj.flex_spw_id_array
         use_future_array_shapes = uvobj.future_array_shapes
 
     if not use_future_array_shapes:
