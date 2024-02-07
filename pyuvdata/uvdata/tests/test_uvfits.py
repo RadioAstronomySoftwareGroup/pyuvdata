@@ -1668,7 +1668,7 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
     "ignore:The shapes of several attributes will be changing "
     "in the future to remove the deprecated spectral window axis."
 )
-def test_miriad_convention(casa_uvfits, tmp_path):
+def test_miriad_convention(tmp_path):
     """
     Test writing a MIRIAD-compatible UVFITS file
     """
@@ -1682,6 +1682,7 @@ def test_miriad_convention(casa_uvfits, tmp_path):
     uv.antenna_numbers[10] = new_idx
     uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
     uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
+    uv.baseline_array = uv.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array)
 
     testfile1 = str(tmp_path / "uv1.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
@@ -1701,17 +1702,47 @@ def test_miriad_convention(casa_uvfits, tmp_path):
         assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"]
         assert hdu[1].data["NOSTA"][0] == expected_vals["NOSTA_0"]
 
+    uv2 = UVData.from_file(testfile1)
+    uv2._update_phase_center_id(1, 0)
+    uv2.phase_center_catalog[0]["info_source"] = uv.phase_center_catalog[0][
+        "info_source"
+    ]
+
+    assert uv2._ant_1_array == uv._ant_1_array
+    assert uv2._ant_2_array == uv._ant_2_array
+
+    assert uv2 == uv
+
     # Test that antennas get +1 if there is a 0-indexed antennas
     old_idx = uv.antenna_numbers[0]
     new_idx = 0
     uv.antenna_numbers[0] = new_idx
     uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
     uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
+    uv.baseline_array = uv.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array)
+    uv2 = uv.copy()
 
     testfile1 = str(tmp_path / "uv2.uvfits")
     uv.write_uvfits(testfile1, use_miriad_convention=True)
+
+    # make sure write_uvfits doesn't change the object
+    assert uv2 == uv
 
     with fits.open(testfile1) as hdu:
         assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"] + 1
         assert hdu[0].data["ANTENNA2"][0] == expected_vals["ANTENNA2_0"] + 1
         assert hdu[1].data["NOSTA"][0] == 1  # expected_vals["NOSTA_0"]
+
+    uv2 = UVData.from_file(testfile1)
+    uv2._update_phase_center_id(1, 0)
+    uv2.phase_center_catalog[0]["info_source"] = uv.phase_center_catalog[0][
+        "info_source"
+    ]
+
+    # adjust for expected antenna number changes:
+    uv2.antenna_numbers -= 1
+    uv2.ant_1_array -= 1
+    uv2.ant_2_array -= 1
+    uv2.baseline_array = uv2.antnums_to_baseline(uv2.ant_1_array, uv2.ant_2_array)
+
+    assert uv2 == uv
