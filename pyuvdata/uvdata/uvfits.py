@@ -1008,17 +1008,20 @@ class UVFITS(UVData):
         int_time_array = self.integration_time
 
         # If using MIRIAD convention, we need 1-indexed data
+        ant_nums_use = copy.copy(self.antenna_numbers)
+        ant1_array_use = copy.copy(self.ant_1_array)
+        ant2_array_use = copy.copy(self.ant_2_array)
         if use_miriad_convention:
-            if np.min(self.antenna_numbers) == 0:
-                self.antenna_numbers += 1
-                self.ant_1_array += 1
-                self.ant_2_array += 1
+            if np.min(ant_nums_use) == 0:
+                ant_nums_use += 1
+                ant1_array_use += 1
+                ant2_array_use += 1
 
         # Generate baseline IDs
         attempt256 = False if use_miriad_convention else True
         baselines_use = self.antnums_to_baseline(
-            self.ant_1_array,
-            self.ant_2_array,
+            ant1_array_use,
+            ant2_array_use,
             attempt256=attempt256,
             use_miriad_convention=use_miriad_convention,
         )
@@ -1034,9 +1037,9 @@ class UVFITS(UVData):
             "DATE    ": time_array1,
             "BASELINE": baselines_use,
             "SOURCE  ": None,
-            "ANTENNA1": self.ant_1_array,
-            "ANTENNA2": self.ant_2_array,
-            "SUBARRAY": np.ones_like(self.ant_1_array),
+            "ANTENNA1": ant1_array_use,
+            "ANTENNA2": ant2_array_use,
+            "SUBARRAY": np.ones_like(ant1_array_use),
             "INTTIM  ": int_time_array,
         }
 
@@ -1097,13 +1100,13 @@ class UVFITS(UVData):
             pzero_dict["DATE2   "] = 0.0
             parnames_use.append("DATE2   ")
 
-        if use_miriad_convention:
-            # MIRIAD requires BASELINE column.
-            parnames_use.append("BASELINE")
-        elif np.max(self.ant_1_array) < 255 and np.max(self.ant_2_array) < 255:
+        if use_miriad_convention or (
+            np.max(ant1_array_use) < 255 and np.max(ant2_array_use) < 255
+        ):
             # if the number of antennas is less than 256 then include both the
             # baseline array and the antenna arrays in the group parameters.
-            # Otherwise just use the antenna arrays
+            # Otherwise just use the antenna arrays unless writing for mirad.
+            # MIRIAD requires the BASELINE column.
             parnames_use.append("BASELINE")
         else:
             warnings.warn(
@@ -1282,7 +1285,7 @@ class UVFITS(UVData):
         )
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # col3 = fits.Column(name="ORBPARAM", format="0D", array=Norb)
-        col4 = fits.Column(name="NOSTA", format="1J", array=self.antenna_numbers)
+        col4 = fits.Column(name="NOSTA", format="1J", array=ant_nums_use)
         col5 = fits.Column(name="MNTSTA", format="1J", array=mntsta)
         col6 = fits.Column(name="STAXOF", format="1E", array=staxof)
         col7 = fits.Column(name="POLTYA", format="1A", array=poltya)
