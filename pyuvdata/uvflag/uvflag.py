@@ -1215,9 +1215,13 @@ class UVFlag(UVBase):
                     set_ant_metadata = False
 
             if not set_ant_metadata:
+                ant_params_to_remove = []
                 for p in telescope_params:
                     if "ant" in p:
-                        telescope_params.remove(p)
+                        ant_params_to_remove.append(p)
+
+                for p in ant_params_to_remove:
+                    telescope_params.remove(p)
 
             for p in telescope_params:
                 telescope_param = getattr(telescope_obj, p)

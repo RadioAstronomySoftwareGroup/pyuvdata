@@ -108,7 +108,7 @@ class UVBase(object):
 
         # String to add to history of any files written with this version of pyuvdata
         self.pyuvdata_version_str = (
-            f"  Read/written with pyuvdata version: {__version__ }."
+            f"  Read/written with pyuvdata version: {__version__}."
         )
 
     def __setstate__(self, state):
