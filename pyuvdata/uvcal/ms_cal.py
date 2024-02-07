@@ -202,7 +202,7 @@ class MSCal(UVCal):
 
         # Don't think CASA is going to support a non-sky based model, but hey, who knows
         self.cal_style = "sky"
-        self.gain_convention = "multiply"  # Need to verify this or "divide"
+        self.gain_convention = "divide"  # N.b., manually verified by Karto in CASA v6.4
         self.Nsources = len(np.unique(tb_main.getcol("FIELD_ID")))
 
         # Just assume that the gain scale is always in Jy
