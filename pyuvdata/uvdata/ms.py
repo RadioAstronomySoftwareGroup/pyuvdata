@@ -1488,7 +1488,7 @@ class MS(UVData):
             ]
         except KeyError as err:
             epoch_msg = (
-                "no epoch" if epoch_val is None else f"epoch {format(epoch_val,'g')}"
+                "no epoch" if epoch_val is None else f"epoch {format(epoch_val, 'g')}"
             )
             message = (
                 f"Frame {frame_name} ({epoch_msg}) does not have a "
