@@ -347,8 +347,9 @@ class AnalyticBeam(ABC):
         self,
         freq_array: npt.NDArray[np.float],
         beam_type: Literal["efield", "power"] = "efield",
-        pixel_coordinate_system: Literal["az_za", "orthoslant_zenith", "healpix"]
-        | None = None,
+        pixel_coordinate_system: (
+            Literal["az_za", "orthoslant_zenith", "healpix"] | None
+        ) = None,
         **kwargs,
     ):
         """Generate a UVBeam object from an AnalyticBeam object.
