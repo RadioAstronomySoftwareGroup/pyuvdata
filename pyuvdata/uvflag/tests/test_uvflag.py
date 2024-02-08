@@ -1066,12 +1066,10 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
         (
             "antenna",
             ["antenna_numbers"],
-            [UserWarning, UserWarning, UserWarning],
+            [UserWarning, UserWarning],
             [
                 "Not all antennas with data have metadata in the telescope object. "
                 "Not setting antenna metadata.",
-                "antenna_numbers is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
                 "antenna_numbers not in file, cannot be set based on ant_array "
                 "because Nants_telescope is greater than Nants_data. This will result "
                 "in errors when the object is checked.",
