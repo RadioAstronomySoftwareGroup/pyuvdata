@@ -9,7 +9,6 @@ import pytest
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import AiryBeam, BeamInterface, GaussianBeam, ShortDipoleBeam, UniformBeam
-from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 
 @pytest.fixture()
@@ -30,7 +29,7 @@ def xy_grid_coarse():
     return az_array, za_array, freqs
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
+@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
 @pytest.mark.parametrize(
     ["beam_obj", "kwargs"],
     [
