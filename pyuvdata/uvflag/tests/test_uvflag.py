@@ -2370,7 +2370,8 @@ def test_to_waterfall_waterfall():
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("uvf_future_shapes", [True, False])
-def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
+@pytest.mark.parametrize("resort", [True, False])
+def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes, resort):
     uv = uvdata_obj
     if not uvd_future_shapes:
         uv.use_current_array_shapes()
@@ -2391,6 +2392,18 @@ def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
         uv.flex_spw_id_array = np.zeros(uv.Nfreqs, dtype=int)
         uv.flex_spw_id_array[uv.Nfreqs // 2 :] = 1
         uv.check()
+
+    if resort:
+        rng = np.random.default_rng()
+        new_order = rng.permutation(uvf.Nants_telescope)
+        if uvf_future_shapes:
+            uvf.antenna_numbers = uvf.antenna_numbers[new_order]
+            uvf.antenna_names = uvf.antenna_names[new_order]
+            uvf.antenna_positions = uvf.antenna_positions[new_order, :]
+        else:
+            uv.antenna_numbers = uvf.antenna_numbers[new_order]
+            uv.antenna_names = uvf.antenna_names[new_order]
+            uv.antenna_positions = uvf.antenna_positions[new_order, :]
 
     uvf.to_baseline(uv)
     assert uvf.type == "baseline"
@@ -2736,7 +2749,8 @@ def test_to_baseline_metric_force_pol(uvdata_obj):
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("uvf_future_shapes", [True, False])
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
-def test_to_antenna_flags(uvcal_obj, uvf_future_shapes, uvc_future_shapes):
+@pytest.mark.parametrize("resort", [True, False])
+def test_to_antenna_flags(uvcal_obj, uvf_future_shapes, uvc_future_shapes, resort):
     uvc = uvcal_obj
     if not uvc_future_shapes:
         uvc.use_current_array_shapes()
@@ -2764,6 +2778,18 @@ def test_to_antenna_flags(uvcal_obj, uvf_future_shapes, uvc_future_shapes):
         uvc.flex_spw_id_array = np.zeros(uvc.Nfreqs, dtype=int)
         uvc.flex_spw_id_array[uvc.Nfreqs // 2 :] = 1
         uvc.check()
+
+    if resort:
+        rng = np.random.default_rng()
+        new_order = rng.permutation(uvf.Nants_telescope)
+        if uvf_future_shapes:
+            uvf.antenna_numbers = uvf.antenna_numbers[new_order]
+            uvf.antenna_names = uvf.antenna_names[new_order]
+            uvf.antenna_positions = uvf.antenna_positions[new_order, :]
+        else:
+            uvc.antenna_numbers = uvf.antenna_numbers[new_order]
+            uvc.antenna_names = uvf.antenna_names[new_order]
+            uvc.antenna_positions = uvf.antenna_positions[new_order, :]
 
     uvf.to_antenna(uvc)
     assert uvf.type == "antenna"

@@ -1607,6 +1607,45 @@ class UVFlag(UVBase):
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
+    def sort_ant_metadata_like(self, uv):
+        """
+        Sort the antenna metadata arrays like an input object.
+
+        This only does something if both objects have antenna_numbers defined
+        and they contain the same set of antenna_numbers and they are
+        differently sorted.
+
+        Parameters
+        ----------
+        uv : UVFlag, UVCal or UVData object
+            Object to match the antenna metadata sorting to
+
+        """
+        if (
+            self.antenna_numbers is not None
+            and uv.antenna_numbers is not None
+            and np.intersect1d(self.antenna_numbers, uv.antenna_numbers).size
+            == self.Nants_telescope
+            and not np.allclose(self.antenna_numbers, uv.antenna_numbers)
+        ):
+            # first get sort order for each
+            this_order = np.argsort(self.antenna_numbers)
+            uv_order = np.argsort(uv.antenna_numbers)
+
+            # now get array to invert the uv sort
+            inv_uv_order = np.empty_like(uv_order)
+            inv_uv_order[uv_order] = np.arange(uv.Nants_telescope)
+
+            # generate the array to sort self like uv
+            this_uv_sort = this_order[inv_uv_order]
+
+            # do the sorting
+            self.antenna_numbers = self.antenna_numbers[this_uv_sort]
+            if self.antenna_names is not None:
+                self.antenna_names = self.antenna_names[this_uv_sort]
+            if self.antenna_positions is not None:
+                self.antenna_positions = self.antenna_positions[this_uv_sort]
+
     def to_baseline(
         self,
         uv,
@@ -1677,6 +1716,10 @@ class UVFlag(UVBase):
         if self.Nspws is not None and self.Nspws > 1:
             # TODO: make this always be in the compatibility list in version 3.0
             warn_compatibility_params.append("flex_spw_id_array")
+
+        # sometimes the antenna sorting for the antenna names/numbers/positions
+        # is different. If the sets are the same, re-sort self to match uv
+        self.sort_ant_metadata_like(uv)
 
         for param in warn_compatibility_params:
             if (
@@ -1968,6 +2011,11 @@ class UVFlag(UVBase):
         if self.Nspws is not None and self.Nspws > 1:
             # TODO: make this always be in the compatibility list in version 3.0
             warn_compatibility_params.append("flex_spw_id_array")
+
+        # sometimes the antenna sorting for the antenna names/numbers/positions
+        # is different. If the sets are the same, re-sort self to match uv
+        self.sort_ant_metadata_like(uv)
+
         for param in warn_compatibility_params:
             if (
                 issubclass(uv.__class__, UVCal)
