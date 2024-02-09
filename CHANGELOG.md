@@ -36,6 +36,8 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- `UVFlag.to_baseline` and `UVFlag.to_antenna` are now more robust to differences
+in antenna metadata sorting.
 - Made `MirParser` more robust against metadata indexing errors.
 - Made `MirParser` handling of autocorrelation data more robust.
 - Improved hooks for handling and loading of COMPASS solutions into `MirParser` objects.
