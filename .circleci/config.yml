@@ -2,7 +2,7 @@ version: 2.1
 executors:
   uvdata-executor:
       machine:
-        image: ubuntu-2004:202101-01
+        image: default
       shell: /bin/bash -leo pipefail
 orbs:
   codecov: codecov/codecov@3.2.4 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
