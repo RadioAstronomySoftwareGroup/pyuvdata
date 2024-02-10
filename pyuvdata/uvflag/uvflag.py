@@ -1658,6 +1658,8 @@ class UVFlag(UVBase):
 
         Broadcasts the flag array to all baselines.
         This function does NOT apply flags to uv (see utils.apply_uvflag for that).
+        Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
+        and `antenna_positions`) may be reordered to match the ordering on `uv`.
 
         Parameters
         ----------
@@ -1949,6 +1951,8 @@ class UVFlag(UVBase):
 
         Broadcasts the flag array to all antennas.
         This function does NOT apply flags to uv (see utils.apply_uvflag for that).
+        Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
+        and `antenna_positions`) may be reordered to match the ordering on `uv`.
 
         Parameters
         ----------
