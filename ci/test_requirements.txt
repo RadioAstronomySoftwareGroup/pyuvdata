@@ -1,0 +1,5 @@
+coverage
+packaging
+pytest>=6.2, <8.0
+pytest-cov
+pytest-cases>=3.6.9
