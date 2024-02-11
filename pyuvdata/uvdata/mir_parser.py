@@ -4183,7 +4183,7 @@ class MirParser(object):
         # bl_data updates: ant1rx, ant2rx, u, v, w
         # First, update the antenna receiver if these values are unfilled (true in some
         # earlier tracks, no version demarcation notes it).
-        if np.all(self.bl_data["ant1rx"] == 0) and np.all(self.bl_data["ant2rx"] == 0):
+        if np.all(self.bl_data["ant1rx"] == 0) or np.all(self.bl_data["ant2rx"] == 0):
             ipol = self.bl_data["ipol"]
             irec = self.bl_data["irec"]
 
