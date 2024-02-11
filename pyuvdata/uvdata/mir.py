@@ -343,16 +343,26 @@ class Mir(UVData):
         if len(pol_dict) == 2:
             # If dual-pol, then we need to check if the tunings are split, because
             # the two polarizations will effectively be concat'd across the freq
-            # axis instead of the pol axis.
+            # axis instead of the pol axis. First, see if we have two diff receivers
             rxa_mask = ant1_rxa_mask & ant2_rxa_mask
             rxb_mask = ~(ant1_rxa_mask | ant2_rxa_mask)
 
             if np.any(rxa_mask) and np.any(rxb_mask):
-                # If we have both VV and HH data, check to see that the tunings of the
-                # two receivers match.
-                loa_freq = np.median(mir_data.sp_data["gunnLO"][rxa_mask])
-                lob_freq = np.median(mir_data.sp_data["gunnLO"][rxb_mask])
-                pol_split_tuning = not np.isclose(loa_freq, lob_freq)
+                # If we have both VV and HH data, check to see that the frequencies of
+                # each of the spectral chunks match. If they do, then we can concat
+                # across the polarization axis, but if _not_, we should treat this as
+                # a pol-split data set.
+                fsky_vals = mir_data.sp_data["fsky"]
+                chunk_vals = mir_data.sp_data["corrchunk"]
+                loa_chunks = set(zip(fsky_vals[rxa_mask], chunk_vals[rxa_mask]))
+                lob_chunks = set(zip(fsky_vals[rxb_mask], chunk_vals[rxb_mask]))
+                pol_split_tuning = not (
+                    loa_chunks.issubset(lob_chunks) or lob_chunks.issubset(loa_chunks)
+                )
+                print(loa_chunks)
+                print(lob_chunks)
+                print(pol_split_tuning)
+                print("hi!")
 
         # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
@@ -419,9 +429,13 @@ class Mir(UVData):
 
             # Make sure that something weird hasn't happened with the metadata (this
             # really should never happen, only one value should exist per window).
-            assert np.allclose(spw_fsky, mir_data.sp_data["fsky"][data_mask])
-            assert np.allclose(spw_fres, mir_data.sp_data["fres"][data_mask])
-            assert np.allclose(spw_nchan, mir_data.sp_data["nch"][data_mask])
+            for val, item in zip(
+                [spw_fsky, spw_fres, spw_nchan], ["fsky", "fres", "nch"]
+            ):
+                if not np.allclose(val, mir_data.sp_data[item][data_mask]):
+                    warnings.warn(
+                        "Discrepancy in %s for win %i sb %i pol %i." % (item, *spdx)
+                    )
 
             # Get the data in the right units and dtype
             spw_fsky = float(spw_fsky * 1e9)  # GHz -> Hz

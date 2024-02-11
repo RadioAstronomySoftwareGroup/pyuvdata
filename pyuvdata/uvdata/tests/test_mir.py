@@ -789,3 +789,14 @@ def test_generate_sma_antpos_dict(use_file, sma_mir):
     ant_dict = generate_sma_antpos_dict(filepath)
     for ant_num, xyz_pos in zip(sma_mir.antenna_numbers, sma_mir.antenna_positions):
         assert np.allclose(ant_dict[ant_num], xyz_pos)
+
+
+def test_spw_consistency_warning():
+    mir_data = MirParser(sma_mir_test_file)
+    mir_data.sp_data._data["fres"][1] *= 2
+    mir_data.bl_data._data["ant1rx"][:] = 0
+    mir_data.bl_data._data["ant2rx"][:] = 0
+
+    mir_uv = Mir()
+    with uvtest.check_warnings(UserWarning, match="Discrepancy in fres"):
+        mir_uv._init_from_mir_parser(mir_data)
