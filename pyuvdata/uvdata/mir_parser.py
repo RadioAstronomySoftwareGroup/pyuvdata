@@ -4148,15 +4148,18 @@ class MirParser(object):
         for key, value in mjd_day_dict.items():
             if isinstance(value, str):
                 mjd_day_dict[key] = Time(
-                    datetime.strptime(value, "%b %d, %Y"), scale="tt"
-                ).tt.mjd
+                    datetime.strptime(value, "%b %d, %Y"), scale="utc"
+                ).mjd
 
         mjd_arr = (self.in_data["dhrs"] / 24.0) + np.array(
             [mjd_day_dict[idx] for idx in self.in_data["iref_time"]]
         )
 
         # Tally the JD dates, since that's used for various helper functions
-        jd_arr = Time(mjd_arr, format="mjd", scale="utc").utc.jd
+        jd_arr = Time(mjd_arr, format="mjd", scale="utc").jd
+
+        # Also, convert MJD back into the expected TT timescale
+        mjd_arr = Time(mjd_arr, format="mjd", scale="utc").tt.mjd
 
         # Calculate the LST at the time of obs
         lst_arr = (12.0 / np.pi) * uvutils.get_lst_for_time(
