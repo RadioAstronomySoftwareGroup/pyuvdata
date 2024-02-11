@@ -359,10 +359,6 @@ class Mir(UVData):
                 pol_split_tuning = not (
                     loa_chunks.issubset(lob_chunks) or lob_chunks.issubset(loa_chunks)
                 )
-                print(loa_chunks)
-                print(lob_chunks)
-                print(pol_split_tuning)
-                print("hi!")
 
         # Map MIR pol code to pyuvdata/AIPS polarization number
         pol_code_dict = {}
