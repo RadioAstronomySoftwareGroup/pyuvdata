@@ -30,18 +30,6 @@ from ..mir_parser import (
 )
 
 
-@pytest.fixture(scope="session")
-def mir_data_main():
-    mir_data = MirParser()
-
-    yield mir_data._load_test_data(load_cross=True, load_auto=True, has_auto=True)
-
-
-@pytest.fixture(scope="function")
-def mir_data(mir_data_main):
-    yield mir_data_main.copy()
-
-
 @pytest.fixture(scope="module")
 def compass_soln_file(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp("mir_parser", numbered=True)

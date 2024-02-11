@@ -791,8 +791,7 @@ def test_generate_sma_antpos_dict(use_file, sma_mir):
         assert np.allclose(ant_dict[ant_num], xyz_pos)
 
 
-def test_spw_consistency_warning():
-    mir_data = MirParser(sma_mir_test_file)
+def test_spw_consistency_warning(mir_data):
     mir_data.sp_data._data["fres"][1] *= 2
     mir_data.bl_data._data["ant1rx"][:] = 0
     mir_data.bl_data._data["ant2rx"][:] = 0
