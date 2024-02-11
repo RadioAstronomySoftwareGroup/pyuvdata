@@ -36,6 +36,12 @@ positions are near surface of whatever celestial body their positions are refere
 (either the Earth or Moon, currently).
 
 ### Changed
+- Made the determination of whether or not to create a flex-pol dataset when reading
+in a MIR more robust (particularly with pre-V3 data formats).
+- Reading in of MIR data sets into `UVData` objects will now use pyuvdata-calculated
+values for `lst_array` via (`UVData.set_lsts_from_time_array`) instead of those read in
+from the file due to known precision issues in the later (~25 ms), so long as the two
+agree within this known precision limit.
 - `UVFlag.to_baseline` and `UVFlag.to_antenna` are now more robust to differences
 in antenna metadata sorting.
 - Made `MirParser` more robust against metadata indexing errors.
@@ -68,6 +74,8 @@ fully tested and didn't work properly.
 - Having `freq_array` and `channel_width` defined on wide-band UVCal objects.
 
 ### Fixed
+- A bug where `time_array` was not being correctly calculated for older (pre-V3) MIR
+data formats.
 - A small bug in UVFlag that could occur when reading in an older UVFlag HDF5
 file with missing antenna metadata.
 - A small bug (mostly affecting continuous integration) that threw an error when the
