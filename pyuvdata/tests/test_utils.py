@@ -4143,6 +4143,7 @@ def test_uvw_track_generator_errs():
 @pytest.mark.parametrize("use_uvw", [False, True])
 @pytest.mark.parametrize("use_earthloc", [False, True])
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
     sma_mir = UVData.from_file(os.path.join(DATA_PATH, "sma_test.mir"))
     sma_mir.set_lsts_from_time_array()
