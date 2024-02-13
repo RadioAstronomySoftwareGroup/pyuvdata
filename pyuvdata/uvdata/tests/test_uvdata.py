@@ -11987,11 +11987,22 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
         ["zen.2458661.23480.HH.uvh5", ""],
         [
             "sma_test.mir",
-            (
-                "The lst_array is not self-consistent with the time_array and telescope"
-                " location. Consider recomputing with the `set_lsts_from_time_array`"
-                " method"
-            ),
+            [
+                (
+                    "The lst_array is not self-consistent with the time_array and "
+                    "telescope location. Consider recomputing with the "
+                    "`set_lsts_from_time_array` method"
+                ),
+                (
+                    "> 25 ms errors detected reading in LST values from MIR data. "
+                    "This typically signifies a minor metadata recording error (which "
+                    "can be mitigated by calling the `set_lsts_from_time_array` method "
+                    "with `update_vis=False`), though additional errors about "
+                    "uvw-position accuracy may signal more significant issues with "
+                    "metadata accuracy that could have substantial impact on "
+                    "downstream analysis."
+                ),
+            ],
         ],
         [
             "carma_miriad",

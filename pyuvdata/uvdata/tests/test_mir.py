@@ -29,8 +29,10 @@ def sma_mir_filt_main():
     uv_object = UVData()
     with uvtest.check_warnings(
         UserWarning,
-        match="The lst_array is not self-consistent with the time_array and telescope "
-        "location. Consider recomputing with the `set_lsts_from_time_array` method.",
+        match=[
+            "> 25 ms errors detected reading in LST values from MIR data. ",
+            "The lst_array is not self-consistent with the time_array and telescope ",
+        ],
     ):
         uv_object.read(
             sma_mir_test_file,
@@ -265,10 +267,9 @@ def test_mir_partial_read(sma_mir):
         match=[
             "Warning: a select on read keyword is set that is not supported by "
             "read_mir. This select will be done after reading the file.",
-            "The lst_array is not self-consistent with the time_array and telescope "
-            "location. Consider recomputing with the `set_lsts_from_time_array` method",
-            "The lst_array is not self-consistent with the time_array and telescope "
-            "location. Consider recomputing with the `set_lsts_from_time_array` method",
+            "> 25 ms errors detected reading in LST values from MIR data. ",
+            "The lst_array is not self-consistent with the time_array and telescope ",
+            "The lst_array is not self-consistent with the time_array and telescope ",
         ],
     ):
         uv3 = UVData.from_file(
@@ -303,8 +304,10 @@ def test_multi_nchan_spw_read(tmp_path):
     uv_in = UVData()
     with uvtest.check_warnings(
         UserWarning,
-        match="The lst_array is not self-consistent with the time_array and telescope "
-        "location. Consider recomputing with the `set_lsts_from_time_array` method.",
+        match=[
+            "> 25 ms errors detected reading in LST values from MIR data. ",
+            "The lst_array is not self-consistent with the time_array and telescope ",
+        ],
     ):
         uv_in.read_mir(sma_mir_test_file, corrchunk=[0, 1, 2, 3, 4])
     uv_in.set_lsts_from_time_array()
@@ -315,6 +318,7 @@ def test_multi_nchan_spw_read(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent with the.")
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
     """
     Mir to MS loopback test with flex-pol.
@@ -393,7 +397,13 @@ def test_inconsistent_sp_records(mir_data, sma_mir):
 
     mir_uv = UVData()
     mir_obj = Mir()
-    with uvtest.check_warnings(UserWarning, "Per-spectral window metadata differ."):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "Per-spectral window metadata differ.",
+            "> 25 ms errors detected reading in LST values",
+        ],
+    ):
         mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
     mir_uv.use_future_array_shapes()
@@ -411,7 +421,13 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
     mir_data.load_data()
     mir_uv = UVData()
     mir_obj = Mir()
-    with uvtest.check_warnings(UserWarning, "Per-baseline metadata differ."):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "> 25 ms errors detected reading in LST values",
+            "Per-baseline metadata differ.",
+        ],
+    ):
         mir_obj._init_from_mir_parser(mir_data)
     mir_uv._convert_from_filetype(mir_obj)
     mir_uv.use_future_array_shapes()
@@ -420,6 +436,7 @@ def test_inconsistent_bl_records(mir_data, sma_mir):
     assert mir_uv == sma_mir
 
 
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_multi_ipol(mir_data, sma_mir):
     """
     Test that the MIR object does the right thing when different polarization types
@@ -621,6 +638,7 @@ def test_flex_pol_spw_all_flag(sma_mir_filt):
     assert np.all(sma_mir_filt.flex_spw_polarization_array == -5)
 
 
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_bad_sphid(mir_data):
     """
     Test what bad values for sphid in sp_data result in an error.
@@ -636,6 +654,7 @@ def test_bad_sphid(mir_data):
     assert str(err.value).startswith("'Mismatch between keys in vis_data and sphid")
 
 
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_bad_pol_code(mir_data):
     """
     Test that an extra (unused) pol code doesn't produce an error. Note that we want
@@ -652,6 +671,7 @@ def test_bad_pol_code(mir_data):
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_rechunk_on_read():
     """Test that rechunking on read works as expected."""
     uv_data = UVData.from_file(
@@ -664,6 +684,7 @@ def test_rechunk_on_read():
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 @pytest.mark.parametrize(
     "select_kwargs",
     [
@@ -688,6 +709,7 @@ def test_select_on_read(select_kwargs, sma_mir):
     assert sma_mir == uv_data
 
 
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_non_icrs_coord_read(mir_data):
     # When fed a non-J2000 coordinate, we want to convert that so that it can easily
     mir_uv = UVData()
@@ -714,6 +736,7 @@ def test_non_icrs_coord_read(mir_data):
     )
 
 
+@pytest.mark.filterwarnings("ignore:> 25 ms errors detected reading in LST values")
 def test_dedoppler_data(mir_data, sma_mir):
     mir_uv = UVData()
     mir_obj = Mir()
@@ -763,14 +786,16 @@ def test_source_pos_change_warning(mir_data, tmp_path):
     ):
         mir_copy.__iadd__(mir_data, force=True, merge=False)
 
-    print(mir_copy.auto_data)
-
     # Muck the ra coord
     mir_copy.in_data["rar"] = [0, 1]
     mir_obj = Mir()
 
     with uvtest.check_warnings(
-        UserWarning, "Position for 3c84 changes by more than an arcminute."
+        UserWarning,
+        [
+            "> 25 ms errors detected reading in LST values",
+            "Position for 3c84 changes by more than an arcminute.",
+        ],
     ):
         mir_obj._init_from_mir_parser(mir_copy)
 
@@ -797,5 +822,8 @@ def test_spw_consistency_warning(mir_data):
     mir_data.bl_data._data["ant2rx"][:] = 0
 
     mir_uv = Mir()
-    with uvtest.check_warnings(UserWarning, match="Discrepancy in fres"):
+    with uvtest.check_warnings(
+        UserWarning,
+        match=["Discrepancy in fres", "> 25 ms errors detected reading in LST values"],
+    ):
         mir_uv._init_from_mir_parser(mir_data)

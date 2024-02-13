@@ -416,6 +416,16 @@ class Mir(UVData):
         spdx_dict = {}
         spw_dict = {}
         for spdx in set(spdx_list):
+            # We need to do a some extra handling here, because a single correlator
+            # can produce multiple spectral windows (e.g., LSB/USB). The scheme below
+            # will negate the corr band number if LSB, will set the corr band number to
+            # 255 if the values arise from the pseudo-wideband values, and will add 512
+            # if the pols are split-tuned. This scheme, while a little funky, guarantees
+            # that each unique freq range has its own spectral window number.
+            spw_id = 255 if (spdx[0] == 0) else spdx[0]
+            spw_id *= (-1) ** (1 + spdx[1])
+            spw_id += 512 if (pol_split_tuning and spdx[2] == 1) else 0
+
             data_mask = np.array([spdx == item for item in spdx_list])
 
             # Grab values, get them into appropriate types
@@ -430,23 +440,15 @@ class Mir(UVData):
             ):
                 if not np.allclose(val, mir_data.sp_data[item][data_mask]):
                     warnings.warn(
-                        "Discrepancy in %s for win %i sb %i pol %i." % (item, *spdx)
+                        "Discrepancy in %s for win %i sb %i pol %i. Values of "
+                        "`freq_array` and `channel_width` should be checked for "
+                        "channels corresponding to spw_id %i." % (item, *spdx, spw_id)
                     )
 
             # Get the data in the right units and dtype
             spw_fsky = float(spw_fsky * 1e9)  # GHz -> Hz
             spw_fres = float(spw_fres * 1e6)  # MHz -> Hz
             spw_nchan = int(spw_nchan)
-
-            # We need to do a some extra handling here, because a single correlator
-            # can produce multiple spectral windows (e.g., LSB/USB). The scheme below
-            # will negate the corr band number if LSB, will set the corr band number to
-            # 255 if the values arise from the pseudo-wideband values, and will add 512
-            # if the pols are split-tuned. This scheme, while a little funky, guarantees
-            # that each unique freq range has its own spectral window number.
-            spw_id = 255 if (spdx[0] == 0) else spdx[0]
-            spw_id *= (-1) ** (1 + spdx[1])
-            spw_id += 512 if (pol_split_tuning and spdx[2] == 1) else 0
 
             # Populate the channel width array
             channel_width = abs(spw_fres) + np.zeros(spw_nchan, dtype=np.float64)
@@ -675,6 +677,14 @@ class Mir(UVData):
             # If this check fails, it means that there's something off w/ the lst values
             # (to a larger degree than expected), and we'll pass them back to the user,
             # who can inspect them directly and decide what to do.
+            warnings.warn(
+                "> 25 ms errors detected reading in LST values from MIR data. "
+                "This typically signifies a minor metadata recording error (which can "
+                "be mitigated by calling the `set_lsts_from_time_array` method with "
+                "`update_vis=False`), though additional errors about uvw-position "
+                "accuracy may signal more significant issues with metadata accuracy "
+                "that could have substantial impact on downstream analysis."
+            )
             self.lst_array = lst_array
 
         self.polarization_array = polarization_array
