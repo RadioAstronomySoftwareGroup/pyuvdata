@@ -2437,7 +2437,8 @@ def test_conj_pol():
     )
 
 
-def test_redundancy_finder():
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_redundancy_finder(hera_alg):
     """
     Check that get_baseline_redundancies and get_antenna_redundancies return consistent
     redundant groups for a test file with the HERA19 layout.
@@ -2458,15 +2459,13 @@ def test_redundancy_finder():
     bl_positions = uvd.uvw_array
     bl_pos_backup = copy.deepcopy(uvd.uvw_array)
 
-    pytest.raises(
-        ValueError,
-        uvutils.get_baseline_redundancies,
-        uvd.baseline_array,
-        bl_positions[0:2, 0:1],
-    )
+    with pytest.raises(
+        ValueError, match=re.escape("Baseline vectors must be shape (Nbls, 3)")
+    ):
+        uvutils.get_baseline_redundancies(uvd.baseline_array, bl_positions[0:2, 0:1])
 
     baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
-        uvd.baseline_array, bl_positions, tol=tol
+        uvd.baseline_array, bl_positions, tol=tol, use_hera_alg=hera_alg
     )
 
     for gi, gp in enumerate(baseline_groups):
@@ -2501,7 +2500,10 @@ def test_redundancy_finder():
 
             (baseline_groups_new, vec_bin_centers, lens) = (
                 uvutils.get_baseline_redundancies(
-                    uvd.baseline_array, bl_positions_new, tol=hightol
+                    uvd.baseline_array,
+                    bl_positions_new,
+                    tol=hightol,
+                    use_hera_alg=hera_alg,
                 )
             )
 
@@ -2525,7 +2527,7 @@ def test_redundancy_finder():
     antpos, antnums = uvd.get_ENU_antpos()
 
     baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
-        antnums, antpos, tol=tol, include_autos=False
+        antnums, antpos, tol=tol, include_autos=False, use_hera_alg=hera_alg
     )
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19
@@ -2535,7 +2537,11 @@ def test_redundancy_finder():
     bl_positions[16, 0] = 0
     (baseline_groups, vec_bin_centers, lens, conjugates) = (
         uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+            uvd.baseline_array,
+            bl_positions,
+            tol=tol,
+            include_conjugates=True,
+            use_hera_alg=hera_alg,
         )
     )
 
@@ -2543,7 +2549,11 @@ def test_redundancy_finder():
     bl_positions = bl_pos_backup
     (baseline_groups, vec_bin_centers, lens, conjugates) = (
         uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
+            uvd.baseline_array,
+            bl_positions,
+            tol=tol,
+            include_conjugates=True,
+            use_hera_alg=hera_alg,
         )
     )
 
@@ -2570,7 +2580,7 @@ def test_redundancy_finder():
 def test_high_tolerance_redundancy_error():
     """
     Confirm that an error is raised if the redundancy tolerance is set too high,
-    such that baselines end up in multiple
+    such that baselines end up in multiple groups
     """
     uvd = UVData()
     uvd.read_uvfits(
@@ -2586,13 +2596,10 @@ def test_high_tolerance_redundancy_error():
 
     tol = 20.05  # meters
 
-    with pytest.raises(ValueError) as cm:
-        (baseline_groups, vec_bin_centers, lens, conjugates) = (
-            uvutils.get_baseline_redundancies(
-                uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
-            )
+    with pytest.raises(ValueError, match="Some baselines are falling into"):
+        uvutils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
         )
-    assert "Some baselines are falling into" in str(cm.value)
 
 
 def test_redundancy_conjugates():
@@ -2622,14 +2629,15 @@ def test_redundancy_conjugates():
         wneg = w < -tol
         if uneg or (uzer and vneg) or (uzer and vzer and wneg):
             expected_conjugates.append(bl_inds[i])
-    bl_gps, vecs, lens, conjugates = uvutils.get_baseline_redundancies(
+    _, _, _, conjugates = uvutils.get_baseline_redundancies(
         bl_inds, bl_vecs, tol=tol, include_conjugates=True
     )
 
     assert sorted(conjugates) == sorted(expected_conjugates)
 
 
-def test_redundancy_finder_fully_redundant_array():
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_redundancy_finder_fully_redundant_array(hera_alg):
     """Test the redundancy finder for a fully redundant array."""
     uvd = UVData()
     uvd.read_uvfits(
@@ -2641,10 +2649,12 @@ def test_redundancy_finder_fully_redundant_array():
     tol = 1  # meters
     bl_positions = uvd.uvw_array
 
-    (baseline_groups, vec_bin_centers, lens, conjugates) = (
-        uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, include_conjugates=True
-        )
+    baseline_groups, _, _, _ = uvutils.get_baseline_redundancies(
+        uvd.baseline_array,
+        bl_positions,
+        tol=tol,
+        include_conjugates=True,
+        use_hera_alg=hera_alg,
     )
 
     # Only 1 set of redundant baselines
@@ -3848,7 +3858,8 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert np.all(uvd2.get_flags(9, 10))
 
 
-def test_upos_tol_reds():
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_upos_tol_reds(hera_alg):
     # Checks that the u-positive convention in get_antenna_redundancies
     # is enforced to the specificed tolerance.
 
@@ -3864,7 +3875,9 @@ def test_upos_tol_reds():
 
     ant_nums = np.arange(4)
 
-    red_grps, _, _ = uvutils.get_antenna_redundancies(ant_nums, ant_pos, tol=tol)
+    red_grps, _, _ = uvutils.get_antenna_redundancies(
+        ant_nums, ant_pos, tol=tol, use_hera_alg=hera_alg
+    )
 
     assert len(red_grps) == 4
 

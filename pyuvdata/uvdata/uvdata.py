@@ -4369,7 +4369,7 @@ class UVData(UVBase):
 
     def get_ENU_antpos(self, center=False, pick_data_ants=False):
         """
-        Get antenna positions in ENU (topocentric) coordinates in units of meters.
+        Get antenna positions in East, North, Up coordinates in units of meters.
 
         Parameters
         ----------
@@ -4381,7 +4381,7 @@ class UVData(UVBase):
         Returns
         -------
         antpos : ndarray
-            Antenna positions in ENU (topocentric) coordinates in units of
+            Antenna positions in East, North, Up coordinates in units of
             meters, shape=(Nants, 3)
         ants : ndarray
             Antenna numbers matching ordering of antpos, shape=(Nants,)
@@ -4875,7 +4875,7 @@ class UVData(UVBase):
         Parameters
         ----------
         force : bool, optional
-            Whether to foce setting the rectangularity attributes, even if they are
+            Whether to force setting the rectangularity attributes, even if they are
             unset. Default is to leave them unset if they are not already set, but
             otherwise just ensure correctness.
 
@@ -10045,6 +10045,7 @@ class UVData(UVBase):
         include_conjugates=False,
         include_autos=True,
         conjugate_bls=False,
+        use_hera_alg=False,
     ):
         """
         Get redundant baselines to a given tolerance.
@@ -10069,6 +10070,9 @@ class UVData(UVBase):
         conjugate_bls : bool
             If using antenna positions, this will conjugate baselines on this
             object to correspond with those in the returned groups.
+        use_hera_alg : bool
+            Option to use the HERA gridding based algorithm to find redundancies
+            rather than the clustering algorithm.
 
         Returns
         -------
@@ -10095,7 +10099,11 @@ class UVData(UVBase):
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
             result = uvutils.get_antenna_redundancies(
-                numbers, antpos, tol=tol, include_autos=include_autos
+                numbers,
+                antpos,
+                tol=tol,
+                include_autos=include_autos,
+                use_hera_alg=use_hera_alg,
             )
             if conjugate_bls:
                 self.conjugate_bls(convention="u>0", uvw_tol=tol)
@@ -10106,15 +10114,41 @@ class UVData(UVBase):
 
         _, unique_inds = np.unique(self.baseline_array, return_index=True)
         unique_inds.sort()
-        baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
         baselines = np.take(self.baseline_array, unique_inds)
 
+        self.set_rectangularity(force=True)
+        if self.blts_are_rectangular or np.all(self._check_for_cat_type("unprojected")):
+            # we can just use the uvws to find redundancy
+            baseline_vecs = np.take(self.uvw_array, unique_inds, axis=0)
+        else:
+            # use the antenna positions to get baseline vectors. This ensures
+            # that we aren't comparing uvws at different times
+            ant1 = np.take(self.ant_1_array, unique_inds)
+            ant2 = np.take(self.ant_2_array, unique_inds)
+            antpos, numbers = self.get_ENU_antpos(center=False)
+
+            ant1_inds = np.array([np.nonzero(numbers == ai)[0][0] for ai in ant1])
+            ant2_inds = np.array([np.nonzero(numbers == ai)[0][0] for ai in ant2])
+
+            baseline_vecs = np.take(antpos, ant2_inds, axis=0) - np.take(
+                antpos, ant1_inds, axis=0
+            )
+
         return uvutils.get_baseline_redundancies(
-            baselines, baseline_vecs, tol=tol, include_conjugates=include_conjugates
+            baselines,
+            baseline_vecs,
+            tol=tol,
+            include_conjugates=include_conjugates,
+            use_hera_alg=use_hera_alg,
         )
 
     def compress_by_redundancy(
-        self, method="select", tol=1.0, inplace=True, keep_all_metadata=True
+        self,
+        method="select",
+        tol=1.0,
+        inplace=True,
+        keep_all_metadata=True,
+        use_hera_alg=False,
     ):
         """
         Downselect or average to only have one baseline per redundant group.
@@ -10142,6 +10176,9 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas,
             even those that do not remain after the select option.
+        use_hera_alg : bool
+            Option to use the HERA gridding based algorithm to find redundancies
+            rather than the clustering algorithm.
 
         Returns
         -------
@@ -10154,7 +10191,7 @@ class UVData(UVBase):
             raise ValueError(f"method must be one of {allowed_methods}")
 
         red_gps, centers, lengths, conjugates = self.get_redundancies(
-            tol, include_conjugates=True
+            tol, include_conjugates=True, use_hera_alg=use_hera_alg
         )
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
 
@@ -10354,7 +10391,9 @@ class UVData(UVBase):
                 bls=bl_ants, inplace=inplace, keep_all_metadata=keep_all_metadata
             )
 
-    def inflate_by_redundancy(self, tol=1.0, blt_order="time", blt_minor_order=None):
+    def inflate_by_redundancy(
+        self, tol=1.0, blt_order="time", blt_minor_order=None, use_hera_alg=False
+    ):
         """
         Expand data to full size, copying data among redundant baselines.
 
@@ -10369,11 +10408,14 @@ class UVData(UVBase):
             string specifying primary order along the blt axis (see `reorder_blts`)
         blt_minor_order : str
             string specifying minor order along the blt axis (see `reorder_blts`)
+        use_hera_alg : bool
+            Option to use the HERA gridding based algorithm to find redundancies
+            rather than the clustering algorithm.
 
         """
         self.conjugate_bls(convention="u>0")
         red_gps, centers, lengths = self.get_redundancies(
-            tol=tol, use_antpos=True, conjugate_bls=True
+            tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=use_hera_alg
         )
 
         # Stack redundant groups into one array.

@@ -4492,8 +4492,73 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
     return loc_gps
 
 
+def find_clusters_hera(baselines, baseline_vecs, tol=1.0):
+    """
+    Find redundant groups using the HERA algorithm.
+
+    This is essentially a gridding approach, but it is not tied to a pre-defined
+    grid. It iterates through the baselines and assigns each baseline to a an
+    existing group if it is within the tolerance or makes a new group if there
+    is no group. The location of the group is the baseline vector of the first
+    baseline assigned to it, rounded to the tolerance, so the result of this
+    method can depend on the order in which baseline vectors are passed to it.
+    It is quite robust for regular arrays if the tolerance is properly specified,
+    but may not behave predictably for highly non-redundant arrays.
+
+    Parameters
+    ----------
+    baselines : array_like of int
+        Baseline numbers, shape (Nbls,)
+    baseline_vecs : array_like of float
+        Baseline vectors in meters, shape (Nbls, 3).
+    tol : float
+        Absolute tolerance of redundancy, in meters.
+
+    Returns
+    -------
+    baseline_groups : list of lists of int
+        list of lists of redundant baseline numbers
+    baseline_ind_conj : list of int
+        List of baselines that are redundant when reversed. Only returned if
+        include_conjugates is True
+
+    """
+    bl_gps = {}
+    grid_size = tol / 2.0
+
+    p_or_m = (0, -1, 1)
+    epsilons = [[dx, dy, dz] for dx in p_or_m for dy in p_or_m for dz in p_or_m]
+
+    def check_neighbors(delta):
+        # Check to make sure bl_gps doesn't have the key plus or minus rounding error
+        for epsilon in epsilons:
+            newKey = (
+                delta[0] + epsilon[0],
+                delta[1] + epsilon[1],
+                delta[2] + epsilon[2],
+            )
+            if newKey in bl_gps:
+                return newKey
+        return
+
+    baseline_ind_conj = []
+    for bl_i, bl in enumerate(baselines):
+        delta = tuple(np.round(baseline_vecs[bl_i] / grid_size).astype(int))
+        new_key = check_neighbors(delta)
+        if new_key is not None:
+            # this has a match
+            bl_gps[new_key].append(bl)
+        else:
+            # this is a new group
+            bl_gps[delta] = [bl]
+
+    bl_list = [sorted(gv) for gv in bl_gps.values()]
+
+    return bl_list, baseline_ind_conj
+
+
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, include_conjugates=False
+    baselines, baseline_vecs, tol=1.0, include_conjugates=False, use_hera_alg=False
 ):
     """
     Find redundant baseline groups.
@@ -4503,11 +4568,14 @@ def get_baseline_redundancies(
     baselines : array_like of int
         Baseline numbers, shape (Nbls,)
     baseline_vecs : array_like of float
-        Baseline vectors in meters, shape (Nbls, 3)
+        Baseline vectors in meters, shape (Nbls, 3).
     tol : float
         Absolute tolerance of redundancy, in meters.
     include_conjugates : bool
         Option to include baselines that are redundant when flipped.
+    use_hera_alg : bool
+        Option to use the HERA gridding based algorithm to find redundancies
+        rather than the clustering algorithm.
 
     Returns
     -------
@@ -4543,17 +4611,27 @@ def get_baseline_redundancies(
         baseline_vecs[conjugates] *= -1
         baseline_ind_conj = baselines[conjugates]
         bl_gps, vec_bin_centers, lens = get_baseline_redundancies(
-            baselines, baseline_vecs, tol=tol, include_conjugates=False
+            baselines,
+            baseline_vecs,
+            tol=tol,
+            include_conjugates=False,
+            use_hera_alg=use_hera_alg,
         )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
-    try:
-        bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
-    except ValueError as exc:
-        raise ValueError(
-            "Some baselines are falling into multiple"
-            " redundant groups. Lower the tolerance to resolve ambiguity."
-        ) from exc
+    if use_hera_alg:
+        output = find_clusters_hera(baselines, baseline_vecs, tol=1.0)
+        bl_gps, baseline_ind_conj = output
+    else:
+        try:
+            bl_gps = find_clusters(baselines, baseline_vecs, tol, strict=True)
+        except ValueError as exc:
+            raise ValueError(
+                "Some baselines are falling into multiple redundant groups. "
+                "Lower the tolerance to resolve ambiguity or use the HERA "
+                "gridding algorithm to find redundancies by setting "
+                "use_hera_alg=True."
+            ) from exc
 
     n_unique = len(bl_gps)
     vec_bin_centers = np.zeros((n_unique, 3))
@@ -4562,11 +4640,14 @@ def get_baseline_redundancies(
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
-    return bl_gps, vec_bin_centers, lens
+    if include_conjugates:
+        return bl_gps, vec_bin_centers, lens, baseline_ind_conj
+    else:
+        return bl_gps, vec_bin_centers, lens
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, tol=1.0, include_autos=False
+    antenna_numbers, antenna_positions, tol=1.0, include_autos=False, use_hera_alg=False
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -4582,6 +4663,9 @@ def get_antenna_redundancies(
         Redundancy tolerance in meters.
     include_autos : bool
         Option to include autocorrelations.
+    use_hera_alg : bool
+        Option to use the HERA gridding based algorithm to find redundancies
+        rather than the clustering algorithm.
 
     Returns
     -------
@@ -4626,7 +4710,7 @@ def get_antenna_redundancies(
     bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
     gps, vecs, lens, conjs = get_baseline_redundancies(
-        bls, bl_vecs, tol=tol, include_conjugates=True
+        bls, bl_vecs, tol=tol, include_conjugates=True, use_hera_alg=use_hera_alg
     )
     # Flip the baselines in the groups.
     for gi, gp in enumerate(gps):

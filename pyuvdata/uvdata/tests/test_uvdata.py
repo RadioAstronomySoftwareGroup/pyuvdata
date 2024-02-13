@@ -6367,12 +6367,13 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
         uv.select(**kwargs)
 
 
-def test_get_antenna_redundancies(pyuvsim_redundant):
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_get_antenna_redundancies(pyuvsim_redundant, hera_alg):
     uv0 = pyuvsim_redundant
 
     old_bl_array = np.copy(uv0.baseline_array)
     red_gps, centers, lengths = uv0.get_redundancies(
-        use_antpos=True, include_autos=False, conjugate_bls=True
+        use_antpos=True, include_autos=False, conjugate_bls=True, use_hera_alg=hera_alg
     )
     # new and old baseline Numbers are not the same (different conjugation)
     assert not np.allclose(uv0.baseline_array, old_bl_array)
@@ -6385,14 +6386,17 @@ def test_get_antenna_redundancies(pyuvsim_redundant):
     # conjugate data differently
     uv0.conjugate_bls(convention="ant1<ant2")
     new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
-        use_antpos=True, include_autos=False, include_conjugates=True
+        use_antpos=True,
+        include_autos=False,
+        include_conjugates=True,
+        use_hera_alg=hera_alg,
     )
 
     assert conjs is None
 
     apos, anums = uv0.get_ENU_antpos()
     new_red_gps, new_centers, new_lengths = uvutils.get_antenna_redundancies(
-        anums, apos, include_autos=False
+        anums, apos, include_autos=False, use_hera_alg=hera_alg
     )
 
     # all redundancy info is the same
@@ -6402,12 +6406,13 @@ def test_get_antenna_redundancies(pyuvsim_redundant):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.parametrize("hera_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("reconjugate", (True, False))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_redundancy_contract_expand(
-    method, reconjugate, flagging_level, future_shapes, pyuvsim_redundant
+    method, reconjugate, flagging_level, future_shapes, pyuvsim_redundant, hera_alg
 ):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -6427,7 +6432,7 @@ def test_redundancy_contract_expand(
         # need to conjugate some so we have mixed groups to properly test the average
         # method.
         (orig_red_gps, orig_centers, orig_lengths, orig_conjugates) = (
-            uv0.get_redundancies(tol, include_conjugates=True)
+            uv0.get_redundancies(tol, include_conjugates=True, use_hera_alg=hera_alg)
         )
         blt_inds_to_conj = []
         for gp in orig_red_gps:
@@ -6441,7 +6446,7 @@ def test_redundancy_contract_expand(
     # This must be done after reconjugation because reconjugation can alter the index
     # baseline
     red_gps, centers, lengths, conjugates = uv0.get_redundancies(
-        tol, include_conjugates=True
+        tol, include_conjugates=True, use_hera_alg=hera_alg
     )
     index_bls = []
     for gp_ind, gp in enumerate(red_gps):
@@ -6474,7 +6479,9 @@ def test_redundancy_contract_expand(
         # that we still get the same answer
         uv3.conjugate_bls(convention=np.array(blt_inds_to_conj))
 
-    uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    uv2 = uv0.compress_by_redundancy(
+        method=method, tol=tol, inplace=False, use_hera_alg=hera_alg
+    )
     uv2.check()
 
     if method == "average":
@@ -6506,7 +6513,7 @@ def test_redundancy_contract_expand(
             assert np.all(~uv2.flag_array)
 
     # Compare in-place to separated compression without the conjugation.
-    uv3.compress_by_redundancy(method=method, tol=tol)
+    uv3.compress_by_redundancy(method=method, tol=tol, use_hera_alg=hera_alg)
     if reconjugate:
         assert len(orig_red_gps) == len(red_gps)
         match_ind_list = []
@@ -6586,14 +6593,16 @@ def test_redundancy_contract_expand(
     with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
-        uv2.inflate_by_redundancy(tol=tol)
+        uv2.inflate_by_redundancy(tol=tol, use_hera_alg=hera_alg)
 
     # Confirm that we get the same result looping inflate -> compress -> inflate.
-    uv3 = uv2.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    uv3 = uv2.compress_by_redundancy(
+        method=method, tol=tol, inplace=False, use_hera_alg=hera_alg
+    )
     with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
-        uv3.inflate_by_redundancy(tol=tol)
+        uv3.inflate_by_redundancy(tol=tol, use_hera_alg=hera_alg)
 
     if method == "average":
         # with average, the nsample_array goes up by the number of baselines
@@ -6632,10 +6641,11 @@ def test_redundancy_contract_expand(
     assert uv2 == uv0
 
 
+@pytest.mark.parametrize("hera_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
 def test_redundancy_contract_expand_variable_data(
-    method, flagging_level, pyuvsim_redundant
+    method, flagging_level, hera_alg, pyuvsim_redundant
 ):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
@@ -6647,8 +6657,8 @@ def test_redundancy_contract_expand_variable_data(
     tol = 0.02
     # Assign identical data to each redundant group in comparison object
     # Assign data to the index baseline and zeros elsewhere in the one to compress
-    red_gps, centers, lengths = uv0.get_redundancies(
-        tol=tol, use_antpos=True, conjugate_bls=True
+    red_gps, _, _ = uv0.get_redundancies(
+        tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=hera_alg
     )
     index_bls = [gp[0] for gp in red_gps]
     uv0.data_array *= 0
@@ -6673,13 +6683,15 @@ def test_redundancy_contract_expand_variable_data(
         uv0.check()
         assert np.all(uv0.flag_array)
 
-    uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    uv2 = uv0.compress_by_redundancy(
+        method=method, tol=tol, inplace=False, use_hera_alg=hera_alg
+    )
 
     # inflate to get back to the original size
     with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
-        uv2.inflate_by_redundancy(tol=tol)
+        uv2.inflate_by_redundancy(tol=tol, use_hera_alg=hera_alg)
 
     uv2.history = uv1.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -6714,8 +6726,11 @@ def test_redundancy_contract_expand_variable_data(
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("hera_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvfits):
+def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
+    method, casa_uvfits, hera_alg
+):
     uv0 = casa_uvfits
 
     # check that Nblts != Nbls * Ntimes
@@ -6724,8 +6739,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
     tol = 1.0
 
     # Assign identical data to each redundant group:
-    red_gps, centers, lengths = uv0.get_redundancies(
-        tol=tol, use_antpos=True, conjugate_bls=True
+    red_gps, _, _ = uv0.get_redundancies(
+        tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=hera_alg
     )
     for i, gp in enumerate(red_gps):
         for bl in gp:
@@ -6733,23 +6748,20 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
             uv0.data_array[inds, ...] *= 0
             uv0.data_array[inds, ...] += complex(i)
 
+    msg = [
+        "The uvw_array does not match the expected values given the antenna "
+        "positions."
+    ]
     if method == "average":
-        with uvtest.check_warnings(
-            UserWarning,
-            [
-                "Index baseline in the redundant group does not have all the "
-                "times, compressed object will be missing those times."
-            ]
-            * 4
-            + [
-                "The uvw_array does not match the expected values given the antenna "
-                "positions."
-            ]
-            * 2,
-        ):
-            uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
-    else:
-        uv2 = uv0.compress_by_redundancy(method=method, tol=tol, inplace=False)
+        msg *= 2
+        msg += [
+            "Index baseline in the redundant group does not have all the "
+            "times, compressed object will be missing those times."
+        ] * 4
+    with uvtest.check_warnings(UserWarning, match=msg):
+        uv2 = uv0.compress_by_redundancy(
+            method=method, tol=tol, inplace=False, use_hera_alg=hera_alg
+        )
 
     # check inflating gets back to the original
     with uvtest.check_warnings(
@@ -6766,7 +6778,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
             ),
         ],
     ):
-        uv2.inflate_by_redundancy(tol=tol)
+        uv2.inflate_by_redundancy(tol=tol, use_hera_alg=hera_alg)
 
     uv2.history = uv0.history
     # Inflation changes the baseline ordering into the order of the redundant groups.
@@ -6779,10 +6791,12 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
     missing_inds = []
     for bl, t in zip(uv0.baseline_array, uv0.time_array):
         if (bl, t) in zip(uv2.baseline_array, uv2.time_array):
+            # get inds for inflated blts that exist on the original object
             this_ind = np.where((uv2.baseline_array == bl) & (uv2.time_array == t))[0]
             blt_inds.append(this_ind[0])
         else:
-            # this is missing because of the compress_by_redundancy step
+            # get inds on original object that are missing in uv2
+            # (because of the compress_by_redundancy step)
             missing_inds.append(
                 np.where((uv0.baseline_array == bl) & (uv0.time_array == t))[0]
             )
@@ -6803,7 +6817,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(method, casa_uvf
     assert uv3 == uv1
 
 
-def test_compress_redundancy_variable_inttime():
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_compress_redundancy_variable_inttime(hera_alg):
     uv0 = UVData()
     uv0.read_uvfits(
         os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"),
@@ -6815,7 +6830,7 @@ def test_compress_redundancy_variable_inttime():
 
     # Assign identical data to each redundant group:
     red_gps, centers, lengths = uv0.get_redundancies(
-        tol=tol, use_antpos=True, conjugate_bls=True
+        tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=hera_alg
     )
     index_bls = [gp[0] for gp in red_gps]
     uv0.data_array *= 0
@@ -6842,23 +6857,24 @@ def test_compress_redundancy_variable_inttime():
         "behavior.",
         nwarnings=56,
     ) as warn_record:
-        uv0.compress_by_redundancy(method="average", tol=tol)
+        uv0.compress_by_redundancy(method="average", tol=tol, use_hera_alg=hera_alg)
     assert len(warn_record) == np.sum(nbls_group > 1) * ntimes_in
 
-    uv1.compress_by_redundancy(method="average", tol=tol)
+    uv1.compress_by_redundancy(method="average", tol=tol, use_hera_alg=hera_alg)
 
     assert uv0 == uv1
 
 
+@pytest.mark.parametrize("hera_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_compress_redundancy_metadata_only(method, pyuvsim_redundant):
+def test_compress_redundancy_metadata_only(method, hera_alg, pyuvsim_redundant):
     uv0 = pyuvsim_redundant
 
     tol = 0.05
 
     # Assign identical data to each redundant group
     red_gps, centers, lengths = uv0.get_redundancies(
-        tol=tol, use_antpos=True, conjugate_bls=True
+        tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=hera_alg
     )
     for i, gp in enumerate(red_gps):
         for bl in gp:
@@ -6867,9 +6883,11 @@ def test_compress_redundancy_metadata_only(method, pyuvsim_redundant):
             uv0.data_array[inds] += complex(i)
 
     uv2 = uv0.copy(metadata_only=True)
-    uv2.compress_by_redundancy(method=method, tol=tol, inplace=True)
+    uv2.compress_by_redundancy(
+        method=method, tol=tol, inplace=True, use_hera_alg=hera_alg
+    )
 
-    uv0.compress_by_redundancy(method=method, tol=tol)
+    uv0.compress_by_redundancy(method=method, tol=tol, use_hera_alg=hera_alg)
     uv0.data_array = None
     uv0.flag_array = None
     uv0.nsample_array = None
@@ -6884,8 +6902,9 @@ def test_compress_redundancy_wrong_method(pyuvsim_redundant):
         uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
+@pytest.mark.parametrize("hera_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
-def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
+def test_redundancy_missing_groups(method, hera_alg, pyuvsim_redundant, tmp_path):
     # Check that if I try to inflate a compressed UVData that is missing
     # redundant groups, it will raise the right warnings and fill only what
     # data are available.
@@ -6895,7 +6914,7 @@ def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     tol = 0.02
     num_select = 19
 
-    uv0.compress_by_redundancy(method=method, tol=tol)
+    uv0.compress_by_redundancy(method=method, tol=tol, use_hera_alg=hera_alg)
     fname = str(tmp_path / "temp_hera19_missingreds.uvfits")
 
     bls = np.unique(uv0.baseline_array)[:num_select]  # First twenty baseline groups
@@ -6917,14 +6936,17 @@ def test_redundancy_missing_groups(method, pyuvsim_redundant, tmp_path):
     with uvtest.check_warnings(
         UserWarning, match="Missing some redundant groups. Filling in available data."
     ):
-        uv1.inflate_by_redundancy(tol=tol)
+        uv1.inflate_by_redundancy(tol=tol, use_hera_alg=hera_alg)
 
-    uv2 = uv1.compress_by_redundancy(method=method, tol=tol, inplace=False)
+    uv2 = uv1.compress_by_redundancy(
+        method=method, tol=tol, inplace=False, use_hera_alg=hera_alg
+    )
 
     assert np.unique(uv2.baseline_array).size == num_select
 
 
-def test_quick_redundant_vs_redundant_test_array(pyuvsim_redundant):
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_quick_redundant_vs_redundant_test_array(hera_alg, pyuvsim_redundant):
     """Verify the quick redundancy calc returns the same groups as a known array."""
     uv = pyuvsim_redundant
 
@@ -6959,13 +6981,14 @@ def test_quick_redundant_vs_redundant_test_array(pyuvsim_redundant):
     groups.sort()
 
     redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(
-        tol=tol, include_conjugates=True
+        tol=tol, include_conjugates=True, use_hera_alg=hera_alg
     )
     redundant_groups.sort()
     assert groups == redundant_groups
 
 
-def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
+@pytest.mark.parametrize("hera_alg", [True, False])
+def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(hera_alg, casa_uvfits):
     """Test the redundancy finder functions when Nblts != Nbls * Ntimes."""
     tol = 1  # meter
     uv = casa_uvfits
@@ -6999,10 +7022,11 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(casa_uvfits):
     groups = [sorted(bl for bl in grp if bl != -1) for grp in groups]
     groups.sort()
 
-    redundant_groups, centers, lengths, conj_inds = uv.get_redundancies(
-        tol=tol, include_conjugates=True
+    redundant_groups, _, _, _ = uv.get_redundancies(
+        tol=tol, include_conjugates=True, use_hera_alg=hera_alg
     )
     redundant_groups.sort()
+
     assert groups == redundant_groups
 
 
