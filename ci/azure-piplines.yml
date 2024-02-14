@@ -30,7 +30,7 @@ jobs:
     displayName: Environment Info
 
   - bash: |
-      pytest -n auto --pyargs hera_cal -W ignore
+      pytest -n auto --pyargs hera_cal -W "ignore" -W "default:::pyuvdata"
     displayName: run hera_cal tests
 
 - job: hera_qm
@@ -74,7 +74,7 @@ jobs:
       cd ../hera_qm
       pip install --no-deps .
       mkdir test-reports
-      python -m pytest hera_qm --junitxml=test-reports/xunit.xml -W ignore
+      python -m pytest hera_qm --junitxml=test-reports/xunit.xml -W "ignore" -W "default:::pyuvdata"
     displayName: run hera_qm tests
 
 - job: pyradiosky
