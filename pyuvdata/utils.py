@@ -4640,10 +4640,7 @@ def get_baseline_redundancies(
         vec_bin_centers[gi] = np.mean(baseline_vecs[inds, :], axis=0)
 
     lens = np.sqrt(np.sum(vec_bin_centers**2, axis=1))
-    if include_conjugates:
-        return bl_gps, vec_bin_centers, lens, baseline_ind_conj
-    else:
-        return bl_gps, vec_bin_centers, lens
+    return bl_gps, vec_bin_centers, lens
 
 
 def get_antenna_redundancies(
