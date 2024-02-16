@@ -10,6 +10,7 @@ This module provides a python interface for individual Mir metadata files, e.g.
 import copy
 import os
 import warnings
+from pathlib import Path
 
 import numpy as np
 
@@ -570,7 +571,7 @@ class MirMetaData(object):
 
         if obj is None:
             return
-        if isinstance(obj, str):
+        if isinstance(obj, (str, Path)):
             self.read(filepath=obj)
             return
 
