@@ -2223,8 +2223,8 @@ class MirMetaData(object):
         FileNotFoundError
             If running the check and no file is found (and `invert_check=False`).
         """
-        if not isinstance(filepath, str):
-            raise ValueError("filepath must be of type str.")
+        if not isinstance(filepath, (str, Path)):
+            raise ValueError("filepath must be of type str or Path.")
 
         if os.path.isdir(filepath):
             filepath = os.path.join(os.path.abspath(filepath), self._filetype)
