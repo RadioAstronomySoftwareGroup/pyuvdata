@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added a new redundancy finding algorithm based on the HERA gridding algorithm.
+This new algorithm is used by default but the older clustering algorithm is still
+available.
 - Added support for initializing `MirParser` and `MirMetaData` objects from `Path`
 objects.
 - Added a brief tutorial on how to convert SMA MIR data into MS format (with some notes
