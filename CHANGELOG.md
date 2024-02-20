@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added support for initializing `MirParser` and `MirMetaData` objects from `Path`
+objects.
 - Added a brief tutorial on how to convert SMA MIR data into MS format (with some notes
 on SMA specific keywords than can be used).
 - Added the `Mir.generate_sma_antpos_dict` method for reading in SMA-formatted antenna

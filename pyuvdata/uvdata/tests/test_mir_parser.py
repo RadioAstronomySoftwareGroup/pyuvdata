@@ -2318,3 +2318,16 @@ def test_mir_remember_me_vis_data(mir_data):
         np.all(sp_raw["data"] == check_arr) if (np.mod(idx, 5) == 0) else True
         for idx, sp_raw in enumerate(mir_data.raw_data.values())
     )
+
+
+def test_mir_parser_read_path_vs_str():
+    from pathlib import Path
+
+    sma_data_path = str(os.path.join(DATA_PATH, "sma_test.mir"))
+    sma_str_init = MirParser(
+        sma_data_path, load_cross=True, load_auto=True, has_auto=True
+    )
+    sma_path_init = MirParser(
+        Path(sma_data_path), load_cross=True, load_auto=True, has_auto=True
+    )
+    assert sma_str_init == sma_path_init

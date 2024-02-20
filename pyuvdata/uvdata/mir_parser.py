@@ -92,7 +92,7 @@ class MirParser(object):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or Path
             Filepath is the path to the folder containing the Mir data set.
         compass_soln : str
             Optional argument, specifying the path of COMPASS-derived flagging and

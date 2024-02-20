@@ -537,13 +537,14 @@ class MirMetaData(object):
 
         Parameters
         ----------
-        obj : str or ndarray or int
-            Optional argument used to specify how to initialize the object. If a str is
-            supplied, then it is treated as the path to the Mir data folder containing
-            the metadata. If an int is supplied, a "blank" (zero-filled) array of
-            metadata is generated, with length of `obj`. If an ndarray is supplied, then
-            the supplied array is used as the underlying data set for the object (where
-            dtype of the array must match that appropriate for the object).
+        obj : str or Path or ndarray or int
+            Optional argument used to specify how to initialize the object. If a str or
+            Path is supplied, then it is treated as the path to the Mir data folder
+            containing the metadata. If an int is supplied, a "blank" (zero-filled)
+            array of metadata is generated, with length of `obj`. If an ndarray is
+            supplied, then the supplied array is used as the underlying data set for the
+            object (where dtype of the array must match that appropriate for the
+            object).
         filetype : str
             Name of the type MirMetaData object, which is then used as the file name
             that is read from/written to within the folder specified by the path.
@@ -2197,7 +2198,7 @@ class MirMetaData(object):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or Path
             Either the file to write to, or if providing the name of an existing folder,
             the name of the folder to write in (with the file name set by the _filetype
             attribute, which is automatically set for various subclasses of
@@ -2246,7 +2247,7 @@ class MirMetaData(object):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or Path
             Path of the folder containing the metadata in question.
         """
         self._data = np.fromfile(
@@ -2881,7 +2882,7 @@ class MirAntposData(MirMetaData):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or Path
             Path of the folder containing the metadata in question.
         """
         with open(self._gen_filepath(filepath), "r") as antennas_file:
@@ -3415,7 +3416,7 @@ class MirAcData(MirMetaData):
 
         Parameters
         ----------
-        filepath : str
+        filepath : str or Path
             Path of the folder containing the metadata in question.
         """
         try:
