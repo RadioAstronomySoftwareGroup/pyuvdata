@@ -4558,7 +4558,7 @@ def find_clusters_hera(baselines, baseline_vecs, tol=1.0):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, include_conjugates=False, use_hera_alg=False
+    baselines, baseline_vecs, tol=1.0, include_conjugates=False, use_hera_alg=None
 ):
     """
     Find redundant baseline groups.
@@ -4590,6 +4590,15 @@ def get_baseline_redundancies(
         include_conjugates is True
 
     """
+    if use_hera_alg is None:
+        warnings.warn(
+            "The use_hera_alg parameter is not set. Defaulting to True to "
+            "use the HERA gridding based algorithm rather than the old "
+            "clustering algorithm. This is change to the default, to use "
+            "the clustering algorithm set use_hera_alg=False."
+        )
+        use_hera_alg = True
+
     Nbls = baselines.shape[0]
 
     if not baseline_vecs.shape == (Nbls, 3):
@@ -4644,7 +4653,7 @@ def get_baseline_redundancies(
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, tol=1.0, include_autos=False, use_hera_alg=False
+    antenna_numbers, antenna_positions, tol=1.0, include_autos=False, use_hera_alg=None
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -4689,6 +4698,15 @@ def get_antenna_redundancies(
     the tolerance used here.
 
     """
+    if use_hera_alg is None:
+        warnings.warn(
+            "The use_hera_alg parameter is not set. Defaulting to True to "
+            "use the HERA gridding based algorithm rather than the old "
+            "clustering algorithm. This is change to the default, to use "
+            "the clustering algorithm set use_hera_alg=False."
+        )
+        use_hera_alg = True
+
     Nants = antenna_numbers.size
 
     bls = []

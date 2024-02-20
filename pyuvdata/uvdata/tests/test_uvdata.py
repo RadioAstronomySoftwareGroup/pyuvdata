@@ -6367,14 +6367,29 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
         uv.select(**kwargs)
 
 
-@pytest.mark.parametrize("hera_alg", [True, False])
+@pytest.mark.parametrize("hera_alg", [True, False, None])
 def test_get_antenna_redundancies(pyuvsim_redundant, hera_alg):
     uv0 = pyuvsim_redundant
 
     old_bl_array = np.copy(uv0.baseline_array)
-    red_gps, centers, lengths = uv0.get_redundancies(
-        use_antpos=True, include_autos=False, conjugate_bls=True, use_hera_alg=hera_alg
-    )
+    if hera_alg is None:
+        warn_str = (
+            "The use_hera_alg parameter is not set. Defaulting to True to "
+            "use the HERA gridding based algorithm rather than the old "
+            "clustering algorithm. This is change to the default, to use "
+            "the clustering algorithm set use_hera_alg=False."
+        )
+        warn_type = UserWarning
+    else:
+        warn_type = None
+        warn_str = ""
+    with uvtest.check_warnings(warn_type, match=warn_str):
+        red_gps, centers, lengths = uv0.get_redundancies(
+            use_antpos=True,
+            include_autos=False,
+            conjugate_bls=True,
+            use_hera_alg=hera_alg,
+        )
     # new and old baseline Numbers are not the same (different conjugation)
     assert not np.allclose(uv0.baseline_array, old_bl_array)
 
@@ -6385,19 +6400,21 @@ def test_get_antenna_redundancies(pyuvsim_redundant, hera_alg):
 
     # conjugate data differently
     uv0.conjugate_bls(convention="ant1<ant2")
-    new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
-        use_antpos=True,
-        include_autos=False,
-        include_conjugates=True,
-        use_hera_alg=hera_alg,
-    )
+    with uvtest.check_warnings(warn_type, match=warn_str):
+        new_red_gps, new_centers, new_lengths, conjs = uv0.get_redundancies(
+            use_antpos=True,
+            include_autos=False,
+            include_conjugates=True,
+            use_hera_alg=hera_alg,
+        )
 
     assert conjs is None
 
     apos, anums = uv0.get_ENU_antpos()
-    new_red_gps, new_centers, new_lengths = uvutils.get_antenna_redundancies(
-        anums, apos, include_autos=False, use_hera_alg=hera_alg
-    )
+    with uvtest.check_warnings(warn_type, match=warn_str):
+        new_red_gps, new_centers, new_lengths = uvutils.get_antenna_redundancies(
+            anums, apos, include_autos=False, use_hera_alg=hera_alg
+        )
 
     # all redundancy info is the same
     assert red_gps == new_red_gps

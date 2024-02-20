@@ -10045,7 +10045,7 @@ class UVData(UVBase):
         include_conjugates=False,
         include_autos=True,
         conjugate_bls=False,
-        use_hera_alg=False,
+        use_hera_alg=None,
     ):
         """
         Get redundant baselines to a given tolerance.
@@ -10096,6 +10096,15 @@ class UVData(UVBase):
         in the data.
 
         """
+        if use_hera_alg is None:
+            warnings.warn(
+                "The use_hera_alg parameter is not set. Defaulting to True to "
+                "use the HERA gridding based algorithm rather than the old "
+                "clustering algorithm. This is change to the default, to use "
+                "the clustering algorithm set use_hera_alg=False."
+            )
+            use_hera_alg = True
+
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
             result = uvutils.get_antenna_redundancies(
