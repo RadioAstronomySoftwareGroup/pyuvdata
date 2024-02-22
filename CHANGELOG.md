@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.4.2] - 2024-2-22
+
 ### Added
 - Added a new redundancy finding algorithm based on the HERA gridding algorithm.
 This new algorithm is used by default but the older clustering algorithm is still
