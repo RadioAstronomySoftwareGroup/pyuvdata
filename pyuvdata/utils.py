@@ -4496,14 +4496,18 @@ def find_clusters_grid(baselines, baseline_vecs, tol=1.0):
     """
     Find redundant groups using a gridding algorithm developed by the HERA team.
 
-    This is essentially a gridding approach, but it is not tied to a pre-defined
-    grid. It iterates through the baselines and assigns each baseline to a an
-    existing group if it is within the tolerance or makes a new group if there
-    is no group. The location of the group is the baseline vector of the first
-    baseline assigned to it, rounded to the tolerance, so the result of this
-    method can depend on the order in which baseline vectors are passed to it.
-    It is quite robust for regular arrays if the tolerance is properly specified,
-    but may not behave predictably for highly non-redundant arrays.
+    This is essentially a gridding approach, but it only keeps track of the grid
+    points that have baselines assigned to them. It iterates through the
+    baselines and assigns each baseline to a an existing group if it is within
+    a grid spacing or makes a new group if there is no group. The location of
+    the group is the baseline vector of the first baseline assigned to it, rounded
+    to the grid spacing, so the resulting assigned grid point can depend on the
+    order in which baseline vectors are passed to it. It is possible for a baseline
+    to be assigned to a group that is up to but strictly less than 4 times the
+    grid spacing from its true location, so we use a grid a factor of 4 smaller
+    than the passed tolerance (`tol`). This method is quite robust for regular
+    arrays if the tolerance is properly specified, but may not behave predictably
+    for highly non-redundant arrays.
 
     Parameters
     ----------
@@ -4524,7 +4528,10 @@ def find_clusters_grid(baselines, baseline_vecs, tol=1.0):
 
     """
     bl_gps = {}
-    grid_size = tol / 2.0
+    # reduce the grid size to ensure baselines won't be assigned to a group
+    # more than the tol away from their location. The factor of 4 is a personal
+    # communication from Josh Dillon who developed this algorithm.
+    grid_size = tol / 4.0
 
     p_or_m = (0, -1, 1)
     epsilons = [[dx, dy, dz] for dx in p_or_m for dy in p_or_m for dz in p_or_m]
@@ -4591,7 +4598,9 @@ def get_baseline_redundancies(
 
     """
     if use_grid_alg is None:
-        # This was added in v2.4.1 (Feb 2024). It should go away at some point.
+        # This was added in v2.4.2 (Feb 2024). It should go away at some point.
+        # Normally it would be in v2.6 or later, but if v3.0 comes out
+        # very soon we could consider delaying the removal of this until v3.1
         warnings.warn(
             "The use_grid_alg parameter is not set. Defaulting to True to "
             "use the new gridding based algorithm (developed by the HERA team) "
@@ -4700,7 +4709,9 @@ def get_antenna_redundancies(
 
     """
     if use_grid_alg is None:
-        # This was added in v2.4.1 (Feb 2024). It should go away at some point.
+        # This was added in v2.4.2 (Feb 2024). It should go away at some point.
+        # Normally it would be in v2.6 or later, but if v3.0 comes out
+        # very soon we could consider delaying the removal of this until v3.1
         warnings.warn(
             "The use_grid_alg parameter is not set. Defaulting to True to "
             "use the new gridding based algorithm (developed by the HERA team) "
