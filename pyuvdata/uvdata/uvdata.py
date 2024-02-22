@@ -10097,7 +10097,9 @@ class UVData(UVBase):
 
         """
         if use_grid_alg is None:
-            # This was added in v2.4.1 (Feb 2024). It should go away at some point.
+            # This was added in v2.4.2 (Feb 2024). It should go away at some point.
+            # Normally it would be in v2.6 or later, but if v3.0 comes out
+            # very soon we could consider delaying the removal of this until v3.1
             warnings.warn(
                 "The use_grid_alg parameter is not set. Defaulting to True to "
                 "use the new gridding based algorithm (developed by the HERA team) "
