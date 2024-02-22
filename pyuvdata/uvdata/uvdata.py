@@ -10045,7 +10045,7 @@ class UVData(UVBase):
         include_conjugates=False,
         include_autos=True,
         conjugate_bls=False,
-        use_hera_alg=None,
+        use_grid_alg=None,
     ):
         """
         Get redundant baselines to a given tolerance.
@@ -10070,9 +10070,9 @@ class UVData(UVBase):
         conjugate_bls : bool
             If using antenna positions, this will conjugate baselines on this
             object to correspond with those in the returned groups.
-        use_hera_alg : bool
-            Option to use the HERA gridding based algorithm to find redundancies
-            rather than the clustering algorithm.
+        use_grid_alg : bool
+            Option to use the gridding based algorithm (developed by the HERA team)
+            to find redundancies rather than the older clustering algorithm.
 
         Returns
         -------
@@ -10096,14 +10096,16 @@ class UVData(UVBase):
         in the data.
 
         """
-        if use_hera_alg is None:
+        if use_grid_alg is None:
+            # This was added in v2.4.1 (Feb 2024). It should go away at some point.
             warnings.warn(
-                "The use_hera_alg parameter is not set. Defaulting to True to "
-                "use the HERA gridding based algorithm rather than the old "
-                "clustering algorithm. This is change to the default, to use "
-                "the clustering algorithm set use_hera_alg=False."
+                "The use_grid_alg parameter is not set. Defaulting to True to "
+                "use the new gridding based algorithm (developed by the HERA team) "
+                "rather than the older clustering based algorithm. This is change "
+                "to the default, to use the clustering algorithm set "
+                "use_grid_alg=False."
             )
-            use_hera_alg = True
+            use_grid_alg = True
 
         if use_antpos:
             antpos, numbers = self.get_ENU_antpos(center=False)
@@ -10112,7 +10114,7 @@ class UVData(UVBase):
                 antpos,
                 tol=tol,
                 include_autos=include_autos,
-                use_hera_alg=use_hera_alg,
+                use_grid_alg=use_grid_alg,
             )
             if conjugate_bls:
                 self.conjugate_bls(convention="u>0", uvw_tol=tol)
@@ -10148,7 +10150,7 @@ class UVData(UVBase):
             baseline_vecs,
             tol=tol,
             include_conjugates=include_conjugates,
-            use_hera_alg=use_hera_alg,
+            use_grid_alg=use_grid_alg,
         )
 
     def compress_by_redundancy(
@@ -10157,7 +10159,7 @@ class UVData(UVBase):
         tol=1.0,
         inplace=True,
         keep_all_metadata=True,
-        use_hera_alg=False,
+        use_grid_alg=False,
     ):
         """
         Downselect or average to only have one baseline per redundant group.
@@ -10185,9 +10187,9 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas,
             even those that do not remain after the select option.
-        use_hera_alg : bool
-            Option to use the HERA gridding based algorithm to find redundancies
-            rather than the clustering algorithm.
+        use_grid_alg : bool
+            Option to use the gridding based algorithm (developed by the HERA team)
+            to find redundancies rather than the older clustering algorithm.
 
         Returns
         -------
@@ -10200,7 +10202,7 @@ class UVData(UVBase):
             raise ValueError(f"method must be one of {allowed_methods}")
 
         red_gps, centers, lengths, conjugates = self.get_redundancies(
-            tol, include_conjugates=True, use_hera_alg=use_hera_alg
+            tol, include_conjugates=True, use_grid_alg=use_grid_alg
         )
         bl_ants = [self.baseline_to_antnums(gp[0]) for gp in red_gps]
 
@@ -10401,7 +10403,7 @@ class UVData(UVBase):
             )
 
     def inflate_by_redundancy(
-        self, tol=1.0, blt_order="time", blt_minor_order=None, use_hera_alg=False
+        self, tol=1.0, blt_order="time", blt_minor_order=None, use_grid_alg=False
     ):
         """
         Expand data to full size, copying data among redundant baselines.
@@ -10417,14 +10419,14 @@ class UVData(UVBase):
             string specifying primary order along the blt axis (see `reorder_blts`)
         blt_minor_order : str
             string specifying minor order along the blt axis (see `reorder_blts`)
-        use_hera_alg : bool
-            Option to use the HERA gridding based algorithm to find redundancies
-            rather than the clustering algorithm.
+        use_grid_alg : bool
+            Option to use the gridding based algorithm (developed by the HERA team)
+            to find redundancies rather than the older clustering algorithm.
 
         """
         self.conjugate_bls(convention="u>0")
         red_gps, centers, lengths = self.get_redundancies(
-            tol=tol, use_antpos=True, conjugate_bls=True, use_hera_alg=use_hera_alg
+            tol=tol, use_antpos=True, conjugate_bls=True, use_grid_alg=use_grid_alg
         )
 
         # Stack redundant groups into one array.
