@@ -1778,6 +1778,38 @@ class UVCal(UVBase):
         else:
             return self.time_array
 
+    def get_lst_array(self, *, astrometry_library=None):
+        """
+        Get an lst array of calibration solution lsts.
+
+        LSTs are for the center of the integration, shape (Ntimes), units in radians.
+        If an lst_range is defined on the object, the lsts are the LST of the mean
+        of the start and stop times for each range. Otherwise return the lst_array
+        (which can be None).
+
+        Parameters
+        ----------
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
+
+        """
+        if self.lst_range is not None:
+            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
+            return uvutils.get_lst_for_time(
+                jd_array=self.get_time_array(),
+                latitude=latitude,
+                longitude=longitude,
+                altitude=altitude,
+                astrometry_library=astrometry_library,
+                frame=self._telescope_location.frame,
+            )
+        else:
+            return self.lst_array
+
     def reorder_antennas(
         self,
         order="number",
