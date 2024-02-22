@@ -2437,8 +2437,8 @@ def test_conj_pol():
     )
 
 
-@pytest.mark.parametrize("hera_alg", [True, False, None])
-def test_redundancy_finder(hera_alg):
+@pytest.mark.parametrize("grid_alg", [True, False, None])
+def test_redundancy_finder(grid_alg):
     """
     Check that get_baseline_redundancies and get_antenna_redundancies return consistent
     redundant groups for a test file with the HERA19 layout.
@@ -2459,12 +2459,13 @@ def test_redundancy_finder(hera_alg):
     bl_positions = uvd.uvw_array
     bl_pos_backup = copy.deepcopy(uvd.uvw_array)
 
-    if hera_alg is None:
+    if grid_alg is None:
         warn_str = (
-            "The use_hera_alg parameter is not set. Defaulting to True to "
-            "use the HERA gridding based algorithm rather than the old "
-            "clustering algorithm. This is change to the default, to use "
-            "the clustering algorithm set use_hera_alg=False."
+            "The use_grid_alg parameter is not set. Defaulting to True to "
+            "use the new gridding based algorithm (developed by the HERA team) "
+            "rather than the older clustering based algorithm. This is change "
+            "to the default, to use the clustering algorithm set "
+            "use_grid_alg=False."
         )
         warn_type = UserWarning
     else:
@@ -2476,12 +2477,12 @@ def test_redundancy_finder(hera_alg):
     ):
         with uvtest.check_warnings(warn_type, match=warn_str):
             uvutils.get_baseline_redundancies(
-                uvd.baseline_array, bl_positions[0:2, 0:1], use_hera_alg=hera_alg
+                uvd.baseline_array, bl_positions[0:2, 0:1], use_grid_alg=grid_alg
             )
 
     with uvtest.check_warnings(warn_type, match=warn_str):
         baseline_groups, vec_bin_centers, lens = uvutils.get_baseline_redundancies(
-            uvd.baseline_array, bl_positions, tol=tol, use_hera_alg=hera_alg
+            uvd.baseline_array, bl_positions, tol=tol, use_grid_alg=grid_alg
         )
 
     for gi, gp in enumerate(baseline_groups):
@@ -2520,7 +2521,7 @@ def test_redundancy_finder(hera_alg):
                         uvd.baseline_array,
                         bl_positions_new,
                         tol=hightol,
-                        use_hera_alg=hera_alg,
+                        use_grid_alg=grid_alg,
                     )
                 )
 
@@ -2545,7 +2546,7 @@ def test_redundancy_finder(hera_alg):
 
     with uvtest.check_warnings(warn_type, match=warn_str):
         baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
-            antnums, antpos, tol=tol, include_autos=False, use_hera_alg=hera_alg
+            antnums, antpos, tol=tol, include_autos=False, use_grid_alg=grid_alg
         )
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19
@@ -2560,7 +2561,7 @@ def test_redundancy_finder(hera_alg):
                 bl_positions,
                 tol=tol,
                 include_conjugates=True,
-                use_hera_alg=hera_alg,
+                use_grid_alg=grid_alg,
             )
         )
 
@@ -2573,7 +2574,7 @@ def test_redundancy_finder(hera_alg):
                 bl_positions,
                 tol=tol,
                 include_conjugates=True,
-                use_hera_alg=hera_alg,
+                use_grid_alg=grid_alg,
             )
         )
 
@@ -2622,12 +2623,12 @@ def test_high_tolerance_redundancy_error():
             bl_positions,
             tol=tol,
             include_conjugates=True,
-            use_hera_alg=False,
+            use_grid_alg=False,
         )
 
 
-@pytest.mark.parametrize("hera_alg", [True, False])
-def test_redundancy_conjugates(hera_alg):
+@pytest.mark.parametrize("grid_alg", [True, False])
+def test_redundancy_conjugates(grid_alg):
     """
     Check that redundancy finding with conjugation works.
 
@@ -2655,14 +2656,14 @@ def test_redundancy_conjugates(hera_alg):
         if uneg or (uzer and vneg) or (uzer and vzer and wneg):
             expected_conjugates.append(bl_inds[i])
     _, _, _, conjugates = uvutils.get_baseline_redundancies(
-        bl_inds, bl_vecs, tol=tol, include_conjugates=True, use_hera_alg=hera_alg
+        bl_inds, bl_vecs, tol=tol, include_conjugates=True, use_grid_alg=grid_alg
     )
 
     assert sorted(conjugates) == sorted(expected_conjugates)
 
 
-@pytest.mark.parametrize("hera_alg", [True, False])
-def test_redundancy_finder_fully_redundant_array(hera_alg):
+@pytest.mark.parametrize("grid_alg", [True, False])
+def test_redundancy_finder_fully_redundant_array(grid_alg):
     """Test the redundancy finder for a fully redundant array."""
     uvd = UVData()
     uvd.read_uvfits(
@@ -2679,7 +2680,7 @@ def test_redundancy_finder_fully_redundant_array(hera_alg):
         bl_positions,
         tol=tol,
         include_conjugates=True,
-        use_hera_alg=hera_alg,
+        use_grid_alg=grid_alg,
     )
 
     # Only 1 set of redundant baselines
@@ -3883,8 +3884,8 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     assert np.all(uvd2.get_flags(9, 10))
 
 
-@pytest.mark.parametrize("hera_alg", [True, False])
-def test_upos_tol_reds(hera_alg):
+@pytest.mark.parametrize("grid_alg", [True, False])
+def test_upos_tol_reds(grid_alg):
     # Checks that the u-positive convention in get_antenna_redundancies
     # is enforced to the specificed tolerance.
 
@@ -3901,7 +3902,7 @@ def test_upos_tol_reds(hera_alg):
     ant_nums = np.arange(4)
 
     red_grps, _, _ = uvutils.get_antenna_redundancies(
-        ant_nums, ant_pos, tol=tol, use_hera_alg=hera_alg
+        ant_nums, ant_pos, tol=tol, use_grid_alg=grid_alg
     )
 
     assert len(red_grps) == 4

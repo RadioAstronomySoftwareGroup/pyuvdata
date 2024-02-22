@@ -4492,9 +4492,9 @@ def find_clusters(location_ids, location_vectors, tol, strict=False):
     return loc_gps
 
 
-def find_clusters_hera(baselines, baseline_vecs, tol=1.0):
+def find_clusters_grid(baselines, baseline_vecs, tol=1.0):
     """
-    Find redundant groups using the HERA algorithm.
+    Find redundant groups using a gridding algorithm developed by the HERA team.
 
     This is essentially a gridding approach, but it is not tied to a pre-defined
     grid. It iterates through the baselines and assigns each baseline to a an
@@ -4558,7 +4558,7 @@ def find_clusters_hera(baselines, baseline_vecs, tol=1.0):
 
 
 def get_baseline_redundancies(
-    baselines, baseline_vecs, tol=1.0, include_conjugates=False, use_hera_alg=None
+    baselines, baseline_vecs, tol=1.0, include_conjugates=False, use_grid_alg=None
 ):
     """
     Find redundant baseline groups.
@@ -4573,9 +4573,9 @@ def get_baseline_redundancies(
         Absolute tolerance of redundancy, in meters.
     include_conjugates : bool
         Option to include baselines that are redundant when flipped.
-    use_hera_alg : bool
-        Option to use the HERA gridding based algorithm to find redundancies
-        rather than the clustering algorithm.
+    use_grid_alg : bool
+        Option to use the gridding based algorithm (developed by the HERA team)
+        to find redundancies rather than the older clustering algorithm.
 
     Returns
     -------
@@ -4590,14 +4590,15 @@ def get_baseline_redundancies(
         include_conjugates is True
 
     """
-    if use_hera_alg is None:
+    if use_grid_alg is None:
+        # This was added in v2.4.1 (Feb 2024). It should go away at some point.
         warnings.warn(
-            "The use_hera_alg parameter is not set. Defaulting to True to "
-            "use the HERA gridding based algorithm rather than the old "
-            "clustering algorithm. This is change to the default, to use "
-            "the clustering algorithm set use_hera_alg=False."
+            "The use_grid_alg parameter is not set. Defaulting to True to "
+            "use the new gridding based algorithm (developed by the HERA team) "
+            "rather than the older clustering based algorithm. This is change "
+            "to the default, to use the clustering algorithm set use_grid_alg=False."
         )
-        use_hera_alg = True
+        use_grid_alg = True
 
     Nbls = baselines.shape[0]
 
@@ -4624,12 +4625,12 @@ def get_baseline_redundancies(
             baseline_vecs,
             tol=tol,
             include_conjugates=False,
-            use_hera_alg=use_hera_alg,
+            use_grid_alg=use_grid_alg,
         )
         return bl_gps, vec_bin_centers, lens, baseline_ind_conj
 
-    if use_hera_alg:
-        output = find_clusters_hera(baselines, baseline_vecs, tol=1.0)
+    if use_grid_alg:
+        output = find_clusters_grid(baselines, baseline_vecs, tol=1.0)
         bl_gps, baseline_ind_conj = output
     else:
         try:
@@ -4637,9 +4638,9 @@ def get_baseline_redundancies(
         except ValueError as exc:
             raise ValueError(
                 "Some baselines are falling into multiple redundant groups. "
-                "Lower the tolerance to resolve ambiguity or use the HERA "
-                "gridding algorithm to find redundancies by setting "
-                "use_hera_alg=True."
+                "Lower the tolerance to resolve ambiguity or use the gridding "
+                "based algorithm (developed by the HERA team) to find redundancies "
+                "by setting use_grid_alg=True."
             ) from exc
 
     n_unique = len(bl_gps)
@@ -4653,7 +4654,7 @@ def get_baseline_redundancies(
 
 
 def get_antenna_redundancies(
-    antenna_numbers, antenna_positions, tol=1.0, include_autos=False, use_hera_alg=None
+    antenna_numbers, antenna_positions, tol=1.0, include_autos=False, use_grid_alg=None
 ):
     """
     Find redundant baseline groups based on antenna positions.
@@ -4669,9 +4670,9 @@ def get_antenna_redundancies(
         Redundancy tolerance in meters.
     include_autos : bool
         Option to include autocorrelations.
-    use_hera_alg : bool
-        Option to use the HERA gridding based algorithm to find redundancies
-        rather than the clustering algorithm.
+    use_grid_alg : bool
+        Option to use the gridding based algorithm (developed by the HERA team)
+        to find redundancies rather than the older clustering algorithm.
 
     Returns
     -------
@@ -4698,14 +4699,15 @@ def get_antenna_redundancies(
     the tolerance used here.
 
     """
-    if use_hera_alg is None:
+    if use_grid_alg is None:
+        # This was added in v2.4.1 (Feb 2024). It should go away at some point.
         warnings.warn(
-            "The use_hera_alg parameter is not set. Defaulting to True to "
-            "use the HERA gridding based algorithm rather than the old "
-            "clustering algorithm. This is change to the default, to use "
-            "the clustering algorithm set use_hera_alg=False."
+            "The use_grid_alg parameter is not set. Defaulting to True to "
+            "use the new gridding based algorithm (developed by the HERA team) "
+            "rather than the older clustering based algorithm. This is change "
+            "to the default, to use the clustering algorithm set use_grid_alg=False."
         )
-        use_hera_alg = True
+        use_grid_alg = True
 
     Nants = antenna_numbers.size
 
@@ -4725,7 +4727,7 @@ def get_antenna_redundancies(
     bls = np.array(bls)
     bl_vecs = np.array(bl_vecs)
     gps, vecs, lens, conjs = get_baseline_redundancies(
-        bls, bl_vecs, tol=tol, include_conjugates=True, use_hera_alg=use_hera_alg
+        bls, bl_vecs, tol=tol, include_conjugates=True, use_grid_alg=use_grid_alg
     )
     # Flip the baselines in the groups.
     for gi, gp in enumerate(gps):
