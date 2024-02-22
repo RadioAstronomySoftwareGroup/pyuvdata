@@ -322,6 +322,7 @@ class UVCal(UVBase):
             description=desc,
             form=("Ntimes", 2),
             expected_type=float,
+            tols=1e-3 / (60.0 * 60.0 * 24.0),
             required=False,
         )
 
