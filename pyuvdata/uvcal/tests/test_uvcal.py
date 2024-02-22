@@ -602,6 +602,18 @@ def test_get_time_array(gain_data):
     assert np.allclose(time_array, orig_time_array)
 
 
+def test_lst_array(gain_data):
+    calobj = gain_data
+    orig_lst_array = copy.copy(calobj.lst_array)
+
+    lst_array = calobj.get_lst_array()
+    assert np.allclose(lst_array, orig_lst_array)
+
+    calobj = time_array_to_time_range(calobj)
+    lst_array = calobj.get_lst_array()
+    assert np.allclose(lst_array, orig_lst_array)
+
+
 def test_unknown_telescopes(gain_data, tmp_path):
     calobj = gain_data
 
