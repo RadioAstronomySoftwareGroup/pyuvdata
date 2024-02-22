@@ -95,14 +95,17 @@ class FHDCal(UVCal):
         time_use = bl_info["time_use"][0]
 
         time_array_use = time_array[np.where(time_use > 0)]
-        # extend the range by half the integration time in each direction
+        # extend the range by 1/4 the integration time in each direction
         # to make sure that the original data times are covered by the range.
+        # Note that this leaves gaps between adjacent files in principal, but
+        # using 1/2 the integration time occasionally led to time_ranges overlapping
+        # slightly because of precision issues.
         intime_jd = self.integration_time / (24.0 * 3600.0)
         self.time_range = np.reshape(
             np.asarray(
                 [
-                    np.min(time_array_use) - intime_jd / 2.0,
-                    np.max(time_array_use) + intime_jd / 2.0,
+                    np.min(time_array_use) - intime_jd / 4.0,
+                    np.max(time_array_use) + intime_jd / 4.0,
                 ]
             ),
             (1, 2),
