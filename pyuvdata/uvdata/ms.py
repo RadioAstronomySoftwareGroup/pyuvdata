@@ -1585,7 +1585,7 @@ class MS(UVData):
         if "pyuvdata_xorient" in main_keywords.keys():
             self.x_orientation = main_keywords["pyuvdata_xorient"]
 
-        default_vis_units = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy"}
+        default_vis_units = {"DATA": "uncalib", "CORRECTED_DATA": "Jy", "MODEL": "Jy", "MODEL_DATA": "Jy"}
 
         # make sure user requests a valid data_column
         if data_column not in default_vis_units.keys():
