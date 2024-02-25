@@ -4,10 +4,17 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A `UVCal.get_lst_array` method similar to the `get_time_array` method that either
+returns the LST of the mean of the start and stop time for each time range or the
+lst_array (if there's a lst_array and no lst_range).
 - A `UVCal.get_time_array` method that either returns the mean of the start and stop
 time for each time range or the time_array (if there's a time_array and no time_range).
 
 ### Changed
+- When FHD calibration solutions are read in, the `time_range` is now set to be
+one quarter of an integration time before and after the earliest and latest times
+respectively. This is a change from extending it by half an integration time to
+prevent apparent overlaps in neighboring calibration solutions due to jd precision loss.
 - Improved performance for `antpair2ind` and `_key2inds` by using the
 `blts_are_rectangular` parameter, and also by caching the results. To improve
 performance of the cache, the resulting indices are returned as slices whenever possible.
