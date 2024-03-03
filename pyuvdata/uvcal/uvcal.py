@@ -717,7 +717,7 @@ class UVCal(UVBase):
         """
         return initializers.new_uvcal(**kwargs)
 
-    def _set_flex_spw(self):
+    def _set_flex_spw(self, flex_spw=True):
         """
         Set flex_spw to True, and adjust required parameters.
 
@@ -725,14 +725,14 @@ class UVCal(UVBase):
         by the file-reading methods to indicate that an object has multiple spectral
         windows concatenated together across the frequency axis.
         """
-        assert (
-            not self.wide_band
+        assert not (
+            self.wide_band and flex_spw
         ), "Cannot set objects wide_band objects to have flexible spectral windows."
         # Mark once-optional arrays as now required
-        self.flex_spw = True
-        self._flex_spw_id_array.required = True
+        self.flex_spw = flex_spw
+        self._flex_spw_id_array.required = flex_spw
         # Now make sure that chan_width is set to be an array
-        self._channel_width.form = ("Nfreqs",)
+        self._channel_width.form = ("Nfreqs",) if flex_spw else ()
 
     def _set_wide_band(self, wide_band=True):
         """
@@ -1347,6 +1347,374 @@ class UVCal(UVBase):
             flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
+
+    def _add_phase_center(
+        self,
+        cat_name,
+        *,
+        cat_type=None,
+        cat_lon=None,
+        cat_lat=None,
+        cat_frame=None,
+        cat_epoch=None,
+        cat_times=None,
+        cat_pm_ra=None,
+        cat_pm_dec=None,
+        cat_dist=None,
+        cat_vrad=None,
+        info_source="user",
+        force_update=False,
+        cat_id=None,
+    ):
+        """
+        Add an entry to the internal object/source catalog or find a matching one.
+
+        This is a helper function for identifying a adding a phase center to the
+        internal catalog, contained within the attribute `phase_center_catalog`, unless
+        a phase center already exists that matches the passed parameters. If a matching
+        phase center is found, the catalog ID associated with that phase center is
+        returned.
+
+        Parameters
+        ----------
+        cat_name : str
+            Name of the phase center to be added.
+        cat_type : str
+            Type of phase center to be added. Must be one of:
+                "sidereal" (fixed RA/Dec),
+                "ephem" (RA/Dec that moves with time),
+                "driftscan" (fixed az/el position),
+                "unprojected" (no w-projection, equivalent to the old
+                `phase_type` == "drift").
+        cat_lon : float or ndarray
+            Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is zero. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_lat : float or ndarray
+            Value of the latitudinal coordinate (e.g., Dec, El, b) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is pi/2. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_frame : str
+            Coordinate frame that cat_lon and cat_lat are given in. Only used
+            for sidereal and ephem targets. Can be any of the several supported frames
+            in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
+        cat_epoch : str or float
+            Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
+            in units of fractional years, either as a float or as a string with the
+            epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
+        cat_times : ndarray of floats
+            Only used when `cat_type="ephem"`. Describes the time for which the values
+            of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
+        cat_pm_ra : float
+            Proper motion in RA, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_pm_dec : float
+            Proper motion in Dec, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_dist : float or ndarray of float
+            Distance of the source, in units of pc. Only used for sidereal and ephem
+            phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_vrad : float or ndarray of float
+            Radial velocity of the source, in units of km/s. Only used for sidereal and
+            ephem phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        info_source : str
+            Optional string describing the source of the information provided. Used
+            primarily in UVData to denote when an ephemeris has been supplied by the
+            JPL-Horizons system, user-supplied, or read in by one of the various file
+            interpreters. Default is 'user'.
+        force_update : bool
+            Normally, `_add_phase_center` will throw an error if there already exists a
+            phase_center with the given cat_id. However, if one sets
+            `force_update=True`, the method will overwrite the existing entry in
+            `phase_center_catalog` with the parameters supplied. Note that doing this
+            will _not_ update other attributes of the `UVData` object. Default is False.
+        cat_id : int
+            An integer signifying the ID number for the phase center, used in the
+            `phase_center_id_array` attribute. If a matching phase center entry exists
+            already, that phase center ID will be returned, which may be different than
+            the value specified to this parameter. The default is for the method to
+            assign this value automatically.
+
+        Returns
+        -------
+        cat_id : int
+            The unique ID number for the phase center that either matches the specified
+            parameters or was added to the internal catalog. If a matching entry was
+            found, this may not be the value passed to the `cat_id` parameter. This
+            value is used in the `phase_center_id_array` attribute to denote which
+            source a given baseline-time corresponds to.
+
+        Raises
+        ------
+        ValueError
+            If attempting to add a non-unique source name or if adding a sidereal
+            source without coordinates.
+
+        """
+        cat_entry = uvutils.generate_phase_center_cat_entry(
+            cat_name=cat_name,
+            cat_type=cat_type,
+            cat_lon=cat_lon,
+            cat_lat=cat_lat,
+            cat_frame=cat_frame,
+            cat_epoch=cat_epoch,
+            cat_times=cat_times,
+            cat_pm_ra=cat_pm_ra,
+            cat_pm_dec=cat_pm_dec,
+            cat_dist=cat_dist,
+            cat_vrad=cat_vrad,
+            info_source=info_source,
+        )
+
+        # We want to create a unique ID for each source, for use in indexing arrays.
+        # The logic below ensures that we pick the lowest positive integer that is
+        # not currently being used by another source
+        if cat_id is None or not force_update:
+            cat_id = uvutils.generate_new_phase_center_id(
+                phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
+            )
+
+        if self.phase_center_catalog is None:
+            # Initialize an empty dict to plug entries into
+            self.phase_center_catalog = {}
+        else:
+            # Let's warn if this entry has the same name as an existing one
+            temp_id, cat_diffs = uvutils.look_in_catalog(
+                self.phase_center_catalog, phase_dict=cat_entry
+            )
+
+            # If the source does have the same name, check to see if all the
+            # attributes match. If so, no problem, go about your business
+            if temp_id is not None:
+                if cat_diffs == 0:
+                    # Everything matches, return the catalog ID of the matching entry
+                    return temp_id
+                warnings.warn(
+                    f"The provided name {cat_name} is already used but has different "
+                    "parameters. Adding another entry with the same name but a "
+                    "different ID and parameters."
+                )
+
+        # If source is unique, begin creating a dictionary for it
+        self.phase_center_catalog[cat_id] = cat_entry
+        self.Nphase = len(self.phase_center_catalog)
+
+        return cat_id
+
+    def _remove_phase_center(self, defunct_id):
+        """
+        Remove an entry from the internal object/source catalog.
+
+        Removes an entry from the attribute `phase_center_catalog`.
+
+        Parameters
+        ----------
+        defunct_id : int
+            Catalog ID of the source to be removed
+
+        Raises
+        ------
+        IndexError
+            If the name provided is not found as a key in `phase_center_catalog`
+        """
+        if defunct_id not in self.phase_center_catalog:
+            raise IndexError("No source by that ID contained in the catalog.")
+
+        del self.phase_center_catalog[defunct_id]
+        self.Nphase = len(self.phase_center_catalog)
+
+    def _clear_unused_phase_centers(self):
+        """
+        Remove objects dictionaries and names that are no longer in use.
+
+        Goes through the `phase_center_catalog` attribute in of a UVData object and
+        clears out entries that are no longer being used, and appropriately updates
+        `phase_center_id_array` accordingly. This function is not typically called
+        by users, but instead is used by other methods.
+
+        """
+        unique_cat_ids = np.unique(self.phase_center_id_array)
+        defunct_list = []
+        Nphase = 0
+        for cat_id in self.phase_center_catalog:
+            if cat_id in unique_cat_ids:
+                Nphase += 1
+            else:
+                defunct_list.append(cat_id)
+
+        # Check the number of "good" sources we have -- if we haven't dropped any,
+        # then we are free to bail, otherwise update the Nphase attribute
+        if Nphase == self.Nphase:
+            return
+
+        # Time to kill the entries that are no longer in the source stack
+        for defunct_id in defunct_list:
+            self._remove_phase_center(defunct_id)
+
+    def print_phase_center_info(
+        self,
+        catalog_identifier=None,
+        *,
+        hms_format=None,
+        return_str=False,
+        print_table=True,
+    ):
+        """
+        Print out the details of the phase centers.
+
+        Prints out an ASCII table that contains the details of the
+        `phase_center_catalog` attribute, which acts as the internal source catalog
+        for UVData objects.
+
+        Parameters
+        ----------
+        catalog_identifier : str or int or list of str or int
+            Optional parameter which, if provided, will cause the method to only return
+            information on the phase center(s) with the matching name(s) or catalog ID
+            number(s). Default is to print out information on all catalog entries.
+        hms_format : bool
+            Optional parameter, which if selected, can be used to force coordinates to
+            be printed out in Hours-Min-Sec (if set to True) or Deg-Min-Sec (if set to
+            False) format. Default is to print out in HMS if all the objects have
+            coordinate frames of icrs, gcrs, fk5, fk4, and top; otherwise, DMS format
+            is used.
+        return_str: bool
+            If set to True, the method returns an ASCII string which contains all the
+            table infrmation. Default is False.
+        print_table : bool
+            If set to True, prints the table to the terminal window. Default is True.
+
+        Returns
+        -------
+        table_str : bool
+            If return_str=True, an ASCII string containing the entire table text
+
+        Raises
+        ------
+        ValueError
+            If `cat_name` matches no keys in `phase_center_catalog`.
+        """
+        return uvutils.print_phase_center_info(
+            self.phase_center_catalog,
+            catalog_identifier=catalog_identifier,
+            hms_format=hms_format,
+            return_str=return_str,
+            print_table=print_table,
+        )
+
+    def _update_phase_center_id(self, cat_id, *, new_id=None, reserved_ids=None):
+        """
+        Update a phase center with a new catalog ID number.
+
+        Parameters
+        ----------
+        cat_id : int
+            Current catalog ID of the phase center, which corresponds to a key in the
+            attribute `phase_center_catalog`.
+        new_id : int
+            Optional argument. If supplied, then the method will attempt to use the
+            provided value as the new catalog ID, provided that an existing catalog
+            entry is not already using the same value. If not supplied, then the
+            method will automatically assign a value.
+        reserved_ids : array-like in int
+            Optional argument. An array-like of ints that denotes which ID numbers
+            are already reserved. Useful for when combining two separate catalogs.
+
+        Raises
+        ------
+        ValueError
+            If not using the method on a multi-phase-ctr data set, if there's no entry
+            that matches `cat_name`, or of the value `new_id` is already taken.
+        """
+        new_id = uvutils.generate_new_phase_center_id(
+            phase_center_catalog=self.phase_center_catalog,
+            cat_id=new_id,
+            old_id=cat_id,
+            reserved_ids=reserved_ids,
+        )
+
+        # If new_id is None, it means that the existing ID was fine and needs no update
+        if new_id is not None:
+            self.phase_center_id_array[self.phase_center_id_array == cat_id] = new_id
+            self.phase_center_catalog[new_id] = self.phase_center_catalog.pop(cat_id)
+
+    def _consolidate_phase_center_catalogs(
+        self, *, reference_catalog=None, other=None, ignore_name=False
+    ):
+        """
+        Consolidate phase center catalogs with a reference or another object.
+
+        This is a helper method which updates the phase_center_catalog and related
+        parameters to make this object consistent with a reference catalog or with
+        another object so the second object can be added or concatenated to this object.
+        If both `reference_catalog` and `other` are provided, both this object and the
+        one passed to `other` will have their catalogs updated.
+
+        Parameters
+        ----------
+        reference_catalog : dict
+            A reference catalog to make this object consistent with.
+        other : UVData object
+            A UVData object which self needs to be consistent with because it will be
+            added to self. The phase_center_catalog from other is used as the reference
+            catalog if the reference_catalog is None. If `reference_catalog` is also
+            set, the phase_center_catalog on other will also be modified to be
+            consistent with the `reference_catalog`.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when identifying matching phase centers. If set to
+            True, phase centers that are the same up to their name will be combined with
+            the name set to the reference catalog name or the name found in the first
+            UVData object. If set to False, phase centers that are the same up to the
+            name will be kept as separate phase centers. Default is False.
+
+        """
+        if reference_catalog is None and other is None:
+            raise ValueError(
+                "Either the reference_catalog or the other parameter must be set."
+            )
+
+        if other is not None:
+            # If exists, first update other to be consistent with the reference
+            if reference_catalog is not None:
+                other._consolidate_phase_center_catalogs(
+                    reference_catalog=reference_catalog
+                )
+            # then use the updated other as the reference
+            reference_catalog = other.phase_center_catalog
+
+        reserved_ids = list(reference_catalog)
+        # First loop, we want to update all the catalog IDs so that we know there
+        # are no conflicts with the reference
+        for cat_id in list(self.phase_center_catalog):
+            self._update_phase_center_id(cat_id, reserved_ids=reserved_ids)
+
+        # Next loop, we want to update the IDs of sources that are in the reference.
+        for cat_id in list(reference_catalog):
+            # Normally one would wrap this in an items() call above, except that for
+            # testing it's sometimes convenient to use self.phase_center_catalog as
+            # the ref catalog, which causes a RunTime error due to updates to the dict.
+            cat_entry = reference_catalog[cat_id]
+            match_id, match_diffs = uvutils.look_in_catalog(
+                self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
+            )
+            if match_id is None or match_diffs != 0:
+                # If no match, just add the entry
+                self._add_phase_center(cat_id=cat_id, **cat_entry)
+                continue
+
+            # If match_diffs is 0 then all the keys in the phase center catalog
+            # match, so this is functionally the same source
+            self._update_phase_center_id(match_id, new_id=cat_id)
+            # look_in_catalog ignores the "info_source" field, so update it to match
+            self.phase_center_catalog[cat_id]["info_source"] = cat_entry["info_source"]
+            if ignore_name:
+                # Make the names match if names were ignored in matching
+                self.phase_center_catalog[cat_id]["cat_name"] = cat_entry["cat_name"]
 
     def check(
         self,
@@ -2541,6 +2909,7 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         inplace=False,
+        ignore_name=False,
     ):
         """
         Combine two UVCal objects along antenna, frequency, time, and/or Jones axis.
@@ -2568,6 +2937,13 @@ class UVCal(UVBase):
         inplace : bool
             Option to overwrite self as we go, otherwise create a third object
             as the sum of the two.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVData object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         """
         if inplace:
             this = self
@@ -2600,6 +2976,18 @@ class UVCal(UVBase):
             raise ValueError(
                 "To combine these data, flex_spw must be set to the same "
                 "value (True or False) for both objects."
+            )
+
+        # Check that the objects both (or neither) have catalogs and phase ID arrays
+        this_pc_cat = this.phase_center_catalog is None
+        other_pc_cat = other.phase_center_catalog is None
+        this_pc_ids = this.phase_center_id_array is None
+        other_pc_ids = other.phase_center_id_array is None
+
+        if (this_pc_cat != other_pc_cat) or (this_pc_ids != other_pc_ids):
+            raise ValueError(
+                "To combine these data, phase_center_id_array and "
+                "_phase_center_catalog must be set for all objects."
             )
 
         # Check that both objects are either wide_band or not
@@ -2749,6 +3137,24 @@ class UVCal(UVBase):
                             "These objects have overlapping data and"
                             " cannot be combined."
                         )
+
+        # First, handle the internal source catalogs, since merging them is kind of a
+        # weird, one-off process (i.e., nothing is cat'd across a particular axis)
+        if this.phase_center_catalog is not None:
+            this._consolidate_phase_center_catalogs(
+                other=other, ignore_name=ignore_name
+            )
+            if (len(both_times) > 0) and (this.phase_center_id_array is not None):
+                if not np.array_equal(
+                    this.phase_center_id_array[this_times_ind],
+                    other.phase_center_id_array[other_times_ind],
+                ):
+                    # TODO: I think this check actually needs to be expanded to other
+                    # attributes, and along other axes
+                    raise ValueError(
+                        "Cannot combine objects due to overlapping times with "
+                        "different phase centers."
+                    )
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3234,6 +3640,10 @@ class UVCal(UVBase):
                 this.lst_range = np.concatenate(
                     [this.lst_range, other.lst_range[tnew_inds]]
                 )
+            if this.phase_center_id_array is not None:
+                this.phase_center_id_array = np.concatenate(
+                    [this.phase_center_id_array, other.phase_center_id_array[tnew_inds]]
+                )
             if this.time_range is not None:
                 t_order = np.argsort(this.time_range[:, 0])
             else:
@@ -3670,6 +4080,8 @@ class UVCal(UVBase):
                 this.lst_range = this.lst_range[t_order]
             if self.future_array_shapes:
                 this.integration_time = this.integration_time[t_order]
+            if self.phase_center_id_array is not None:
+                this.phase_center_id_array = this.phase_center_id_array[t_order]
         if len(jnew_inds) > 0:
             this.jones_array = this.jones_array[j_order]
 
@@ -3741,7 +4153,13 @@ class UVCal(UVBase):
             return this
 
     def __iadd__(
-        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
+        self,
+        other,
+        *,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        ignore_name=False,
     ):
         """
         Combine two UVCal objects in place.
@@ -3760,6 +4178,13 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVData object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         """
         self.__add__(
             other,
@@ -3767,6 +4192,7 @@ class UVCal(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            ignore_name=ignore_name,
         )
         return self
 
@@ -3775,6 +4201,7 @@ class UVCal(UVBase):
         other,
         axis,
         *,
+        ignore_name=None,
         inplace=False,
         verbose_history=False,
         run_check=True,
@@ -3799,6 +4226,13 @@ class UVCal(UVBase):
             metadata agrees. Allowed values are: 'antenna', 'time', 'freq', 'spw',
             'jones' ('freq' is not allowed for delay or wideband objects and 'spw' is
             only allowed for wideband objects).
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVData object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
@@ -3859,6 +4293,18 @@ class UVCal(UVBase):
                     "value (True or False) for all objects."
                 )
 
+        for obj in other:
+            this_pc_cat = this.phase_center_catalog is None
+            other_pc_cat = obj.phase_center_catalog is None
+            this_pc_ids = this.phase_center_id_array is None
+            other_pc_ids = obj.phase_center_id_array is None
+
+            if (this_pc_cat != other_pc_cat) or (this_pc_ids != other_pc_ids):
+                raise ValueError(
+                    "To combine these data, phase_center_id_array and "
+                    "_phase_center_catalog must be set for all objects."
+                )
+
         # Check that all objects are consistent w/ use of wide_band or not
         for obj in other:
             if this.wide_band != obj.wide_band:
@@ -3910,6 +4356,10 @@ class UVCal(UVBase):
         ]
 
         history_update_string = " Combined data along "
+
+        # Check separately for phase_center_id_array, since it's optional
+        if axis != "time" and this.phase_center_id_array is not None:
+            compatibility_params += ["_phase_center_id_array"]
 
         if axis == "freq" or axis == "spw":
             if axis == "freq":
@@ -3997,6 +4447,18 @@ class UVCal(UVBase):
                 if not params_match:
                     msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                     warnings.warn(msg)
+
+        # update the phase_center_catalog to make them consistent across objects
+        # Doing this as a binary tree merge
+        # The left object in each loop will have its phase center IDs updated.
+        if this.phase_center_catalog is not None:
+            uv_list = [this] + other
+            while len(uv_list) > 1:
+                for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                    uv1._consolidate_phase_center_catalogs(
+                        other=uv2, ignore_name=ignore_name
+                    )
+                uv_list = uv_list[0::2]
 
         total_quality_exists = [this.total_quality_array is not None] + [
             obj.total_quality_array is not None for obj in other
@@ -4289,6 +4751,8 @@ class UVCal(UVBase):
         lsts,
         lst_range,
         jones,
+        phase_center_ids,
+        catalog_names,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -4343,6 +4807,13 @@ class UVCal(UVBase):
             canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "Jnn", "Jee") are also supported.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
 
         Returns
         -------
@@ -4398,6 +4869,22 @@ class UVCal(UVBase):
         else:
             ant_inds = None
 
+        if self.phase_center_id_array is None or self.phase_center_catalog is None:
+            if (phase_center_ids is not None) or (catalog_names is not None):
+                raise ValueError(
+                    "Both phase_center_id_array and phase_center_catalog attributes of "
+                    "the UVCal object must be set in order to select on phase center "
+                    "IDs or catalog names."
+                )
+
+        if (phase_center_ids is not None) and (catalog_names is not None):
+            raise ValueError("Cannot set both phase_center_ids and catalog_names.")
+
+        if catalog_names is not None:
+            phase_center_ids = uvutils.look_for_name(
+                self.phase_center_catalog, catalog_names
+            )
+
         if (times is not None or time_range is not None) and (
             self.time_array is not None and self.time_range is not None
         ):
@@ -4435,6 +4922,22 @@ class UVCal(UVBase):
                 history_update_string += ", lsts"
             else:
                 history_update_string += "lsts"
+            n_selects += 1
+
+        if phase_center_ids is not None:
+            pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
+            if time_inds is None:
+                time_inds = np.where(pc_check)[0]
+            else:
+                time_inds = [idx for idx in time_inds if pc_check[idx]]
+
+            update_substring = (
+                "phase center IDs" if (catalog_names is None) else "catalog names"
+            )
+            if n_selects > 0:
+                history_update_string += ", " + update_substring
+            else:
+                history_update_string += update_substring
             n_selects += 1
 
         if time_inds is not None and self.time_range is None:
@@ -4732,6 +5235,8 @@ class UVCal(UVBase):
         lsts=None,
         lst_range=None,
         jones=None,
+        phase_center_ids=None,
+        catalog_names=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4790,6 +5295,13 @@ class UVCal(UVBase):
             canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "Jnn", "Jee") are also supported.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -4830,6 +5342,8 @@ class UVCal(UVBase):
             lsts=lsts,
             lst_range=lst_range,
             jones=jones,
+            phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
         )
 
         # Call the low-level selection method.
@@ -5078,6 +5592,13 @@ class UVCal(UVBase):
             The jones polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
             Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
         read_data : bool
             Read in the data-like arrays (gains/delays, flags, qualities). If set to
             False, only the metadata will be read in. Setting read_data to False
@@ -5335,6 +5856,8 @@ class UVCal(UVBase):
         lsts=None,
         lst_range=None,
         jones=None,
+        phase_center_ids=None,
+        catalog_names=None,
         # checking parameters
         run_check=True,
         check_extra=True,
@@ -5436,6 +5959,13 @@ class UVCal(UVBase):
             The jones polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
             Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
 
         Checking
         --------
@@ -5579,6 +6109,8 @@ class UVCal(UVBase):
                 lsts=lsts,
                 lst_range=lst_range,
                 jones=jones,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
                 # checking parameters
                 run_check=run_check,
                 check_extra=check_extra,
@@ -5620,6 +6152,8 @@ class UVCal(UVBase):
                     lsts=lsts,
                     lst_range=lst_range,
                     jones=jones,
+                    phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     # checking parameters
                     run_check=run_check,
                     check_extra=check_extra,
@@ -5672,6 +6206,8 @@ class UVCal(UVBase):
                     or time_range is not None
                     or lst_range is not None
                     or jones is not None
+                    or phase_center_ids is not None
+                    or catalog_names is not None
                 ):
                     select = True
                     warnings.warn(
@@ -5692,6 +6228,8 @@ class UVCal(UVBase):
                     select_time_range = time_range
                     select_lst_range = lst_range
                     select_jones = jones
+                    select_phase_center_ids = phase_center_ids
+                    select_catalog_names = catalog_names
                 else:
                     select = False
             elif file_type in ["calh5"]:
@@ -5738,6 +6276,8 @@ class UVCal(UVBase):
                     lsts=lsts,
                     lst_range=lst_range,
                     jones=jones,
+                    phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     read_data=read_data,
                     background_lsts=background_lsts,
                     run_check=run_check,
@@ -5767,6 +6307,8 @@ class UVCal(UVBase):
                     time_range=select_time_range,
                     lst_range=select_lst_range,
                     jones=select_jones,
+                    phase_center_ids=select_phase_center_ids,
+                    catalog_names=select_catalog_names,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

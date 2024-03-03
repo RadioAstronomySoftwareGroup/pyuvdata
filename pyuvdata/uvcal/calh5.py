@@ -323,6 +323,8 @@ class CalH5(UVCal):
         lsts,
         lst_range,
         jones,
+        phase_center_ids,
+        catalog_names,
         gain_array_dtype,
     ):
         """
@@ -382,6 +384,8 @@ class CalH5(UVCal):
             lsts=lsts,
             lst_range=lst_range,
             jones=jones,
+            phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
         )
         # figure out which axis is the most selective
         if ant_inds is not None:
@@ -626,6 +630,8 @@ class CalH5(UVCal):
         lsts=None,
         lst_range=None,
         jones=None,
+        phase_center_ids=None,
+        catalog_names=None,
         read_data=True,
         gain_array_dtype=np.complex128,
         background_lsts=True,
@@ -672,6 +678,8 @@ class CalH5(UVCal):
                 lst_range=lst_range,
                 jones=jones,
                 gain_array_dtype=gain_array_dtype,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
             )
 
         if close_meta:
