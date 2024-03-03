@@ -91,7 +91,7 @@ class MSCal(UVCal):
             # I don't know what this is, so don't proceed any further.
             raise NotImplementedError(
                 "Calibration type %s is not recognized/supported by UVCal. Please file "
-                "an issue in our GitHub issue log so that we can add support it."
+                "an issue in our GitHub issue log so that we can add support for it."
                 % main_info_dict["subType"]
             )
 
@@ -103,7 +103,7 @@ class MSCal(UVCal):
         else:
             raise NotImplementedError(
                 "Parameter type %s is not recognized/supported by UVCal. Please file "
-                "an issue in our GitHub issue log so that we can add support it."
+                "an issue in our GitHub issue log so that we can add support for it."
                 % par_type
             )
 
@@ -368,7 +368,6 @@ class MSCal(UVCal):
         # M == Baseline-based complex gains; baseline-based version of G (blech)
         # MF == Baseline-based complex bandpass: baseline-based version of B (2x blech)
         # K == Ant-based delays (above suggests bsl-based, but CASA 6.x says ant-based)
-        #       --> TODO: Support for this coming once units are sorted out.
 
         if self.cal_type == "gain":
             casa_subtype = "G Jones" if self.wide_band else "B Jones"
@@ -527,8 +526,8 @@ class MSCal(UVCal):
 
                 for item in data_dict:
                     subarr = data_dict[item]
-                    # data_form = ("Nants_data", "Nfreqs", "Ntimes", "Njones")
-                    # Order it so that it goes Ntimes -> Nants -> Nfreqs -> Njones
+                    # The data out of CASA is ordered as (Ant, Freq, Time, Jones), but
+                    # pyuvdata expects (Time, Ants, Freq, Jones), so reorder accordingly
                     subarr = np.transpose(subarr, [2, 0, 1, 3])
 
                     # Set zeros by default ()
