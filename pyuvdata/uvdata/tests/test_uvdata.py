@@ -10303,7 +10303,7 @@ def test_print_object_multi(carma_miriad):
 )
 def test_look_in_catalog_err(sma_mir, kwargs, err_type, err_msg):
     with pytest.raises(err_type, match=err_msg):
-        sma_mir._look_in_catalog(**kwargs)
+        uvutils.look_in_catalog(sma_mir.phase_center_catalog, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -10332,7 +10332,8 @@ def test_look_in_catalog(hera_uvh5, name, stype, arg_dict, exp_id, exp_diffs):
     parameters and that recorded in the UVData object.
     """
     hera_uvh5.print_phase_center_info()
-    [cat_id, num_diffs] = hera_uvh5._look_in_catalog(
+    [cat_id, num_diffs] = uvutils.look_in_catalog(
+        hera_uvh5.phase_center_catalog,
         cat_name=name,
         cat_type=stype,
         cat_lon=arg_dict.get("lon"),
@@ -10359,18 +10360,29 @@ def test_look_in_catalog_phase_dict(sma_mir):
     behave as expected
     """
     # Now try lookup using a dictionary of properties
-    assert sma_mir._look_in_catalog("3c84") == (1, 5)
+    assert uvutils.look_in_catalog(sma_mir.phase_center_catalog, cat_name="3c84") == (
+        1,
+        5,
+    )
     phase_dict = sma_mir.phase_center_catalog[1]
-    assert sma_mir._look_in_catalog("3c84", phase_dict=phase_dict) == (1, 0)
+    assert uvutils.look_in_catalog(
+        sma_mir.phase_center_catalog, cat_name="3c84", phase_dict=phase_dict
+    ) == (1, 0)
 
     # Make sure that if we set ignore_name, we still get a match
-    assert sma_mir._look_in_catalog(
-        "3c84", phase_dict=phase_dict, ignore_name=True
+    assert uvutils.look_in_catalog(
+        sma_mir.phase_center_catalog,
+        cat_name="3c84",
+        phase_dict=phase_dict,
+        ignore_name=True,
     ) == (1, 0)
 
     # Match w/ a mis-capitalization
-    assert sma_mir._look_in_catalog(
-        "3C84", phase_dict=phase_dict, ignore_name=True
+    assert uvutils.look_in_catalog(
+        sma_mir.phase_center_catalog,
+        cat_name="3C84",
+        phase_dict=phase_dict,
+        ignore_name=True,
     ) == (1, 0)
 
 
@@ -10640,8 +10652,8 @@ def test_merge_phase_centers_bad_warn(sma_mir):
 @pytest.mark.parametrize(
     "cat_id,new_id,res_id,err_type,msg",
     (
-        [-1, -1, 0, ValueError, "Cannot run _update_phase_center_id: no entry"],
-        [1, 1, [1], ValueError, "Catalog ID supplied already taken by another"],
+        [-1, -1, 0, ValueError, "No match in catalog to an entry with id -1."],
+        [1, 1, [1], ValueError, "Provided cat_id belongs to another source"],
     ),
 )
 def test_update_id_bad_args(sma_mir, cat_id, new_id, res_id, err_type, msg):
@@ -10659,7 +10671,7 @@ def test_add_clear_phase_center(sma_mir):
     """
     check_dict = sma_mir.phase_center_catalog.copy()
     check_id = sma_mir._add_phase_center(
-        "Mars",
+        cat_name="Mars",
         cat_type="ephem",
         cat_lon=[0.0, 1.0],
         cat_lat=[0, 1],
@@ -10674,7 +10686,9 @@ def test_add_clear_phase_center(sma_mir):
     # Check to see that the catalog actually changed
     assert sma_mir.phase_center_catalog != check_dict
     # And ake sure we can ID by name, but find diffs if attributes dont match
-    assert sma_mir._look_in_catalog("Mars", cat_lon=[0], cat_lat=[0]) == (0, 7)
+    assert uvutils.look_in_catalog(
+        sma_mir.phase_center_catalog, cat_name="Mars", cat_lon=[0], cat_lat=[0]
+    ) == (0, 7)
 
     # Finally, clear out the unused entries and check for equivalency w/ the old catalog
     sma_mir._clear_unused_phase_centers()
@@ -10751,14 +10765,16 @@ def test_split_phase_center(hera_uvh5):
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
 
     hera_uvh5.split_phase_center("3c84", new_name="3c84_2", select_mask=select_mask)
-    cat_id1 = hera_uvh5._look_for_name("3c84")
-    cat_id2 = hera_uvh5._look_for_name("3c84_2")
+    cat_id1 = uvutils.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
+    cat_id2 = uvutils.look_for_name(hera_uvh5.phase_center_catalog, "3c84_2")
     # Check that the catalog IDs also line up w/ what we expect
     assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
     assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id2)
     assert hera_uvh5.Nphase == 2
 
-    cat_id_all = hera_uvh5._look_for_name(["3c84", "3c84_2"])
+    cat_id_all = uvutils.look_for_name(
+        hera_uvh5.phase_center_catalog, ["3c84", "3c84_2"]
+    )
     assert np.all(np.isin(hera_uvh5.phase_center_id_array, cat_id_all))
 
     # Make sure the catalog makes sense -- entries should be identical sans cat_id
@@ -10792,8 +10808,8 @@ def test_split_phase_center_downselect(hera_uvh5):
             downselect=True,
         )
 
-    cat_id1 = hera_uvh5._look_for_name("3c84")
-    cat_id3 = hera_uvh5._look_for_name("3c84_3")
+    cat_id1 = uvutils.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
+    cat_id3 = uvutils.look_for_name(hera_uvh5.phase_center_catalog, "3c84_3")
     assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
     assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id3)
 
@@ -10811,7 +10827,10 @@ def test_split_phase_center_downselect(hera_uvh5):
     # We merged everything back together, so we _should_  get back the same
     # thing that we started with.
     assert hera_uvh5.phase_center_catalog == catalog_copy
-    assert np.all(hera_uvh5.phase_center_id_array == hera_uvh5._look_for_name("3c84"))
+    assert np.all(
+        hera_uvh5.phase_center_id_array
+        == uvutils.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
+    )
 
 
 @pytest.mark.parametrize(
@@ -10987,8 +11006,16 @@ def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
         lookup_name=True,
         time_array=None,
     )
-    assert phase_dict.pop("cat_id") == sma_mir._look_for_name("3c84")[0]
-    assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
+    assert (
+        phase_dict.pop("cat_id")
+        == uvutils.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+    )
+    assert (
+        phase_dict
+        == sma_mir.phase_center_catalog[
+            uvutils.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+        ]
+    )
 
 
 def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
@@ -10998,7 +11025,7 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     """
     # Finally, check that we get a good result if feeding the same values, even if not
     # actually performing a lookup
-    cat_id = sma_mir._look_for_name("3c84")[0]
+    cat_id = uvutils.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
     phase_dict = sma_mir._phase_dict_helper(
         lon=sma_mir.phase_center_catalog[cat_id].get("cat_lon"),
         lat=sma_mir.phase_center_catalog[cat_id].get("cat_lat"),
@@ -11015,7 +11042,12 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
         time_array=sma_mir.time_array,
     )
     assert phase_dict.pop("cat_id") == cat_id
-    assert phase_dict == sma_mir.phase_center_catalog[sma_mir._look_for_name("3c84")[0]]
+    assert (
+        phase_dict
+        == sma_mir.phase_center_catalog[
+            uvutils.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+        ]
+    )
 
 
 def test_phase_dict_helper_jpl_lookup_append(sma_mir):
