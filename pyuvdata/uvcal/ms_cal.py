@@ -526,8 +526,8 @@ class MSCal(UVCal):
 
                 for item in data_dict:
                     subarr = data_dict[item]
-                    # The data out of CASA is ordered as (Ant, Freq, Time, Jones), but
-                    # pyuvdata expects (Time, Ants, Freq, Jones), so reorder accordingly
+                    # The data out of pyuvdata is ordered as (Ant, Freq, Time, Jones),
+                    # but CASA expects (Time, Ants, Freq, Jones), so reorder accordingly
                     subarr = np.transpose(subarr, [2, 0, 1, 3])
 
                     # Set zeros by default ()
