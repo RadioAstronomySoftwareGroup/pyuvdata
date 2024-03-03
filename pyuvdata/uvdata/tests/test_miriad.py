@@ -885,7 +885,7 @@ def test_loop_multi_phase(tmp_path, paper_miriad, frame):
 
     # without the "phsframe" variable, the unprojected phase center gets interpreted as
     # an ephem type phase center.
-    zen_id, _ = uv3._look_in_catalog(cat_name="zenith")
+    zen_id, _ = uvutils.look_in_catalog(uv3.phase_center_catalog, cat_name="zenith")
     new_id = uv3._add_phase_center(cat_name="zenith", cat_type="unprojected")
     uv3.phase_center_id_array[np.nonzero(uv3.phase_center_id_array == zen_id)] = new_id
     uv3._clear_unused_phase_centers()
