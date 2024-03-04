@@ -7347,7 +7347,10 @@ def generate_new_phase_center_id(
         is already taken.
     """
     used_cat_ids = set()
-    if phase_center_catalog is not None:
+    if phase_center_catalog is None:
+        if old_id is not None:
+            raise ValueError("Cannot specify old_id if no catalog is supplied.")
+    else:
         used_cat_ids = set(phase_center_catalog)
         if old_id is not None:
             if old_id not in phase_center_catalog:
@@ -7365,7 +7368,7 @@ def generate_new_phase_center_id(
         if (old_id is None) or (old_id in used_cat_ids):
             cat_id = set(range(len(used_cat_ids) + 1)).difference(used_cat_ids).pop()
     elif cat_id in used_cat_ids:
-        if cat_id in phase_center_catalog:
+        if phase_center_catalog is not None and cat_id in phase_center_catalog:
             raise ValueError(
                 "Provided cat_id belongs to another source (%s)."
                 % phase_center_catalog[cat_id]["cat_name"]
