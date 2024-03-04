@@ -4,6 +4,7 @@
 
 """Class for reading MS calibration tables."""
 
+import os
 import warnings
 
 import numpy as np
@@ -57,7 +58,8 @@ class MSCal(UVCal):
         # I think all casa-based stuff is sky-based.
         self._set_sky()
 
-        self.filename = filepath
+        self.filename = [os.path.basename(filepath)]
+        self._filename.form = (1,)
 
         # get the history info from the ms_utils
         try:
@@ -277,6 +279,9 @@ class MSCal(UVCal):
         self.total_quality_array = None  # Always None for now, no similar array in MS
         self.scan_number_array = np.zeros_like(self.time_array, dtype=int)
         self.phase_center_id_array = np.zeros_like(self.time_array, dtype=int)
+        has_exp = "EXPOSURE" in tb_main.colnames()
+        exp_time = 0.0  # Default value if no exposure stored
+        int_arr = np.zeros_like(self.time_array, dtype=float)
 
         for row_idx, time_idx in enumerate(row_timeidx_map):
             try:
@@ -289,6 +294,8 @@ class MSCal(UVCal):
                 scan_num = tb_main.getcell("SCAN_NUMBER", row_idx)
                 int_time = tb_main.getcell("INTERVAL", row_idx)
                 spw_id = tb_main.getcell("SPECTRAL_WINDOW_ID", row_idx)
+                if has_exp:
+                    exp_time = tb_main.getcell("EXPOSURE", row_idx)
 
                 # Figure out which spectral slice this corresponds to
                 spw_slice = spw_slice_dict[spw_id]
@@ -296,7 +303,8 @@ class MSCal(UVCal):
                 # Finally, start plugging in solns to various parameters.
                 ms_cal_soln[ant_idx, spw_slice, time_idx, :] = cal_soln
                 self.time_array[time_idx] = time_val
-                self.integration_time[time_idx] = int_time
+                self.integration_time[time_idx] = exp_time
+                int_arr[time_idx] = int_time
                 self.quality_array[ant_idx, spw_slice, time_idx, :] = cal_qual
                 self.flag_array[ant_idx, spw_slice, time_idx, :] = cal_flag
                 self.phase_center_id_array[time_idx] = field_id
@@ -313,6 +321,14 @@ class MSCal(UVCal):
             format="mjd",
             scale=ms_utils._get_time_scale(tb_main),
         ).utc.jd
+
+        if not all(int_arr == 0.0):
+            # If intervals have been identified, that means that we want to make our
+            # solutions have time ranges rather than fixed times. solve this now.
+            self.time_range = np.zeros(len(self.time_array), 2)
+            self.time_range[:, 0] = self.time_array - (int_arr / (2 * 86400))
+            self.time_range[:, 1] = self.time_array + (int_arr / (2 * 86400))
+            self.time_array = None
 
         # There's a little bit of cleanup to do w/ field_id, since the values here
         # correspond to the row in FIELD rather than the source ID. Map that now.
@@ -346,6 +362,15 @@ class MSCal(UVCal):
                 raise FileExistsError(
                     "File already exists, must set clobber=True to proceed."
                 ) from err
+
+        # Given that this is coming in _just_ before the "current" array shapes retire,
+        # I'm not going to bother to work toward supporting it unless there's a
+        # particular pressing need.
+        if not self.future_array_shapes:
+            raise ValueError(
+                "In order to call this method, you must be using future array shapes. "
+                "Call the `use_future_array_shapes` method before proceeding."
+            )
 
         # Initialize our calibration file, and get things set up with the appropriate
         # columns for us to write to in the main table. This is a little different
@@ -405,10 +430,15 @@ class MSCal(UVCal):
             # astropy's Time has some overheads associated with it, so use unique to run
             # this date conversion as few times as possible. Note that the default for
             # MS is MJD UTC seconds, versus JD UTC days for UVData.
-            time_array, time_ind = np.unique(self.time_array, return_inverse=True)
-            time_array = (Time(time_array, format="jd", scale="utc").mjd * 86400.0)[
-                time_ind
-            ]
+            if self.time_array is None:
+                time_array = np.mean(self.time_range, axis=1)
+                interval_array = np.diff(self.time_range, axis=1) * 86400
+            else:
+                time_array = self.time_array
+                interval_array = np.zeros_like(time_array)
+
+            time_array = Time(time_array, format="jd", scale="utc").mjd * 86400.0
+            exposure_array = self.integration_time
 
             # For some reason, CASA seems to want to pad the main table with zero
             # entries for the "blank" antennas, similar to what's seen in the ANTENNA
@@ -442,9 +472,9 @@ class MSCal(UVCal):
             ant_array = np.tile(np.arange(Nants_casa), self.Ntimes * self.Nspws)
             try:
                 refant = self.antenna_numbers[
-                    self.antenna_names.index(self.ref_antenna_name)
+                    np.where(np.equal(self.antenna_names, self.ref_antenna_name))[0][0]
                 ]
-            except ValueError:
+            except IndexError:
                 # We don't know what the refant was, so mark this accordingly
                 refant = -1
 
@@ -454,10 +484,9 @@ class MSCal(UVCal):
             # axis is the "fastest" moving on the collapsed data. So repeat each entry
             # by the number of antennas, before tiling the whole thing by the number of
             # spectral windows (the preferred outer-most axis).
-            interval_arr = np.tile(
-                np.repeat(self.integration_time, Nants_casa), self.Nspws
-            )
+            interval_array = np.tile(np.repeat(interval_array, Nants_casa), self.Nspws)
             time_array = np.tile(np.repeat(time_array, Nants_casa), self.Nspws)
+            exposure_array = np.tile(np.repeat(exposure_array, Nants_casa), self.Nspws)
 
             # Move on to the time-based optional parameters
             if self.scan_number_array is None:
@@ -492,7 +521,8 @@ class MSCal(UVCal):
             ms.putcol("SPECTRAL_WINDOW_ID", spw_id_array)
             ms.putcol("ANTENNA1", ant_array)
             ms.putcol("ANTENNA2", refant_array)
-            ms.putcol("INTERVAL", interval_arr)
+            ms.putcol("INTERVAL", interval_array)
+            ms.putcol("EXPOSURE", exposure_array)
             ms.putcol("SCAN_NUMBER", scan_number_array)
             ms.putcol("OBSERVATION_ID", obs_id_array)
 
@@ -504,13 +534,20 @@ class MSCal(UVCal):
                 spw_sel, spw_nchan = spw_sel_dict[spw_id]
                 subarr_shape = (self.Ntimes, Nants_casa, spw_nchan, self.Njones)
 
-                qual_arr = np.ones(
-                    (self.Nants_data, spw_nchan, self.Ntimes, self.Njones), dtype=float
-                )
-                if self.quality_array is not None:
-                    qual_arr *= self.quality_array[:, spw_sel, :, :]
-                if self.total_quality_array is not None:
-                    qual_arr *= self.total_quality_array[spw_sel, :, :]
+                if self.quality_array is None and self.total_quality_array is None:
+                    qual_arr = np.zeros(
+                        (self.Nants_data, spw_nchan, self.Ntimes, self.Njones),
+                        dtype=float,
+                    )
+                else:
+                    qual_arr = np.ones(
+                        (self.Nants_data, spw_nchan, self.Ntimes, self.Njones),
+                        dtype=float,
+                    )
+                    if self.quality_array is not None:
+                        qual_arr *= self.quality_array[:, spw_sel, :, :]
+                    if self.total_quality_array is not None:
+                        qual_arr *= self.total_quality_array[spw_sel, :, :]
 
                 # We're going to leave a placeholder for SNR for now, since it's
                 # somewhat redundant and not totally clear how it's calculated.

@@ -1424,6 +1424,7 @@ def init_ms_cal_file(filename, delay_table=False):
     tabledesc["ANTENNA1"] = standard_desc["ANTENNA1"]
     tabledesc["ANTENNA2"] = standard_desc["ANTENNA2"]
     tabledesc["INTERVAL"] = standard_desc["INTERVAL"]
+    tabledesc["EXPOSURE"] = standard_desc["EXPOSURE"]  # Used to track int time
     tabledesc["SCAN_NUMBER"] = standard_desc["SCAN_NUMBER"]
     tabledesc["OBSERVATION_ID"] = standard_desc["OBSERVATION_ID"]
     # This is kind of a weird aliasing that's done for tables -- may not be always true,
