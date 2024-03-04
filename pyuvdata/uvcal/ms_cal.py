@@ -471,10 +471,13 @@ class MSCal(UVCal):
 
             ant_array = np.tile(np.arange(Nants_casa), self.Ntimes * self.Nspws)
             try:
-                refant = self.antenna_numbers[
-                    np.where(np.equal(self.antenna_names, self.ref_antenna_name))[0][0]
-                ]
-            except IndexError:
+                # Cast list here to deal w/ ndarrays
+                refant = str(
+                    self.antenna_numbers[
+                        list(self.antenna_names).index(self.ref_antenna_name)
+                    ]
+                )
+            except ValueError:
                 # We don't know what the refant was, so mark this accordingly
                 refant = -1
 
