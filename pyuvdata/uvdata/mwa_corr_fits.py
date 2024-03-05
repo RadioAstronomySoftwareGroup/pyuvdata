@@ -704,9 +704,7 @@ class MWACorrFITS(UVData):
                 time_ind = np.where(time_array == time)[0][0]
                 # dump data into matrix
                 # and take data from real to complex numbers
-                coarse_chan_data[time_ind, :, :] = (
-                    hdu.data[:, 0::2] + 1j * hdu.data[:, 1::2]
-                )
+                coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data
                 # fill nsample and flag arrays
                 # think about using the mwax weights array in the future
                 self.nsample_array[
