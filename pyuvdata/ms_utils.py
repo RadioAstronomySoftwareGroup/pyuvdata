@@ -1304,7 +1304,7 @@ def write_ms_polarization(
             pol_table.putcell("NUM_CORR", 0, len(polarization_array))
 
 
-def init_ms_file(filepath):
+def init_ms_file(filepath, make_model_col=False, make_corr_col=False):
     """
     Create a skeleton MS dataset to fill.
 
@@ -1312,6 +1312,12 @@ def init_ms_file(filepath):
     ----------
     filepath : str
         Path to MS to be created.
+    make_model_col : bool
+        If set to True, will construct a measurement set that contains a MODEL_DATA
+        column in addition to the DATA column. Default is False.
+    make_model_col : bool
+        If set to True, will construct a measurement set that contains a CORRECTED_DATA
+        column in addition to the DATA column. Default is False.
     """
     # The required_ms_desc returns the defaults for a CASA MS table
     ms_desc = tables.required_ms_desc("MAIN")
@@ -1395,6 +1401,32 @@ def init_ms_file(filepath):
     )
     del datacoldesc["desc"]["shape"]
     ms_desc.update(tables.maketabdesc(datacoldesc))
+
+    if make_model_col:
+        datacoldesc = tables.makearrcoldesc(
+            "MODEL_DATA",
+            0.0 + 0.0j,
+            valuetype="complex",
+            ndim=2,
+            datamanagertype="TiledShapeStMan",
+            datamanagergroup="TiledData",
+            comment="The data column",
+        )
+        del datacoldesc["desc"]["shape"]
+        ms_desc.update(tables.maketabdesc(datacoldesc))
+
+    if make_corr_col:
+        datacoldesc = tables.makearrcoldesc(
+            "CORRECTED_DATA",
+            0.0 + 0.0j,
+            valuetype="complex",
+            ndim=2,
+            datamanagertype="TiledShapeStMan",
+            datamanagergroup="TiledData",
+            comment="The data column",
+        )
+        del datacoldesc["desc"]["shape"]
+        ms_desc.update(tables.maketabdesc(datacoldesc))
 
     # Now create a column for the weight spectrum, which we plug nsample_array into
     weightspeccoldesc = tables.makearrcoldesc(
