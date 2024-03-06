@@ -528,9 +528,14 @@ def new_uvdata(
 
     flex_spw_id_array, spw_array = get_spw_params(flex_spw_id_array, freq_array)
 
+    if x_orientation is not None:
+        x_orientation = XORIENTMAP[x_orientation.lower()]
+
     polarization_array = np.array(polarization_array)
     if polarization_array.dtype.kind != "i":
-        polarization_array = utils.polstr2num(polarization_array)
+        polarization_array = utils.polstr2num(
+            polarization_array, x_orientation=x_orientation
+        )
 
     if not instrument:
         instrument = telescope_name
@@ -542,9 +547,6 @@ def new_uvdata(
         f"Object created by new_uvdata() at {Time.now().iso} using "
         f"pyuvdata version {__version__}."
     )
-
-    if x_orientation is not None:
-        x_orientation = XORIENTMAP[x_orientation.lower()]
 
     # Now set all the metadata
     obj.freq_array = freq_array
