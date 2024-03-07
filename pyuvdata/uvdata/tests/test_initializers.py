@@ -13,6 +13,7 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import UVData
+from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
     get_antenna_params,
@@ -542,3 +543,13 @@ def test_passing_xorient(simplest_working_params, xorient):
         assert uvd.x_orientation == "east"
     else:
         assert uvd.x_orientation == "north"
+
+
+def test_passing_directional_pols(simplest_working_params):
+    kw = {**simplest_working_params, **{"polarization_array": ["ee"]}}
+
+    with pytest.raises(KeyError, match="'ee'"):
+        UVData.new(**kw)
+
+    uvd = UVData.new(x_orientation="east", **kw)
+    assert polnum2str(uvd.polarization_array[0], x_orientation="east") == "ee"
