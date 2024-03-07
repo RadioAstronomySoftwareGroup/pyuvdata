@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Bug in which passing 'ee' or 'nn' pols to UVData.new() would error, even if
+`x_orientation` was passed.
+
 ## [2.4.2] - 2024-2-22
 
 ### Added
