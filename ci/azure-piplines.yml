@@ -127,7 +127,7 @@ jobs:
     vmImage: "ubuntu-latest"
   variables:
     PYTHON: "3.10"
-    ENV_NAME: pyuvsim_tests
+    ENV_NAME: pyuvsim_tests_openmpi
     WITH_SUDO: true
 
   steps:
