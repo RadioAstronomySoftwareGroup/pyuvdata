@@ -7,7 +7,10 @@ import os
 import shutil
 from pathlib import Path
 
+import matplotlib
 import pytest
+
+matplotlib.use("Agg")  # Must be before importing matplotlib.pyplot or pylab!
 
 
 @pytest.fixture(autouse=True, scope="session")
