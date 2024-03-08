@@ -30,7 +30,7 @@ jobs:
     displayName: Environment Info
 
   - bash: |
-      pytest -n auto --pyargs hera_cal -W "ignore" -W "default:::pyuvdata"
+      pytest -n auto --pyargs hera_cal
     displayName: run hera_cal tests
 
 - job: hera_qm
