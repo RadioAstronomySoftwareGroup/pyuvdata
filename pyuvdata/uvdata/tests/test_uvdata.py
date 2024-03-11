@@ -10325,7 +10325,7 @@ def test_print_object_standard(sma_mir, kwargs):
         "   ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
         "    #          Name                       hours           deg                 \n"  # noqa
         "------------------------------------------------------------------------------\n"  # noqa
-        "    1          3c84      sidereal    3:19:48.16  +41:30:42.11    fk5  J2000.0 \n"  # noqa
+        "    1          3c84      sidereal    3:19:48.16  +41:30:42.11   icrs  J2000.0 \n"  # noqa
     )
 
     table_str = sma_mir.print_phase_center_info(
@@ -10354,7 +10354,7 @@ def test_print_object_dms(sma_mir):
         "   ID     Cat Entry          Type      Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
         "    #          Name                          deg           deg                 \n"  # noqa
         "-------------------------------------------------------------------------------\n"  # noqa
-        "    1          3c84      sidereal    49:57:02.40  +41:30:42.11    fk5  J2000.0 \n"  # noqa
+        "    1          3c84      sidereal    49:57:02.40  +41:30:42.11   icrs  J2000.0 \n"  # noqa
     )
 
     # And likewise when forcing the degree format
@@ -10693,7 +10693,7 @@ def test_add_phase_center_known_source(sma_mir):
         cat_type="sidereal",
         cat_lon=0.8718035968995141,
         cat_lat=0.7245157752262148,
-        cat_frame="fk5",
+        cat_frame="icrs",
         cat_epoch="j2000",
     )
 

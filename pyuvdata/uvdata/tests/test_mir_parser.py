@@ -2274,11 +2274,11 @@ def test_mir_remember_me_sp_data(mir_data):
 
     assert np.all(mir_data.sp_data["iddsmode"] == 0)
 
-    assert np.all(mir_data.sp_data["spareshort"] == 0)
+    assert np.all(mir_data.sp_data["gunnMult"] == 0)
 
-    assert np.all(mir_data.sp_data["spareint3"] == 0)
+    assert np.all(mir_data.sp_data["amp"] == 0)
 
-    assert np.all(mir_data.sp_data["spareint4"] == 0)
+    assert np.all(mir_data.sp_data["phase"] == 0)
 
     assert np.all(mir_data.sp_data["spareint5"] == 0)
 
