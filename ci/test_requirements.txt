@@ -1,5 +1,5 @@
 coverage
 packaging
-pytest>=6.2, <8.0
+pytest>=6.2
 pytest-cov
-pytest-cases>=3.6.9
+pytest-cases>=3.8.3
