@@ -348,14 +348,14 @@ sp_dtype = np.dtype(
         ("corrchunk", np.int16),
         # Correlator number (0 = ASIC; 1 = SWARM)
         ("correlator", np.int32),
-        # Spare value, always 0
+        # DDS operating mode, matched to 'ddsmode' in codes_read
         ("iddsmode", np.int16),
-        # Spare value, always 0
-        ("spareshort", np.int16),
-        # Spare value, always 0
-        ("spareint3", np.int32),
-        # Spare value, always 0
-        ("spareint4", np.int32),
+        # Gunn multiplier for the receiver
+        ("gunnMult", np.int16),
+        # Spectral band continuum amplitude (corr co-eff)
+        ("amp", np.float32),
+        # Spectral band continuum phase (rad)
+        ("phase", np.float32),
         # Spare value, always 0
         ("spareint5", np.int32),
         # Spare value, always 0

@@ -724,7 +724,7 @@ class Mir(UVData):
                 cat_lon=np.median(source_ra),
                 cat_lat=np.median(source_dec),
                 cat_epoch=None if (source_epoch != 2000.0) else source_epoch,
-                cat_frame="icrs" if (source_epoch != 2000.0) else "fk5",
+                cat_frame="icrs",
                 info_source="file",
                 cat_id=int(sou_id),
             )
