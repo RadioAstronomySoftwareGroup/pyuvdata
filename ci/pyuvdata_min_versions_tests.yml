@@ -15,7 +15,7 @@ dependencies:
   - scipy==1.5.*
   - coverage
   - pytest==6.2.0
-  - pytest-cases==3.6.9
+  - pytest-cases==3.8.3
   - pytest-cov
   - pytest-xdist
   - cython

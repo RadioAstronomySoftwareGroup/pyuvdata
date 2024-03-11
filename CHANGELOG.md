@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Now compatible with pytest>=8.0 but require pytest-cases>=3.8.3.
+
 ### Fixed
 - Bug in which passing 'ee' or 'nn' pols to UVData.new() would error, even if
 `x_orientation` was passed.
