@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- Speed up for reading MWA correlator FITS files into `UVData`.
 - Now compatible with pytest>=8.0 but require pytest-cases>=3.8.3.
 
 ### Fixed
