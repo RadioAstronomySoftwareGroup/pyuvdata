@@ -846,6 +846,10 @@ class LocationParameter(UVParameter):
         Description of the data or metadata in the object.
     frame : str, optional
         Coordinate frame. Valid options are "itrs" (default) or "mcmf".
+    lunar_ellipsoid : str, optional
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is "mcmf".
     acceptable_vals : list, optional
         List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
@@ -879,6 +883,10 @@ class LocationParameter(UVParameter):
         Description of the data or metadata in the object.
     frame : str, optional
         Coordinate frame. Valid options are "itrs" (default) or "mcmf".
+    lunar_ellipsoid : str, optional
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is "mcmf".
     expected_type
         Always set to float.
     acceptable_vals : list, optional
@@ -903,6 +911,7 @@ class LocationParameter(UVParameter):
         spoof_val=None,
         description="",
         frame="itrs",
+        lunar_ellipsoid="SPHERE",
         acceptable_range=None,
         tols=1e-3,
     ):
@@ -918,6 +927,7 @@ class LocationParameter(UVParameter):
             tols=tols,
         )
         self.frame = frame
+        self.lunar_ellipsoid = lunar_ellipsoid
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""

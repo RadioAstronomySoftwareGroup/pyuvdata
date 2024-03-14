@@ -70,6 +70,7 @@ class UVFITS(UVData):
                 altitude=altitude,
                 lst_tols=(0, uvutils.LST_RAD_TOL),
                 frame=self._telescope_location.frame,
+                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
             )
 
         else:
@@ -581,6 +582,14 @@ class UVFITS(UVData):
                             "Only 'itrs' and 'mcmf' are currently supported."
                         )
                     self._telescope_location.frame = telescope_frame
+                    if (
+                        telescope_frame == "mcmf"
+                        and "SELENOID" in ant_hdu.header.keys()
+                    ):
+                        self._telescope_location.lunar_ellipsoid = ant_hdu.header[
+                            "SELENOID"
+                        ]
+
             else:
                 warnings.warn(
                     "Required Antenna keyword 'FRAME' not set; "
@@ -611,9 +620,10 @@ class UVFITS(UVData):
                 # the array center, but in a rotated ECEF frame so that the x-axis
                 # goes through the local meridian.
                 rot_ecef_positions = ant_hdu.data.field("STABXYZ")
-                latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
+                _, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
                     frame=self._telescope_location.frame,
+                    lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
                     check_acceptability=run_check_acceptability,
                 )
                 self.antenna_positions = uvutils.ECEF_from_rotECEF(
@@ -1320,6 +1330,8 @@ class UVFITS(UVData):
             ant_hdu.header["FRAME"] = "ITRF"
         else:
             ant_hdu.header["FRAME"] = self._telescope_location.frame.upper()
+            # use SELENOID because of FITS 8 character limit for header items
+            ant_hdu.header["SELENOID"] = self._telescope_location.lunar_ellipsoid
 
         # TODO Karto: Do this more intelligently in the future
         if self.future_array_shapes:

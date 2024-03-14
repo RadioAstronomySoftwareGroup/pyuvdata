@@ -378,7 +378,11 @@ class UVData(UVBase):
             "telescope_location_lat_lon_alt_degrees properties."
         )
         self._telescope_location = uvp.LocationParameter(
-            "telescope_location", description=desc, frame="itrs", tols=1e-3
+            "telescope_location",
+            description=desc,
+            frame="itrs",
+            lunar_ellipsoid="SPHERE",
+            tols=1e-3,
         )
 
         self._history = uvp.UVParameter(
@@ -2452,6 +2456,7 @@ class UVData(UVBase):
             longitude,
             altitude,
             frame=self._telescope_location.frame,
+            lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
             astrometry_library=astrometry_library,
         )
         return
@@ -3382,6 +3387,7 @@ class UVData(UVBase):
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.telescope_location,
                 telescope_frame=self._telescope_location.frame,
+                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
                 raise_error=False,
             )
 
@@ -3395,6 +3401,7 @@ class UVData(UVBase):
                 altitude=alt,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                 frame=self._telescope_location.frame,
+                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
             )
 
             # create a metadata copy to do operations on
@@ -4391,6 +4398,7 @@ class UVData(UVBase):
             (self.antenna_positions + self.telescope_location),
             *self.telescope_location_lat_lon_alt,
             frame=self._telescope_location.frame,
+            lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
         )
         ants = self.antenna_numbers
 
@@ -5873,6 +5881,7 @@ class UVData(UVBase):
             dist=phase_dict["cat_dist"],
             telescope_loc=self.telescope_location_lat_lon_alt,
             telescope_frame=self._telescope_location.frame,
+            lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
         )
 
         # Now calculate position angles.
@@ -5885,6 +5894,7 @@ class UVData(UVBase):
                 phase_frame,
                 ref_epoch=epoch,
                 telescope_frame=self._telescope_location.frame,
+                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
             )
         else:
             new_frame_pa = np.zeros(time_array.shape, dtype=float)

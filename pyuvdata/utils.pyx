@@ -36,10 +36,32 @@ cdef class Ellipsoid:
 # A python interface for different celestial bodies
 class Body(enum.Enum):
   Earth = Ellipsoid(6378137, 6356752.31424518)
-  # moon data taken from https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
-  # with radius from spice_utils
-  Moon = Ellipsoid(1737.1e3, 1737.1e3 * (1 - 0.0012))
 
+  try:
+    from lunarsky import SELENOIDS
+
+    Moon_sphere = Ellipsoid(
+      SELENOIDS["SPHERE"]._equatorial_radius,
+      SELENOIDS["SPHERE"]._equatorial_radius * (1-SELENOIDS["SPHERE"]._flattening)
+    )
+
+    Moon_gsfc = Ellipsoid(
+      SELENOIDS["GSFC"]._equatorial_radius,
+      SELENOIDS["GSFC"]._equatorial_radius * (1-SELENOIDS["GSFC"]._flattening)
+    )
+
+    Moon_grail23 = Ellipsoid(
+      SELENOIDS["GRAIL23"]._equatorial_radius,
+      SELENOIDS["GRAIL23"]._equatorial_radius * (1-SELENOIDS["GRAIL23"]._flattening)
+    )
+
+    Moon_ce1lamgeo = Ellipsoid(
+      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius,
+      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius * (1-SELENOIDS["CE-1-LAM-GEO"]._flattening)
+    )
+  except:
+    # lunar sky not installed, don't add any moon bodies
+    pass
 
 # expose up to python
 # in order to not have circular dependencies
