@@ -293,6 +293,7 @@ class MS(UVData):
             ant_ref_frame = "ITRF"
         else:
             ant_ref_frame = self._telescope_location.frame.upper()
+            # TODO: ask Karto what the best way is to put in the lunar ellipsoid
         meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
         meas_info_dict["Ref"] = ant_ref_frame
         antenna_table.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)

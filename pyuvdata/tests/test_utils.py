@@ -76,6 +76,7 @@ def astrometry_args():
             default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
             default_args["moon_telescope_loc"][2],
             frame="mcmf",
+            lunar_ellipsoid="SPHERE",
         )
         default_args["moon_drift_coord"] = SkyCoord(
             default_args["moon_lst_array"],
@@ -117,6 +118,7 @@ def astrometry_args():
                 default_args["icrs_dec"],
                 default_args["moon_telescope_loc"],
                 telescope_frame="mcmf",
+                lunar_ellipsoid="SPHERE",
             )
         )
 
