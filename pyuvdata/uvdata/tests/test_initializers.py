@@ -22,6 +22,8 @@ from pyuvdata.uvdata.initializers import (
     get_time_params,
 )
 
+selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
+
 
 @pytest.fixture(scope="function")
 def simplest_working_params() -> dict[str, Any]:
@@ -39,6 +41,25 @@ def simplest_working_params() -> dict[str, Any]:
     }
 
 
+@pytest.fixture
+def lunar_simple_params() -> dict[str, Any]:
+    pytest.importorskip("lunarsky")
+    from pyuvdata.utils import MoonLocation
+
+    return {
+        "freq_array": np.linspace(1e8, 2e8, 100),
+        "polarization_array": ["xx", "yy"],
+        "antenna_positions": {
+            0: [0.0, 0.0, 0.0],
+            1: [0.0, 0.0, 1.0],
+            2: [0.0, 0.0, 2.0],
+        },
+        "telescope_location": MoonLocation.from_selenodetic(0, 0, 0),
+        "telescope_name": "test",
+        "times": np.linspace(2459855, 2459856, 20),
+    }
+
+
 def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
     uvd = UVData.new(**simplest_working_params)
 
@@ -49,6 +70,14 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
     assert uvd.Ntimes == 20
     assert uvd.Nblts == 120
     assert uvd.Nspws == 1
+
+
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
+    uvd = UVData.new(**lunar_simple_params, lunar_ellipsoid=selenoid)
+
+    assert uvd._telescope_location.frame == "mcmf"
+    assert uvd._telescope_location.lunar_ellipsoid == selenoid
 
 
 def test_bad_inputs(simplest_working_params: dict[str, Any]):

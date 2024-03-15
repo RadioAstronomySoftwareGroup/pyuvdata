@@ -20,15 +20,23 @@ from pyuvdata import UVCal, UVData, UVFlag
 from pyuvdata.data import DATA_PATH
 from pyuvdata.utils import hasmoon
 
+selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
+
 if hasmoon:
     from pyuvdata.utils import LTime, MoonLocation
+
+    frame_selenoid = [["itrs", "SPHERE"]]
+    for snd in selenoids:
+        frame_selenoid.append(["mcmf", snd])
+else:
+    frame_selenoid = [["itrs", "SPHERE"]]
+
 
 # Earth
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 # Moon
-selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 ref_latlonalt_moon = (0.6875 * np.pi / 180.0, 24.433 * np.pi / 180.0, 0.3)
 ref_xyz_moon = {
     "SPHERE": (1581421.43506347, 718463.12201783, 20843.2071012),
@@ -646,15 +654,7 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     )
 
 
-if hasmoon:
-    param_list = [["itrs", "SPHERE"]]
-    for snd in selenoids:
-        param_list.append(["mcmf", snd])
-else:
-    param_list = [["itrs", "SPHERE"]]
-
-
-@pytest.mark.parametrize(["frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
 def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
     """Test ECEF_from_ENU values."""
     (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
@@ -1513,7 +1513,7 @@ def test_transform_fk5_fk4_icrs_loop(astrometry_args):
     assert np.all(check_coord.separation(astrometry_args["icrs_coord"]).uarcsec < 0.1)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 @pytest.mark.parametrize("in_lib", ["erfa", "astropy"])
 @pytest.mark.parametrize("out_lib", ["erfa", "astropy"])
 def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_lib):
@@ -1765,7 +1765,7 @@ def test_ephem_interp_multi_point():
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for sidereal objects
@@ -1799,7 +1799,7 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for ephem objects
@@ -1842,7 +1842,7 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
     assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_driftscan(astrometry_args, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for driftscan objects
@@ -1872,7 +1872,7 @@ def test_calc_app_driftscan(astrometry_args, telescope_frame, selenoid):
     assert np.all(drift_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_unprojected(astrometry_args, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for unphased objects
@@ -1906,7 +1906,7 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame, selenoid):
     assert np.all(drift_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
     # Do a round-trip with the two top-level functions and make sure they agree to
     # better than 1 µas, first in FK5
@@ -1941,7 +1941,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame, selenoid):
     # Finally, check and make sure that FK4 performs similarly
     if telescope_frame == "itrs":
@@ -2114,7 +2114,7 @@ def test_sidereal_reptime(astrometry_args):
     assert np.all(gcrs_dec == check_dec)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame, selenoid):
     """
     Test that we recover identical values when using a Time objects instead of a floats
@@ -2175,7 +2175,7 @@ def test_transform_app_to_icrs_objs(astrometry_args):
     assert np.all(check_dec == icrs_dec)
 
 
-@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_calc_app_coords_objs(astrometry_args, telescope_frame, selenoid):
     """
     Test that we recover identical values when using Time/EarthLocation objects instead
