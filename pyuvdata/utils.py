@@ -123,12 +123,12 @@ POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
                     "pI": ["I", "I"], "pQ": ["Q", "Q"],
                     "pU": ["U", "U"], "pV": ["V", "V"]}
 
-_range_dict = {
-    "itrs": (6.35e6, 6.39e6, "Earth"), "mcmf": (1717100.0, 1757100.0, "Moon")
-}
-
-
 # fmt: on
+
+_range_dict = {
+    "itrs": (6.35e6, 6.39e6, "Earth"),
+    "mcmf": (1717100.0, 1757100.0, "Moon"),
+}
 
 if hasmoon:
     lunar_ellipsoids = {
@@ -3195,6 +3195,7 @@ def calc_frame_pos_angle(
     ref_frame,
     ref_epoch=None,
     telescope_frame="itrs",
+    lunar_ellipsoid="SPHERE",
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3230,6 +3231,10 @@ def calc_frame_pos_angle(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
+    lunar_ellipsoid : str
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is mcmf.
     offset_pos : float
         Distance of the offset position used to calculate the frame PA. Default
         is 0.5 degrees, which should be sufficent for most applications.
@@ -3292,6 +3297,7 @@ def calc_frame_pos_angle(
         telescope_loc,
         ref_frame,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=lunar_ellipsoid,
         coord_epoch=ref_epoch,
     )
 

@@ -504,6 +504,9 @@ def new_uvdata(
 
     if hasmoon and isinstance(telescope_location, MoonLocation):
         telescope_location.ellipsoid = lunar_ellipsoid
+        telescope_frame = "mcmf"
+    else:
+        telescope_frame = "itrs"
 
     lst_array, integration_time = get_time_params(
         telescope_location,
@@ -570,6 +573,8 @@ def new_uvdata(
         telescope_location.y.to_value("m"),
         telescope_location.z.to_value("m"),
     ]
+    obj._telescope_location.frame = telescope_frame
+    obj._telescope_location.lunar_ellipsoid = lunar_ellipsoid
     obj.telescope_name = telescope_name
     obj.baseline_array = baseline_array
     obj.ant_1_array = ant_1_array

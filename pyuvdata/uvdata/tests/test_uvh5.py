@@ -33,6 +33,11 @@ pytestmark = [
     pytest.mark.filterwarnings("ignore:Telescope EVLA is not"),
 ]
 
+selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
+frame_selenoid = [["itrs", "SPHERE"]]
+for snd in selenoids:
+    frame_selenoid.append(["mcmf", snd])
+
 
 @pytest.fixture(scope="session")
 def uv_uvh5_main():
@@ -189,8 +194,10 @@ def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, future_shapes, tmp_path)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
-def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
+def test_read_uvfits_write_uvh5_read_uvh5(
+    casa_uvfits, tmp_path, telescope_frame, selenoid
+):
     """
     Test a uvfits file round trip.
     """
@@ -201,6 +208,7 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
         uv_in._telescope_location.frame = "mcmf"
+        uv_in._telescope_location.lunar_ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -208,12 +216,14 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame
             longitude=longitude,
             altitude=altitude,
             frame="mcmf",
+            lunar_ellipsoid=selenoid,
         )
         uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
         uv_in.set_lsts_from_time_array()
         uv_in.check()
 
     assert uv_in._telescope_location.frame == telescope_frame
+    assert uv_in._telescope_location.lunar_ellipsoid == selenoid
 
     uv_out = UVData()
     fname = f"outtest_{telescope_frame}_uvfits.uvh5"
@@ -225,6 +235,7 @@ def test_read_uvfits_write_uvh5_read_uvh5(casa_uvfits, tmp_path, telescope_frame
     os.remove(testfile)
 
     assert uv_out._telescope_location.frame == telescope_frame
+    assert uv_out._telescope_location.lunar_ellipsoid == selenoid
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]

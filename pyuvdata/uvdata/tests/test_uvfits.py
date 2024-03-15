@@ -24,6 +24,11 @@ casa_tutorial_uvfits = os.path.join(
 
 paper_uvfits = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
 
+selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
+frame_selenoid = [["itrs", "SPHERE"]]
+for snd in selenoids:
+    frame_selenoid.append(["mcmf", snd])
+
 
 def _fix_uvfits_multi_group_params(vis_hdu):
     par_names = vis_hdu.data.parnames
@@ -531,8 +536,8 @@ def test_casa_nonascii_bytes_antenna_names():
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
-@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
-def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
+def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, selenoid):
     """
     CASA tutorial uvfits loopback test.
 
@@ -549,6 +554,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame):
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
         uv_in._telescope_location.frame = "mcmf"
+        uv_in._telescope_location.lunar_ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -556,6 +562,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame):
             longitude=longitude,
             altitude=altitude,
             frame="mcmf",
+            lunar_ellipsoid=selenoid,
         )
         uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
         uv_in.set_lsts_from_time_array()
@@ -573,6 +580,10 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame):
     uv_in.filename = uv_out.filename
 
     assert uv_in._telescope_location.frame == uv_out._telescope_location.frame
+    assert (
+        uv_in._telescope_location.lunar_ellipsoid
+        == uv_out._telescope_location.lunar_ellipsoid
+    )
 
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog
