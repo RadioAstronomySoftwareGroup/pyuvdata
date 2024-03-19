@@ -16,6 +16,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 casa_tutorial_uvfits = os.path.join(
@@ -23,11 +24,6 @@ casa_tutorial_uvfits = os.path.join(
 )
 
 paper_uvfits = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAAM.uvfits")
-
-selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
-frame_selenoid = [["itrs", "SPHERE"]]
-for snd in selenoids:
-    frame_selenoid.append(["mcmf", snd])
 
 
 def _fix_uvfits_multi_group_params(vis_hdu):

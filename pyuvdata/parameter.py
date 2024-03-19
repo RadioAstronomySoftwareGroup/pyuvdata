@@ -936,7 +936,10 @@ class LocationParameter(UVParameter):
         else:
             # check defaults to False b/c exposed check kwarg exists in UVData
             return utils.LatLonAlt_from_XYZ(
-                self.value, check_acceptability=False, frame=self.frame
+                self.value,
+                check_acceptability=False,
+                frame=self.frame,
+                lunar_ellipsoid=self.lunar_ellipsoid,
             )
 
     def set_lat_lon_alt(self, lat_lon_alt):
@@ -953,7 +956,11 @@ class LocationParameter(UVParameter):
             self.value = None
         else:
             self.value = utils.XYZ_from_LatLonAlt(
-                lat_lon_alt[0], lat_lon_alt[1], lat_lon_alt[2], frame=self.frame
+                lat_lon_alt[0],
+                lat_lon_alt[1],
+                lat_lon_alt[2],
+                frame=self.frame,
+                lunar_ellipsoid=self.lunar_ellipsoid,
             )
 
     def lat_lon_alt_degrees(self):
@@ -984,6 +991,7 @@ class LocationParameter(UVParameter):
                 longitude * np.pi / 180.0,
                 altitude,
                 frame=self.frame,
+                lunar_ellipsoid=self.lunar_ellipsoid,
             )
 
     def check_acceptability(self):
