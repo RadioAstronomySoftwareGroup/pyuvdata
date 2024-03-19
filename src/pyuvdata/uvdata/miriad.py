@@ -765,8 +765,7 @@ class Miriad(UVData):
             # but that may not matter for many purposes.
             return
 
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
+        selections = []
 
         # select on ant_str if provided
         if ant_str is not None:
@@ -778,8 +777,7 @@ class Miriad(UVData):
 
             aipy_extracts.uv_selector(uv, ant_str)
             if ant_str != "all":
-                history_update_string += "antenna pairs"
-                n_selects += 1
+                selections.append("antenna pairs")
 
         # select on antenna_nums and/or bls using aipy_extracts.uv_selector
         if antenna_nums is not None or bls is not None:
@@ -798,8 +796,7 @@ class Miriad(UVData):
                 # convert antenna numbers to string form required by
                 # aipy_extracts.uv_selector
                 antpair_str_list = ["_".join([str(a) for a in ap]) for ap in antpairs]
-                history_update_string += "antennas"
-                n_selects += 1
+                selections.append("antennas")
 
             if bls is not None:
                 if isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
@@ -843,7 +840,7 @@ class Miriad(UVData):
                         if len(bl) == 3:
                             bl_pols.add(utils.conj_pol(bl[2]))
 
-                if n_selects > 0:
+                if len(selections) > 0:
                     # combine antpair_str_list and bl_str_list with an intersection
                     antpair_str_list = list(
                         set(antpair_str_list).intersection(bl_str_list)
@@ -854,11 +851,7 @@ class Miriad(UVData):
                 if len(bl_pols) > 0:
                     polarizations = list(bl_pols)
 
-                if n_selects > 0:
-                    history_update_string += ", baselines"
-                else:
-                    history_update_string += "baselines"
-                n_selects += 1
+                selections.append("antenna pairs")
 
             # convert antenna pair list to string form required by
             # aipy_extracts.uv_selector
@@ -888,11 +881,8 @@ class Miriad(UVData):
             time_range_use = np.array(time_range) - uv["inttime"] / (24 * 3600.0) / 2
 
             uv.select("time", time_range_use[0], time_range_use[1], include=True)
-            if n_selects > 0:
-                history_update_string += ", times"
-            else:
-                history_update_string += "times"
-            n_selects += 1
+
+            selections.append("times")
 
         # select on polarizations
         if polarizations is not None:
@@ -926,15 +916,15 @@ class Miriad(UVData):
             # check not empty
             if len(pol_list) == 0:
                 raise ValueError("No polarizations in data matched input")
-            if n_selects > 0:
-                history_update_string += ", polarizations"
-            else:
-                history_update_string += "polarizations"
-            n_selects += 1
+            selections.append("polarizations")
 
-        history_update_string += " using pyuvdata."
-        if n_selects > 0:
-            self.history += history_update_string
+        if len(selections) > 0:
+            # build up history string from selections
+            self.history += (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
 
         data_accumulator = {}
         pol_list = []
