@@ -1481,10 +1481,9 @@ def test_select_phase_center_id_blts(carma_miriad):
     uv_sum = uv1 + uv2 + uv3
     assert uvutils._check_histories(
         uv_obj.history
-        + "  Downselected to specific baseline-times, phase center IDs using pyuvdata. "
+        + "  Downselected to specific phase center IDs, baseline-times using pyuvdata. "
         "Combined data along baseline-time axis using pyuvdata.  "
-        "Combined data along baseline-time axis using pyuvdata.  "
-        "Unique part of next object history follows.  baseline-times",
+        "Combined data along baseline-time axis using pyuvdata.  ",
         uv_sum.history,
     )
     uv_sum.history = uv_obj.history
@@ -1655,7 +1654,7 @@ def test_select_bls(casa_uvfits):
         assert pair in sorted_pairs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to specific baselines using pyuvdata.",
+        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
         uv_object2.history,
     )
 
@@ -1684,7 +1683,7 @@ def test_select_bls(casa_uvfits):
         assert pair in sorted_pairs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to specific baselines using pyuvdata.",
+        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
         uv_object3.history,
     )
 
@@ -1724,7 +1723,7 @@ def test_select_bls(casa_uvfits):
 
     assert uvutils._check_histories(
         old_history
-        + "  Downselected to specific baselines, polarizations using pyuvdata.",
+        + "  Downselected to specific antenna pairs, polarizations using pyuvdata.",
         uv_object2.history,
     )
 
@@ -1752,7 +1751,7 @@ def test_select_bls(casa_uvfits):
         assert pair in sorted_pairs_to_keep
 
     assert uvutils._check_histories(
-        old_history + "  Downselected to specific baselines using pyuvdata.",
+        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
         uv_object2.history,
     )
 
@@ -1791,12 +1790,13 @@ def test_select_bls(casa_uvfits):
 
     with pytest.raises(
         ValueError,
-        match="Cannot provide length-3 tuples and also specify polarizations.",
+        match="Cannot provide any length-3 tuples and also specify polarizations.",
     ):
         uv_object.select(bls=(7, 1, "RR"), polarizations="RR")
 
     with pytest.raises(
-        ValueError, match="The third element in each bl must be a polarization string"
+        ValueError,
+        match="The third element in a bl tuple must be a polarization string",
     ):
         uv_object.select(bls=(7, 1, 7))
 
@@ -2745,7 +2745,7 @@ def test_select(casa_uvfits, future_shapes):
     assert uvutils._check_histories(
         old_history + "  Downselected to "
         "specific baseline-times, antennas, "
-        "baselines, times, frequencies, "
+        "antenna pairs, times, frequencies, "
         "polarizations using pyuvdata.",
         uv_object2.history,
     )
@@ -2853,7 +2853,7 @@ def test_select_with_lst(casa_uvfits, future_shapes):
     assert uvutils._check_histories(
         old_history + "  Downselected to "
         "specific baseline-times, antennas, "
-        "baselines, lsts, frequencies, "
+        "antenna pairs, lsts, frequencies, "
         "polarizations using pyuvdata.",
         uv_object2.history,
     )
