@@ -9,6 +9,13 @@ import pytest
 from astropy.coordinates import CartesianRepresentation, Latitude, Longitude, SkyCoord
 
 from pyuvdata import parameter as uvp
+from pyuvdata.tests.test_utils import (
+    frame_selenoid,
+    ref_latlonalt,
+    ref_latlonalt_moon,
+    ref_xyz,
+    ref_xyz_moon,
+)
 from pyuvdata.uvbase import UVBase
 
 
@@ -395,6 +402,38 @@ def test_location_set_lat_lon_alt_degrees_none():
     param1.set_lat_lon_alt_degrees(None)
 
     assert param1.value is None
+
+
+@pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
+def test_location_xyz_latlonalt_match(frame, selenoid):
+    if frame == "itrs":
+        xyz_val = ref_xyz
+        latlonalt_val = ref_latlonalt
+    else:
+        xyz_val = ref_xyz_moon[selenoid]
+        latlonalt_val = ref_latlonalt_moon
+
+    param1 = uvp.LocationParameter(
+        name="p1", value=xyz_val, frame=frame, lunar_ellipsoid=selenoid
+    )
+    np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
+
+    param2 = uvp.LocationParameter(name="p2", frame=frame, lunar_ellipsoid=selenoid)
+    param2.set_lat_lon_alt(latlonalt_val)
+
+    np.testing.assert_allclose(xyz_val, param2.value)
+
+    param3 = uvp.LocationParameter(name="p2", frame=frame, lunar_ellipsoid=selenoid)
+    latlonalt_deg_val = np.array(
+        [
+            latlonalt_val[0] * 180 / np.pi,
+            latlonalt_val[1] * 180 / np.pi,
+            latlonalt_val[2],
+        ]
+    )
+    param3.set_lat_lon_alt_degrees(latlonalt_deg_val)
+
+    np.testing.assert_allclose(xyz_val, param3.value)
 
 
 def test_location_acceptability():

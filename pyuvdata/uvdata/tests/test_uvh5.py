@@ -23,6 +23,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 from .. import uvh5
@@ -32,11 +33,6 @@ pytestmark = [
     pytest.mark.filterwarnings("ignore:Altitude is not present in Miriad"),
     pytest.mark.filterwarnings("ignore:Telescope EVLA is not"),
 ]
-
-selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
-frame_selenoid = [["itrs", "SPHERE"]]
-for snd in selenoids:
-    frame_selenoid.append(["mcmf", snd])
 
 
 @pytest.fixture(scope="session")
