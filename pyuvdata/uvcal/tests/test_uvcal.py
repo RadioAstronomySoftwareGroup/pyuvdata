@@ -89,6 +89,7 @@ def uvcal_data():
         "phase_center_catalog",
         "phase_center_id_array",
         "antenna_diameters",
+        "Nphase",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 

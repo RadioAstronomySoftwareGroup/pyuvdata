@@ -205,7 +205,7 @@ class MSCal(UVCal):
         # Don't think CASA is going to support a non-sky based model, but hey, who knows
         self.cal_style = "sky"
         self.gain_convention = "divide"  # N.b., manually verified by Karto in CASA v6.4
-        self.Nsources = len(np.unique(tb_main.getcol("FIELD_ID")))
+        self.Nphase = len(np.unique(tb_main.getcol("FIELD_ID")))
 
         # Just assume that the gain scale is always in Jy
         self.gain_scale = "Jy"
@@ -221,8 +221,6 @@ class MSCal(UVCal):
             self.freq_array = None
             self.channel_width = None
             self.flex_spw_id_array = None
-            self.Nfreqs = 1
-            nchan = self.Nspws
 
         self.sky_catalog = "CASA (import)"
 
@@ -300,7 +298,11 @@ class MSCal(UVCal):
                 # Figure out which spectral slice this corresponds to
                 spw_slice = spw_slice_dict[spw_id]
 
-                # Finally, start plugging in solns to various parameters.
+                # Finally, start plugging in solns to various parameters. Note that
+                # because of the conjugation scheme, normally we'd have to flip this for
+                # CASA, except that the Antenna1 entries appear to be "pre-conjugated",
+                # and thus no flip is necessary for gains solns.
+                # TODO: Verify this is the case for delay solns as well.
                 ms_cal_soln[ant_idx, spw_slice, time_idx, :] = cal_soln
                 self.time_array[time_idx] = time_val
                 self.integration_time[time_idx] = exp_time
@@ -525,7 +527,7 @@ class MSCal(UVCal):
             ms.putcol("ANTENNA1", ant_array)
             ms.putcol("ANTENNA2", refant_array)
             ms.putcol("INTERVAL", interval_array)
-            ms.putcol("EXPOSURE", exposure_array)
+            # ms.putcol("EXPOSURE", exposure_array)
             ms.putcol("SCAN_NUMBER", scan_number_array)
             ms.putcol("OBSERVATION_ID", obs_id_array)
 
