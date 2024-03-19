@@ -506,6 +506,11 @@ class UVCal(UVBase):
             "Nsources", required=False, expected_type=int, description=desc
         )
 
+        desc = "Number of sources used."
+        self._Nphase = uvp.UVParameter(
+            "Nphase", required=False, expected_type=int, description=desc
+        )
+
         desc = "Range of baselines used for calibration."
         self._baseline_range = uvp.UVParameter(
             "baseline_range",
