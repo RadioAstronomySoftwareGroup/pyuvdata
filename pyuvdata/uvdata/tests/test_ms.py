@@ -136,6 +136,8 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame):
         )
         uvobj.antenna_positions = new_full_antpos - uvobj.telescope_location
         uvobj.set_lsts_from_time_array()
+        uvobj.set_uvws_from_antenna_positions()
+        uvobj._set_app_coords_helper()
         uvobj.check()
 
     expected_extra_keywords = ["DATA_COL", "observer"]

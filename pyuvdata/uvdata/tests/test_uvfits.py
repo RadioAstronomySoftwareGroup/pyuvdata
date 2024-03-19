@@ -562,6 +562,8 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
         )
         uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
         uv_in.set_lsts_from_time_array()
+        uv_in.set_uvws_from_antenna_positions()
+        uv_in._set_app_coords_helper()
         uv_in.check()
 
     uv_out = UVData()

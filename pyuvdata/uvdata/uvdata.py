@@ -2509,6 +2509,8 @@ class UVData(UVBase):
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
                     telescope_loc=self.telescope_location_lat_lon_alt,
+                    telescope_frame=self._telescope_location.frame,
+                    lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
                     coord_type=cat_type,
                 )
 
@@ -2524,12 +2526,14 @@ class UVData(UVBase):
             epoch = temp_dict.get("cat_epoch")
             if not frame == "altaz":
                 frame_pa[select_mask] = uvutils.calc_frame_pos_angle(
-                    self.time_array[select_mask],
-                    app_ra[select_mask],
-                    app_dec[select_mask],
-                    self.telescope_location_lat_lon_alt,
-                    frame,
+                    time_array=self.time_array[select_mask],
+                    app_ra=app_ra[select_mask],
+                    app_dec=app_dec[select_mask],
+                    telescope_loc=self.telescope_location_lat_lon_alt,
+                    ref_frame=frame,
                     ref_epoch=epoch,
+                    telescope_frame=self._telescope_location.frame,
+                    lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
                 )
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
