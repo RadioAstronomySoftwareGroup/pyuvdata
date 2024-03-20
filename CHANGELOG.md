@@ -3,11 +3,16 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added new keyword handling for v.6 of the MIR data format within `MirParser`.
+
 ### Changed
 - Speed up for reading MWA correlator FITS files into `UVData`.
 - Now compatible with pytest>=8.0 but require pytest-cases>=3.8.3.
 
 ### Fixed
+- Fixed a bug where SMA-based coordinates were recorded as FK5 for sidereal sources
+(should be ICRS).
 - Bug in which passing 'ee' or 'nn' pols to UVData.new() would error, even if
 `x_orientation` was passed.
 
