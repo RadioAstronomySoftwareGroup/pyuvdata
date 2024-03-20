@@ -2238,8 +2238,10 @@ def test_mir_remember_me_sp_data(mir_data):
     Mir sp_read checker.
 
     Make sure that certain values in the sp_read file of the test data set match what
-    we know to be 'true' at the time of observations, including that spare values are
-    stored as zero.
+    we know to be 'true' at the time of observations. This includes values that were
+    spare at time of observation (and thus stored as zero), but have since been assigned
+    in subsequent versions. The primary goal in this case is to ensure that all keys
+    in the dtype exist as currently expected.
     """
     # Now check sp_read
     assert np.all(mir_data.sp_data["sphid"] == np.arange(1, 21))
