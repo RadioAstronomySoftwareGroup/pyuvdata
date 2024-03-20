@@ -3,6 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- New analytic beam classes: AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam
+that support evaluating either the efield or power beam in any direction and frequency.
+- A new BeamInterface class that provides a unified interface to UVBeam and analytic
+beam objects to get beam responses in any direction and frequency (via
+interpolation or evaluation as appropriate).
+
 ### Changed
 - Speed up for reading MWA correlator FITS files into `UVData`.
 - Now compatible with pytest>=8.0 but require pytest-cases>=3.8.3.

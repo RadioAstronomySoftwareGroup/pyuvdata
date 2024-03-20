@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
 from scipy import interpolate
 
@@ -30,6 +29,29 @@ _future_array_shapes_warning = (
     "warning. See the UVBeam tutorial on ReadTheDocs for more details about these "
     "shape changes."
 )
+
+
+def _convert_feeds_to_pols(feed_array, calc_cross_pols, x_orientation=None):
+    n_feeds = np.asarray(feed_array).size
+
+    feed_pol_order = [(0, 0)]
+    if n_feeds > 1:
+        feed_pol_order.append((1, 1))
+
+    if calc_cross_pols:
+        # to get here we have Nfeeds > 1
+        feed_pol_order.extend([(0, 1), (1, 0)])
+
+    pol_strings = []
+    for pair in feed_pol_order:
+        pol_strings.append(feed_array[pair[0]] + feed_array[pair[1]])
+    polarization_array = np.array(
+        [
+            uvutils.polstr2num(ps.upper(), x_orientation=x_orientation)
+            for ps in pol_strings
+        ]
+    )
+    return polarization_array, feed_pol_order
 
 
 class UVBeam(UVBase):
@@ -243,7 +265,7 @@ class UVBeam(UVBase):
 
         self._Nfeeds = uvp.UVParameter(
             "Nfeeds",
-            description="Number of feeds. " 'Not required if beam_type is "power".',
+            description="Number of feeds. Not required if beam_type is 'power'.",
             expected_type=int,
             acceptable_vals=[1, 2],
             required=False,
@@ -1180,31 +1202,15 @@ class UVBeam(UVBase):
             # There are no cross pols with one feed. Set this so the power beam is real
             calc_cross_pols = False
 
+        beam_object.polarization_array, feed_pol_order = _convert_feeds_to_pols(
+            beam_object.feed_array,
+            calc_cross_pols,
+            x_orientation=beam_object.x_orientation,
+        )
+        beam_object.Npols = beam_object.polarization_array.size
+
         efield_data = beam_object.data_array
         efield_naxes_vec = beam_object.Naxes_vec
-
-        feed_pol_order = [(0, 0)]
-        if beam_object.Nfeeds > 1:
-            feed_pol_order.append((1, 1))
-
-        if calc_cross_pols:
-            beam_object.Npols = beam_object.Nfeeds**2
-            # to get here we have Nfeeds > 1
-            feed_pol_order.extend([(0, 1), (1, 0)])
-        else:
-            beam_object.Npols = beam_object.Nfeeds
-
-        pol_strings = []
-        for pair in feed_pol_order:
-            pol_strings.append(
-                beam_object.feed_array[pair[0]] + beam_object.feed_array[pair[1]]
-            )
-        beam_object.polarization_array = np.array(
-            [
-                uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
-                for ps in pol_strings
-            ]
-        )
 
         if not keep_basis_vector:
             beam_object.Naxes_vec = 1
@@ -2107,8 +2113,12 @@ class UVBeam(UVBase):
             interp_basis_vector = None
 
         hp_obj = HEALPix(nside=self.nside, order=self.ordering)
-        lat_array = Angle(np.pi / 2, units.radian) - Angle(za_array, units.radian)
-        lon_array = Angle(az_array, units.radian)
+        lat_array, lon_array = uvutils.zenithangle_azimuth_to_hpx_latlon(
+            za_array, az_array
+        )
+        lon_array = lon_array * units.rad
+        lat_array = lat_array * units.rad
+
         for index3 in range(input_nfreqs):
             for index0 in range(self.Naxes_vec):
                 for index2 in range(Npol_feeds):
@@ -2217,6 +2227,11 @@ class UVBeam(UVBase):
         polarizations : list of str
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
+        return_bandpass : bool
+            Option to return the bandpass. Only applies if `new_object` is False.
+        return_coupling : bool
+            Option to return the interpolated coupling matrix, only applies if
+            `antenna_type` is "phased_array" and `new_object` is False.
         new_object : bool
             Option to return a new UVBeam object with the interpolated data,
             if possible. Note that this is only possible for Healpix pixels or
@@ -2325,6 +2340,9 @@ class UVBeam(UVBase):
         interp_func = self.interpolation_function_dict[interpolation_function]["func"]
 
         if freq_array is not None:
+            if freq_array.ndim != 1:
+                raise ValueError("freq_array must be one-dimensional")
+
             # get frequency distances
             freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
             nearest_dist = np.min(freq_dists, axis=1)
@@ -2369,9 +2387,9 @@ class UVBeam(UVBase):
                 healpix_inds = np.arange(hp_obj.npix)
 
             hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(healpix_inds)
-
-            za_array_use = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
-            az_array_use = hpx_lon.radian
+            za_array_use, az_array_use = uvutils.hpx_latlon_to_zenithangle_azimuth(
+                hpx_lat.radian, hpx_lon.radian
+            )
 
         extra_keyword_dict = {}
         if interp_func == "_interp_az_za_rect_spline":
@@ -2595,15 +2613,15 @@ class UVBeam(UVBase):
 
         pixels = np.arange(hp_obj.npix)
         hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(pixels)
-
-        hpx_theta = (Angle(np.pi / 2, units.radian) - hpx_lat).radian
-        hpx_phi = hpx_lon.radian
+        hpx_zen_ang, hpx_az = uvutils.hpx_latlon_to_zenithangle_azimuth(
+            hpx_lat.radian, hpx_lon.radian
+        )
 
         inds_to_use = _uvbeam.find_healpix_indices(
             np.ascontiguousarray(self.axis2_array, dtype=np.float64),
             np.ascontiguousarray(self.axis1_array, dtype=np.float64),
-            np.ascontiguousarray(hpx_theta, dtype=np.float64),
-            np.ascontiguousarray(hpx_phi, dtype=np.float64),
+            np.ascontiguousarray(hpx_zen_ang, dtype=np.float64),
+            np.ascontiguousarray(hpx_az, dtype=np.float64),
             np.float64(hp_obj.pixel_resolution.to_value(units.radian)),
         )
 
