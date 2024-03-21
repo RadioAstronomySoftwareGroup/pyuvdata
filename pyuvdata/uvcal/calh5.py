@@ -181,6 +181,12 @@ class CalH5(UVCal):
             When set to True, the lst_array is calculated in a background thread.
         run_check_acceptability : bool
             Option to check that LSTs match the times given the telescope_location.
+        astrometry_library : str
+            Library used for calculating LSTs. Allowed options are 'erfa' (which uses
+            the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
+            (which uses the astropy utilities). Default is erfa unless the
+            telescope_location frame is MCMF (on the moon), in which case the default
+            is astropy.
 
         Returns
         -------
@@ -443,6 +449,8 @@ class CalH5(UVCal):
 
             # determine which axes can be sliced, rather than fancy indexed
             # max_nslice_frac of 0.1 is just copied from uvh5, not validated
+            # TODO: this logic is similar to what is in uvh5. See if an abstracted
+            # version can be pulled out into a util function.
             if ant_inds is not None:
                 ant_slices, ant_sliceable = uvutils._convert_to_slices(
                     ant_inds, max_nslice_frac=0.1
