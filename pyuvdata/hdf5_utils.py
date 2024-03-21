@@ -51,11 +51,11 @@ def _check_complex_dtype(dtype):
         raise ValueError(
             "dtype must be a compound datatype with an 'r' field and an 'i' field"
         )
-    rkind = dtype["r"].kind
-    ikind = dtype["i"].kind
+    rkind = dtype["r"].kind + str(dtype["r"].itemsize)
+    ikind = dtype["i"].kind + str(dtype["i"].itemsize)
     if rkind != ikind:
         raise ValueError(
-            "dtype must have the same kind ('i4', 'r8', etc.) for both real "
+            "dtype must have the same kind ('i4', 'f8', etc.) for both real "
             "and imaginary fields"
         )
     return
