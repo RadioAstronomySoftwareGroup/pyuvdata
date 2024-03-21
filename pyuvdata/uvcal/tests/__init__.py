@@ -24,70 +24,22 @@ def extend_jones_axis(calobj, input_flag=True, total_quality=True):
         calobj.jones_array = np.append(calobj.jones_array, new_jones)
         calobj.Njones += 1
         if not calobj.metadata_only:
-            if calobj.future_array_shapes:
-                calobj.flag_array = np.concatenate(
-                    (calobj.flag_array, calobj.flag_array[:, :, :, [-1]]), axis=3
-                )
-                if calobj.cal_type == "gain":
-                    calobj.gain_array = np.concatenate(
-                        (calobj.gain_array, calobj.gain_array[:, :, :, [-1]]), axis=3
+            attrs_to_extend = [
+                "gain_array",
+                "delay_array",
+                "flag_array",
+                "input_flag_array",
+                "quality_array",
+                "total_quality_array",
+            ]
+            for attr in attrs_to_extend:
+                attr_value = getattr(calobj, attr)
+                if attr_value is not None:
+                    attr_value = np.concatenate(
+                        (attr_value, attr_value[..., [-1]]), axis=-1
                     )
-                else:
-                    calobj.delay_array = np.concatenate(
-                        (calobj.delay_array, calobj.delay_array[:, :, :, [-1]]), axis=3
-                    )
-                if calobj.input_flag_array is not None:
-                    calobj.input_flag_array = np.concatenate(
-                        (
-                            calobj.input_flag_array,
-                            calobj.input_flag_array[:, :, :, [-1]],
-                        ),
-                        axis=3,
-                    )
-                calobj.quality_array = np.concatenate(
-                    (calobj.quality_array, calobj.quality_array[:, :, :, [-1]]), axis=3
-                )
-                if calobj.total_quality_array is not None:
-                    calobj.total_quality_array = np.concatenate(
-                        (
-                            calobj.total_quality_array,
-                            calobj.total_quality_array[:, :, [-1]],
-                        ),
-                        axis=2,
-                    )
-            else:
-                calobj.flag_array = np.concatenate(
-                    (calobj.flag_array, calobj.flag_array[:, :, :, :, [-1]]), axis=4
-                )
-                if calobj.cal_type == "gain":
-                    calobj.gain_array = np.concatenate(
-                        (calobj.gain_array, calobj.gain_array[:, :, :, :, [-1]]), axis=4
-                    )
-                else:
-                    calobj.delay_array = np.concatenate(
-                        (calobj.delay_array, calobj.delay_array[:, :, :, :, [-1]]),
-                        axis=4,
-                    )
-                if calobj.input_flag_array is not None:
-                    calobj.input_flag_array = np.concatenate(
-                        (
-                            calobj.input_flag_array,
-                            calobj.input_flag_array[:, :, :, :, [-1]],
-                        ),
-                        axis=4,
-                    )
-                calobj.quality_array = np.concatenate(
-                    (calobj.quality_array, calobj.quality_array[:, :, :, :, [-1]]),
-                    axis=4,
-                )
-                if calobj.total_quality_array is not None:
-                    calobj.total_quality_array = np.concatenate(
-                        (
-                            calobj.total_quality_array,
-                            calobj.total_quality_array[:, :, :, [-1]],
-                        ),
-                        axis=3,
-                    )
+                    setattr(calobj, attr, attr_value)
+
     if not calobj.metadata_only:
         if calobj.input_flag_array is None and input_flag:
             calobj.input_flag_array = calobj.flag_array
