@@ -199,24 +199,22 @@ class CalH5(UVCal):
         )
         if "time_array" in meta.header:
             self.time_array = meta.time_array
+            if "lst_array" in meta.header:
+                self.lst_array = meta.header["lst_array"][:]
+                proc = None
+            else:
+                proc = self.set_lsts_from_time_array(
+                    background=background_lsts, astrometry_library=astrometry_library
+                )
         if "time_range" in meta.header:
             self.time_range = meta.time_range
-
-        if "lst_array" in meta.header:
-            self.lst_array = meta.header["lst_array"][:]
-            proc = None
-        elif "time_array" in meta.header:
-            proc = self.set_lsts_from_time_array(
-                background=background_lsts, astrometry_library=astrometry_library
-            )
-
-        if "lst_range" in meta.header:
-            self.lst_range = meta.header["lst_range"][:]
-            proc = None
-        elif "time_range" in meta.header:
-            proc = self.set_lsts_from_time_array(
-                background=background_lsts, astrometry_library=astrometry_library
-            )
+            if "lst_range" in meta.header:
+                self.lst_range = meta.header["lst_range"][:]
+                proc = None
+            else:
+                proc = self.set_lsts_from_time_array(
+                    background=background_lsts, astrometry_library=astrometry_library
+                )
 
         # Required parameters
         for attr in [
