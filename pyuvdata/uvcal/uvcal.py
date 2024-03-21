@@ -3614,20 +3614,20 @@ class UVCal(UVBase):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced or have differing "
                     "values of channel widths. This will make it impossible to write "
-                    "this data out to some file types."
+                    "this data out to calfits files."
                 )
             elif chanwidth_error:
                 warnings.warn(
                     "Combined frequencies are separated by more than their "
                     "channel width. This will make it impossible to write this data "
-                    "out to some file types."
+                    "out to calfits files."
                 )
 
         if this.Njones > 2:
             if not uvutils._test_array_constant_spacing(this._jones_array):
                 warnings.warn(
                     "Combined Jones elements are not evenly spaced. This will "
-                    "make it impossible to write this data out to some file types."
+                    "make it impossible to write this data out to calfits files."
                 )
 
         if n_axes > 0:
@@ -4020,13 +4020,13 @@ class UVCal(UVBase):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced or have differing "
                     "values of channel widths. This will make it impossible to write "
-                    "this data out to some file types."
+                    "this data out to calfits files."
                 )
             elif chanwidth_error:
                 warnings.warn(
                     "Combined frequencies are separated by more than their "
                     "channel width. This will make it impossible to write this data "
-                    "out to some file types."
+                    "out to calfits files."
                 )
 
             if this.future_array_shapes:
@@ -4472,13 +4472,13 @@ class UVCal(UVBase):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
-                        "some file types"
+                        "calfits files"
                     )
                 elif np.max(freq_ind_separation) > 1:
                     warnings.warn(
                         "Selected frequencies are not contiguous. This "
                         "will make it impossible to write this data out to "
-                        "some file types."
+                        "calfits files."
                     )
 
             freq_inds = sorted(set(freq_inds))
@@ -4514,7 +4514,7 @@ class UVCal(UVBase):
             if not uvutils._test_array_constant_spacing(self.jones_array[jones_inds]):
                 warnings.warn(
                     "Selected jones polarization terms are not evenly spaced. This "
-                    "will make it impossible to write this data out to some file types."
+                    "will make it impossible to write this data out to calfits files."
                 )
         else:
             jones_inds = None
