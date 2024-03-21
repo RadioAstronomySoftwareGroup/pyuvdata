@@ -4962,6 +4962,11 @@ class UVCal(UVBase):
         freq_chans : array_like of int, optional
             The frequency channel numbers to include when reading data into the
             object. Ignored if read_data is False.
+        spws : array_like of in, optional
+            The spectral window numbers to keep in the object. If this is not a
+            wide-band object and `frequencies` or `freq_chans` is not None, frequencies
+            that match any of the specifications will be kept (i.e. the selections will
+            be OR'ed together).
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array. Cannot be used with
@@ -5229,9 +5234,9 @@ class UVCal(UVBase):
 
         This method supports a number of different types of files.
         Universal parameters (required and optional) are listed directly below,
-        followed by parameters used by all file types related to checking. Each file
-        type also has its own set of optional parameters that are listed at the end of
-        this docstring.
+        followed by parameters used by all file types related to selecting and
+        checking. Each file type also has its own set of optional parameters
+        that are listed at the end of this docstring.
 
         Parameters
         ----------
@@ -5285,6 +5290,11 @@ class UVCal(UVBase):
         freq_chans : array_like of int, optional
             The frequency channel numbers to include when reading data into the
             object. Ignored if read_data is False.
+        spws : array_like of in, optional
+            The spectral window numbers to keep in the object. If this is not a
+            wide-band object and `frequencies` or `freq_chans` is not None, frequencies
+            that match any of the specifications will be kept (i.e. the selections will
+            be OR'ed together).
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array. Cannot be used with
