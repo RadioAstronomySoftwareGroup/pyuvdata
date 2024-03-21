@@ -4610,10 +4610,10 @@ class UVCal(UVBase):
                 self.Nants_data = len(ind_arr)
                 if self.total_quality_array is not None:
                     warnings.warn(
-                        "Cannot preserve total_quality_array when changing "
-                        "number of antennas; discarding"
+                        "Changing number of antennas, but preserving the "
+                        "total_quality_array, which may have been defined based "
+                        "in part on antennas which will be removed."
                     )
-                    self.total_quality_array = None
             elif key == "Ntimes":
                 # Process post time-specific selection actions
                 self.Ntimes = len(ind_arr)

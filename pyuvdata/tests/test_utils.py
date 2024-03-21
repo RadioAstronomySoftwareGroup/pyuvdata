@@ -3853,7 +3853,7 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
+@pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 def test_uvcalibrate_flag_propagation(
