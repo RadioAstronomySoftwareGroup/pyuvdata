@@ -944,13 +944,17 @@ def test_select_antennas(
         calobj._total_quality_array.expected_shape(calobj)
     )
     warn_type = [UserWarning]
-    msg = ["Cannot preserve total_quality_array"]
+    msg = [
+        "Changing number of antennas, but preserving the total_quality_array, "
+        "which may have been defined based in part on antennas which will be "
+        "removed."
+    ]
     if caltype == "delay":
         warn_type += [DeprecationWarning]
         msg += ["The input_flag_array is deprecated and will be removed in version 2.5"]
     with uvtest.check_warnings(warn_type, match=msg):
         calobj.select(antenna_names=ant_names, inplace=True)
-    assert calobj.total_quality_array is None
+    assert calobj.total_quality_array is not None
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
