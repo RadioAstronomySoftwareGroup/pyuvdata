@@ -2,20 +2,20 @@ name: pyuvdata_tests
 channels:
   - conda-forge
 dependencies:
-  - astropy>=5.0.4
+  - astropy>=6.0
   - astropy-healpix>=0.6
   - astroquery>=0.4.4
   - docstring_parser>=0.15
-  - h5py>=3.1
-  - hdf5plugin>=3.1.0
+  - h5py>=3.4
+  - hdf5plugin>=3.2.0
   - matplotlib  # this is just for the doctests.
-  - numpy>=1.20.*
-  - pyerfa>=2.0
-  - python-casacore>=3.3.1
-  - pyyaml>=5.3
-  - scipy>=1.5
+  - numpy>=1.23
+  - pyerfa>=2.0.1.1
+  - python-casacore>=3.5.2
+  - pyyaml>=5.4.1
+  - scipy>=1.7.3
   - coverage
-  - pytest>=6.2.0
+  - pytest>=6.2.5
   - pytest-cases>=3.8.3
   - pytest-cov
   - pytest-xdist
@@ -23,6 +23,6 @@ dependencies:
   - setuptools_scm<7.0|>=7.0.3
   - pip
   - pip:
-      - lunarsky>=0.2.1
+      - lunarsky>=0.2.2
       - novas
       - novas_de405

@@ -103,11 +103,11 @@ if not is_platform_windows():
     extensions.append(miriad_extension)
 
 astroquery_reqs = ["astroquery>=0.4.4"]
-casa_reqs = ["python-casacore>=3.3.1"]
-cst_reqs = ["pyyaml>=5.3"]
-hdf5_compression_reqs = ["hdf5plugin>=3.1.0"]
+casa_reqs = ["python-casacore>=3.5.2"]
+cst_reqs = ["pyyaml>=5.4.1"]
+hdf5_compression_reqs = ["hdf5plugin>=3.2.0"]
 healpix_reqs = ["astropy_healpix>=0.6"]
-lunar_reqs = ["lunarsky>=0.2.1"]
+lunar_reqs = ["lunarsky>=0.2.2"]
 novas_reqs = ["novas", "novas_de405"]
 all_optional_reqs = (
     astroquery_reqs
@@ -119,7 +119,7 @@ all_optional_reqs = (
     + novas_reqs
 )
 test_reqs = all_optional_reqs + [
-    "pytest>=6.2",
+    "pytest>=6.2.5",
     "pytest-xdist",
     "pytest-cases>=3.8.3",
     "pytest-cov",
@@ -144,12 +144,12 @@ setup_args = {
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
     "install_requires": [
-        "astropy>=5.0.4",
+        "astropy>=6.0",
         "docstring-parser>=0.15",
-        "h5py>=3.1",
-        "numpy>=1.20",
-        "pyerfa>=2.0",
-        "scipy>=1.5",
+        "h5py>=3.4",
+        "numpy>=1.23",
+        "pyerfa>=2.0.1.1",
+        "scipy>=1.7.3",
         "setuptools>=61",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
     ],
@@ -170,7 +170,6 @@ setup_args = {
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
