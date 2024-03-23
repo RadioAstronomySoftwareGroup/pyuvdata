@@ -11553,7 +11553,7 @@ class UVData(UVBase):
         use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
-        correct_cable_len=None,
+        correct_cable_len=True,
         correct_van_vleck=False,
         cheby_approx=True,
         flag_small_auto_ants=True,

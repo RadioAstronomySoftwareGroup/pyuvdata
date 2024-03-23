@@ -1234,3 +1234,22 @@ def test_bscale(tmp_path):
     # check mwax data
     uv4.read(filelist[11:13], use_future_array_shapes=True)
     assert "SCALEFAC" not in uv4.extra_keywords.keys()
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+def test_default_corrections(tmp_path):
+    """Test that default corrections are applied"""
+    # mwa_corr_fits defaults to applying corrections for cable reflections, 
+    # digital gains, and the polyphase filter bank bandpass
+    uv1 = UVData()
+    uv2 = UVData()
+    uv1.read(filelist[0:2], use_future_array_shapes=True)
+    uv1.read(filelist[11:13], use_future_array_shapes=True)
+
+    assert "Divided out digital gains" in uv1.history
+    assert "Divided out digital gains" in uv2.history
+    assert "Divided out pfb coarse channel bandpass" in uv1.history
+    assert "Divided out pfb coarse channel bandpass" in uv2.history
+    assert "Applied cable length correction" in uv1.history
+    assert "Applied cable length correction" in uv2.history
