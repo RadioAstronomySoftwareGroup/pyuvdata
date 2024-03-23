@@ -4,9 +4,14 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for new lunar ellipsoids in `lunarsky` version 0.2.2.
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Updated minimum dependency versions: astropy>=6.0, h5py>=3.4, numpy>=1.23,
+pyerfa>=2.0.1.1, scipy>=1.7.3
+- Updated minimum optional dependency versions: hdf5plugin>=3.2.0, pytest>=6.2.5,
+python-casacore>=3.5.2, pyyaml>=5.4.1, lunarsky>=0.2.2
 - Speed up for reading MWA correlator FITS files into `UVData`.
 - Now compatible with pytest>=8.0 but require pytest-cases>=3.8.3.
 
