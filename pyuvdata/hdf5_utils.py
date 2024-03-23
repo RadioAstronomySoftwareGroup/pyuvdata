@@ -221,17 +221,17 @@ class HDF5Meta:
         self.__file = None
 
         if isinstance(path, h5py.File):
-            self.path = Path(path.filename)
+            self.path = Path(path.filename).resolve()
             self.__file = path
             self.__header = path["/Header"]
             self.__datagrp = path["/Data"]
         elif isinstance(path, h5py.Group):
-            self.path = Path(path.file.filename)
+            self.path = Path(path.file.filename).resolve()
             self.__file = path.file
             self.__header = path
             self.__datagrp = self.__file["/Data"]
         elif isinstance(path, (str, Path)):
-            self.path = Path(path)
+            self.path = Path(path).resolve()
 
     def is_open(self) -> bool:
         """Whether the file is open."""
