@@ -141,23 +141,23 @@ Note that as of v2.2, `pyuvdata` is only supported on python 3.7+.
 
 Required:
 
-* astropy >= 5.0.4
+* astropy >= 6.0
 * docstring_parser>=0.15
-* h5py >= 3.1
-* numpy >= 1.20
-* pyerfa >= 2.0
-* scipy >= 1.5
+* h5py >= 3.4
+* numpy >= 1.23
+* pyerfa >= 2.0.1.1
+* scipy >= 1.7.3
 * setuptools_scm <7.0|>=7.0.3
 
 Optional:
 
 * astropy-healpix >= 0.6 (for working with beams in HEALPix formats)
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
-* hdf5plugin >= 3.1.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
-* lunarsky >=0.2.1 (for working with simulated datasets for lunar telescopes)
+* hdf5plugin >= 3.2.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
+* lunarsky >=0.2.2 (for working with simulated datasets for lunar telescopes)
 * novas and novas_de405 (for using the NOVAS library for astrometry)
-* python-casacore >= 3.3.1 (for working with CASA measurement sets)
-* pyyaml >= 5.3 (for working with settings files for CST beam files)
+* python-casacore >= 3.5.2 (for working with CASA measurement sets)
+* pyyaml >= 5.4.1 (for working with settings files for CST beam files)
 
 
 The numpy and astropy versions are important, so make sure these are up to date.
