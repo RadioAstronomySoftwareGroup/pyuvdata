@@ -38,26 +38,26 @@ class Body(enum.Enum):
   Earth = Ellipsoid(6378137, 6356752.31424518)
 
   try:
-    from lunarsky import SELENOIDS
+    from lunarsky.moon import SELENOIDS
 
     Moon_sphere = Ellipsoid(
-      SELENOIDS["SPHERE"]._equatorial_radius,
-      SELENOIDS["SPHERE"]._equatorial_radius * (1-SELENOIDS["SPHERE"]._flattening)
+      SELENOIDS["SPHERE"]._equatorial_radius.to('m').value,
+      SELENOIDS["SPHERE"]._equatorial_radius.to('m').value * (1-SELENOIDS["SPHERE"]._flattening)
     )
 
     Moon_gsfc = Ellipsoid(
-      SELENOIDS["GSFC"]._equatorial_radius,
-      SELENOIDS["GSFC"]._equatorial_radius * (1-SELENOIDS["GSFC"]._flattening)
+      SELENOIDS["GSFC"]._equatorial_radius.to('m').value,
+      SELENOIDS["GSFC"]._equatorial_radius.to('m').value * (1-SELENOIDS["GSFC"]._flattening)
     )
 
     Moon_grail23 = Ellipsoid(
-      SELENOIDS["GRAIL23"]._equatorial_radius,
-      SELENOIDS["GRAIL23"]._equatorial_radius * (1-SELENOIDS["GRAIL23"]._flattening)
+      SELENOIDS["GRAIL23"]._equatorial_radius.to('m').value,
+      SELENOIDS["GRAIL23"]._equatorial_radius.to('m').value * (1-SELENOIDS["GRAIL23"]._flattening)
     )
 
     Moon_ce1lamgeo = Ellipsoid(
-      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius,
-      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius * (1-SELENOIDS["CE-1-LAM-GEO"]._flattening)
+      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius.to('m').value,
+      SELENOIDS["CE-1-LAM-GEO"]._equatorial_radius.to('m').value * (1-SELENOIDS["CE-1-LAM-GEO"]._flattening)
     )
   except:
     # lunar sky not installed, don't add any moon bodies

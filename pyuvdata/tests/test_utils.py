@@ -28,8 +28,14 @@ ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 # Moon
+selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 ref_latlonalt_moon = (0.6875 * np.pi / 180.0, 24.433 * np.pi / 180.0, 0.3)
-ref_xyz_moon = (1581421.70811685, 718463.24607001, 20793.21701724)
+ref_xyz_moon = {
+    "SPHERE": (1581421.43506347, 718463.12201783, 20843.2071012),
+    "GSFC": (1582332.08831085, 718876.84524219, 20805.18709001),
+    "GRAIL23": (1581855.3916402, 718660.27490195, 20836.2107652),
+    "CE-1-LAM-GEO": (1581905.99108228, 718683.26297605, 20806.77965693),
+}
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
@@ -67,23 +73,28 @@ def astrometry_args():
     )
 
     if hasmoon:
-        default_args["moon_telescope_loc"] = tuple(
-            np.deg2rad(x) for x in (0.6875, 24.433, 0)
+        default_args["moon_telescope_loc"] = (
+            0.6875 * np.pi / 180.0,
+            24.433 * np.pi / 180.0,
+            0.3,
         )
-        default_args["moon_lst_array"] = uvutils.get_lst_for_time(
-            default_args["time_array"],
-            default_args["moon_telescope_loc"][0] * (180.0 / np.pi),
-            default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
-            default_args["moon_telescope_loc"][2],
-            frame="mcmf",
-            lunar_ellipsoid="SPHERE",
-        )
-        default_args["moon_drift_coord"] = SkyCoord(
-            default_args["moon_lst_array"],
-            [default_args["moon_telescope_loc"][0]]
-            * len(default_args["moon_lst_array"]),
-            unit="rad",
-        )
+        default_args["moon_lst_array"] = {}
+        default_args["moon_drift_coord"] = {}
+        for selenoid in selenoids:
+            default_args["moon_lst_array"][selenoid] = uvutils.get_lst_for_time(
+                default_args["time_array"],
+                default_args["moon_telescope_loc"][0] * (180.0 / np.pi),
+                default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
+                default_args["moon_telescope_loc"][2],
+                frame="mcmf",
+                lunar_ellipsoid=selenoid,
+            )
+            default_args["moon_drift_coord"][selenoid] = SkyCoord(
+                default_args["moon_lst_array"][selenoid],
+                [default_args["moon_telescope_loc"][0]]
+                * len(default_args["moon_lst_array"][selenoid]),
+                unit="rad",
+            )
 
     default_args["icrs_coord"] = SkyCoord(
         default_args["icrs_ra"], default_args["icrs_dec"], unit="rad"
@@ -111,20 +122,27 @@ def astrometry_args():
     )
 
     if hasmoon:
-        (default_args["moon_app_ra"], default_args["moon_app_dec"]) = (
-            uvutils.transform_icrs_to_app(
+        default_args["moon_app_ra"] = {}
+        default_args["moon_app_dec"] = {}
+        default_args["moon_app_coord"] = {}
+        for selenoid in selenoids:
+            (
+                default_args["moon_app_ra"][selenoid],
+                default_args["moon_app_dec"][selenoid],
+            ) = uvutils.transform_icrs_to_app(
                 default_args["time_array"],
                 default_args["icrs_ra"],
                 default_args["icrs_dec"],
                 default_args["moon_telescope_loc"],
                 telescope_frame="mcmf",
-                lunar_ellipsoid="SPHERE",
+                lunar_ellipsoid=selenoid,
             )
-        )
 
-        default_args["moon_app_coord"] = SkyCoord(
-            default_args["moon_app_ra"], default_args["moon_app_dec"], unit="rad"
-        )
+            default_args["moon_app_coord"][selenoid] = SkyCoord(
+                default_args["moon_app_ra"][selenoid],
+                default_args["moon_app_dec"][selenoid],
+                unit="rad",
+            )
 
     yield default_args
 
@@ -227,11 +245,14 @@ def test_LatLonAlt_from_XYZ():
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
-def test_XYZ_from_LatLonAlt_mcmf():
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_XYZ_from_LatLonAlt_mcmf(selenoid):
     """Test MCMF lat/lon/alt to xyz with reference values."""
     lat, lon, alt = ref_latlonalt_moon
-    out_xyz = uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
-    assert np.allclose(ref_xyz_moon, out_xyz, rtol=0, atol=1e-3)
+    out_xyz = uvutils.XYZ_from_LatLonAlt(
+        lat, lon, alt, frame="mcmf", lunar_ellipsoid=selenoid
+    )
+    assert np.allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
 
     # Test errors with invalid frame
     with pytest.raises(
@@ -241,21 +262,26 @@ def test_XYZ_from_LatLonAlt_mcmf():
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
-def test_LatLonAlt_from_XYZ_mcmf():
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_LatLonAlt_from_XYZ_mcmf(selenoid):
     """Test MCMF xyz to lat/lon/alt with reference values."""
-    out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
+    out_latlonalt = uvutils.LatLonAlt_from_XYZ(
+        ref_xyz_moon[selenoid], frame="mcmf", lunar_ellipsoid=selenoid
+    )
     assert np.allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
 
     # Test errors with invalid frame
     with pytest.raises(
         ValueError, match="Cannot check acceptability for unknown frame"
     ):
-        out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="undef")
+        out_latlonalt = uvutils.LatLonAlt_from_XYZ(
+            ref_xyz_moon[selenoid], frame="undef"
+        )
     with pytest.raises(
         ValueError, match="No spherical to cartesian transform defined for frame"
     ):
         uvutils.LatLonAlt_from_XYZ(
-            ref_xyz_moon, frame="undef", check_acceptability=False
+            ref_xyz_moon[selenoid], frame="undef", check_acceptability=False
         )
 
 
@@ -264,7 +290,7 @@ def test_no_moon():
     """Check errors when calling functions with MCMF without lunarsky."""
     msg = "Need to install `lunarsky` package to work with MCMF frame."
     with pytest.raises(ValueError, match=msg):
-        uvutils.LatLonAlt_from_XYZ(ref_xyz_moon, frame="mcmf")
+        uvutils.LatLonAlt_from_XYZ(ref_xyz_moon["SPHERE"], frame="mcmf")
     lat, lon, alt = ref_latlonalt_moon
     with pytest.raises(ValueError, match=msg):
         uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
@@ -373,27 +399,147 @@ def enu_mcmf_info():
     up = enus[2].tolist()
 
     # fmt: off
-    lats = np.deg2rad([0.68749997, 0.69721691, 0.70322232, 0.70322232, 0.69721691,
-                      0.68749997, 0.67778305, 0.67177767, 0.67177767, 0.67778305])
+    lats = {
+        "SPHERE": np.deg2rad(
+            [
+                0.68749997, 0.69719361, 0.70318462, 0.70318462, 0.69719361,
+                0.68749997, 0.67780635, 0.67181538, 0.67181538, 0.67780635
+            ]
+        ),
+        "GSFC": np.deg2rad(
+            [
+                0.68749997, 0.69721132, 0.70321328, 0.70321328, 0.69721132,
+                0.68749997, 0.67778864, 0.67178672, 0.67178672, 0.67778864
+            ]
+        ),
+        "GRAIL23": np.deg2rad(
+            [
+                0.68749997, 0.69719686, 0.70318988, 0.70318988, 0.69719686,
+                0.68749997, 0.6778031 , 0.67181011, 0.67181011, 0.6778031
+            ]
+        ),
+        "CE-1-LAM-GEO": np.deg2rad(
+            [
+                0.68749997, 0.69721058, 0.70321207, 0.70321207, 0.69721058,
+                0.68749997, 0.67778938, 0.67178792, 0.67178792, 0.67778938
+            ]
+        ),
+    }
+    lons = {
+        "SPHERE": np.deg2rad(
+            [
+                24.44949297, 24.44634312, 24.43809663, 24.42790337, 24.41965688,
+                24.41650703, 24.41965693, 24.42790341, 24.43809659, 24.44634307
+            ]
+        ),
+        "GSFC": np.deg2rad(
+            [
+                24.44948348, 24.44633544, 24.43809369, 24.42790631, 24.41966456,
+                24.41651652, 24.41966461, 24.42790634, 24.43809366, 24.44633539
+            ]
+        ),
+        "GRAIL23": np.deg2rad(
+            [
+                24.44948845, 24.44633946, 24.43809523, 24.42790477, 24.41966054,
+                24.41651155, 24.41966059, 24.42790481, 24.43809519, 24.44633941
+            ]
+        ),
+        "CE-1-LAM-GEO": np.deg2rad(
+            [
+                24.44948792, 24.44633904, 24.43809507, 24.42790493, 24.41966096,
+                24.41651208, 24.41966102, 24.42790497, 24.43809503, 24.44633898
+            ]
+        ),
+    }
+    alts = {
+        "SPHERE": [
+            0.371959, 0.371959, 0.371959, 0.371959, 0.371959, 0.371959,
+            0.371959, 0.371959, 0.371959, 0.371959
+        ],
+        "GSFC": [
+            0.37191758, 0.37197732, 0.37207396, 0.37207396, 0.37197732,
+            0.37191758, 0.37197732, 0.37207396, 0.37207396, 0.37197732
+        ],
+        "GRAIL23": [
+            0.37193926, 0.37195442, 0.37197896, 0.37197896, 0.37195442,
+            0.37193926, 0.37195442, 0.37197896, 0.37197896, 0.37195442
+        ],
+        "CE-1-LAM-GEO": [
+            0.37193696, 0.37198809, 0.37207083, 0.37207083, 0.37198809,
+            0.37193696, 0.37198809, 0.37207083, 0.37207083, 0.37198809
+        ],
+    }
+    x = {
+        "SPHERE": [
+            1581214.62062477, 1581250.9080965 , 1581352.33107362,
+            1581480.14942611, 1581585.54088769, 1581628.24950218,
+            1581591.96203044, 1581490.53905332, 1581362.72070084,
+            1581257.32923925
+        ],
+        "GSFC": [
+            1582125.27387214, 1582161.56134388, 1582262.984321,
+            1582390.80267348, 1582496.19413507, 1582538.90274956,
+            1582502.61527782, 1582401.1923007 , 1582273.37394822,
+            1582167.98248663
+        ],
+        "GRAIL23": [
+            1581648.57720149, 1581684.86467323, 1581786.28765035,
+            1581914.10600283, 1582019.49746442, 1582062.2060789 ,
+            1582025.91860717, 1581924.49563005, 1581796.67727756,
+            1581691.28581598
+        ],
+        "CE-1-LAM-GEO": [
+            1581699.17664357, 1581735.46411531, 1581836.88709243,
+            1581964.70544491, 1582070.0969065 , 1582112.80552098,
+            1582076.51804925, 1581975.09507213, 1581847.27671964,
+            1581741.88525806
+        ]
+    }
 
-    lons = np.deg2rad([24.44949297, 24.44634312, 24.43809663, 24.42790337, 24.41965688,
-                      24.41650703, 24.41965693, 24.42790341, 24.43809659, 24.44634307])
-
-    alts = [0.37195899, 0.37201875, 0.37211545, 0.37211545, 0.37201875,
-            0.37195899, 0.37201875, 0.37211546, 0.37211546, 0.37201875]
-
-    x = [1581214.89367814, 1581251.18114988, 1581352.604127  ,
-         1581480.42247948, 1581585.81394107, 1581628.52255555,
-         1581592.23508382, 1581490.8121067 , 1581362.99375421,
-         1581257.60229263]
-
-    y = [718918.46885936, 718830.07043282, 718601.55756758, 718320.21441131,
-         718093.50448719, 718008.02328067, 718096.42170721, 718324.93457245,
-         718606.27772872, 718832.98765283]
-
-    z = [20793.21701724, 21087.08848641, 21268.71104268, 21268.71104268,
-         21087.08848641, 20793.21701724, 20499.34554807, 20317.7229918 ,
-         20317.7229918 , 20499.34554807]
+    y = {
+        "SPHERE": [
+            718918.34480718, 718829.94638063, 718601.4335154 , 718320.09035913,
+            718093.38043501, 718007.89922848, 718096.29765503, 718324.81052027,
+            718606.15367654, 718832.86360065
+        ],
+        "GSFC": [
+            719332.06803154, 719243.66960499, 719015.15673976, 718733.81358349,
+            718507.10365937, 718421.62245284, 718510.02087939, 718738.53374463,
+            719019.8769009 , 719246.58682501
+        ],
+        "GRAIL23": [
+            719115.4976913 , 719027.09926475, 718798.58639952, 718517.24324325,
+            718290.53331913, 718205.0521126 , 718293.45053915, 718521.96340439,
+            718803.30656066, 719030.01648477
+        ],
+        "CE-1-LAM-GEO": [
+            719138.4857654 , 719050.08733885, 718821.57447362, 718540.23131734,
+            718313.52139323, 718228.0401867 , 718316.43861325, 718544.95147849,
+            718826.29463476, 719053.00455887
+        ],
+    }
+    z = {
+        "SPHERE": [
+            20843.2071012 , 21137.07857037, 21318.70112664, 21318.70112664,
+            21137.07857037, 20843.2071012 , 20549.33563204, 20367.71307577,
+            20367.71307577, 20549.33563204
+        ],
+        "GSFC": [
+            20805.18709001, 21099.05855918, 21280.68111545, 21280.68111545,
+            21099.05855918, 20805.18709001, 20511.31562084, 20329.69306457,
+            20329.69306457, 20511.31562084
+        ],
+        "GRAIL23": [
+            20836.2107652 , 21130.08223437, 21311.70479064, 21311.70479064,
+            21130.08223437, 20836.2107652 , 20542.33929603, 20360.71673976,
+            20360.71673976, 20542.33929603
+        ],
+        "CE-1-LAM-GEO": [
+            20806.77965693, 21100.6511261 , 21282.27368237, 21282.27368237,
+            21100.6511261 , 20806.77965693, 20512.90818776, 20331.28563149,
+            20331.28563149, 20512.90818776
+        ],
+    }
 
     # fmt: on
     yield (
@@ -433,12 +579,21 @@ def test_enu_from_ecef(enu_ecef_info):
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
-def test_enu_from_mcmf(enu_mcmf_info):
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_enu_from_mcmf(enu_mcmf_info, selenoid):
     (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
         enu_mcmf_info
     )
-    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame="mcmf")
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame="mcmf")
+    xyz = uvutils.XYZ_from_LatLonAlt(
+        lats[selenoid],
+        lons[selenoid],
+        alts[selenoid],
+        frame="mcmf",
+        lunar_ellipsoid=selenoid,
+    )
+    enu = uvutils.ENU_from_ECEF(
+        xyz, center_lat, center_lon, center_alt, frame="mcmf", lunar_ellipsoid=selenoid
+    )
 
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
 
@@ -491,20 +646,34 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     )
 
 
-telescope_frame = ["itrs", "mcmf"] if hasmoon else ["itrs"]
+if hasmoon:
+    param_list = [["itrs", "SPHERE"]]
+    for snd in selenoids:
+        param_list.append(["mcmf", snd])
+else:
+    param_list = [["itrs", "SPHERE"]]
 
 
-@pytest.mark.parametrize("frame", telescope_frame)
-def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame):
+@pytest.mark.parametrize(["frame", "selenoid"], param_list)
+def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
     """Test ECEF_from_ENU values."""
     (center_lat, center_lon, center_alt, lats, lons, alts, x, y, z, east, north, up) = (
         enu_ecef_info if frame == "itrs" else enu_mcmf_info
     )
-    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame)
-    enu = uvutils.ENU_from_ECEF(xyz, center_lat, center_lon, center_alt, frame=frame)
+    if frame == "mcmf":
+        lats = lats[selenoid]
+        lons = lons[selenoid]
+        alts = alts[selenoid]
+
+    xyz = uvutils.XYZ_from_LatLonAlt(
+        lats, lons, alts, frame=frame, lunar_ellipsoid=selenoid
+    )
+    enu = uvutils.ENU_from_ECEF(
+        xyz, center_lat, center_lon, center_alt, frame=frame, lunar_ellipsoid=selenoid
+    )
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(
-        enu, center_lat, center_lon, center_alt, frame=frame
+        enu, center_lat, center_lon, center_alt, frame=frame, lunar_ellipsoid=selenoid
     )
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
 
@@ -1344,10 +1513,10 @@ def test_transform_fk5_fk4_icrs_loop(astrometry_args):
     assert np.all(check_coord.separation(astrometry_args["icrs_coord"]).uarcsec < 0.1)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
 @pytest.mark.parametrize("in_lib", ["erfa", "astropy"])
 @pytest.mark.parametrize("out_lib", ["erfa", "astropy"])
-def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
+def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_lib):
     """
     Performs a roundtrip test to verify that one can transform between
     ICRS <-> topocentric to the precision limit, without running into
@@ -1370,11 +1539,14 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
                 astrometry_args["icrs_dec"],
                 telescope_loc,
                 telescope_frame=telescope_frame,
+                lunar_ellipsoid=selenoid,
                 epoch=astrometry_args["epoch"],
                 astrometry_library=in_lib,
             )
         return
 
+    # don't pass telescope frame here so something still happens if frame and
+    # astrometry lib conflict
     app_ra, app_dec = uvutils.transform_icrs_to_app(
         astrometry_args["time_array"],
         astrometry_args["icrs_ra"],
@@ -1396,9 +1568,12 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, in_lib, out_lib):
                 app_dec,
                 telescope_loc,
                 telescope_frame=telescope_frame,
+                lunar_ellipsoid=selenoid,
                 astrometry_library=out_lib,
             )
 
+    # don't pass telescope frame here so something still happens if frame and
+    # astrometry lib conflict
     check_ra, check_dec = uvutils.transform_app_to_icrs(
         astrometry_args["time_array"],
         app_ra,
@@ -1590,18 +1765,16 @@ def test_ephem_interp_multi_point():
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_sidereal(astrometry_args, frame, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for sidereal objects
     """
     # First step is to check and make sure we can do sidereal coords. This is the most
     # basic thing to check, so this really _should work.
     if telescope_frame == "itrs":
-        app_coord_name = "app_coord"
         telescope_loc = astrometry_args["telescope_loc"]
     else:
-        app_coord_name = "moon_app_coord"
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.calc_app_coords(
@@ -1610,18 +1783,24 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame=frame,
         coord_epoch=astrometry_args["epoch"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
-    assert np.all(astrometry_args[app_coord_name].separation(check_coord).uarcsec < 1.0)
+    if telescope_frame == "itrs":
+        app_coord = astrometry_args["app_coord"]
+    else:
+        app_coord = astrometry_args["moon_app_coord"][selenoid]
+
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for ephem objects
     """
@@ -1630,10 +1809,8 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
     # tests for poking at that. The two tests here are to check bot the ICRS and FK5
     # paths through the ephem.
     if telescope_frame == "itrs":
-        app_coord_name = "app_coord"
         telescope_loc = astrometry_args["telescope_loc"]
     else:
-        app_coord_name = "moon_app_coord"
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     if frame == "fk5":
@@ -1651,26 +1828,30 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame):
         coord_type="ephem",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_epoch=astrometry_args["epoch"],
         coord_frame=frame,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(astrometry_args[app_coord_name].separation(check_coord).uarcsec < 1.0)
+
+    if telescope_frame == "itrs":
+        app_coord = astrometry_args["app_coord"]
+    else:
+        app_coord = astrometry_args["moon_app_coord"][selenoid]
+    assert np.all(app_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_driftscan(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_driftscan(astrometry_args, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for driftscan objects
     """
     # Now on to the driftscan, which takes in arguments in terms of az and el (and
     # the values we've given below should also be for zenith)
     if telescope_frame == "itrs":
-        coord_name = "drift_coord"
         telescope_loc = astrometry_args["telescope_loc"]
     else:
-        coord_name = "moon_drift_coord"
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.calc_app_coords(
@@ -1679,14 +1860,20 @@ def test_calc_app_driftscan(astrometry_args, telescope_frame):
         coord_type="driftscan",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
-    assert np.all(astrometry_args[coord_name].separation(check_coord).uarcsec < 1.0)
+    if telescope_frame == "itrs":
+        drift_coord = astrometry_args["drift_coord"]
+    else:
+        drift_coord = astrometry_args["moon_drift_coord"][selenoid]
+
+    assert np.all(drift_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_unprojected(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_unprojected(astrometry_args, telescope_frame, selenoid):
     """
     Tests that we can calculate app coords for unphased objects
     """
@@ -1694,13 +1881,11 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame):
     # driftscan, which is allowed to point at any az/el position)
     # use "unphased" to check for deprecation warning
     if telescope_frame == "itrs":
-        coord_name = "drift_coord"
         telescope_loc = astrometry_args["telescope_loc"]
         lst_array = astrometry_args["lst_array"]
     else:
-        coord_name = "moon_drift_coord"
         telescope_loc = astrometry_args["moon_telescope_loc"]
-        lst_array = astrometry_args["moon_lst_array"]
+        lst_array = astrometry_args["moon_lst_array"][selenoid]
 
     check_ra, check_dec = uvutils.calc_app_coords(
         None,
@@ -1708,16 +1893,21 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame):
         coord_type="unprojected",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         lst_array=lst_array,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
 
-    assert np.all(astrometry_args[coord_name].separation(check_coord).uarcsec < 1.0)
+    if telescope_frame == "itrs":
+        drift_coord = astrometry_args["drift_coord"]
+    else:
+        drift_coord = astrometry_args["moon_drift_coord"][selenoid]
+    assert np.all(drift_coord.separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
     # Do a round-trip with the two top-level functions and make sure they agree to
     # better than 1 µas, first in FK5
     if telescope_frame == "itrs":
@@ -1731,6 +1921,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame="fk5",
         coord_epoch="J2000.0",
@@ -1743,14 +1934,15 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame):
         telescope_loc,
         "fk5",
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         coord_epoch=2000.0,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame, selenoid):
     # Finally, check and make sure that FK4 performs similarly
     if telescope_frame == "itrs":
         telescope_loc = astrometry_args["telescope_loc"]
@@ -1763,6 +1955,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame="fk4",
         coord_epoch=1950.0,
@@ -1775,6 +1968,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame):
         telescope_loc,
         "fk4",
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         coord_epoch=1950.0,
     )
 
@@ -1920,19 +2114,15 @@ def test_sidereal_reptime(astrometry_args):
     assert np.all(gcrs_dec == check_dec)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame, selenoid):
     """
     Test that we recover identical values when using a Time objects instead of a floats
     for the various time-related arguments in transform_icrs_to_app.
     """
     if telescope_frame == "itrs":
-        app_ra_name = "app_ra"
-        app_dec_name = "app_dec"
         telescope_loc = astrometry_args["telescope_loc"]
     else:
-        app_ra_name = "moon_app_ra"
-        app_dec_name = "moon_app_dec"
         telescope_loc = astrometry_args["moon_telescope_loc"]
 
     check_ra, check_dec = uvutils.transform_icrs_to_app(
@@ -1941,11 +2131,19 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame):
         astrometry_args["icrs_dec"],
         telescope_loc,
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
         epoch=Time(astrometry_args["epoch"], format="jyear"),
     )
 
-    assert np.all(check_ra == astrometry_args[app_ra_name])
-    assert np.all(check_dec == astrometry_args[app_dec_name])
+    if telescope_frame == "itrs":
+        app_ra = astrometry_args["app_ra"]
+        app_dec = astrometry_args["app_dec"]
+    else:
+        app_ra = astrometry_args["moon_app_ra"][selenoid]
+        app_dec = astrometry_args["moon_app_dec"][selenoid]
+
+    assert np.all(check_ra == app_ra)
+    assert np.all(check_dec == app_dec)
 
 
 def test_transform_app_to_icrs_objs(astrometry_args):
@@ -1977,8 +2175,8 @@ def test_transform_app_to_icrs_objs(astrometry_args):
     assert np.all(check_dec == icrs_dec)
 
 
-@pytest.mark.parametrize("telescope_frame", telescope_frame)
-def test_calc_app_coords_objs(astrometry_args, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], param_list)
+def test_calc_app_coords_objs(astrometry_args, telescope_frame, selenoid):
     """
     Test that we recover identical values when using Time/EarthLocation objects instead
     of floats for time_array and telescope_loc, respectively for calc_app_coords.
@@ -1995,6 +2193,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
             astrometry_args["telescope_loc"][1] * (180.0 / np.pi),
             astrometry_args["telescope_loc"][0] * (180.0 / np.pi),
             height=astrometry_args["telescope_loc"][2],
+            ellipsoid=selenoid,
         )
         TimeClass = LTime
 
@@ -2004,6 +2203,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
         time_array=astrometry_args["time_array"][0],
         telescope_loc=astrometry_args["telescope_loc"],
         telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
     )
 
     check_ra, check_dec = uvutils.calc_app_coords(
@@ -2011,6 +2211,8 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame):
         astrometry_args["icrs_dec"],
         time_array=TimeClass(astrometry_args["time_array"][0], format="jd"),
         telescope_loc=telescope_loc,
+        telescope_frame=telescope_frame,
+        lunar_ellipsoid=selenoid,
     )
 
     assert np.all(check_ra == app_ra)
@@ -4234,7 +4436,8 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
-def test_uvw_track_generator_moon():
+@pytest.mark.parametrize("selenoid", ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"])
+def test_uvw_track_generator_moon(selenoid):
     # Note this isn't a particularly deep test, but it at least exercises the code.
     gen_results = uvutils.uvw_track_generator(
         lon_coord=0.0,
@@ -4244,6 +4447,7 @@ def test_uvw_track_generator_moon():
         time_array=2456789.0,
         antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
         telescope_frame="mcmf",
+        lunar_ellipsoid=selenoid,
     )
 
     # Check that the total lengths all match 1

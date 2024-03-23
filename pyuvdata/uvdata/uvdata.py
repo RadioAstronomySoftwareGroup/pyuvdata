@@ -3387,7 +3387,6 @@ class UVData(UVBase):
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.telescope_location,
                 telescope_frame=self._telescope_location.frame,
-                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
                 raise_error=False,
             )
 

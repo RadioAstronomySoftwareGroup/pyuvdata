@@ -3782,6 +3782,7 @@ def calc_app_coords(
                 site_loc.lon.deg,
                 site_loc.height.to_value("m"),
                 frame=frame,
+                lunar_ellipsoid=lunar_ellipsoid,
             )
         else:
             unique_lst = lst_array[unique_mask]
@@ -3805,6 +3806,7 @@ def calc_app_coords(
             icrs_ra,
             icrs_dec,
             site_loc,
+            lunar_ellipsoid=lunar_ellipsoid,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             vrad=vrad,
@@ -3840,7 +3842,13 @@ def calc_app_coords(
         # TODO: Vel and distance handling to be integrated here, once they are are
         # needed for velocity frame tracking
         unique_app_ra, unique_app_dec = transform_icrs_to_app(
-            unique_time_array, icrs_ra, icrs_dec, site_loc, pm_ra=pm_ra, pm_dec=pm_dec
+            unique_time_array,
+            icrs_ra,
+            icrs_dec,
+            site_loc,
+            lunar_ellipsoid=lunar_ellipsoid,
+            pm_ra=pm_ra,
+            pm_dec=pm_dec,
         )
     elif coord_type == "unprojected":
         # This is the easiest one - this is just supposed to be ENU, so set the
@@ -3870,6 +3878,7 @@ def calc_sidereal_coords(
     telescope_loc,
     coord_frame,
     telescope_frame="itrs",
+    lunar_ellipsoid="SPHERE",
     coord_epoch=None,
 ):
     """
@@ -3900,6 +3909,10 @@ def calc_sidereal_coords(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
+    lunar_ellipsoid : str
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is mcmf.
     coord_epoch : float or str or Time object
         Epoch for ref_frame, nominally only used if converting to either the FK4 or
         FK5 frames, in units of fractional years. If provided as a float and the
@@ -3929,7 +3942,12 @@ def calc_sidereal_coords(
             epoch = Time(coord_epoch, format="jyear")
 
     icrs_ra, icrs_dec = transform_app_to_icrs(
-        time_array, app_ra, app_dec, telescope_loc, telescope_frame
+        time_array,
+        app_ra,
+        app_dec,
+        telescope_loc,
+        telescope_frame,
+        lunar_ellipsoid=lunar_ellipsoid,
     )
 
     if coord_frame == "icrs":
@@ -4164,9 +4182,54 @@ def get_lst_for_time(
 
 
 def check_lsts_against_times(
-    *, jd_array, lst_array, latitude, longitude, altitude, lst_tols, frame="itrs"
+    *,
+    jd_array,
+    lst_array,
+    latitude,
+    longitude,
+    altitude,
+    lst_tols,
+    frame="itrs",
+    lunar_ellipsoid="SPHERE",
 ):
-    """Check that LSTs consistent with the time_array and telescope location."""
+    """
+    Check that LSTs are consistent with the time_array and telescope location.
+
+    This just calls `get_lst_for_time`, compares that result to the `lst_array`
+    and warns if they are not within the tolerances specified by `lst_tols`.
+
+    Parameters
+    ----------
+    jd_array : ndarray of float
+        JD times to get lsts for.
+    lst_array : ndarray of float
+        LSTs to check to see if they match the jd_array at the location.
+    latitude : float
+        Latitude of location to check the lst for in degrees.
+    longitude : float
+        Longitude of location to check the lst for in degrees.
+    altitude : float
+        Altitude of location to check the lst for in meters.
+    lst_tops : tuple of float
+        A length 2 tuple giving the (relative, absolute) tolerances to check the
+        LST agreement to. These are passed directly to numpy.allclose.
+    frame : str
+        Reference frame for latitude/longitude/altitude.
+        Options are itrs (default) or mcmf.
+    lunar_ellipsoid : str
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE", "GSFC",
+        "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is mcmf.
+
+    Returns
+    -------
+    None
+
+    Warns
+    -----
+    If the `lst_array` does not match the calculated LSTs to the lst_tols.
+
+    """
     # Don't worry about passing the astrometry library because we test that they agree
     # to better than our standard lst tolerances.
     lsts = get_lst_for_time(
@@ -4175,6 +4238,7 @@ def check_lsts_against_times(
         longitude=longitude,
         altitude=altitude,
         frame=frame,
+        lunar_ellipsoid=lunar_ellipsoid,
     )
 
     if not np.allclose(lst_array, lsts, rtol=lst_tols[0], atol=lst_tols[1]):
