@@ -3808,3 +3808,7 @@ class TestFastUVH5Meta:
         meta.close()
         assert not meta.is_open()
         assert isinstance(meta.header, h5py.Group)
+
+    def test_lunar_ellipsoid(self):
+        meta = uvh5.FastUVH5Meta(self.fl)
+        assert meta.lunar_ellipsoid == "SPHERE"
