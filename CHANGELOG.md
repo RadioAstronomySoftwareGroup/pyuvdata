@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - Updated minimum dependency versions: astropy>=6.0, h5py>=3.4, numpy>=1.23,
-pyerfa>=2.0.1.1, scipy>=1.7.3
+pyerfa>=2.0.1.1, scipy>=1.7.3, python>=3.10
 - Updated minimum optional dependency versions: hdf5plugin>=3.2.0, pytest>=6.2.5,
 python-casacore>=3.5.2, pyyaml>=5.4.1, lunarsky>=0.2.2
 - Speed up for reading MWA correlator FITS files into `UVData`.
