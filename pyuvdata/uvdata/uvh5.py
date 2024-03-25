@@ -827,13 +827,16 @@ class FastUVH5Meta:
             return "itrs"
 
     @property
-    def lunar_ellipsoid(self) -> str:
+    def ellipsoid(self) -> str:
         """The reference ellipsoid to use for lunar coordinates."""
         h = self.header
         if self.telescope_frame == "mcmf":
-            return bytes(h["lunar_ellipsoid"][()]).decode("utf8")
+            if "ellipsoid" in h:
+                return bytes(h["ellipsoid"][()]).decode("utf8")
+            else:
+                return "SPHERE"
         else:
-            return "SPHERE"
+            return None
 
     @cached_property
     def vis_units(self) -> str:
@@ -921,7 +924,7 @@ class UVH5(UVData):
         # must set the frame before setting the location using lat/lon/alt
         self._telescope_location.frame = obj.telescope_frame
         if self._telescope_location.frame == "mcmf":
-            self._telescope_location.lunar_ellipsoid = obj.lunar_ellipsoid
+            self._telescope_location.ellipsoid = obj.ellipsoid
         self.telescope_location_lat_lon_alt_degrees = (
             obj.telescope_location_lat_lon_alt_degrees
         )
@@ -947,7 +950,7 @@ class UVH5(UVData):
                 altitude=alt,
                 lst_tols=(0, uvutils.LST_RAD_TOL),
                 frame=self._telescope_location.frame,
-                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
+                ellipsoid=self._telescope_location.ellipsoid,
             )
 
         # Required parameters
@@ -1590,7 +1593,7 @@ class UVH5(UVData):
         # write out telescope and source information
         header["telescope_frame"] = np.string_(self._telescope_location.frame)
         if self._telescope_location.frame == "mcmf":
-            header["lunar_ellipsoid"] = self._telescope_location.lunar_ellipsoid
+            header["ellipsoid"] = self._telescope_location.ellipsoid
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]

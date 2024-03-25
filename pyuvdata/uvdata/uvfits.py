@@ -70,7 +70,7 @@ class UVFITS(UVData):
                 altitude=altitude,
                 lst_tols=(0, uvutils.LST_RAD_TOL),
                 frame=self._telescope_location.frame,
-                lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
+                ellipsoid=self._telescope_location.ellipsoid,
             )
 
         else:
@@ -583,12 +583,10 @@ class UVFITS(UVData):
                         )
                     self._telescope_location.frame = telescope_frame
                     if (
-                        telescope_frame == "mcmf"
-                        and "SELENOID" in ant_hdu.header.keys()
+                        telescope_frame != "itrs"
+                        and "ELLIPSOI" in ant_hdu.header.keys()
                     ):
-                        self._telescope_location.lunar_ellipsoid = ant_hdu.header[
-                            "SELENOID"
-                        ]
+                        self._telescope_location.ellipsoid = ant_hdu.header["ELLIPSOI"]
 
             else:
                 warnings.warn(
@@ -623,7 +621,7 @@ class UVFITS(UVData):
                 _, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
                     frame=self._telescope_location.frame,
-                    lunar_ellipsoid=self._telescope_location.lunar_ellipsoid,
+                    ellipsoid=self._telescope_location.ellipsoid,
                     check_acceptability=run_check_acceptability,
                 )
                 self.antenna_positions = uvutils.ECEF_from_rotECEF(
@@ -1330,8 +1328,8 @@ class UVFITS(UVData):
             ant_hdu.header["FRAME"] = "ITRF"
         else:
             ant_hdu.header["FRAME"] = self._telescope_location.frame.upper()
-            # use SELENOID because of FITS 8 character limit for header items
-            ant_hdu.header["SELENOID"] = self._telescope_location.lunar_ellipsoid
+            # use ELLIPSOI because of FITS 8 character limit for header items
+            ant_hdu.header["ELLIPSOI"] = self._telescope_location.ellipsoid
 
         # TODO Karto: Do this more intelligently in the future
         if self.future_array_shapes:

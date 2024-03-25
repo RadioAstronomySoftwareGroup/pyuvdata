@@ -131,7 +131,7 @@ _range_dict = {
 }
 
 if hasmoon:
-    lunar_ellipsoids = {
+    selenoids = {
         "SPHERE": _utils.Body.Moon_sphere,
         "GSFC": _utils.Body.Moon_gsfc,
         "GRAIL23": _utils.Body.Moon_grail23,
@@ -1305,9 +1305,7 @@ def determine_pol_order(pols, order="AIPS"):
     return index_array
 
 
-def LatLonAlt_from_XYZ(
-    xyz, frame="ITRS", lunar_ellipsoid="SPHERE", check_acceptability=True
-):
+def LatLonAlt_from_XYZ(xyz, frame="ITRS", ellipsoid=None, check_acceptability=True):
     """
     Calculate lat/lon/alt from ECEF x,y,z.
 
@@ -1318,7 +1316,7 @@ def LatLonAlt_from_XYZ(
     frame : str
         Coordinate frame of xyz.
         Valid options are ITRS (default) or MCMF.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is MCMF.
@@ -1343,6 +1341,8 @@ def LatLonAlt_from_XYZ(
         accept_bounds = (6.35e6, 6.39e6)
     elif frame == "MCMF":
         accept_bounds = (1.71e6, 1.75e6)
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
 
     # convert to a numpy array
     xyz = np.asarray(xyz)
@@ -1371,7 +1371,7 @@ def LatLonAlt_from_XYZ(
     if frame == "ITRS":
         lla = _utils._lla_from_xyz(xyz, _utils.Body.Earth.value)
     elif frame == "MCMF":
-        lla = _utils._lla_from_xyz(xyz, lunar_ellipsoids[lunar_ellipsoid].value)
+        lla = _utils._lla_from_xyz(xyz, selenoids[ellipsoid].value)
     else:
         raise ValueError(
             f'No spherical to cartesian transform defined for frame "{frame}".'
@@ -1382,9 +1382,7 @@ def LatLonAlt_from_XYZ(
     return lla[0], lla[1], lla[2]
 
 
-def XYZ_from_LatLonAlt(
-    latitude, longitude, altitude, frame="ITRS", lunar_ellipsoid="SPHERE"
-):
+def XYZ_from_LatLonAlt(latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
     """
     Calculate ECEF x,y,z from lat/lon/alt values.
 
@@ -1399,7 +1397,7 @@ def XYZ_from_LatLonAlt(
     frame : str
         Coordinate frame of xyz.
         Valid options are ITRS (default) or MCMF.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is MCMF.
@@ -1424,17 +1422,22 @@ def XYZ_from_LatLonAlt(
         raise ValueError(
             "latitude, longitude and altitude must all have the same length"
         )
+
     if altitude.size != n_pts:
         raise ValueError(
             "latitude, longitude and altitude must all have the same length"
         )
+
     if frame == "ITRS":
         xyz = _utils._xyz_from_latlonalt(
             latitude, longitude, altitude, _utils.Body.Earth.value
         )
     elif frame == "MCMF":
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
+
         xyz = _utils._xyz_from_latlonalt(
-            latitude, longitude, altitude, lunar_ellipsoids[lunar_ellipsoid].value
+            latitude, longitude, altitude, selenoids[ellipsoid].value
         )
     else:
         raise ValueError(
@@ -1509,9 +1512,7 @@ def ECEF_from_rotECEF(xyz, longitude):
     return rot_matrix.dot(xyz.T).T
 
 
-def ENU_from_ECEF(
-    xyz, latitude, longitude, altitude, frame="ITRS", lunar_ellipsoid="SPHERE"
-):
+def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
 
@@ -1528,7 +1529,7 @@ def ENU_from_ECEF(
     frame : str
         Coordinate frame of xyz.
         Valid options are ITRS (default) or MCMF.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is MCMF.
@@ -1549,6 +1550,9 @@ def ENU_from_ECEF(
     elif frame == "MCMF":
         world = "moon"
         sensible_radius_range = (1.71e6, 1.75e6)
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
+
     else:
         raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
 
@@ -1582,11 +1586,7 @@ def ENU_from_ECEF(
         np.ascontiguousarray(altitude, dtype=np.float64),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        (
-            _utils.Body.Earth.value
-            if frame == "ITRS"
-            else lunar_ellipsoids[lunar_ellipsoid].value
-        ),
+        (_utils.Body.Earth.value if frame == "ITRS" else selenoids[ellipsoid].value),
     )
     enu = enu.T
 
@@ -1596,9 +1596,7 @@ def ENU_from_ECEF(
     return enu
 
 
-def ECEF_from_ENU(
-    enu, latitude, longitude, altitude, frame="ITRS", lunar_ellipsoid="SPHERE"
-):
+def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
     """
     Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
 
@@ -1615,7 +1613,7 @@ def ECEF_from_ENU(
     frame : str
         Coordinate frame of xyz.
         Valid options are ITRS (default) or MCMF.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is MCMF.
@@ -1633,6 +1631,9 @@ def ECEF_from_ENU(
 
     if not hasmoon and frame == "MCMF":
         raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+
+    if frame == "MCMF" and ellipsoid is None:
+        ellipsoid = "SPHERE"
 
     enu = np.asarray(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
@@ -1653,11 +1654,7 @@ def ECEF_from_ENU(
         np.ascontiguousarray(altitude, dtype=np.float64),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        (
-            _utils.Body.Earth.value
-            if frame == "ITRS"
-            else lunar_ellipsoids[lunar_ellipsoid].value
-        ),
+        (_utils.Body.Earth.value if frame == "ITRS" else selenoids[ellipsoid].value),
     )
     xyz = xyz.T
 
@@ -2524,7 +2521,7 @@ def transform_icrs_to_app(
     dec,
     telescope_loc,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     epoch=2000.0,
     pm_ra=None,
     pm_dec=None,
@@ -2569,7 +2566,7 @@ def transform_icrs_to_app(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -2618,6 +2615,8 @@ def transform_icrs_to_app(
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
@@ -2667,7 +2666,7 @@ def transform_icrs_to_app(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
-            ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
         )
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -2968,7 +2967,7 @@ def transform_app_to_icrs(
     app_dec,
     telescope_loc,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     astrometry_library=None,
 ):
     """
@@ -3001,7 +3000,7 @@ def transform_app_to_icrs(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -3025,6 +3024,8 @@ def transform_app_to_icrs(
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
@@ -3059,7 +3060,7 @@ def transform_app_to_icrs(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
-            ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
         )
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -3195,7 +3196,7 @@ def calc_frame_pos_angle(
     ref_frame,
     ref_epoch=None,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3231,7 +3232,7 @@ def calc_frame_pos_angle(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -3251,6 +3252,9 @@ def calc_frame_pos_angle(
         return np.zeros_like(time_array)
 
     assert offset_pos > 0, "offset_pos must be greater than 0."
+
+    if telescope_frame == "mcmf" and ellipsoid is None:
+        ellipsoid = "SPHERE"
 
     # This creates an array of unique entries of ra + dec + time, since the processing
     # time for each element can be non-negligible, and entries along the Nblt axis can
@@ -3297,7 +3301,7 @@ def calc_frame_pos_angle(
         telescope_loc,
         ref_frame,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=lunar_ellipsoid,
+        ellipsoid=ellipsoid,
         coord_epoch=ref_epoch,
     )
 
@@ -3665,7 +3669,7 @@ def calc_app_coords(
     lst_array=None,
     telescope_loc=None,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     pm_ra=None,
     pm_dec=None,
     vrad=None,
@@ -3716,7 +3720,7 @@ def calc_app_coords(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -3750,16 +3754,20 @@ def calc_app_coords(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         site_loc = telescope_loc
+        if hasmoon and isinstance(telescope_loc, MoonLocation):
+            ellipsoid = MoonLocation.ellipsoid
     elif telescope_frame.upper() == "MCMF":
         if not hasmoon:
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
         site_loc = MoonLocation.from_selenodetic(
             telescope_loc[1] * (180.0 / np.pi),
             telescope_loc[0] * (180.0 / np.pi),
             height=telescope_loc[2],
-            ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
         )
     else:
         site_loc = EarthLocation.from_geodetic(
@@ -3788,7 +3796,7 @@ def calc_app_coords(
                 site_loc.lon.deg,
                 site_loc.height.to_value("m"),
                 frame=frame,
-                lunar_ellipsoid=lunar_ellipsoid,
+                ellipsoid=ellipsoid,
             )
         else:
             unique_lst = lst_array[unique_mask]
@@ -3812,7 +3820,7 @@ def calc_app_coords(
             icrs_ra,
             icrs_dec,
             site_loc,
-            lunar_ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             vrad=vrad,
@@ -3852,7 +3860,7 @@ def calc_app_coords(
             icrs_ra,
             icrs_dec,
             site_loc,
-            lunar_ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
         )
@@ -3884,7 +3892,7 @@ def calc_sidereal_coords(
     telescope_loc,
     coord_frame,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     coord_epoch=None,
 ):
     """
@@ -3915,7 +3923,7 @@ def calc_sidereal_coords(
     telescope_frame: str, optional
         Reference frame for telescope location. Options are itrs (default) or mcmf.
         Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -3947,13 +3955,11 @@ def calc_sidereal_coords(
         else:
             epoch = Time(coord_epoch, format="jyear")
 
+    if telescope_frame == "mcmf" and ellipsoid is None:
+        ellipsoid = "SPHERE"
+
     icrs_ra, icrs_dec = transform_app_to_icrs(
-        time_array,
-        app_ra,
-        app_dec,
-        telescope_loc,
-        telescope_frame,
-        lunar_ellipsoid=lunar_ellipsoid,
+        time_array, app_ra, app_dec, telescope_loc, telescope_frame, ellipsoid=ellipsoid
     )
 
     if coord_frame == "icrs":
@@ -3978,7 +3984,7 @@ def get_lst_for_time(
     altitude=None,
     astrometry_library=None,
     frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     telescope_loc=None,
 ):
     """
@@ -4015,7 +4021,7 @@ def get_lst_for_time(
     frame : str
         Reference frame for latitude/longitude/altitude.
         Options are itrs (default) or mcmf.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -4070,11 +4076,14 @@ def get_lst_for_time(
                 raise ValueError(
                     "Need to install `lunarsky` package to work with MCMF frame."
                 )
+            if ellipsoid is None:
+                ellipsoid = "SPHERE"
+
             site_loc = MoonLocation.from_selenodetic(
                 Angle(longitude, unit="deg"),
                 Angle(latitude, unit="deg"),
                 altitude,
-                ellipsoid=lunar_ellipsoid,
+                ellipsoid=ellipsoid,
             )
         else:
             site_loc = EarthLocation.from_geodetic(
@@ -4196,7 +4205,7 @@ def check_lsts_against_times(
     altitude,
     lst_tols,
     frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
 ):
     """
     Check that LSTs are consistent with the time_array and telescope location.
@@ -4222,7 +4231,7 @@ def check_lsts_against_times(
     frame : str
         Reference frame for latitude/longitude/altitude.
         Options are itrs (default) or mcmf.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE", "GSFC",
         "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -4236,6 +4245,9 @@ def check_lsts_against_times(
     If the `lst_array` does not match the calculated LSTs to the lst_tols.
 
     """
+    if frame == "mcmf" and ellipsoid is None:
+        ellipsoid = "SPHERE"
+
     # Don't worry about passing the astrometry library because we test that they agree
     # to better than our standard lst tolerances.
     lsts = get_lst_for_time(
@@ -4244,7 +4256,7 @@ def check_lsts_against_times(
         longitude=longitude,
         altitude=altitude,
         frame=frame,
-        lunar_ellipsoid=lunar_ellipsoid,
+        ellipsoid=ellipsoid,
     )
 
     if not np.allclose(lst_array, lsts, rtol=lst_tols[0], atol=lst_tols[1]):
@@ -4348,7 +4360,7 @@ def uvw_track_generator(
     time_array=None,
     telescope_loc=None,
     telescope_frame="itrs",
-    lunar_ellipsoid="SPHERE",
+    ellipsoid=None,
     antenna_positions=None,
     antenna_numbers=None,
     ant_1_array=None,
@@ -4397,7 +4409,7 @@ def uvw_track_generator(
     telescope_frame : str, optional
         Reference frame for latitude/longitude/altitude. Options are itrs (default) or
         mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
@@ -4448,11 +4460,14 @@ def uvw_track_generator(
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
+        if ellipsoid is None:
+            ellipsoid = "SPHERE"
+
         site_loc = MoonLocation.from_selenodetic(
             Angle(telescope_loc[1], unit="deg"),
             Angle(telescope_loc[0], unit="deg"),
             telescope_loc[2],
-            ellipsoid=lunar_ellipsoid,
+            ellipsoid=ellipsoid,
         )
     else:
         site_loc = EarthLocation.from_geodetic(

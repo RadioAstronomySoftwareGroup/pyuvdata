@@ -414,16 +414,20 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
         latlonalt_val = ref_latlonalt_moon
 
     param1 = uvp.LocationParameter(
-        name="p1", value=xyz_val, frame=frame, lunar_ellipsoid=selenoid
+        name="p1", value=xyz_val, frame=frame, ellipsoid=selenoid
     )
     np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
 
-    param2 = uvp.LocationParameter(name="p2", frame=frame, lunar_ellipsoid=selenoid)
+    if selenoid == "SPHERE":
+        param1 = uvp.LocationParameter(name="p1", value=xyz_val, frame=frame)
+        np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
+
+    param2 = uvp.LocationParameter(name="p2", frame=frame, ellipsoid=selenoid)
     param2.set_lat_lon_alt(latlonalt_val)
 
     np.testing.assert_allclose(xyz_val, param2.value)
 
-    param3 = uvp.LocationParameter(name="p2", frame=frame, lunar_ellipsoid=selenoid)
+    param3 = uvp.LocationParameter(name="p2", frame=frame, ellipsoid=selenoid)
     latlonalt_deg_val = np.array(
         [
             latlonalt_val[0] * 180 / np.pi,

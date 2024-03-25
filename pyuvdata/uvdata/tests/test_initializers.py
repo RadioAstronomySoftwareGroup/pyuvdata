@@ -74,10 +74,10 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
 
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
-    uvd = UVData.new(**lunar_simple_params, lunar_ellipsoid=selenoid)
+    uvd = UVData.new(**lunar_simple_params, ellipsoid=selenoid)
 
     assert uvd._telescope_location.frame == "mcmf"
-    assert uvd._telescope_location.lunar_ellipsoid == selenoid
+    assert uvd._telescope_location.ellipsoid == selenoid
 
 
 def test_bad_inputs(simplest_working_params: dict[str, Any]):
