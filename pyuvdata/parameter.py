@@ -1000,6 +1000,9 @@ class LocationParameter(UVParameter):
 
     def check_acceptability(self):
         """Check that vector magnitudes are in range."""
+        if self.frame not in utils._range_dict.keys():
+            return False, f"Frame must be one of {utils._range_dict.keys()}"
+
         if self.acceptable_range is None:
             return True, "No acceptability check"
         else:

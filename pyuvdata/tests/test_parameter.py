@@ -9,6 +9,7 @@ import pytest
 from astropy.coordinates import CartesianRepresentation, Latitude, Longitude, SkyCoord
 
 from pyuvdata import parameter as uvp
+from pyuvdata import utils
 from pyuvdata.tests.test_utils import (
     frame_selenoid,
     ref_latlonalt,
@@ -450,16 +451,10 @@ def test_location_acceptability():
     param1 = uvp.LocationParameter("p1", value=val, acceptable_range=[0, 1])
     assert not param1.check_acceptability()[0]
 
-
-def test_location_acceptable_none():
-    param1 = uvp.LocationParameter(name="p2", value=1, acceptable_range=None)
-
-    assert param1.check_acceptability()[0]
-
-    # For undefined frame, acceptable_range should default to None
-    param1 = uvp.LocationParameter(name="p2", value=1, frame="undef")
-    assert param1.acceptable_range is None
-    assert param1.check_acceptability()[0]
+    param1 = uvp.LocationParameter("p1", value=val, frame="foo")
+    acceptable, reason = param1.check_acceptability()
+    assert not acceptable
+    assert reason == f"Frame must be one of {utils._range_dict.keys()}"
 
 
 @pytest.mark.parametrize(
