@@ -135,8 +135,6 @@ There are some optional dependencies that are required for specific functionalit
 which will not be installed automatically by conda or pip.
 See [Dependencies](#dependencies) for details on installing optional dependencies.
 
-Note that as of v2.2, `pyuvdata` is only supported on python 3.10+.
-
 ## Dependencies
 
 Required:
@@ -146,6 +144,7 @@ Required:
 * h5py >= 3.4
 * numpy >= 1.23
 * pyerfa >= 2.0.1.1
+* python >= 3.10
 * scipy >= 1.7.3
 * setuptools_scm <7.0|>=7.0.3
 
