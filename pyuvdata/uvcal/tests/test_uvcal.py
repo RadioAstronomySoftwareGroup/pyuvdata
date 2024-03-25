@@ -77,6 +77,7 @@ def uvcal_data():
         "time_array",
         "freq_range",
         "flex_spw_id_array",
+        "flex_jones_array",
         "observer",
         "git_origin_cal",
         "git_hash_cal",
