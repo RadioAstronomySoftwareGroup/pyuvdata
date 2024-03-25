@@ -44,7 +44,7 @@ jobs:
         run: |
           pytest -W error --pyargs pyuvdata --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: success()
         with:
           token: ${{secrets.CODECOV_TOKEN}} #required
