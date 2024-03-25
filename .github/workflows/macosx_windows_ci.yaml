@@ -42,7 +42,7 @@ jobs:
         id: env_name
 
       - name: Setup Minimamba
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           miniforge-variant: Mambaforge
           miniforge-version: latest
@@ -72,7 +72,7 @@ jobs:
           pytest --pyargs pyuvdata -n auto --dist=loadfile --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
           cd ..
 
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: success()
         with:
           token: ${{secrets.CODECOV_TOKEN}} #required
