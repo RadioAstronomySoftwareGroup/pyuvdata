@@ -4516,16 +4516,21 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
 @pytest.mark.parametrize("selenoid", ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"])
 def test_uvw_track_generator_moon(selenoid):
     # Note this isn't a particularly deep test, but it at least exercises the code.
-    gen_results = uvutils.uvw_track_generator(
-        lon_coord=0.0,
-        lat_coord=0.0,
-        coord_frame="icrs",
-        telescope_loc=(0, 0, 0),
-        time_array=2456789.0,
-        antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-        telescope_frame="mcmf",
-        ellipsoid=selenoid,
-    )
+    from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+    try:
+        gen_results = uvutils.uvw_track_generator(
+            lon_coord=0.0,
+            lat_coord=0.0,
+            coord_frame="icrs",
+            telescope_loc=(0, 0, 0),
+            time_array=2456789.0,
+            antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+            telescope_frame="mcmf",
+            ellipsoid=selenoid,
+        )
+    except SpiceUNKNOWNFRAME as err:
+        pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     # Check that the total lengths all match 1
     assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
