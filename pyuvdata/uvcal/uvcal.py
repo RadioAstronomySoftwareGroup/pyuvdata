@@ -460,6 +460,21 @@ class UVCal(UVBase):
             required=False,
         )
 
+        desc = (
+            "Optional, only used if flex_spw = True or wide_band = True. Allows for "
+            "labeling individual spectral windows with different polarizations. If "
+            "set, Njones must be set to 1 (i.e., only one Jones vector per spectral "
+            "window allowed). Shape (Nspws), type = int."
+        )
+        self._flex_jones_array = uvp.UVParameter(
+            "flex_jones_array",
+            description=desc,
+            form=("Nspws",),
+            expected_type=int,
+            acceptable_vals=list(np.arange(-8, 1)),
+            required=False,
+        )
+
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
             "future_array_shapes", description=desc, expected_type=bool, value=False
@@ -1159,6 +1174,320 @@ class UVCal(UVBase):
         self._freq_range.form = (2,)
         if self.freq_range is not None:
             self.freq_range = self.freq_range[0, :].tolist()
+
+    def remove_flex_jones(self, *, combine_spws=True):
+        """
+        Convert a flex-Jones UVData object into one with a standard Jones axis.
+
+        This will convert a flexible-Jones dataset into one with standard
+        polarization handling, which is required for some operations or writing in
+        certain filetypes. Note that depending on how it is used, this can inflate
+        the size of data-like parameters by up to a factor of Nspws (the true value
+        depends on the number of unique entries in `flex_jones_array`).
+
+        Parameters
+        ----------
+        combine_spws : bool
+            If set to True, the method will attempt to recombine multiple windows
+            carrying different Jones vectors/information into a single (multi-Jones)
+            spectral window. Functionally, this is the inverse of what is done in the
+            `convert_to_flex_jones` method. If set to False, the method will effectively
+            "inflate" the jones-axis of UVCal parameters such that all windows have the
+            same Jones codes (though the added entries will be flagged and will carry no
+            calibration information). Default is True.
+        """
+        if self.flex_jones_array is None or not self.future_array_shapes:
+            # There isn't anything to do, so just move along
+            return
+
+        jones_array = list(np.unique(self.flex_jones_array))
+        n_jones = len(jones_array)
+
+        if self.Nspws == 1 or n_jones == 1:
+            # Just remove the flex_jones_array and fix the polarization array
+            self.jones_array = np.array(jones_array)
+            self.flex_jones_array = None
+            return
+
+        if combine_spws:
+            # check to see if there are spectral windows that have matching freq_array
+            # and channel_width (up to sorting). If so, they need to be combined.
+            if self.flex_spw:
+                freq_array_check = self.freq_array
+                chan_width_check = self.channel_width
+
+                index_check = self.flex_spw_id_array
+                ftol = self._freq_array.tols
+                ctol = self._channel_width.tols
+            else:
+                freq_array_check = self.freq_range
+                chan_width_check = np.zeros_like(freq_array_check)
+                index_check = self.spw_array
+                ftol = self._freq_range.tols
+                ctol = [0, 0]
+
+            # Build the main spw map, along with some dicts to save intermediate results
+            # from frequencies and Jones vectors
+            spw_map = {}
+            spw_freqs = {}
+            spw_jones_tally = {}
+            for jones1, spw1 in zip(self.flex_jones_array, self.spw_array):
+                freqs1 = freq_array_check[index_check == spw1]
+                chwidth1 = chan_width_check[index_check == spw1]
+                # Default to spw1 at the start, so if no match it will correctly link
+                # back to itself.
+                spw_match = spw1
+                for spw2, (freqs2, chwidth2) in spw_freqs.items():
+                    if np.allclose(freqs1, freqs2, rtol=ftol[0], atol=ftol[1]):
+                        if np.allclose(chwidth1, chwidth2, rtol=ctol[0], atol=ctol[1]):
+                            spw_match = spw2
+                            break
+                # If spw is its own match, save freqs and make an entry in jones dict
+                if spw1 == spw_match:
+                    spw_freqs[spw1] = (freqs1, chwidth1)
+                    spw_jones_tally[spw1] = []
+
+                # Save matching spw, record which Jones vector this window has
+                spw_map[spw1] = spw_match
+                spw_jones_tally[spw_match].append(jones1)
+
+            # Once all windows are processed, look for failures
+            for jones_subarr in spw_jones_tally.values():
+                if len(np.unique(jones_subarr)) != len(jones_subarr):
+                    raise ValueError(
+                        "Some spectral windows have identical frequencies, "
+                        "channel widths and polarizations, so spws cannot be "
+                        "combined. Set combine_spws=False to avoid this error."
+                    )
+                elif len(np.unique(jones_subarr)) != len(jones_array):
+                    warnings.warn(
+                        "combine_spws is True but there are not matched spws for all "
+                        "polarizations, so spws will not be combined."
+                    )
+                    combine_spws = False
+                    break
+
+        if not combine_spws:
+            # If not combining spws, then map everything back to itself
+            index_check = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            spw_map = dict(zip(self.spw_array, self.spw_array))
+
+        # Reverse mapping map for various metadata values
+        rev_map = {value: key for key, value in spw_map.items()}
+        spw_array = sorted(rev_map)
+        if self.flex_spw_id_array is not None:
+            freq_array = np.concatenate(
+                [self.freq_array[self.flex_spw_id_array == spw] for spw in spw_array]
+            )
+            flex_spw_id_array = np.concatenate(
+                [
+                    self.flex_spw_id_array[self.flex_spw_id_array == spw]
+                    for spw in spw_array
+                ]
+            )
+            freq_range = None
+            n_freqs = len(flex_spw_id_array)
+        else:
+            old_spw_arr = list(self.spw_array)
+            freq_array = None
+            flex_spw_id_array = None
+            freq_range = np.concatenate(
+                [self.freq_range[old_spw_arr.index(spw)] for spw in spw_array]
+            ).reshape((-1, 2))
+            n_freqs = len(spw_array)
+
+        # Update metadata attributes
+        self.spw_array = spw_array
+        self.flex_spw_id_array = flex_spw_id_array
+        self.freq_array = freq_array
+        self.freq_range = freq_range
+        self.jones_array = jones_array
+
+        # Adjust the length-related attributes
+        self.Nspws = len(spw_array)
+        self.Nfreqs = n_freqs
+        self.Njones = n_jones
+
+        # Finally, update data attrs if they exist
+        if not self.metadata_only:
+            freq_index = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            for name, param in zip(self._data_params, self.data_like_parameters):
+                if param is None:
+                    continue
+                # Update the parameter shape with
+                new_shape = list(param.shape)
+                new_shape[1] = self.Nfreqs
+                new_shape[3] = self.Njones
+                new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
+                for idx, old_spw in enumerate(spw_map):
+                    new_fidx = freq_index == spw_map[old_spw]
+                    # index_check is recycled from the original combine_windows check
+                    # above (and marks the original indexing positions of the object)
+                    old_fidx = index_check == old_spw
+                    jones_idx = jones_array.index(self.flex_jones_array[idx])
+                    new_param[:, new_fidx, :, jones_idx] = param[:, old_fidx]
+                setattr(self, name, new_param)
+
+        # Finally, drop flex_jones now that we no longer need it's info
+        self.flex_jones_array = None
+
+    def _make_flex_jones(self):
+        """
+        Convert a regular UVCal object into one with flex-Jones enabled.
+
+        This is an internal helper function, which is not designed to be called by
+        users, but rather individual read/write functions for the UVCal object.
+        This will convert a regular UVCal object into one that uses flexible
+        Jones arrays, which allows for each spectral window to have its own unique
+        Jones vector/code, useful for storing data more compactly when different
+        windows have different Jones values recorded. Note that at this time,
+        only one Jones code per-spw is allowed -- if more than one Jones code
+        is found to have unflagged data in a given spectral window, then an error is
+        returned.
+        """
+        if not self.future_array_shapes:
+            raise ValueError(
+                "Must use future array shapes to make a flex-Jones UVCal object."
+            )
+
+        if not (self.flex_spw or self.wide_band):
+            raise ValueError(
+                "Cannot make a flex-Jones UVCal object if wide_band=False and "
+                "flex_spw=False."
+            )
+
+        if self.metadata_only:
+            raise ValueError(
+                "Cannot make a metadata_only UVCal object flex-Jones because flagging "
+                "info is required. Consider using `convert_to_flex_jones` instead, but "
+                "be aware that the behavior is somewhat different"
+            )
+
+        if self.Njones == 1:
+            # This is basically a no-op, fix the relevant attributes and exit
+            if self.flex_jones_array is None:
+                self.flex_jones_array = np.full(self.Nspws, self.jones_array[0])
+                self.jones_array = np.array([0])
+            return
+
+        jones_idx_arr = np.full(self.spw_array, -1)
+        spw_id_arr = self.flex_spw_id_array if self.flex_spw else self.spw_array
+        for idx, spw in enumerate(self.spw_array):
+            spw_screen = spw_id_arr == spw
+
+            # For each window, we want to check that there is only one polarization with
+            # any unflagged data, which we can do by seeing if not all of the flags
+            # are set across the non-polarization axes (hence the ~np.all()).
+            jones_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1, 2))
+
+            if sum(jones_check) > 1:
+                raise ValueError(
+                    "Cannot make a flex-pol UVCal object, as some windows have "
+                    "unflagged data in multiple Jones codes."
+                )
+            elif np.any(jones_check):
+                jones_idx_arr[idx] = np.where(jones_check)[0][0]
+
+        # If one window was all flagged out, but the others all belong to the same pol,
+        # assume we just want that Jones code.
+        if len(np.unique(jones_idx_arr[jones_idx_arr >= 0])) == 1:
+            jones_idx_arr[:] = np.unique(jones_idx_arr[jones_idx_arr >= 0])
+
+        # Now that we have Jones values sorted out, update metadata attributes
+        self.flex_jones_array = self.jones_array[jones_idx_arr]
+        self.jones_array = np.array([0])
+        self.Njones = 1
+
+        # Now go through one-by-one with data-like parameters and update
+        for name, param in zip(self._data_params, self.data_like_parameters):
+            # Grab the shape and update the Jones (last) axis to be length 1. Note we
+            # do it this way since total_quality_array has a different shape
+            new_shape = list(param.shape)
+            new_shape[-1] = 1
+
+            # We can use empty here, since we know that we will be filling all values
+            new_param = np.empty(new_shape, dtype=param.dtype)
+
+            for spw, jones_idx in zip(self.spw_array, jones_idx_arr):
+                # Process each window individually, since jones code can vary
+                spw_screen = spw_id_arr == spw
+
+                # Grab from the right Jones-position and plug values in
+                new_param[..., spw_screen, 0] = param[..., spw_screen, jones_idx]
+
+            # Update the attribute with the new values
+            setattr(self, name, new_param)
+
+    def convert_to_flex_jones(self):
+        """
+        Convert a regular UVCal object into a flex-Jones object.
+
+        This effectively combines the frequency and polarization axis with polarization
+        changing slowest. Saving data to uvh5 files this way can speed up some kinds
+        of data access.
+
+        """
+        if self.flex_spw_polarization_array is not None:
+            raise ValueError("This is already a flex-pol object")
+
+        if not self.future_array_shapes:
+            raise ValueError(
+                "Must use future array shapes to make a flex-Jones UVCal object."
+            )
+
+        if not (self.flex_spw or self.wide_band):
+            raise ValueError(
+                "Cannot make a flex-Jones UVCal object if wide_band=False and "
+                "flex_spw=False."
+            )
+
+        old_nspws = self.Nspws * self.Njones
+        njones = self.Njones
+        new_nspws = self.Nspws * (self.Njones - 1)
+        new_spw_ids = list(set(range(1, old_nspws + 1)).difference(self.spw_array))
+        spw_array = np.concatenate((self.spw_array, new_spw_ids[:new_nspws]))
+        flex_spw_id_arr = None
+
+        if self.flex_spw and self.flex_spw_id_array is not None:
+            spw_reshape = spw_array.reshape((self.Njones, -1))
+            flex_spw_id_arr = np.repeat(
+                self.flex_spw_id_array[np.newaxis], self.Njones, axis=0
+            )
+            for idx in range(1, self.Njones):
+                spw_map = dict(zip(spw_reshape[0], spw_reshape[idx]))
+                flex_spw_id_arr[idx] = [spw_map[jdx] for jdx in flex_spw_id_arr[idx]]
+            flex_spw_id_arr = flex_spw_id_arr.flatten()
+
+        self.flex_jones_array = np.repeat(self.jones_array, self.Nspws, axis=0)
+        self.jones_array = np.array([0])
+
+        # Update metadata attributes
+        self.spw_array = spw_array
+        self.flex_spw_id_array = flex_spw_id_arr
+
+        # If defined, set the frequency-related attributes
+        if self.freq_array is not None:
+            self.freq_array = np.tile(self.freq_array, njones)
+        if self.freq_range is not None:
+            self.freq_range = np.tile(self.freq_range, (njones, 1))
+
+        # Adjust the length-related attributes
+        self.Nspws *= self.Njones
+        self.Nfreqs *= self.Njones
+        self.Njones = 1
+
+        # Finally, if we have it, update the metadata.
+        if not self.metadata_only:
+            for name, param in zip(self._data_params, self.data_like_parameters):
+                if param is None:
+                    continue
+                # Make into a list so that its mutable
+                old_shape = param.shape
+                # ("Nants_data", "Nfreqs", "Ntimes", "Njones"),
+                # Extend the second axis by njones, shrink the last axis to 1
+                new_shape = [old_shape[0], old_shape[1] * njones, old_shape[2], 1]
+                param = np.transpose(param, (0, 3, 1, 2)).reshape(new_shape)
+                setattr(self, name, param)
 
     def set_telescope_params(self, *, overwrite=False):
         """
