@@ -550,7 +550,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
         uv_in._telescope_location.frame = "mcmf"
-        uv_in._telescope_location.lunar_ellipsoid = selenoid
+        uv_in._telescope_location.ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -558,7 +558,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
             longitude=longitude,
             altitude=altitude,
             frame="mcmf",
-            lunar_ellipsoid=selenoid,
+            ellipsoid=selenoid,
         )
         uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
         uv_in.set_lsts_from_time_array()
@@ -578,10 +578,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
     uv_in.filename = uv_out.filename
 
     assert uv_in._telescope_location.frame == uv_out._telescope_location.frame
-    assert (
-        uv_in._telescope_location.lunar_ellipsoid
-        == uv_out._telescope_location.lunar_ellipsoid
-    )
+    assert uv_in._telescope_location.ellipsoid == uv_out._telescope_location.ellipsoid
 
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog

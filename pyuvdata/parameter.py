@@ -846,10 +846,10 @@ class LocationParameter(UVParameter):
         Description of the data or metadata in the object.
     frame : str, optional
         Coordinate frame. Valid options are "itrs" (default) or "mcmf".
-    lunar_ellipsoid : str, optional
+    ellipsoid : str, optional
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
-        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if frame is "mcmf".
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details).
+        Default is "SPHERE". Only used if frame is "mcmf".
     acceptable_vals : list, optional
         List giving allowed values for elements of value.
     acceptable_range: 2-tuple, optional
@@ -883,7 +883,7 @@ class LocationParameter(UVParameter):
         Description of the data or metadata in the object.
     frame : str, optional
         Coordinate frame. Valid options are "itrs" (default) or "mcmf".
-    lunar_ellipsoid : str, optional
+    ellipsoid : str, optional
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is "mcmf".
@@ -911,7 +911,7 @@ class LocationParameter(UVParameter):
         spoof_val=None,
         description="",
         frame="itrs",
-        lunar_ellipsoid="SPHERE",
+        ellipsoid=None,
         acceptable_range=None,
         tols=1e-3,
     ):
@@ -927,7 +927,11 @@ class LocationParameter(UVParameter):
             tols=tols,
         )
         self.frame = frame
-        self.lunar_ellipsoid = lunar_ellipsoid
+
+        if frame == "mcmf" and ellipsoid is None:
+            ellipsoid = "SPHERE"
+
+        self.ellipsoid = ellipsoid
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
@@ -939,7 +943,7 @@ class LocationParameter(UVParameter):
                 self.value,
                 check_acceptability=False,
                 frame=self.frame,
-                lunar_ellipsoid=self.lunar_ellipsoid,
+                ellipsoid=self.ellipsoid,
             )
 
     def set_lat_lon_alt(self, lat_lon_alt):
@@ -960,7 +964,7 @@ class LocationParameter(UVParameter):
                 lat_lon_alt[1],
                 lat_lon_alt[2],
                 frame=self.frame,
-                lunar_ellipsoid=self.lunar_ellipsoid,
+                ellipsoid=self.ellipsoid,
             )
 
     def lat_lon_alt_degrees(self):
@@ -991,7 +995,7 @@ class LocationParameter(UVParameter):
                 longitude * np.pi / 180.0,
                 altitude,
                 frame=self.frame,
-                lunar_ellipsoid=self.lunar_ellipsoid,
+                ellipsoid=self.ellipsoid,
             )
 
     def check_acceptability(self):

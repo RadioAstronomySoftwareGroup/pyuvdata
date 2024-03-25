@@ -25,11 +25,11 @@ selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 if hasmoon:
     from pyuvdata.utils import LTime, MoonLocation
 
-    frame_selenoid = [["itrs", "SPHERE"]]
+    frame_selenoid = [["itrs", None]]
     for snd in selenoids:
         frame_selenoid.append(["mcmf", snd])
 else:
-    frame_selenoid = [["itrs", "SPHERE"]]
+    frame_selenoid = [["itrs", None]]
 
 
 # Earth
@@ -95,7 +95,7 @@ def astrometry_args():
                 default_args["moon_telescope_loc"][1] * (180.0 / np.pi),
                 default_args["moon_telescope_loc"][2],
                 frame="mcmf",
-                lunar_ellipsoid=selenoid,
+                ellipsoid=selenoid,
             )
             default_args["moon_drift_coord"][selenoid] = SkyCoord(
                 default_args["moon_lst_array"][selenoid],
@@ -143,7 +143,7 @@ def astrometry_args():
                 default_args["icrs_dec"],
                 default_args["moon_telescope_loc"],
                 telescope_frame="mcmf",
-                lunar_ellipsoid=selenoid,
+                ellipsoid=selenoid,
             )
 
             default_args["moon_app_coord"][selenoid] = SkyCoord(
@@ -258,7 +258,7 @@ def test_XYZ_from_LatLonAlt_mcmf(selenoid):
     """Test MCMF lat/lon/alt to xyz with reference values."""
     lat, lon, alt = ref_latlonalt_moon
     out_xyz = uvutils.XYZ_from_LatLonAlt(
-        lat, lon, alt, frame="mcmf", lunar_ellipsoid=selenoid
+        lat, lon, alt, frame="mcmf", ellipsoid=selenoid
     )
     assert np.allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
 
@@ -274,7 +274,7 @@ def test_XYZ_from_LatLonAlt_mcmf(selenoid):
 def test_LatLonAlt_from_XYZ_mcmf(selenoid):
     """Test MCMF xyz to lat/lon/alt with reference values."""
     out_latlonalt = uvutils.LatLonAlt_from_XYZ(
-        ref_xyz_moon[selenoid], frame="mcmf", lunar_ellipsoid=selenoid
+        ref_xyz_moon[selenoid], frame="mcmf", ellipsoid=selenoid
     )
     assert np.allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
 
@@ -593,14 +593,10 @@ def test_enu_from_mcmf(enu_mcmf_info, selenoid):
         enu_mcmf_info
     )
     xyz = uvutils.XYZ_from_LatLonAlt(
-        lats[selenoid],
-        lons[selenoid],
-        alts[selenoid],
-        frame="mcmf",
-        lunar_ellipsoid=selenoid,
+        lats[selenoid], lons[selenoid], alts[selenoid], frame="mcmf", ellipsoid=selenoid
     )
     enu = uvutils.ENU_from_ECEF(
-        xyz, center_lat, center_lon, center_alt, frame="mcmf", lunar_ellipsoid=selenoid
+        xyz, center_lat, center_lon, center_alt, frame="mcmf", ellipsoid=selenoid
     )
 
     assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
@@ -665,17 +661,25 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
         lons = lons[selenoid]
         alts = alts[selenoid]
 
-    xyz = uvutils.XYZ_from_LatLonAlt(
-        lats, lons, alts, frame=frame, lunar_ellipsoid=selenoid
-    )
+    xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame, ellipsoid=selenoid)
     enu = uvutils.ENU_from_ECEF(
-        xyz, center_lat, center_lon, center_alt, frame=frame, lunar_ellipsoid=selenoid
+        xyz, center_lat, center_lon, center_alt, frame=frame, ellipsoid=selenoid
     )
     # check that a round trip gives the original value.
     xyz_from_enu = uvutils.ECEF_from_ENU(
-        enu, center_lat, center_lon, center_alt, frame=frame, lunar_ellipsoid=selenoid
+        enu, center_lat, center_lon, center_alt, frame=frame, ellipsoid=selenoid
     )
     assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
+
+    if selenoid == "SPHERE":
+        enu = uvutils.ENU_from_ECEF(
+            xyz, center_lat, center_lon, center_alt, frame=frame
+        )
+        # check that a round trip gives the original value.
+        xyz_from_enu = uvutils.ECEF_from_ENU(
+            enu, center_lat, center_lon, center_alt, frame=frame
+        )
+        assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
 
 
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
@@ -1539,14 +1543,19 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
                 astrometry_args["icrs_dec"],
                 telescope_loc,
                 telescope_frame=telescope_frame,
-                lunar_ellipsoid=selenoid,
+                ellipsoid=selenoid,
                 epoch=astrometry_args["epoch"],
                 astrometry_library=in_lib,
             )
         return
 
-    # don't pass telescope frame here so something still happens if frame and
-    # astrometry lib conflict
+    if telescope_frame == "mcmf" and out_lib == "astropy":
+        kwargs = {"telescope_frame": telescope_frame, "ellipsoid": selenoid}
+    else:
+        # don't pass telescope frame here so something still happens if frame and
+        # astrometry lib conflict
+        kwargs = {}
+
     app_ra, app_dec = uvutils.transform_icrs_to_app(
         astrometry_args["time_array"],
         astrometry_args["icrs_ra"],
@@ -1554,6 +1563,7 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
         telescope_loc,
         epoch=astrometry_args["epoch"],
         astrometry_library=in_lib,
+        **kwargs,
     )
 
     if telescope_frame == "mcmf" and out_lib != "astropy":
@@ -1568,18 +1578,18 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
                 app_dec,
                 telescope_loc,
                 telescope_frame=telescope_frame,
-                lunar_ellipsoid=selenoid,
+                ellipsoid=selenoid,
                 astrometry_library=out_lib,
             )
+        return
 
-    # don't pass telescope frame here so something still happens if frame and
-    # astrometry lib conflict
     check_ra, check_dec = uvutils.transform_app_to_icrs(
         astrometry_args["time_array"],
         app_ra,
         app_dec,
         telescope_loc,
         astrometry_library=out_lib,
+        **kwargs,
     )
 
     check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
@@ -1592,6 +1602,32 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
     else:
         assert np.all(
             astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 100.0
+        )
+
+    if selenoid == "SPHERE":
+        # check defaults
+        app_ra, app_dec = uvutils.transform_icrs_to_app(
+            astrometry_args["time_array"],
+            astrometry_args["icrs_ra"],
+            astrometry_args["icrs_dec"],
+            telescope_loc,
+            epoch=astrometry_args["epoch"],
+            astrometry_library=in_lib,
+            telescope_frame=telescope_frame,
+        )
+        check_ra, check_dec = uvutils.transform_app_to_icrs(
+            astrometry_args["time_array"],
+            app_ra,
+            app_dec,
+            telescope_loc,
+            astrometry_library=out_lib,
+            telescope_frame=telescope_frame,
+        )
+        check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
+        # Verify that everything agrees to better than µas-level accuracy if the
+        # libraries are the same, otherwise to 100 µas if cross-comparing libraries
+        assert np.all(
+            astrometry_args["icrs_coord"].separation(check_coord).uarcsec < 1.0
         )
 
 
@@ -1783,7 +1819,7 @@ def test_calc_app_sidereal(astrometry_args, frame, telescope_frame, selenoid):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame=frame,
         coord_epoch=astrometry_args["epoch"],
@@ -1828,7 +1864,7 @@ def test_calc_app_ephem(astrometry_args, frame, telescope_frame, selenoid):
         coord_type="ephem",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_epoch=astrometry_args["epoch"],
         coord_frame=frame,
@@ -1860,7 +1896,7 @@ def test_calc_app_driftscan(astrometry_args, telescope_frame, selenoid):
         coord_type="driftscan",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
@@ -1893,7 +1929,7 @@ def test_calc_app_unprojected(astrometry_args, telescope_frame, selenoid):
         coord_type="unprojected",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         lst_array=lst_array,
     )
@@ -1921,7 +1957,7 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame="fk5",
         coord_epoch="J2000.0",
@@ -1934,11 +1970,37 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
         telescope_loc,
         "fk5",
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         coord_epoch=2000.0,
     )
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
+
+    if selenoid == "SPHERE":
+        # check defaults
+
+        app_ra, app_dec = uvutils.calc_app_coords(
+            0.0,
+            0.0,
+            coord_type="sidereal",
+            telescope_loc=telescope_loc,
+            telescope_frame=telescope_frame,
+            time_array=astrometry_args["time_array"],
+            coord_frame="fk5",
+            coord_epoch="J2000.0",
+        )
+
+        check_ra, check_dec = uvutils.calc_sidereal_coords(
+            astrometry_args["time_array"],
+            app_ra,
+            app_dec,
+            telescope_loc,
+            "fk5",
+            telescope_frame=telescope_frame,
+            coord_epoch=2000.0,
+        )
+        check_coord = SkyCoord(check_ra, check_dec, unit="rad")
+        assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 
 
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
@@ -1955,7 +2017,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame, selenoid):
         coord_type="sidereal",
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         time_array=astrometry_args["time_array"],
         coord_frame="fk4",
         coord_epoch=1950.0,
@@ -1968,7 +2030,7 @@ def test_calc_app_fk4_roundtrip(astrometry_args, telescope_frame, selenoid):
         telescope_loc,
         "fk4",
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         coord_epoch=1950.0,
     )
 
@@ -2131,7 +2193,7 @@ def test_transform_icrs_to_app_time_obj(astrometry_args, telescope_frame, seleno
         astrometry_args["icrs_dec"],
         telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
         epoch=Time(astrometry_args["epoch"], format="jyear"),
     )
 
@@ -2203,7 +2265,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame, selenoid):
         time_array=astrometry_args["time_array"][0],
         telescope_loc=astrometry_args["telescope_loc"],
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
     )
 
     check_ra, check_dec = uvutils.calc_app_coords(
@@ -2212,7 +2274,7 @@ def test_calc_app_coords_objs(astrometry_args, telescope_frame, selenoid):
         time_array=TimeClass(astrometry_args["time_array"][0], format="jd"),
         telescope_loc=telescope_loc,
         telescope_frame=telescope_frame,
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
     )
 
     assert np.all(check_ra == app_ra)
@@ -4447,11 +4509,26 @@ def test_uvw_track_generator_moon(selenoid):
         time_array=2456789.0,
         antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
         telescope_frame="mcmf",
-        lunar_ellipsoid=selenoid,
+        ellipsoid=selenoid,
     )
 
     # Check that the total lengths all match 1
     assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
+
+    if selenoid == "SPHERE":
+        # check defaults
+        gen_results = uvutils.uvw_track_generator(
+            lon_coord=0.0,
+            lat_coord=0.0,
+            coord_frame="icrs",
+            telescope_loc=(0, 0, 0),
+            time_array=2456789.0,
+            antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+            telescope_frame="mcmf",
+        )
+
+        # Check that the total lengths all match 1
+        assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
 
 
 @pytest.mark.parametrize("err_state", ["err", "warn", "none"])

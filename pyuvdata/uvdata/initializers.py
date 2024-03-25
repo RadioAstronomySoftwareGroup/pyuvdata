@@ -110,8 +110,8 @@ def get_time_params(
         longitude=telescope_location.lon.deg,
         altitude=telescope_location.height.to_value("m"),
         frame="itrs" if isinstance(telescope_location, EarthLocation) else "mcmf",
-        lunar_ellipsoid=(
-            "SPHERE"
+        ellipsoid=(
+            None
             if isinstance(telescope_location, EarthLocation)
             else telescope_location.ellipsoid
         ),
@@ -363,7 +363,7 @@ def new_uvdata(
     phase_center_id_array: np.ndarray | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     astrometry_library: str | None = None,
-    lunar_ellipsoid: Literal["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"] = "SPHERE",
+    ellipsoid: Literal["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"] | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -479,7 +479,7 @@ def new_uvdata(
         (which uses the astropy utilities). Default is erfa unless the
         telescope_location frame is MCMF (on the moon), in which case the default
         is astropy.
-    lunar_ellipsoid : str
+    ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if telescope_location is a MoonLocation.
@@ -503,7 +503,7 @@ def new_uvdata(
     )
 
     if hasmoon and isinstance(telescope_location, MoonLocation):
-        telescope_location.ellipsoid = lunar_ellipsoid
+        telescope_location.ellipsoid = ellipsoid
         telescope_frame = "mcmf"
     else:
         telescope_frame = "itrs"
@@ -574,7 +574,7 @@ def new_uvdata(
         telescope_location.z.to_value("m"),
     ]
     obj._telescope_location.frame = telescope_frame
-    obj._telescope_location.lunar_ellipsoid = lunar_ellipsoid
+    obj._telescope_location.ellipsoid = ellipsoid
     obj.telescope_name = telescope_name
     obj.baseline_array = baseline_array
     obj.ant_1_array = ant_1_array

@@ -204,7 +204,7 @@ def test_read_uvfits_write_uvh5_read_uvh5(
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
         uv_in._telescope_location.frame = "mcmf"
-        uv_in._telescope_location.lunar_ellipsoid = selenoid
+        uv_in._telescope_location.ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -212,14 +212,14 @@ def test_read_uvfits_write_uvh5_read_uvh5(
             longitude=longitude,
             altitude=altitude,
             frame="mcmf",
-            lunar_ellipsoid=selenoid,
+            ellipsoid=selenoid,
         )
         uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
         uv_in.set_lsts_from_time_array()
         uv_in.check()
 
     assert uv_in._telescope_location.frame == telescope_frame
-    assert uv_in._telescope_location.lunar_ellipsoid == selenoid
+    assert uv_in._telescope_location.ellipsoid == selenoid
 
     uv_out = UVData()
     fname = f"outtest_{telescope_frame}_uvfits.uvh5"
@@ -227,11 +227,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
 
-    # clean up
-    os.remove(testfile)
-
     assert uv_out._telescope_location.frame == telescope_frame
-    assert uv_out._telescope_location.lunar_ellipsoid == selenoid
+    assert uv_out._telescope_location.ellipsoid == selenoid
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -239,6 +236,16 @@ def test_read_uvfits_write_uvh5_read_uvh5(
     uv_in.filename = uv_out.filename
 
     assert uv_in == uv_out
+
+    if selenoid == "SPHERE":
+        with h5py.File(testfile, "r+") as f:
+            del f["Header"]["ellipsoid"]
+
+        uv_out.read(testfile, use_future_array_shapes=True)
+        assert uv_in == uv_out
+
+    # clean up
+    os.remove(testfile)
 
     # also test writing double-precision data_array
     fname = f"outtest_{telescope_frame}2_uvfits.uvh5"
@@ -3809,6 +3816,6 @@ class TestFastUVH5Meta:
         assert not meta.is_open()
         assert isinstance(meta.header, h5py.Group)
 
-    def test_lunar_ellipsoid(self):
+    def test_ellipsoid(self):
         meta = uvh5.FastUVH5Meta(self.fl)
-        assert meta.lunar_ellipsoid == "SPHERE"
+        assert meta.ellipsoid is None
