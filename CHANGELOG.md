@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.4.3] - 2024-3-25
+
 ### Added
 - Support for new lunar ellipsoids in `lunarsky` version 0.2.2.
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
