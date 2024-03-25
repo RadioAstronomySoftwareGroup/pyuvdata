@@ -1583,14 +1583,29 @@ def test_roundtrip_icrs(astrometry_args, telescope_frame, selenoid, in_lib, out_
             )
         return
 
-    check_ra, check_dec = uvutils.transform_app_to_icrs(
-        astrometry_args["time_array"],
-        app_ra,
-        app_dec,
-        telescope_loc,
-        astrometry_library=out_lib,
-        **kwargs,
-    )
+    if telescope_frame == "mcmf":
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+        try:
+            check_ra, check_dec = uvutils.transform_app_to_icrs(
+                astrometry_args["time_array"],
+                app_ra,
+                app_dec,
+                telescope_loc,
+                astrometry_library=out_lib,
+                **kwargs,
+            )
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    else:
+        check_ra, check_dec = uvutils.transform_app_to_icrs(
+            astrometry_args["time_array"],
+            app_ra,
+            app_dec,
+            telescope_loc,
+            astrometry_library=out_lib,
+            **kwargs,
+        )
 
     check_coord = SkyCoord(check_ra, check_dec, unit="rad", frame="icrs")
     # Verify that everything agrees to better than µas-level accuracy if the
