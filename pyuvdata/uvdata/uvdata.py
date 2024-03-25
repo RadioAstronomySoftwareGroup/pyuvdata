@@ -2046,6 +2046,17 @@ class UVData(UVBase):
         certain filetypes. Note that depending on how it is used, this can inflate
         the size of data-like parameters by up to a factor of Nspws (the true value
         depends on the number of unique entries in `flex_spw_polarization_array`).
+
+        Parameters
+        ----------
+        combine_spws : bool
+            If set to True, the method will attempt to recombine multiple windows
+            carrying different polarization information into a single (multi-pol)
+            spectral window. Functionally, this is the inverse of what is done in the
+            `convert_to_flex_pol` method. If set to False, the method will effectively
+            "inflate" the polarization-axis of UVData parameters such that all windows
+            have the same polarization codes (though the added entries will be flagged
+            and will carry no data). Default is True.
         """
         if self.flex_spw_polarization_array is None:
             # There isn't anything to do, so just move along
