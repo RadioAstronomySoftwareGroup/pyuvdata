@@ -1328,9 +1328,9 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputflag):
     if caltype == "gain":
-        calobj = gain_data
+        calobj = gain_data.copy()
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data_inputflag.copy()
 
     old_history = calobj.history
     chans_to_keep = np.arange(4, 8)
@@ -2740,6 +2740,9 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
             calobj3.history,
         )
     elif axis == "spw":
+        print(calobj3.history)
+        print(calobj_full.history)
+        print("hasdsadsada")
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
