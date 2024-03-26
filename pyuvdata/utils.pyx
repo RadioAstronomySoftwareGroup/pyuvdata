@@ -16,11 +16,6 @@ cimport cython
 cimport numpy
 from libc.math cimport atan2, cos, sin, sqrt
 
-# This initializes the numpy 1.7 c-api.
-# cython 3.0 will do this by default.
-# We may be able to just remove this then.
-numpy.import_array()
-
 cdef class Ellipsoid:
   cdef readonly numpy.float64_t gps_a, gps_b, e_squared, e_prime_squared, b_div_a2
 
