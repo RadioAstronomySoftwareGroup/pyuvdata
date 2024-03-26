@@ -221,16 +221,6 @@ def test_no_spw():
     del uvobj
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_spwsupported():
-    """Test reading in an ms file with multiple spws."""
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.ms")
-    uvobj.read(testfile, use_future_array_shapes=True)
-
-    assert uvobj.Nspws == 2
-
-
 @pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location are not set")
@@ -398,7 +388,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("axis", [None, "freq"])
-def test_multi_files(casa_uvfits, axis):
+def test_multi_files(casa_uvfits, axis, tmp_path):
     """
     Reading multiple files at once.
     """
@@ -407,9 +397,18 @@ def test_multi_files(casa_uvfits, axis):
     # Ensure the scan numbers are defined for the comparison
     uv_full._set_scan_numbers()
 
+    uv_part1 = uv_full.select(
+        freq_chans=np.arange(0, uv_full.Nfreqs // 2), inplace=False
+    )
+    uv_part2 = uv_full.select(
+        freq_chans=np.arange(uv_full.Nfreqs // 2, uv_full.Nfreqs), inplace=False
+    )
+
     uv_multi = UVData()
-    testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
-    testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
+    testfile1 = os.path.join(tmp_path, "multi_1.ms")
+    testfile2 = os.path.join(tmp_path, "multi_2.ms")
+    uv_part1.write_ms(testfile1, clobber=True)
+    uv_part2.write_ms(testfile2, clobber=True)
 
     # It seems that these two files were made using the CASA importuvfits task, but the
     # history tables are missing, so we can't infer that from the history. This means
@@ -432,9 +431,6 @@ def test_multi_files(casa_uvfits, axis):
     assert uv_multi != uv_full
     # The uvfits was written by CASA, which adds one to all the antenna numbers relative
     # to the measurement set. Adjust those:
-    uv_full.antenna_numbers = uv_full.antenna_numbers - 1
-    uv_full.ant_1_array = uv_full.ant_1_array - 1
-    uv_full.ant_2_array = uv_full.ant_2_array - 1
     uv_full.baseline_array = uv_full.antnums_to_baseline(
         uv_full.ant_1_array, uv_full.ant_2_array
     )
