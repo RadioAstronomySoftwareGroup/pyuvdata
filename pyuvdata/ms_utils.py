@@ -1074,6 +1074,40 @@ def write_ms_feed(
 def read_ms_source(filepath):
     """Read Measurement Set SOURCE table."""
     _ms_utils_call_checks(filepath)
+    tb_source = None
+    tb_sou_dict = {}
+    reporting_request = ""
+    for idx in range(tb_source.nrows()):
+        sou_id = tb_source.getcell("SOURCE_ID", idx)
+        pm_vec = tb_source.getcell("PROPER_MOTION", idx)
+        time_stamp = tb_source.getcell("TIME", idx)
+        sou_vec = tb_source.getcell("DIRECTION", idx)
+        for idx in np.where(
+            np.isclose(tb_sou_dict[sou_id]["cat_times"], time_stamp, rtol=0, atol=1e-3)
+        )[0]:
+            if not (
+                (tb_sou_dict[sou_id]["cat_ra"][idx] == sou_vec[0])
+                and (tb_sou_dict[sou_id]["cat_dec"][idx] == sou_vec[1])
+                and (tb_sou_dict[sou_id]["cat_pm_ra"][idx] == pm_vec[0])
+                and (tb_sou_dict[sou_id]["cat_pm_dec"][idx] == pm_vec[1])
+            ):
+                warnings.warn(
+                    "Different windows in this MS file contain different "
+                    "metadata for the same integration. Be aware that "
+                    "UVData objects do not allow for this, and thus will "
+                    "default to using the metadata from the last row read "
+                    "from the SOURCE table." + reporting_request
+                )
+            _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
+            _ = tb_sou_dict[sou_id]["cat_ra"].pop(idx)
+            _ = tb_sou_dict[sou_id]["cat_dec"].pop(idx)
+            _ = tb_sou_dict[sou_id]["cat_pm_ra"].pop(idx)
+            _ = tb_sou_dict[sou_id]["cat_pm_dec"].pop(idx)
+        tb_sou_dict[sou_id]["cat_times"].append(time_stamp)
+        tb_sou_dict[sou_id]["cat_ra"].append(sou_vec[0])
+        tb_sou_dict[sou_id]["cat_dec"].append(sou_vec[1])
+        tb_sou_dict[sou_id]["cat_pm_ra"].append(pm_vec[0])
+        tb_sou_dict[sou_id]["cat_pm_dec"].append(pm_vec[1])
 
     raise NotImplementedError("Even more to do...")
 
