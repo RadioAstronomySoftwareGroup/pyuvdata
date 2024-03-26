@@ -9,7 +9,7 @@ dependencies:
   - numpy>=1.23
   - pyerfa>=2.0
   - coverage
-  - pytest>=6.2.0
+  - pytest>=6.2.5
   - pytest-cases>=3.8.3
   - pytest-cov
   - pytest-xdist
