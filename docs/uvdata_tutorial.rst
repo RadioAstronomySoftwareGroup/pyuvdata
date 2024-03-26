@@ -922,15 +922,15 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
   >>> import matplotlib.pyplot as plt
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1scan.uvfits')
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
 
   >>> print(uvd.data_array.shape)
-  (1414, 128, 4)
+  (1360, 64, 4)
   >>> print(uvd.Ntimes)
-  17
+  15
   >>> print(uvd.Nfreqs)
-  128
+  64
   >>> # get the data for a single baseline and polarization
   >>> waterfall_data = uvd.get_data((1, 2, uvd.polarization_array[0]))
   >>> # get the corresponding times for this waterfall
@@ -950,27 +950,6 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
   >>> plt.clf()
 
 .. image:: Images/amplitude_waterfall.png
-    :width: 600
-
-.. code-block:: python
-
-  >>> # The plot above has a discontinuity in the frequency axis because this
-  >>> # data set has spectral windows. Let's just plot the 0th one
-  >>> window_sel = uvd.flex_spw_id_array == 0
-  >>> freqs_use = uvd.freq_array[window_sel]
-  >>> fig, ax = plt.subplots(1, 1)
-  >>> _ = plt.imshow(np.abs(waterfall_data[:,  window_sel]))
-  >>> _ = ax.set_yticks([0, waterfall_times.size - 1])
-  >>> _ = ax.set_yticklabels([waterfall_times[0], waterfall_times[1]])
-  >>> freq_tick_inds = np.concatenate((np.arange(0, freqs_use.size, 16), [freqs_use.size-1]))
-  >>> _ = ax.set_xticks(freq_tick_inds)
-  >>> _ = ax.set_xticklabels([f"{val:.3f}" for val in freqs_use[freq_tick_inds]*1e-9])
-  >>> _ = ax.set_xlabel("Frequency (GHz)")
-  >>> plt.show() # doctest: +SKIP
-  >>> plt.savefig("Images/amplitude_waterfall_spw0.png", bbox_inches='tight')
-  >>> plt.clf()
-
-.. image:: Images/amplitude_waterfall_spw0.png
     :width: 600
 
 
