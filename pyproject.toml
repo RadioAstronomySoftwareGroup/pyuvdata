@@ -1,10 +1,13 @@
 [build-system]
-requires = ["setuptools>=65",
-            "wheel",
-            "setuptools_scm>=8.1",
-            "numpy",
-            "cython>=3.0"]
-build-backend = "setuptools.build_meta"
+ requires = [
+  "setuptools>=65",
+  "wheel",
+  "setuptools_scm>=8.1",
+  "numpy",
+  "setuptools-rust",
+  "cython>=3.0",
+ ]
+ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyuvdata"
@@ -73,76 +76,76 @@ test = [
 doc = ["matplotlib", "pypandoc", "sphinx"]
 dev = ["pyuvdata[all,test,doc]"]
 
-[project.urls]
-Repository = "https://github.com/RadioAstronomySoftwareGroup/pyuvdata"
-Documentation = "https://pyuvdata.readthedocs.io"
+ [project.urls]
+  Repository    = "https://github.com/RadioAstronomySoftwareGroup/pyuvdata"
+  Documentation = "https://pyuvdata.readthedocs.io"
 
 
 # Note that this approach is "discouraged" in favor of [project.scripts], but
 # that requires entry-point functions, which would require some refactoring.
 [tool.setuptools]
-script-files = [
-    "scripts/check_uvfits_equal.py",
-    "scripts/convert_to_uvfits.py",
-    "scripts/fhd_batch_convert.py",
-    "scripts/pyuvdata_inspect.py",
-    "scripts/readwrite_uvfits.py",
-    "scripts/renumber_ants.py",
-    "scripts/uvfits_memtest.py",
-]
+ script-files = [
+  "scripts/check_uvfits_equal.py",
+  "scripts/convert_to_uvfits.py",
+  "scripts/fhd_batch_convert.py",
+  "scripts/pyuvdata_inspect.py",
+  "scripts/readwrite_uvfits.py",
+  "scripts/renumber_ants.py",
+  "scripts/uvfits_memtest.py",
+ ]
 
 [tool.setuptools_scm]
 
 [tool.pytest.ini_options]
-testpaths = "tests"
-addopts = "--ignore=scripts --ignore=docs"
+ testpaths = "tests"
+ addopts   = "--ignore=scripts --ignore=docs"
 
 [tool.ruff.lint]
-select = [
-    "E", # pycodestyle
-    "W", # pycodestyle warnings
-    "F", # Pyflakes
-    "D", # pydocstyle
-    "UP", # pyupgrade
-    "B", # flake8-bugbear
-    "A", # flake8-builtins
-    "C4", # flake8-comprehensions
-    "N", # pep8-naming
-    "SIM", # flake8-simplify
-    "I", # isort
-    # "C90", # McCabe complexity. Consider for the future
-]
-ignore = [
-    "N806", # non-lowercase variable (we use N* for axes lengths)
-    "B028", # no-explicit-stacklevel for warnings
-    "SIM108", # prefer ternary opperators. I find them difficult to read.
-    "D203", # one-blank-line-before-class. we use two.
-    "D212", # multi-line-summary-first-line. We put it on the second line.
-]
+ select = [
+  "E",   # pycodestyle
+  "W",   # pycodestyle warnings
+  "F",   # Pyflakes
+  "D",   # pydocstyle
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "A",   # flake8-builtins
+  "C4",  # flake8-comprehensions
+  "N",   # pep8-naming
+  "SIM", # flake8-simplify
+  "I",   # isort
+  # "C90", # McCabe complexity. Consider for the future
+ ]
+ ignore = [
+  "N806",   # non-lowercase variable (we use N* for axes lengths)
+  "B028",   # no-explicit-stacklevel for warnings
+  "SIM108", # prefer ternary opperators. I find them difficult to read.
+  "D203",   # one-blank-line-before-class. we use two.
+  "D212",   # multi-line-summary-first-line. We put it on the second line.
+ ]
 
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["D"] # Don't require docstrings for tests
-"docs/*.py" = ["D", "A"] # Don't require docstrings or worry about builtins for docs
-"setup.py" = ["D"] # Don't require docstrings for setup.py
-"src/pyuvdata/utils/coordinates.py" = ["N802"] # non-lowercase function names
-"tests/utils/test_coordinates.py" = ["N802"] # non-lowercase function names
+ [tool.ruff.lint.per-file-ignores]
+  "tests/*"                           = [ "D" ]      # Don't require docstrings for tests
+  "docs/*.py"                         = [ "D", "A" ] # Don't require docstrings or worry about builtins for docs
+  "setup.py"                          = [ "D" ]      # Don't require docstrings for setup.py
+  "src/pyuvdata/utils/coordinates.py" = [ "N802" ]   # non-lowercase function names
+  "tests/utils/test_coordinates.py"   = [ "N802" ]   # non-lowercase function names
 "src/pyuvdata/utils/io/__init__.py" = ["A005"] # shadowing a standard-lib module
 "tests/utils/io/__init__.py" = ["A005"] # shadowing a standard-lib module
 
 [tool.ruff.format]
-skip-magic-trailing-comma = true
+ skip-magic-trailing-comma = true
 
-[tool.ruff.lint.pycodestyle]
-max-line-length = 88
+ [tool.ruff.lint.pycodestyle]
+  max-line-length = 88
 
-# consider setting this in the future
-# [tool.ruff.lint.mccabe]
-# max-complexity = 30
+  # consider setting this in the future
+  # [tool.ruff.lint.mccabe]
+  # max-complexity = 30
 
-[tool.ruff.lint.isort]
-combine-as-imports = true
-known-first-party = ["pyuvdata"]
-split-on-trailing-comma = false
+ [tool.ruff.lint.isort]
+  combine-as-imports      = true
+  known-first-party       = [ "pyuvdata" ]
+  split-on-trailing-comma = false
 
-[tool.ruff.lint.pydocstyle]
-convention = "numpy"
+ [tool.ruff.lint.pydocstyle]
+  convention = "numpy"
