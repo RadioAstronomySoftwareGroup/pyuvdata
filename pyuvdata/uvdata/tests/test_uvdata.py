@@ -9658,13 +9658,7 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
             "read_uvfits",
             [os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")] * 2,
         ),
-        (
-            "read_ms",
-            [
-                os.path.join(DATA_PATH, "multi_1.ms"),
-                os.path.join(DATA_PATH, "multi_2.ms"),
-            ],
-        ),
+        ("read_ms", [os.path.join(DATA_PATH, "multi_len_spw.ms")] * 2),
         ("read_fhd", []),
     ],
 )
