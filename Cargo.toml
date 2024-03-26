@@ -1,0 +1,37 @@
+[package]
+ name    = "_utils_rs"
+ version = "0.1.0"
+ edition = "2021"
+
+ # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ itertools = "0.12.1"
+ ndarray   = { version = "0.15.6" }
+ numpy     = "0.20.0"
+ pyo3      = { version = "0.20", features = [ "extension-module" ] }
+
+[dev-dependencies]
+ ndarray = { version = "0.15.6", features = [ "approx-0_5" ] }
+ approx  = "0.5.1"
+
+[lib]
+ name       = "_utils_rs"
+ crate-type = [ "cdylib" ]
+ path       = "rust/lib.rs"
+
+
+[profile.release]
+ lto           = "thin"
+ opt-level     = 3
+ codegen-units = 1
+ strip         = "symbols"
+ panic         = "abort"
+
+
+[profile.dev]
+ lto           = "thin"
+ opt-level     = 3
+ codegen-units = 1
+ strip         = "symbols"
+ panic         = "abort"
