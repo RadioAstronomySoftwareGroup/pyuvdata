@@ -5301,15 +5301,10 @@ class UVCal(UVBase):
                         "spectral windows and the `wide_band` parameter is not True."
                     )
                     # Translate the spws into frequencies
-                    if frequencies is None:
-                        if self.future_array_shapes:
-                            frequencies = self.freq_array[
-                                np.isin(self.flex_spw_id_array, spws)
-                            ]
-                        else:
-                            frequencies = self.freq_array[
-                                0, np.isin(self.flex_spw_id_array, spws)
-                            ]
+                    freq_chans = set(
+                        np.where(np.isin(self.flex_spw_id_array, spws))[0]
+                    ).union([] if freq_chans is None else freq_chans)
+                    freq_chans = sorted(freq_chans)
                     spw_inds = None
                 else:
                     assert self.future_array_shapes, (
@@ -5331,8 +5326,6 @@ class UVCal(UVBase):
                         )
 
                     spw_inds = np.where(np.isin(self.spw_array, spws))[0]
-
-                    spw_inds = sorted(set(spw_inds))
         else:
             spw_inds = None
 
@@ -5343,47 +5336,40 @@ class UVCal(UVBase):
                 "Cannot select on frequencies because this is a wide_band object with "
                 "no freq_array."
             )
-        if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
-            if frequencies is None:
-                if self.future_array_shapes:
-                    frequencies = self.freq_array[freq_chans]
-                else:
-                    frequencies = self.freq_array[0, freq_chans]
-            else:
-                frequencies = uvutils._get_iterable(frequencies)
-                if self.future_array_shapes:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[freq_chans]))
-                    )
-                else:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[0, freq_chans]))
-                    )
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
-
             if self.future_array_shapes:
                 freq_arr_use = self.freq_array
             else:
                 freq_arr_use = self.freq_array[0, :]
 
-            # Check and see that all requested freqs are available
             freq_check = np.isin(frequencies, freq_arr_use)
             if not np.all(freq_check):
                 raise ValueError(
                     f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
                     "present in the freq_array"
                 )
-            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
 
-            if len(frequencies) > 1:
+            freq_chans = set(np.where(np.isin(freq_arr_use, frequencies))[0]).union(
+                [] if freq_chans is None else freq_chans
+            )
+            freq_chans = sorted(freq_chans)
+
+        if freq_chans is not None:
+            if n_selects > 0:
+                history_update_string += ", frequencies"
+            else:
+                history_update_string += "frequencies"
+            n_selects += 1
+
+            # Check and see that all requested freqs are available
+            if frequencies is not None:
+                pass
+
+            freq_inds = np.array(sorted(uvutils._get_iterable(freq_chans)))
+
+            if len(freq_inds) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
                 if self.flex_spw_id_array is not None:
                     freq_ind_separation = freq_ind_separation[
@@ -5417,6 +5403,7 @@ class UVCal(UVBase):
             n_selects += 1
 
             jones_inds = np.zeros(0, dtype=np.int64)
+            jones_spws = np.zeros(0, dtype=np.int64)
             for j in jones:
                 if isinstance(j, str):
                     j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
@@ -5426,13 +5413,46 @@ class UVCal(UVBase):
                     jones_inds = np.append(
                         jones_inds, np.where(self.jones_array == j_num)[0]
                     )
+                elif (
+                    self.flex_jones_array is not None and j_num in self.flex_jones_array
+                ):
+                    jones_spws = np.append(
+                        jones_spws, np.where(self.flex_jones_array == j_num)[0]
+                    )
                 else:
                     raise ValueError(
                         "Jones term {j} is not present in the jones_array".format(j=j)
                     )
+            if len(jones_spws) > 0:
+                # Since this is a flex-pol data set, we need to filter on the freq
+                # axis instead of the pol axis
+                jones_inds = None
 
-            jones_inds = sorted(set(jones_inds))
-            if not uvutils._test_array_constant_spacing(self.jones_array[jones_inds]):
+                if self.flex_spw:
+                    jones_chans = np.where(
+                        np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
+                    )[0]
+                    if freq_inds is None:
+                        freq_inds = sorted(set(jones_chans).intersection(freq_inds))
+                    else:
+                        freq_inds = sorted(jones_chans)
+
+                # Trap a corner case here where the frequency and polarization selects
+                # on a flex-pol data set end up with no actual data being selected.
+                if len(freq_inds) == 0:
+                    raise ValueError(
+                        "No data matching this polarization and frequency selection "
+                        "in this UVData object."
+                    )
+                spacing_check = uvutils._test_array_constant_spacing(
+                    np.unique(self.flex_jones_array[spw_inds])
+                )
+            else:
+                jones_inds = sorted(set(jones_inds))
+                spacing_check = uvutils._test_array_constant_spacing(
+                    self.jones_array[jones_inds]
+                )
+            if not spacing_check:
                 warnings.warn(
                     "Selected jones polarization terms are not evenly spaced. This "
                     "will make it impossible to write this data out to calfits files."
