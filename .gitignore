@@ -78,3 +78,5 @@ pyuvdata/uvdata/corr_fits.c
 pyuvdata/uvdata/src/miriad_wrap.cpp
 
 .vscode/
+
+Cargo.lock

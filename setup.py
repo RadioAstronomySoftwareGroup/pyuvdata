@@ -13,6 +13,7 @@ import numpy
 from Cython.Build import cythonize
 from packaging.version import parse
 from setuptools import Extension, find_namespace_packages, setup
+from setuptools_rust import Binding, RustExtension
 
 # add pyuvdata to our path in order to use the branch_scheme function
 sys.path.append("pyuvdata")
@@ -140,6 +141,9 @@ setup_args = {
     "package_dir": {"pyuvdata": "pyuvdata"},
     "packages": find_namespace_packages(),
     "ext_modules": cythonize(extensions, language_level=3),
+    "rust_extensions": [
+        RustExtension("pyuvdata._utils_rs", binding=Binding.PyO3, debug=False)
+    ],
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,

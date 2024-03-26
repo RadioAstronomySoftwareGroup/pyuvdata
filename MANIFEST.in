@@ -4,6 +4,8 @@ include *.bib
 include pyuvdata/uvdata/src/*
 include scripts/*.pro
 include scripts/*.sh
+include Cargo.toml
+recursive-include rust *.rs
 recursive-include pyuvdata/data *
 recursive-include pyuvdata/*.py
 prune pyuvdata/data/test
