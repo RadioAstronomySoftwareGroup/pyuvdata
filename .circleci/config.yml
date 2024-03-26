@@ -6,6 +6,7 @@ executors:
       shell: /bin/bash -leo pipefail
 orbs:
   codecov: codecov/codecov@3.2.4 # to get this to work, had to opt-in to using third party orbs in Organization Security settings.
+  rust: circleci/rust@1.6.1
 jobs:
   pyuvdata:
     executor: uvdata-executor
@@ -24,6 +25,7 @@ jobs:
       - checkout
       - restore_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
+      - rust/install
       - run:
           name: Install Micromamba
           command: wget -qO- https://micro.mamba.pm/api/micromamba/linux-64/latest | sudo tar -C / -xvj bin/micromamba
