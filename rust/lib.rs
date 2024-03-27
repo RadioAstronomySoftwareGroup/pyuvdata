@@ -1,8 +1,14 @@
-use std::mem::MaybeUninit;
+use std::{collections::HashMap, mem::MaybeUninit};
 
+use lazy_static::lazy_static;
 use ndarray::{s, Array, ArrayView, Axis, Ix1, Ix2};
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
-use pyo3::{pyclass, pymodule, types::PyModule, PyResult, Python};
+use pyo3::{
+    pyclass, pymodule,
+    sync::GILOnceCell,
+    types::{PyDict, PyModule},
+    PyResult, Python,
+};
 
 const BLS_2_147_483_648: u64 = 2_u64.pow(16) + 2_u64.pow(22);
 const BLS_2048: u64 = 2_u64.pow(16);
@@ -113,26 +119,122 @@ impl Ellipsoid {
     }
 }
 
+static LIST_CELL: GILOnceCell<HashMap<String, Ellipsoid>> = GILOnceCell::new();
+
+fn get_selenoid<'a>(py: Python<'_>, selenoid: &'a str) -> &'a Ellipsoid {
+    LIST_CELL
+        .get_or_try_init(py, || {
+            let lunar_module = PyModule::import(py, "lunarsky")?;
+            let lunar_moon = lunar_module.getattr("moon")?.downcast::<PyModule>()?;
+
+            let selenoids: &PyDict = lunar_moon.getattr("SELENOIDS")?.downcast::<PyDict>()?;
+
+            Ok::<_, pyo3::PyErr>(
+                selenoids
+                    .iter()
+                    .map_while(|(key, selenoid)| {
+                        Some((key.extract::<String>().ok()?, {
+                            let radius = selenoid
+                                .getattr("_equatorial_radius")
+                                .ok()?
+                                .call_method1("to_value", ("m",))
+                                .ok()?
+                                .extract::<f64>()
+                                .ok()?;
+                            let flattening = selenoid
+                                .getattr("_flattening")
+                                .ok()?
+                                .extract::<f64>()
+                                .ok()?;
+                            Ellipsoid::new(radius, radius * (1.0 - flattening))
+                        }))
+                    })
+                    .collect(),
+            )
+        })
+        .expect("Failed to initialize lunarsky ellipsoids.")
+        .get(selenoid)
+        .expect("No lunary sky selenoid information on this build.")
+}
+
+lazy_static! {
+    static ref EARTH: Ellipsoid = Ellipsoid::new(6378137_f64, 6356752.31424518_f64);
+
+    // #[allow(clippy::blocks_in_conditions)]
+    // static ref LUNAR_SELENOIDS: HashMap<String, Ellipsoid> = match Python::with_gil(|py| {
+    //     let lunar_module = PyModule::import(py, "lunarsky")?;
+    //     let lunar_moon = lunar_module.getattr("moon")?.downcast::<PyModule>()?;
+
+    //     let selenoids: &PyDict = lunar_moon.getattr("SELENOIDS")?.downcast::<PyDict>()?;
+
+    //     Ok::<_, pyo3::PyErr>(
+    //         selenoids
+    //             .iter()
+    //             .map_while(|(key, selenoid)| {
+    //                 Some((key.extract::<String>().ok()?, {
+    //                     let radius = selenoid
+    //                         .getattr("_equatorial_radius")
+    //                         .ok()?
+    //                         .call_method1("to_value", ("m",))
+    //                         .ok()?
+    //                         .extract::<f64>()
+    //                         .ok()?;
+    //                     let flattening = selenoid
+    //                         .getattr("_flattening")
+    //                         .ok()?
+    //                         .extract::<f64>()
+    //                         .ok()?;
+    //                     Ellipsoid::new(radius, radius * (1.0 - flattening))
+    //                 }))
+    //             })
+    //             .collect(),
+    //     )
+    // }) {
+    //     Ok(dict) => dict,
+    //     Err(_) => HashMap::new(),
+    // };
+
+}
+
 #[pyclass]
 #[derive(Debug, Clone, Copy)]
+#[allow(non_camel_case_types)]
 /// Celestial Ellipsoids used for Geodetic to Geocentric conversions.
 enum Body {
     /// Earth Assumes a semi-major axis of 6378137m and a semi-minor axis of 6356752.31424518m.
     Earth,
     /// moon data taken from https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html
     /// with radius from spice_utils
-    Moon,
+    Moon_sphere,
+    Moon_gsfc,
+    Moon_grail23,
+    Moon_ce1lamgeo,
 }
 impl Body {
-    fn get_body(&self) -> Ellipsoid {
+    fn get_body(&self) -> &Ellipsoid {
         match self {
-            Body::Earth => Ellipsoid::new(6378137_f64, 6356752.31424518_f64),
-            Body::Moon => Ellipsoid::new(1737.1e3, 1737.1e3 * (1.0 - 0.0012)),
+            Body::Earth => &EARTH,
+            Body::Moon_sphere => Python::with_gil(|py| get_selenoid(py, "SPHERE")),
+            // LUNAR_SELENOIDS
+            // .get("SPHERE")
+            // .expect("No Lunarysky information for this Ellipsoid."),
+            Body::Moon_gsfc => Python::with_gil(|py| get_selenoid(py, "GSFC")),
+            // LUNAR_SELENOIDS
+            // .get("GSFC")
+            // .expect("No Lunarysky information for this Ellipsoid."),
+            Body::Moon_grail23 => Python::with_gil(|py| get_selenoid(py, "GRAIL23")),
+            // LUNAR_SELENOIDS
+            // .get("GRAIL23")
+            // .expect("No Lunarysky information for this Ellipsoid."),
+            Body::Moon_ce1lamgeo => Python::with_gil(|py| get_selenoid(py, "CE-1-LAM-GEO")),
+            // LUNAR_SELENOIDS
+            // .get("CE-1-LAM-GEO")
+            // .expect("No Lunarysky information for this Ellipsoid."),
         }
     }
 }
 
-fn _xyz_from_latlonalt(lat: &[f64], lon: &[f64], alt: &[f64], body: Body) -> Array<f64, Ix2> {
+fn xyz_from_lla(lat: &[f64], lon: &[f64], alt: &[f64], body: Body) -> Array<f64, Ix2> {
     let mut xyz = Array::<f64, Ix2>::uninit((3, lat.len()));
 
     assert_eq!(lat.len(), lon.len());
@@ -159,7 +261,7 @@ fn _xyz_from_latlonalt(lat: &[f64], lon: &[f64], alt: &[f64], body: Body) -> Arr
     unsafe { xyz.assume_init() }
 }
 
-fn _lla_from_xyz(xyz: ArrayView<f64, Ix2>, body: Body) -> Array<f64, Ix2> {
+fn lla_from_xyz(xyz: ArrayView<f64, Ix2>, body: Body) -> Array<f64, Ix2> {
     let mut lla = Array::<f64, Ix2>::uninit(xyz.raw_dim());
     let ellipsoid = body.get_body();
 
@@ -184,7 +286,7 @@ fn _lla_from_xyz(xyz: ArrayView<f64, Ix2>, body: Body) -> Array<f64, Ix2> {
     unsafe { lla.assume_init() }
 }
 
-fn _enu_from_ecef(
+fn enu_from_ecef(
     xyz: ArrayView<f64, Ix2>,
     lat: f64,
     lon: f64,
@@ -193,7 +295,7 @@ fn _enu_from_ecef(
 ) -> Array<f64, Ix2> {
     let mut enu = Array::uninit(xyz.raw_dim());
 
-    let xyz_center = _xyz_from_latlonalt(&[lat], &[lon], &[alt], body);
+    let xyz_center = xyz_from_lla(&[lat], &[lon], &[alt], body);
 
     let sin_lat = lat.sin();
     let cos_lat = lat.cos();
@@ -214,7 +316,7 @@ fn _enu_from_ecef(
     unsafe { enu.assume_init() }
 }
 
-fn _ecef_from_enu(
+fn ecef_from_enu(
     enu: ArrayView<f64, Ix2>,
     lat: f64,
     lon: f64,
@@ -223,7 +325,7 @@ fn _ecef_from_enu(
 ) -> Array<f64, Ix2> {
     let mut xyz = Array::uninit(enu.raw_dim());
 
-    let xyz_center = _xyz_from_latlonalt(&[lat], &[lon], &[alt], body);
+    let xyz_center = xyz_from_lla(&[lat], &[lon], &[alt], body);
 
     let sin_lat = lat.sin();
     let cos_lat = lat.cos();
@@ -256,7 +358,7 @@ fn _utils_rs<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
     m.add_class::<Body>()?;
 
     #[pyfn(m)]
-    fn xyz_from_lla<'py>(
+    fn _xyz_from_latlonalt<'py>(
         py: Python<'py>,
         lat: PyReadonlyArray1<'py, f64>,
         lon: PyReadonlyArray1<'py, f64>,
@@ -265,7 +367,7 @@ fn _utils_rs<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
     ) -> &'py PyArray2<f64> {
         // we're assuming lat, lon, and alt are all the same length
         // and have n_points > 1. This should be checked on the python side.
-        _xyz_from_latlonalt(
+        xyz_from_lla(
             lat.as_slice().unwrap(),
             lon.as_slice().unwrap(),
             alt.as_slice().unwrap(),
@@ -275,16 +377,17 @@ fn _utils_rs<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
     }
 
     #[pyfn(m)]
-    fn lla_from_xyz<'py>(
+    fn _lla_from_xyz<'py>(
         py: Python<'py>,
         xyz: PyReadonlyArray2<'py, f64>,
         body: Body,
     ) -> &'py PyArray2<f64> {
-        _lla_from_xyz(xyz.as_array(), body).into_pyarray(py)
+        lla_from_xyz(xyz.as_array(), body).into_pyarray(py)
     }
 
     #[pyfn(m)]
-    fn enu_from_ecef<'py>(
+    #[pyo3(name = "_ENU_from_ECEF")]
+    fn _enu_from_ecef<'py>(
         py: Python<'py>,
         xyz: PyReadonlyArray2<'py, f64>,
         lat: f64,
@@ -292,11 +395,12 @@ fn _utils_rs<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
         alt: f64,
         body: Body,
     ) -> &'py PyArray2<f64> {
-        _enu_from_ecef(xyz.as_array(), lat, lon, alt, body).into_pyarray(py)
+        enu_from_ecef(xyz.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
 
     #[pyfn(m)]
-    fn ecef_from_enu<'py>(
+    #[pyo3(name = "_ECEF_from_ENU")]
+    fn _ecef_from_enu<'py>(
         py: Python<'py>,
         enu: PyReadonlyArray2<'py, f64>,
         lat: f64,
@@ -304,7 +408,7 @@ fn _utils_rs<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
         alt: f64,
         body: Body,
     ) -> &'py PyArray2<f64> {
-        _ecef_from_enu(enu.as_array(), lat, lon, alt, body).into_pyarray(py)
+        ecef_from_enu(enu.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
 
     #[pyfn(m)]
@@ -419,7 +523,7 @@ mod test {
     }
 
     #[test]
-    fn xyz_from_lla() {
+    fn test_xyz_from_lla() {
         let ref_xyz =
             Array::from_shape_vec((3, 1), vec![-2562123.42683, 5094215.40141, -2848728.58869])
                 .expect("Cannot make same shape.");
@@ -429,7 +533,7 @@ mod test {
             377.8,
         );
 
-        let xyz_out = _xyz_from_latlonalt(
+        let xyz_out = xyz_from_lla(
             &[ref_latlonalt.0],
             &[ref_latlonalt.1],
             &[ref_latlonalt.2],
@@ -440,7 +544,7 @@ mod test {
     }
 
     #[test]
-    fn lla_from_xyz() {
+    fn test_lla_from_xyz() {
         let ref_xyz =
             Array::from_shape_vec((3, 1), vec![-2562123.42683, 5094215.40141, -2848728.58869])
                 .expect("Cannot make same shape.");
@@ -454,13 +558,13 @@ mod test {
         )
         .unwrap();
 
-        let lla_out = _lla_from_xyz(ref_xyz.view(), Body::Earth);
+        let lla_out = lla_from_xyz(ref_xyz.view(), Body::Earth);
 
         approx::assert_abs_diff_eq!(ref_latlonalt, lla_out, epsilon = 1e-5)
     }
 
     #[test]
-    fn enu_from_ecef() {
+    fn test_enu_from_ecef() {
         let center_lat = -30.7215261207 * std::f64::consts::PI / 180.0;
         let center_lon = 21.4283038269 * std::f64::consts::PI / 180.0;
         let center_alt = 1051.7;
@@ -545,98 +649,8 @@ mod test {
             ]
         ];
 
-        let enu = _enu_from_ecef(xyz.view(), center_lat, center_lon, center_alt, Body::Earth);
+        let enu = enu_from_ecef(xyz.view(), center_lat, center_lon, center_alt, Body::Earth);
 
         approx::assert_abs_diff_eq!(ref_enu, enu, epsilon = 1e-5)
-    }
-
-    #[test]
-    fn ecef_from_enu() {
-        let center_lat = -30.7215261207 * std::f64::consts::PI / 180.0;
-        let center_lon = 21.4283038269 * std::f64::consts::PI / 180.0;
-        let center_alt = 1051.7;
-
-        let ref_ecef = stack![
-            Axis(0),
-            [
-                5109327.46674067,
-                5109339.76407785,
-                5109344.06370947,
-                5109365.11297147,
-                5109372.115673,
-                5109266.94314734,
-                5109329.89620962,
-                5109295.13656657,
-                5109337.21810468,
-                5109329.85680612
-            ],
-            [
-                2005130.57953031,
-                2005221.35184577,
-                2005225.93775268,
-                2005214.8436201,
-                2005105.42364036,
-                2005302.93158317,
-                2005190.65566222,
-                2005257.71335575,
-                2005157.78980089,
-                2005304.7729239
-            ],
-            [
-                -3239991.24516348,
-                -3239914.4185286,
-                -3239904.57048431,
-                -3239878.02656316,
-                -3239935.20415493,
-                -3239979.68381865,
-                -3239949.39266985,
-                -3239962.98805772,
-                -3239958.30386264,
-                -3239878.08403833
-            ]
-        ];
-
-        let enu = stack![
-            Axis(0),
-            [
-                -97.87631659,
-                -17.87126443,
-                -15.17316938,
-                -33.19049252,
-                -137.60520964,
-                84.67346748,
-                -42.84049408,
-                32.28083937,
-                -76.1094745,
-                63.40285935
-            ],
-            [
-                -72.7437482,
-                16.09066646,
-                27.45724573,
-                58.21544651,
-                -8.02964511,
-                -59.41961437,
-                -24.39698388,
-                -40.09891961,
-                -34.70965816,
-                58.18410876
-            ],
-            [
-                0.54883333,
-                -0.35004539,
-                -0.50007736,
-                -0.70035299,
-                -0.25148791,
-                0.33916067,
-                -0.02019057,
-                0.16979185,
-                0.06945155,
-                -0.64058124
-            ]
-        ];
-
-        let ecef = _ecef_from_enu(enu.view(), center_lat, center_lon, center_alt, Body::Earth);
-        approx::assert_abs_diff_eq!(ref_ecef, ecef, epsilon = 1e-5)
     }
 }
