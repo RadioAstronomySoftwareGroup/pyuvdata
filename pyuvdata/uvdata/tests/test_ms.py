@@ -380,6 +380,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.parametrize("axis", [None, "freq"])
 def test_multi_files(casa_uvfits, axis, tmp_path):
     """
