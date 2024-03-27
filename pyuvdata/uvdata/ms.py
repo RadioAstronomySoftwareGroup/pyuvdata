@@ -484,21 +484,8 @@ class MS(UVData):
         self.extra_keywords["DATA_COL"] = data_column
 
         time_arr = tb_main.getcol("TIME")
-        timescale = tb_main.getcolkeyword("TIME", "MEASINFO")["Ref"]
-        if timescale.lower() not in Time.SCALES:
-            msg = (
-                "This file has a timescale that is not supported by astropy. "
-                "If you need support for this timescale please make an issue on our "
-                "GitHub repo."
-            )
-            if raise_error:
-                raise ValueError(
-                    msg + " To bypass this error, you can set raise_error=False, which "
-                    "will raise a warning instead and treat the time as being in UTC."
-                )
-            else:
-                warnings.warn(msg + " Defaulting to treating it as being in UTC.")
-                timescale = "utc"
+        timescale = ms_utils._get_time_scale(tb_main, raise_error=raise_error)
+
         # N.b., EXPOSURE is what's needed for noise calculation, but INTERVAL defines
         # the time period over which the data are collected
         int_arr = tb_main.getcol("EXPOSURE")
@@ -986,16 +973,7 @@ class MS(UVData):
             # get it from known telescopes
             self.set_telescope_params()
         else:
-            if xyz_telescope_frame == "ITRF":
-                # MS uses "ITRF" while astropy uses "itrs". They are the same.
-                self._telescope_location.frame = "itrs"
-            else:
-                if xyz_telescope_frame.lower() not in ["itrs", "mcmf"]:
-                    raise ValueError(
-                        f"Telescope frame in file is {xyz_telescope_frame.lower()}. "
-                        "Only 'itrs' and 'mcmf' are currently supported."
-                    )
-                self._telescope_location.frame = xyz_telescope_frame.lower()
+            self._telescope_location.frame = xyz_telescope_frame
 
             if "telescope_location" in obs_dict:
                 self.telescope_location = np.squeeze(obs_dict["telescope_location"])
