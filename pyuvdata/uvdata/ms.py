@@ -14,6 +14,7 @@ import numpy as np
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
+from .. import Telescope
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
@@ -288,11 +289,11 @@ class MS(UVData):
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
 
         # Add telescope frame
-        if self._telescope_location.frame == "itrs":
+        if self.telescope._location.frame == "itrs":
             # MS uses "ITRF" while astropy uses "itrs". They are the same.
             ant_ref_frame = "ITRF"
         else:
-            ant_ref_frame = self._telescope_location.frame.upper()
+            ant_ref_frame = self.telescope._location.frame.upper()
             # TODO: ask Karto what the best way is to put in the lunar ellipsoid
         meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
         meas_info_dict["Ref"] = ant_ref_frame
@@ -2143,18 +2144,25 @@ class MS(UVData):
             and self.telescope_name in self.known_telescopes()
         ):
             # get it from known telescopes
-            self.set_telescope_params()
+            telescope_obj = Telescope.get_telescope_from_known_telescopes(
+                self.telescope_name
+            )
+            warnings.warn(
+                "Setting telescope_location to value in known_telescopes for "
+                f"{self.telescope_name}."
+            )
+            self.telescope_location = telescope_obj.location
         else:
             if xyz_telescope_frame == "ITRF":
                 # MS uses "ITRF" while astropy uses "itrs". They are the same.
-                self._telescope_location.frame = "itrs"
+                self.telescope._location.frame = "itrs"
             else:
                 if xyz_telescope_frame.lower() not in ["itrs", "mcmf"]:
                     raise ValueError(
                         f"Telescope frame in file is {xyz_telescope_frame.lower()}. "
                         "Only 'itrs' and 'mcmf' are currently supported."
                     )
-                self._telescope_location.frame = xyz_telescope_frame.lower()
+                self.telescope._location.frame = xyz_telescope_frame.lower()
 
             if "TELESCOPE_LOCATION" in tb_obs.colnames():
                 self.telescope_location = np.squeeze(

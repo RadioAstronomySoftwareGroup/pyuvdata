@@ -76,8 +76,8 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
     uvd = UVData.new(**lunar_simple_params, ellipsoid=selenoid)
 
-    assert uvd._telescope_location.frame == "mcmf"
-    assert uvd._telescope_location.ellipsoid == selenoid
+    assert uvd.telescope._location.frame == "mcmf"
+    assert uvd.telescope._location.ellipsoid == selenoid
 
 
 def test_bad_inputs(simplest_working_params: dict[str, Any]):

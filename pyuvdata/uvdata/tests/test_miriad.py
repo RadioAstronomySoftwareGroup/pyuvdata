@@ -84,7 +84,6 @@ warn_dict = {
         "telescope_position will be set using the mean "
         "of the antenna altitudes"
     ),
-    "unknown_telescope_foo": "Telescope foo is not in known_telescopes.",
     "unclear_projection": (
         "It is not clear from the file if the data are projected or not."
     ),
@@ -178,13 +177,12 @@ def test_read_write_read_atca(tmp_path, future_shapes):
     atca_file = os.path.join(DATA_PATH, "atca_miriad/")
     testfile = os.path.join(tmp_path, "outtest_atca_miriad.uv")
     with uvtest.check_warnings(
-        [UserWarning] * 6 + [DeprecationWarning],
+        [UserWarning] * 5 + [DeprecationWarning],
         [
             (
                 "Altitude is not present in Miriad file, and "
                 "telescope ATCA is not in known_telescopes. "
             ),
-            "Telescope ATCA is not in known_telescopes.",
             "Altitude is not present",
             warn_dict["telescope_at_sealevel"],
             warn_dict["uvw_mismatch"],
@@ -227,12 +225,8 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
 
     # check that setting projected also works
     with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning, UserWarning],
-        match=[
-            warn_dict["phase_type_deprecated"],
-            warn_dict["uvw_mismatch"],
-            "Telescope EVLA is not",
-        ],
+        [DeprecationWarning, UserWarning],
+        match=[warn_dict["phase_type_deprecated"], warn_dict["uvw_mismatch"]],
     ):
         miriad_uv2 = UVData.from_file(
             writefile, phase_type="phased", use_future_array_shapes=True
@@ -578,7 +572,6 @@ def test_wronglatlon():
             warn_dict["altitude_missing_miriad"],
             warn_dict["altitude_missing_miriad"],
             warn_dict["no_telescope_loc"],
-            warn_dict["unknown_telescope_foo"],
             warn_dict["unclear_projection"],
         ],
     ):
@@ -630,7 +623,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             warn_dict["altitude_missing_foo"],
             warn_dict["altitude_missing_foo"],  # raised twice
             warn_dict["no_telescope_loc"],
-            warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -661,7 +653,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             warn_dict["altitude_missing_foo"],
             warn_dict["telescope_at_sealevel_foo"],
             warn_dict["projection_false_offset"],
-            warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -698,7 +689,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
                 "value does not match"
             ),
             warn_dict["projection_false_offset"],
-            warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -734,7 +724,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             warn_dict["altitude_missing_miriad"],
             warn_dict["telescope_at_sealevel_lat_long"],
             warn_dict["projection_false_offset"],
-            warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -784,7 +773,6 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
                 "does not give a telescope_location on the "
                 "surface of the earth."
             ),
-            warn_dict["unknown_telescope_foo"],
             warn_dict["uvw_mismatch"],
         ],
     ):
@@ -920,7 +908,7 @@ def test_miriad_only_itrs(tmp_path, paper_miriad):
 
     enu_antpos, _ = uv_in.get_ENU_antpos()
     latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-    uv_in._telescope_location.frame = "mcmf"
+    uv_in.telescope._location.frame = "mcmf"
     uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
     new_full_antpos = uvutils.ECEF_from_ENU(
         enu=enu_antpos,
@@ -929,6 +917,7 @@ def test_miriad_only_itrs(tmp_path, paper_miriad):
         altitude=altitude,
         frame="mcmf",
     )
+
     uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
     uv_in.set_lsts_from_time_array()
     uv_in.check()
@@ -940,7 +929,6 @@ def test_miriad_only_itrs(tmp_path, paper_miriad):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.parametrize("cut_ephem_pts", [True, False])
 @pytest.mark.parametrize("extrapolate", [True, False])
 def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
@@ -1873,7 +1861,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
         warn=warn_dict["default_vals"],
     )
     with uvtest.check_warnings(
-        UserWarning, "Antenna positions are not present in the file.", nwarnings=2
+        UserWarning, match=["Antenna positions are not present in the file."] * 2
     ):
         uv_out.read(write_file, run_check=False, use_future_array_shapes=True)
 
@@ -1929,7 +1917,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
         warn=warn_dict["default_vals"],
     )
     with uvtest.check_warnings(
-        UserWarning, "Antenna positions are not present in the file.", nwarnings=2
+        UserWarning, match=["Antenna positions are not present in the file."] * 2
     ):
         uv_out.read(write_file, run_check=False, use_future_array_shapes=True)
 

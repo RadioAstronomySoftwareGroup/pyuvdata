@@ -13,7 +13,7 @@ from astropy import constants as const
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
-from .. import telescopes as uvtel
+from .. import Telescope
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
@@ -284,16 +284,21 @@ def get_fhd_layout_info(
             # this is a known issue with FHD runs on cotter uvfits
             # files for the MWA
             # compare with the known_telescopes values
-            telescope_obj = uvtel.get_telescope(telescope_name)
+            try:
+                telescope_obj = Telescope.get_telescope_from_known_telescopes(
+                    telescope_name
+                )
+            except ValueError:
+                telescope_obj = None
             # start warning message
             message = (
                 "Telescope location derived from obs lat/lon/alt "
                 "values does not match the location in the layout file."
             )
 
-            if telescope_obj is not False:
+            if telescope_obj is not None:
                 message += " Using the value from known_telescopes."
-                telescope_location = telescope_obj.telescope_location
+                telescope_location = telescope_obj.location
             else:
                 message += (
                     " Telescope is not in known_telescopes. "
@@ -648,7 +653,7 @@ class FHD(UVData):
                 longitude=longitude,
                 altitude=altitude,
                 radian_tol=uvutils.RADIAN_TOL,
-                loc_tols=self._telescope_location.tols,
+                loc_tols=self.telescope._location.tols,
                 obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )

@@ -11,11 +11,11 @@ from astropy.coordinates import angular_separation
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import get_telescope
+from pyuvdata import Telescope, UVData
+
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from . import mir_parser
-from .uvdata import UVData
 
 __all__ = ["generate_sma_antpos_dict", "Mir"]
 
@@ -60,7 +60,9 @@ def generate_sma_antpos_dict(filepath):
     # We need the antenna positions in ECEF, rather than the native rotECEF format that
     # they are stored in. Get the longitude info, and use the appropriate function in
     # utils to get these values the way that we want them.
-    _, lon, _ = get_telescope("SMA")._telescope_location.lat_lon_alt()
+    _, lon, _ = Telescope.get_telescope_from_known_telescopes(
+        "SMA"
+    ).location_lat_lon_alt
     mir_antpos["xyz_pos"] = uvutils.ECEF_from_rotECEF(mir_antpos["xyz_pos"], lon)
 
     # Create a dictionary that can be used for updates.
@@ -543,7 +545,9 @@ class Mir(UVData):
                 ]
 
         # Get the coordinates from the entry in telescope.py
-        lat, lon, alt = get_telescope("SMA")._telescope_location.lat_lon_alt()
+        lat, lon, alt = Telescope.get_telescope_from_known_telescopes(
+            "SMA"
+        ).location_lat_lon_alt
         self.telescope_location_lat_lon_alt = (lat, lon, alt)
 
         # Calculate antenna positions in ECEF frame. Note that since both
