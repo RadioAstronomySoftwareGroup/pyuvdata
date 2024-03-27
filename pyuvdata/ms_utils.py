@@ -453,7 +453,6 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             ref_dir_dict = dict(
                 zip(measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"])
             )
-            tb_field.getcol(measinfo_keyword["VarRefCol"])
             frame_list = []
             epoch_list = []
             for key in tb_field.getcol(measinfo_keyword["VarRefCol"]):
