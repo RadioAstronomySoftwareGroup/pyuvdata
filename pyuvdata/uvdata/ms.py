@@ -17,7 +17,7 @@ from docstring_parser import DocstringStyle
 from .. import ms_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvdata import UVData, _future_array_shapes_warning, reporting_request
+from .uvdata import UVData, _future_array_shapes_warning
 
 __all__ = ["MS"]
 
@@ -829,7 +829,6 @@ class MS(UVData):
         self.integration_time = int_arr
         self.uvw_array = uvw_arr * ((-1) ** flip_conj)
         self.phase_center_id_array = field_arr
-        self.phase_center_id_array = field_arr
         self.scan_number_array = scan_number_arr
         self.flex_spw_id_array = spw_id_array
 
@@ -880,50 +879,27 @@ class MS(UVData):
             self.history = self.pyuvdata_version_str
             pyuvdata_written = False
 
-        data_desc_dict = {}
-        tb_desc = tables.table(filepath + "/DATA_DESCRIPTION", ack=False)
-        for idx in range(tb_desc.nrows()):
-            data_desc_dict[idx] = {
-                "SPECTRAL_WINDOW_ID": tb_desc.getcell("SPECTRAL_WINDOW_ID", idx),
-                "POLARIZATION_ID": tb_desc.getcell("POLARIZATION_ID", idx),
-                "FLAG_ROW": tb_desc.getcell("FLAG_ROW", idx),
-            }
-        tb_desc.close()
+        data_desc_dict = ms_utils.read_ms_data_description(filepath)
 
         # Polarization array
-        tb_pol = tables.table(filepath + "/POLARIZATION", ack=False)
+        pol_dict = ms_utils.read_ms_polarization(filepath)
         for key in data_desc_dict.keys():
             pol_id = data_desc_dict[key]["POLARIZATION_ID"]
-            data_desc_dict[key]["CORR_TYPE"] = tb_pol.getcell(
-                "CORR_TYPE", pol_id
-            ).astype(int)
-            data_desc_dict[key]["NUM_CORR"] = tb_pol.getcell("NUM_CORR", pol_id)
-        tb_pol.close()
+            data_desc_dict[key]["CORR_TYPE"] = pol_dict[pol_id]["corr_type"]
+            data_desc_dict[key]["NUM_CORR"] = pol_dict[pol_id]["num_corr"]
 
-        tb_spws = tables.table(filepath + "/SPECTRAL_WINDOW", ack=False)
-
-        try:
-            spw_id = tb_spws.getcol("ASSOC_SPW_ID")
-            use_assoc_id = True
-        except RuntimeError:
-            use_assoc_id = False
-
+        spw_dict = ms_utils.read_ms_spectral_window(filepath)
         single_chan_list = []
         for key in data_desc_dict.keys():
             spw_id = data_desc_dict[key]["SPECTRAL_WINDOW_ID"]
-            data_desc_dict[key]["CHAN_FREQ"] = tb_spws.getcell("CHAN_FREQ", spw_id)
+            data_desc_dict[key]["CHAN_FREQ"] = spw_dict["chan_freq"][spw_id]
             # beware! There are possibly 3 columns here that might be the correct one
             # to use: CHAN_WIDTH, EFFECTIVE_BW, RESOLUTION
-            data_desc_dict[key]["CHAN_WIDTH"] = tb_spws.getcell("CHAN_WIDTH", spw_id)
-            data_desc_dict[key]["NUM_CHAN"] = tb_spws.getcell("NUM_CHAN", spw_id)
+            data_desc_dict[key]["CHAN_WIDTH"] = spw_dict["chan_width"][spw_id]
+            data_desc_dict[key]["NUM_CHAN"] = spw_dict["num_chan"][spw_id]
+            data_desc_dict[key]["SPW_ID"] = int(spw_dict["assoc_spw_id"][spw_id])
             if data_desc_dict[key]["NUM_CHAN"] == 1:
                 single_chan_list.append(key)
-            if use_assoc_id:
-                data_desc_dict[key]["SPW_ID"] = int(
-                    tb_spws.getcell("ASSOC_SPW_ID", spw_id)[0]
-                )
-            else:
-                data_desc_dict[key]["SPW_ID"] = spw_id
 
         if ignore_single_chan:
             for key in single_chan_list:
@@ -992,30 +968,19 @@ class MS(UVData):
         self.Nbls = len(np.unique(self.baseline_array))
 
         # open table with antenna location information
-        tb_ant = tables.table(filepath + "/ANTENNA", ack=False)
-        tb_obs = tables.table(filepath + "/OBSERVATION", ack=False)
-        self.telescope_name = tb_obs.getcol("TELESCOPE_NAME")[0]
-        self.instrument = tb_obs.getcol("TELESCOPE_NAME")[0]
-        self.extra_keywords["observer"] = tb_obs.getcol("OBSERVER")[0]
-        full_antenna_positions = tb_ant.getcol("POSITION")
-        n_ants_table = full_antenna_positions.shape[0]
-        xyz_telescope_frame = tb_ant.getcolkeyword("POSITION", "MEASINFO")["Ref"]
-
-        # Note: measurement sets use the antenna number as an index into the antenna
-        # table. This means that if the antenna numbers do not start from 0 and/or are
-        # not contiguous, empty rows are inserted into the antenna table
-        # these 'dummy' rows have positions of zero and need to be removed.
-        # (this is somewhat similar to miriad)
-        ant_good_position = np.nonzero(np.linalg.norm(full_antenna_positions, axis=1))[
-            0
-        ]
-        full_antenna_positions = full_antenna_positions[ant_good_position, :]
-        self.antenna_numbers = np.arange(n_ants_table)[ant_good_position]
+        tb_ant_dict = ms_utils.read_ms_antenna(filepath)
+        obs_dict = ms_utils.read_ms_observation(filepath)
+        self.telescope_name = obs_dict["telescope_name"]
+        self.instrument = obs_dict["telescope_name"]
+        self.extra_keywords["observer"] = obs_dict["observer"]
+        full_antenna_positions = tb_ant_dict["antenna_positions"]
+        xyz_telescope_frame = tb_ant_dict["telescope_frame"]
+        self.antenna_numbers = tb_ant_dict["antenna_numbers"]
 
         # check to see if a TELESCOPE_LOCATION column is present in the observation
         # table. This is non-standard, but inserted by pyuvdata
         if (
-            "TELESCOPE_LOCATION" not in tb_obs.colnames()
+            "telescope_location" not in obs_dict
             and self.telescope_name in self.known_telescopes()
         ):
             # get it from known telescopes
@@ -1032,21 +997,18 @@ class MS(UVData):
                     )
                 self._telescope_location.frame = xyz_telescope_frame.lower()
 
-            if "TELESCOPE_LOCATION" in tb_obs.colnames():
-                self.telescope_location = np.squeeze(
-                    tb_obs.getcol("TELESCOPE_LOCATION")
-                )
+            if "telescope_location" in obs_dict:
+                self.telescope_location = np.squeeze(obs_dict["telescope_location"])
             else:
                 # Set it to be the mean of the antenna positions (this is not ideal!)
                 self.telescope_location = np.array(
                     np.mean(full_antenna_positions, axis=0)
                 )
-        tb_obs.close()
 
         # antenna names
-        ant_names = np.asarray(tb_ant.getcol("NAME"))[ant_good_position].tolist()
-        station_names = np.asarray(tb_ant.getcol("STATION"))[ant_good_position].tolist()
-        antenna_diameters = tb_ant.getcol("DISH_DIAMETER")[ant_good_position]
+        ant_names = tb_ant_dict["antenna_names"]
+        station_names = tb_ant_dict["station_names"]
+        antenna_diameters = tb_ant_dict["antenna_diameters"]
         if np.any(antenna_diameters > 0):
             self.antenna_diameters = antenna_diameters
 
@@ -1070,181 +1032,36 @@ class MS(UVData):
         )
         self.antenna_positions = relative_positions
 
-        tb_ant.close()
-
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(
             background=background_lsts, astrometry_library=astrometry_library
         )
 
-        tb_field = tables.table(filepath + "/FIELD", ack=False)
-
-        # Error if the phase_dir has a polynomial term because we don't know
-        # how to handle that
-        message = (
-            "PHASE_DIR is expressed as a polynomial. "
-            "We do not currently support this mode, please make an issue."
+        phase_center_catalog, field_id_dict = ms_utils.read_ms_field(
+            filepath, return_phase_center_catalog=True
         )
-        assert tb_field.getcol("PHASE_DIR").shape[1] == 1, message
 
-        # The SOURCE table is optional in MS, but can contain some relevant metadata
-        # about
         tb_sou_dict = {}
         try:
-            tb_source = tables.table(filepath + "/SOURCE", ack=False)
-        except RuntimeError:
+            tb_sou_dict = ms_utils.read_ms_source(filepath)
+        except FileNotFoundError:
             # The SOURCE table is optional, so if not found a RuntimeError will be
             # thrown, and we should forgo trying to associate SOURCE table entries with
             # the FIELD table.
             pass
-        else:
-            for idx in range(tb_source.nrows()):
-                sou_id = tb_source.getcell("SOURCE_ID", idx)
-                pm_vec = tb_source.getcell("PROPER_MOTION", idx)
-                time_stamp = tb_source.getcell("TIME", idx)
-                sou_vec = tb_source.getcell("DIRECTION", idx)
-                try:
-                    for idx in np.where(
-                        np.isclose(
-                            tb_sou_dict[sou_id]["cat_times"],
-                            time_stamp,
-                            rtol=0,
-                            atol=1e-3,
-                        )
-                    )[0]:
-                        if not (
-                            (tb_sou_dict[sou_id]["cat_ra"][idx] == sou_vec[0])
-                            and (tb_sou_dict[sou_id]["cat_dec"][idx] == sou_vec[1])
-                            and (tb_sou_dict[sou_id]["cat_pm_ra"][idx] == pm_vec[0])
-                            and (tb_sou_dict[sou_id]["cat_pm_dec"][idx] == pm_vec[1])
-                        ):
-                            warnings.warn(
-                                "Different windows in this MS file contain different "
-                                "metadata for the same integration. Be aware that "
-                                "UVData objects do not allow for this, and thus will "
-                                "default to using the metadata from the last row read "
-                                "from the SOURCE table." + reporting_request
-                            )
-                        _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
-                        _ = tb_sou_dict[sou_id]["cat_ra"].pop(idx)
-                        _ = tb_sou_dict[sou_id]["cat_dec"].pop(idx)
-                        _ = tb_sou_dict[sou_id]["cat_pm_ra"].pop(idx)
-                        _ = tb_sou_dict[sou_id]["cat_pm_dec"].pop(idx)
-                    tb_sou_dict[sou_id]["cat_times"].append(time_stamp)
-                    tb_sou_dict[sou_id]["cat_ra"].append(sou_vec[0])
-                    tb_sou_dict[sou_id]["cat_dec"].append(sou_vec[1])
-                    tb_sou_dict[sou_id]["cat_pm_ra"].append(pm_vec[0])
-                    tb_sou_dict[sou_id]["cat_pm_dec"].append(pm_vec[1])
-                except KeyError:
-                    tb_sou_dict[sou_id] = {
-                        "cat_times": [time_stamp],
-                        "cat_ra": [sou_vec[0]],
-                        "cat_dec": [sou_vec[1]],
-                        "cat_pm_ra": [pm_vec[0]],
-                        "cat_pm_dec": [pm_vec[1]],
-                    }
 
-            for cat_dict in tb_sou_dict.values():
-                make_arr = len(cat_dict["cat_times"]) != 1
-                if not make_arr:
-                    del cat_dict["cat_times"]
+        if len(field_id_dict) != 0:
+            # Update the catalog if entries are in the SOURCE table dict
+            for key in phase_center_catalog:
+                if key in tb_sou_dict:
+                    phase_center_catalog[key].update(tb_sou_dict[key])
 
-                for key in cat_dict:
-                    if make_arr:
-                        cat_dict[key] = np.array(cat_dict[key])
-                    else:
-                        cat_dict[key] = cat_dict[key][0]
-                if np.allclose(cat_dict["cat_pm_ra"], 0):
-                    if np.allclose(cat_dict["cat_pm_dec"], 0):
-                        cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
-
-        # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
-        measinfo_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")
-
-        ref_dir_colname = None
-        ref_dir_dict = None
-        if "VarRefCol" in measinfo_keyword.keys():
-            # This seems to be a yet-undocumented feature for CASA, which allows one
-            # to specify an additional (optional?) column that defines the reference
-            # frame on a per-source basis.
-            ref_dir_colname = measinfo_keyword["VarRefCol"]
-            ref_dir_dict = dict(
-                zip(measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"])
+            self.phase_center_id_array = np.array(
+                [field_id_dict[key] for key in self.phase_center_id_array], dtype=int
             )
 
-        if "Ref" in measinfo_keyword.keys():
-            frame_tuple = ms_utils._parse_casa_frame_ref(measinfo_keyword["Ref"])
-            phase_center_frame = frame_tuple[0]
-            phase_center_epoch = frame_tuple[1]
-        else:
-            warnings.warn("Coordinate reference frame not detected, defaulting to ICRS")
-            phase_center_frame = "icrs"
-            phase_center_epoch = 2000.0
-
-        field_id_dict = {field_idx: field_idx for field_idx in field_list}
-        try:
-            id_arr = tb_field.getcol("SOURCE_ID")
-            if np.all(id_arr >= 0) and len(np.unique(id_arr)) == len(id_arr):
-                for idx, sou_id in enumerate(id_arr):
-                    if idx in field_list:
-                        field_id_dict[idx] = sou_id
-        except RuntimeError:
-            # Reach here if no column named SOURCE_ID exists, or if it does exist
-            # but is completely unfilled. Nothing to do at this point but move on.
-            tb_sou_dict = {}
-            pass
-        # Field names are allowed to be the same in CASA, so if we detect
-        # conflicting names here we use the FIELD row numbers to try and
-        # differentiate between them.
-        field_name_list = tb_field.getcol("NAME")
-        uniq_names, uniq_count = np.unique(field_name_list, return_counts=True)
-        rep_name_list = uniq_names[uniq_count > 1]
-        for rep_name in rep_name_list:
-            rep_count = 0
-            for idx in range(len(field_name_list)):
-                if field_name_list[idx] == rep_name:
-                    field_name_list[idx] = "%s-%03i" % (field_name_list[idx], rep_count)
-                    rep_count += 1
-
-        for field_idx in field_list:
-            ra_val, dec_val = tb_field.getcell("PHASE_DIR", field_idx)[0]
-            field_name = field_name_list[field_idx]
-            if ref_dir_colname is not None:
-                frame_tuple = ms_utils._parse_casa_frame_ref(
-                    ref_dir_dict[tb_field.getcell(ref_dir_colname, field_list[0])]
-                )
-            else:
-                frame_tuple = (phase_center_frame, phase_center_epoch)
-
-            pm_ra = pm_dec = ephem_times = None
-            if field_id_dict[field_idx] in tb_sou_dict:
-                cat_dict = tb_sou_dict[field_id_dict[field_idx]]
-                ra_val, dec_val = cat_dict["cat_ra"], cat_dict["cat_dec"]
-                pm_ra, pm_dec = cat_dict["cat_pm_ra"], cat_dict["cat_pm_dec"]
-                if "cat_times" in cat_dict:
-                    ephem_times = Time(
-                        cat_dict["cat_times"] / 86400, format="mjd", scale="utc"
-                    ).jd
-
-            self._add_phase_center(
-                field_name,
-                cat_type="sidereal" if (ephem_times is None) else "ephem",
-                cat_lon=ra_val,
-                cat_lat=dec_val,
-                cat_times=ephem_times,  # Convert Julian secs to JD
-                cat_frame=frame_tuple[0],
-                cat_epoch=frame_tuple[1],
-                cat_pm_ra=pm_ra,
-                cat_pm_dec=pm_dec,
-                info_source="file",
-                cat_id=field_id_dict[field_idx],
-            )
-        # Only thing left to do is to update the IDs for the per-BLT records
-        self.phase_center_id_array = np.array(
-            [field_id_dict[sou_id] for sou_id in self.phase_center_id_array], dtype=int
-        )
-
-        tb_field.close()
+        self.phase_center_catalog = phase_center_catalog
+        self.Nphase = len(phase_center_catalog)
 
         if proc is not None:
             proc.join()
