@@ -43,6 +43,8 @@ class MSCal(UVCal):
         self,
         filepath,
         *,
+        default_x_orientation=None,
+        default_jones_array=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -149,7 +151,7 @@ class MSCal(UVCal):
         self.antenna_positions = ant_info["antenna_positions"]
         # Subtract off telescope location to get relative ECEF
         self.antenna_positions -= self.telescope_location.reshape(1, 3)
-        self.phase_center_catalog = ms_utils.read_ms_field(
+        self.phase_center_catalog, field_id_map = ms_utils.read_ms_field(
             filepath, return_phase_center_catalog=True
         )
 
@@ -221,17 +223,26 @@ class MSCal(UVCal):
             self.freq_array = None
             self.channel_width = None
             self.flex_spw_id_array = None
+            self.Nfreqs = 1
 
         self.sky_catalog = "CASA (import)"
 
         # MAIN LOOP
         self.Njones = tb_main.getcell(cal_column, 0).shape[1]
         if main_keywords["PolBasis"].lower() == "unknown":
-            warnings.warn(
-                "Unknown polarization basis for solutions, jones_array values "
-                "may be spurious."
-            )
-            self.jones_array = np.zeros(self.Njones, dtype=int)
+            if "pyuvdata_jones" in main_keywords.keys():
+                self.jones_array = main_keywords["pyuvdata_jones"]
+            if "pyuvdata_flex_jones" in main_keywords.keys():
+                self.flex_jones_array = main_keywords["pyuvdata_flex_jones"]
+            if self.jones_array is None:
+                if default_jones_array is None:
+                    warnings.warn(
+                        "Unknown polarization basis for solutions, jones_array values "
+                        "may be spurious."
+                    )
+                    self.jones_array = np.zeros(self.Njones, dtype=int)
+                else:
+                    self.jones_array = default_jones_array
         else:
             raise NotImplementedError("Not sure how to read this file yet...")
 
@@ -334,13 +345,19 @@ class MSCal(UVCal):
 
         # There's a little bit of cleanup to do w/ field_id, since the values here
         # correspond to the row in FIELD rather than the source ID. Map that now.
-        field_id_map = dict(enumerate(self.phase_center_catalog))
-        self.phase_center_id_array = np.array(
-            [field_id_map[idx] for idx in self.phase_center_id_array]
-        )
+        if len(field_id_map) != 0:
+            self.phase_center_id_array = np.array(
+                [field_id_map[idx] for idx in self.phase_center_id_array]
+            )
 
-        # I think this is always east.
-        self.x_orientation = "east"
+        if "pyuvdata_xorient" in main_keywords.keys():
+            self.x_orientation = main_keywords["pyuvdata_xorient"]
+        elif default_x_orientation is None:
+            self.x_orientation = "east"
+            warnings.warn('Unknown x_orientation basis for solutions, assuming "east".')
+        else:
+            self.x_orientation = default_x_orientation
+
         # Use if this is a delay soln
         if self.cal_type == "gain":
             self.gain_array = ms_cal_soln
@@ -372,6 +389,11 @@ class MSCal(UVCal):
             raise ValueError(
                 "In order to call this method, you must be using future array shapes. "
                 "Call the `use_future_array_shapes` method before proceeding."
+            )
+
+        if self.gain_convention != "divide":
+            raise ValueError(
+                'MS writer only supports UVCal objects with gain_convention="divide".'
             )
 
         # Initialize our calibration file, and get things set up with the appropriate
@@ -426,6 +448,12 @@ class MSCal(UVCal):
 
             if self.x_orientation is not None:
                 ms.putkeyword("pyuvdata_xorient", self.x_orientation)
+
+            if self.jones_array is not None:
+                ms.putkeyword("pyuvdata_jones", self.jones_array)
+
+            if self.flex_jones_array is not None:
+                ms.putkeyword("pyuvdata_flex_jones", self.flex_jones_array)
 
             # Now start the heavy lifting of putting in the data.
             ############################################################################
