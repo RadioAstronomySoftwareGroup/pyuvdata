@@ -1245,7 +1245,7 @@ def test_default_corrections(tmp_path):
     uv1 = UVData()
     uv2 = UVData()
     uv1.read(filelist[0:2], use_future_array_shapes=True)
-    uv1.read(filelist[11:13], use_future_array_shapes=True)
+    uv2.read(filelist[11:13], use_future_array_shapes=True)
 
     assert "Divided out digital gains" in uv1.history
     assert "Divided out digital gains" in uv2.history
