@@ -11,6 +11,7 @@ from astropy.time import Time
 
 from . import __version__
 from . import utils as uvutils
+from .uvdata.uvdata import reporting_request
 
 no_casa_message = (
     "casacore is not installed but is required for measurement set functionality"
@@ -274,7 +275,7 @@ def read_ms_antenna(filepath, check_frame=True):
         # antenna names
         antenna_names = np.asarray(tb_ant.getcol("NAME"))[good_mask].tolist()
         station_names = np.asarray(tb_ant.getcol("STATION"))[good_mask].tolist()
-        ant_diameters = np.asarray(tb_ant.getcol("DISH_DIAMETER"))[good_mask].tolist()
+        ant_diameters = np.asarray(tb_ant.getcol("DISH_DIAMETER"))[good_mask]
 
     # Build a dict with all the relevant entries we need.
     ant_dict = {
@@ -378,7 +379,19 @@ def write_ms_antenna(
 
 def read_ms_data_description(filepath):
     """Read Measurement Set DATA_DESCRIPTION table."""
-    raise NotImplementedError("Sorry...")
+    _ms_utils_call_checks(filepath + "/DATA_DESCRIPTION")
+
+    # open table with the general data description
+    with tables.table(filepath + "/DATA_DESCRIPTION", ack=False) as tb_desc:
+        data_desc_dict = {}
+        for idx in range(tb_desc.nrows()):
+            data_desc_dict[idx] = {
+                "SPECTRAL_WINDOW_ID": tb_desc.getcell("SPECTRAL_WINDOW_ID", idx),
+                "POLARIZATION_ID": tb_desc.getcell("POLARIZATION_ID", idx),
+                "FLAG_ROW": tb_desc.getcell("FLAG_ROW", idx),
+            }
+
+    return data_desc_dict
 
 
 def write_ms_data_description(
@@ -418,33 +431,65 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
     """Read Measurement Set FIELD table."""
     _ms_utils_call_checks(filepath + "/FIELD")
 
-    tb_field = tables.table(filepath + "/FIELD", ack=False)
-    n_rows = tb_field.nrows()
+    with tables.table(filepath + "/FIELD", ack=False) as tb_field:
+        n_rows = tb_field.nrows()
 
-    field_dict = {
-        "name": tb_field.getcol("NAME"),
-        "ra": [None] * n_rows,
-        "dec": [None] * n_rows,
-        "source_id": [None] * n_rows,
-    }
+        field_dict = {
+            "name": tb_field.getcol("NAME"),
+            "ra": [None] * n_rows,
+            "dec": [None] * n_rows,
+            "source_id": [None] * n_rows,
+            "alt_id": [None] * n_rows,
+        }
 
-    frame_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")["Ref"]
-    field_dict["frame"], field_dict["epoch"] = COORD_PYUVDATA2CASA_DICT[frame_keyword]
+        # MSv2.0 appears to assume J2000. Not sure how to specifiy otherwise
+        measinfo_keyword = tb_field.getcolkeyword("PHASE_DIR", "MEASINFO")
+        var_frame = "VarRefCol" in measinfo_keyword
 
-    message = (
-        "PHASE_DIR is expressed as a polynomial. "
-        "We do not currently support this mode, please make an issue."
-    )
+        if var_frame:
+            # This seems to be a yet-undocumented feature for CASA, which allows one
+            # to specify an additional (optional?) column that defines the reference
+            # frame on a per-source basis.
+            ref_dir_dict = dict(
+                zip(measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"])
+            )
+            tb_field.getcol(measinfo_keyword["VarRefCol"])
+            frame_list = []
+            epoch_list = []
+            for key in tb_field.getcol(measinfo_keyword["VarRefCol"]):
+                frame, epoch = _parse_casa_frame_ref(ref_dir_dict[key])
+                frame_list.append(frame)
+                epoch_list.append(epoch)
+            field_dict["frame"] = frame_list
+            field_dict["epoch"] = epoch_list
+        elif "Ref" in measinfo_keyword:
+            field_dict["frame"], field_dict["epoch"] = _parse_casa_frame_ref(
+                measinfo_keyword["Ref"]
+            )
+        else:
+            warnings.warn("Coordinate reference frame not detected, defaulting to ICRS")
+            field_dict["frame"] = "icrs"
+            field_dict["epoch"] = 2000.0
+        message = (
+            "PHASE_DIR is expressed as a polynomial. "
+            "We do not currently support this mode, please make an issue."
+        )
 
-    for idx in range(n_rows):
-        phase_dir = tb_field.getcell("PHASE_DIR", idx)
-        # Error if the phase_dir has a polynomial term because we don't know
-        # how to handle that
-        assert phase_dir.shape[0] == 1, message
+        for idx in range(n_rows):
+            phase_dir = tb_field.getcell("PHASE_DIR", idx)
+            # Error if the phase_dir has a polynomial term because we don't know
+            # how to handle that
+            assert phase_dir.shape[0] == 1, message
 
-        field_dict["ra"][idx] = float(phase_dir[0, 0])
-        field_dict["dec"][idx] = float(phase_dir[0, 1])
-        field_dict["source_id"][idx] = int(tb_field.getcell("SOURCE_ID", idx))
+            field_dict["ra"][idx] = float(phase_dir[0, 0])
+            field_dict["dec"][idx] = float(phase_dir[0, 1])
+            field_dict["source_id"][idx] = idx
+            try:
+                field_dict["alt_id"][idx] = int(tb_field.getcell("SOURCE_ID", idx))
+            except RuntimeError:
+                # Reach here if no column named SOURCE_ID exists, or if it does exist
+                # but is completely unfilled. Nothing to do at this point but move on.
+                pass
 
     if not return_phase_center_catalog:
         return field_dict
@@ -456,17 +501,26 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             "cat_type": "sidereal",
             "cat_lon": field_dict["ra"][idx],
             "cat_lat": field_dict["dec"][idx],
-            "cat_frame": field_dict["frame"],
-            "cat_epoch": field_dict["epoch"],
+            "cat_frame": field_dict["frame"][idx] if var_frame else field_dict["frame"],
+            "cat_epoch": field_dict["epoch"][idx] if var_frame else field_dict["epoch"],
             "cat_times": None,
             "cat_pm_ra": None,
             "cat_pm_dec": None,
             "cat_vrad": None,
             "cat_dist": None,
-            "info_source": None,
+            "info_source": "file",
         }
 
-    return phase_center_catalog
+    if any(item is None or item < 0 for item in field_dict["alt_id"]):
+        # If there's no alt id, return a blank mapping for the field IDs
+        return phase_center_catalog, {}
+
+    # Construct the mappings of row number to preferred ID, map back to catalog
+    field_id_map = dict(zip(field_dict["source_id"], field_dict["alt_id"]))
+    phase_center_catalog = {
+        newkey: phase_center_catalog[oldkey] for oldkey, newkey in field_id_map.items()
+    }
+    return phase_center_catalog, field_id_map
 
 
 def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=None):
@@ -1003,9 +1057,9 @@ def write_ms_spectral_window(
 
 def read_ms_feed(filepath):
     """Read Measurement Set FEED table."""
-    _ms_utils_call_checks(filepath)
+    _ms_utils_call_checks(filepath + "/FEED")
 
-    raise NotImplementedError("More to do...")
+    raise NotImplementedError("Reading of MS FEED tables not available yet.")
 
 
 def write_ms_feed(
@@ -1073,43 +1127,74 @@ def write_ms_feed(
 
 def read_ms_source(filepath):
     """Read Measurement Set SOURCE table."""
-    _ms_utils_call_checks(filepath)
-    tb_source = None
-    tb_sou_dict = {}
-    reporting_request = ""
-    for idx in range(tb_source.nrows()):
-        sou_id = tb_source.getcell("SOURCE_ID", idx)
-        pm_vec = tb_source.getcell("PROPER_MOTION", idx)
-        time_stamp = tb_source.getcell("TIME", idx)
-        sou_vec = tb_source.getcell("DIRECTION", idx)
-        for idx in np.where(
-            np.isclose(tb_sou_dict[sou_id]["cat_times"], time_stamp, rtol=0, atol=1e-3)
-        )[0]:
-            if not (
-                (tb_sou_dict[sou_id]["cat_ra"][idx] == sou_vec[0])
-                and (tb_sou_dict[sou_id]["cat_dec"][idx] == sou_vec[1])
-                and (tb_sou_dict[sou_id]["cat_pm_ra"][idx] == pm_vec[0])
-                and (tb_sou_dict[sou_id]["cat_pm_dec"][idx] == pm_vec[1])
-            ):
-                warnings.warn(
-                    "Different windows in this MS file contain different "
-                    "metadata for the same integration. Be aware that "
-                    "UVData objects do not allow for this, and thus will "
-                    "default to using the metadata from the last row read "
-                    "from the SOURCE table." + reporting_request
-                )
-            _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
-            _ = tb_sou_dict[sou_id]["cat_ra"].pop(idx)
-            _ = tb_sou_dict[sou_id]["cat_dec"].pop(idx)
-            _ = tb_sou_dict[sou_id]["cat_pm_ra"].pop(idx)
-            _ = tb_sou_dict[sou_id]["cat_pm_dec"].pop(idx)
-        tb_sou_dict[sou_id]["cat_times"].append(time_stamp)
-        tb_sou_dict[sou_id]["cat_ra"].append(sou_vec[0])
-        tb_sou_dict[sou_id]["cat_dec"].append(sou_vec[1])
-        tb_sou_dict[sou_id]["cat_pm_ra"].append(pm_vec[0])
-        tb_sou_dict[sou_id]["cat_pm_dec"].append(pm_vec[1])
+    _ms_utils_call_checks(filepath + "/SOURCE")
 
-    raise NotImplementedError("Even more to do...")
+    tb_sou_dict = {}
+    with tables.table(filepath + "/SOURCE", ack=False) as tb_source:
+        for idx in range(tb_source.nrows()):
+            sou_id = tb_source.getcell("SOURCE_ID", idx)
+            pm_vec = tb_source.getcell("PROPER_MOTION", idx)
+            time_stamp = tb_source.getcell("TIME", idx)
+            sou_vec = tb_source.getcell("DIRECTION", idx)
+            try:
+                for idx in np.where(
+                    np.isclose(
+                        tb_sou_dict[sou_id]["cat_times"], time_stamp, rtol=0, atol=1e-3
+                    )
+                )[0]:
+                    if not (
+                        (tb_sou_dict[sou_id]["cat_lon"][idx] == sou_vec[0])
+                        and (tb_sou_dict[sou_id]["cat_lat"][idx] == sou_vec[1])
+                        and (tb_sou_dict[sou_id]["cat_pm_ra"][idx] == pm_vec[0])
+                        and (tb_sou_dict[sou_id]["cat_pm_dec"][idx] == pm_vec[1])
+                    ):
+                        warnings.warn(
+                            "Different windows in this MS file contain different "
+                            "metadata for the same integration. Be aware that "
+                            "UVData objects do not allow for this, and thus will "
+                            "default to using the metadata from the last row read "
+                            "from the SOURCE table." + reporting_request
+                        )
+                    _ = tb_sou_dict[sou_id]["cat_times"].pop(idx)
+                    _ = tb_sou_dict[sou_id]["cat_lon"].pop(idx)
+                    _ = tb_sou_dict[sou_id]["cat_lat"].pop(idx)
+                    _ = tb_sou_dict[sou_id]["cat_pm_ra"].pop(idx)
+                    _ = tb_sou_dict[sou_id]["cat_pm_dec"].pop(idx)
+                tb_sou_dict[sou_id]["cat_times"].append(time_stamp)
+                tb_sou_dict[sou_id]["cat_lon"].append(sou_vec[0])
+                tb_sou_dict[sou_id]["cat_lat"].append(sou_vec[1])
+                tb_sou_dict[sou_id]["cat_pm_ra"].append(pm_vec[0])
+                tb_sou_dict[sou_id]["cat_pm_dec"].append(pm_vec[1])
+            except KeyError:
+                tb_sou_dict[sou_id] = {
+                    "cat_times": [time_stamp],
+                    "cat_lon": [sou_vec[0]],
+                    "cat_lat": [sou_vec[1]],
+                    "cat_pm_ra": [pm_vec[0]],
+                    "cat_pm_dec": [pm_vec[1]],
+                }
+
+    for cat_dict in tb_sou_dict.values():
+        make_arr = len(cat_dict["cat_times"]) != 1
+        if make_arr:
+            # Convert CASA time to JD (pyuvdata standard)
+            cat_dict["cat_times"] = Time(
+                np.array(cat_dict["cat_times"]) / 86400.0, format="mjd", scale="utc"
+            ).jd
+            cat_dict["cat_type"] = "ephem"
+        else:
+            del cat_dict["cat_times"]
+
+        for key in cat_dict:
+            if make_arr:
+                cat_dict[key] = np.array(cat_dict[key])
+            else:
+                cat_dict[key] = cat_dict[key][0]
+        if np.allclose(cat_dict["cat_pm_ra"], 0):
+            if np.allclose(cat_dict["cat_pm_dec"], 0):
+                cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
+
+    return tb_sou_dict
 
 
 def write_ms_source(filepath, uvobj=None, time_default=None, phase_center_catalog=None):
@@ -1188,9 +1273,9 @@ def write_ms_source(filepath, uvobj=None, time_default=None, phase_center_catalo
 
 def read_ms_pointing(filepath):
     """Read Measurement Set POINTING table."""
-    _ms_utils_call_checks(filepath)
+    _ms_utils_call_checks(filepath + "/POINTING")
 
-    raise NotImplementedError("More to do...")
+    raise NotImplementedError("Reading of MS POINTING tables not available yet.")
 
 
 def write_ms_pointing(
@@ -1269,9 +1354,16 @@ def write_ms_pointing(
 
 def read_ms_polarization(filepath):
     """Read Measurement Set POLARIZATION table."""
-    _ms_utils_call_checks(filepath)
+    _ms_utils_call_checks(filepath + "/POLARIZATION")
 
-    raise NotImplementedError("More, more, more...")
+    with tables.table(filepath + "/POLARIZATION", ack=False) as tb_pol:
+        pol_dict = {}
+        for pol_id in range(tb_pol.nrows()):
+            pol_dict[pol_id] = {
+                "corr_type": tb_pol.getcell("CORR_TYPE", pol_id).astype(int),
+                "num_corr": tb_pol.getcell("NUM_CORR", pol_id),
+            }
+    return pol_dict
 
 
 def write_ms_polarization(

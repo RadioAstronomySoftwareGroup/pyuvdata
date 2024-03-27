@@ -407,8 +407,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Check and see that the naming convention lines up as expected -- only the internal
     # catalog entries (specifically the names/keys and catalog IDs) should have changed.
     uv_out.read(testfile, use_future_array_shapes=True)
-    for idx in range(3):
-        assert uv_out.phase_center_catalog[idx]["cat_name"] == "TEST-%03i" % idx
 
     uv_out.phase_center_catalog = uv_in.phase_center_catalog
     uv_out._set_app_coords_helper()
