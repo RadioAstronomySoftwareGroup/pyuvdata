@@ -6,7 +6,7 @@ dependencies:
   - astropy-healpix>=1.0.2
   - astroquery>=0.4.4
   - coverage
-  - cython>=0.23
+  - cython>=3.0
   - docstring_parser>=0.15
   - h5py>=3.4
   - hdf5plugin>=3.2.0
