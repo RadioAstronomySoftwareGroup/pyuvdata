@@ -16,6 +16,7 @@ cimport cython
 cimport numpy
 from libc.math cimport atan2, cos, sin, sqrt
 
+
 cdef class Ellipsoid:
   cdef readonly numpy.float64_t gps_a, gps_b, e_squared, e_prime_squared, b_div_a2
 
