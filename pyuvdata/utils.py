@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Commonly used utility functions."""
+
 from __future__ import annotations
 
 import copy
@@ -21,7 +22,8 @@ from astropy.time import Time
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
-from . import _utils
+from . import _utils as _utils_old
+from . import _utils_rs as _utils
 
 try:
     from lunarsky import MoonLocation
@@ -1369,9 +1371,9 @@ def LatLonAlt_from_XYZ(xyz, frame="ITRS", ellipsoid=None, check_acceptability=Tr
             )
     # this helper function returns one 2D array because it is less overhead for cython
     if frame == "ITRS":
-        lla = _utils._lla_from_xyz(xyz, _utils.Body.Earth.value)
+        lla = _utils._lla_from_xyz(xyz, _utils.Body.Earth)
     elif frame == "MCMF":
-        lla = _utils._lla_from_xyz(xyz, selenoids[ellipsoid].value)
+        lla = _utils._lla_from_xyz(xyz, selenoids[ellipsoid])
     else:
         raise ValueError(
             f'No spherical to cartesian transform defined for frame "{frame}".'
@@ -1430,14 +1432,14 @@ def XYZ_from_LatLonAlt(latitude, longitude, altitude, frame="ITRS", ellipsoid=No
 
     if frame == "ITRS":
         xyz = _utils._xyz_from_latlonalt(
-            latitude, longitude, altitude, _utils.Body.Earth.value
+            latitude, longitude, altitude, _utils.Body.Earth
         )
     elif frame == "MCMF":
         if ellipsoid is None:
             ellipsoid = "SPHERE"
 
         xyz = _utils._xyz_from_latlonalt(
-            latitude, longitude, altitude, selenoids[ellipsoid].value
+            latitude, longitude, altitude, selenoids[ellipsoid]
         )
     else:
         raise ValueError(
@@ -1586,7 +1588,7 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS", ellipsoid=No
         np.ascontiguousarray(altitude, dtype=np.float64),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        (_utils.Body.Earth.value if frame == "ITRS" else selenoids[ellipsoid].value),
+        (_utils.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
     )
     enu = enu.T
 
@@ -1654,7 +1656,7 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS", ellipsoid=No
         np.ascontiguousarray(altitude, dtype=np.float64),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
-        (_utils.Body.Earth.value if frame == "ITRS" else selenoids[ellipsoid].value),
+        (_utils.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
     )
     xyz = xyz.T
 
@@ -1694,7 +1696,7 @@ def old_uvw_calc(ra, dec, initial_uvw):
     if initial_uvw.ndim == 1:
         initial_uvw = initial_uvw[np.newaxis, :]
 
-    return _utils._old_uvw_calc(
+    return _utils_old._old_uvw_calc(
         np.float64(ra),
         np.float64(dec),
         np.ascontiguousarray(initial_uvw.T, dtype=np.float64),
@@ -1728,7 +1730,7 @@ def undo_old_uvw_calc(ra, dec, uvw):
     if uvw.ndim == 1:
         uvw = uvw[np.newaxis, :]
 
-    return _utils._undo_old_uvw_calc(
+    return _utils_old._undo_old_uvw_calc(
         np.float64(ra), np.float64(dec), np.ascontiguousarray(uvw.T, dtype=np.float64)
     ).T
 
