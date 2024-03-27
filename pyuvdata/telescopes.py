@@ -173,7 +173,7 @@ class Telescope(uvbase.UVBase):
         )
 
         desc = (
-            "List of antenna names, shape (Nants), "
+            "Array of antenna names, shape (Nants), "
             "with numbers given by antenna_numbers."
         )
         self._antenna_names = uvp.UVParameter(
@@ -185,7 +185,7 @@ class Telescope(uvbase.UVBase):
         )
 
         desc = (
-            "List of integer antenna numbers corresponding to antenna_names, "
+            "Array of integer antenna numbers corresponding to antenna_names, "
             "shape (Nants)."
         )
         self._antenna_numbers = uvp.UVParameter(
@@ -283,6 +283,59 @@ class Telescope(uvbase.UVBase):
 
         return True
 
+    @property
+    def location_obj(self):
+        """The location as an EarthLocation or MoonLocation object."""
+        if self.location is None:
+            return None
+
+        if self._location.frame == "itrs":
+            return EarthLocation.from_geocentric(*self.location, unit="m")
+        elif uvutils.hasmoon and self._location.frame == "mcmf":
+            moon_loc = uvutils.MoonLocation.from_selenocentric(*self.location, unit="m")
+            moon_loc.ellipsoid = self._location.ellipsoid
+            return moon_loc
+
+    @location_obj.setter
+    def location_obj(self, val):
+        if isinstance(val, EarthLocation):
+            self._location.frame = "itrs"
+        elif isinstance(val, uvutils.MoonLocation):
+            self._location.frame = "mcmf"
+            self._location.ellipsoid = val.ellipsoid
+        else:
+            raise ValueError(
+                "location_obj is not a recognized location object. Must be an "
+                "EarthLocation or MoonLocation object."
+            )
+        self.location = np.array(
+            [val.x.to("m").value, val.y.to("m").value, val.z.to("m").value]
+        )
+
+    def _set_uvcal_requirements(self):
+        """Set the UVParameter required fields appropriately for UVCal."""
+        self._name.required = True
+        self._location.required = True
+        self._instrument.required = False
+        self._Nants.required = True
+        self._antenna_names.required = True
+        self._antenna_numbers.required = True
+        self._antenna_positions.required = True
+        self._antenna_diameters.required = False
+        self._x_orientation.required = True
+
+    def _set_uvdata_requirements(self):
+        """Set the UVParameter required fields appropriately for UVData."""
+        self._name.required = True
+        self._location.required = True
+        self._instrument.required = True
+        self._Nants.required = True
+        self._antenna_names.required = True
+        self._antenna_numbers.required = True
+        self._antenna_positions.required = True
+        self._x_orientation.required = False
+        self._antenna_diameters.required = False
+
     def update_params_from_known_telescopes(
         self,
         *,
@@ -376,10 +429,52 @@ class Telescope(uvbase.UVBase):
                     "antenna_numbers": antenna_numbers,
                     "antenna_positions": antenna_positions,
                 }
-                for key, value in ant_info.items():
-                    if overwrite or getattr(self, key) is None:
+                if overwrite or all(
+                    getattr(self, key) is None for key in ant_info.keys()
+                ):
+                    for key, value in ant_info.items():
                         known_telescope_list.append(key)
                         setattr(self, key, value)
+                elif (
+                    self.antenna_positions is None
+                    and self.antenna_names is not None
+                    and self.antenna_numbers is not None
+                ):
+                    ant_inds = []
+                    telescope_ant_inds = []
+                    # first try to match using names only
+                    for index, antname in enumerate(self.antenna_names):
+                        if antname in ant_info["antenna_names"]:
+                            ant_inds.append(index)
+                            telescope_ant_inds.append(
+                                np.where(ant_info["antenna_names"] == antname)[0][0]
+                            )
+                    # next try using numbers
+                    if len(ant_inds) != self.Nants:
+                        for index, antnum in enumerate(self.antenna_numbers):
+                            # only update if not already found
+                            if (
+                                index not in ant_inds
+                                and antnum in ant_info["antenna_numbers"]
+                            ):
+                                this_ant_ind = np.where(
+                                    ant_info["antenna_numbers"] == antnum
+                                )[0][0]
+                                # make sure we don't already have this antenna
+                                #  associated with another antenna
+                                if this_ant_ind not in telescope_ant_inds:
+                                    ant_inds.append(index)
+                                    telescope_ant_inds.append(this_ant_ind)
+                    if len(ant_inds) != self.Nants:
+                        warnings.warn(
+                            "Not all antennas have positions in the "
+                            "known_telescope data. Not setting antenna_positions."
+                        )
+                    else:
+                        known_telescope_list.append("antenna_positions")
+                        self.antenna_positions = ant_info["antenna_positions"][
+                            telescope_ant_inds, :
+                        ]
 
             if "antenna_diameters" in telescope_dict.keys() and (
                 overwrite or self.antenna_diameters is None
@@ -431,7 +526,9 @@ class Telescope(uvbase.UVBase):
             )
 
     @classmethod
-    def get_telescope_from_known_telescopes(cls, name: str):
+    def get_telescope_from_known_telescopes(
+        cls, name: str, *, known_telescope_dict: dict = KNOWN_TELESCOPES
+    ):
         """
         Create a new Telescope object using information from known_telescopes.
 
@@ -449,5 +546,7 @@ class Telescope(uvbase.UVBase):
         """
         tel_obj = cls()
         tel_obj.name = name
-        tel_obj.update_params_from_known_telescopes(warn=False)
+        tel_obj.update_params_from_known_telescopes(
+            warn=False, known_telescope_dict=known_telescope_dict
+        )
         return tel_obj

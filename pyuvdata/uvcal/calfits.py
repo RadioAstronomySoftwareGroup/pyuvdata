@@ -506,6 +506,12 @@ class CALFITS(UVCal):
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
         col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
         cols = fits.ColDefs([col1, col2, col3, col4])
+
+        if self.antenna_diameters is not None:
+            col5 = fits.Column(
+                name="DIAMETER", format="D", array=self.antenna_diameters
+            )
+            cols = fits.ColDefs([col1, col2, col3, col4, col5])
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header["EXTNAME"] = "ANTENNAS"
 
@@ -557,12 +563,17 @@ class CALFITS(UVCal):
                 # Remove the padded entries.
                 self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
-            if anthdu.header["TFIELDS"] > 3:
+            if "ANTXYZ" in antdata.names:
                 self.antenna_positions = antdata["ANTXYZ"]
+
+            if "DIAMETER" in antdata.names:
+                self.antenna_diameters = antdata["DIAMETER"]
 
             self.channel_width = hdr.pop("CHWIDTH")
             self.integration_time = hdr.pop("INTTIME")
             self.telescope_name = hdr.pop("TELESCOP")
+
+            self.x_orientation = hdr.pop("XORIENT")
 
             x_telescope = hdr.pop("ARRAYX", None)
             y_telescope = hdr.pop("ARRAYY", None)
@@ -580,11 +591,10 @@ class CALFITS(UVCal):
                 )
             elif lat is not None and lon is not None and alt is not None:
                 self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
-            if self.telescope_location is None or self.antenna_positions is None:
-                try:
-                    self.set_telescope_params()
-                except ValueError as ve:
-                    warnings.warn(str(ve))
+            try:
+                self.set_telescope_params()
+            except ValueError as ve:
+                warnings.warn(str(ve))
 
             self.history = str(hdr.get("HISTORY", ""))
 
@@ -598,7 +608,6 @@ class CALFITS(UVCal):
 
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
-            self.x_orientation = hdr.pop("XORIENT")
             self.cal_type = hdr.pop("CALTYPE")
 
             # old files might have a freq range for gain types but we don't want them
