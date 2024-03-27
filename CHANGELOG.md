@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+- Bug in which `correct_cable_len` defaulted to `None` instead of `True`
+for `read_mwa_corr_fits`.
+
 ## [2.4.3] - 2024-3-25
 
 ### Added
