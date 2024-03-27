@@ -1240,7 +1240,7 @@ def test_bscale(tmp_path):
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_default_corrections(tmp_path):
     """Test that default corrections are applied"""
-    # mwa_corr_fits defaults to applying corrections for cable reflections, 
+    # mwa_corr_fits defaults to applying corrections for cable reflections,
     # digital gains, and the polyphase filter bank bandpass
     uv1 = UVData()
     uv2 = UVData()
