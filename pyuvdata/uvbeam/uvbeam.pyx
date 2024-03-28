@@ -15,11 +15,6 @@ cimport numpy
 from libc.math cimport fabs
 from numpy.math cimport PI
 
-# This initializes the numpy 1.7 c-api.
-# cython 3.0 will do this by default.
-# We may be able to just remove this then.
-numpy.import_array()
-
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
