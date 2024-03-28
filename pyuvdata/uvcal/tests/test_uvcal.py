@@ -77,6 +77,7 @@ def uvcal_data():
         "time_array",
         "freq_range",
         "flex_spw_id_array",
+        "flex_jones_array",
         "observer",
         "git_origin_cal",
         "git_hash_cal",
@@ -85,6 +86,12 @@ def uvcal_data():
         "extra_keywords",
         "gain_scale",
         "filename",
+        "scan_number_array",
+        "phase_center_catalog",
+        "phase_center_id_array",
+        "antenna_diameters",
+        "Nphase",
+        "ref_antenna_array",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
@@ -559,7 +566,7 @@ def test_set_redundant(gain_data):
 
 def test_convert_filetype(gain_data):
     # error testing
-    with pytest.raises(ValueError, match="filetype must be calh5 or calfits."):
+    with pytest.raises(ValueError, match="filetype must be calh5, calfits, or ms."):
         gain_data._convert_to_filetype("uvfits")
 
 
@@ -1322,9 +1329,9 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputflag):
     if caltype == "gain":
-        calobj = gain_data
+        calobj = gain_data.copy()
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data_inputflag.copy()
 
     old_history = calobj.history
     chans_to_keep = np.arange(4, 8)
@@ -2734,6 +2741,9 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
             calobj3.history,
         )
     elif axis == "spw":
+        print(calobj3.history)
+        print(calobj_full.history)
+        print("hasdsadsada")
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
@@ -4096,7 +4106,7 @@ def test_read_errors():
 
     with pytest.raises(
         ValueError,
-        match="The only supported file_types are 'calfits', 'calh5', and 'fhd'.",
+        match="The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'.",
     ):
         UVCal.from_file(gainfile, file_type="foo")
 

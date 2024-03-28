@@ -471,9 +471,8 @@ class UVBase(object):
                     if not param.startswith("_"):
                         param = "_" + param
                         allowed_failures[i] = param
-                    if param not in self_required:
-                        if param in p_check:
-                            p_check.remove(param)
+                    if param in p_check:
+                        p_check.remove(param)
 
             p_equal = True
             for param in p_check:

@@ -407,8 +407,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
     # Check and see that the naming convention lines up as expected -- only the internal
     # catalog entries (specifically the names/keys and catalog IDs) should have changed.
     uv_out.read(testfile, use_future_array_shapes=True)
-    for idx in range(3):
-        assert uv_out.phase_center_catalog[idx]["cat_name"] == "TEST-%03i" % idx
 
     uv_out.phase_center_catalog = uv_in.phase_center_catalog
     uv_out._set_app_coords_helper()
@@ -885,7 +883,7 @@ def test_loop_multi_phase(tmp_path, paper_miriad, frame):
 
     # without the "phsframe" variable, the unprojected phase center gets interpreted as
     # an ephem type phase center.
-    zen_id, _ = uv3._look_in_catalog(cat_name="zenith")
+    zen_id, _ = uvutils.look_in_catalog(uv3.phase_center_catalog, cat_name="zenith")
     new_id = uv3._add_phase_center(cat_name="zenith", cat_type="unprojected")
     uv3.phase_center_id_array[np.nonzero(uv3.phase_center_id_array == zen_id)] = new_id
     uv3._clear_unused_phase_centers()

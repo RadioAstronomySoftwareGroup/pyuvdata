@@ -250,13 +250,14 @@ class UVCal(UVBase):
             "Array of antenna polarization integers, shape (Njones). "
             "linear pols -5:-8 (jxx, jyy, jxy, jyx)."
             "circular pols -1:-4 (jrr, jll. jrl, jlr)."
+            "unknown 0."
         )
 
         self._jones_array = uvp.UVParameter(
             "jones_array",
             description=desc,
             expected_type=int,
-            acceptable_vals=list(np.arange(-8, 0)),
+            acceptable_vals=list(np.arange(-8, 1)),
             form=("Njones",),
         )
 
@@ -459,6 +460,21 @@ class UVCal(UVBase):
             required=False,
         )
 
+        desc = (
+            "Optional, only used if flex_spw = True or wide_band = True. Allows for "
+            "labeling individual spectral windows with different polarizations. If "
+            "set, Njones must be set to 1 (i.e., only one Jones vector per spectral "
+            "window allowed). Shape (Nspws), type = int."
+        )
+        self._flex_jones_array = uvp.UVParameter(
+            "flex_jones_array",
+            description=desc,
+            form=("Nspws",),
+            expected_type=int,
+            acceptable_vals=list(np.arange(-8, 1)),
+            required=False,
+        )
+
         desc = "Flag indicating that this object is using the future array shapes."
         self._future_array_shapes = uvp.UVParameter(
             "future_array_shapes", description=desc, expected_type=bool, value=False
@@ -500,9 +516,30 @@ class UVCal(UVBase):
             description=desc,
         )
 
+        desc = (
+            'Optional argument, only used if cal_style = "sky". Allows one to specify'
+            "a different phase reference antenna per time interval. Shape (Ntimes,), "
+            "type=int."
+        )
+        self._ref_antenna_array = uvp.UVParameter(
+            "ref_antenna_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
         desc = "Number of sources used."
         self._Nsources = uvp.UVParameter(
             "Nsources", required=False, expected_type=int, description=desc
+        )
+
+        desc = (
+            "Specifies the number of phase centers contained within the calibration "
+            "solution catalog."
+        )
+        self._Nphase = uvp.UVParameter(
+            "Nphase", required=False, expected_type=int, description=desc
         )
 
         desc = "Range of baselines used for calibration."
@@ -615,6 +652,89 @@ class UVCal(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
+        desc = (
+            "Optional when reading an MS cal table. Retains the scan number when "
+            "reading a measurement set. Shape (Nblts), type = int."
+        )
+        self._scan_number_array = uvp.UVParameter(
+            "scan_number_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Dictionary that acts as a catalog, containing information on individual "
+            "phase centers. Keys are the catalog IDs of the different phase centers in "
+            "the object (matched to the parameter `phase_center_id_array`). At a "
+            "minimum, each dictionary must contain the keys: "
+            "'cat_name' giving the phase center name (this does not have to be unique, "
+            "non-unique values can be used to indicate sets of phase centers that make "
+            "up a mosaic observation), "
+            "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
+            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
+            "Az/El, NOT the same as the old `phase_type`='drift') or 'unprojected' "
+            "(baseline coordinates in ENU, but data are not phased, similar to "
+            "the old `phase_type`='drift')"
+            "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
+            "astropy). "
+            "Other optional keys include "
+            "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
+            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
+            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
+            "'cat_pm_ra' (proper motion in RA), "
+            "'cat_pm_dec' (proper motion in Dec), "
+            "'cat_dist' (physical distance to the source in parsec, useful if parallax "
+            "is important, either a single value or a one dimensional array of length "
+            "Npts --the number of ephemeris data points-- for ephem type phase "
+            "centers.), "
+            "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers.), and "
+            "'info_source' (describes where catalog info came from). "
+            "Most typically used with MS calibration tables."
+        )
+        self._phase_center_catalog = uvp.UVParameter(
+            "phase_center_catalog", description=desc, expected_type=dict, required=False
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Maps individual indices along the Ntimes axis to a key in "
+            "`phase_center_catalog`, which maps to a dict containing the other "
+            "metadata for each phase center. Used to specify where the data were "
+            "phased to when calibration tables were derived. Most typically used when "
+            "reading MS calibration tables. Shape (Nblts), type = int."
+        )
+        self._phase_center_id_array = uvp.UVParameter(
+            "phase_center_id_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
+        desc = (
+            "Optional parameter, array of antenna diameters in meters. Used by CASA to "
+            "construct a default beam if no beam is supplied."
+        )
+        self._antenna_diameters = uvp.UVParameter(
+            "antenna_diameters",
+            required=False,
+            description=desc,
+            form=("Nants_telescope",),
+            expected_type=float,
+            tols=1e-3,  # 1 mm
+        )
+
         super(UVCal, self).__init__()
 
     @staticmethod
@@ -641,8 +761,8 @@ class UVCal(UVBase):
         by the file-reading methods to indicate that an object has multiple spectral
         windows concatenated together across the frequency axis.
         """
-        assert (
-            not self.wide_band
+        assert not (
+            self.wide_band
         ), "Cannot set objects wide_band objects to have flexible spectral windows."
         # Mark once-optional arrays as now required
         self.flex_spw = True
@@ -1071,6 +1191,320 @@ class UVCal(UVBase):
         if self.freq_range is not None:
             self.freq_range = self.freq_range[0, :].tolist()
 
+    def remove_flex_jones(self, *, combine_spws=True):
+        """
+        Convert a flex-Jones UVCal object into one with a standard Jones axis.
+
+        This will convert a flexible-Jones dataset into one with standard
+        polarization handling, which is required for some operations or writing in
+        certain filetypes. Note that depending on how it is used, this can inflate
+        the size of data-like parameters by up to a factor of Nspws (the true value
+        depends on the number of unique entries in `flex_jones_array`).
+
+        Parameters
+        ----------
+        combine_spws : bool
+            If set to True, the method will attempt to recombine multiple windows
+            carrying different Jones vectors/information into a single (multi-Jones)
+            spectral window. Functionally, this is the inverse of what is done in the
+            `convert_to_flex_jones` method. If set to False, the method will effectively
+            "inflate" the jones-axis of UVCal parameters such that all windows have the
+            same Jones codes (though the added entries will be flagged and will carry no
+            calibration information). Default is True.
+        """
+        if self.flex_jones_array is None or not self.future_array_shapes:
+            # There isn't anything to do, so just move along
+            return
+
+        jones_array = list(np.unique(self.flex_jones_array))
+        n_jones = len(jones_array)
+
+        if self.Nspws == 1 or n_jones == 1:
+            # Just remove the flex_jones_array and fix the polarization array
+            self.jones_array = np.array(jones_array)
+            self.flex_jones_array = None
+            return
+
+        if combine_spws:
+            # check to see if there are spectral windows that have matching freq_array
+            # and channel_width (up to sorting). If so, they need to be combined.
+            if self.flex_spw:
+                freq_array_check = self.freq_array
+                chan_width_check = self.channel_width
+
+                index_check = self.flex_spw_id_array
+                ftol = self._freq_array.tols
+                ctol = self._channel_width.tols
+            else:
+                freq_array_check = self.freq_range
+                chan_width_check = np.zeros_like(freq_array_check)
+                index_check = self.spw_array
+                ftol = self._freq_range.tols
+                ctol = [0, 0]
+
+            # Build the main spw map, along with some dicts to save intermediate results
+            # from frequencies and Jones vectors
+            spw_map = {}
+            spw_freqs = {}
+            spw_jones_tally = {}
+            for jones1, spw1 in zip(self.flex_jones_array, self.spw_array):
+                freqs1 = freq_array_check[index_check == spw1]
+                chwidth1 = chan_width_check[index_check == spw1]
+                # Default to spw1 at the start, so if no match it will correctly link
+                # back to itself.
+                spw_match = spw1
+                for spw2, (freqs2, chwidth2) in spw_freqs.items():
+                    if np.allclose(freqs1, freqs2, rtol=ftol[0], atol=ftol[1]):
+                        if np.allclose(chwidth1, chwidth2, rtol=ctol[0], atol=ctol[1]):
+                            spw_match = spw2
+                            break
+                # If spw is its own match, save freqs and make an entry in jones dict
+                if spw1 == spw_match:
+                    spw_freqs[spw1] = (freqs1, chwidth1)
+                    spw_jones_tally[spw1] = []
+
+                # Save matching spw, record which Jones vector this window has
+                spw_map[spw1] = spw_match
+                spw_jones_tally[spw_match].append(jones1)
+
+            # Once all windows are processed, look for failures
+            for jones_subarr in spw_jones_tally.values():
+                if len(np.unique(jones_subarr)) != len(jones_subarr):
+                    raise ValueError(
+                        "Some spectral windows have identical frequencies, "
+                        "channel widths and polarizations, so spws cannot be "
+                        "combined. Set combine_spws=False to avoid this error."
+                    )
+                elif len(np.unique(jones_subarr)) != len(jones_array):
+                    warnings.warn(
+                        "combine_spws is True but there are not matched spws for all "
+                        "polarizations, so spws will not be combined."
+                    )
+                    combine_spws = False
+                    break
+
+        if not combine_spws:
+            # If not combining spws, then map everything back to itself
+            index_check = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            spw_map = dict(zip(self.spw_array, self.spw_array))
+
+        # Reverse mapping map for various metadata values
+        rev_map = {value: key for key, value in spw_map.items()}
+        spw_array = sorted(rev_map)
+        if self.flex_spw_id_array is not None:
+            freq_array = np.concatenate(
+                [self.freq_array[self.flex_spw_id_array == spw] for spw in spw_array]
+            )
+            flex_spw_id_array = np.concatenate(
+                [
+                    self.flex_spw_id_array[self.flex_spw_id_array == spw]
+                    for spw in spw_array
+                ]
+            )
+            freq_range = None
+            n_freqs = len(flex_spw_id_array)
+        else:
+            old_spw_arr = list(self.spw_array)
+            freq_array = None
+            flex_spw_id_array = None
+            freq_range = np.concatenate(
+                [self.freq_range[old_spw_arr.index(spw)] for spw in spw_array]
+            ).reshape((-1, 2))
+            n_freqs = len(spw_array)
+
+        # Update metadata attributes
+        self.spw_array = spw_array
+        self.flex_spw_id_array = flex_spw_id_array
+        self.freq_array = freq_array
+        self.freq_range = freq_range
+        self.jones_array = jones_array
+
+        # Adjust the length-related attributes
+        self.Nspws = len(spw_array)
+        self.Nfreqs = n_freqs
+        self.Njones = n_jones
+
+        # Finally, update data attrs if they exist
+        if not self.metadata_only:
+            freq_index = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            for name, param in zip(self._data_params, self.data_like_parameters):
+                if param is None:
+                    continue
+                # Update the parameter shape with
+                new_shape = list(param.shape)
+                new_shape[1] = self.Nfreqs
+                new_shape[3] = self.Njones
+                new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
+                for idx, old_spw in enumerate(spw_map):
+                    new_fidx = freq_index == spw_map[old_spw]
+                    # index_check is recycled from the original combine_windows check
+                    # above (and marks the original indexing positions of the object)
+                    old_fidx = index_check == old_spw
+                    jones_idx = jones_array.index(self.flex_jones_array[idx])
+                    new_param[:, new_fidx, :, jones_idx] = param[:, old_fidx]
+                setattr(self, name, new_param)
+
+        # Finally, drop flex_jones now that we no longer need it's info
+        self.flex_jones_array = None
+
+    def _make_flex_jones(self):
+        """
+        Convert a regular UVCal object into one with flex-Jones enabled.
+
+        This is an internal helper function, which is not designed to be called by
+        users, but rather individual read/write functions for the UVCal object.
+        This will convert a regular UVCal object into one that uses flexible
+        Jones arrays, which allows for each spectral window to have its own unique
+        Jones vector/code, useful for storing data more compactly when different
+        windows have different Jones values recorded. Note that at this time,
+        only one Jones code per-spw is allowed -- if more than one Jones code
+        is found to have unflagged data in a given spectral window, then an error is
+        returned.
+        """
+        if not self.future_array_shapes:
+            raise ValueError(
+                "Must use future array shapes to make a flex-Jones UVCal object."
+            )
+
+        if not (self.flex_spw or self.wide_band):
+            raise ValueError(
+                "Cannot make a flex-Jones UVCal object if wide_band=False and "
+                "flex_spw=False."
+            )
+
+        if self.metadata_only:
+            raise ValueError(
+                "Cannot make a metadata_only UVCal object flex-Jones because flagging "
+                "info is required. Consider using `convert_to_flex_jones` instead, but "
+                "be aware that the behavior is somewhat different"
+            )
+
+        if self.Njones == 1:
+            # This is basically a no-op, fix the relevant attributes and exit
+            if self.flex_jones_array is None:
+                self.flex_jones_array = np.full(self.Nspws, self.jones_array[0])
+                self.jones_array = np.array([0])
+            return
+
+        jones_idx_arr = np.full(self.spw_array, -1)
+        spw_id_arr = self.flex_spw_id_array if self.flex_spw else self.spw_array
+        for idx, spw in enumerate(self.spw_array):
+            spw_screen = spw_id_arr == spw
+
+            # For each window, we want to check that there is only one polarization with
+            # any unflagged data, which we can do by seeing if not all of the flags
+            # are set across the non-polarization axes (hence the ~np.all()).
+            jones_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1, 2))
+
+            if sum(jones_check) > 1:
+                raise ValueError(
+                    "Cannot make a flex-pol UVCal object, as some windows have "
+                    "unflagged data in multiple Jones codes."
+                )
+            elif np.any(jones_check):
+                jones_idx_arr[idx] = np.where(jones_check)[0][0]
+
+        # If one window was all flagged out, but the others all belong to the same pol,
+        # assume we just want that Jones code.
+        if len(np.unique(jones_idx_arr[jones_idx_arr >= 0])) == 1:
+            jones_idx_arr[:] = np.unique(jones_idx_arr[jones_idx_arr >= 0])
+
+        # Now that we have Jones values sorted out, update metadata attributes
+        self.flex_jones_array = self.jones_array[jones_idx_arr]
+        self.jones_array = np.array([0])
+        self.Njones = 1
+
+        # Now go through one-by-one with data-like parameters and update
+        for name, param in zip(self._data_params, self.data_like_parameters):
+            # Grab the shape and update the Jones (last) axis to be length 1. Note we
+            # do it this way since total_quality_array has a different shape
+            new_shape = list(param.shape)
+            new_shape[-1] = 1
+
+            # We can use empty here, since we know that we will be filling all values
+            new_param = np.empty(new_shape, dtype=param.dtype)
+
+            for spw, jones_idx in zip(self.spw_array, jones_idx_arr):
+                # Process each window individually, since jones code can vary
+                spw_screen = spw_id_arr == spw
+
+                # Grab from the right Jones-position and plug values in
+                new_param[..., spw_screen, 0] = param[..., spw_screen, jones_idx]
+
+            # Update the attribute with the new values
+            setattr(self, name, new_param)
+
+    def convert_to_flex_jones(self):
+        """
+        Convert a regular UVCal object into a flex-Jones object.
+
+        This effectively combines the frequency and polarization axis with polarization
+        changing slowest. Saving data to uvh5 files this way can speed up some kinds
+        of data access.
+
+        """
+        if self.flex_spw_polarization_array is not None:
+            raise ValueError("This is already a flex-pol object")
+
+        if not self.future_array_shapes:
+            raise ValueError(
+                "Must use future array shapes to make a flex-Jones UVCal object."
+            )
+
+        if not (self.flex_spw or self.wide_band):
+            raise ValueError(
+                "Cannot make a flex-Jones UVCal object if wide_band=False and "
+                "flex_spw=False."
+            )
+
+        old_nspws = self.Nspws * self.Njones
+        njones = self.Njones
+        new_nspws = self.Nspws * (self.Njones - 1)
+        new_spw_ids = list(set(range(1, old_nspws + 1)).difference(self.spw_array))
+        spw_array = np.concatenate((self.spw_array, new_spw_ids[:new_nspws]))
+        flex_spw_id_arr = None
+
+        if self.flex_spw and self.flex_spw_id_array is not None:
+            spw_reshape = spw_array.reshape((self.Njones, -1))
+            flex_spw_id_arr = np.repeat(
+                self.flex_spw_id_array[np.newaxis], self.Njones, axis=0
+            )
+            for idx in range(1, self.Njones):
+                spw_map = dict(zip(spw_reshape[0], spw_reshape[idx]))
+                flex_spw_id_arr[idx] = [spw_map[jdx] for jdx in flex_spw_id_arr[idx]]
+            flex_spw_id_arr = flex_spw_id_arr.flatten()
+
+        self.flex_jones_array = np.repeat(self.jones_array, self.Nspws, axis=0)
+        self.jones_array = np.array([0])
+
+        # Update metadata attributes
+        self.spw_array = spw_array
+        self.flex_spw_id_array = flex_spw_id_arr
+
+        # If defined, set the frequency-related attributes
+        if self.freq_array is not None:
+            self.freq_array = np.tile(self.freq_array, njones)
+        if self.freq_range is not None:
+            self.freq_range = np.tile(self.freq_range, (njones, 1))
+
+        # Adjust the length-related attributes
+        self.Nspws *= self.Njones
+        self.Nfreqs *= self.Njones
+        self.Njones = 1
+
+        # Finally, if we have it, update the metadata.
+        if not self.metadata_only:
+            for name, param in zip(self._data_params, self.data_like_parameters):
+                if param is None:
+                    continue
+                # Make into a list so that its mutable
+                old_shape = param.shape
+                # ("Nants_data", "Nfreqs", "Ntimes", "Njones"),
+                # Extend the second axis by njones, shrink the last axis to 1
+                new_shape = [old_shape[0], old_shape[1] * njones, old_shape[2], 1]
+                param = np.transpose(param, (0, 3, 1, 2)).reshape(new_shape)
+                setattr(self, name, param)
+
     def set_telescope_params(self, *, overwrite=False):
         """
         Set telescope related parameters.
@@ -1263,6 +1697,375 @@ class UVCal(UVBase):
             flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
         )
+
+    def _add_phase_center(
+        self,
+        cat_name,
+        *,
+        cat_type=None,
+        cat_lon=None,
+        cat_lat=None,
+        cat_frame=None,
+        cat_epoch=None,
+        cat_times=None,
+        cat_pm_ra=None,
+        cat_pm_dec=None,
+        cat_dist=None,
+        cat_vrad=None,
+        info_source="user",
+        force_update=False,
+        cat_id=None,
+    ):
+        """
+        Add an entry to the internal object/source catalog or find a matching one.
+
+        This is a helper function for identifying a adding a phase center to the
+        internal catalog, contained within the attribute `phase_center_catalog`, unless
+        a phase center already exists that matches the passed parameters. If a matching
+        phase center is found, the catalog ID associated with that phase center is
+        returned.
+
+        Parameters
+        ----------
+        cat_name : str
+            Name of the phase center to be added.
+        cat_type : str
+            Type of phase center to be added. Must be one of:
+                "sidereal" (fixed RA/Dec),
+                "ephem" (RA/Dec that moves with time),
+                "driftscan" (fixed az/el position),
+                "unprojected" (no w-projection, equivalent to the old
+                `phase_type` == "drift").
+        cat_lon : float or ndarray
+            Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is zero. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_lat : float or ndarray
+            Value of the latitudinal coordinate (e.g., Dec, El, b) in radians of the
+            phase center. No default unless `cat_type="unprojected"`, in which case the
+            default is pi/2. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_frame : str
+            Coordinate frame that cat_lon and cat_lat are given in. Only used
+            for sidereal and ephem targets. Can be any of the several supported frames
+            in astropy (a limited list: fk4, fk5, icrs, gcrs, cirs, galactic).
+        cat_epoch : str or float
+            Epoch of the coordinates, only used when cat_frame = fk4 or fk5. Given
+            in units of fractional years, either as a float or as a string with the
+            epoch abbreviation (e.g, Julian epoch 2000.0 would be J2000.0).
+        cat_times : ndarray of floats
+            Only used when `cat_type="ephem"`. Describes the time for which the values
+            of `cat_lon` and `cat_lat` are calculated, in units of JD. Shape is (Npts,).
+        cat_pm_ra : float
+            Proper motion in RA, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_pm_dec : float
+            Proper motion in Dec, in units of mas/year. Only used for sidereal phase
+            centers.
+        cat_dist : float or ndarray of float
+            Distance of the source, in units of pc. Only used for sidereal and ephem
+            phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        cat_vrad : float or ndarray of float
+            Radial velocity of the source, in units of km/s. Only used for sidereal and
+            ephem phase centers. Expected to be a float for sidereal and driftscan phase
+            centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+        info_source : str
+            Optional string describing the source of the information provided. Used
+            primarily in UVCal to denote when an ephemeris has been supplied by the
+            JPL-Horizons system, user-supplied, or read in by one of the various file
+            interpreters. Default is 'user'.
+        force_update : bool
+            Normally, `_add_phase_center` will throw an error if there already exists a
+            phase_center with the given cat_id. However, if one sets
+            `force_update=True`, the method will overwrite the existing entry in
+            `phase_center_catalog` with the parameters supplied. Note that doing this
+            will _not_ update other attributes of the `UVCal` object. Default is False.
+        cat_id : int
+            An integer signifying the ID number for the phase center, used in the
+            `phase_center_id_array` attribute. If a matching phase center entry exists
+            already, that phase center ID will be returned, which may be different than
+            the value specified to this parameter. The default is for the method to
+            assign this value automatically.
+
+        Returns
+        -------
+        cat_id : int
+            The unique ID number for the phase center that either matches the specified
+            parameters or was added to the internal catalog. If a matching entry was
+            found, this may not be the value passed to the `cat_id` parameter. This
+            value is used in the `phase_center_id_array` attribute to denote which
+            source a given baseline-time corresponds to.
+
+        Raises
+        ------
+        ValueError
+            If attempting to add a non-unique source name or if adding a sidereal
+            source without coordinates.
+
+        """
+        cat_entry = uvutils.generate_phase_center_cat_entry(
+            cat_name=cat_name,
+            cat_type=cat_type,
+            cat_lon=cat_lon,
+            cat_lat=cat_lat,
+            cat_frame=cat_frame,
+            cat_epoch=cat_epoch,
+            cat_times=cat_times,
+            cat_pm_ra=cat_pm_ra,
+            cat_pm_dec=cat_pm_dec,
+            cat_dist=cat_dist,
+            cat_vrad=cat_vrad,
+            info_source=info_source,
+        )
+
+        # We want to create a unique ID for each source, for use in indexing arrays.
+        # The logic below ensures that we pick the lowest positive integer that is
+        # not currently being used by another source
+        if cat_id is None or not force_update:
+            cat_id = uvutils.generate_new_phase_center_id(
+                phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
+            )
+
+        if self.phase_center_catalog is None:
+            # Initialize an empty dict to plug entries into
+            self.phase_center_catalog = {}
+        else:
+            # Let's warn if this entry has the same name as an existing one
+            temp_id, cat_diffs = uvutils.look_in_catalog(
+                self.phase_center_catalog, phase_dict=cat_entry
+            )
+
+            # If the source does have the same name, check to see if all the
+            # attributes match. If so, no problem, go about your business
+            if temp_id is not None:
+                if cat_diffs == 0:
+                    # Everything matches, return the catalog ID of the matching entry
+                    return temp_id
+                warnings.warn(
+                    f"The provided name {cat_name} is already used but has different "
+                    "parameters. Adding another entry with the same name but a "
+                    "different ID and parameters."
+                )
+
+        # If source is unique, begin creating a dictionary for it
+        self.phase_center_catalog[cat_id] = cat_entry
+        self.Nphase = len(self.phase_center_catalog)
+
+        return cat_id
+
+    def _remove_phase_center(self, defunct_id):
+        """
+        Remove an entry from the internal object/source catalog.
+
+        Removes an entry from the attribute `phase_center_catalog`.
+
+        Parameters
+        ----------
+        defunct_id : int
+            Catalog ID of the source to be removed
+
+        Raises
+        ------
+        IndexError
+            If the name provided is not found as a key in `phase_center_catalog`
+        """
+        if defunct_id not in self.phase_center_catalog:
+            raise IndexError("No source by that ID contained in the catalog.")
+
+        del self.phase_center_catalog[defunct_id]
+        self.Nphase = len(self.phase_center_catalog)
+
+    def _clear_unused_phase_centers(self):
+        """
+        Remove objects dictionaries and names that are no longer in use.
+
+        Goes through the `phase_center_catalog` attribute in of a UVCal object and
+        clears out entries that are no longer being used, and appropriately updates
+        `phase_center_id_array` accordingly. This function is not typically called
+        by users, but instead is used by other methods.
+
+        """
+        unique_cat_ids = np.unique(self.phase_center_id_array)
+        defunct_list = []
+        Nphase = 0
+        for cat_id in self.phase_center_catalog:
+            if cat_id in unique_cat_ids:
+                Nphase += 1
+            else:
+                defunct_list.append(cat_id)
+
+        # Check the number of "good" sources we have -- if we haven't dropped any,
+        # then we are free to bail, otherwise update the Nphase attribute
+        if Nphase == self.Nphase:
+            return
+
+        # Time to kill the entries that are no longer in the source stack
+        for defunct_id in defunct_list:
+            self._remove_phase_center(defunct_id)
+
+    def print_phase_center_info(
+        self,
+        catalog_identifier=None,
+        *,
+        hms_format=None,
+        return_str=False,
+        print_table=True,
+    ):
+        """
+        Print out the details of the phase centers.
+
+        Prints out an ASCII table that contains the details of the
+        `phase_center_catalog` attribute, which acts as the internal source catalog
+        for UVCal objects.
+
+        Parameters
+        ----------
+        catalog_identifier : str or int or list of str or int
+            Optional parameter which, if provided, will cause the method to only return
+            information on the phase center(s) with the matching name(s) or catalog ID
+            number(s). Default is to print out information on all catalog entries.
+        hms_format : bool
+            Optional parameter, which if selected, can be used to force coordinates to
+            be printed out in Hours-Min-Sec (if set to True) or Deg-Min-Sec (if set to
+            False) format. Default is to print out in HMS if all the objects have
+            coordinate frames of icrs, gcrs, fk5, fk4, and top; otherwise, DMS format
+            is used.
+        return_str: bool
+            If set to True, the method returns an ASCII string which contains all the
+            table infrmation. Default is False.
+        print_table : bool
+            If set to True, prints the table to the terminal window. Default is True.
+
+        Returns
+        -------
+        table_str : bool
+            If return_str=True, an ASCII string containing the entire table text
+
+        Raises
+        ------
+        ValueError
+            If `cat_name` matches no keys in `phase_center_catalog`.
+        """
+        return uvutils.print_phase_center_info(
+            self.phase_center_catalog,
+            catalog_identifier=catalog_identifier,
+            hms_format=hms_format,
+            return_str=return_str,
+            print_table=print_table,
+        )
+
+    def _update_phase_center_id(self, cat_id, *, new_id=None, reserved_ids=None):
+        """
+        Update a phase center with a new catalog ID number.
+
+        Parameters
+        ----------
+        cat_id : int
+            Current catalog ID of the phase center, which corresponds to a key in the
+            attribute `phase_center_catalog`.
+        new_id : int
+            Optional argument. If supplied, then the method will attempt to use the
+            provided value as the new catalog ID, provided that an existing catalog
+            entry is not already using the same value. If not supplied, then the
+            method will automatically assign a value.
+        reserved_ids : array-like in int
+            Optional argument. An array-like of ints that denotes which ID numbers
+            are already reserved. Useful for when combining two separate catalogs.
+
+        Raises
+        ------
+        ValueError
+            If not using the method on a multi-phase-ctr data set, if there's no entry
+            that matches `cat_name`, or of the value `new_id` is already taken.
+        """
+        new_id = uvutils.generate_new_phase_center_id(
+            phase_center_catalog=self.phase_center_catalog,
+            cat_id=new_id,
+            old_id=cat_id,
+            reserved_ids=reserved_ids,
+        )
+
+        # If new_id is None, it means that the existing ID was fine and needs no update
+        if new_id is not None:
+            self.phase_center_id_array[self.phase_center_id_array == cat_id] = new_id
+            self.phase_center_catalog[new_id] = self.phase_center_catalog.pop(cat_id)
+
+    def _consolidate_phase_center_catalogs(
+        self, *, reference_catalog=None, other=None, ignore_name=False
+    ):
+        """
+        Consolidate phase center catalogs with a reference or another object.
+
+        This is a helper method which updates the phase_center_catalog and related
+        parameters to make this object consistent with a reference catalog or with
+        another object so the second object can be added or concatenated to this object.
+        If both `reference_catalog` and `other` are provided, both this object and the
+        one passed to `other` will have their catalogs updated.
+
+        Parameters
+        ----------
+        reference_catalog : dict
+            A reference catalog to make this object consistent with.
+        other : UVCal or UVData object
+            Nominally a UVCal object which self needs to be consistent with because it
+            will be added to self. The phase_center_catalog from other is used as the
+            reference catalog if the reference_catalog is None. If `reference_catalog`
+            is also set, the phase_center_catalog on other will also be modified to be
+            consistent with the `reference_catalog`. Note that a UVData object can also
+            be supplied (in order to ensure consistency between two related objects).
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when identifying matching phase centers. If set to
+            True, phase centers that are the same up to their name will be combined with
+            the name set to the reference catalog name or the name found in the first
+            UVCal object. If set to False, phase centers that are the same up to the
+            name will be kept as separate phase centers. Default is False.
+
+        """
+        if reference_catalog is None and other is None:
+            raise ValueError(
+                "Either the reference_catalog or the other parameter must be set."
+            )
+
+        if other is not None:
+            # If exists, first update other to be consistent with the reference
+            if reference_catalog is not None:
+                other._consolidate_phase_center_catalogs(
+                    reference_catalog=reference_catalog
+                )
+            # then use the updated other as the reference
+            reference_catalog = other.phase_center_catalog
+
+        reserved_ids = list(reference_catalog)
+        # First loop, we want to update all the catalog IDs so that we know there
+        # are no conflicts with the reference
+        for cat_id in list(self.phase_center_catalog):
+            self._update_phase_center_id(cat_id, reserved_ids=reserved_ids)
+
+        # Next loop, we want to update the IDs of sources that are in the reference.
+        for cat_id in list(reference_catalog):
+            # Normally one would wrap this in an items() call above, except that for
+            # testing it's sometimes convenient to use self.phase_center_catalog as
+            # the ref catalog, which causes a RunTime error due to updates to the dict.
+            cat_entry = reference_catalog[cat_id]
+            match_id, match_diffs = uvutils.look_in_catalog(
+                self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
+            )
+            if match_id is None or match_diffs != 0:
+                # If no match, just add the entry
+                self._add_phase_center(cat_id=cat_id, **cat_entry)
+                continue
+
+            # If match_diffs is 0 then all the keys in the phase center catalog
+            # match, so this is functionally the same source
+            self._update_phase_center_id(match_id, new_id=cat_id)
+            # look_in_catalog ignores the "info_source" field, so update it to match
+            self.phase_center_catalog[cat_id]["info_source"] = cat_entry["info_source"]
+            if ignore_name:
+                # Make the names match if names were ignored in matching
+                self.phase_center_catalog[cat_id]["cat_name"] = cat_entry["cat_name"]
 
     def check(
         self,
@@ -2457,6 +3260,7 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         inplace=False,
+        ignore_name=False,
     ):
         """
         Combine two UVCal objects along antenna, frequency, time, and/or Jones axis.
@@ -2484,6 +3288,13 @@ class UVCal(UVBase):
         inplace : bool
             Option to overwrite self as we go, otherwise create a third object
             as the sum of the two.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVCal object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         """
         if inplace:
             this = self
@@ -2516,6 +3327,18 @@ class UVCal(UVBase):
             raise ValueError(
                 "To combine these data, flex_spw must be set to the same "
                 "value (True or False) for both objects."
+            )
+
+        # Check that the objects both (or neither) have catalogs and phase ID arrays
+        this_pc_cat = this.phase_center_catalog is None
+        other_pc_cat = other.phase_center_catalog is None
+        this_pc_ids = this.phase_center_id_array is None
+        other_pc_ids = other.phase_center_id_array is None
+
+        if (this_pc_cat != other_pc_cat) or (this_pc_ids != other_pc_ids):
+            raise ValueError(
+                "To combine these data, phase_center_id_array and "
+                "_phase_center_catalog must be set for all objects."
             )
 
         # Check that both objects are either wide_band or not
@@ -2665,6 +3488,24 @@ class UVCal(UVBase):
                             "These objects have overlapping data and"
                             " cannot be combined."
                         )
+
+        # First, handle the internal source catalogs, since merging them is kind of a
+        # weird, one-off process (i.e., nothing is cat'd across a particular axis)
+        if this.phase_center_catalog is not None:
+            this._consolidate_phase_center_catalogs(
+                other=other, ignore_name=ignore_name
+            )
+            if (len(both_times) > 0) and (this.phase_center_id_array is not None):
+                if not np.array_equal(
+                    this.phase_center_id_array[this_times_ind],
+                    other.phase_center_id_array[other_times_ind],
+                ):
+                    # TODO: I think this check actually needs to be expanded to other
+                    # attributes, and along other axes
+                    raise ValueError(
+                        "Cannot combine objects due to overlapping times with "
+                        "different phase centers."
+                    )
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3150,6 +3991,10 @@ class UVCal(UVBase):
                 this.lst_range = np.concatenate(
                     [this.lst_range, other.lst_range[tnew_inds]]
                 )
+            if this.phase_center_id_array is not None:
+                this.phase_center_id_array = np.concatenate(
+                    [this.phase_center_id_array, other.phase_center_id_array[tnew_inds]]
+                )
             if this.time_range is not None:
                 t_order = np.argsort(this.time_range[:, 0])
             else:
@@ -3586,6 +4431,8 @@ class UVCal(UVBase):
                 this.lst_range = this.lst_range[t_order]
             if self.future_array_shapes:
                 this.integration_time = this.integration_time[t_order]
+            if self.phase_center_id_array is not None:
+                this.phase_center_id_array = this.phase_center_id_array[t_order]
         if len(jnew_inds) > 0:
             this.jones_array = this.jones_array[j_order]
 
@@ -3657,7 +4504,13 @@ class UVCal(UVBase):
             return this
 
     def __iadd__(
-        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
+        self,
+        other,
+        *,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+        ignore_name=False,
     ):
         """
         Combine two UVCal objects in place.
@@ -3676,6 +4529,13 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVCal object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         """
         self.__add__(
             other,
@@ -3683,6 +4543,7 @@ class UVCal(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            ignore_name=ignore_name,
         )
         return self
 
@@ -3691,6 +4552,7 @@ class UVCal(UVBase):
         other,
         axis,
         *,
+        ignore_name=None,
         inplace=False,
         verbose_history=False,
         run_check=True,
@@ -3715,6 +4577,13 @@ class UVCal(UVBase):
             metadata agrees. Allowed values are: 'antenna', 'time', 'freq', 'spw',
             'jones' ('freq' is not allowed for delay or wideband objects and 'spw' is
             only allowed for wideband objects).
+        ignore_name : bool
+            Option to ignore the name of the phase center (`cat_name` in
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
+            phase centers that are the same up to their name will be combined with the
+            name set to the name found in the first UVCal object in the sum. If set to
+            False, phase centers that are the same up to the name will be kept as
+            separate phase centers. Default is False.
         inplace : bool
             If True, overwrite self as we go, otherwise create a third object
             as the sum of the two.
@@ -3775,6 +4644,18 @@ class UVCal(UVBase):
                     "value (True or False) for all objects."
                 )
 
+        for obj in other:
+            this_pc_cat = this.phase_center_catalog is None
+            other_pc_cat = obj.phase_center_catalog is None
+            this_pc_ids = this.phase_center_id_array is None
+            other_pc_ids = obj.phase_center_id_array is None
+
+            if (this_pc_cat != other_pc_cat) or (this_pc_ids != other_pc_ids):
+                raise ValueError(
+                    "To combine these data, phase_center_id_array and "
+                    "_phase_center_catalog must be set for all objects."
+                )
+
         # Check that all objects are consistent w/ use of wide_band or not
         for obj in other:
             if this.wide_band != obj.wide_band:
@@ -3826,6 +4707,10 @@ class UVCal(UVBase):
         ]
 
         history_update_string = " Combined data along "
+
+        # Check separately for phase_center_id_array, since it's optional
+        if axis != "time" and this.phase_center_id_array is not None:
+            compatibility_params += ["_phase_center_id_array"]
 
         if axis == "freq" or axis == "spw":
             if axis == "freq":
@@ -3913,6 +4798,18 @@ class UVCal(UVBase):
                 if not params_match:
                     msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                     warnings.warn(msg)
+
+        # update the phase_center_catalog to make them consistent across objects
+        # Doing this as a binary tree merge
+        # The left object in each loop will have its phase center IDs updated.
+        if this.phase_center_catalog is not None:
+            uv_list = [this] + other
+            while len(uv_list) > 1:
+                for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                    uv1._consolidate_phase_center_catalogs(
+                        other=uv2, ignore_name=ignore_name
+                    )
+                uv_list = uv_list[0::2]
 
         total_quality_exists = [this.total_quality_array is not None] + [
             obj.total_quality_array is not None for obj in other
@@ -4205,6 +5102,8 @@ class UVCal(UVBase):
         lsts,
         lst_range,
         jones,
+        phase_center_ids,
+        catalog_names,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -4259,6 +5158,13 @@ class UVCal(UVBase):
             canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "Jnn", "Jee") are also supported.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
 
         Returns
         -------
@@ -4314,6 +5220,22 @@ class UVCal(UVBase):
         else:
             ant_inds = None
 
+        if self.phase_center_id_array is None or self.phase_center_catalog is None:
+            if (phase_center_ids is not None) or (catalog_names is not None):
+                raise ValueError(
+                    "Both phase_center_id_array and phase_center_catalog attributes of "
+                    "the UVCal object must be set in order to select on phase center "
+                    "IDs or catalog names."
+                )
+
+        if (phase_center_ids is not None) and (catalog_names is not None):
+            raise ValueError("Cannot set both phase_center_ids and catalog_names.")
+
+        if catalog_names is not None:
+            phase_center_ids = uvutils.look_for_name(
+                self.phase_center_catalog, catalog_names
+            )
+
         if (times is not None or time_range is not None) and (
             self.time_array is not None and self.time_range is not None
         ):
@@ -4353,6 +5275,21 @@ class UVCal(UVBase):
                 history_update_string += "lsts"
             n_selects += 1
 
+        if phase_center_ids is not None:
+            pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
+            time_inds = uvutils._sorted_unique_intersection(
+                np.where(pc_check)[0], time_inds
+            )
+
+            update_substring = (
+                "phase center IDs" if (catalog_names is None) else "catalog names"
+            )
+            if n_selects > 0:
+                history_update_string += ", " + update_substring
+            else:
+                history_update_string += update_substring
+            n_selects += 1
+
         if time_inds is not None and self.time_range is None:
             # don't warn if time_range is not None because calfits does not support
             # multiple time_range values
@@ -4378,15 +5315,9 @@ class UVCal(UVBase):
                         "spectral windows and the `wide_band` parameter is not True."
                     )
                     # Translate the spws into frequencies
-                    if frequencies is None:
-                        if self.future_array_shapes:
-                            frequencies = self.freq_array[
-                                np.isin(self.flex_spw_id_array, spws)
-                            ]
-                        else:
-                            frequencies = self.freq_array[
-                                0, np.isin(self.flex_spw_id_array, spws)
-                            ]
+                    freq_chans = uvutils._sorted_unique_union(
+                        np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
+                    )
                     spw_inds = None
                 else:
                     assert self.future_array_shapes, (
@@ -4408,8 +5339,6 @@ class UVCal(UVBase):
                         )
 
                     spw_inds = np.where(np.isin(self.spw_array, spws))[0]
-
-                    spw_inds = sorted(set(spw_inds))
         else:
             spw_inds = None
 
@@ -4420,47 +5349,39 @@ class UVCal(UVBase):
                 "Cannot select on frequencies because this is a wide_band object with "
                 "no freq_array."
             )
-        if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
-            if frequencies is None:
-                if self.future_array_shapes:
-                    frequencies = self.freq_array[freq_chans]
-                else:
-                    frequencies = self.freq_array[0, freq_chans]
-            else:
-                frequencies = uvutils._get_iterable(frequencies)
-                if self.future_array_shapes:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[freq_chans]))
-                    )
-                else:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[0, freq_chans]))
-                    )
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
-
             if self.future_array_shapes:
                 freq_arr_use = self.freq_array
             else:
                 freq_arr_use = self.freq_array[0, :]
 
-            # Check and see that all requested freqs are available
             freq_check = np.isin(frequencies, freq_arr_use)
             if not np.all(freq_check):
                 raise ValueError(
                     f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
                     "present in the freq_array"
                 )
-            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
 
-            if len(frequencies) > 1:
+            freq_chans = uvutils._sorted_unique_union(
+                np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
+            )
+
+        if freq_chans is not None:
+            if n_selects > 0:
+                history_update_string += ", frequencies"
+            else:
+                history_update_string += "frequencies"
+            n_selects += 1
+
+            # Check and see that all requested freqs are available
+            if frequencies is not None:
+                pass
+
+            freq_inds = np.array(sorted(uvutils._get_iterable(freq_chans)))
+
+            if len(freq_inds) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
                 if self.flex_spw_id_array is not None:
                     freq_ind_separation = freq_ind_separation[
@@ -4494,6 +5415,7 @@ class UVCal(UVBase):
             n_selects += 1
 
             jones_inds = np.zeros(0, dtype=np.int64)
+            jones_spws = np.zeros(0, dtype=np.int64)
             for j in jones:
                 if isinstance(j, str):
                     j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
@@ -4503,13 +5425,46 @@ class UVCal(UVBase):
                     jones_inds = np.append(
                         jones_inds, np.where(self.jones_array == j_num)[0]
                     )
+                elif (
+                    self.flex_jones_array is not None and j_num in self.flex_jones_array
+                ):
+                    jones_spws = np.append(
+                        jones_spws, np.where(self.flex_jones_array == j_num)[0]
+                    )
                 else:
                     raise ValueError(
                         "Jones term {j} is not present in the jones_array".format(j=j)
                     )
+            if len(jones_spws) > 0:
+                # Since this is a flex-pol data set, we need to filter on the freq
+                # axis instead of the pol axis
+                jones_inds = None
 
-            jones_inds = sorted(set(jones_inds))
-            if not uvutils._test_array_constant_spacing(self.jones_array[jones_inds]):
+                if self.flex_spw:
+                    jones_chans = np.where(
+                        np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
+                    )[0]
+                    freq_inds = uvutils._sorted_unique_intersection(
+                        jones_chans, freq_inds
+                    )
+                spw_inds = uvutils._sorted_unique_intersection(jones_spws, spw_inds)
+
+                # Trap a corner case here where the frequency and polarization selects
+                # on a flex-pol data set end up with no actual data being selected.
+                if len(spw_inds == 0) or (self.flex_spw and len(freq_inds) == 0):
+                    raise ValueError(
+                        "No data matching this Jones selection in this flex-Jones "
+                        " UVCal object."
+                    )
+                spacing_check = uvutils._test_array_constant_spacing(
+                    np.unique(self.flex_jones_array[spw_inds])
+                )
+            else:
+                jones_inds = sorted(set(jones_inds))
+                spacing_check = uvutils._test_array_constant_spacing(
+                    self.jones_array[jones_inds]
+                )
+            if not spacing_check:
                 warnings.warn(
                     "Selected jones polarization terms are not evenly spaced. This "
                     "will make it impossible to write this data out to calfits files."
@@ -4648,6 +5603,8 @@ class UVCal(UVBase):
         lsts=None,
         lst_range=None,
         jones=None,
+        phase_center_ids=None,
+        catalog_names=None,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4706,6 +5663,13 @@ class UVCal(UVBase):
             canonical polarization strings (e.g. "Jxx", "Jrr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "Jnn", "Jee") are also supported.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -4746,6 +5710,8 @@ class UVCal(UVBase):
             lsts=lsts,
             lst_range=lst_range,
             jones=jones,
+            phase_center_ids=phase_center_ids,
+            catalog_names=catalog_names,
         )
 
         # Call the low-level selection method.
@@ -4794,8 +5760,12 @@ class UVCal(UVBase):
             from . import calh5
 
             other_obj = calh5.CalH5()
+        elif filetype == "ms":
+            from . import ms_cal
+
+            other_obj = ms_cal.MSCal()
         else:
-            raise ValueError("filetype must be calh5 or calfits.")
+            raise ValueError("filetype must be calh5, calfits, or ms.")
         for p in self:
             param = getattr(self, p)
             setattr(other_obj, p, param)
@@ -4990,6 +5960,13 @@ class UVCal(UVBase):
             The jones polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
             Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
         read_data : bool
             Read in the data-like arrays (gains/delays, flags, qualities). If set to
             False, only the metadata will be read in. Setting read_data to False
@@ -5196,6 +6173,36 @@ class UVCal(UVBase):
             self._convert_from_filetype(fhd_cal_obj)
             del fhd_cal_obj
 
+    def read_ms_cal(self, filename, **kwargs):
+        """
+        Read in data from an MS calibration table.
+
+        Parameters
+        ----------
+            filename : str
+                The measurement set to read from.
+            run_check : bool
+                Option to check for the existence and proper shapes of
+                parameters after reading in the file.
+            check_extra : bool
+                Option to check optional parameters as well as required ones.
+            run_check_acceptability : bool
+                Option to check acceptable range of the values of
+                parameters after reading in the file.
+            astrometry_library : str
+                Library used for calculating LSTs. Allowed options are 'erfa' (which
+                uses the pyERFA), 'novas' (which uses the python-novas library), and
+                'astropy' (which uses the astropy utilities). Default is erfa unless
+                the telescope_location frame is MCMF (on the moon), in which case the
+                default is astropy.
+        """
+        from . import ms_cal
+
+        ms_cal_obj = ms_cal.MSCal()
+        ms_cal_obj.read_ms_cal(filename, **kwargs)
+        self._convert_from_filetype(ms_cal_obj)
+        del ms_cal_obj
+
     def read(
         self,
         filename,
@@ -5217,6 +6224,8 @@ class UVCal(UVBase):
         lsts=None,
         lst_range=None,
         jones=None,
+        phase_center_ids=None,
+        catalog_names=None,
         # checking parameters
         run_check=True,
         check_extra=True,
@@ -5318,6 +6327,13 @@ class UVCal(UVBase):
             The jones polarizations numbers to include when reading data into the
             object, each value passed here should exist in the polarization_array.
             Ignored if read_data is False.
+        phase_center_ids : array_like of int, optional
+            Phase center IDs to keep on the object (effectively a selection on
+            baseline-times). Cannot be used with `catalog_names`.
+        catalog_names : str or array-like of str, optional
+            The names of the phase centers (sources) to keep in the object, which should
+            match exactly in spelling and capitalization. Cannot be used with
+            `phase_center_ids`.
 
         Checking
         --------
@@ -5372,15 +6388,34 @@ class UVCal(UVBase):
                 file_type = "calfits"
             elif "h5" in extension:
                 file_type = "calh5"
-            else:
-                raise ValueError(
-                    "File type could not be determined, use the "
-                    "file_type keyword to specify the type."
-                )
 
-        if file_type not in ["calfits", "fhd", "calh5"]:
+        if file_type is None:
+            # Nothing could be auto-determined, so let's jump to the next level and
+            # try to look at the file contents and see what's up. In paticular, if this
+            # is a directory, there's some additional clues for us to look for.
+            if multi:
+                file_test = filename[0]
+            else:
+                file_test = filename
+
+            if os.path.isdir(file_test):
+                # it's a directory, so it's either miriad, mir, or ms file type
+                if os.path.exists(os.path.join(file_test, "vartable")):
+                    # It's miriad.
+                    file_type = "miriad"
+                elif os.path.exists(os.path.join(file_test, "OBSERVATION")):
+                    # It's a measurement set.
+                    file_type = "ms"
+
+        if file_type is None:
             raise ValueError(
-                "The only supported file_types are 'calfits', 'calh5', and 'fhd'."
+                "File type could not be determined, use the "
+                "file_type keyword to specify the type."
+            )
+
+        if file_type not in ["calfits", "fhd", "calh5", "ms"]:
+            raise ValueError(
+                "The only supported file_types are 'calfits', 'calh5', 'fhd', and 'ms'."
             )
 
         obs_file_use = None
@@ -5442,6 +6477,8 @@ class UVCal(UVBase):
                 lsts=lsts,
                 lst_range=lst_range,
                 jones=jones,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
                 # checking parameters
                 run_check=run_check,
                 check_extra=check_extra,
@@ -5483,6 +6520,8 @@ class UVCal(UVBase):
                     lsts=lsts,
                     lst_range=lst_range,
                     jones=jones,
+                    phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     # checking parameters
                     run_check=run_check,
                     check_extra=check_extra,
@@ -5523,7 +6562,7 @@ class UVCal(UVBase):
                 # Because self was at the beginning of the list,
                 # everything is merged into it at the end of this loop
         else:
-            if file_type in ["fhd", "calfits"]:
+            if file_type in ["fhd", "calfits", "ms"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -5535,6 +6574,8 @@ class UVCal(UVBase):
                     or time_range is not None
                     or lst_range is not None
                     or jones is not None
+                    or phase_center_ids is not None
+                    or catalog_names is not None
                 ):
                     select = True
                     warnings.warn(
@@ -5555,6 +6596,8 @@ class UVCal(UVBase):
                     select_time_range = time_range
                     select_lst_range = lst_range
                     select_jones = jones
+                    select_phase_center_ids = phase_center_ids
+                    select_catalog_names = catalog_names
                 else:
                     select = False
             elif file_type in ["calh5"]:
@@ -5601,12 +6644,22 @@ class UVCal(UVBase):
                     lsts=lsts,
                     lst_range=lst_range,
                     jones=jones,
+                    phase_center_ids=phase_center_ids,
+                    catalog_names=catalog_names,
                     read_data=read_data,
                     background_lsts=background_lsts,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
                     use_future_array_shapes=use_future_array_shapes,
+                    astrometry_library=astrometry_library,
+                )
+            elif file_type == "ms":
+                self.read_ms_cal(
+                    filename,
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
                     astrometry_library=astrometry_library,
                 )
 
@@ -5622,6 +6675,8 @@ class UVCal(UVBase):
                     time_range=select_time_range,
                     lst_range=select_lst_range,
                     jones=select_jones,
+                    phase_center_ids=select_phase_center_ids,
+                    catalog_names=select_catalog_names,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,
@@ -5748,3 +6803,17 @@ class UVCal(UVBase):
         calh5_obj = self._convert_to_filetype("calh5")
         calh5_obj.write_calh5(filename, **kwargs)
         del calh5_obj
+
+    def write_ms_cal(self, filename, **kwargs):
+        """
+        Write the data to a MS calibration table.
+
+        Parameters
+        ----------
+        filename : str
+            The measurement set to write to.
+
+        """
+        ms_cal_obj = self._convert_to_filetype("ms")
+        ms_cal_obj.write_ms_cal(filename, **kwargs)
+        del ms_cal_obj

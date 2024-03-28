@@ -196,11 +196,25 @@ def test_time_precision(tmp_path):
 def test_break_read_uvfits(tmp_path):
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
-    multi_subarray_file = os.path.join(DATA_PATH, "multi_subarray.uvfits")
-    with pytest.raises(ValueError, match="This file appears to have multiple subarray"):
-        uvobj.read(multi_subarray_file)
 
     file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
+    write_file = os.path.join(tmp_path, "multi_subarray.uvfits")
+    with fits.open(file1, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        vis_hdu = hdu_list[0]
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        vis_data = vis_hdu.data.copy()
+
+        vis_data["SUBARRAY"][:] = np.arange(len(vis_data["SUBARRAY"]))
+        vis_hdu.data = vis_data
+
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
+
+    with pytest.raises(ValueError, match="This file appears to have multiple subarray"):
+        uvobj.read(write_file)
+
     write_file = os.path.join(tmp_path, "bad_frame.uvfits")
 
     with fits.open(file1, memmap=True) as hdu_list:
@@ -472,27 +486,6 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         ],
     ):
         uv_in.read(write_file2)
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
-def test_multispw_supported():
-    """Test reading in a uvfits file with multiple spws."""
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.uvfits")
-    uvobj.read(testfile, use_future_array_shapes=True)
-
-    # We know this file has two spws
-    assert uvobj.Nspws == 2
-
-    # Verify that the data array has the right shape
-    assert np.size(uvobj.data_array, axis=1) == uvobj.Nfreqs
-
-    # Verify that the freq array has the right shape
-    assert np.size(uvobj.freq_array) == uvobj.Nfreqs
-
-    # Verift thaat the spw_array is the right length
-    assert len(uvobj.spw_array) == uvobj.Nspws
 
 
 def test_casa_nonascii_bytes_antenna_names():

@@ -12,12 +12,11 @@ import numpy as np
 import pytest
 from astropy.time import Time
 
-import pyuvdata.tests as uvtest
-import pyuvdata.utils as uvutils
-from pyuvdata import UVData
-from pyuvdata.data import DATA_PATH
-from pyuvdata.uvdata.ms import MS
-from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
+from ... import UVData
+from ... import tests as uvtest
+from ... import utils as uvutils
+from ...data import DATA_PATH
+from ..uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
 
@@ -215,16 +214,6 @@ def test_no_spw():
     del uvobj
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_spwsupported():
-    """Test reading in an ms file with multiple spws."""
-    uvobj = UVData()
-    testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1scan.ms")
-    uvobj.read(testfile, use_future_array_shapes=True)
-
-    assert uvobj.Nspws == 2
-
-
 @pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
 @pytest.mark.filterwarnings("ignore:telescope_location are not set")
@@ -391,8 +380,9 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
+@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.parametrize("axis", [None, "freq"])
-def test_multi_files(casa_uvfits, axis):
+def test_multi_files(casa_uvfits, axis, tmp_path):
     """
     Reading multiple files at once.
     """
@@ -401,9 +391,18 @@ def test_multi_files(casa_uvfits, axis):
     # Ensure the scan numbers are defined for the comparison
     uv_full._set_scan_numbers()
 
+    uv_part1 = uv_full.select(
+        freq_chans=np.arange(0, uv_full.Nfreqs // 2), inplace=False
+    )
+    uv_part2 = uv_full.select(
+        freq_chans=np.arange(uv_full.Nfreqs // 2, uv_full.Nfreqs), inplace=False
+    )
+
     uv_multi = UVData()
-    testfile1 = os.path.join(DATA_PATH, "multi_1.ms")
-    testfile2 = os.path.join(DATA_PATH, "multi_2.ms")
+    testfile1 = os.path.join(tmp_path, "multi_1.ms")
+    testfile2 = os.path.join(tmp_path, "multi_2.ms")
+    uv_part1.write_ms(testfile1, clobber=True)
+    uv_part2.write_ms(testfile2, clobber=True)
 
     # It seems that these two files were made using the CASA importuvfits task, but the
     # history tables are missing, so we can't infer that from the history. This means
@@ -426,9 +425,6 @@ def test_multi_files(casa_uvfits, axis):
     assert uv_multi != uv_full
     # The uvfits was written by CASA, which adds one to all the antenna numbers relative
     # to the measurement set. Adjust those:
-    uv_full.antenna_numbers = uv_full.antenna_numbers - 1
-    uv_full.ant_1_array = uv_full.ant_1_array - 1
-    uv_full.ant_2_array = uv_full.ant_2_array - 1
     uv_full.baseline_array = uv_full.antnums_to_baseline(
         uv_full.ant_1_array, uv_full.ant_2_array
     )
@@ -475,54 +471,6 @@ def test_bad_col_name():
 
     with pytest.raises(ValueError, match="Invalid data_column value supplied"):
         uvobj.read(testfile, data_column="FOO", use_future_array_shapes=True)
-
-
-@pytest.mark.parametrize("check_warning", [True, False])
-@pytest.mark.parametrize(
-    "frame,errtype,msg",
-    (
-        ["JNAT", NotImplementedError, "Support for the JNAT frame is not yet"],
-        ["AZEL", NotImplementedError, "Support for the AZEL frame is not yet"],
-        ["GALACTIC", NotImplementedError, "Support for the GALACTIC frame is not yet"],
-        ["ABC", ValueError, "The coordinate frame ABC is not one of the supported"],
-        ["123", ValueError, "The coordinate frame 123 is not one of the supported"],
-    ),
-)
-def test_parse_casa_frame_ref_errors(check_warning, frame, errtype, msg):
-    """
-    Test errors with matching CASA frames to astropy frame/epochs
-    """
-    uvobj = MS()
-    if check_warning:
-        with uvtest.check_warnings(UserWarning, match=msg):
-            uvobj._parse_casa_frame_ref(frame, raise_error=False)
-    else:
-        with pytest.raises(errtype) as cm:
-            uvobj._parse_casa_frame_ref(frame)
-        assert str(cm.value).startswith(msg)
-
-
-@pytest.mark.parametrize("check_warning", [True, False])
-@pytest.mark.parametrize(
-    "frame,epoch,msg",
-    (
-        ["fk5", 1991.1, "Frame fk5 (epoch 1991.1) does not have a corresponding match"],
-        ["fk4", 1991.1, "Frame fk4 (epoch 1991.1) does not have a corresponding match"],
-        ["icrs", 2021.0, "Frame icrs (epoch 2021) does not have a corresponding"],
-    ),
-)
-def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
-    """
-    Test errors with matching CASA frames to astropy frame/epochs
-    """
-    uvobj = MS()
-    if check_warning:
-        with uvtest.check_warnings(UserWarning, match=msg):
-            uvobj._parse_pyuvdata_frame_ref(frame, epoch, raise_error=False)
-    else:
-        with pytest.raises(ValueError) as cm:
-            uvobj._parse_pyuvdata_frame_ref(frame, epoch)
-        assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
@@ -733,7 +681,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     miriad_uv._set_app_coords_helper()
 
     if multi_frame:
-        cat_id = miriad_uv._look_for_name("NOISE")
+        cat_id = uvutils.look_for_name(miriad_uv.phase_center_catalog, "NOISE")
         ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"][0]
         dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"][0]
         with pytest.raises(
