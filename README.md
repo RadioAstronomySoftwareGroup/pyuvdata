@@ -150,7 +150,7 @@ Required:
 
 Optional:
 
-* astropy-healpix >= 0.6 (for working with beams in HEALPix formats)
+* astropy-healpix >= 1.0.2 (for working with beams in HEALPix formats)
 * astroquery >= 0.4.4 (for enabling phasing to ephemeris objects using JPL-Horizons)
 * hdf5plugin >= 3.2.0 (for enabling bitshuffle and other hdf5 compression filters in uvh5 files)
 * lunarsky >=0.2.2 (for working with simulated datasets for lunar telescopes)
