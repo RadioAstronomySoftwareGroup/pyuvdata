@@ -16,11 +16,6 @@ from cython.parallel import parallel, prange
 
 from libc.math cimport exp, pi, sqrt
 
-# This initializes the numpy 1.7 c-api.
-# cython 3.0 will do this by default.
-# We may be able to just remove this then.
-numpy.import_array()
-
 ctypedef fused int_like:
   numpy.int_t
   int
