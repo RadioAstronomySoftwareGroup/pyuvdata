@@ -4151,8 +4151,8 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         with uvtest.check_warnings(
             [UserWarning],
             match=[
-                "Not all antennas have positions in the known_telescope data. "
-                "Not setting antenna_positions.",
+                "Not all antennas have metadata in the known_telescope data. Not "
+                "setting ['antenna_positions'].",
                 "Required UVParameter _antenna_positions has not been set.",
             ],
         ):
@@ -4161,8 +4161,8 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Not all antennas have positions in the known_telescope data. "
-            "Not setting antenna_positions.",
+            "Not all antennas have metadata in the known_telescope data. Not "
+            "setting ['antenna_positions'].",
             "Required UVParameter _antenna_positions has not been set.",
         ],
     ):
