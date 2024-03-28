@@ -526,7 +526,10 @@ class UVFlag(UVBase):
         # ---telescope information ---
         self._telescope = uvp.UVParameter(
             "telescope",
-            description="Telescope object containing the telescope metadata.",
+            description=(
+                ":class:`pyuvdata.Telescope` object containing the telescope "
+                "metadata."
+            ),
             expected_type=Telescope,
         )
 
