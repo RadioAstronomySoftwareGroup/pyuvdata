@@ -9,11 +9,12 @@ import os
 
 from astropy.time import Time
 
-from pyuvdata import UVData
+from pyuvdata import Telescope, UVData
 
 
 def write_uvdata_rst(write_file=None):
     UV = UVData()
+    UV.telescope = Telescope()
     out = "UVData\n======\n\n"
     out += (
         "UVData is the main user class for intereferometric data (visibilities).\n"
@@ -25,7 +26,9 @@ def write_uvdata_rst(write_file=None):
         "The attributes on UVData hold all of the metadata and data required to\n"
         "analyze interferometric data sets. Under the hood, the attributes are\n"
         "implemented as properties based on :class:`pyuvdata.parameter.UVParameter`\n"
-        "objects but this is fairly transparent to users.\n\n"
+        "objects but this is fairly transparent to users.\n"
+        "The telescope attribute is implemented as a :class:`pyuvdata.Telescope`\n"
+        "object, with its attributes available on the UVData object as properties.\n"
         "UVData objects can be initialized from a file using the\n"
         ":meth:`pyuvdata.UVData.from_file` class method\n"
         "(as ``uvd = UVData.from_file(<filename>)``) or be initialized as an empty\n"
@@ -45,14 +48,14 @@ def write_uvdata_rst(write_file=None):
         "Note that angle type attributes also have convenience properties named the\n"
         "same thing with ``_degrees`` appended through which you can get or set the\n"
         "value in degrees. Similarly location type attributes (which are given in\n"
-        "topocentric xyz coordinates) have convenience properties named the\n"
+        "geocentric xyz coordinates) have convenience properties named the\n"
         "same thing with ``_lat_lon_alt`` and ``_lat_lon_alt_degrees`` appended\n"
         "through which you can get or set the values using latitude, longitude and\n"
         "altitude values in radians or degrees and meters.\n\n"
     )
     out += "Required\n********\n"
     out += (
-        "These parameters are required to have a sensible UVData object and\n"
+        "These parameters are required to have a well-defined UVData object and\n"
         "are required for most kinds of interferometric data files."
     )
     out += "\n\n"

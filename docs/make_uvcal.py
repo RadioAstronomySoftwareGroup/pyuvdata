@@ -9,11 +9,12 @@ import os
 
 from astropy.time import Time
 
-from pyuvdata import UVCal
+from pyuvdata import Telescope, UVCal
 
 
 def write_uvcal_rst(write_file=None):
     cal = UVCal()
+    cal.telescope = Telescope()
     out = "UVCal\n=====\n"
     out += (
         "UVCal is the main user class for calibration solutions for interferometric\n"
@@ -26,7 +27,9 @@ def write_uvcal_rst(write_file=None):
         "work with calibration solutions for interferometric data sets. Under the\n"
         "hood, the attributes are implemented as properties based on\n"
         ":class:`pyuvdata.parameter.UVParameter` objects but this is fairly\n"
-        "transparent to users.\n\n"
+        "transparent to users.\n"
+        "The telescope attribute is implemented as a :class:`pyuvdata.Telescope`\n"
+        "object, with its attributes available on the UVData object as properties.\n\n"
         "UVCal objects can be initialized as an empty object (as ``cal = UVCal()``).\n"
         "When an empty UVCal object is initialized, it has all of these attributes\n"
         "defined but set to ``None``. The attributes can be set by reading in a data\n"
@@ -49,7 +52,7 @@ def write_uvcal_rst(write_file=None):
     )
     out += "Required\n********\n"
     out += (
-        "These parameters are required to have a sensible UVCal object and \n"
+        "These parameters are required to have a well-defined UVCal object and \n"
         "are required for most kinds of uv cal files."
     )
     out += "\n\n"
