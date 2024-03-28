@@ -1500,6 +1500,7 @@ and :meth:`pyuvdata.UVData.diff_vis` methods.
 .. code-block:: python
 
   >>> import os
+  >>> from astropy.time import Time
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
@@ -1516,8 +1517,9 @@ and :meth:`pyuvdata.UVData.diff_vis` methods.
   >>> uvd1.sum_vis(uvd2, inplace=True)
 
   >>> # override a particular parameter
-  >>> uvd1.instrument = "test instrument"
-  >>> uvd1.sum_vis(uvd2, inplace=True, override_params=["instrument"])
+  >>> rdate_obj = Time(np.floor(uvd1.time_array[0]), format="jd", scale="utc")
+  >>> uvd1.rdate = rdate_obj.strftime("%Y-%m-%d")
+  >>> uvd1.sum_vis(uvd2, inplace=True, override_params=["rdate"])
 
 .. _large_files:
 
