@@ -11,7 +11,7 @@ import warnings
 import numpy as np
 import scipy
 from astropy import constants as const
-from astropy.coordinates import Angle, EarthLocation, SkyCoord
+from astropy.coordinates import Angle, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
@@ -1999,9 +1999,7 @@ class Miriad(UVData):
                         az=np.zeros_like(times) + phase_dict["cat_lon"],
                         frame="altaz",
                         unit="rad",
-                        location=EarthLocation.from_geocentric(
-                            *self.telescope_location, unit="m"
-                        ),
+                        location=self.telescope.location_obj,
                         obstime=Time(times, format="jd"),
                     )
                     driftscan_coords[cat_id] = {
