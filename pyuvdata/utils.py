@@ -1583,9 +1583,9 @@ def ENU_from_ECEF(xyz, latitude, longitude, altitude, frame="ITRS", ellipsoid=No
     # transpose after we get the array back to match the expected shape
     enu = _utils._ENU_from_ECEF(
         xyz,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
+        np.float64(latitude),
+        np.float64(longitude),
+        np.float64(altitude),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
         (_utils.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
@@ -1651,9 +1651,9 @@ def ECEF_from_ENU(enu, latitude, longitude, altitude, frame="ITRS", ellipsoid=No
     # transpose after we get the array back to match the expected shape
     xyz = _utils._ECEF_from_ENU(
         enu,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
+        np.float64(latitude),
+        np.float64(longitude),
+        np.float64(altitude),
         # we have already forced the frame to conform to our options
         # and if we  don't have moon we have already errored.
         (_utils.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
