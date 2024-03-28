@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Updated minimum optional dependency versions: astropy-healpix>=1.0.2
+
 ### Fixed
 - Bug in which `correct_cable_len` defaulted to `None` instead of `True`
 for `read_mwa_corr_fits`.
