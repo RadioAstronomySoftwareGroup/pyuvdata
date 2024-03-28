@@ -8,6 +8,7 @@ import os
 import warnings
 
 import numpy as np
+import yaml
 from astropy import units
 from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
@@ -3961,8 +3962,6 @@ class UVBeam(UVBase):
             Containing all the info from the yaml file.
 
         """
-        import yaml
-
         with open(filename, "r") as file:
             settings_dict = yaml.safe_load(file)
 

@@ -104,7 +104,6 @@ if not is_platform_windows():
 
 astroquery_reqs = ["astroquery>=0.4.4"]
 casa_reqs = ["python-casacore>=3.5.2"]
-cst_reqs = ["pyyaml>=5.4.1"]
 hdf5_compression_reqs = ["hdf5plugin>=3.2.0"]
 healpix_reqs = ["astropy_healpix>=1.0.2"]
 lunar_reqs = ["lunarsky>=0.2.2"]
@@ -112,7 +111,6 @@ novas_reqs = ["novas", "novas_de405"]
 all_optional_reqs = (
     astroquery_reqs
     + casa_reqs
-    + cst_reqs
     + hdf5_compression_reqs
     + healpix_reqs
     + lunar_reqs
@@ -150,6 +148,7 @@ setup_args = {
         "h5py>=3.4",
         "numpy>=1.23",
         "pyerfa>=2.0.1.1",
+        "pyyaml>=5.4.1",
         "scipy>=1.7.3",
         "setuptools>=61",
         "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
@@ -157,7 +156,6 @@ setup_args = {
     "extras_require": {
         "astroquery": astroquery_reqs,
         "casa": casa_reqs,
-        "cst": cst_reqs,
         "hdf5_compression": hdf5_compression_reqs,
         "healpix": healpix_reqs,
         "lunar": lunar_reqs,

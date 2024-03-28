@@ -8,6 +8,7 @@ dependencies:
   - scipy>=1.5
   - numpy>=1.23
   - pyerfa>=2.0
+  - pyyaml>=5.4.1
   - coverage
   - pytest>=6.2.0
   - pytest-cases>=3.8.3
