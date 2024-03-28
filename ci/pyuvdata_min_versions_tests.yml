@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - astropy==6.0.0
-  - astropy-healpix==0.6
+  - astropy-healpix==1.0.2
   - astroquery==0.4.4
   - docstring_parser==0.15
   - h5py==3.4.0
