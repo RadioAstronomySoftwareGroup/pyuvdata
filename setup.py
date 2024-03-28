@@ -106,7 +106,7 @@ astroquery_reqs = ["astroquery>=0.4.4"]
 casa_reqs = ["python-casacore>=3.5.2"]
 cst_reqs = ["pyyaml>=5.4.1"]
 hdf5_compression_reqs = ["hdf5plugin>=3.2.0"]
-healpix_reqs = ["astropy_healpix>=0.6"]
+healpix_reqs = ["astropy_healpix>=1.0.2"]
 lunar_reqs = ["lunarsky>=0.2.2"]
 novas_reqs = ["novas", "novas_de405"]
 all_optional_reqs = (
@@ -143,6 +143,7 @@ setup_args = {
     "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
     "use_scm_version": {"local_scheme": branch_scheme},
     "include_package_data": True,
+    "python_requires": ">=3.10",
     "install_requires": [
         "astropy>=6.0",
         "docstring-parser>=0.15",
