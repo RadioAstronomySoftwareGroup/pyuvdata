@@ -60,6 +60,7 @@ docs/uvdata.rst
 docs/uvcal.rst
 docs/uvbeam.rst
 docs/uvflag.rst
+docs/telescope.rst
 
 # PyBuilder
 target/
