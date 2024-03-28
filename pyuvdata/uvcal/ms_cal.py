@@ -182,7 +182,7 @@ class MSCal(UVCal):
 
         spw_info = ms_utils.read_ms_spectral_window(filepath)
 
-        self.spw_array = spw_info["assoc_spw_id"]
+        self.spw_array = np.array(spw_info["assoc_spw_id"])
         self.Nspws = len(self.spw_array)
         self.Nfreqs = sum(spw_info["num_chan"])
 
