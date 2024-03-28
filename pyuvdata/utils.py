@@ -1025,6 +1025,75 @@ def _select_times_helper(
     return time_inds
 
 
+def _sorted_unique_union(obj1, obj2=None):
+    """
+    Determine the union of unique elements from two lists.
+
+    Convenience function for handling various actions with indices.
+
+    Parameters
+    ----------
+    obj1 : list or tuple or set or 1D ndarray
+        First list from which to determine unique entries.
+    obj2 : list or tuple or set or 1D ndarray
+        Second list from which to determine unique entries, which is joined with the
+        first list. If None, the method will simply return the sorted list of unique
+        elements in obj1.
+
+    Returns
+    -------
+    sorted_unique : list
+        List containing the union of unique entries between obj1 and obj2.
+    """
+    return sorted(set(obj1)) if obj2 is None else sorted(set(obj1).union(obj2))
+
+
+def _sorted_unique_intersection(obj1, obj2=None):
+    """
+    Determine the intersection of unique elements from two lists.
+
+    Convenience function for handling various actions with indices.
+
+    Parameters
+    ----------
+    obj1 : list or tuple or set or 1D ndarray
+        First list from which to determine unique entries.
+    obj2 : list or tuple or set or 1D ndarray
+        Second list from which to determine unique entries, which is intersected with
+        the first list. If None, the method will simply return the sorted list of unique
+        elements in obj1.
+
+    Returns
+    -------
+    sorted_unique : list
+        List containing the intersection of unique entries between obj1 and obj2.
+    """
+    return sorted(set(obj1)) if obj2 is None else sorted(set(obj1).intersection(obj2))
+
+
+def _sorted_unique_difference(obj1, obj2=None):
+    """
+    Determine the difference of unique elements from two lists.
+
+    Convenience function for handling various actions with indices.
+
+    Parameters
+    ----------
+    obj1 : list or tuple or set or 1D ndarray
+        First list from which to determine unique entries.
+    obj2 : list or tuple or set or 1D ndarray
+        Second list from which to determine unique entries, which is differenced with
+        the first list. If None, the method will simply return the sorted list of unique
+        elements in obj1.
+
+    Returns
+    -------
+    sorted_unique : list
+        List containing the difference in unique entries between obj1 and obj2.
+    """
+    return sorted(set(obj1)) if obj2 is None else sorted(set(obj1).difference(obj2))
+
+
 def baseline_to_antnums(baseline, *, Nants_telescope):
     """
     Get the antenna numbers corresponding to a given baseline number.

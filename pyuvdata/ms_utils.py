@@ -99,7 +99,7 @@ COORD_PYUVDATA2CASA_DICT = {
 
 def _ms_utils_call_checks(filepath, invert_check=False):
     # Check for casa.
-    if not casa_present:
+    if not casa_present:  # pragma: no cover
         raise ImportError(no_casa_message) from casa_error
     if invert_check:
         if os.path.exists(filepath):
@@ -973,7 +973,7 @@ def read_ms_spectral_window(filepath):
             ]
             spw_dict["spoof_spw_id"] = False
         except RuntimeError:
-            spw_dict["assoc_spw_id"] = list(range(n_rows))
+            spw_dict["assoc_spw_id"] = np.arange(n_rows)
             spw_dict["spoof_spw"] = True
 
         for idx in range(n_rows):
@@ -990,7 +990,7 @@ def write_ms_spectral_window(
     freq_array=None,
     channel_width=None,
     spw_array=None,
-    flex_spw_id_array=None,
+    id_array=None,
     use_future_array_shapes=True,
 ):
     """
@@ -1009,11 +1009,11 @@ def write_ms_spectral_window(
         if "_freq_range" in uvobj and uvobj.freq_range is not None:
             freq_array = np.mean(uvobj.freq_range, axis=-1)
             channel_width = np.squeeze(np.diff(uvobj.freq_range, axis=-1), axis=-1)
-            flex_spw_id_array = np.array(uvobj.spw_array)
+            id_array = np.array(uvobj.spw_array)
         else:
             freq_array = uvobj.freq_array
             channel_width = uvobj.channel_width
-            flex_spw_id_array = uvobj.flex_spw_id_array
+            id_array = uvobj.flex_spw_id_array
 
         spw_array = uvobj.spw_array
         use_future_array_shapes = uvobj.future_array_shapes
@@ -1034,10 +1034,7 @@ def write_ms_spectral_window(
         filepath, tabledesc=tabledesc, dminfo=dminfo, ack=False, readonly=False
     ) as sw_table:
         for idx, spw_id in enumerate(spw_array):
-            if flex_spw_id_array is None:
-                ch_mask = np.ones(freq_array.shape, dtype=bool)
-            else:
-                ch_mask = flex_spw_id_array == spw_id
+            ch_mask = ... if id_array is None else id_array == spw_id
             sw_table.addrows()
             sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
             sw_table.putcell("NAME", idx, "SPW%d" % spw_id)

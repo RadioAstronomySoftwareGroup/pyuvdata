@@ -516,12 +516,28 @@ class UVCal(UVBase):
             description=desc,
         )
 
+        desc = (
+            'Optional argument, only used if cal_style = "sky". Allows one to specify'
+            "a different phase reference antenna per time interval. Shape (Ntimes,), "
+            "type=int."
+        )
+        self._ref_antenna_array = uvp.UVParameter(
+            "ref_antenna_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
+        )
+
         desc = "Number of sources used."
         self._Nsources = uvp.UVParameter(
             "Nsources", required=False, expected_type=int, description=desc
         )
 
-        desc = "Number of sources used."
+        desc = (
+            "Specifies the number of phase centers contained within the calibration "
+            "solution catalog."
+        )
         self._Nphase = uvp.UVParameter(
             "Nphase", required=False, expected_type=int, description=desc
         )
@@ -737,7 +753,7 @@ class UVCal(UVBase):
         """
         return initializers.new_uvcal(**kwargs)
 
-    def _set_flex_spw(self, flex_spw=True):
+    def _set_flex_spw(self):
         """
         Set flex_spw to True, and adjust required parameters.
 
@@ -746,13 +762,13 @@ class UVCal(UVBase):
         windows concatenated together across the frequency axis.
         """
         assert not (
-            self.wide_band and flex_spw
+            self.wide_band
         ), "Cannot set objects wide_band objects to have flexible spectral windows."
         # Mark once-optional arrays as now required
-        self.flex_spw = flex_spw
-        self._flex_spw_id_array.required = flex_spw
+        self.flex_spw = True
+        self._flex_spw_id_array.required = True
         # Now make sure that chan_width is set to be an array
-        self._channel_width.form = ("Nfreqs",) if flex_spw else ()
+        self._channel_width.form = ("Nfreqs",)
 
     def _set_wide_band(self, wide_band=True):
         """
@@ -1177,7 +1193,7 @@ class UVCal(UVBase):
 
     def remove_flex_jones(self, *, combine_spws=True):
         """
-        Convert a flex-Jones UVData object into one with a standard Jones axis.
+        Convert a flex-Jones UVCal object into one with a standard Jones axis.
 
         This will convert a flexible-Jones dataset into one with standard
         polarization handling, which is required for some operations or writing in
@@ -1757,7 +1773,7 @@ class UVCal(UVBase):
             centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
         info_source : str
             Optional string describing the source of the information provided. Used
-            primarily in UVData to denote when an ephemeris has been supplied by the
+            primarily in UVCal to denote when an ephemeris has been supplied by the
             JPL-Horizons system, user-supplied, or read in by one of the various file
             interpreters. Default is 'user'.
         force_update : bool
@@ -1765,7 +1781,7 @@ class UVCal(UVBase):
             phase_center with the given cat_id. However, if one sets
             `force_update=True`, the method will overwrite the existing entry in
             `phase_center_catalog` with the parameters supplied. Note that doing this
-            will _not_ update other attributes of the `UVData` object. Default is False.
+            will _not_ update other attributes of the `UVCal` object. Default is False.
         cat_id : int
             An integer signifying the ID number for the phase center, used in the
             `phase_center_id_array` attribute. If a matching phase center entry exists
@@ -1865,7 +1881,7 @@ class UVCal(UVBase):
         """
         Remove objects dictionaries and names that are no longer in use.
 
-        Goes through the `phase_center_catalog` attribute in of a UVData object and
+        Goes through the `phase_center_catalog` attribute in of a UVCal object and
         clears out entries that are no longer being used, and appropriately updates
         `phase_center_id_array` accordingly. This function is not typically called
         by users, but instead is used by other methods.
@@ -1902,7 +1918,7 @@ class UVCal(UVBase):
 
         Prints out an ASCII table that contains the details of the
         `phase_center_catalog` attribute, which acts as the internal source catalog
-        for UVData objects.
+        for UVCal objects.
 
         Parameters
         ----------
@@ -1992,18 +2008,19 @@ class UVCal(UVBase):
         ----------
         reference_catalog : dict
             A reference catalog to make this object consistent with.
-        other : UVData object
-            A UVData object which self needs to be consistent with because it will be
-            added to self. The phase_center_catalog from other is used as the reference
-            catalog if the reference_catalog is None. If `reference_catalog` is also
-            set, the phase_center_catalog on other will also be modified to be
-            consistent with the `reference_catalog`.
+        other : UVCal or UVData object
+            Nominally a UVCal object which self needs to be consistent with because it
+            will be added to self. The phase_center_catalog from other is used as the
+            reference catalog if the reference_catalog is None. If `reference_catalog`
+            is also set, the phase_center_catalog on other will also be modified to be
+            consistent with the `reference_catalog`. Note that a UVData object can also
+            be supplied (in order to ensure consistency between two related objects).
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
             `phase_center_catalog`) when identifying matching phase centers. If set to
             True, phase centers that are the same up to their name will be combined with
             the name set to the reference catalog name or the name found in the first
-            UVData object. If set to False, phase centers that are the same up to the
+            UVCal object. If set to False, phase centers that are the same up to the
             name will be kept as separate phase centers. Default is False.
 
         """
@@ -3273,9 +3290,9 @@ class UVCal(UVBase):
             as the sum of the two.
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
-            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
             phase centers that are the same up to their name will be combined with the
-            name set to the name found in the first UVData object in the sum. If set to
+            name set to the name found in the first UVCal object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
         """
@@ -4514,9 +4531,9 @@ class UVCal(UVBase):
             combining objects.
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
-            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
             phase centers that are the same up to their name will be combined with the
-            name set to the name found in the first UVData object in the sum. If set to
+            name set to the name found in the first UVCal object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
         """
@@ -4562,9 +4579,9 @@ class UVCal(UVBase):
             only allowed for wideband objects).
         ignore_name : bool
             Option to ignore the name of the phase center (`cat_name` in
-            `phase_center_catalog`) when combining two UVData objects. If set to True,
+            `phase_center_catalog`) when combining two UVCal objects. If set to True,
             phase centers that are the same up to their name will be combined with the
-            name set to the name found in the first UVData object in the sum. If set to
+            name set to the name found in the first UVCal object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
         inplace : bool
@@ -5260,10 +5277,9 @@ class UVCal(UVBase):
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
-            if time_inds is None:
-                time_inds = np.where(pc_check)[0]
-            else:
-                time_inds = [idx for idx in time_inds if pc_check[idx]]
+            time_inds = uvutils._sorted_unique_intersection(
+                np.where(pc_check)[0], time_inds
+            )
 
             update_substring = (
                 "phase center IDs" if (catalog_names is None) else "catalog names"
@@ -5299,10 +5315,9 @@ class UVCal(UVBase):
                         "spectral windows and the `wide_band` parameter is not True."
                     )
                     # Translate the spws into frequencies
-                    freq_chans = set(
-                        np.where(np.isin(self.flex_spw_id_array, spws))[0]
-                    ).union([] if freq_chans is None else freq_chans)
-                    freq_chans = sorted(freq_chans)
+                    freq_chans = uvutils._sorted_unique_union(
+                        np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
+                    )
                     spw_inds = None
                 else:
                     assert self.future_array_shapes, (
@@ -5349,10 +5364,9 @@ class UVCal(UVBase):
                     "present in the freq_array"
                 )
 
-            freq_chans = set(np.where(np.isin(freq_arr_use, frequencies))[0]).union(
-                [] if freq_chans is None else freq_chans
+            freq_chans = uvutils._sorted_unique_union(
+                np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
             )
-            freq_chans = sorted(freq_chans)
 
         if freq_chans is not None:
             if n_selects > 0:
@@ -5430,17 +5444,17 @@ class UVCal(UVBase):
                     jones_chans = np.where(
                         np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
                     )[0]
-                    if freq_inds is None:
-                        freq_inds = sorted(set(jones_chans).intersection(freq_inds))
-                    else:
-                        freq_inds = sorted(jones_chans)
+                    freq_inds = uvutils._sorted_unique_intersection(
+                        jones_chans, freq_inds
+                    )
+                spw_inds = uvutils._sorted_unique_intersection(jones_spws, spw_inds)
 
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
-                if len(freq_inds) == 0:
+                if len(spw_inds == 0) or (self.flex_spw and len(freq_inds) == 0):
                     raise ValueError(
-                        "No data matching this polarization and frequency selection "
-                        "in this UVData object."
+                        "No data matching this Jones selection in this flex-Jones "
+                        " UVCal object."
                     )
                 spacing_check = uvutils._test_array_constant_spacing(
                     np.unique(self.flex_jones_array[spw_inds])

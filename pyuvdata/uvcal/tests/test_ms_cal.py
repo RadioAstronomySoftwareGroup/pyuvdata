@@ -7,8 +7,6 @@ import os
 
 import pytest
 
-from ... import ms_utils
-from ... import tests as uvtest
 from ...data import DATA_PATH
 from ..uvcal import UVCal
 
@@ -65,80 +63,46 @@ def sma_bcal(sma_bcal_main):
     yield uvobj
 
 
-@pytest.mark.parametrize("check_warning", [True, False])
 @pytest.mark.parametrize(
-    "frame,epoch,msg",
-    (
-        ["fk5", 1991.1, "Frame fk5 (epoch 1991.1) does not have a corresponding match"],
-        ["fk4", 1991.1, "Frame fk4 (epoch 1991.1) does not have a corresponding match"],
-        ["icrs", 2021.0, "Frame icrs (epoch 2021) does not have a corresponding"],
-    ),
+    "write_func,filename",
+    [["write_ms_cal", "ms_cal_loopback.ms"], ["write_calh5", "ms_cal_loopback.calh5"]],
 )
-def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
-    """
-    Test errors with matching CASA frames to astropy frame/epochs
-    """
-    if check_warning:
-        with uvtest.check_warnings(UserWarning, match=msg):
-            ms_utils._parse_pyuvdata_frame_ref(frame, epoch, raise_error=False)
-    else:
-        with pytest.raises(ValueError) as cm:
-            ms_utils._parse_pyuvdata_frame_ref(frame, epoch)
-        assert str(cm.value).startswith(msg)
-
-
-@pytest.mark.parametrize("check_warning", [True, False])
-@pytest.mark.parametrize(
-    "frame,errtype,msg",
-    (
-        ["JNAT", NotImplementedError, "Support for the JNAT frame is not yet"],
-        ["AZEL", NotImplementedError, "Support for the AZEL frame is not yet"],
-        ["GALACTIC", NotImplementedError, "Support for the GALACTIC frame is not yet"],
-        ["ABC", ValueError, "The coordinate frame ABC is not one of the supported"],
-        ["123", ValueError, "The coordinate frame 123 is not one of the supported"],
-    ),
-)
-def test_parse_casa_frame_ref_errors(check_warning, frame, errtype, msg):
-    """
-    Test errors with matching CASA frames to astropy frame/epochs
-    """
-    if check_warning:
-        with uvtest.check_warnings(UserWarning, match=msg):
-            ms_utils._parse_casa_frame_ref(frame, raise_error=False)
-    else:
-        with pytest.raises(errtype) as cm:
-            ms_utils._parse_casa_frame_ref(frame)
-        assert str(cm.value).startswith(msg)
-
-
-def test_ms_cal_wideband_loopback(sma_pcal, tmp_path):
+def test_ms_cal_wideband_loopback(sma_pcal, tmp_path, write_func, filename):
     uvcal = UVCal()
-    testfile = os.path.join(tmp_path, "ms_cal_loopback.ms")
-    sma_pcal.write_ms_cal(testfile, clobber=True)
+    testfile = os.path.join(tmp_path, filename)
+    getattr(sma_pcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile)
+    uvcal.read(testfile, use_future_array_shapes=True)
     # Check that the histories line up
     assert sma_pcal.history in uvcal.history
     assert sma_pcal.__eq__(uvcal, allowed_failures=allowed_failures)
 
 
-def test_ms_cal_delay_loopback(sma_dcal, tmp_path):
+@pytest.mark.parametrize(
+    "write_func,filename",
+    [["write_ms_cal", "ms_cal_delay.ms"], ["write_calh5", "ms_cal_delay.calh5"]],
+)
+def test_ms_cal_delay_loopback(sma_dcal, tmp_path, write_func, filename):
     uvcal = UVCal()
-    testfile = os.path.join(tmp_path, "ms_cal_delay.ms")
-    sma_dcal.write_ms_cal(testfile, clobber=True)
+    testfile = os.path.join(tmp_path, filename)
+    getattr(sma_dcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile)
+    uvcal.read(testfile, use_future_array_shapes=True)
     # Check that the histories line up
     assert sma_dcal.history in uvcal.history
     assert sma_dcal.__eq__(uvcal, allowed_failures=allowed_failures)
 
 
-def test_ms_cal_bandpass_loopback(sma_bcal, tmp_path):
+@pytest.mark.parametrize(
+    "write_func,filename",
+    [["write_ms_cal", "ms_cal_bandpass.ms"], ["write_calh5", "ms_cal_bandpass.calh5"]],
+)
+def test_ms_cal_bandpass_loopback(sma_bcal, tmp_path, write_func, filename):
     uvcal = UVCal()
-    testfile = os.path.join(tmp_path, "ms_cal_bandpass.ms")
-    sma_bcal.write_ms_cal(testfile, clobber=True)
+    testfile = os.path.join(tmp_path, filename)
+    getattr(sma_bcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile)
+    uvcal.read(testfile, use_future_array_shapes=True)
     # Check that the histories line up
     assert sma_bcal.history in uvcal.history
     assert sma_bcal.__eq__(uvcal, allowed_failures=allowed_failures)

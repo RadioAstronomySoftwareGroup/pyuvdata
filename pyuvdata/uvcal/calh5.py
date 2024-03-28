@@ -255,8 +255,10 @@ class CalH5(UVCal):
 
         # Optional parameters
         for attr in [
+            "antenna_diameters",
             "channel_width",
             "flex_spw_id_array",
+            "Nphase",
             "Nsources",
             "baseline_range",
             "diffuse_model",
@@ -267,7 +269,11 @@ class CalH5(UVCal):
             "git_hash_cal",
             "git_origin_cal",
             "observer",
+            "phase_center_catalog",
+            "phase_center_id_array",
             "ref_antenna_name",
+            "ref_antenna_array",
+            "scan_number_array",
             "sky_catalog",
             "sky_field",
         ]:
@@ -757,6 +763,8 @@ class CalH5(UVCal):
             header["channel_width"] = self.channel_width
         if self.flex_spw_id_array is not None:
             header["flex_spw_id_array"] = self.flex_spw_id_array
+        if self.flex_jones_array is not None:
+            header["flex_jones_array"] = self.flex_jones_array
 
         if self.time_array is not None:
             header["time_array"] = self.time_array
@@ -766,6 +774,11 @@ class CalH5(UVCal):
             header["lst_array"] = self.lst_array
         if self.lst_range is not None:
             header["lst_range"] = self.lst_range
+        if self.scan_number_array is not None:
+            header["scan_number_array"] = self.scan_number_array
+
+        if self.antenna_diameters is not None:
+            header["antenna_diameters"] = self.antenna_diameters
 
         if self.Nsources is not None:
             header["Nsources"] = self.Nsources
@@ -791,6 +804,21 @@ class CalH5(UVCal):
             header["sky_catalog"] = np.string_(self.sky_catalog)
         if self.sky_field is not None:
             header["sky_field"] = np.string_(self.sky_field)
+        if self.phase_center_id_array is not None:
+            header["phase_center_id_array"] = self.phase_center_id_array
+        if self.Nphase is not None:
+            header["Nphase"] = self.Nphase
+        if self.phase_center_catalog is not None:
+            pc_group = header.create_group("phase_center_catalog")
+            for pc, pc_dict in self.phase_center_catalog.items():
+                this_group = pc_group.create_group(str(pc))
+                for key, value in pc_dict.items():
+                    if isinstance(value, str):
+                        this_group[key] = np.bytes_(value)
+                    elif value is None:
+                        this_group[key] = h5py.Empty("f")
+                    else:
+                        this_group[key] = value
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:

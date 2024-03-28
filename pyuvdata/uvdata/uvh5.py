@@ -5,7 +5,6 @@
 """Class for reading and writing UVH5 files."""
 from __future__ import annotations
 
-import json
 import os
 import warnings
 from functools import cached_property
@@ -276,40 +275,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         if self.Ntimes == self.Nblts:
             return True
         return self.header["time_array"][1] != self.header["time_array"][0]
-
-    @cached_property
-    def phase_center_catalog(self) -> dict | None:
-        """Dictionary of phase centers."""
-        header = self.header
-        if "phase_center_catalog" not in header:
-            return None
-        phase_center_catalog = {}
-        key0 = next(iter(header["phase_center_catalog"].keys()))
-        if isinstance(header["phase_center_catalog"][key0], h5py.Group):
-            # This is the new, correct way
-            for pc, pc_dict in header["phase_center_catalog"].items():
-                pc_id = int(pc)
-                phase_center_catalog[pc_id] = {}
-                for key, dset in pc_dict.items():
-                    if issubclass(dset.dtype.type, np.bytes_):
-                        phase_center_catalog[pc_id][key] = bytes(dset[()]).decode(
-                            "utf8"
-                        )
-                    elif dset.shape is None:
-                        phase_center_catalog[pc_id][key] = None
-                    else:
-                        phase_center_catalog[pc_id][key] = dset[()]
-        else:
-            # This is the old way this was written
-            for key in header["phase_center_catalog"].keys():
-                pc_dict = json.loads(
-                    bytes(header["phase_center_catalog"][key][()]).decode("utf8")
-                )
-                pc_dict["cat_name"] = key
-                pc_id = pc_dict.pop("cat_id")
-                phase_center_catalog[pc_id] = pc_dict
-
-        return phase_center_catalog
 
     @cached_property
     def phase_type(self) -> str:
