@@ -16,7 +16,7 @@ import astropy.units as units
 import numpy as np
 from astropy import constants as const
 from astropy import coordinates as coord
-from astropy.coordinates import Angle, EarthLocation, SkyCoord
+from astropy.coordinates import Angle, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
@@ -5414,9 +5414,7 @@ class UVData(UVBase):
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate
         # system to use for phasing
-        telescope_location = EarthLocation.from_geocentric(
-            *self.telescope_location, unit="m"
-        )
+        telescope_location = self.telescope.location_obj
 
         zenith_coord = SkyCoord(
             alt=Angle(90 * units.deg),
@@ -5660,9 +5658,7 @@ class UVData(UVBase):
 
             unique_times, _ = np.unique(self.time_array, return_index=True)
 
-            telescope_location = EarthLocation.from_geocentric(
-                *self.telescope_location, unit=units.m
-            )
+            telescope_location = self.telescope.location_obj
             obs_times = Time(unique_times, format="jd")
             itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
             itrs_telescope_locations = SkyCoord(itrs_telescope_locations)

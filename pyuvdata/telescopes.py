@@ -301,7 +301,7 @@ class Telescope(uvbase.UVBase):
     def location_obj(self, val):
         if isinstance(val, EarthLocation):
             self._location.frame = "itrs"
-        elif isinstance(val, uvutils.MoonLocation):
+        elif uvutils.hasmoon and isinstance(val, uvutils.MoonLocation):
             self._location.frame = "mcmf"
             self._location.ellipsoid = val.ellipsoid
         else:
