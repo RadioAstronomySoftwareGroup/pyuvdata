@@ -336,6 +336,18 @@ class Telescope(uvbase.UVBase):
         self._x_orientation.required = False
         self._antenna_diameters.required = False
 
+    def _set_uvflag_requirements(self):
+        """Set the UVParameter required fields appropriately for UVCal."""
+        self._name.required = True
+        self._location.required = True
+        self._instrument.required = False
+        self._Nants.required = True
+        self._antenna_names.required = True
+        self._antenna_numbers.required = True
+        self._antenna_positions.required = True
+        self._antenna_diameters.required = False
+        self._x_orientation.required = False
+
     def update_params_from_known_telescopes(
         self,
         *,
@@ -429,52 +441,62 @@ class Telescope(uvbase.UVBase):
                     "antenna_numbers": antenna_numbers,
                     "antenna_positions": antenna_positions,
                 }
-                if overwrite or all(
-                    getattr(self, key) is None for key in ant_info.keys()
-                ):
+                ant_params_missing = []
+                for key in ant_info.keys():
+                    if getattr(self, key) is None:
+                        ant_params_missing.append(key)
+                if overwrite or len(ant_params_missing) == len(ant_info.keys()):
                     for key, value in ant_info.items():
                         known_telescope_list.append(key)
                         setattr(self, key, value)
-                elif (
-                    self.antenna_positions is None
-                    and self.antenna_names is not None
-                    and self.antenna_numbers is not None
-                ):
+                elif self.antenna_names is not None or self.antenna_numbers is not None:
                     ant_inds = []
                     telescope_ant_inds = []
                     # first try to match using names only
-                    for index, antname in enumerate(self.antenna_names):
-                        if antname in ant_info["antenna_names"]:
-                            ant_inds.append(index)
-                            telescope_ant_inds.append(
-                                np.where(ant_info["antenna_names"] == antname)[0][0]
-                            )
+                    if self.antenna_names is not None:
+                        for index, antname in enumerate(self.antenna_names):
+                            if antname in ant_info["antenna_names"]:
+                                ant_inds.append(index)
+                                telescope_ant_inds.append(
+                                    np.where(ant_info["antenna_names"] == antname)[0][0]
+                                )
                     # next try using numbers
-                    if len(ant_inds) != self.Nants:
-                        for index, antnum in enumerate(self.antenna_numbers):
-                            # only update if not already found
-                            if (
-                                index not in ant_inds
-                                and antnum in ant_info["antenna_numbers"]
-                            ):
-                                this_ant_ind = np.where(
-                                    ant_info["antenna_numbers"] == antnum
-                                )[0][0]
-                                # make sure we don't already have this antenna
-                                #  associated with another antenna
-                                if this_ant_ind not in telescope_ant_inds:
-                                    ant_inds.append(index)
-                                    telescope_ant_inds.append(this_ant_ind)
+                    if self.antenna_numbers is not None:
+                        if len(ant_inds) != self.Nants:
+                            for index, antnum in enumerate(self.antenna_numbers):
+                                # only update if not already found
+                                if (
+                                    index not in ant_inds
+                                    and antnum in ant_info["antenna_numbers"]
+                                ):
+                                    this_ant_ind = np.where(
+                                        ant_info["antenna_numbers"] == antnum
+                                    )[0][0]
+                                    # make sure we don't already have this antenna
+                                    #  associated with another antenna
+                                    if this_ant_ind not in telescope_ant_inds:
+                                        ant_inds.append(index)
+                                        telescope_ant_inds.append(this_ant_ind)
                     if len(ant_inds) != self.Nants:
                         warnings.warn(
-                            "Not all antennas have positions in the "
-                            "known_telescope data. Not setting antenna_positions."
+                            "Not all antennas have metadata in the "
+                            f"known_telescope data. Not setting {ant_params_missing}."
                         )
                     else:
-                        known_telescope_list.append("antenna_positions")
-                        self.antenna_positions = ant_info["antenna_positions"][
-                            telescope_ant_inds, :
-                        ]
+                        known_telescope_list.extend(ant_params_missing)
+                        if "antenna_positions" in ant_params_missing:
+                            self.antenna_positions = ant_info["antenna_positions"][
+                                telescope_ant_inds, :
+                            ]
+                        if "antenna_names" in ant_params_missing:
+                            self.antenna_names = ant_info["antenna_names"][
+                                telescope_ant_inds
+                            ]
+
+                        if "antenna_numbers" in ant_params_missing:
+                            self.antenna_numbers = ant_info["antenna_numbers"][
+                                telescope_ant_inds
+                            ]
 
             if "antenna_diameters" in telescope_dict.keys() and (
                 overwrite or self.antenna_diameters is None
