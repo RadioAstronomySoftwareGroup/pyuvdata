@@ -7,16 +7,25 @@ use pyo3::{
     pyclass, pymodule,
     sync::GILOnceCell,
     types::{PyDict, PyModule},
-    PyResult, Python,
+    PyErr, PyResult, Python,
 };
 
 const BLS_2_147_483_648: u64 = 2_u64.pow(16) + 2_u64.pow(22);
 const BLS_2048: u64 = 2_u64.pow(16);
 
+fn _warn(msg: &str) {
+    Python::with_gil(|py| {
+        let user_warning = py.get_type::<pyo3::exceptions::PyUserWarning>();
+        PyErr::warn(py, user_warning, msg, 0)?;
+        Ok::<_, PyErr>(())
+    })
+    .expect("Unable to issue python warning.");
+}
+
 fn _baseline_to_antnums(bls_array: &[u64]) -> Array<u64, Ix2> {
     let nbls = bls_array.len();
-    // unwrap is safe here because we require nbls >= 1 in python section
-    let bls_min = *bls_array.iter().min().unwrap();
+    // we're okay with getting 0 if the bl array is empty
+    let bls_min = *bls_array.iter().min().unwrap_or(&0);
 
     let (offset, modulus) = if bls_min >= BLS_2_147_483_648 {
         (BLS_2_147_483_648, 2_147_483_648)
@@ -60,14 +69,26 @@ fn _antnums_to_baseline(
 ) -> Array<u64, Ix1> {
     let nbls = ant1.len();
 
-    // unwrap is safe here because we require nbls >= 1 in python section
-    let ants_max = *ant1.iter().chain(ant2).max().unwrap();
+    // we're okay with getting 0 if the ant arrays are empty.
+    let ants_max = *ant1.iter().chain(ant2).max().unwrap_or(&0);
 
     let (offset, modulus) = if ants_max < 256 && nants_less_2048 && attempt_256 {
         (0, 256)
     } else if ants_max < 2048 && nants_less_2048 {
+        if attempt_256 {
+            _warn(
+                "antnums_to_baseline: found antenna numbers > 255\
+                    , using 2048 baseline indexing.",
+            )
+        }
         (BLS_2048, 2048)
     } else {
+        if attempt_256 {
+            _warn(
+                "antnums_to_baseline: found antenna numbers > 2047 or \
+                Nants_telescope > 2048, using 2147483648 baseline indexing.",
+            );
+        }
         (BLS_2_147_483_648, 2_147_483_648_u64)
     };
 
