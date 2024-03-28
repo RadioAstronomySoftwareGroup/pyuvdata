@@ -13,8 +13,8 @@ import warnings
 import h5py
 import numpy as np
 
+from .. import Telescope
 from .. import parameter as uvp
-from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..uvbase import UVBase
 from ..uvcal import UVCal
@@ -30,6 +30,19 @@ _future_array_shapes_warning = (
     "name on this method to both convert to the future array shapes and silence this "
     "warning."
 )
+
+
+telescope_params = {
+    "telescope_name": "name",
+    "telescope_location": "location",
+    "Nants_telescope": "Nants",
+    "antenna_names": "antenna_names",
+    "antenna_numbers": "antenna_numbers",
+    "antenna_positions": "antenna_positions",
+    "antenna_diameters": "antenna_diameters",
+    "x_orientation": "x_orientation",
+    "instrument": "instrument",
+}
 
 
 def and_rows_cols(waterfall):
@@ -475,17 +488,6 @@ class UVFlag(UVBase):
             form=("Npols",),
         )
 
-        self._telescope_name = uvp.UVParameter(
-            "telescope_name",
-            description="Name of telescope or array (string).",
-            form="str",
-            expected_type=str,
-        )
-
-        self._telescope_location = uvp.LocationParameter(
-            "telescope_location", description=desc, tols=1e-3, frame="itrs"
-        )
-
         self._history = uvp.UVParameter(
             "history",
             description="String of history, units English",
@@ -512,15 +514,6 @@ class UVFlag(UVBase):
             "future_array_shapes", description=desc, expected_type=bool, value=False
         )
 
-        # ---antenna information ---
-        desc = (
-            "Number of antennas in the array.  Only available for 'baseline' type "
-            "objects, used for calculating baseline numbers. "
-            "May be larger than the number of antennas with data."
-        )
-        self._Nants_telescope = uvp.UVParameter(
-            "Nants_telescope", description=desc, expected_type=int, required=False
-        )
         desc = (
             "Number of antennas with data present. "
             "Only available for 'baseline' or 'antenna' type objects."
@@ -530,65 +523,14 @@ class UVFlag(UVBase):
             "Nants_data", description=desc, expected_type=int, required=False
         )
 
-        desc = (
-            "List of antenna names, shape (Nants_telescope), with numbers given by "
-            "antenna_numbers (which can be matched to ant_1_array and ant_2_array for "
-            "baseline type or ant_array for antenna type objects). Required for "
-            "baseline or antenna type objects. There must be one entry here for each "
-            "unique entry in ant_1_array and ant_2_array (for baseline type) or "
-            "ant_array (for antenna type), but there may be extras as well. "
-        )
-        self._antenna_names = uvp.UVParameter(
-            "antenna_names",
-            description=desc,
-            form=("Nants_telescope",),
-            expected_type=str,
-        )
-
-        desc = (
-            "List of integer antenna numbers corresponding to antenna_names, "
-            "shape (Nants_telescope). Required for baseline or antenna type objects. "
-            "There must be one entry here for each unique entry in ant_1_array and "
-            "ant_2_array (for baseline type) or ant_array (for antenna type), but "
-            "there may be extras as well. Note that these are not indices -- they do "
-            "not need to start at zero or be continuous."
-        )
-        self._antenna_numbers = uvp.UVParameter(
-            "antenna_numbers",
-            description=desc,
-            form=("Nants_telescope",),
-            expected_type=int,
-        )
-
-        desc = (
-            "Array giving coordinates of antennas relative to "
-            "telescope_location (ITRF frame), shape (Nants_telescope, 3), "
-            "units meters. See the tutorial page in the documentation "
-            "for an example of how to convert this to topocentric frame."
-        )
-        self._antenna_positions = uvp.UVParameter(
-            "antenna_positions",
-            description=desc,
-            form=("Nants_telescope", 3),
-            expected_type=float,
-            tols=1e-3,  # 1 mm
+        # ---telescope information ---
+        self._telescope = uvp.UVParameter(
+            "telescope",
+            description="Telescope object containing the telescope metadata.",
+            expected_type=Telescope,
         )
 
         #  --extra information ---
-        desc = (
-            "Orientation of the physical dipole corresponding to what is "
-            'labelled as the x polarization. Options are "east" '
-            '(indicating east/west orientation) and "north" (indicating '
-            "north/south orientation)"
-        )
-        self._x_orientation = uvp.UVParameter(
-            "x_orientation",
-            description=desc,
-            required=False,
-            expected_type=str,
-            acceptable_vals=["east", "north"],
-        )
-
         desc = (
             "List of strings containing the unique basenames (not the full path) of "
             "input files."
@@ -596,6 +538,12 @@ class UVFlag(UVBase):
         self._filename = uvp.UVParameter(
             "filename", required=False, description=desc, expected_type=str
         )
+
+        # initialize the telescope object
+        self.telescope = Telescope()
+
+        # set the appropriate telescope attributes as required
+        self.telescope._set_uvflag_requirements()
 
         # initialize the underlying UVBase properties
         super(UVFlag, self).__init__()
@@ -683,6 +631,128 @@ class UVFlag(UVBase):
                 "input to UVFlag.__init__ must be one of: "
                 "list, tuple, string, pathlib.Path, UVData, or UVCal."
             )
+
+    @property
+    def telescope_name(self):
+        """The telescope name (stored on the Telescope object internally)."""
+        return self.telescope.name
+
+    @telescope_name.setter
+    def telescope_name(self, val):
+        self.telescope.name = val
+
+    @property
+    def instrument(self):
+        """The instrument name (stored on the Telescope object internally)."""
+        return self.telescope.instrument
+
+    @instrument.setter
+    def instrument(self, val):
+        self.telescope.instrument = val
+
+    @property
+    def telescope_location(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location
+
+    @telescope_location.setter
+    def telescope_location(self, val):
+        self.telescope.location = val
+
+    @property
+    def telescope_location_lat_lon_alt(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location_lat_lon_alt
+
+    @telescope_location_lat_lon_alt.setter
+    def telescope_location_lat_lon_alt(self, val):
+        self.telescope.location_lat_lon_alt = val
+
+    @property
+    def telescope_location_lat_lon_alt_degrees(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location_lat_lon_alt_degrees
+
+    @telescope_location_lat_lon_alt_degrees.setter
+    def telescope_location_lat_lon_alt_degrees(self, val):
+        self.telescope.location_lat_lon_alt_degrees = val
+
+    @property
+    def Nants_telescope(self):  # noqa
+        """
+        The number of antennas in the telescope.
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.Nants
+
+    @Nants_telescope.setter
+    def Nants_telescope(self, val):  # noqa
+        self.telescope.Nants = val
+
+    @property
+    def antenna_names(self):
+        """The antenna names, shape (Nants_telescope,).
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_names
+
+    @antenna_names.setter
+    def antenna_names(self, val):
+        self.telescope.antenna_names = val
+
+    @property
+    def antenna_numbers(self):
+        """The antenna numbers corresponding to antenna_names, shape (Nants_telescope,).
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_numbers
+
+    @antenna_numbers.setter
+    def antenna_numbers(self, val):
+        self.telescope.antenna_numbers = val
+
+    @property
+    def antenna_positions(self):
+        """The antenna positions coordinates of antennas relative to telescope_location.
+
+        The coordinates are in the ITRF frame, shape (Nants_telescope, 3).
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_positions
+
+    @antenna_positions.setter
+    def antenna_positions(self, val):
+        self.telescope.antenna_positions = val
+
+    @property
+    def x_orientation(self):
+        """Orientation of the physical dipole corresponding to the x label.
+
+        Options are 'east' (indicating east/west orientation) and 'north (indicating
+        north/south orientation).
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.x_orientation
+
+    @x_orientation.setter
+    def x_orientation(self, val):
+        self.telescope.x_orientation = val
+
+    @property
+    def antenna_diameters(self):
+        """The antenna diameters in meters.
+
+        Used by CASA to construct a default beam if no beam is supplied.
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_diameters
+
+    @antenna_diameters.setter
+    def antenna_diameters(self, val):
+        self.telescope.antenna_diameters = val
 
     @property
     def _data_params(self):
@@ -859,7 +929,6 @@ class UVFlag(UVBase):
         self._baseline_array.required = False
         self._ant_1_array.required = False
         self._ant_2_array.required = False
-        self._Nants_telescope.required = False
         self._Nants_data.required = True
         self._Nbls.required = False
         self._Nblts.required = False
@@ -884,7 +953,6 @@ class UVFlag(UVBase):
         self._baseline_array.required = True
         self._ant_1_array.required = True
         self._ant_2_array.required = True
-        self._Nants_telescope.required = True
         self._Nants_data.required = True
         self._Nbls.required = True
         self._Nblts.required = True
@@ -913,7 +981,6 @@ class UVFlag(UVBase):
         self._baseline_array.required = False
         self._ant_1_array.required = False
         self._ant_2_array.required = False
-        self._Nants_telescope.required = False
         self._Nants_data.required = False
         self._Nbls.required = False
         self._Nblts.required = False
@@ -1042,7 +1109,7 @@ class UVFlag(UVBase):
             uvutils.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.telescope_location,
-                telescope_frame=self._telescope_location.frame,
+                telescope_frame=self.telescope._location.frame,
                 raise_error=False,
             )
 
@@ -1054,7 +1121,8 @@ class UVFlag(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                frame=self._telescope_location.frame,
+                frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
 
         return True
@@ -1143,7 +1211,8 @@ class UVFlag(UVBase):
             longitude=longitude,
             altitude=altitude,
             astrometry_library=astrometry_library,
-            frame=self._telescope_location.frame,
+            frame=self.telescope._location.frame,
+            ellipsoid=self.telescope._location.ellipsoid,
         )
         return
 
@@ -1174,7 +1243,15 @@ class UVFlag(UVBase):
             proc.start()
             return proc
 
-    def set_telescope_params(self, *, overwrite=False, warn=True):
+    def set_telescope_params(
+        self,
+        *,
+        overwrite=False,
+        warn=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
         """
         Set telescope related parameters.
 
@@ -1193,77 +1270,13 @@ class UVFlag(UVBase):
         ValueError
             if the telescope_name is not in known telescopes
         """
-        telescope_obj = uvtel.get_telescope(self.telescope_name)
-        if telescope_obj is not False:
-            params_set = []
-            telescope_params = list(telescope_obj.__iter__())
-            # ensure that the Nants_telescope comes first so shapes work out below
-            telescope_params.remove("_Nants_telescope")
-            telescope_params.insert(0, "_Nants_telescope")
-
-            set_ant_metadata = True
-            if self.type != "waterfall" and "_antenna_numbers" in telescope_params:
-                # need to check that all antennas on the object are in the telescope's
-                # antenna_numbers
-                if self.type == "antenna":
-                    ants_to_check = self.ant_array
-                else:
-                    ants_to_check = np.union1d(self.ant_1_array, self.ant_2_array)
-
-                if not all(
-                    ant in telescope_obj.antenna_numbers for ant in ants_to_check
-                ):
-                    warnings.warn(
-                        "Not all antennas with data have metadata in the telescope "
-                        "object. Not setting antenna metadata."
-                    )
-                    set_ant_metadata = False
-
-            if not set_ant_metadata:
-                ant_params_to_remove = []
-                for p in telescope_params:
-                    if "ant" in p:
-                        ant_params_to_remove.append(p)
-
-                for p in ant_params_to_remove:
-                    telescope_params.remove(p)
-
-            for p in telescope_params:
-                telescope_param = getattr(telescope_obj, p)
-                if p in self:
-                    self_param = getattr(self, p)
-                else:
-                    continue
-                if telescope_param.value is not None and (
-                    overwrite is True or self_param.value is None
-                ):
-                    telescope_shape = telescope_param.expected_shape(telescope_obj)
-                    self_shape = self_param.expected_shape(self)
-                    if telescope_shape == self_shape:
-                        params_set.append(self_param.name)
-                        prop_name = self_param.name
-                        setattr(self, prop_name, getattr(telescope_obj, prop_name))
-                    else:
-                        # Note dropped handling for antenna diameters that appears in
-                        # UVData because they don't exist on UVFlag.
-                        warnings.warn(
-                            f"{self_param.name} is not set but cannot be set using "
-                            f"known values for {telescope_obj.telescope_name} "
-                            "because the expected shapes don't match."
-                        )
-
-            if len(params_set) > 0:
-                if warn:
-                    params_set_str = ", ".join(params_set)
-                    warnings.warn(
-                        f"{params_set_str} are not set or are being "
-                        "overwritten. Using known values for "
-                        f"{telescope_obj.telescope_name}."
-                    )
-        else:
-            raise ValueError(
-                f"Telescope {self.telescope_name} is not in known_telescopes."
-            )
+        self.telescope.update_params_from_known_telescopes(
+            overwrite=overwrite,
+            warn=warn,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
 
     def antpair2ind(self, ant1, ant2):
         """Get blt indices for given (ordered) antenna pair.
@@ -1752,8 +1765,12 @@ class UVFlag(UVBase):
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
-                this_param = getattr(self, "_" + param)
-                uv_param = getattr(uv, "_" + param)
+                if param in telescope_params:
+                    this_param = getattr(self.telescope, "_" + telescope_params[param])
+                    uv_param = getattr(uv.telescope, "_" + telescope_params[param])
+                else:
+                    this_param = getattr(self, "_" + param)
+                    uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
                     raise ValueError(
                         f"{param} is not the same this object and on uv. The value on "
@@ -1922,19 +1939,12 @@ class UVFlag(UVBase):
         self.lst_array = uv.lst_array
         self.Nblts = self.time_array.size
 
-        if self.telescope_name is None and self.telescope_location is None:
-            self.telescope_name = uv.telescope_name
-            self.telescope_location = uv.telescope_location
-
-        if (
-            self.antenna_numbers is None
-            and self.antenna_names is None
-            and self.antenna_positions is None
-        ):
-            self.antenna_numbers = uv.antenna_numbers
-            self.antenna_names = uv.antenna_names
-            self.antenna_positions = uv.antenna_positions
-            self.Nants_telescope = uv.Nants_telescope
+        for param in self.telescope:
+            this_param = getattr(self.telescope, param)
+            uvd_param = getattr(uv.telescope, param)
+            param_name = this_param.name
+            if this_param.value is None and uvd_param.value is not None:
+                setattr(self.telescope, param_name, uvd_param.value)
 
         self._set_type_baseline()
         self.clear_unused_attributes()
@@ -2050,8 +2060,12 @@ class UVFlag(UVBase):
                     )
             else:
                 # compare the UVParameter objects to properly handle tolerances
-                this_param = getattr(self, "_" + param)
-                uv_param = getattr(uv, "_" + param)
+                if param in telescope_params:
+                    this_param = getattr(self.telescope, "_" + telescope_params[param])
+                    uv_param = getattr(uv.telescope, "_" + telescope_params[param])
+                else:
+                    this_param = getattr(self, "_" + param)
+                    uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
                     raise ValueError(
                         f"{param} is not the same this object and on uv. The value on "
@@ -2125,19 +2139,12 @@ class UVFlag(UVBase):
         if not self.future_array_shapes:
             self.freq_array = np.atleast_2d(self.freq_array)
 
-        if self.telescope_name is None and self.telescope_location is None:
-            self.telescope_name = uv.telescope_name
-            self.telescope_location = uv.telescope_location
-
-        if (
-            self.antenna_numbers is None
-            and self.antenna_names is None
-            and self.antenna_positions is None
-        ):
-            self.antenna_numbers = uv.antenna_numbers
-            self.antenna_names = uv.antenna_names
-            self.antenna_positions = uv.antenna_positions
-            self.Nants_telescope = uv.Nants_telescope
+        for param in self.telescope:
+            this_param = getattr(self.telescope, param)
+            uvd_param = getattr(uv.telescope, param)
+            param_name = this_param.name
+            if this_param.value is None and uvd_param.value is not None:
+                setattr(self.telescope, param_name, uvd_param.value)
 
         if self.Nspws is None:
             self.Nspws = uv.Nspws
@@ -2422,8 +2429,12 @@ class UVFlag(UVBase):
 
         for param in warn_compatibility_params:
             # compare the UVParameter objects to properly handle tolerances
-            this_param = getattr(self, "_" + param)
-            other_param = getattr(other, "_" + param)
+            if param in telescope_params:
+                this_param = getattr(self.telescope, "_" + telescope_params[param])
+                other_param = getattr(other.telescope, "_" + telescope_params[param])
+            else:
+                this_param = getattr(self, "_" + param)
+                other_param = getattr(other, "_" + param)
             if this_param.value is not None and this_param != other_param:
                 raise ValueError(
                     f"{param} is not the same the two objects. The value on this "
@@ -3533,6 +3544,8 @@ class UVFlag(UVBase):
 
                 if "x_orientation" in header.keys():
                     self.x_orientation = header["x_orientation"][()].decode("utf8")
+                if "instrument" in header.keys():
+                    self.instrument = header["instrument"][()].decode("utf8")
 
                 self.time_array = header["time_array"][()]
                 if "Ntimes" in header.keys():
@@ -3668,6 +3681,14 @@ class UVFlag(UVBase):
 
                     if "telescope_location" in header.keys():
                         self.telescope_location = header["telescope_location"][()]
+                        if "telescope_frame" in header.keys():
+                            self.telescope._location.frame = header["telescope_frame"][
+                                ()
+                            ].decode("utf8")
+                        if self.telescope._location.frame != "itrs":
+                            self.telescope._location.ellipsoid = header["ellipsoid"][
+                                ()
+                            ].decode("utf8")
 
                     if "antenna_numbers" in header.keys():
                         self.antenna_numbers = header["antenna_numbers"][()]
@@ -3682,6 +3703,8 @@ class UVFlag(UVBase):
 
                     if "antenna_positions" in header.keys():
                         self.antenna_positions = header["antenna_positions"][()]
+                    if "antenna_diameters" in header.keys():
+                        self.antenna_diameters = header["antenna_diameters"][()]
 
                 self.history = header["history"][()].decode("utf8")
 
@@ -3799,7 +3822,7 @@ class UVFlag(UVBase):
                             "will be filled in from a static csv file containing all "
                             "the antennas that could have been connected."
                         )
-                    self.set_telescope_params()
+                    self.set_telescope_params(run_check=False)
 
                 if self.antenna_numbers is None and self.type in [
                     "baseline",
@@ -3906,6 +3929,9 @@ class UVFlag(UVBase):
                 header["telescope_name"] = np.bytes_(self.telescope_name)
             if self.telescope_location is not None:
                 header["telescope_location"] = self.telescope_location
+                header["telescope_frame"] = np.string_(self.telescope._location.frame)
+                if self.telescope._location.frame == "mcmf":
+                    header["ellipsoid"] = np.string_(self.telescope._location.ellipsoid)
 
             header["Ntimes"] = self.Ntimes
             header["time_array"] = self.time_array
@@ -3924,6 +3950,10 @@ class UVFlag(UVBase):
 
             if self.x_orientation is not None:
                 header["x_orientation"] = np.bytes_(self.x_orientation)
+            if self.instrument is not None:
+                header["instrument"] = np.bytes_(self.instrument)
+            if self.antenna_diameters is not None:
+                header["antenna_diameters"] = self.antenna_diameters
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(
@@ -4068,7 +4098,6 @@ class UVFlag(UVBase):
         self.Nfreqs = indata.Nfreqs
         self.polarization_array = copy.deepcopy(indata.polarization_array)
         self.Npols = indata.Npols
-        self.Nants_telescope = indata.Nants_telescope
         self.Ntimes = indata.Ntimes
 
         if indata.future_array_shapes or indata.flex_spw:
@@ -4076,11 +4105,9 @@ class UVFlag(UVBase):
         else:
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
-        self.telescope_name = indata.telescope_name
-        self.telescope_location = indata.telescope_location
-        self.antenna_names = copy.deepcopy(indata.antenna_names)
-        self.antenna_numbers = copy.deepcopy(indata.antenna_numbers)
-        self.antenna_positions = copy.deepcopy(indata.antenna_positions)
+        self.telescope = indata.telescope.copy()
+        self.telescope._set_uvflag_requirements()
+
         self.Nspws = indata.Nspws
         self.spw_array = copy.deepcopy(indata.spw_array)
         if indata.flex_spw_id_array is not None:
@@ -4168,9 +4195,6 @@ class UVFlag(UVBase):
 
         self.filename = indata.filename
         self._filename.form = indata._filename.form
-
-        if indata.x_orientation is not None:
-            self.x_orientation = indata.x_orientation
 
         if self.mode == "metric":
             self.weights_array = np.ones(self.metric_array.shape)
@@ -4267,7 +4291,6 @@ class UVFlag(UVBase):
         self.Nfreqs = indata.Nfreqs
         self.polarization_array = copy.deepcopy(indata.jones_array)
         self.Npols = indata.Njones
-        self.Nants_telescope = indata.Nants_telescope
         self.Ntimes = indata.Ntimes
         self.time_array = copy.deepcopy(indata.time_array)
         self.lst_array = copy.deepcopy(indata.lst_array)
@@ -4277,11 +4300,9 @@ class UVFlag(UVBase):
         else:
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
-        self.telescope_name = indata.telescope_name
-        self.telescope_location = indata.telescope_location
-        self.antenna_names = copy.deepcopy(indata.antenna_names)
-        self.antenna_numbers = copy.deepcopy(indata.antenna_numbers)
-        self.antenna_positions = copy.deepcopy(indata.antenna_positions)
+        self.telescope = indata.telescope.copy()
+        self.telescope._set_uvflag_requirements()
+
         self.Nspws = indata.Nspws
         self.spw_array = copy.deepcopy(indata.spw_array)
         if indata.flex_spw_id_array is not None:
@@ -4374,9 +4395,6 @@ class UVFlag(UVBase):
 
         self.filename = indata.filename
         self._filename.form = indata._filename.form
-
-        if indata.x_orientation is not None:
-            self.x_orientation = indata.x_orientation
 
         if history not in self.history:
             self.history += history
