@@ -15,13 +15,9 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
-
-pytestmark = pytest.mark.filterwarnings(
-    "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions are not set or are being overwritten. Using known values",
-)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -68,6 +64,9 @@ def test_readwriteread(
     cal_in.total_quality_array = np.ones(
         cal_in._total_quality_array.expected_shape(cal_in)
     )
+    # add instrument and antenna_diameters
+    cal_in.instrument = cal_in.telescope_name
+    cal_in.antenna_diameters = np.zeros((cal_in.Nants_telescope,), dtype=float) + 5.0
 
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
@@ -99,6 +98,44 @@ def test_readwriteread(
     assert cal_in == cal_out
 
     return
+
+
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_moon_loopback(tmp_path, gain_data, selenoid):
+    pytest.importorskip("lunarsky")
+    cal_in = gain_data
+
+    latitude, longitude, altitude = cal_in.telescope_location_lat_lon_alt
+    enu_antpos = uvutils.ENU_from_ECEF(
+        (cal_in.antenna_positions + cal_in.telescope_location),
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        frame=cal_in.telescope._location.frame,
+        ellipsoid=cal_in.telescope._location.ellipsoid,
+    )
+
+    cal_in.telescope._location.frame = "mcmf"
+    cal_in.telescope._location.ellipsoid = selenoid
+    cal_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+    new_full_antpos = uvutils.ECEF_from_ENU(
+        enu=enu_antpos,
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        frame="mcmf",
+        ellipsoid=selenoid,
+    )
+    cal_in.antenna_positions = new_full_antpos - cal_in.telescope_location
+    cal_in.set_lsts_from_time_array()
+    cal_in.check()
+
+    write_file = str(tmp_path / "outtest.fits")
+    cal_in.write_calfits(write_file, clobber=True)
+
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
+
+    assert cal_in == cal_out
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -134,6 +171,7 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
     return
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize(
     "filein,caltype",
     [
@@ -172,6 +210,7 @@ def test_readwriteread_no_freq_range(gain_data, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_readwriteread_no_time_range(tmp_path):
     # test without time_range parameter
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")

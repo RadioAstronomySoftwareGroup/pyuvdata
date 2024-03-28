@@ -4130,7 +4130,7 @@ class MirParser(object):
 
         from astropy.time import Time
 
-        from .. import get_telescope
+        from .. import Telescope
         from .. import utils as uvutils
 
         # First thing -- we only want modern (i.e., SWARM) data, since the older (ASIC)
@@ -4139,7 +4139,9 @@ class MirParser(object):
         # if swarm_only:
         #     self.select(where=("correlator", "eq", 1))
         # Get SMA coordinates for various data-filling stuff
-        sma_lat, sma_lon, sma_alt = get_telescope("SMA").telescope_location_lat_lon_alt
+        sma_lat, sma_lon, sma_alt = Telescope.get_telescope_from_known_telescopes(
+            "SMA"
+        ).location_lat_lon_alt
 
         # in_data updates: mjd, lst, ara, adec
         # First sort out the time stamps using the day reference inside codes_data, and

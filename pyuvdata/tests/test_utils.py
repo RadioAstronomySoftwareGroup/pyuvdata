@@ -3619,6 +3619,7 @@ def test_and_collapse_errors():
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_uvcalibrate_apply_gains_oldfiles():
     # read data
     uvd = UVData()
@@ -3683,6 +3684,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
@@ -4246,6 +4248,7 @@ def test_uvcalibrate_wideband_gain(uvcalibrate_data):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_uvcalibrate_delay_multispw():
     uvd = UVData()
     uvd.read(

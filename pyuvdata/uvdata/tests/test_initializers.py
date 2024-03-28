@@ -13,6 +13,7 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import UVData
+from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
@@ -21,8 +22,6 @@ from pyuvdata.uvdata.initializers import (
     get_spw_params,
     get_time_params,
 )
-
-selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 
 
 @pytest.fixture(scope="function")
@@ -76,8 +75,8 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
     uvd = UVData.new(**lunar_simple_params, ellipsoid=selenoid)
 
-    assert uvd._telescope_location.frame == "mcmf"
-    assert uvd._telescope_location.ellipsoid == selenoid
+    assert uvd.telescope._location.frame == "mcmf"
+    assert uvd.telescope._location.ellipsoid == selenoid
 
 
 def test_bad_inputs(simplest_working_params: dict[str, Any]):

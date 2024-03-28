@@ -17,6 +17,7 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVCal, UVData, UVFlag, __version__
 from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvflag.uvflag import _future_array_shapes_warning
 
 from ..uvflag import and_rows_cols, flags2waterfall
@@ -74,14 +75,7 @@ def uvdata_obj(uvdata_obj_main):
     # This data file has a different telescope location and other weirdness.
     # Set them to the known HERA values to allow combinations with the test_f_file
     # which appears to have the known HERA values.
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="Nants_telescope, antenna_diameters, antenna_names, "
-            "antenna_numbers, antenna_positions, telescope_location, telescope_name "
-            "are not set or are being overwritten. Using known values for HERA.",
-        )
-        uvdata_object.set_telescope_params(overwrite=True)
+    uvdata_object.set_telescope_params(overwrite=True, warn=False)
     uvdata_object.set_lsts_from_time_array()
 
     yield uvdata_object
@@ -95,7 +89,13 @@ def uvdata_obj(uvdata_obj_main):
 @pytest.fixture(scope="session")
 def uvcal_obj_main():
     uvc = UVCal()
-    uvc.read_calfits(test_c_file, use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match="telescope_location, antenna_positions, antenna_diameters are "
+        "not set or are being overwritten. telescope_location, antenna_positions, "
+        "antenna_diameters are set using values from known telescopes for HERA.",
+    ):
+        uvc.read_calfits(test_c_file, use_future_array_shapes=True)
 
     yield uvc
 
@@ -112,14 +112,7 @@ def uvcal_obj(uvcal_obj_main):
     # This cal file has a different antenna names and other weirdness.
     # Set them to the known HERA values to allow combinations with the test_f_file
     # which appears to have the known HERA values.
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            message="antenna_positions, antenna_names, antenna_numbers, "
-            "Nants_telescope are not set or are being overwritten. Using known values "
-            "for HERA.",
-        )
-        uvc.set_telescope_params(overwrite=True)
+    uvc.set_telescope_params(overwrite=True, warn=False)
     yield uvc
 
     # cleanup
@@ -349,6 +342,7 @@ def test_check_flex_spw_id_array(uvf_from_data):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_init_bad_mode(uvdata_obj):
     uv = uvdata_obj
     with pytest.raises(ValueError) as cm:
@@ -527,6 +521,7 @@ def test_init_uvdata_mode_flag(uvdata_obj, uvd_future_shapes, uvf_future_shapes)
     assert pyuvdata_version_str in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_init_uvcal():
     uvc = UVCal()
     uvc.read_calfits(test_c_file, use_future_array_shapes=True)
@@ -595,6 +590,7 @@ def test_init_uvcal_mode_flag(uvcal_obj, uvc_future_shapes, uvf_future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvf_future_shapes", [True, False])
 def test_init_cal_copy_flags(uvc_future_shapes, uvf_future_shapes):
@@ -667,6 +663,7 @@ def test_init_waterfall_uvd(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
 @pytest.mark.parametrize("uvf_future_shapes", [True, False])
 def test_init_waterfall_uvc(uvc_future_shapes, uvf_future_shapes):
@@ -691,6 +688,7 @@ def test_init_waterfall_uvc(uvc_future_shapes, uvf_future_shapes):
     assert pyuvdata_version_str in uvf.history
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_init_waterfall_flag_uvcal():
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
@@ -724,6 +722,7 @@ def test_init_waterfall_flag_uvdata(uvdata_obj):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_init_waterfall_copy_flags(uvdata_obj):
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
@@ -762,9 +761,9 @@ def test_from_uvcal_error(uvdata_obj):
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions are not set or are being overwritten. Using known "
-            "values for HERA.",
+            "telescope_location, antenna_positions, antenna_diameters are not "
+            "set or are being overwritten. telescope_location, antenna_positions, "
+            "antenna_diameters are set using values from known telescopes for HERA.",
             "When converting a delay-style cal to future array shapes",
         ],
     ):
@@ -783,6 +782,7 @@ def test_from_uvcal_error(uvdata_obj):
         uvf.from_uvcal(delay_object)
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_from_uvdata_error():
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
@@ -859,12 +859,34 @@ def test_read_write_loop(
             uvf2.use_current_array_shapes()
         else:
             uvf2.use_future_array_shapes()
+
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
 
 
-def test_read_write_loop_spw(uvdata_obj, test_outfile):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
+def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid):
     uv = uvdata_obj
+
+    if telescope_frame == "mcmf":
+        pytest.importorskip("lunarsky")
+        enu_antpos, _ = uv.get_ENU_antpos()
+        latitude, longitude, altitude = uv.telescope_location_lat_lon_alt
+        uv.telescope._location.frame = "mcmf"
+        uv.telescope._location.ellipsoid = selenoid
+        uv.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos,
+            latitude=latitude,
+            longitude=longitude,
+            altitude=altitude,
+            frame="mcmf",
+            ellipsoid=selenoid,
+        )
+        uv.antenna_positions = new_full_antpos - uv.telescope_location
+        uv.set_lsts_from_time_array()
+        uv.check()
+
     uvf = UVFlag(uv, label="test", use_future_array_shapes=True)
 
     uvf.Nspws = 2
@@ -898,6 +920,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize(
     ["uvf_type", "param_list", "warn_type", "msg", "uv_mod"],
     [
@@ -917,14 +940,11 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["telescope_location"],
             UserWarning,
-            ["telescope_location are not set or are being overwritten. Using known"],
-            "reset_telescope_params",
-        ),
-        (
-            "baseline",
-            ["antenna_names"],
-            UserWarning,
-            ["antenna_names are not set or are being overwritten. Using known"],
+            [
+                "telescope_location are not set or are being overwritten. "
+                "telescope_location are set using values from known telescopes "
+                "for HERA."
+            ],
             "reset_telescope_params",
         ),
         (
@@ -932,8 +952,18 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_names"],
             UserWarning,
             [
-                "Not all antennas with data have metadata in the telescope object. "
-                "Not setting antenna metadata.",
+                "antenna_names are not set or are being overwritten. "
+                "antenna_names are set using values from known telescopes for HERA."
+            ],
+            "reset_telescope_params",
+        ),
+        (
+            "baseline",
+            ["antenna_names"],
+            UserWarning,
+            [
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_names']",
                 "antenna_names not in file, setting based on antenna_numbers",
             ],
             "change_ant_numbers",
@@ -942,14 +972,20 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             "baseline",
             ["antenna_numbers"],
             UserWarning,
-            ["antenna_numbers are not set or are being overwritten. Using known"],
+            [
+                "antenna_numbers are not set or are being overwritten. "
+                "antenna_numbers are set using values from known telescopes for HERA."
+            ],
             "reset_telescope_params",
         ),
         (
             "baseline",
             ["antenna_positions"],
             UserWarning,
-            ["antenna_positions are not set or are being overwritten. Using known"],
+            [
+                "antenna_positions are not set or are being overwritten. "
+                "antenna_positions are set using values from known telescopes for HERA."
+            ],
             "reset_telescope_params",
         ),
         ("baseline", ["Nants_telescope"], None, [], "reset_telescope_params"),
@@ -1000,8 +1036,10 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_names", "antenna_numbers", "antenna_positions"],
             UserWarning,
             [
-                "Nants_telescope, antenna_names, antenna_numbers, antenna_positions "
-                "are not set or are being overwritten. Using known values for HERA."
+                "Nants, antenna_names, antenna_numbers, antenna_positions are "
+                "not set or are being overwritten. Nants, antenna_names, "
+                "antenna_numbers, antenna_positions are set using values from "
+                "known telescopes for HERA."
             ],
             "reset_telescope_params",
         ),
@@ -1010,8 +1048,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_numbers"],
             [UserWarning, UserWarning],
             [
-                "antenna_numbers is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_numbers'].",
                 "antenna_numbers not in file, cannot be set based on ant_1_array and "
                 "ant_2_array because Nants_telescope is greater than Nants_data.",
             ],
@@ -1022,9 +1060,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_names"],
             UserWarning,
             [
-                "antenna_names is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
-                "antenna_names not in file, setting based on antenna_numbers",
+                "antenna_names are not set or are being overwritten. "
+                "antenna_names are set using values from known telescopes for HERA."
             ],
             None,
         ),
@@ -1033,8 +1070,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_numbers"],
             UserWarning,
             [
-                "antenna_numbers is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_numbers']",
                 "antenna_numbers not in file, setting based on ant_1_array and "
                 "ant_2_array.",
             ],
@@ -1045,8 +1082,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_numbers"],
             [UserWarning, UserWarning],
             [
-                "antenna_numbers is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_numbers']",
                 "antenna_numbers not in file, cannot be set based on ant_array because "
                 "Nants_telescope is greater than Nants_data.",
             ],
@@ -1057,8 +1094,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_numbers"],
             [UserWarning, UserWarning],
             [
-                "antenna_numbers is not set but cannot be set using known values for "
-                "HERA because the expected shapes don't match.",
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_numbers']",
                 "antenna_numbers not in file, setting based on ant_array.",
             ],
             "remove_extra_metadata",
@@ -1068,8 +1105,8 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
             ["antenna_numbers"],
             [UserWarning, UserWarning],
             [
-                "Not all antennas with data have metadata in the telescope object. "
-                "Not setting antenna metadata.",
+                "Not all antennas have metadata in the known_telescope data. "
+                "Not setting ['antenna_numbers']",
                 "antenna_numbers not in file, cannot be set based on ant_array "
                 "because Nants_telescope is greater than Nants_data. This will result "
                 "in errors when the object is checked.",
@@ -1098,8 +1135,11 @@ def test_read_write_loop_missing_telescope_info(
     if uv_mod == "reset_telescope_params":
         with uvtest.check_warnings(
             UserWarning,
-            match="Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
-            "antenna_positions, telescope_location, telescope_name",
+            match="telescope_location, Nants, antenna_names, antenna_numbers, "
+            "antenna_positions, antenna_diameters are not set or are being "
+            "overwritten. telescope_location, Nants, antenna_names, "
+            "antenna_numbers, antenna_positions, antenna_diameters are set "
+            "using values from known telescopes for HERA.",
         ):
             uv.set_telescope_params(overwrite=True)
     elif uv_mod == "remove_extra_metadata":
@@ -1108,6 +1148,8 @@ def test_read_write_loop_missing_telescope_info(
             uv.antenna_names = uv.antenna_names[ant_inds_keep]
             uv.antenna_numbers = uv.antenna_numbers[ant_inds_keep]
             uv.antenna_positions = uv.antenna_positions[ant_inds_keep]
+            if uv.antenna_diameters is not None:
+                uv.antenna_diameters = uv.antenna_diameters[ant_inds_keep]
             uv.Nants_telescope = ant_inds_keep.size
             uv.check()
         else:
@@ -1148,7 +1190,7 @@ def test_read_write_loop_missing_telescope_info(
 
     if uv_mod is None:
         if param_list == ["antenna_names"]:
-            assert np.array_equal(uvf2.antenna_names, uvf2.antenna_numbers.astype(str))
+            assert not np.array_equal(uvf2.antenna_names, uvf.antenna_numbers)
             uvf2.antenna_names = uvf.antenna_names
         else:
             for param in param_list:
@@ -1208,8 +1250,9 @@ def test_missing_telescope_info_mwa(test_outfile):
             "data were taken. Since that was not passed, the antenna metadata will be "
             "filled in from a static csv file containing all the antennas that could "
             "have been connected.",
-            "Nants_telescope, antenna_names, antenna_numbers, antenna_positions "
-            "are not set or are being overwritten. Using known values for mwa.",
+            "Nants, antenna_names, antenna_numbers, antenna_positions are not "
+            "set or are being overwritten. Nants, antenna_names, antenna_numbers, "
+            "antenna_positions are set using values from known telescopes for mwa.",
         ],
     ):
         uvf2 = UVFlag(test_outfile, use_future_array_shapes=True, telescope_name="mwa")
@@ -1432,6 +1475,7 @@ def test_read_write_ant(
     assert uvf.__eq__(uvf2, check_history=True)
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_read_missing_nants_data(test_outfile):
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
@@ -1452,6 +1496,7 @@ def test_read_missing_nants_data(test_outfile):
 
 
 @pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_read_missing_nspws(test_outfile, future_shapes):
     uv = UVCal()
@@ -1655,10 +1700,9 @@ def test_set_lsts(uvf_from_data, background):
     assert uvf2._lst_array == uvf._lst_array
 
 
-@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_")
 def test_set_telescope_params(uvdata_obj):
     uvd = uvdata_obj
-    uvd.set_telescope_params(overwrite=True)
+    uvd.set_telescope_params(overwrite=True, warn=False)
     ants_with_data = np.union1d(uvd.ant_1_array, uvd.ant_2_array)
     uvd2 = uvd.select(
         antenna_nums=ants_with_data[: uvd.Nants_data // 2],
@@ -1666,28 +1710,31 @@ def test_set_telescope_params(uvdata_obj):
         inplace=False,
     )
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
-    assert uvf._antenna_names == uvd2._antenna_names
-    assert uvf._antenna_numbers == uvd2._antenna_numbers
-    assert uvf._antenna_positions == uvd2._antenna_positions
+    assert uvf.telescope._antenna_names == uvd2.telescope._antenna_names
+    assert uvf.telescope._antenna_numbers == uvd2.telescope._antenna_numbers
+    assert uvf.telescope._antenna_positions == uvd2.telescope._antenna_positions
 
-    uvf.set_telescope_params(overwrite=True)
-    assert uvf._antenna_names == uvd._antenna_names
-    assert uvf._antenna_numbers == uvd._antenna_numbers
-    assert uvf._antenna_positions == uvd._antenna_positions
+    uvf.set_telescope_params(overwrite=True, warn=False)
+    assert uvf.telescope._antenna_names == uvd.telescope._antenna_names
+    assert uvf.telescope._antenna_numbers == uvd.telescope._antenna_numbers
+    assert uvf.telescope._antenna_positions == uvd.telescope._antenna_positions
 
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
     uvf.antenna_positions = None
     with uvtest.check_warnings(
         UserWarning,
-        match="antenna_positions is not set but cannot be set using "
-        "known values for HERA because the expected shapes don't match.",
+        match="antenna_positions are not set or are being overwritten. "
+        "antenna_positions are set using values from known telescopes for HERA.",
     ):
         uvf.set_telescope_params()
-    assert uvf.antenna_positions is None
 
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
     uvf.telescope_name = "foo"
-    with pytest.raises(ValueError, match="Telescope foo is not in known_telescopes."):
+    uvf.telescope_location = None
+    with pytest.raises(
+        ValueError,
+        match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
+    ):
         uvf.set_telescope_params()
 
 
@@ -2450,6 +2497,7 @@ def test_to_baseline_metric(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
 
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
+
     uvf.to_baseline(uv)
     assert uvf.telescope_name == uv.telescope_name
     assert np.all(uvf.telescope_location == uv.telescope_location)
@@ -2548,8 +2596,7 @@ def test_to_baseline_from_antenna(
 
     with uvtest.check_warnings(
         UserWarning,
-        match=["Nants_telescope, antenna_names, antenna_numbers, antenna_positions"]
-        * 2,
+        match=["telescope_location, Nants, antenna_names, antenna_numbers, "] * 2,
     ):
         uvf.set_telescope_params(overwrite=True)
         uv.set_telescope_params(overwrite=True)
