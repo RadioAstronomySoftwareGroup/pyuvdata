@@ -43,7 +43,7 @@ def write_uvbeam_rst(write_file=None):
     )
     out += "Required\n********\n"
     out += (
-        "These parameters are required to have a sensible UVBeam object and \n"
+        "These parameters are required to have a well-defined UVBeam object and \n"
         "are required for most kinds of beam files."
     )
     out += "\n\n"

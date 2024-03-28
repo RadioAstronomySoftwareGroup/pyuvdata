@@ -31,7 +31,9 @@ def write_uvflag_rst(write_file=None):
         "specify flagging and metric information for interferometric data sets.\n"
         "Under the hood, the attributes are implemented as properties based on\n"
         ":class:`pyuvdata.parameter.UVParameter` objects but this is fairly\n"
-        "transparent to users.\n\n"
+        "transparent to users.\n"
+        "The telescope attribute is implemented as a :class:`pyuvdata.Telescope`\n"
+        "object, with its attributes available on the UVData object as properties.\n\n"
         "UVFlag objects can be initialized from a file or a :class:`pyuvdata.UVData`\n"
         "or :class:`pyuvdata.UVCal` object\n"
         "(as ``flag = UVFlag(<filename or object>)``). Some of these attributes\n"
@@ -42,7 +44,7 @@ def write_uvflag_rst(write_file=None):
     )
     out += "Required\n********\n"
     out += (
-        "These parameters are required to have a sensible UVFlag object and \n"
+        "These parameters are required to have a well-defined UVFlag object and \n"
         "are required for most kinds of uv data files."
     )
     out += "\n\n"
