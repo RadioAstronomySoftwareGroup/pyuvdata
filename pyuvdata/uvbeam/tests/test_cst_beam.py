@@ -6,6 +6,7 @@ import shutil
 
 import numpy as np
 import pytest
+import yaml
 
 import pyuvdata.tests as uvtest
 from pyuvdata import UVBeam
@@ -108,7 +109,6 @@ def test_frequencyparse_decimal_non_mhz():
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_read_yaml(cst_efield_2freq_mod, future_shapes):
-    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
@@ -142,9 +142,6 @@ def test_read_yaml(cst_efield_2freq_mod, future_shapes):
 
 
 def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
-    pytest.importorskip("yaml")
-    import yaml
-
     # copy the beam files to the tmp directory so that it can read them
     # when the yaml is stored there
     for fname in cst_files:
@@ -182,7 +179,6 @@ def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
 
 
 def test_read_yaml_override(cst_efield_2freq_mod):
-    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
@@ -218,7 +214,6 @@ def test_read_yaml_override(cst_efield_2freq_mod):
 
 
 def test_read_yaml_freq_select(cst_efield_1freq_mod):
-    pytest.importorskip("yaml")
     # test frequency_select
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -246,9 +241,7 @@ def test_read_yaml_freq_select(cst_efield_1freq_mod):
 
 
 def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
-    pytest.importorskip("yaml")
     # make yaml with a list of (the same) feed_pols
-    import yaml
 
     test_yaml_file = os.path.join(DATA_PATH, cst_folder, "test_cst_settings.yaml")
     with open(cst_yaml_file, "r") as file:
@@ -294,9 +287,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
 
 
 def test_read_yaml_multi_pol(tmp_path):
-    pytest.importorskip("yaml")
     # make yaml for one freq, 2 pols
-    import yaml
 
     # copy the beam files to the tmp directory so that it can read them
     # when the yaml is stored there
@@ -365,9 +356,7 @@ def test_read_yaml_multi_pol(tmp_path):
 
 
 def test_read_yaml_errors(tmp_path):
-    pytest.importorskip("yaml")
     # test error if required key is not present in yaml file
-    import yaml
 
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
     with open(cst_yaml_file, "r") as file:
@@ -971,7 +960,6 @@ def test_wrong_column_names(tmp_path):
 
 
 def test_hera_yaml():
-    pytest.importorskip("yaml")
     beam1 = UVBeam()
     beam2 = UVBeam()
 
