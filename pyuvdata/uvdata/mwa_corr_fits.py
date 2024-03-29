@@ -503,6 +503,8 @@ class MWACorrFITS(UVData):
             An array of indices for antenna 2
 
         """
+        # This approach was necessary in older cythons but it is is still
+        # ambiguous the best way to pass strings even in cython>=3.
         # as of version 0.29.X cython does not handle numpy arrays of strings
         # particularly efficiently. Casting to bytes, then into this demonic
         # form is a workaround found here: https://stackoverflow.com/a/28777163
