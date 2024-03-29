@@ -1219,7 +1219,7 @@ class UVCal(UVBase):
         jones_array = list(reversed(np.unique(self.flex_jones_array)))
         n_jones = len(jones_array)
 
-        if self.Nspws == 1 or n_jones == 1:
+        if n_jones == 1 and (self.Nspws == 1 or not combine_spws):
             # Just remove the flex_jones_array and fix the polarization array
             self.jones_array = np.array(jones_array)
             self.flex_jones_array = None
@@ -1365,15 +1365,10 @@ class UVCal(UVBase):
         is found to have unflagged data in a given spectral window, then an error is
         returned.
         """
-        if not self.future_array_shapes:
+        if not (self.future_array_shapes and (self.flex_spw or self.wide_band)):
             raise ValueError(
-                "Must use future array shapes to make a flex-Jones UVCal object."
-            )
-
-        if not (self.flex_spw or self.wide_band):
-            raise ValueError(
-                "Cannot make a flex-Jones UVCal object if wide_band=False and "
-                "flex_spw=False."
+                "Must use future array shapes to make a flex-Jones UVCal object, "
+                "with either wide_band=True or flex_spw=True."
             )
 
         if self.metadata_only:
@@ -1390,7 +1385,7 @@ class UVCal(UVBase):
                 self.jones_array = np.array([0])
             return
 
-        jones_idx_arr = np.full(self.spw_array, -1)
+        jones_idx_arr = np.full(self.Nspws, -1)
         spw_id_arr = self.flex_spw_id_array if self.flex_spw else self.spw_array
         for idx, spw in enumerate(self.spw_array):
             spw_screen = spw_id_arr == spw
@@ -1422,6 +1417,8 @@ class UVCal(UVBase):
         for name, param in zip(self._data_params, self.data_like_parameters):
             # Grab the shape and update the Jones (last) axis to be length 1. Note we
             # do it this way since total_quality_array has a different shape
+            if param is None:
+                continue
             new_shape = list(param.shape)
             new_shape[-1] = 1
 
@@ -1433,7 +1430,7 @@ class UVCal(UVBase):
                 spw_screen = spw_id_arr == spw
 
                 # Grab from the right Jones-position and plug values in
-                new_param[..., spw_screen, 0] = param[..., spw_screen, jones_idx]
+                new_param[:, spw_screen, :, 0] = param[:, spw_screen, :, jones_idx]
 
             # Update the attribute with the new values
             setattr(self, name, new_param)
@@ -1450,15 +1447,10 @@ class UVCal(UVBase):
         if self.flex_jones_array is not None:
             raise ValueError("This is already a flex-pol object")
 
-        if not self.future_array_shapes:
+        if not (self.future_array_shapes and (self.flex_spw or self.wide_band)):
             raise ValueError(
-                "Must use future array shapes to make a flex-Jones UVCal object."
-            )
-
-        if not (self.flex_spw or self.wide_band):
-            raise ValueError(
-                "Cannot make a flex-Jones UVCal object if wide_band=False and "
-                "flex_spw=False."
+                "Must use future array shapes to make a flex-Jones UVCal object, "
+                "with either wide_band=True or flex_spw=True."
             )
 
         old_nspws = self.Nspws * self.Njones
@@ -6399,17 +6391,10 @@ class UVCal(UVBase):
             # Nothing could be auto-determined, so let's jump to the next level and
             # try to look at the file contents and see what's up. In paticular, if this
             # is a directory, there's some additional clues for us to look for.
-            if multi:
-                file_test = filename[0]
-            else:
-                file_test = filename
+            file_test = filename[0] if multi else filename
 
             if os.path.isdir(file_test):
-                # it's a directory, so it's either miriad, mir, or ms file type
-                if os.path.exists(os.path.join(file_test, "vartable")):
-                    # It's miriad.
-                    file_type = "miriad"
-                elif os.path.exists(os.path.join(file_test, "OBSERVATION")):
+                if os.path.exists(os.path.join(file_test, "OBSERVATION")):
                     # It's a measurement set.
                     file_type = "ms"
 
