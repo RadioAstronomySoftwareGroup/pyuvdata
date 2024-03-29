@@ -294,11 +294,8 @@ def new_uvcal(
     # Now set all the metadata
     if telescope is not None:
         uvc.telescope = telescope
-        # set the appropriate telescope attributes as required
-        uvc.telescope._set_uvcal_requirements()
     else:
         new_telescope = Telescope()
-        new_telescope._set_uvcal_requirements()
 
         new_telescope.name = telescope_name
         new_telescope.location_obj = telescope_location
@@ -308,6 +305,9 @@ def new_uvcal(
         new_telescope.x_orientation = x_orientation
 
         uvc.telescope = new_telescope
+
+    # set the appropriate telescope attributes as required
+    uvc._set_telescope_requirements()
 
     uvc.freq_array = freq_array
 
@@ -506,7 +506,6 @@ def new_uvcal_from_uvdata(
         kwargs["spw_array"] = spw_array
 
     new_telescope = uvdata.telescope.copy()
-    new_telescope._set_uvcal_requirements()
 
     # Figure out how to mesh the antenna parameters given with those in the uvd
     if "antenna_positions" not in kwargs:
@@ -587,19 +586,6 @@ def new_uvcal_from_uvdata(
 
     if "x_orientation" in kwargs:
         new_telescope.x_orientation = XORIENTMAP[kwargs.pop("x_orientation").lower()]
-
-    new_telescope.check()
-    for param in [
-        "telescope_name",
-        "telescope_location",
-        "instrument",
-        "x_orientation",
-        "antenna_positions",
-        "antenna_numbers",
-        "antenna_names",
-        "antenna_diameters",
-    ]:
-        assert param not in kwargs, f"{param} still in kwargs, value: {kwargs[param]}"
 
     ant_array = kwargs.pop(
         "ant_array", np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)

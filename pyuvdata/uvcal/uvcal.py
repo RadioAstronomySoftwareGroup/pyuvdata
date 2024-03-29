@@ -662,9 +662,21 @@ class UVCal(UVBase):
         self.telescope = Telescope()
 
         # set the appropriate telescope attributes as required
-        self.telescope._set_uvcal_requirements()
+        self._set_telescope_requirements()
 
         super(UVCal, self).__init__()
+
+    def _set_telescope_requirements(self):
+        """Set the UVParameter required fields appropriately for UVCal."""
+        self.telescope._name.required = True
+        self.telescope._location.required = True
+        self.telescope._instrument.required = False
+        self.telescope._Nants.required = True
+        self.telescope._antenna_names.required = True
+        self.telescope._antenna_numbers.required = True
+        self.telescope._antenna_positions.required = True
+        self.telescope._antenna_diameters.required = False
+        self.telescope._x_orientation.required = True
 
     @property
     def telescope_name(self):

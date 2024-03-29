@@ -128,9 +128,9 @@ def test_known_telescopes():
     assert sorted(pyuvdata.known_telescopes()) == sorted(expected_known_telescopes)
 
 
-def test_get_telescope_from_known():
+def test_from_known():
     for inst in pyuvdata.known_telescopes():
-        telescope_obj = Telescope.get_telescope_from_known_telescopes(inst)
+        telescope_obj = Telescope.from_known_telescopes(inst)
         assert telescope_obj.name == inst
 
 
@@ -153,7 +153,7 @@ def test_get_telescope_center_xyz():
             "citation": "",
         },
     }
-    telescope_obj = Telescope.get_telescope_from_known_telescopes(
+    telescope_obj = Telescope.from_known_telescopes(
         "test", known_telescope_dict=test_telescope_dict
     )
     telescope_obj_ext = Telescope()
@@ -164,7 +164,7 @@ def test_get_telescope_center_xyz():
     assert telescope_obj == telescope_obj_ext
 
     telescope_obj_ext.name = "test2"
-    telescope_obj2 = Telescope.get_telescope_from_known_telescopes(
+    telescope_obj2 = Telescope.from_known_telescopes(
         "test2", known_telescope_dict=test_telescope_dict
     )
     assert telescope_obj2 == telescope_obj_ext
@@ -186,7 +186,7 @@ def test_get_telescope_no_loc():
         "test. Either the center_xyz or the latitude, longitude and altitude of "
         "the telescope must be specified.",
     ):
-        Telescope.get_telescope_from_known_telescopes(
+        Telescope.from_known_telescopes(
             "test", known_telescope_dict=test_telescope_dict
         )
 
@@ -210,7 +210,7 @@ def test_hera_loc():
         hera_file, read_data=False, file_type="uvh5", use_future_array_shapes=True
     )
 
-    telescope_obj = Telescope.get_telescope_from_known_telescopes("HERA")
+    telescope_obj = Telescope.from_known_telescopes("HERA")
 
     assert np.allclose(
         telescope_obj.location,
