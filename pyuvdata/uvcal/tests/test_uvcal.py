@@ -28,6 +28,40 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
+@pytest.fixture(scope="session")
+def uvcal_phase_center_main(gain_data_main):
+    gain_copy = gain_data_main.copy()
+
+    # Copying the catalog from sma_test.mir
+    gain_copy.phase_center_catalog = {
+        1: {
+            "cat_name": "3c84",
+            "cat_type": "sidereal",
+            "cat_lon": 0.8718035968995141,
+            "cat_lat": 0.7245157752262148,
+            "cat_frame": "icrs",
+            "cat_epoch": 2000.0,
+            "cat_times": None,
+            "cat_pm_ra": None,
+            "cat_pm_dec": None,
+            "cat_vrad": None,
+            "cat_dist": None,
+            "info_source": "file",
+        }
+    }
+    gain_copy.phase_center_id_array = np.ones(gain_copy.Ntimes, dtype=int)
+    gain_copy.Nphase = 1
+
+    yield gain_copy
+
+
+@pytest.fixture(scope="function")
+def uvcal_phase_center(uvcal_phase_center_main):
+    gain_copy = uvcal_phase_center_main.copy()
+
+    yield gain_copy
+
+
 @pytest.fixture(scope="function")
 def uvcal_data():
     """Set up some uvcal iter tests."""
@@ -4873,3 +4907,174 @@ def test_init_from_uvdata_freqrange_errors(uvcalibrate_data):
             cal_type="delay",
             freq_range=np.asarray([[1e8, 1.2e8], [1.3e8, 1.5e8]]),
         )
+
+
+@pytest.mark.parametrize(
+    "mode,cat_id", [["noop", None], ["force", 1], ["nocat", 1], ["muck", None]]
+)
+def test_add_phase_center(uvcal_phase_center, mode, cat_id):
+    """
+    Verify that if we attempt to add a source already in the catalog, we don't return
+    an error but instead the call completes normally.
+    """
+    warntype = warnmsg = None
+    if mode == "nocat":
+        uvcal_phase_center.phase_center_catalog = None
+    if mode == "muck":
+        uvcal_phase_center.phase_center_catalog[1]["cat_lon"] = 0.0
+        uvcal_phase_center.phase_center_catalog[0] = (
+            uvcal_phase_center.phase_center_catalog.pop(1)
+        )
+        warntype = UserWarning
+        warnmsg = "The provided name 3c84 is already used"
+
+    with uvtest.check_warnings(warntype, warnmsg):
+        return_id = uvcal_phase_center._add_phase_center(
+            "3c84",
+            cat_type="sidereal",
+            cat_lon=0.8718035968995141,
+            cat_lat=0.7245157752262148,
+            cat_frame="icrs",
+            cat_epoch="j2000",
+            cat_id=cat_id,
+            force_update=(mode == "force"),
+        )
+
+    assert return_id == 1
+
+
+def test_remove_phase_center_err(uvcal_phase_center):
+    cat_id = 2
+    with pytest.raises(IndexError, match="No source by that ID contained in the cata"):
+        uvcal_phase_center._remove_phase_center(cat_id)
+    assert cat_id not in uvcal_phase_center.phase_center_catalog
+
+
+def test_remove_phase_center(uvcal_phase_center):
+    cat_id = 1
+    uvcal_phase_center._remove_phase_center(cat_id)
+    assert cat_id not in uvcal_phase_center.phase_center_catalog
+
+
+def test_clear_unused_phase_centers(uvcal_phase_center):
+    pc_copy = copy.deepcopy(uvcal_phase_center.phase_center_catalog)
+    uvcal_phase_center.phase_center_catalog[0] = (
+        uvcal_phase_center.phase_center_catalog[1]
+    )
+    uvcal_phase_center.Nphase = 2
+    assert uvcal_phase_center.phase_center_catalog != pc_copy
+
+    uvcal_phase_center._clear_unused_phase_centers()
+    assert uvcal_phase_center.phase_center_catalog == pc_copy
+    assert uvcal_phase_center.Nphase == 1
+
+    # Test no-op
+    uvcal_phase_center._clear_unused_phase_centers()
+    assert uvcal_phase_center.phase_center_catalog == pc_copy
+    assert uvcal_phase_center.Nphase == 1
+
+
+@pytest.mark.parametrize(
+    "kwargs", [{}, {"catalog_identifier": "3c84"}, {"catalog_identifier": 1}]
+)
+def test_print_phase_center_catalog(uvcal_phase_center, kwargs):
+    """
+    Check that the 'standard' mode of print_object works.
+    """
+    check_str = (
+        "   ID     Cat Entry          Type     Az/Lon/RA    El/Lat/Dec  Frame    Epoch \n"  # noqa
+        "    #          Name                       hours           deg                 \n"  # noqa
+        "------------------------------------------------------------------------------\n"  # noqa
+        "    1          3c84      sidereal    3:19:48.16  +41:30:42.11   icrs  J2000.0 \n"  # noqa
+    )
+
+    table_str = uvcal_phase_center.print_phase_center_info(
+        print_table=False, return_str=True, **kwargs
+    )
+    assert table_str == check_str
+
+    # Make sure we can specify the object name and get the same result
+    table_str = uvcal_phase_center.print_phase_center_info(
+        print_table=False, return_str=True, catalog_identifier="3c84"
+    )
+    assert table_str == check_str
+
+    # Make sure that things still work when we force the HMS format
+    table_str = uvcal_phase_center.print_phase_center_info(
+        print_table=False, return_str=True, hms_format=True
+    )
+    assert table_str == check_str
+
+
+def test_update_phase_center_id(uvcal_phase_center):
+    pc_dict = uvcal_phase_center.phase_center_catalog.copy()
+
+    uvcal_phase_center._update_phase_center_id(1, new_id=2)
+    assert pc_dict != uvcal_phase_center.phase_center_catalog
+    assert pc_dict[1] == uvcal_phase_center.phase_center_catalog[2]
+
+
+def test_consolidate_phase_center_err(uvcal_phase_center):
+    with pytest.raises(ValueError, match="Either the reference_catalog or the other"):
+        uvcal_phase_center._consolidate_phase_center_catalogs()
+
+
+def test_consolidate_phase_center(uvcal_phase_center):
+    uvcal1 = uvcal_phase_center.copy()
+    uvcal2 = uvcal_phase_center.copy()
+
+    # Test the no-op first
+    uvcal1._consolidate_phase_center_catalogs(other=uvcal2)
+    assert uvcal1 == uvcal_phase_center
+    assert uvcal2 == uvcal_phase_center
+
+    uvcal1._consolidate_phase_center_catalogs(
+        other=uvcal2, reference_catalog=uvcal1.phase_center_catalog
+    )
+    assert uvcal1 == uvcal_phase_center
+    assert uvcal2 == uvcal_phase_center
+
+    # Update uvcal2 with a modified entry
+    uvcal2.phase_center_catalog[1]["cat_name"] = "WHATISTHISTHING"
+    uvcal1._consolidate_phase_center_catalogs(
+        other=uvcal2, reference_catalog=uvcal1.phase_center_catalog
+    )
+    assert uvcal1.phase_center_catalog != uvcal_phase_center.phase_center_catalog
+    assert uvcal1.phase_center_catalog[1] == uvcal_phase_center.phase_center_catalog[1]
+
+    uvcal1._clear_unused_phase_centers()
+    uvcal1._consolidate_phase_center_catalogs(other=uvcal2, ignore_name=True)
+
+    assert uvcal1 == uvcal_phase_center
+
+
+@pytest.mark.parametrize("mode", ["delay", "gain"])
+def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode):
+    if mode == "delay":
+        uvc = multi_spw_delay
+    elif mode == "gain":
+        uvc = multi_spw_gain
+    flex_jones_check = ([-5] * uvc.Nspws) + ([-6] * uvc.Nspws)
+
+    # Spoof a second polarization
+    uvc_copy = uvc.copy()
+    uvc_copy.jones_array[0] = -6
+
+    if mode == "delay":
+        uvc_copy.delay_array *= 1.56  # adjust gains to make them pol-unique
+    elif mode == "gain":
+        uvc_copy.gain_array *= 2 + 3j  # adjust gains to make them pol-unique
+
+    uvc += uvc_copy
+    uvc_copy = uvc.copy()
+
+    uvc.remove_flex_jones()
+    assert uvc_copy == uvc
+
+    uvc.convert_to_flex_jones()
+    assert uvc.Njones == 1
+    assert np.array_equal(uvc.flex_jones_array, flex_jones_check)
+    assert uvc != uvc_copy
+
+    uvc.remove_flex_jones()
+    assert uvc == uvc_copy

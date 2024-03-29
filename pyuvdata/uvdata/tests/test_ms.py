@@ -1063,3 +1063,31 @@ def test_read_ms_write_ms_legacy(nrao_uv, nrao_uv_legacy, tmp_path):
 
     nrao_uv.write_ms(testfile_l)
     nrao_uv_legacy.write_ms(testfile_f)
+
+
+@pytest.mark.parametrize("data_column", ["MODEL_DATA", "CORRECTED_DATA"])
+def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
+    # Fix the app coords since CASA reader calculates them on the fly
+    sma_mir._set_app_coords_helper()
+
+    testfile = os.path.join(tmp_path, "alt_data_columns.ms")
+    model_data = corrected_data = None
+    if data_column == "MODEL_DATA":
+        model_data = np.full(sma_mir.data_array.shape, 2.0 + 3.0j)
+        data_test = model_data
+    if data_column == "CORRECTED_DATA":
+        corrected_data = np.full(sma_mir.data_array.shape, 4.0 - 5.0j)
+        data_test = corrected_data
+    sma_mir.write_ms(testfile, model_data=model_data, corrected_data=corrected_data)
+
+    uvd = UVData()
+    uvd.read(testfile, data_column=data_column, use_future_array_shapes=True)
+    assert np.array_equal(uvd.data_array, data_test)
+    uvd.data_array = sma_mir.data_array
+
+    assert uvd.extra_keywords["DATA_COL"] == data_column
+    uvd.extra_keywords = sma_mir.extra_keywords
+    uvd.instrument = sma_mir.instrument
+    assert sma_mir.history in uvd.history
+    uvd.history = sma_mir.history
+    assert uvd == sma_mir
