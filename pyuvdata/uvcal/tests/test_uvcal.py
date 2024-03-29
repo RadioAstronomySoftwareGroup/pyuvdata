@@ -5048,33 +5048,109 @@ def test_consolidate_phase_center(uvcal_phase_center):
     assert uvcal1 == uvcal_phase_center
 
 
-@pytest.mark.parametrize("mode", ["delay", "gain"])
-def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode):
-    if mode == "delay":
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
+@pytest.mark.parametrize("mode", ["make", "convert", "meta", "single"])
+@pytest.mark.parametrize("caltype", ["delay", "gain"])
+def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode, caltype):
+    if caltype == "delay":
         uvc = multi_spw_delay
-    elif mode == "gain":
+    elif caltype == "gain":
         uvc = multi_spw_gain
-    flex_jones_check = ([-5] * uvc.Nspws) + ([-6] * uvc.Nspws)
-
-    # Spoof a second polarization
     uvc_copy = uvc.copy()
-    uvc_copy.jones_array[0] = -6
 
-    if mode == "delay":
+    if mode == "single":
+        pass
+    elif caltype == "delay":
         uvc_copy.delay_array *= 1.56  # adjust gains to make them pol-unique
-    elif mode == "gain":
+        if mode == "make":
+            uvc.flag_array[:, 1::2] = True
+            uvc.delay_array[:, 1::2] = 0.0
+            uvc.quality_array[:, 1::2] = 0.0
+            uvc_copy.flag_array[:, ::2] = True
+            uvc_copy.delay_array[:, ::2] = 0.0
+            uvc_copy.quality_array[:, ::2] = 0.0
+    elif caltype == "gain":
         uvc_copy.gain_array *= 2 + 3j  # adjust gains to make them pol-unique
+        if mode == "make":
+            uvc.flag_array[:, uvc.flex_spw_id_array == 2] = True
+            uvc.gain_array[:, uvc.flex_spw_id_array == 2] = 0.0
+            uvc.quality_array[:, uvc.flex_spw_id_array == 2] = 0.0
+            uvc_copy.flag_array[:, uvc.flex_spw_id_array == 1] = True
+            uvc_copy.gain_array[:, uvc.flex_spw_id_array == 1] = 0.0
+            uvc_copy.quality_array[:, uvc.flex_spw_id_array == 1] = 0.0
 
-    uvc += uvc_copy
-    uvc_copy = uvc.copy()
+    if mode != "single":
+        # Spoof a second polarization
+        uvc_copy.jones_array[0] = -6
+        uvc += uvc_copy
+        uvc_copy = uvc.copy()
 
     uvc.remove_flex_jones()
     assert uvc_copy == uvc
 
-    uvc.convert_to_flex_jones()
+    if mode == "convert":
+        flex_jones_check = ([-5] * uvc.Nspws) + ([-6] * uvc.Nspws)
+        with pytest.raises(ValueError, match="Cannot make a flex-pol UVCal object"):
+            uvc._make_flex_jones()
+        uvc.convert_to_flex_jones()
+        with pytest.raises(ValueError, match="This is already a flex-pol object"):
+            uvc.convert_to_flex_jones()
+    elif mode == "make":
+        flex_jones_check = [-5, -6] if caltype == "gain" else [-5, -6, -5]
+        uvc._make_flex_jones()
+    elif mode == "meta":
+        flex_jones_check = ([-5] * uvc.Nspws) + ([-6] * uvc.Nspws)
+        for name in uvc._data_params:
+            setattr(uvc, name, None)
+            setattr(uvc_copy, name, None)
+        with pytest.raises(ValueError, match="Cannot make a metadata_only UVCal"):
+            uvc._make_flex_jones()
+        uvc.convert_to_flex_jones()
+    elif mode == "single":
+        flex_jones_check = [-5] * uvc.Nspws
+        uvc._make_flex_jones()
+
     assert uvc.Njones == 1
     assert np.array_equal(uvc.flex_jones_array, flex_jones_check)
     assert uvc != uvc_copy
 
     uvc.remove_flex_jones()
+
     assert uvc == uvc_copy
+
+
+@pytest.mark.parametrize("func", ["_make_flex_jones", "convert_to_flex_jones"])
+def test_flex_jones_future_arr_shapes_err(func):
+    uvc = UVCal()
+    uvc.future_array_shapes = False
+    with pytest.raises(ValueError, match="Must use future array shapes to make"):
+        getattr(uvc, func)()
+
+
+def test_make_flex_jones_flagged_window(multi_spw_gain):
+    multi_spw_gain.flag_array[:, multi_spw_gain.flex_spw_id_array == 2] = True
+    uvc_copy = multi_spw_gain.copy()
+
+    uvc_spoof = multi_spw_gain.copy()
+    uvc_spoof.jones_array[0] = -6
+    uvc_spoof.flag_array[:] = True
+    multi_spw_gain += uvc_spoof
+
+    multi_spw_gain._make_flex_jones()
+    assert np.array_equal(multi_spw_gain.flex_jones_array, [-5, -5])
+    multi_spw_gain.remove_flex_jones(combine_spws=False)
+
+    assert uvc_copy.history in multi_spw_gain.history
+    uvc_copy.history = multi_spw_gain.history
+    assert multi_spw_gain == uvc_copy
+
+
+def test_remove_flex_jones_dup_err(multi_spw_gain):
+    uvc_spoof = multi_spw_gain.copy()
+    uvc_spoof.jones_array[0] = -6
+    multi_spw_gain += uvc_spoof
+    multi_spw_gain.convert_to_flex_jones()
+
+    multi_spw_gain.flex_jones_array[:] = -5
+    with pytest.raises(ValueError, match="Some spectral windows have identical"):
+        multi_spw_gain.remove_flex_jones()
