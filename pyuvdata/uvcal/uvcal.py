@@ -1216,7 +1216,7 @@ class UVCal(UVBase):
             # There isn't anything to do, so just move along
             return
 
-        jones_array = list(np.unique(self.flex_jones_array))
+        jones_array = list(reversed(np.unique(self.flex_jones_array)))
         n_jones = len(jones_array)
 
         if self.Nspws == 1 or n_jones == 1:
@@ -1295,6 +1295,9 @@ class UVCal(UVBase):
             freq_array = np.concatenate(
                 [self.freq_array[self.flex_spw_id_array == spw] for spw in spw_array]
             )
+            chan_width = np.concatenate(
+                [self.channel_width[self.flex_spw_id_array == spw] for spw in spw_array]
+            )
             flex_spw_id_array = np.concatenate(
                 [
                     self.flex_spw_id_array[self.flex_spw_id_array == spw]
@@ -1305,19 +1308,20 @@ class UVCal(UVBase):
             n_freqs = len(flex_spw_id_array)
         else:
             old_spw_arr = list(self.spw_array)
-            freq_array = None
+            freq_array = chan_width = None
             flex_spw_id_array = None
             freq_range = np.concatenate(
                 [self.freq_range[old_spw_arr.index(spw)] for spw in spw_array]
             ).reshape((-1, 2))
-            n_freqs = len(spw_array)
+            n_freqs = 1
 
         # Update metadata attributes
-        self.spw_array = spw_array
+        self.spw_array = np.array(spw_array)
         self.flex_spw_id_array = flex_spw_id_array
         self.freq_array = freq_array
+        self.channel_width = chan_width
         self.freq_range = freq_range
-        self.jones_array = jones_array
+        self.jones_array = np.array(jones_array)
 
         # Adjust the length-related attributes
         self.Nspws = len(spw_array)
@@ -1332,7 +1336,7 @@ class UVCal(UVBase):
                     continue
                 # Update the parameter shape with
                 new_shape = list(param.shape)
-                new_shape[1] = self.Nfreqs
+                new_shape[1] = self.Nspws if self.wide_band else self.Nfreqs
                 new_shape[3] = self.Njones
                 new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
                 for idx, old_spw in enumerate(spw_map):
@@ -1341,7 +1345,7 @@ class UVCal(UVBase):
                     # above (and marks the original indexing positions of the object)
                     old_fidx = index_check == old_spw
                     jones_idx = jones_array.index(self.flex_jones_array[idx])
-                    new_param[:, new_fidx, :, jones_idx] = param[:, old_fidx]
+                    new_param[:, new_fidx, :, jones_idx] = param[:, old_fidx, :, 0]
                 setattr(self, name, new_param)
 
         # Finally, drop flex_jones now that we no longer need it's info
@@ -1443,7 +1447,7 @@ class UVCal(UVBase):
         of data access.
 
         """
-        if self.flex_spw_polarization_array is not None:
+        if self.flex_jones_array is not None:
             raise ValueError("This is already a flex-pol object")
 
         if not self.future_array_shapes:
@@ -1486,6 +1490,8 @@ class UVCal(UVBase):
             self.freq_array = np.tile(self.freq_array, njones)
         if self.freq_range is not None:
             self.freq_range = np.tile(self.freq_range, (njones, 1))
+        if self.channel_width is not None:
+            self.channel_width = np.tile(self.channel_width, njones)
 
         # Adjust the length-related attributes
         self.Nspws *= self.Njones
