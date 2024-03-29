@@ -312,60 +312,44 @@ class Telescope(uvbase.UVBase):
             [val.x.to("m").value, val.y.to("m").value, val.z.to("m").value]
         )
 
-    def _set_uvcal_requirements(self):
-        """Set the UVParameter required fields appropriately for UVCal."""
-        self._name.required = True
-        self._location.required = True
-        self._instrument.required = False
-        self._Nants.required = True
-        self._antenna_names.required = True
-        self._antenna_numbers.required = True
-        self._antenna_positions.required = True
-        self._antenna_diameters.required = False
-        self._x_orientation.required = True
-
-    def _set_uvdata_requirements(self):
-        """Set the UVParameter required fields appropriately for UVData."""
-        self._name.required = True
-        self._location.required = True
-        self._instrument.required = True
-        self._Nants.required = True
-        self._antenna_names.required = True
-        self._antenna_numbers.required = True
-        self._antenna_positions.required = True
-        self._x_orientation.required = False
-        self._antenna_diameters.required = False
-
-    def _set_uvflag_requirements(self):
-        """Set the UVParameter required fields appropriately for UVCal."""
-        self._name.required = True
-        self._location.required = True
-        self._instrument.required = False
-        self._Nants.required = True
-        self._antenna_names.required = True
-        self._antenna_numbers.required = True
-        self._antenna_positions.required = True
-        self._antenna_diameters.required = False
-        self._x_orientation.required = False
-
     def update_params_from_known_telescopes(
         self,
         *,
-        known_telescope_dict=KNOWN_TELESCOPES,
-        overwrite=False,
-        warn=True,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
+        overwrite: bool = False,
+        warn: bool = True,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
+        known_telescope_dict: dict = KNOWN_TELESCOPES,
     ):
         """
-        Set the parameters based on telescope in known_telescopes.
+        Update the parameters based on telescope in known_telescopes.
+
+        This fills in any missing parameters (or to overwrite parameters that
+        have inaccurate values) on self that are available for a telescope from
+        either Astropy sites and/or from the KNOWN_TELESCOPES dict. This is
+        primarily used on UVData, UVCal and UVFlag to fill in information that
+        is missing, especially in older files.
 
         Parameters
         ----------
+        overwrite : bool
+            If set, overwrite parameters with information from Astropy sites
+            and/or from the KNOWN_TELESCOPES dict. Defaults to False.
+        warn : bool
+            Option to issue a warning listing all modified parameters.
+            Defaults to True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating.
         known_telescope_dict: dict
-            telescope info dict. Default is KNOWN_TELESCOPES
-            (other values are only used for testing)
+            This should only be used for testing. This allows passing in a
+            different dict to use in place of the KNOWN_TELESCOPES dict.
 
         """
         astropy_sites = EarthLocation.get_site_names()
@@ -548,8 +532,14 @@ class Telescope(uvbase.UVBase):
             )
 
     @classmethod
-    def get_telescope_from_known_telescopes(
-        cls, name: str, *, known_telescope_dict: dict = KNOWN_TELESCOPES
+    def from_known_telescopes(
+        cls,
+        name: str,
+        *,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
+        known_telescope_dict: dict = KNOWN_TELESCOPES,
     ):
         """
         Create a new Telescope object using information from known_telescopes.
@@ -558,6 +548,15 @@ class Telescope(uvbase.UVBase):
         ----------
         name : str
             Name of the telescope.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters.
+        known_telescope_dict: dict
+            This should only be used for testing. This allows passing in a
+            different dict to use in place of the KNOWN_TELESCOPES dict.
 
         Returns
         -------
@@ -569,6 +568,10 @@ class Telescope(uvbase.UVBase):
         tel_obj = cls()
         tel_obj.name = name
         tel_obj.update_params_from_known_telescopes(
-            warn=False, known_telescope_dict=known_telescope_dict
+            warn=False,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+            known_telescope_dict=known_telescope_dict,
         )
         return tel_obj

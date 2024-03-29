@@ -33,7 +33,7 @@ def write_uvflag_rst(write_file=None):
         ":class:`pyuvdata.parameter.UVParameter` objects but this is fairly\n"
         "transparent to users.\n"
         "The telescope attribute is implemented as a :class:`pyuvdata.Telescope`\n"
-        "object, with its attributes available on the UVData object as properties.\n\n"
+        "object, with its attributes available on the UVFlag object as properties.\n\n"
         "UVFlag objects can be initialized from a file or a :class:`pyuvdata.UVData`\n"
         "or :class:`pyuvdata.UVCal` object\n"
         "(as ``flag = UVFlag(<filename or object>)``). Some of these attributes\n"

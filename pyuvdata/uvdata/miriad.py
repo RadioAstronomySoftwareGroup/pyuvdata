@@ -297,9 +297,7 @@ class Miriad(UVData):
             # get info from known telescopes.
             # Check to make sure the lat/lon values match reasonably well
             try:
-                telescope_obj = Telescope.get_telescope_from_known_telescopes(
-                    self.telescope_name
-                )
+                telescope_obj = Telescope.from_known_telescopes(self.telescope_name)
             except ValueError:
                 telescope_obj = None
             if telescope_obj is not None:

@@ -72,7 +72,7 @@ def read_metafits(
         antenna_positions[:, 1] = meta_tbl["North"][1::2]
         antenna_positions[:, 2] = meta_tbl["Height"][1::2]
 
-        mwa_telescope_obj = Telescope.get_telescope_from_known_telescopes("mwa")
+        mwa_telescope_obj = Telescope.from_known_telescopes("mwa")
 
         # convert antenna positions from enu to ecef
         # antenna positions are "relative to
