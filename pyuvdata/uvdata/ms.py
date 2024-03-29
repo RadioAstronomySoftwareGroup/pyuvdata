@@ -969,9 +969,7 @@ class MS(UVData):
             and self.telescope_name in self.known_telescopes()
         ):
             # get it from known telescopes
-            telescope_obj = Telescope.get_telescope_from_known_telescopes(
-                self.telescope_name
-            )
+            telescope_obj = Telescope.from_known_telescopes(self.telescope_name)
             warnings.warn(
                 "Setting telescope_location to value in known_telescopes for "
                 f"{self.telescope_name}."

@@ -4139,7 +4139,7 @@ class MirParser(object):
         # if swarm_only:
         #     self.select(where=("correlator", "eq", 1))
         # Get SMA coordinates for various data-filling stuff
-        sma_lat, sma_lon, sma_alt = Telescope.get_telescope_from_known_telescopes(
+        sma_lat, sma_lon, sma_alt = Telescope.from_known_telescopes(
             "SMA"
         ).location_lat_lon_alt
 
