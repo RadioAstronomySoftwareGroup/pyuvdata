@@ -29,7 +29,7 @@ def write_uvcal_rst(write_file=None):
         ":class:`pyuvdata.parameter.UVParameter` objects but this is fairly\n"
         "transparent to users.\n"
         "The telescope attribute is implemented as a :class:`pyuvdata.Telescope`\n"
-        "object, with its attributes available on the UVData object as properties.\n\n"
+        "object, with its attributes available on the UVCal object as properties.\n\n"
         "UVCal objects can be initialized as an empty object (as ``cal = UVCal()``).\n"
         "When an empty UVCal object is initialized, it has all of these attributes\n"
         "defined but set to ``None``. The attributes can be set by reading in a data\n"
