@@ -4925,3 +4925,18 @@ def test_slicify():
     assert uvutils.slicify([1]) == slice(1, 2, 1)
     assert uvutils.slicify([0, 2, 4]) == slice(0, 5, 2)
     assert uvutils.slicify([0, 1, 2, 7]) == [0, 1, 2, 7]
+
+
+@pytest.mark.parametrize(
+    "obj1,obj2,union_result,interset_result,diff_result",
+    [
+        [[1, 2, 3], [3, 4, 5], [1, 2, 3, 4, 5], [3], [1, 2]],  # Partial overlap
+        [[1, 2], [1, 2], [1, 2], [1, 2], []],  # Full overlap
+        [[1, 3, 5], [2, 4, 6], [1, 2, 3, 4, 5, 6], [], [1, 3, 5]],  # No overlap
+        [[1, 2], None, [1, 2], [1, 2], [1, 2]],  # Nones
+    ],
+)
+def test_sorted_unique_ops(obj1, obj2, union_result, interset_result, diff_result):
+    assert uvutils._sorted_unique_union(obj1, obj2) == union_result
+    assert uvutils._sorted_unique_intersection(obj1, obj2) == interset_result
+    assert uvutils._sorted_unique_difference(obj1, obj2) == diff_result
