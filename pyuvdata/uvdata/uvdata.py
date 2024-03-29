@@ -12313,6 +12313,8 @@ class UVData(UVBase):
         filename,
         *,
         force_phase=False,
+        model_data=None,
+        corrected_data=None,
         flip_conj=False,
         clobber=False,
         run_check=True,
@@ -12333,6 +12335,14 @@ class UVData(UVBase):
         force_phase : bool
             Option to automatically phase unprojected data to zenith of the first
             timestamp.
+        model_data : ndarray
+            Optional argument, which contains data to be written into the MODEL_DATA
+            column of the measurement set (along with the data, which is written into
+            the DATA column). Must contain the same dimensions as `data_array`.
+        corrected_data : ndarray
+            Optional argument, which contains data to be written into the CORRECTED_DATA
+            column of the measurement set (along with the data, which is written into
+            the DATA column). Must contain the same dimensions as `data_array`.
         flip_conj : bool
             If set to True, and the UVW coordinates are flipped (i.e., multiplied by
             -1) and the visibilities are complex conjugated prior to write, such that
@@ -12375,6 +12385,8 @@ class UVData(UVBase):
         ms_obj.write_ms(
             filename,
             force_phase=force_phase,
+            model_data=model_data,
+            corrected_data=corrected_data,
             flip_conj=flip_conj,
             clobber=clobber,
             run_check=run_check,
