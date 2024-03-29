@@ -545,7 +545,7 @@ class UVFlag(UVBase):
         self.telescope = Telescope()
 
         # set the appropriate telescope attributes as required
-        self.telescope._set_uvflag_requirements()
+        self._set_telescope_requirements()
 
         # initialize the underlying UVBase properties
         super(UVFlag, self).__init__()
@@ -633,6 +633,18 @@ class UVFlag(UVBase):
                 "input to UVFlag.__init__ must be one of: "
                 "list, tuple, string, pathlib.Path, UVData, or UVCal."
             )
+
+    def _set_telescope_requirements(self):
+        """Set the UVParameter required fields appropriately for UVCal."""
+        self.telescope._name.required = True
+        self.telescope._location.required = True
+        self.telescope._instrument.required = False
+        self.telescope._Nants.required = True
+        self.telescope._antenna_names.required = True
+        self.telescope._antenna_numbers.required = True
+        self.telescope._antenna_positions.required = True
+        self.telescope._antenna_diameters.required = False
+        self.telescope._x_orientation.required = False
 
     @property
     def telescope_name(self):
@@ -4108,7 +4120,7 @@ class UVFlag(UVBase):
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
         self.telescope = indata.telescope.copy()
-        self.telescope._set_uvflag_requirements()
+        self._set_telescope_requirements()
 
         self.Nspws = indata.Nspws
         self.spw_array = copy.deepcopy(indata.spw_array)
@@ -4303,7 +4315,7 @@ class UVFlag(UVBase):
             self.channel_width = np.full(self.Nfreqs, indata.channel_width)
 
         self.telescope = indata.telescope.copy()
-        self.telescope._set_uvflag_requirements()
+        self._set_telescope_requirements()
 
         self.Nspws = indata.Nspws
         self.spw_array = copy.deepcopy(indata.spw_array)

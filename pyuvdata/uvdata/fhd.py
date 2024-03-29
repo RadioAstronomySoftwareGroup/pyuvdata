@@ -285,9 +285,7 @@ def get_fhd_layout_info(
             # files for the MWA
             # compare with the known_telescopes values
             try:
-                telescope_obj = Telescope.get_telescope_from_known_telescopes(
-                    telescope_name
-                )
+                telescope_obj = Telescope.from_known_telescopes(telescope_name)
             except ValueError:
                 telescope_obj = None
             # start warning message
