@@ -121,7 +121,7 @@ test_reqs = all_optional_reqs + [
     "pytest-xdist",
     "pytest-cases>=3.8.3",
     "pytest-cov",
-    "cython",
+    "cython>=3.0",
     "coverage",
     "pre-commit",
 ]
