@@ -5145,6 +5145,16 @@ def test_make_flex_jones_flagged_window(multi_spw_gain):
     assert multi_spw_gain == uvc_copy
 
 
+def test_flex_jones_select_err(multi_spw_gain):
+    uvc_spoof = multi_spw_gain.copy()
+    uvc_spoof.jones_array[0] = -6
+    multi_spw_gain += uvc_spoof
+    multi_spw_gain.convert_to_flex_jones()
+
+    with pytest.raises(ValueError, match="this Jones selection in this flex-Jones"):
+        multi_spw_gain.select(jones=-6, spws=1)
+
+
 def test_remove_flex_jones_dup_err(multi_spw_gain):
     uvc_spoof = multi_spw_gain.copy()
     uvc_spoof.jones_array[0] = -6
@@ -5154,3 +5164,97 @@ def test_remove_flex_jones_dup_err(multi_spw_gain):
     multi_spw_gain.flex_jones_array[:] = -5
     with pytest.raises(ValueError, match="Some spectral windows have identical"):
         multi_spw_gain.remove_flex_jones()
+
+
+@pytest.mark.filterwarnings("ignore:The input_flag_array")
+@pytest.mark.parametrize("mode", ["delay", "gain"])
+def test_flex_jones_shuffle(multi_spw_gain, multi_spw_delay, mode):
+    if mode == "gain":
+        uvc = multi_spw_gain
+    elif mode == "delay":
+        uvc = multi_spw_delay
+    uvc_spoof = uvc.copy()
+    uvc_spoof.jones_array[0] = -6
+    uvc += uvc_spoof
+    uvc.convert_to_flex_jones()
+
+    uvc1 = uvc.select(jones=-5, inplace=False)
+    uvc2 = uvc.select(jones=-6, inplace=False)
+
+    assert uvc1 != uvc2
+
+    uvc_comb = uvc1 + uvc2
+    assert uvc.history in uvc_comb.history
+    uvc_comb.history = uvc.history
+    assert uvc_comb == uvc
+
+
+@pytest.mark.parametrize("func", ["__add__", "__iadd__", "fast_concat"])
+def test_flex_jones_add_errs(multi_spw_gain, func):
+    uvc_copy = multi_spw_gain.copy()
+    multi_spw_gain.convert_to_flex_jones()
+
+    kwargs = {"axis": "spw"} if func == "fast_concat" else {}
+    with pytest.raises(ValueError, match="be either set to regular or flex-jones."):
+        getattr(multi_spw_gain, func)(uvc_copy, **kwargs)
+
+
+def test_phase_center_add_err(uvcal_phase_center):
+    uvcopy = uvcal_phase_center.copy()
+    uvcopy.phase_center_catalog[1]["cat_name"] = "whoami"
+    uvcopy.jones_array[0] = -6
+    with pytest.raises(ValueError, match="with different phase centers."):
+        _ = uvcopy + uvcal_phase_center
+
+    # Test what happens if no phase center catalog period
+    uvcopy.phase_center_catalog = None
+    with pytest.raises(ValueError, match="To combine these data, phase_center_"):
+        _ = uvcopy + uvcal_phase_center
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.parametrize(
+    "func,kwargs", [["__add__", {}], ["fast_concat", {"axis": "time"}]]
+)
+def test_phase_center_add(uvcal_phase_center, func, kwargs):
+    uvcopy = uvcal_phase_center.copy()
+    uvcopy.time_array += 1
+    uvcopy._update_phase_center_id(1, new_id=2)
+
+    uvcomb = getattr(uvcopy, func)(uvcal_phase_center, **kwargs)
+    assert uvcal_phase_center.phase_center_catalog == uvcomb.phase_center_catalog
+
+    uvcopy.phase_center_catalog[2]["cat_name"] = "whoisthis"
+    uvcomb = getattr(uvcopy, func)(uvcal_phase_center, **kwargs)
+    uvcomb.reorder_times()
+
+    assert all(idx in uvcomb.phase_center_catalog for idx in [1, 2])
+    assert np.array_equal(uvcomb.phase_center_id_array, [1, 2] * uvcopy.Ntimes)
+
+
+def test_ref_ant_array_add_err(uvcal_phase_center):
+    uvcopy = uvcal_phase_center.copy()
+    uvcopy.ref_antenna_array = np.ones(uvcopy.Ntimes, dtype=int)
+    uvcopy.jones_array[0] = -6  # Need this to differentiate the data sets
+    with pytest.raises(ValueError, match="To combine these data, both or neither "):
+        _ = uvcopy + uvcal_phase_center
+
+    # Test what happens if no phase center catalog period
+    uvcal_phase_center.ref_antenna_array = np.zeros(uvcopy.Ntimes, dtype=int)
+    with pytest.raises(ValueError, match="with different reference antennas."):
+        _ = uvcopy + uvcal_phase_center
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.parametrize(
+    "func,kwargs", [["__add__", {}], ["fast_concat", {"axis": "time"}]]
+)
+def test_ref_ant_array_add(uvcal_phase_center, func, kwargs):
+    uvcopy = uvcal_phase_center.copy()
+    uvcopy.time_array += 1
+    uvcopy.ref_antenna_array = np.ones(uvcopy.Ntimes, dtype=int)
+    uvcal_phase_center.ref_antenna_array = np.zeros(uvcopy.Ntimes, dtype=int)
+
+    uvcomb = getattr(uvcopy, func)(uvcal_phase_center, **kwargs)
+    uvcomb.reorder_times()
+    assert np.array_equal(uvcomb.ref_antenna_array, [0, 1] * uvcopy.Ntimes)
