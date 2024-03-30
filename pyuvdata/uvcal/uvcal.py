@@ -1453,6 +1453,12 @@ class UVCal(UVBase):
                 "with either wide_band=True or flex_spw=True."
             )
 
+        if self.Njones == 1:
+            # This is basically a no-op, fix the relevant attributes and exit
+            self.flex_jones_array = np.full(self.Nspws, self.jones_array[0])
+            self.jones_array = np.array([0])
+            return
+
         old_nspws = self.Nspws * self.Njones
         njones = self.Njones
         new_nspws = self.Nspws * (self.Njones - 1)
@@ -1487,7 +1493,7 @@ class UVCal(UVBase):
 
         # Adjust the length-related attributes
         self.Nspws *= self.Njones
-        self.Nfreqs *= self.Njones
+        self.Nfreqs *= 1 if self.wide_band else self.Njones
         self.Njones = 1
 
         # Finally, if we have it, update the metadata.
@@ -2783,6 +2789,8 @@ class UVCal(UVBase):
             if self.wide_band:
                 self.spw_array = self.spw_array[index_array]
                 self.freq_range = self.freq_range[index_array]
+                if self.flex_jones_array is not None:
+                    self.flex_jones_array = self.flex_jones_array[index_array]
             else:
                 self.freq_array = self.freq_array[index_array]
             for param_name in self._data_params:
@@ -2905,6 +2913,10 @@ class UVCal(UVBase):
             self.lst_array = self.lst_array[index_array]
         if self.lst_range is not None:
             self.lst_range = self.lst_range[index_array]
+        if self.phase_center_id_array is not None:
+            self.phase_center_id_array = self.phase_center_id_array[index_array]
+        if self.ref_antenna_array is not None:
+            self.ref_antenna_array = self.ref_antenna_array[index_array]
         if self.future_array_shapes:
             self.integration_time = self.integration_time[index_array]
             for param_name in self._data_params:
@@ -3327,6 +3339,18 @@ class UVCal(UVBase):
                 "value (True or False) for both objects."
             )
 
+        if (this.flex_jones_array is None) != (other.flex_jones_array is None):
+            raise ValueError(
+                "To combine these data, both objects must be either set to regular "
+                "or flex-jones."
+            )
+
+        if (this.ref_antenna_array is None) != (other.ref_antenna_array is None):
+            raise ValueError(
+                "To combine these data, both or neither object must have the "
+                "ref_antenna_array parameter set."
+            )
+
         # Check that the objects both (or neither) have catalogs and phase ID arrays
         this_pc_cat = this.phase_center_catalog is None
         other_pc_cat = other.phase_center_catalog is None
@@ -3504,6 +3528,16 @@ class UVCal(UVBase):
                         "Cannot combine objects due to overlapping times with "
                         "different phase centers."
                     )
+
+        if (len(both_times) > 0) and (this.ref_antenna_array is not None):
+            if not np.array_equal(
+                this.ref_antenna_array[this_times_ind],
+                other.ref_antenna_array[other_times_ind],
+            ):
+                raise ValueError(
+                    "Cannot combine objects due to overlapping times with "
+                    "different reference antennas."
+                )
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3762,6 +3796,11 @@ class UVCal(UVBase):
                 this.freq_range = np.concatenate(
                     [this.freq_range, other.freq_range[fnew_inds]], axis=0
                 )
+                if this.flex_jones_array is not None:
+                    this.flex_jones_array = np.concatenate(
+                        [this.flex_jones_array, other.flex_jones_array[fnew_inds]],
+                        axis=0,
+                    )
             elif self.future_array_shapes:
                 this.freq_array = np.concatenate(
                     [this.freq_array, other.freq_array[fnew_inds]]
@@ -3788,6 +3827,11 @@ class UVCal(UVBase):
                         for spw in this.spw_array
                     ]
                 )
+                if this.flex_jones_array is not None:
+                    this.flex_jones_array = np.concatenate(
+                        [this.flex_jones_array, other.flex_jones_array]
+                    )
+                    this.flex_jones_array = this.flex_jones_array[spw_index]
                 if this.freq_range is not None and other.freq_range is not None:
                     # this can be removed in v3.0
                     if this.future_array_shapes:
@@ -3993,6 +4037,10 @@ class UVCal(UVBase):
             if this.phase_center_id_array is not None:
                 this.phase_center_id_array = np.concatenate(
                     [this.phase_center_id_array, other.phase_center_id_array[tnew_inds]]
+                )
+            if this.ref_antenna_array is not None:
+                this.ref_antenna_array = np.concatenate(
+                    [this.ref_antenna_array, other.ref_antenna_array[tnew_inds]]
                 )
             if this.time_range is not None:
                 t_order = np.argsort(this.time_range[:, 0])
@@ -4298,7 +4346,14 @@ class UVCal(UVBase):
             if self.wide_band:
                 freqs_t2o = np.nonzero(np.isin(this.spw_array, other.spw_array))[0]
             elif self.future_array_shapes:
-                freqs_t2o = np.nonzero(np.isin(this.freq_array, other.freq_array))[0]
+                freqs_t2o = np.zeros(this.freq_array.shape, dtype=bool)
+                for spw_id in set(this.spw_array).intersection(other.spw_array):
+                    mask = this.flex_spw_id_array == spw_id
+                    freqs_t2o[mask] |= np.isin(
+                        this.freq_array[mask],
+                        other.freq_array[other.flex_spw_id_array == spw_id],
+                    )
+                freqs_t2o = np.nonzero(freqs_t2o)[0]
             else:
                 if self.cal_type == "gain":
                     freqs_t2o = np.nonzero(
@@ -4433,6 +4488,8 @@ class UVCal(UVBase):
                 this.integration_time = this.integration_time[t_order]
             if self.phase_center_id_array is not None:
                 this.phase_center_id_array = this.phase_center_id_array[t_order]
+            if self.ref_antenna_array is not None:
+                this.ref_antenna_array = this.ref_antenna_array[t_order]
         if len(jnew_inds) > 0:
             this.jones_array = this.jones_array[j_order]
 
@@ -4642,6 +4699,11 @@ class UVCal(UVBase):
                 raise ValueError(
                     "To combine these data, flex_spw must be set to the same "
                     "value (True or False) for all objects."
+                )
+            if (this.flex_jones_array is None) != (obj.flex_jones_array is None):
+                raise ValueError(
+                    "To combine these data, all objects must be either set to regular "
+                    "or flex-jones."
                 )
 
         for obj in other:
@@ -4870,6 +4932,12 @@ class UVCal(UVBase):
                         for spw in this.spw_array
                     ]
                 )
+                if this.flex_jones_array is not None:
+                    this.flex_jones_array = np.concatenate(
+                        [this.flex_jones_array]
+                        + [obj.flex_jones_array for obj in other]
+                    )
+                    this.flex_jones_array = this.flex_jones_array[spw_index]
                 if np.all(freq_range_exists):
                     if this.future_array_shapes:
                         this.freq_range = np.concatenate(
@@ -4937,6 +5005,11 @@ class UVCal(UVBase):
             this.freq_range = np.concatenate(
                 [this.freq_range] + [obj.freq_range for obj in other], axis=0
             )
+            if this.flex_jones_array is not None:
+                this.freq_range = np.concatenate(
+                    [this.flex_jones_array] + [obj.flex_jones_array for obj in other],
+                    axis=0,
+                )
             axis_num = 1
         elif axis == "time":
             this.Ntimes = sum([this.Ntimes] + [obj.Ntimes for obj in other])
@@ -4959,6 +5032,19 @@ class UVCal(UVBase):
             if this.lst_range is not None:
                 this.lst_range = np.concatenate(
                     [this.lst_range] + [obj.lst_range for obj in other], axis=0
+                )
+            if this.phase_center_id_array is not None:
+                this.phase_center_id_array = np.concatenate(
+                    (
+                        [this.phase_center_id_array]
+                        + [obj.phase_center_id_array for obj in other]
+                    ),
+                    axis=0,
+                )
+            if this.ref_antenna_array is not None:
+                this.ref_antenna_array = np.concatenate(
+                    [this.ref_antenna_array] + [obj.ref_antenna_array for obj in other],
+                    axis=0,
                 )
             if this.future_array_shapes:
                 axis_num = 2
@@ -5451,7 +5537,7 @@ class UVCal(UVBase):
 
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
-                if len(spw_inds == 0) or (self.flex_spw and len(freq_inds) == 0):
+                if (len(spw_inds) == 0) or (self.flex_spw and len(freq_inds) == 0):
                     raise ValueError(
                         "No data matching this Jones selection in this flex-Jones "
                         " UVCal object."
