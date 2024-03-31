@@ -30,6 +30,24 @@ except ImportError as error:  # pragma: no cover
     casa_error = error
 
 
+DEFAULT_CAT_DICT = {
+    0: {
+        "cat_name": "unknown",
+        "cat_type": "sidereal",
+        "cat_lon": -1.0,
+        "cat_lat": -1.0,
+        "cat_frame": "icrs",
+        "cat_epoch": 2000.0,
+        "cat_times": None,
+        "cat_pm_ra": None,
+        "cat_pm_dec": None,
+        "cat_vrad": None,
+        "cat_dist": None,
+        "info_source": "file",
+    }
+}
+
+
 class MSCal(UVCal):
     """
     Defines an MS-specific subclass of UVCal for reading MS calibration tables.
@@ -142,7 +160,8 @@ class MSCal(UVCal):
         self.antenna_names = ant_info["antenna_names"]
         self.Nants_telescope = len(self.antenna_names)
         self.antenna_numbers = ant_info["antenna_numbers"]
-        self.antenna_diameters = ant_info["antenna_diameters"]
+        if all(ant_info["antenna_diameters"] > 0):
+            self.antenna_diameters = ant_info["antenna_diameters"]
         # MS-format seems to want to preserve the blank entries in the gains tables
         # This looks to be the same for MS files.
         self.ant_array = self.antenna_numbers
@@ -154,6 +173,12 @@ class MSCal(UVCal):
         self.phase_center_catalog, field_id_map = ms_utils.read_ms_field(
             filepath, return_phase_center_catalog=True
         )
+        self.Nphase = len(np.unique(tb_main.getcol("FIELD_ID")))
+        if (self.phase_center_catalog == DEFAULT_CAT_DICT) and (self.Nphase == 1):
+            # If this is the default, we know that this was spoofed by pyuvdata, in
+            # which case we'll set the phase setuff to None
+            self.phase_center_catalog = None
+            self.Nphase = None
 
         # importuvfits measurement sets store antenna names in the STATION column.
         # cotter measurement sets store antenna names in the NAME column, which is
@@ -164,21 +189,6 @@ class MSCal(UVCal):
             "" in self.antenna_names
         ):
             self.antenna_names = ant_info["station_names"]
-
-        # Extract out the reference antenna information.
-        ref_ant_array = tb_main.getcol("ANTENNA2")
-        if not all(ref_ant_array[0] == ref_ant_array):
-            warnings.warn(
-                "Multiple ref ants detected, which UVCal cannot handle. Using the "
-                "first entry as the default"
-            )
-
-        try:
-            self.ref_antenna_name = self.antenna_names[
-                np.where(self.antenna_numbers == ref_ant_array[0])[0][0]
-            ]
-        except IndexError:
-            self.ref_antenna_name = "unknown CASA reference antenna"
 
         spw_info = ms_utils.read_ms_spectral_window(filepath)
 
@@ -207,10 +217,8 @@ class MSCal(UVCal):
         # Don't think CASA is going to support a non-sky based model, but hey, who knows
         self.cal_style = "sky"
         self.gain_convention = "divide"  # N.b., manually verified by Karto in CASA v6.4
-        self.Nphase = len(np.unique(tb_main.getcol("FIELD_ID")))
 
         # Just assume that the gain scale is always in Jy
-        self.gain_scale = "Jy"
         nchan = self.Nfreqs
 
         if self.wide_band:
@@ -230,10 +238,16 @@ class MSCal(UVCal):
         # MAIN LOOP
         self.Njones = tb_main.getcell(cal_column, 0).shape[1]
         if main_keywords["PolBasis"].lower() == "unknown":
-            if "pyuvdata_jones" in main_keywords.keys():
+            if "pyuvdata_jones" in main_keywords:
                 self.jones_array = main_keywords["pyuvdata_jones"]
-            if "pyuvdata_flex_jones" in main_keywords.keys():
+            if "pyuvdata_flex_jones" in main_keywords:
                 self.flex_jones_array = main_keywords["pyuvdata_flex_jones"]
+            if "pyuvdata_sky_catalog" in main_keywords:
+                self.sky_catalog = main_keywords["pyuvdata_sky_catalog"]
+            if "pyuvdata_gain_scale" in main_keywords:
+                self.gain_scale = main_keywords["pyuvdata_gain_scale"]
+            if "pyuvdata_observer" in main_keywords:
+                self.observer = main_keywords["pyuvdata_observer"]
             if self.jones_array is None:
                 if default_jones_array is None:
                     warnings.warn(
@@ -288,6 +302,7 @@ class MSCal(UVCal):
         self.total_quality_array = None  # Always None for now, no similar array in MS
         self.scan_number_array = np.zeros_like(self.time_array, dtype=int)
         self.phase_center_id_array = np.zeros_like(self.time_array, dtype=int)
+        self.ref_antenna_array = np.zeros_like(self.time_array, dtype=int)
         has_exp = "EXPOSURE" in tb_main.colnames()
         exp_time = 0.0  # Default value if no exposure stored
         int_arr = np.zeros_like(self.time_array, dtype=float)
@@ -295,6 +310,7 @@ class MSCal(UVCal):
         for row_idx, time_idx in enumerate(row_timeidx_map):
             try:
                 ant_idx = ant_dict[tb_main.getcell("ANTENNA1", row_idx)]
+                ref_ant = tb_main.getcell("ANTENNA2", row_idx)
                 time_val = tb_main.getcell("TIME", row_idx)
                 cal_soln = tb_main.getcell(cal_column, row_idx)
                 cal_qual = tb_main.getcell("PARAMERR", row_idx)
@@ -322,11 +338,25 @@ class MSCal(UVCal):
                 self.flag_array[ant_idx, spw_slice, time_idx, :] = cal_flag
                 self.phase_center_id_array[time_idx] = field_id
                 self.scan_number_array[time_idx] = scan_num
+                self.ref_antenna_array[time_idx] = ref_ant
             except KeyError:
                 # If there's no entry that matches, it's because we've effectively
                 # flagged some index value such that it has no entries in the table.
                 # skip recording this row.
                 continue
+
+        if len(np.unique(all(self.ref_antenna_array))) > 1:
+            self.ref_antenna_name = "various"
+        else:
+            # if there aren't multiple ref ants, default to storing just the one name.
+            refant = self.ref_antenna_array[0]
+            self.ref_antenna_array = None
+            try:
+                self.ref_antenna_name = self.antenna_names[
+                    np.where(self.antenna_numbers == refant)[0][0]
+                ]
+            except IndexError:
+                self.ref_antenna_name = "unknown reference antenna"
 
         # Convert the time from MJD secs (CASA standard) to JD date (pyuvdata std)
         self.time_array = Time(
@@ -343,9 +373,13 @@ class MSCal(UVCal):
             self.time_range[:, 1] = self.time_array + (int_arr / (2 * 86400))
             self.time_array = None
 
-        # There's a little bit of cleanup to do w/ field_id, since the values here
-        # correspond to the row in FIELD rather than the source ID. Map that now.
-        if len(field_id_map) != 0:
+        if self.Nphase is None:
+            # If we have no catalog, then blank out the ID array here, since it
+            # contains no actually useful info.
+            self.phase_center_id_array = None
+        elif len(field_id_map) != 0:
+            # There's a little bit of cleanup to do w/ field_id, since the values here
+            # correspond to the row in FIELD rather than the source ID. Map that now.
             self.phase_center_id_array = np.array(
                 [field_id_map[idx] for idx in self.phase_center_id_array]
             )
@@ -455,6 +489,15 @@ class MSCal(UVCal):
             if self.flex_jones_array is not None:
                 ms.putkeyword("pyuvdata_flex_jones", self.flex_jones_array)
 
+            if self.sky_catalog is not None:
+                ms.putkeyword("pyuvdata_sky_catalog", self.sky_catalog)
+
+            if self.gain_scale is not None:
+                ms.putkeyword("pyuvdata_gain_scale", self.gain_scale)
+
+            if self.observer is not None:
+                ms.putkeyword("pyuvdata_observer", self.observer)
+
             # Now start the heavy lifting of putting in the data.
             ############################################################################
             # astropy's Time has some overheads associated with it, so use unique to run
@@ -500,18 +543,23 @@ class MSCal(UVCal):
             # and then the more usual selections of per-time, per-ant1, etc.
 
             ant_array = np.tile(np.arange(Nants_casa), self.Ntimes * self.Nspws)
-            try:
-                # Cast list here to deal w/ ndarrays
-                refant = str(
-                    self.antenna_numbers[
-                        list(self.antenna_names).index(self.ref_antenna_name)
-                    ]
-                )
-            except ValueError:
-                # We don't know what the refant was, so mark this accordingly
-                refant = -1
+            if self.ref_antenna_array is None:
+                try:
+                    # Cast list here to deal w/ ndarrays
+                    refant = str(
+                        self.antenna_numbers[
+                            list(self.antenna_names).index(self.ref_antenna_name)
+                        ]
+                    )
+                except ValueError:
+                    # We don't know what the refant was, so mark this accordingly
+                    refant = -1
 
-            refant_array = np.full_like(ant_array, refant)
+                refant_array = np.full_like(ant_array, refant)
+            else:
+                refant_array = np.tile(
+                    np.repeat(self.ref_antenna_array, Nants_casa), self.Nspws
+                )
 
             # Time-based properties need to be repeated on Nants_casa, since the antenna
             # axis is the "fastest" moving on the collapsed data. So repeat each entry
@@ -555,7 +603,7 @@ class MSCal(UVCal):
             ms.putcol("ANTENNA1", ant_array)
             ms.putcol("ANTENNA2", refant_array)
             ms.putcol("INTERVAL", interval_array)
-            # ms.putcol("EXPOSURE", exposure_array)
+            ms.putcol("EXPOSURE", exposure_array)
             ms.putcol("SCAN_NUMBER", scan_number_array)
             ms.putcol("OBSERVATION_ID", obs_id_array)
 
@@ -630,16 +678,7 @@ class MSCal(UVCal):
         # Finally, write all of the supporting tables that we need.
         ms_utils.write_ms_antenna(filename, uvobj=self)
         if self.phase_center_catalog is None:
-            cat_dict = {
-                0: {
-                    "cat_lat": -1.0,
-                    "cat_lon": -1.0,
-                    "cat_name": "unknown",
-                    "cat_type": "sidereal",
-                    "cat_frame": "icrs",
-                    "cat_epoch": 2000.0,
-                }
-            }
+            cat_dict = DEFAULT_CAT_DICT
             ms_utils.write_ms_field(
                 filename, phase_center_catalog=cat_dict, time_val=0.0
             )
