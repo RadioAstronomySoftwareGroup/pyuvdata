@@ -5,8 +5,10 @@
 """Tests for ms_cal object."""
 import os
 
+import numpy as np
 import pytest
 
+from ... import tests as uvtest
 from ...data import DATA_PATH
 from ..uvcal import UVCal
 
@@ -26,7 +28,18 @@ pytestmark = pytest.mark.filterwarnings(
 def sma_pcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
-    uvobj.read(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Unknown polarization",
+            "Unknown x_orientation",
+            "key CASA_Version",
+            "telescope_location is not set",
+        ],
+    ):
+        uvobj.read(testfile)
+
+    uvobj.gain_scale = "Jy"
 
     yield uvobj
 
@@ -42,7 +55,16 @@ def sma_pcal(sma_pcal_main):
 def sma_dcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.dcal")
-    uvobj.read(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Unknown polarization",
+            "Unknown x_orientation",
+            "key CASA_Version",
+            "telescope_location is not set",
+        ],
+    ):
+        uvobj.read(testfile)
 
     yield uvobj
 
@@ -58,7 +80,18 @@ def sma_dcal(sma_dcal_main):
 def sma_bcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.bcal")
-    uvobj.read(testfile)
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Unknown polarization",
+            "Unknown x_orientation",
+            "key CASA_Version",
+            "telescope_location is not set",
+        ],
+    ):
+        uvobj.read(testfile)
+
+    uvobj.gain_scale = "Jy"
 
     yield uvobj
 
@@ -113,3 +146,139 @@ def test_ms_cal_bandpass_loopback(sma_bcal, tmp_path, write_func, filename):
     # Check that the histories line up
     assert sma_bcal.history in uvcal.history
     assert sma_bcal.__eq__(uvcal, allowed_failures=allowed_failures)
+
+
+def test_ms_cal_wrong_ms_type():
+    filepath = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.ms")
+    uvc = UVCal()
+
+    with pytest.raises(
+        ValueError, match="This seems to be a Measurement Set containing visibilities"
+    ):
+        uvc.read_ms_cal(filepath)
+
+
+def test_ms_cal_time_ranges(gain_data, tmp_path):
+    filepath = os.path.join(tmp_path, "mscal_time_range.ms")
+    gain_data._set_flex_spw()
+    gain_data.flex_spw_id_array = np.full(gain_data.Nfreqs, gain_data.spw_array[0])
+    gain_data.set_lsts_from_time_array()
+
+    # Spoof the time range for this test
+    gain_data.time_range = np.concatenate(
+        (
+            gain_data.time_array[:, np.newaxis] - 0.5,
+            gain_data.time_array[:, np.newaxis] + 0.5,
+        ),
+        axis=1,
+    )
+    gain_data._set_lsts_helper()
+    gain_data.time_array = gain_data.lst_array = None
+    gain_data.check()
+
+    gain_data.write_ms_cal(filepath)
+
+    uvc = UVCal()
+    uvc.read(filepath)
+
+    # Spoof history and extra_keywords
+    uvc.history = gain_data.history
+    uvc.extra_keywords = gain_data.extra_keywords
+    uvc.scan_number_array = gain_data.scan_number_array
+
+    assert uvc == gain_data
+
+
+def test_ms_cal_write_err(tmp_path):
+    uvc = UVCal()
+    uvc.cal_type = "unknown"
+    filepath = os.path.join(tmp_path, "blank.ms")
+    os.mkdir(filepath)
+
+    with pytest.raises(FileExistsError, match="File already exists, must set clobber"):
+        uvc.write_ms_cal(filepath)
+
+    with pytest.raises(ValueError, match="you must be using future array shapes"):
+        uvc.write_ms_cal(filepath, clobber=True)
+
+    uvc.future_array_shapes = True
+    with pytest.raises(ValueError, match="only supports UVCal objects with gain"):
+        uvc.write_ms_cal(filepath, clobber=True)
+
+    uvc.gain_convention = "divide"
+    with pytest.raises(ValueError, match="cal_type must either"):
+        uvc.write_ms_cal(filepath, clobber=True)
+
+
+def test_ms_default_setting():
+    uvc1 = UVCal()
+    uvc2 = UVCal()
+    testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
+    with uvtest.check_warnings(
+        UserWarning, ["key CASA_Version", "telescope_location is not set"]
+    ):
+        uvc1.read_ms_cal(
+            testfile,
+            default_x_orientation="north",
+            default_jones_array=np.array([-5, -6]),
+        )
+
+    with uvtest.check_warnings(
+        UserWarning,
+        [
+            "Unknown polarization",
+            "Unknown x_orientation",
+            "key CASA_Version",
+            "telescope_location is not set",
+        ],
+    ):
+        uvc2.read(testfile)
+
+    assert uvc1.x_orientation == "north"
+    assert uvc2.x_orientation == "east"
+    assert np.array_equal(uvc1.jones_array, [-5, -6])
+    assert np.array_equal(uvc2.jones_array, [0, 0])
+
+
+def test_ms_muck_ants(sma_pcal, tmp_path):
+    from casacore import tables
+
+    uvc = UVCal()
+    testfile = os.path.join(tmp_path, "muck.ms")
+
+    sma_pcal.write_ms_cal(testfile)
+
+    with tables.table(
+        os.path.join(testfile, "ANTENNA"), readonly=False, ack=False
+    ) as tb_ant:
+        for idx in range(tb_ant.nrows()):
+            tb_ant.putcell("NAME", idx, "")
+
+    with tables.table(
+        os.path.join(testfile, "OBSERVATION"), readonly=False, ack=False
+    ) as tb_obs:
+        tb_obs.removecols("TELESCOPE_LOCATION")
+        tb_obs.putcell("TELESCOPE_NAME", 0, "FOO")
+
+    uvc.read(testfile)
+
+    assert uvc.telescope_name == "FOO"
+    assert uvc.antenna_names == sma_pcal.antenna_names
+    assert np.allclose(uvc.telescope_location, sma_pcal.telescope_location)
+
+
+def test_ms_total_quality(sma_pcal, tmp_path):
+    uvc = UVCal()
+    testfile = os.path.join(tmp_path, "total_qual.ms")
+
+    sma_pcal.total_quality_array = np.full(
+        (1, sma_pcal.Nspws, sma_pcal.Ntimes, sma_pcal.Njones), 2.0
+    )
+    sma_pcal.write_ms_cal(testfile)
+
+    uvc.read(testfile)
+
+    assert not np.allclose(sma_pcal.quality_array, uvc.quality_array)
+    assert np.allclose(
+        sma_pcal.quality_array * sma_pcal.total_quality_array, uvc.quality_array
+    )

@@ -5110,8 +5110,6 @@ def test_flex_jones_write(multi_spw_gain, func, suffix, tmp_path):
         # Handle some extra bits here for MS-type
         uvc.extra_keywords = multi_spw_gain.extra_keywords
         uvc.scan_number_array = multi_spw_gain.scan_number_array
-        multi_spw_gain._set_sky()
-        uvc.sky_catalog = multi_spw_gain.sky_catalog
 
     assert uvc == multi_spw_gain
 
@@ -5378,6 +5376,37 @@ def test_phase_center_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
         pytest.importorskip("casacore")
 
     filename = os.path.join(tmp_path, "pc_roundtrip." + suffix)
+    getattr(uvcal_phase_center, func)(filename)
+
+    uvc = UVCal()
+    uvc.read(filename, use_future_array_shapes=True)
+    uvc.history = uvcal_phase_center.history
+    if suffix == "ms":
+        # Handle some extra bits here for MS-type
+        uvc.extra_keywords = uvcal_phase_center.extra_keywords
+        uvc.scan_number_array = uvcal_phase_center.scan_number_array
+        # MS defaults to flex-spw
+        uvcal_phase_center._set_flex_spw()
+        uvcal_phase_center.flex_spw_id_array = np.zeros(
+            uvcal_phase_center.Nfreqs, dtype=int
+        )
+
+    assert uvc == uvcal_phase_center
+
+
+@pytest.mark.parametrize(
+    "func,suffix", [["write_ms_cal", "ms"], ["write_calh5", "calh5"]]
+)
+def test_refant_array_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
+    if suffix == "ms":
+        pytest.importorskip("casacore")
+    uvcal_phase_center.ref_antenna_array = np.full(
+        uvcal_phase_center.Ntimes, uvcal_phase_center.antenna_numbers[0], dtype=int
+    )
+    uvcal_phase_center.ref_antenna_array[-1] = uvcal_phase_center.antenna_numbers[1]
+    uvcal_phase_center.ref_antenna_name = "various"
+
+    filename = os.path.join(tmp_path, "refantarr_roundtrip." + suffix)
     getattr(uvcal_phase_center, func)(filename)
 
     uvc = UVCal()
