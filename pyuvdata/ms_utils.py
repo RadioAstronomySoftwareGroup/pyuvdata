@@ -662,7 +662,7 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
     """
     try:
         _ms_utils_call_checks(filepath + "/HISTORY")
-    except FileExistsError as err:
+    except FileNotFoundError as err:
         if raise_err:
             raise err
         # Just return the defaults, since no history file was found.
