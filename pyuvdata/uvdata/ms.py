@@ -856,15 +856,12 @@ class MS(UVData):
         self._filename.form = (1,)
 
         # get the history info
-        try:
-            self.history, pyuvdata_written = ms_utils.read_ms_history(
-                filepath,
-                pyuvdata_version_str=self.pyuvdata_version_str,
-                check_origin=True,
-            )
-        except FileNotFoundError:
-            self.history = self.pyuvdata_version_str
-            pyuvdata_written = False
+        self.history, pyuvdata_written = ms_utils.read_ms_history(
+            filepath,
+            pyuvdata_version_str=self.pyuvdata_version_str,
+            check_origin=True,
+            raise_err=False,
+        )
 
         data_desc_dict = ms_utils.read_ms_data_description(filepath)
 

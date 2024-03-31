@@ -147,3 +147,8 @@ def test_read_ms_pointing_err():
 
     with pytest.raises(NotImplementedError):
         ms_utils.read_ms_pointing(filename)
+
+
+def test_read_ms_history_err(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        ms_utils.read_ms_history(os.path.join(tmp_path, "foo"), "abc", raise_err=True)
