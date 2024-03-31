@@ -4939,3 +4939,11 @@ def test_sorted_unique_ops(obj1, obj2, union_result, interset_result, diff_resul
     assert uvutils._sorted_unique_union(obj1, obj2) == union_result
     assert uvutils._sorted_unique_intersection(obj1, obj2) == interset_result
     assert uvutils._sorted_unique_difference(obj1, obj2) == diff_result
+
+
+def test_generate_new_phase_center_id_errs():
+    with pytest.raises(ValueError, match="Cannot specify old_id if no catalog"):
+        uvutils.generate_new_phase_center_id(old_id=1)
+
+    with pytest.raises(ValueError, match="Provided cat_id was found in reserved_ids"):
+        uvutils.generate_new_phase_center_id(cat_id=1, reserved_ids=[1, 2, 3])
