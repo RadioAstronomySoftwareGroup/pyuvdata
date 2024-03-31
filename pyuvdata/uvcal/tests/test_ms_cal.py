@@ -14,6 +14,13 @@ pytest.importorskip("casacore")
 
 allowed_failures = ["_filename", "_history"]
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:key CASA_Version in extra_keywords is longer than 8 characters",
+    "ignore:telescope_location is not set",
+    "ignore:Unknown polarization basis for solutions",
+    "ignore:Unknown x_orientation basis for solutions",
+)
+
 
 @pytest.fixture(scope="session")
 def sma_pcal_main():
