@@ -2828,6 +2828,8 @@ class UVCal(UVBase):
                 if self.freq_range is not None and self.future_array_shapes:
                     # this can go away in v3 becuse freq_range will always be None
                     self.freq_range = self.freq_range[spw_index, :]
+                if self.flex_jones_array is not None:
+                    self.flex_jones_array = self.flex_jones_array[spw_index]
 
         if (self.future_array_shapes or self.flex_spw) and not self.wide_band:
             self.channel_width = self.channel_width[index_array]
@@ -5006,7 +5008,7 @@ class UVCal(UVBase):
                 [this.freq_range] + [obj.freq_range for obj in other], axis=0
             )
             if this.flex_jones_array is not None:
-                this.freq_range = np.concatenate(
+                this.flex_jones_array = np.concatenate(
                     [this.flex_jones_array] + [obj.flex_jones_array for obj in other],
                     axis=0,
                 )
@@ -5306,6 +5308,9 @@ class UVCal(UVBase):
         else:
             ant_inds = None
 
+        if (phase_center_ids is not None) and (catalog_names is not None):
+            raise ValueError("Cannot set both phase_center_ids and catalog_names.")
+
         if self.phase_center_id_array is None or self.phase_center_catalog is None:
             if (phase_center_ids is not None) or (catalog_names is not None):
                 raise ValueError(
@@ -5313,9 +5318,6 @@ class UVCal(UVBase):
                     "the UVCal object must be set in order to select on phase center "
                     "IDs or catalog names."
                 )
-
-        if (phase_center_ids is not None) and (catalog_names is not None):
-            raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
         if catalog_names is not None:
             phase_center_ids = uvutils.look_for_name(
