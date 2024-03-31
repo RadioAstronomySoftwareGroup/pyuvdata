@@ -780,6 +780,8 @@ class CalH5(UVCal):
 
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
+        if self.ref_antenna_array is not None:
+            header["ref_antenna_array"] = self.ref_antenna_array
 
         if self.Nsources is not None:
             header["Nsources"] = self.Nsources
