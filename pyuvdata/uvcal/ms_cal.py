@@ -403,6 +403,16 @@ class MSCal(UVCal):
             # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
             self.delay_array = ms_cal_soln * 1e-9
 
+        if (self.Njones == 2) and (len(self.jones_array) == 1):
+            if np.all(self.flag_array[..., 1]):
+                # Capture a "corner" case where, because CASA always wants 2-elements
+                # across the Jones-axis, there's extra padding along that axis when
+                # Njones == 1.
+                self.Njones = 1
+                for name, param in zip(self._data_params, self.data_like_parameters):
+                    if param is not None:
+                        setattr(self, name, param[..., :1])
+
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
 
         if run_check:
@@ -419,6 +429,12 @@ class MSCal(UVCal):
                 raise FileExistsError(
                     "File already exists, must set clobber=True to proceed."
                 ) from err
+
+        if len(self.jones_array) > 2:
+            # I don't know if this is ever possible, but at least thusfar in testing,
+            # CASA always wants to see Njones == 2. Easy enough to pad when Njones == 1,
+            # but we risk losing information when Njones > 2.
+            raise ValueError("CASA MS calibration tables cannot support Njones > 2.")
 
         # Given that this is coming in _just_ before the "current" array shapes retire,
         # I'm not going to bother to work toward supporting it unless there's a
@@ -615,11 +631,16 @@ class MSCal(UVCal):
             ms.putcol("SCAN_NUMBER", scan_number_array)
             ms.putcol("OBSERVATION_ID", obs_id_array)
 
+            # Determine polarization order for writing out in CASA standard order, check
+            # if this order can be represented by a single slice.
+            pol_order = uvutils.determine_pol_order(self.jones_array, order="CASA")
+            [pol_order], _ = uvutils._convert_to_slices(
+                pol_order, max_nslice=1, return_index_on_fail=True
+            )
+
             # Alright, all the easy stuff is over, time to move on to the the heavy
             # lifting, which we'll do spectral window by spectral window.
             for count, spw_id in enumerate(self.spw_array):
-                # TODO: Change placeholder value
-                pol_order = ...
                 spw_sel, spw_nchan = spw_sel_dict[spw_id]
                 subarr_shape = (self.Ntimes, Nants_casa, spw_nchan, self.Njones)
 
@@ -663,6 +684,13 @@ class MSCal(UVCal):
                     new_subarr = np.reshape(
                         new_subarr, (self.Ntimes * Nants_casa, spw_nchan, self.Njones)
                     )
+                    if self.Njones == 1:
+                        # Handle a "corner"-case where CASA _really_ wants there to be 2
+                        # Jones elements. It can totally ignore one, but it will crash
+                        # if the data layout doesn't have 2-elements in the jones axis
+                        new_subarr = np.repeat(new_subarr, 2, axis=2)
+                        new_subarr[..., 1] = item == "FLAG"
+
                     # Plug this pack in to our data dict
                     data_dict[item] = new_subarr
 

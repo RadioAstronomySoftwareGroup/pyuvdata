@@ -192,11 +192,17 @@ def test_ms_cal_time_ranges(gain_data, tmp_path):
 def test_ms_cal_write_err(tmp_path):
     uvc = UVCal()
     uvc.cal_type = "unknown"
+    uvc.jones_array = [1, 2, 3]
     filepath = os.path.join(tmp_path, "blank.ms")
     os.mkdir(filepath)
 
     with pytest.raises(FileExistsError, match="File already exists, must set clobber"):
         uvc.write_ms_cal(filepath)
+
+    with pytest.raises(ValueError, match="tables cannot support Njones > 2."):
+        uvc.write_ms_cal(filepath, clobber=True)
+
+    uvc.jones_array = [1, 2]
 
     with pytest.raises(ValueError, match="you must be using future array shapes"):
         uvc.write_ms_cal(filepath, clobber=True)
