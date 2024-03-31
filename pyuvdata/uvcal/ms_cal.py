@@ -75,17 +75,13 @@ class MSCal(UVCal):
         # Set some initial things from the get go -- no legacy support!
         self._set_future_array_shapes()
 
-        # I think all casa-based stuff is sky-based.
-        self._set_sky()
-
         self.filename = [os.path.basename(filepath)]
         self._filename.form = (1,)
 
         # get the history info from the ms_utils
-        try:
-            self.history = ms_utils.read_ms_history(filepath, self.pyuvdata_version_str)
-        except FileNotFoundError:
-            self.history = self.pyuvdata_version_str
+        self.history = ms_utils.read_ms_history(
+            filepath, self.pyuvdata_version_str, raise_err=False
+        )
 
         tb_main = tables.table(filepath, ack=False)
         main_info_dict = tb_main.info()
@@ -111,7 +107,7 @@ class MSCal(UVCal):
             self._set_delay()
         else:
             # I don't know what this is, so don't proceed any further.
-            raise NotImplementedError(
+            raise NotImplementedError(  # pragma: no cover
                 "Calibration type %s is not recognized/supported by UVCal. Please file "
                 "an issue in our GitHub issue log so that we can add support for it."
                 % main_info_dict["subType"]
@@ -123,7 +119,7 @@ class MSCal(UVCal):
         elif par_type == "Float":
             cal_column = "FPARAM"
         else:
-            raise NotImplementedError(
+            raise NotImplementedError(  # pragma: no cover
                 "Parameter type %s is not recognized/supported by UVCal. Please file "
                 "an issue in our GitHub issue log so that we can add support for it."
                 % par_type
@@ -214,8 +210,6 @@ class MSCal(UVCal):
             self.channel_width[spw_slice] = spw_chan_width
             self.flex_spw_id_array[spw_slice] = spw_id
 
-        # Don't think CASA is going to support a non-sky based model, but hey, who knows
-        self.cal_style = "sky"
         self.gain_convention = "divide"  # N.b., manually verified by Karto in CASA v6.4
 
         # Just assume that the gain scale is always in Jy
@@ -233,21 +227,11 @@ class MSCal(UVCal):
             self.flex_spw_id_array = None
             self.Nfreqs = 1
 
-        self.sky_catalog = "CASA (import)"
-
         # MAIN LOOP
         self.Njones = tb_main.getcell(cal_column, 0).shape[1]
         if main_keywords["PolBasis"].lower() == "unknown":
-            if "pyuvdata_jones" in main_keywords:
-                self.jones_array = main_keywords["pyuvdata_jones"]
-            if "pyuvdata_flex_jones" in main_keywords:
-                self.flex_jones_array = main_keywords["pyuvdata_flex_jones"]
-            if "pyuvdata_sky_catalog" in main_keywords:
-                self.sky_catalog = main_keywords["pyuvdata_sky_catalog"]
-            if "pyuvdata_gain_scale" in main_keywords:
-                self.gain_scale = main_keywords["pyuvdata_gain_scale"]
-            if "pyuvdata_observer" in main_keywords:
-                self.observer = main_keywords["pyuvdata_observer"]
+            self.jones_array = main_keywords.get("pyuvdata_jones", None)
+            self.flex_jones_array = main_keywords.get("pyuvdata_flex_jones", None)
             if self.jones_array is None:
                 if default_jones_array is None:
                     warnings.warn(
@@ -258,7 +242,24 @@ class MSCal(UVCal):
                 else:
                     self.jones_array = default_jones_array
         else:
-            raise NotImplementedError("Not sure how to read this file yet...")
+            raise NotImplementedError(  # pragma: no cover
+                "Polarization basis %s is not recognized/supported by UVCal. Please "
+                "file an issue in our GitHub issue log so that we can add support for "
+                "it." % main_keywords["PolBasis"]
+            )
+
+        self.sky_catalog = main_keywords.get("pyuvdata_sky_catalog", None)
+        self.gain_scale = main_keywords.get("pyuvdata_gain_scale", None)
+        self.observer = main_keywords.get("pyuvdata_observer", None)
+        if "pyuvdata_cal_style" in main_keywords:
+            self.cal_style = main_keywords["pyuvdata_cal_style"]
+            if self.cal_style == "sky":
+                self._set_sky
+            elif self.cal_style == "redundant":
+                self._set_redundant
+        else:
+            self.sky_catalog = "CASA (import)"
+            self._set_sky()
 
         time_dict = {}
         row_timeidx_map = []
@@ -345,7 +346,7 @@ class MSCal(UVCal):
                 # skip recording this row.
                 continue
 
-        if len(np.unique(all(self.ref_antenna_array))) > 1:
+        if len(np.unique(self.ref_antenna_array)) > 1:
             self.ref_antenna_name = "various"
         else:
             # if there aren't multiple ref ants, default to storing just the one name.
@@ -356,7 +357,8 @@ class MSCal(UVCal):
                     np.where(self.antenna_numbers == refant)[0][0]
                 ]
             except IndexError:
-                self.ref_antenna_name = "unknown reference antenna"
+                if self.cal_style == "sky":
+                    self.ref_antenna_name = "unknown reference antenna"
 
         # Convert the time from MJD secs (CASA standard) to JD date (pyuvdata std)
         self.time_array = Time(
@@ -368,7 +370,7 @@ class MSCal(UVCal):
         if not all(int_arr == 0.0):
             # If intervals have been identified, that means that we want to make our
             # solutions have time ranges rather than fixed times. solve this now.
-            self.time_range = np.zeros(len(self.time_array), 2)
+            self.time_range = np.zeros((len(self.time_array), 2), dtype=float)
             self.time_range[:, 0] = self.time_array - (int_arr / (2 * 86400))
             self.time_range[:, 1] = self.time_array + (int_arr / (2 * 86400))
             self.time_array = None
@@ -384,13 +386,15 @@ class MSCal(UVCal):
                 [field_id_map[idx] for idx in self.phase_center_id_array]
             )
 
-        if "pyuvdata_xorient" in main_keywords.keys():
-            self.x_orientation = main_keywords["pyuvdata_xorient"]
-        elif default_x_orientation is None:
-            self.x_orientation = "east"
-            warnings.warn('Unknown x_orientation basis for solutions, assuming "east".')
-        else:
-            self.x_orientation = default_x_orientation
+        self.x_orientation = main_keywords.get("pyuvdata_xorient", None)
+        if self.x_orientation is None:
+            if default_x_orientation is None:
+                self.x_orientation = "east"
+                warnings.warn(
+                    'Unknown x_orientation basis for solutions, assuming "east".'
+                )
+            else:
+                self.x_orientation = default_x_orientation
 
         # Use if this is a delay soln
         if self.cal_type == "gain":
@@ -430,6 +434,9 @@ class MSCal(UVCal):
                 'MS writer only supports UVCal objects with gain_convention="divide".'
             )
 
+        if self.cal_type not in ["gain", "delay"]:
+            raise ValueError('cal_type must either be "gain" or "delay".')
+
         # Initialize our calibration file, and get things set up with the appropriate
         # columns for us to write to in the main table. This is a little different
         # Depending on whether the table is a gains or delays file (complex vs floats).
@@ -461,8 +468,6 @@ class MSCal(UVCal):
             cal_column = "FPARAM"
             # Convert from pyuvdata pref'd seconds to CASA-pref'd nanoseconds
             cal_array = self.delay_array * 1e9
-        else:
-            raise NotImplementedError("Sorry, still working on this...")
 
         with tables.table(filename, ack=False, readonly=False) as ms:
             # Update the top-level info with the correct gains subtype.
@@ -497,6 +502,9 @@ class MSCal(UVCal):
 
             if self.observer is not None:
                 ms.putkeyword("pyuvdata_observer", self.observer)
+
+            if self.cal_style is not None:
+                ms.putkeyword("pyuvdata_cal_style", self.cal_style)
 
             # Now start the heavy lifting of putting in the data.
             ############################################################################
@@ -615,20 +623,13 @@ class MSCal(UVCal):
                 spw_sel, spw_nchan = spw_sel_dict[spw_id]
                 subarr_shape = (self.Ntimes, Nants_casa, spw_nchan, self.Njones)
 
-                if self.quality_array is None and self.total_quality_array is None:
-                    qual_arr = np.zeros(
-                        (self.Nants_data, spw_nchan, self.Ntimes, self.Njones),
-                        dtype=float,
-                    )
-                else:
-                    qual_arr = np.ones(
-                        (self.Nants_data, spw_nchan, self.Ntimes, self.Njones),
-                        dtype=float,
-                    )
-                    if self.quality_array is not None:
-                        qual_arr *= self.quality_array[:, spw_sel, :, :]
-                    if self.total_quality_array is not None:
-                        qual_arr *= self.total_quality_array[spw_sel, :, :]
+                qual_arr = np.ones(
+                    (self.Nants_data, spw_nchan, self.Ntimes, self.Njones), dtype=float
+                )
+                if self.quality_array is not None:
+                    qual_arr *= self.quality_array[:, spw_sel, :, :]
+                if self.total_quality_array is not None:
+                    qual_arr *= self.total_quality_array[0][spw_sel, :, :]
 
                 # We're going to leave a placeholder for SNR for now, since it's
                 # somewhat redundant and not totally clear how it's calculated.

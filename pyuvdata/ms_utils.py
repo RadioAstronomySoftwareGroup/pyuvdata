@@ -630,7 +630,7 @@ def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=Non
                     field_table.putcell(col_ref_dict[key], idx, var_ref_dict[ref_dir])
 
 
-def read_ms_history(filepath, pyuvdata_version_str, check_origin=False):
+def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_err=True):
     """
     Read a CASA history table into a string for the uvdata history parameter.
 
@@ -646,6 +646,10 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False):
     check_origin : bool
         If set to True, check whether the MS in question was created by pyuvdata, as
         determined by the history table. Default is False.
+    raise_err : bool
+        Normally an error is raised if a HISTORY table cannot be found. However, if
+        set to False, the history string containing just the pyuvdata version will
+        be returned instead.
 
     Returns
     -------
@@ -656,7 +660,13 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False):
         boolean indicating whether or not this MS was written by pyuvdata. Only returned
         of `check_origin=True`.
     """
-    _ms_utils_call_checks(filepath + "/HISTORY")
+    try:
+        _ms_utils_call_checks(filepath + "/HISTORY")
+    except FileExistsError as err:
+        if raise_err:
+            raise err
+        # Just return the defaults, since no history file was found.
+        return (pyuvdata_version_str, False) if check_origin else pyuvdata_version_str
 
     # Set up the history string and pyuvdata check
     history_str = ""
