@@ -53,6 +53,18 @@ class CALFITS(UVCal):
             Option to overwrite the filename if the file already exists.
 
         """
+        if (
+            self.phase_center_catalog is not None
+            or self.phase_center_id_array is not None
+            or self.scan_number_array is not None
+            or self.ref_antenna_array is not None
+        ):
+            warnings.warn(
+                "The calfits format does not support recording optional phase center, "
+                " scan number, or time-varying reference antenna information, and will "
+                "be dropped."
+            )
+
         if self.Nspws > 1:
             raise ValueError(
                 "The calfits format does not support multiple spectral windows"
@@ -505,7 +517,12 @@ class CALFITS(UVCal):
             )
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
         col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
-        cols = fits.ColDefs([col1, col2, col3, col4])
+        collist = [col1, col2, col3, col4]
+        if self.antenna_diameters is not None:
+            collist.append(
+                fits.Column(name="ANTDIAM", format="D", array=self.antenna_diameters)
+            )
+        cols = fits.ColDefs(collist)
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header["EXTNAME"] = "ANTENNAS"
 
@@ -559,6 +576,13 @@ class CALFITS(UVCal):
 
             if anthdu.header["TFIELDS"] > 3:
                 self.antenna_positions = antdata["ANTXYZ"]
+
+            try:
+                self.antenna_diameters = np.array(list(map(float, antdata["ANTDIAM"])))
+            except KeyError:
+                # No field by this name, which means ant diams not recorded.
+                # Move along...
+                pass
 
             self.channel_width = hdr.pop("CHWIDTH")
             self.integration_time = hdr.pop("INTTIME")

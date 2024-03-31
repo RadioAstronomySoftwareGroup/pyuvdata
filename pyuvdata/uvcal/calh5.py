@@ -258,6 +258,7 @@ class CalH5(UVCal):
             "antenna_diameters",
             "channel_width",
             "flex_spw_id_array",
+            "flex_jones_array",
             "Nphase",
             "Nsources",
             "baseline_range",
