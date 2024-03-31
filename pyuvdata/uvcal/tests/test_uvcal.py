@@ -25,12 +25,16 @@ from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 pytestmark = pytest.mark.filterwarnings(
     "ignore:telescope_location is not set. Using known values",
     "ignore:antenna_positions are not set or are being overwritten. Using known values",
+    "ignore:key CASA_Version in extra_keywords is longer than 8 characters",
 )
 
 
 @pytest.fixture(scope="session")
 def uvcal_phase_center_main(gain_data_main):
     gain_copy = gain_data_main.copy()
+    gain_copy._set_sky()
+    gain_copy.ref_antenna_name = gain_copy.antenna_names[0]
+    gain_copy.sky_catalog = "unknown"
 
     # Copying the catalog from sma_test.mir
     gain_copy.phase_center_catalog = {
@@ -1538,6 +1542,41 @@ def test_select_polarizations(
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
     pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
+
+
+def test_select_phase_center_err():
+    uvc = UVCal()
+
+    with pytest.raises(ValueError, match="Cannot set both phase_center_ids and"):
+        uvc.select(phase_center_ids=0, catalog_names="dummy")
+
+    with pytest.raises(ValueError, match="Both phase_center_id_array and phase_center"):
+        uvc.select(phase_center_ids=0)
+
+
+def test_select_phase_centers(uvcal_phase_center):
+    uvcal_phase_center.phase_center_id_array[::2] = 2
+    uvcal_phase_center.phase_center_catalog[2] = dict(
+        uvcal_phase_center.phase_center_catalog[1].items()
+    )
+    uvcal_phase_center.phase_center_catalog[2]["cat_name"] = "mystery"
+
+    uvcopy1 = uvcal_phase_center.select(catalog_names="3c84", inplace=False)
+    uvcopy2 = uvcal_phase_center.select(phase_center_ids=1, inplace=False)
+
+    uvcopy2.history = uvcopy1.history
+    assert uvcopy1 == uvcopy2
+    assert uvcopy2 != uvcal_phase_center
+
+    # Force the selection on the same times
+    uvcopy2 = uvcal_phase_center.copy()
+    uvcal_phase_center.select(times=uvcal_phase_center.time_array[1::2])
+    # Try multi-select
+    uvcopy2.select(times=uvcopy2.time_array[1::2], catalog_names="3c84")
+    uvcal_phase_center.history = uvcopy1.history
+    uvcopy2.history = uvcopy1.history
+    assert uvcal_phase_center == uvcopy1
+    assert uvcopy2 == uvcopy1
 
 
 @pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
@@ -5048,7 +5087,70 @@ def test_consolidate_phase_center(uvcal_phase_center):
     assert uvcal1 == uvcal_phase_center
 
 
+@pytest.mark.parametrize(
+    "func,suffix", [["write_ms_cal", "ms"], ["write_calh5", "calh5"]]
+)
+def test_flex_jones_write(multi_spw_gain, func, suffix, tmp_path):
+    if suffix == "ms":
+        pytest.importorskip("casacore")
+
+    uvc_copy = multi_spw_gain.copy()
+    uvc_copy.jones_array[0] = -6
+    multi_spw_gain += uvc_copy
+    multi_spw_gain.convert_to_flex_jones()
+    multi_spw_gain.ref_antenna_name = multi_spw_gain.antenna_names[0]
+
+    filename = os.path.join(tmp_path, "flex_jones_write." + suffix)
+    getattr(multi_spw_gain, func)(filename)
+
+    uvc = UVCal()
+    uvc.read(filename, use_future_array_shapes=True)
+    uvc.history = multi_spw_gain.history
+    if suffix == "ms":
+        # Handle some extra bits here for MS-type
+        uvc.extra_keywords = multi_spw_gain.extra_keywords
+        uvc.scan_number_array = multi_spw_gain.scan_number_array
+        multi_spw_gain._set_sky()
+        uvc.sky_catalog = multi_spw_gain.sky_catalog
+
+    assert uvc == multi_spw_gain
+
+
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
+@pytest.mark.parametrize("func", ["__add__", "fast_concat"])
+@pytest.mark.parametrize("caltype", ["delay", "gain"])
+def test_flex_jones_divide_and_add(multi_spw_gain, multi_spw_delay, func, caltype):
+    if caltype == "delay":
+        uvc = multi_spw_delay
+        kwargs = {} if (func == "__add__") else {"axis": "spw"}
+    elif caltype == "gain":
+        uvc = multi_spw_gain
+        kwargs = {} if (func == "__add__") else {"axis": "freq"}
+    uvc_copy = uvc.copy()
+
+    uvc_copy.jones_array[0] = -6
+
+    # We know add works across jones, so use this as baseline
+    uvcomb1 = uvc + uvc_copy
+    uvcomb1.convert_to_flex_jones()
+
+    # Modify the spws so that they align nicely
+    uvc_copy.spw_array += uvc_copy.Nspws
+    if caltype == "gain":
+        uvc_copy.flex_spw_id_array += uvc_copy.Nspws
+    uvc.convert_to_flex_jones()
+    uvc_copy.convert_to_flex_jones()
+
+    uvcomb2 = getattr(uvc, func)(uvc_copy, **kwargs)
+
+    # Bypass histories since they are different
+    uvcomb1.history = uvcomb2.history = None
+
+    assert uvcomb1 == uvcomb2
+
+
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
+@pytest.mark.filterwarnings("ignore:combine_spws is True but there are not matched")
 @pytest.mark.parametrize("mode", ["make", "convert", "meta", "single"])
 @pytest.mark.parametrize("caltype", ["delay", "gain"])
 def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode, caltype):
@@ -5188,6 +5290,14 @@ def test_flex_jones_shuffle(multi_spw_gain, multi_spw_delay, mode):
     uvc_comb.history = uvc.history
     assert uvc_comb == uvc
 
+    uvc_comb = uvc2.fast_concat(uvc1, axis=("spw" if (mode == "delay") else "freq"))
+    uvc_comb.history = uvc.history
+    print(uvc_comb.flex_jones_array)
+    print(uvc.flex_jones_array)
+    assert uvc_comb != uvc
+    uvc_comb.reorder_freqs(spw_order="number")
+    assert uvc_comb == uvc
+
 
 @pytest.mark.parametrize("func", ["__add__", "__iadd__", "fast_concat"])
 def test_flex_jones_add_errs(multi_spw_gain, func):
@@ -5258,3 +5368,103 @@ def test_ref_ant_array_add(uvcal_phase_center, func, kwargs):
     uvcomb = getattr(uvcopy, func)(uvcal_phase_center, **kwargs)
     uvcomb.reorder_times()
     assert np.array_equal(uvcomb.ref_antenna_array, [0, 1] * uvcopy.Ntimes)
+
+
+@pytest.mark.parametrize(
+    "func,suffix", [["write_ms_cal", "ms"], ["write_calh5", "calh5"]]
+)
+def test_phase_center_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
+    if suffix == "ms":
+        pytest.importorskip("casacore")
+
+    filename = os.path.join(tmp_path, "pc_roundtrip." + suffix)
+    getattr(uvcal_phase_center, func)(filename)
+
+    uvc = UVCal()
+    uvc.read(filename, use_future_array_shapes=True)
+    uvc.history = uvcal_phase_center.history
+    if suffix == "ms":
+        # Handle some extra bits here for MS-type
+        uvc.extra_keywords = uvcal_phase_center.extra_keywords
+        uvc.scan_number_array = uvcal_phase_center.scan_number_array
+        # MS defaults to flex-spw
+        uvcal_phase_center._set_flex_spw()
+        uvcal_phase_center.flex_spw_id_array = np.zeros(
+            uvcal_phase_center.Nfreqs, dtype=int
+        )
+
+    assert uvc == uvcal_phase_center
+
+
+@pytest.mark.filterwarnings("ignore:The calfits format does not support")
+@pytest.mark.filterwarnings("ignore:key CASA_Version in extra_keyword")
+@pytest.mark.parametrize(
+    "func,suffix",
+    [["write_ms_cal", "ms"], ["write_calh5", "calh5"], ["write_calfits", "fits"]],
+)
+def test_antdiam_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
+    if suffix == "ms":
+        pytest.importorskip("casacore")
+
+    filename = os.path.join(tmp_path, "pc_roundtrip." + suffix)
+    uvcal_phase_center.antenna_diameters = np.full(
+        uvcal_phase_center.Nants_telescope, 10.0
+    )
+    getattr(uvcal_phase_center, func)(filename)
+
+    uvc = UVCal()
+    uvc.read(filename, use_future_array_shapes=True)
+    uvc.history = uvcal_phase_center.history
+    if suffix == "ms":
+        # Handle some extra bits here for MS-type
+        uvc.extra_keywords = uvcal_phase_center.extra_keywords
+        uvc.scan_number_array = uvcal_phase_center.scan_number_array
+        # MS defaults to flex-spw
+        uvcal_phase_center._set_flex_spw()
+        uvcal_phase_center.flex_spw_id_array = np.zeros(
+            uvcal_phase_center.Nfreqs, dtype=int
+        )
+    elif suffix == "fits":
+        # Drop phase center info
+        uvc.Nphase = uvcal_phase_center.Nphase
+        uvc.phase_center_catalog = uvcal_phase_center.phase_center_catalog
+        uvc.phase_center_id_array = uvcal_phase_center.phase_center_id_array
+
+    assert uvc == uvcal_phase_center
+
+
+@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
+def test_phase_center_fast_concat(multi_spw_delay):
+    multi_spw_delay.phase_center_catalog = {
+        1: {
+            "cat_name": "3c84",
+            "cat_type": "sidereal",
+            "cat_lon": 0.8718035968995141,
+            "cat_lat": 0.7245157752262148,
+            "cat_frame": "icrs",
+            "cat_epoch": 2000.0,
+            "cat_times": None,
+            "cat_pm_ra": None,
+            "cat_pm_dec": None,
+            "cat_vrad": None,
+            "cat_dist": None,
+            "info_source": "file",
+        }
+    }
+    multi_spw_delay.phase_center_id_array = np.ones(multi_spw_delay.Ntimes, dtype=int)
+    uvc1 = multi_spw_delay.select(spws=1, inplace=False)
+    uvc2 = multi_spw_delay.select(spws=2, inplace=False)
+    uvc3 = multi_spw_delay.select(spws=3, inplace=False)
+    uvc_comp = uvc1.fast_concat([uvc2, uvc3], axis="spw")
+
+    uvc_comp.history = multi_spw_delay.history
+    assert uvc_comp == multi_spw_delay
+
+
+def test_fast_concat_phase_center_missing_err(uvcal_phase_center):
+    uvcopy = uvcal_phase_center.copy()
+    uvcopy.phase_center_catalog = None
+    uvcopy.phase_center_id_array = None
+
+    with pytest.raises(ValueError, match="To combine these data, phase_center_id_"):
+        uvcal_phase_center.fast_concat(uvcopy, axis="time")

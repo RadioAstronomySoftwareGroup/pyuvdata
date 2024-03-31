@@ -1028,6 +1028,30 @@ def test_flip_conj(nrao_uv, tmp_path):
     assert nrao_uv == uv
 
 
+def test_importuvfits_flip_conj(sma_mir, tmp_path):
+    from casacore import tables
+
+    uv = UVData()
+    sma_mir._set_app_coords_helper()
+
+    filename = os.path.join(tmp_path, "importuvfits_flip_conj.ms")
+    sma_mir.write_ms(filename, flip_conj=True)
+
+    # Overwrite history info to make it look like written as importfits
+    with tables.table(filename + "/HISTORY", readonly=False, ack=False) as tb_hist:
+        tb_hist.putcell("ORIGIN", 0, "DUMMY")
+        tb_hist.putcell("APPLICATION", 0, "DUMMY")
+        tb_hist.putcell("MESSAGE", 0, "importuvfits")
+
+    # Test flip_conj on read
+    uv.read(filename, use_future_array_shapes=True)
+    uv.history = sma_mir.history
+    uv.extra_keywords = sma_mir.extra_keywords
+    uv.instrument = sma_mir.instrument
+
+    assert sma_mir == uv
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_flip_conj_multispw(sma_mir, tmp_path):
     sma_mir._set_app_coords_helper()
