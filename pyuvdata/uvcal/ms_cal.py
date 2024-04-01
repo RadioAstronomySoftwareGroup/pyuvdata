@@ -420,6 +420,7 @@ class MSCal(UVCal):
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
+    @copy_replace_short_description(UVCal.write_ms_cal, style=DocstringStyle.NUMPYDOC)
     def write_ms_cal(self, filename, clobber=False):
         """Write out a MS calibration table."""
         try:
