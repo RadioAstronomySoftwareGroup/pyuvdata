@@ -6272,6 +6272,16 @@ class UVCal(UVBase):
             run_check : bool
                 Option to check for the existence and proper shapes of
                 parameters after reading in the file.
+            default_x_orientation : str
+                By default, if not found on read, the x_orientation parameter will be
+                set to "east" and a warning will be raised. However, if a value for
+                default_x_orientation is provided, it will be used instead and the
+                warning will be suppressed.
+            default_jones_array : ndarray of int
+                By default, if not found on read, the jones_array parameter will be
+                set to [0, 0] (unknown pol type) and a warning will be raised. However,
+                if a value for default_jones_array is provided, it will be used instead
+                and the warning will be suppressed.
             check_extra : bool
                 Option to check optional parameters as well as required ones.
             run_check_acceptability : bool
@@ -6893,6 +6903,8 @@ class UVCal(UVBase):
         ----------
         filename : str
             The measurement set to write to.
+        clobber : bool
+            Option to overwrite the file if it already exists.
 
         """
         ms_cal_obj = self._convert_to_filetype("ms")
