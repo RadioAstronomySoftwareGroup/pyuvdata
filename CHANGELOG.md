@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Support for writing "MODEL_DATA" and "CORRECTED_DATA" columns has been added to the
+`UVData.write_ms` method.
+- Support for "flexible-Jones" `UVCal` objects -- where different spectral windows can
+contain different Jones vectors/polarization information -- has been added, along with
+methods for converting `UVCal` objects to and from flex-Jones format (`remove_flex_jones`,
+`_make_flex_jones`, and `convert_to_flex_jones`). Support for flex-Jones has been added
+to `MSCal` and `CalH5` subclasses.
+- A new class called `MSCal` has been added as a subclass of `UVCal`, which adds support
+for reading and writing of CASA Measurement Set gains, bandpass, and delays tables. To
+support this, several new optional parameters have been added to the `UVCal` class,
+including `phase_center_catalog`, `phase_center_id_array`, `antenna_diameters`,
+`scan_id_array`, and `ref_antenna_array` (which affords the ability to record a
+different reference antenna per time-axis entry).
 - A new HDF5 file format for calibration solutions called `calh5`, which supports
 writing out all types of UVCal objects and supports partial reads (select on read).
 - A `UVCal.get_lst_array` method similar to the `get_time_array` method that either
@@ -43,6 +56,12 @@ entries resulted in an error on read.
 catalog entries resulted in an error.
 - Bug in which `correct_cable_len` defaulted to `None` instead of `True`
 for `read_mwa_corr_fits`.
+
+### Fixed
+- Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
+`required=True` set.
+- Fixed a bug where selection and addition/concat methods did not operate correctly on
+flex-spw `UVCal` objects where `Nspws>1`.
 
 ## [2.4.3] - 2024-3-25
 
