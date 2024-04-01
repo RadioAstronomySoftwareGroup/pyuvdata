@@ -52,7 +52,10 @@ It is probably not compatible with other interferometric HDF5 files defined by o
 * MWA correlator FITS files (read-only support, tested against Cotter outputs and FHD)
 
 ## UVCal file formats
-* calfits: a new format defined in pyuvdata, details in the [calfits_memo](docs/references/calfits_memo.pdf).
+* calh5: a new format defined in pyuvdata,  details to come in a forthcoming memo.
+* Measurement Set calibration files (read and write, gains/delay/bandpass supported, beta version).
+Tested against a limited set of SMA, LWA, and VLA calibration files generated in CASA.
+* calfits: a custom format defined in pyuvdata, details in the [calfits_memo](docs/references/calfits_memo.pdf).
 Note that this format was recently defined and may change in coming versions,
 based on user needs. Consider it to be a beta version, but we will strive to
 make future versions backwards compatible with the current format.
@@ -253,6 +256,7 @@ pyuvdata is maintained by the RASG Managers, which currently include:
 
  - Adam Beardsley (Winona State University)
  - Bryna Hazelton (University of Washington)
+ - Garrett "Karto" Keating (Smithsonian Astrophysical Observatory)
  - Daniel Jacobs (Arizona State University)
  - Matt Kolopanis (Arizona State University)
  - Paul La Plante (University of Nevada, Las Vegas)
