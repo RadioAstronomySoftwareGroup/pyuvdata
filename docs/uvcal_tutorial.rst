@@ -195,6 +195,21 @@ b) CalFITS to CalH5
   >>> cal.write_calh5(os.path.join('.', 'tutorial_cal.calh5'), clobber=True)
 
 
+c) MSCal to CalH5
+*******************
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVCal
+  >>> from pyuvdata.data import DATA_PATH
+  >>> filename = os.path.join(DATA_PATH, 'sma.ms.amp.gcal')
+  >>> # Here we use the ``from_file`` class method, can also use the ``read`` method.
+  >>> # Can optionally specify the ``file_type`` to either method
+  >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
+
+  >>> cal.write_calh5(os.path.join('.', 'tutorial_cal.ms'), clobber=True)
+
+
 UVCal: Initializing from a UVData object
 ----------------------------------------
 The :meth:`pyuvdata.UVCal.initialize_from_uvdata` method allows you to initialize a UVCal
