@@ -164,7 +164,7 @@ jobs:
       cd ../pyuvsim
       pip install --no-deps .
       mkdir test-reports
-      python -m pytest pyuvsim --junitxml=test-reports/xunit.xml
+      python -m pytest --junitxml=test-reports/xunit.xml
     displayName: run pyuvsim tests
 
 - job: SSINS
