@@ -167,7 +167,28 @@ def _parse_pyuvdata_frame_ref(frame_name, epoch_val, *, raise_error=True):
 
 
 def _get_time_scale(ms_table, *, raise_error=False):
-    """Read time scale from TIME column in an MS table."""
+    """
+    Read time scale from TIME column in an MS table.
+
+    Parameters
+    ----------
+    ms_table : table
+        Handle for the MeasurementSet table that contains a "TIME" column.
+    raise_error : bool
+        Whether to raise an error if the name has no match. Default is True, if set
+        to false will raise a warning instead.
+
+    Returns
+    -------
+    time_scale_name : str
+        Name of the time scale.
+
+    Raises
+    ------
+    ValueError
+        If the CASA time scale frame does not match the known supported list of
+        time scales for astropy.
+    """
     timescale = ms_table.getcolkeyword("TIME", "MEASINFO")["Ref"]
     if timescale.lower() not in Time.SCALES:
         msg = (
@@ -245,7 +266,35 @@ def _parse_casa_frame_ref(ref_name, *, raise_error=True):
 
 
 def read_ms_antenna(filepath, check_frame=True):
-    """Read Measurement Set ANTENNA table."""
+    """
+    Read Measurement Set ANTENNA table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without ANTENNA suffix)
+    check_frame : bool
+        If set to True and the "telescope_frame" keyword is found within the Measurement
+        Set, check that the frame is one supported by pyuvdata (and if not, an error is
+        raised). Currently supported frames include ITRS/ITRF and MCMF.
+
+    Returns
+    -------
+    ant_dict : dict
+        A dictionary with keys that map to columns of the MS, including "antenna_names"
+        (list of type string, shape (Nants_telescope,)), "station_names" (list of type
+        string, shape (Nants_telescope,)), "antenna_numbers" (ndarray of type int,
+        shape (Nants_telescope,)), "antenna_diameters" (ndarray of type float, shape
+        (Nants_telescope,)), "telescope_frame" (str), and "antenna_positions" (ndarray
+        of type float, shape (Nants_telescope, 3)).
+
+    Raises
+    ------
+    ValueError
+        If `check_frame=True` and "telescope_frame" does not match to a supported type.
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/ANTENNA")
     # open table with antenna location information
     with tables.table(filepath + "/ANTENNA", ack=False) as tb_ant:
@@ -309,6 +358,34 @@ def write_ms_antenna(
     ----------
     filepath : str
         Path to MS (without ANTENNA suffix).
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        telescope_frame, which is pulled from the telescope_location UVParameter).
+    antenna_numbers : ndarray
+        Required if uvobj not provided, antenna numbers for all antennas of the
+        telescope, dtype int and shape (Nants_telescope,).
+    antenna_names : list
+        Required if uvobj not provided, antenna names for all antennas of the telescope.
+        List should be length Nants_telescope, and contain elements of type str.
+    antenna_positions : ndarray
+        Required if uvobj not provided, ITRF/MCMF 3D position (in meters) of antennas
+        relative to the array center, of dtype float with shape (Nants_telescope, 3).
+    antenna_diameters : ndarray
+        Required if uvobj not provided, diameter (in meters) of each antenna, dtype
+        float with shape (Nants_telescope,).
+    telescope_location : ndarray
+        Required if uvobj not provided, ITRF/MCMF 3D location of the array center (in
+        meters), dtype float with shape (3,).
+    telescope_frame : str
+        Required if uvobj not provided, name of the frame in which the telescope
+        positions are provided (typically "MCMF", "ITRS", or "ITRF").
+
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::ANTENNA"
@@ -378,7 +455,27 @@ def write_ms_antenna(
 
 
 def read_ms_data_description(filepath):
-    """Read Measurement Set DATA_DESCRIPTION table."""
+    """Read Measurement Set DATA_DESCRIPTION table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without DATA_DESCRIPTION suffix)
+
+    Returns
+    -------
+    data_desc_dict : dict
+        A dictionary with keys that map to columns of the MS, used to index against
+        other tables. These include "SPECTRAL_WINDOW_ID", which match to given rows
+        from the SPECTRAL_WINDOW table, "POLARIZATION_ID", which match to given rows
+        in the POLARIZATION table, and "FLAG_ROW", which denotes of the ID in question
+        has been flagged.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/DATA_DESCRIPTION")
 
     # open table with the general data description
@@ -404,6 +501,21 @@ def write_ms_data_description(
     ----------
     filepath : str
         Path to MS (without DATA_DESCRIPTION suffix).
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here.
+    nspws : int
+        Required if uvobj is not supplied, the total number of spectral windows to be
+        recorded.
+    flex_spw_polarization_array : list of int
+        Optional argument, required if trying to record a flex-pol data set, which
+        denotes the polarization per spectral window, with length equal to nspws.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::DATA_DESCRIPTION"
@@ -428,7 +540,43 @@ def write_ms_data_description(
 
 
 def read_ms_field(filepath, return_phase_center_catalog=False):
-    """Read Measurement Set FIELD table."""
+    """
+    Read Measurement Set FIELD table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without FIELD suffix)
+    return_phase_center_catalog : bool
+        Nominally this function will return a dict containing the columns of the table,
+        but if set to True, instead a catalog will be supplied in the style of the
+        UVData/UVCal `phase_center_catalog` parameters (further description of this
+        parameter can be found in the class documentation).
+
+    Returns
+    -------
+    field_dict : dict
+        A dictionary with keys that map to columns of the MS, including "name" (field
+        names, list of len Nfield with elements of type str), "ra" (RA in radians,
+        ndarray of floats with shape (Nfield,)), "dec" (Dec in radians, ndarray of
+        floats with shape (Nfield,)), "source_id" (row number in MS file, ndarray of
+        ints with shape (Nfield,)), and "alt_id" (matching source ID number, ndarray of
+        ints with shape (Nfield,)). Only given if return_phase_center_catalog=False.
+    phase_center_catalog : dict
+        A catalog stylized like the UVData/UVCal `phase_center_catalog` parameters, with
+        keys matching to the "alt_id"/source ID entries. Useful for plugging directly
+        into the `phase_center_catalog` attribute of a UVBase object. Only supplied if
+        return_phase_center_catalog=True.
+    field_map : dict
+        A dict between row number (keys) and the source ID (values), which can be used
+        to map the phase center ID array from the main MS table. Only supplied if
+        return_phase_center_catalog=True.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/FIELD")
 
     with tables.table(filepath + "/FIELD", ack=False) as tb_field:
@@ -530,7 +678,23 @@ def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=Non
     ----------
     filepath : str
         path to MS (without FIELD suffix)
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        time_val, which is calculated from the time_array UVParameter).
+    phase_center_catalog : dict
+        A catalog stylized like the UVData/UVCal `phase_center_catalog` parameters (see
+        documentation of those classes for more details on expected structure). Required
+        if uvobj is not supplied.
+    time_val : float
+        Required if uvobj is not supplied, representative JD date for the catalog to
+        be recorded into the MS file.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::FIELD"
@@ -659,6 +823,11 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
     pyuvdata_written :  bool
         boolean indicating whether or not this MS was written by pyuvdata. Only returned
         of `check_origin=True`.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
     """
     try:
         _ms_utils_call_checks(filepath + "/HISTORY")
@@ -771,9 +940,14 @@ def write_ms_history(filepath, history=None, uvobj=None):
     filepath : str
         path to MS (without HISTORY suffix)
     history : str
-        A history string that may or may not contain output from
-        `_ms_hist_to_string`.
+        Required if uvobj is not given, a string containing the history to be written.
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the history string.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::HISTORY"
@@ -903,7 +1077,27 @@ def write_ms_history(filepath, history=None, uvobj=None):
 
 
 def read_ms_observation(filepath):
-    """Read Measurement Set OBSERVATION table."""
+    """
+    Read Measurement Set OBSERVATION table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without OBSERVATION suffix)
+
+    Returns
+    -------
+    obs_dict : dict
+        A dictionary containing observation information, including "telescope_name"
+        (str with the name of the telescope), "observer" (str of observer name), and
+        if present, "telescope_location" (ndarray of floats and shape (3,) describing
+        the ITRF/MCMF 3D location in meters of the array center).
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/OBSERVATION")
 
     obs_dict = {}
@@ -920,7 +1114,9 @@ def read_ms_observation(filepath):
     return obs_dict
 
 
-def write_ms_observation(filepath, uvobj):
+def write_ms_observation(
+    filepath, uvobj=None, *, telescope_name=None, telescope_location=None, observer=None
+):
     """
     Write out the observation information into a CASA table.
 
@@ -928,7 +1124,23 @@ def write_ms_observation(filepath, uvobj):
     ----------
     filepath : str
         path to MS (without OBSERVATION suffix)
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        telescope_frame, which is pulled from the telescope_location UVParameter).
+    telescope_name :str
+        Required if uvobj not provided, name of the telescope.
+    telescope_location : ndarray
+        Required if uvobj not provided, 3D location (in ITRF/MCMF coordinates in meters)
+        of the array center.
+    observer : str
+        Required if uvobj not provided, name of the observer.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::OBSERVATION"
@@ -961,7 +1173,29 @@ def write_ms_observation(filepath, uvobj):
 
 
 def read_ms_spectral_window(filepath):
-    """Read Measurement Set SPECTRAL_WINDOW table."""
+    """
+    Read Measurement Set SPECTRAL_WINDOW table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without SPECTRAL_WINDOW suffix)
+
+    Returns
+    -------
+    spw_dict : dict
+        Dictionary containing spectral window information, including "chan_freq"
+        (ndarray of float and shape (Nspws,), center frequencies of the channels),
+        "chan_width" (ndarray of float and shape (Nspws,), channel bandwidths),
+        "num_chan" (ndarray of int and shape (Nspws,), number of channels per window),
+        and "row_idx" (list of length Nspws with int elements, containing the table row
+        number for each window).
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/SPECTRAL_WINDOW")
 
     with tables.table(filepath + "/SPECTRAL_WINDOW", ack=False) as tb_spws:
@@ -1010,7 +1244,33 @@ def write_ms_spectral_window(
     ----------
     filepath : str
         path to MS (without SPECTRAL_WINDOW suffix)
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        id_array, which is pulled from spw_array or flex_spw_id_array depending on the
+        context).
+    freq_array : ndarray
+        Required if uvobj not provided, frequency centers for each channel. Expected
+        shape is (1, Nfreqs,) if use_future_array_shapes=False, otherwise (Nfreqs,)
+        if use_future_array_shapes=True.
+    channel_width : ndarray or float
+        Required if uvobj not provided, frequency centers for each channel. Expected
+        to be a float if use_future_array_shapes=False, otherwise an ndarray of shape
+        (Nfreqs,) if use_future_array_shapes=True.
+    spw_array : ndarray
+        Required if uvobj not provided, ID numbers for spectral windows.
+    id_array : ndarray
+        Map of how each entry in `freq_array` matches to the spectral windows in
+        `spw_array`. Required if uvobj not provided.
+    use_future_array_shapes : bool
+        If False, assume current array shapes for parameters. Default is True, which
+        assumes future array shapes for provided parameters.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::SPECTRAL_WINDOW"
@@ -1062,14 +1322,39 @@ def write_ms_spectral_window(
 
 
 def read_ms_feed(filepath):
-    """Read Measurement Set FEED table."""
+    """
+    Read Measurement Set FEED table.
+
+    Note that this method is not yet implemented, and is a placeholder for future
+    development.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without FEED suffix)
+
+    Returns
+    -------
+    feed_dict : dict
+        Dictionary containing feed information.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/FEED")
 
     raise NotImplementedError("Reading of MS FEED tables not available yet.")
 
 
 def write_ms_feed(
-    filepath, pol_order=..., uvobj=None, spectral_window_id_table=None, pol_str=None
+    filepath,
+    pol_order=...,
+    uvobj=None,
+    polarization_array=None,
+    flex_spw_polarization_array=None,
+    nspws=None,
 ):
     """
     Write out the feed information into a CASA table.
@@ -1081,24 +1366,46 @@ def write_ms_feed(
     pol_order : slice or list of int
         Ordering of the polarization axis on write, only used if not writing a
         flex-pol dataset.
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here.
+    polarization_array : ndarray of int
+        Required if uvobj not provided and writing a "regular" polarization MS table,
+        array containing the polarization codes (dtype int, shape (Npols,)).
+    flex_spw_polarization_array : ndarray of int
+        Required if uvobj not provided and writing a flex-pol table, polarization ID
+        for each spectral window (of dtype in and shape (nspws,)).
+    nspws : int
+        Required if uvobj not provided, number of spectral windows recorded.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::FEED"
 
     if uvobj is not None:
-        nfeeds_table = np.max(uvobj.antenna_numbers) + 1
-        antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
-        if uvobj.flex_spw_polarization_array is None:
-            spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
+        antenna_numbers = uvobj.antenna_numbers
+        polarization_array = uvobj.polarization_array
+        flex_spw_polarization_array = uvobj.flex_spw_polarization_array
+        nspws = uvobj.Nspws
 
-            # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-            pol_str = uvutils.polnum2str(uvobj.polarization_array[pol_order])
-        else:
-            spectral_window_id_table = np.repeat(np.arange(uvobj.Nspws), nfeeds_table)
-            nfeeds_table *= uvobj.Nspws
-            antenna_id_table = np.tile(antenna_id_table, uvobj.Nspws)
-            # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-            pol_str = uvutils.polnum2str(uvobj.flex_spw_polarization_array)
+    nfeeds_table = np.max(antenna_numbers) + 1
+    antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
+    if flex_spw_polarization_array is None:
+        spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
+
+        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
+        pol_str = uvutils.polnum2str(polarization_array[pol_order])
+    else:
+        spectral_window_id_table = np.repeat(np.arange(nspws), nfeeds_table)
+        nfeeds_table *= nspws
+        antenna_id_table = np.tile(antenna_id_table, nspws)
+        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
+        pol_str = uvutils.polnum2str(flex_spw_polarization_array)
 
     with tables.table(filepath, ack=False, readonly=False) as feed_table:
         feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
@@ -1132,7 +1439,32 @@ def write_ms_feed(
 
 
 def read_ms_source(filepath):
-    """Read Measurement Set SOURCE table."""
+    """
+    Read Measurement Set SOURCE table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without SOURCE suffix)
+
+    Returns
+    -------
+    source_dict : dict
+        A dictionary with keys matched to the source ID, and up to six values which
+        map to specific keys in entries of the `phase_center_catalog` parameter
+        found in UVData/UVCal objects. They are "cat_lon" (longitudinal position in
+        radians), "cat_lat" (latitudinal position in radians), "cat_times"
+        (JD dates of ephemeris entries), "cat_type" (type of catalog entry), "cat_pm_ra"
+        (proper motion in RA), and "cat_pm_dec" (proper motion in Dec). These entries
+        can be used to update keys in `phase_center_catalog` as derived from the FIELD
+        table, which only has space to record a single RA/Dec coordinate plus reference
+        frame information.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/SOURCE")
 
     tb_sou_dict = {}
@@ -1211,7 +1543,22 @@ def write_ms_source(filepath, uvobj=None, time_default=None, phase_center_catalo
     ----------
     filepath : str
         path to MS (without SOURCE suffix)
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        time_default, which is derived from the time_array UVParameter).
+    time_default : float
+        Default time (in MJD seconds) to use for the catalog entries.
+    phase_center_catalog : dict
+        A catalog stylized like the UVData/UVCal `phase_center_catalog` parameters (see
+        documentation of those classes for more details on expected structure). Required
+        if uvobj is not supplied.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::SOURCE"
@@ -1278,7 +1625,27 @@ def write_ms_source(filepath, uvobj=None, time_default=None, phase_center_catalo
 
 
 def read_ms_pointing(filepath):
-    """Read Measurement Set POINTING table."""
+    """
+    Read Measurement Set POINTING table.
+
+    Note that this method is not yet implemented, and is a placeholder for future
+    development.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without POINTING suffix)
+
+    Returns
+    -------
+    pointing_dict : dict
+        Dictionary containing pointing information.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/POINTING")
 
     raise NotImplementedError("Reading of MS POINTING tables not available yet.")
@@ -1294,7 +1661,24 @@ def write_ms_pointing(
     ----------
     filepath : str
         path to MS (without POINTING suffix)
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        max_ant, which is derived from from the antenna_numbers UVParameter).
+    max_ant : int
+        Required if uvobj not provided, the highest-number antenna for the telescope.
+    integration_time : ndarray
+        Required if uvobj not provided, integration time per entry. Ndarray of float,
+        should match in shape to `time_array`.
+    time_array : ndarray
+        Required if uvobj not provided, JD date of each entry. Ndarray of float, should
+        match in shape to `integration_time`.
 
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::POINTING"
@@ -1359,7 +1743,27 @@ def write_ms_pointing(
 
 
 def read_ms_polarization(filepath):
-    """Read Measurement Set POLARIZATION table."""
+    """
+    Read Measurement Set POLARIZATION table.
+
+    Parameters
+    ----------
+    filepath : str
+        path to MS (without POLARIZATION suffix)
+
+    Returns
+    -------
+    pol_dict : dict
+        A dictionary with keys matched to the polarization ID, with values "corr_type"
+        (ndarray of int, shape (Npols,), matched to polarization code) and "num_corr"
+        (ndarray of int, shape (Npols,), tallying the total number of polarization
+        entries per record).
+
+    Raises
+    ------
+    FileNotFoundError
+        If no MS file is found with the provided name.
+    """
     _ms_utils_call_checks(filepath + "/POLARIZATION")
 
     with tables.table(filepath + "/POLARIZATION", ack=False) as tb_pol:
@@ -1385,6 +1789,25 @@ def write_ms_polarization(
     pol_order : slice or list of int
         Ordering of the polarization axis on write, only used if not writing a
         flex-pol dataset.
+    uvobj : UVBase (with matching parameters)
+        Optional parameter, can be used to automatically fill the other required
+        keywords for this function. Note that the UVBase object must have parameters
+        that match by name to the other keywords required here (with the exception of
+        flex_pol, which is derived from the presence of the flex_spw_polarization array
+        UVParameter).
+    polarization_array : ndarray
+        Required if uvobj not provided, array containing polarization ID codes (ndarray
+        of dtype int and shape (Npols,) if flex_pol=False, otherwise shape (Nspws,)).
+    flex_pol : bool
+        Required if uvobj not provided, whether or not the supplied polarization_array
+        is derived for a flex-pol object (can contain duplicate entries of codes, with
+        positions indexed against entries in the spectral window table). Default is
+        False.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no main MS table is found when looking at filepath.
     """
     _ms_utils_call_checks(filepath)
     filepath += "::POLARIZATION"
@@ -1450,6 +1873,11 @@ def init_ms_file(filepath, make_model_col=False, make_corr_col=False):
     make_model_col : bool
         If set to True, will construct a measurement set that contains a CORRECTED_DATA
         column in addition to the DATA column. Default is False.
+
+    Returns
+    -------
+    ms_table : casacore Table
+        Table object linked to the newly created MS file.
     """
     # The required_ms_desc returns the defaults for a CASA MS table
     ms_desc = tables.required_ms_desc("MAIN")
@@ -1580,7 +2008,18 @@ def init_ms_file(filepath, make_model_col=False, make_corr_col=False):
 
 
 def init_ms_cal_file(filename, delay_table=False):
-    """Initialize an MS calibration file."""
+    """
+    Create a skeleton MS calibration table to fill.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to MS table to be created.
+    delay_table : bool
+        Set to False by default, which will create a MS table capable of storing
+        complex gains. However, if set to True, the method will instead construct a
+        table which can store delay information.
+    """
     standard_desc = tables.required_ms_desc()
     tabledesc = {}
     tabledesc["TIME"] = standard_desc["TIME"]
