@@ -2288,7 +2288,11 @@ def test_mir_remember_me_sp_data(mir_data):
 
     assert np.all(mir_data.sp_data["phase"] == 0)
 
-    assert np.all(mir_data.sp_data["spareint5"] == 0)
+    assert np.all(mir_data.sp_data["tsys1Flag"] == 0)
+
+    assert np.all(mir_data.sp_data["tsys2Flag"] == 0)
+
+    assert np.all(mir_data.sp_data["spareshort"] == 0)
 
     assert np.all(mir_data.sp_data["spareint6"] == 0)
 
@@ -2296,7 +2300,9 @@ def test_mir_remember_me_sp_data(mir_data):
 
     assert np.all(mir_data.sp_data["fDDS"] == 0.0)
 
-    assert np.all(mir_data.sp_data["sparedbl3"] == 0.0)
+    assert np.all(mir_data.sp_data["tsys1"] == 0.0)
+
+    assert np.all(mir_data.sp_data["tsys2"] == 0.0)
 
     assert np.all(mir_data.sp_data["sparedbl4"] == 0.0)
 
