@@ -356,16 +356,22 @@ sp_dtype = np.dtype(
         ("amp", np.float32),
         # Spectral band continuum phase (rad)
         ("phase", np.float32),
+        # Flag for Tsys1 (if scanspec data is invalid)
+        ("tsys1Flag", np.uint8),
+        # Flag for Tsys2 (if scanspec data is invalid)
+        ("tsys2Flag", np.uint8),
         # Spare value, always 0
-        ("spareint5", np.int32),
+        ("spareshort", np.int16),
         # Spare value, always 0
         ("spareint6", np.int32),
         # SSB tsys (K)
         ("tssb", np.float64),
         # DDS frequency offset on nominal Gunn LO (GHz)
         ("fDDS", np.float64),
-        # Spare value, always 0
-        ("sparedbl3", np.float64),
+        # Tsys for ant1 in baseline (K)
+        ("tsys1", np.float32),
+        # Tsys for ant2 in baseline (K)
+        ("tsys2", np.float32),
         # Spare value, always 0
         ("sparedbl4", np.float64),
         # Spare value, always 0
