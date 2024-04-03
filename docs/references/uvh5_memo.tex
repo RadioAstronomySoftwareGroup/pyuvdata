@@ -165,8 +165,10 @@ interoperability between different HDF5 implementations.
 \item \textbf{Ntimes}: \textit{int} The number of time samples present in the
   data. (\textit{Ntimes})
 \item \textbf{uvw\_array}: \textit{float} An array of the uvw-coordinates
-  corresponding to each observation in the data. This is a two-dimensional array of
-  size (Nblts, 3). Units are in meters. (\textit{uvw\_array})
+  corresponding to each observation in the data. This is a two-dimensional array 
+  of size (Nblts, 3). Baselines are specified as from \textit{ant\_1\_array} to 
+  \textit{ant\_2\_array}, inferring the position of antenna 2 minus the position of 
+  antenna 1. Units are in meters. (\textit{uvw\_array})
 \item \textbf{time\_array}: \textit{float} An array of the Julian Date
   corresponding to the temporal midpoint of the corresponding baseline's
   integration. This is a one-dimensional array of size
@@ -418,10 +420,12 @@ $j$ is as follows \cite{tms}:
 That is, the baseline vector defined by the $uvw$ coordinates is directed from
 antenna $i$ to antenna $j$ (so the baseline vector can be computed as
 $\vb{r_j} - \vb{r_i}$, where $\vb{r}$ is the position vector of a given
-antennas), and the data corresponding to antenna $j$ is conjugated. Note that if
-a file is generated with the opposite convention, it is usually sufficient to
-multiply $uvw$ coordinates by $-1$ to generate a self-consistent dataset, as
-well as conjugating the data in the \verb+data_array+.
+antennas), and the data corresponding to antenna $j$ is conjugated. Following
+the specification of the baselines, antenna $i$ is indexed as per
+\textit{ant\_1\_array} and $j$ is indexed as per \textit{ant\_2\_array}. Note
+that if a file is generated with the opposite convention, it is usually
+sufficient to multiply $uvw$ coordinates by $-1$ to generate a self-consistent 
+dataset, as well as conjugating the data in the \verb+data_array+.
 
 \subsection{Flags Dataset}
 \label{sec:flags}
