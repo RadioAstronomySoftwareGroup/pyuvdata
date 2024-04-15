@@ -2100,7 +2100,13 @@ class MirParser(object):
             data_arr = self.ac_data._data[field]
             export_data_arr = self.bl_data._data[field]
             for key, idx_arr in ac_groups.items():
-                data_arr[idx_arr] = np.median(export_data_arr[bl_groups[key]])
+                try:
+                    data_arr[idx_arr] = np.median(export_data_arr[bl_groups[key]])
+                except KeyError:
+                    # If no key is found, then skip over filling in the data. Odds are
+                    # this is single-rx data, which means the second receiver is
+                    # basically blank, so flag the entry
+                    self.ac_data._mask[idx_arr] = False
 
         # Now get set up for tackling the items that can change on a per spectral
         # window basis. Note that here we are assuming that the values should be the
@@ -4241,3 +4247,12 @@ class MirParser(object):
         self.bl_data["u"] = u_vals
         self.bl_data["v"] = v_vals
         self.bl_data["w"] = w_vals
+
+        if all(self.sp_data.get_value("corrchunk", where=("correlator", "eq", 1)) == 0):
+            # For some SWARM-era data, corrchunk not filled in, which some pieces of
+            # the processing depend upon. Fix that using the iband values.
+            new_chunks = self.sp_data.get_value("iband", where=("correlator", "eq", 1))
+            new_chunks -= np.min(new_chunks) - 1
+            self.sp_data.set_value(
+                "corrchunk", new_chunks, where=("correlator", "eq", 1)
+            )
