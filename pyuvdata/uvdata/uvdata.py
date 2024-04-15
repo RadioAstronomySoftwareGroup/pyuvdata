@@ -2482,7 +2482,7 @@ class UVData(UVBase):
         else:
             app_ra = np.zeros(self.Nblts, dtype=float)
             app_dec = np.zeros(self.Nblts, dtype=float)
-            for cat_id in self.phase_center_catalog.keys():
+            for cat_id in np.unique(self.phase_center_id_array):
                 temp_dict = self.phase_center_catalog[cat_id]
                 select_mask = self.phase_center_id_array == cat_id
                 cat_type = temp_dict["cat_type"]

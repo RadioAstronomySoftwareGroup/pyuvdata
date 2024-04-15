@@ -690,15 +690,6 @@ class UVFITS(UVData):
 
             if read_source:
                 su_hdu = hdu_list[hdunames["AIPS SU"]]
-                # We should have as many entries in the AIPS SU header as we have
-                # unique entries in the SOURCES random paramter (checked in the call
-                # to get_parameter_data above)
-                if len(su_hdu.data) != len(np.unique(self.phase_center_id_array)):
-                    raise RuntimeError(
-                        "The UVFITS file has a malformed AIPS SU table - number of "
-                        "sources do not match the number of unique source IDs in the "
-                        "primary data header."
-                    )  # pragma: no cover
 
                 # Set up these arrays so we can assign values to them
                 self.phase_center_app_ra = np.zeros(self.Nblts)
@@ -737,6 +728,16 @@ class UVFITS(UVData):
                         cat_epoch=sou_epoch,
                         info_source="uvfits file",
                     )
+
+                # All entries in phase_center_id_array should in in the catalog, so
+                # check that now before we continue reading through the file.
+                if not all(
+                    np.isin(self.phase_center_id_array, list(self.phase_center_catalog))
+                ):
+                    raise RuntimeError(
+                        "The UVFITS file has a malformed AIPS SU table - entries in "
+                        "primary data header have no corresponding match."
+                    )  # pragma: no cover
 
             # Calculate the apparent coordinate values
             self._set_app_coords_helper()
