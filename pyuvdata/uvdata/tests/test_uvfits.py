@@ -1659,6 +1659,54 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
     assert sma_uvfits == sma_mir
 
 
+@pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
+def test_uvfits_extra_phase_centers(sma_mir, tmp_path):
+    """
+    Verify that extra phase centers are correctly handled when reading from and writing
+    to UVFITS file format.
+    """
+    sma_uvfits = UVData()
+    sma_mir._set_app_coords_helper()
+
+    # Add a dummy entry
+    sma_mir._add_phase_center(
+        "dummy",
+        cat_type="sidereal",
+        cat_lon=2.0,
+        cat_lat=1.0,
+        cat_frame="icrs",
+        cat_epoch=2000.0,
+    )
+    filename = os.path.join(tmp_path, "test.uvfits")
+
+    sma_mir.write_uvfits(filename)
+
+    sma_uvfits = UVData.from_file(filename, use_future_array_shapes=True)
+
+    this_names = {
+        value["cat_name"]: key for key, value in sma_mir.phase_center_catalog.items()
+    }
+    other_names = {
+        value["cat_name"]: key for key, value in sma_uvfits.phase_center_catalog.items()
+    }
+
+    # Check the entries of the phase center catalog
+    for cat_id in sma_mir.phase_center_catalog.keys():
+        name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
+        this_cat = sma_mir.phase_center_catalog[this_names[name]]
+        other_cat = sma_uvfits.phase_center_catalog[other_names[name]]
+
+        assert np.isclose(this_cat["cat_lat"], other_cat["cat_lat"])
+        assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
+        assert this_cat["cat_name"] == other_cat["cat_name"]
+        assert this_cat["cat_frame"] == other_cat["cat_frame"]
+        assert this_cat["cat_epoch"] == other_cat["cat_epoch"]
+        assert np.array_equal(
+            sma_mir.phase_center_id_array == this_names[name],
+            sma_uvfits.phase_center_id_array == other_names[name],
+        )
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
     # check error if phase_type is wrong and force_phase not set
