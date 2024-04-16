@@ -1489,13 +1489,17 @@ class UVFITS(UVData):
                 else 2000.0
             )
 
-            app_ra[idx] = np.median(
-                self.phase_center_app_ra[self.phase_center_id_array == cat_id]
-            )
+            if any(self.phase_center_id_array == cat_id):
+                # Fill in these values if we calculated them for the phase centers,
+                # otherwise let them just be zero, since there's no clear reference
+                # time to tie them to (and this metadata isn't used by pyuvdata anyway).
+                app_ra[idx] = np.median(
+                    self.phase_center_app_ra[self.phase_center_id_array == cat_id]
+                )
 
-            app_dec[idx] = np.median(
-                self.phase_center_app_dec[self.phase_center_id_array == cat_id]
-            )
+                app_dec[idx] = np.median(
+                    self.phase_center_app_dec[self.phase_center_id_array == cat_id]
+                )
 
         ra_arr *= 180.0 / np.pi
         dec_arr *= 180.0 / np.pi
