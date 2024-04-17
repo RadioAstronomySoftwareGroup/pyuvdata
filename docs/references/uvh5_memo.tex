@@ -28,7 +28,8 @@
 \author{Paul La Plante, and the pyuvdata team}
 \date{November 28, 2018\\
 Revised April 2, 2021\\
-Revised July 14, 2022
+Revised July 14, 2022\\
+Revised April 17, 2024
 }
 
 \begin{document}
@@ -166,7 +167,7 @@ interoperability between different HDF5 implementations.
   data. (\textit{Ntimes})
 \item \textbf{uvw\_array}: \textit{float} An array of the uvw-coordinates
   corresponding to each observation in the data. Baselines are specified as from
-  \verb+ant_1_array+ to \verb+ant_2_array+, inferring the position of antenna 2
+  \verb+ant_1_array+ to \verb+ant_2_array+, implying the position of antenna 2
   minus the position of antenna 1. This is a two-dimensional array of size
   (Nblts, 3). Units are in meters. (\textit{uvw\_array})
 \item \textbf{time\_array}: \textit{float} An array of the Julian Date
@@ -276,7 +277,7 @@ And may include:
 	\end{itemize} (\textit{phase\_center\_catalog})
 \item \textbf{phase\_center\_id\_array}: \textit{int}
 A one dimensional array of length Nblts containing the cat\_id from the phase\_center\_catalog
-that each baseline-time is phased to. (\textit{phase\_center\_id\_array})
+that each baseline-time is phased to. \\(\textit{phase\_center\_id\_array})
 \item \textbf{phase\_center\_app\_ra}: \textit{float}
 Apparent right ascension of the phase center in the topocentric frame of the observatory, in radians.
 This is a one-dimensional array of size Nblts. In the event that there are multiple phase centers,
@@ -299,7 +300,7 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
 
 \item \textbf{version}: \textit{string} The version of the HDF5 file. The latest
   version (and the one described in this memo) is Version 1.1. Note it should be
-  a string, such as \verb+`1.1'+. See Sec.~\ref{sec:version_history} for the
+  a string, such as \verb+"1.1"+. See Sec.~\ref{sec:version_history} for the
   version history of the HDF5 specification. (No corresponding UVData attribute)
 \end{itemize}
 
