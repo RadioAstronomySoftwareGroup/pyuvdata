@@ -61,8 +61,8 @@ class CALFITS(UVCal):
         ):
             warnings.warn(
                 "The calfits format does not support recording optional phase center, "
-                " scan number, or time-varying reference antenna information, and will "
-                "be dropped."
+                "scan number, or time-varying reference antenna information, and "
+                "these information will be included in the written file."
             )
 
         if self.Nspws > 1:
