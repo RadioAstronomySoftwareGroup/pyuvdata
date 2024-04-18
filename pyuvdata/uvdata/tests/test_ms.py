@@ -16,6 +16,7 @@ from ... import UVData
 from ... import tests as uvtest
 from ... import utils as uvutils
 from ...data import DATA_PATH
+from ...tests.test_utils import frame_selenoid
 from ..uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
@@ -122,8 +123,8 @@ def test_cotter_ms():
 
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("telescope_frame", ["itrs", "mcmf"])
-def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame):
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
+def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
     uvobj = nrao_uv
 
@@ -132,7 +133,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame):
         enu_antpos, _ = uvobj.get_ENU_antpos()
         latitude, longitude, altitude = uvobj.telescope_location_lat_lon_alt
         uvobj._telescope_location.frame = "mcmf"
-        uvobj._telescope_location.ellipsoid = "SPHERE"
+        uvobj._telescope_location.ellipsoid = selenoid
         uvobj.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
