@@ -34,6 +34,7 @@ settings_file_multi = [
 ]
 
 
+@pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.parametrize("raw", [True, False])
 @pytest.mark.parametrize("file_type", ["calfits", "calh5"])
 def test_read_fhdcal_write_read_calfits_h5(
@@ -218,6 +219,7 @@ def test_read_fhdcal_multimode():
     return
 
 
+@pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 @pytest.mark.parametrize(
     "extra_history",
@@ -252,6 +254,7 @@ def test_extra_history(extra_history, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs lat/lon/alt")
 def test_flags_galaxy(tmp_path):
     """Test files with time, freq and tile flags and galaxy models behave."""
@@ -406,6 +409,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             )
 
 
+@pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.parametrize(
     ["concat_method", "read_method"],
     [["__add__", "read"], ["__add__", "read_fhd_cal"], ["fast_concat", "read"]],
@@ -451,9 +455,7 @@ def test_read_multi(tmp_path, concat_method, read_method):
                 use_future_array_shapes=True,
             )
 
-    # calfits doesn't support multiple time ranges, so this errors
-    # TODO: add back a roundtrip check when we have an hdf5 file format
-    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
+    calfits_outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     with pytest.raises(
         ValueError,
         match=(
@@ -461,9 +463,13 @@ def test_read_multi(tmp_path, concat_method, read_method):
             "than one time."
         ),
     ):
-        fhd_cal.write_calfits(outfile, clobber=True)
-    # calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
-    # assert fhd_cal == calfits_cal
+        fhd_cal.write_calfits(calfits_outfile, clobber=True)
+
+    outfile = str(tmp_path / "outtest_FHDcal_1061311664.calh5")
+    fhd_cal.write_calh5(outfile, clobber=True)
+
+    calh5_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    assert fhd_cal == calh5_cal
 
 
 @pytest.mark.parametrize(
