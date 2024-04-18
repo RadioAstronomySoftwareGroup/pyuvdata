@@ -49,10 +49,16 @@ def uvcalibrate_init_data_main():
         use_future_array_shapes=True,
     )
     uvcal = UVCal()
-    uvcal.read_calfits(
-        os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
-        use_future_array_shapes=True,
-    )
+    with uvtest.check_warnings(
+        UserWarning,
+        match="telescope_location, antenna_positions, antenna_diameters are "
+        "not set or are being overwritten. telescope_location, antenna_positions, "
+        "antenna_diameters are set using values from known telescopes for HERA.",
+    ):
+        uvcal.read_calfits(
+            os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
+            use_future_array_shapes=True,
+        )
 
     yield uvdata, uvcal
 
@@ -76,24 +82,17 @@ def uvcalibrate_data_main(uvcalibrate_init_data_main):
     uvdata = uvdata_in.copy()
     uvcal = uvcal_in.copy()
 
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions, antenna_names, antenna_numbers, Nants_telescope are "
-            "not set or are being overwritten. Using known values for HERA.",
-        ],
-    ):
+    warn_str = (
+        "telescope_location, Nants, antenna_names, antenna_numbers, "
+        "antenna_positions, antenna_diameters are not set or are being "
+        "overwritten. telescope_location, Nants, antenna_names, "
+        "antenna_numbers, antenna_positions, antenna_diameters are set "
+        "using values from known telescopes for HERA."
+    )
+    with uvtest.check_warnings(UserWarning, warn_str):
         uvcal.set_telescope_params(overwrite=True)
 
-    with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Nants_telescope, antenna_diameters, antenna_names, antenna_numbers, "
-            "antenna_positions, telescope_location, telescope_name are not set or are "
-            "being overwritten. Using known values for HERA."
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, warn_str):
         uvdata.set_telescope_params(overwrite=True)
 
     yield uvdata, uvcal

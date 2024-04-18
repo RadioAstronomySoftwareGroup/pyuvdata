@@ -199,10 +199,7 @@ def test_calh5_unknown_telescope(gain_data, tmp_path):
     testfile = str(tmp_path / "unknown_telescope.calh5")
     cal_obj.write_calh5(testfile)
 
-    with uvtest.check_warnings(
-        UserWarning, match="Telescope foo is not in known_telescopes."
-    ):
-        cal_obj2 = UVCal.from_file(testfile, use_future_array_shapes=True)
+    cal_obj2 = UVCal.from_file(testfile, use_future_array_shapes=True)
 
     assert cal_obj2 == cal_obj
 
