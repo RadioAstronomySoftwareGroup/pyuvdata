@@ -13,6 +13,7 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import UVData
+from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
@@ -21,8 +22,6 @@ from pyuvdata.uvdata.initializers import (
     get_spw_params,
     get_time_params,
 )
-
-selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 
 
 @pytest.fixture(scope="function")
