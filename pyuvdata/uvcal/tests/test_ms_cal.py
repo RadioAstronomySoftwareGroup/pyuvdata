@@ -24,19 +24,21 @@ pytestmark = pytest.mark.filterwarnings(
 )
 
 
+sma_warnings = [
+    "Unknown polarization basis for solutions, jones_array values may " "be spurious.",
+    "Unknown x_orientation basis for solutions, assuming",
+    "key CASA_Version in extra_keywords is longer than 8 characters. "
+    "It will be truncated to 8 if written to a calfits file format.",
+    "telescope_location are not set or are being overwritten. "
+    "telescope_location are set using values from known telescopes for SMA.",
+]
+
+
 @pytest.fixture(scope="session")
 def sma_pcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Unknown polarization",
-            "Unknown x_orientation",
-            "key CASA_Version",
-            "telescope_location is not set",
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
     uvobj.gain_scale = "Jy"
@@ -55,15 +57,7 @@ def sma_pcal(sma_pcal_main):
 def sma_dcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.dcal")
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Unknown polarization",
-            "Unknown x_orientation",
-            "key CASA_Version",
-            "telescope_location is not set",
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
     yield uvobj
@@ -80,15 +74,7 @@ def sma_dcal(sma_dcal_main):
 def sma_bcal_main():
     uvobj = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.bcal")
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Unknown polarization",
-            "Unknown x_orientation",
-            "key CASA_Version",
-            "telescope_location is not set",
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, match=sma_warnings):
         uvobj.read(testfile)
 
     uvobj.gain_scale = "Jy"
@@ -220,24 +206,14 @@ def test_ms_default_setting():
     uvc1 = UVCal()
     uvc2 = UVCal()
     testfile = os.path.join(DATA_PATH, "sma.ms.pha.gcal")
-    with uvtest.check_warnings(
-        UserWarning, ["key CASA_Version", "telescope_location is not set"]
-    ):
+    with uvtest.check_warnings(UserWarning, match=sma_warnings[2:]):
         uvc1.read_ms_cal(
             testfile,
             default_x_orientation="north",
             default_jones_array=np.array([-5, -6]),
         )
 
-    with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Unknown polarization",
-            "Unknown x_orientation",
-            "key CASA_Version",
-            "telescope_location is not set",
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, match=sma_warnings):
         uvc2.read(testfile)
 
     assert uvc1.x_orientation == "north"

@@ -303,7 +303,7 @@ class CalH5(UVCal):
                     longitude=lon,
                     altitude=alt,
                     lst_tols=(0, uvutils.LST_RAD_TOL),
-                    frame=self._telescope_location.frame,
+                    frame=self.telescope._location.frame,
                 )
             if self.time_range is not None:
                 uvutils.check_lsts_against_times(
@@ -313,7 +313,7 @@ class CalH5(UVCal):
                     longitude=lon,
                     altitude=alt,
                     lst_tols=(0, uvutils.LST_RAD_TOL),
-                    frame=self._telescope_location.frame,
+                    frame=self.telescope._location.frame,
                 )
 
     def _get_data(
