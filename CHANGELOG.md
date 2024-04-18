@@ -50,18 +50,16 @@ times for those solutions.
 - Updated minimum optional dependency versions: astropy-healpix>=1.0.2
 
 ### Fixed
+- Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
+`required=True` set.
+- Fixed a bug where selection and addition/concat methods did not operate correctly on
+flex-spw `UVCal` objects where `Nspws>1`.
 - Fixed a bug writing UVData objects to UVFITS formats with extra phase center catalog
 entries resulted in an error on read.
 - Fixed a bug where calling `UVData._set_app_coords_helper` with extra phase center
 catalog entries resulted in an error.
 - Bug in which `correct_cable_len` defaulted to `None` instead of `True`
 for `read_mwa_corr_fits`.
-
-### Fixed
-- Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
-`required=True` set.
-- Fixed a bug where selection and addition/concat methods did not operate correctly on
-flex-spw `UVCal` objects where `Nspws>1`.
 
 ## [2.4.3] - 2024-3-25
 
