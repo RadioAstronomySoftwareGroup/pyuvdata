@@ -138,6 +138,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame):
         enu_antpos, _ = uvobj.get_ENU_antpos()
         latitude, longitude, altitude = uvobj.telescope_location_lat_lon_alt
         uvobj._telescope_location.frame = "mcmf"
+        uvobj._telescope_location.ellipsoid = "SPHERE"
         uvobj.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
