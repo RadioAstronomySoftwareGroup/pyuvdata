@@ -233,8 +233,11 @@ def test_fhd_antenna_pos(fhd_data):
         use_future_array_shapes=True,
     )
 
-    assert fhd_data._antenna_names == mwa_corr_obj._antenna_names
-    assert fhd_data._antenna_positions == mwa_corr_obj._antenna_positions
+    assert fhd_data.telescope._antenna_names == mwa_corr_obj.telescope._antenna_names
+    assert (
+        fhd_data.telescope._antenna_positions
+        == mwa_corr_obj.telescope._antenna_positions
+    )
 
     cotter_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     cotter_obj = UVData()
@@ -243,10 +246,15 @@ def test_fhd_antenna_pos(fhd_data):
     # don't test antenna_numbers, they will not match.
     # mwa_corr_fits now uses antenna_numbers that correspond to antenna_names
     # instead of following the cotter convention of using 0-127.
-    assert fhd_data._antenna_names == cotter_obj._antenna_names
-    assert fhd_data._antenna_positions == cotter_obj._antenna_positions
+    assert fhd_data.telescope._antenna_names == cotter_obj.telescope._antenna_names
+    assert (
+        fhd_data.telescope._antenna_positions == cotter_obj.telescope._antenna_positions
+    )
 
-    assert mwa_corr_obj._antenna_positions == cotter_obj._antenna_positions
+    assert (
+        mwa_corr_obj.telescope._antenna_positions
+        == cotter_obj.telescope._antenna_positions
+    )
 
 
 def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
