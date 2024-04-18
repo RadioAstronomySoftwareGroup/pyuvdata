@@ -60,6 +60,11 @@ def test_read_fhdcal_write_read_calfits_h5(
     getattr(fhd_cal, write_method)(outfile)
 
     cal_out = UVCal.from_file(outfile, use_future_array_shapes=True)
+    if file_type == "calfits":
+        # the phase center catalog does not round trip through calfits files
+        cal_out.phase_center_catalog = fhd_cal.phase_center_catalog
+        cal_out.phase_center_id_array = fhd_cal.phase_center_id_array
+        cal_out.Nphase = fhd_cal.Nphase
     assert fhd_cal == cal_out
 
 
@@ -235,6 +240,11 @@ def test_extra_history(extra_history, tmp_path):
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    # the phase center catalog does not round trip through calfits files
+    assert fhd_cal != calfits_cal
+    calfits_cal.phase_center_catalog = fhd_cal.phase_center_catalog
+    calfits_cal.phase_center_id_array = fhd_cal.phase_center_id_array
+    calfits_cal.Nphase = fhd_cal.Nphase
     assert fhd_cal == calfits_cal
     for line in extra_history:
         assert line in fhd_cal.history
@@ -272,6 +282,11 @@ def test_flags_galaxy(tmp_path):
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
     calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+
+    # the phase center catalog does not round trip through calfits files
+    calfits_cal.phase_center_catalog = fhd_cal.phase_center_catalog
+    calfits_cal.phase_center_id_array = fhd_cal.phase_center_id_array
+    calfits_cal.Nphase = fhd_cal.Nphase
     assert fhd_cal == calfits_cal
 
 
