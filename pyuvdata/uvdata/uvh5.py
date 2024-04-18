@@ -562,6 +562,8 @@ class UVH5(UVData):
         self,
         filename: str | Path | FastUVH5Meta,
         *,
+        run_check: bool = True,
+        check_extra: bool = True,
         run_check_acceptability: bool = True,
         blt_order: tuple[str] | None | Literal["determine"] = None,
         blts_are_rectangular: bool | None = None,
@@ -586,9 +588,9 @@ class UVH5(UVData):
         # background if desired.
         self.time_array = obj.time_array
         # must set the frame before setting the location using lat/lon/alt
-        self._telescope_location.frame = obj.telescope_frame
-        if self._telescope_location.frame == "mcmf":
-            self._telescope_location.ellipsoid = obj.ellipsoid
+        self.telescope._location.frame = obj.telescope_frame
+        if self.telescope._location.frame == "mcmf":
+            self.telescope._location.ellipsoid = obj.ellipsoid
         self.telescope_location_lat_lon_alt_degrees = (
             obj.telescope_location_lat_lon_alt_degrees
         )
@@ -596,25 +598,22 @@ class UVH5(UVData):
         if "lst_array" in obj.header:
             self.lst_array = obj.header["lst_array"][:]
             proc = None
+
+            if run_check_acceptability:
+                lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_array,
+                    lst_array=self.lst_array,
+                    latitude=lat,
+                    longitude=lon,
+                    altitude=alt,
+                    lst_tols=(0, uvutils.LST_RAD_TOL),
+                    frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
+                )
         else:
             proc = self.set_lsts_from_time_array(
                 background=background_lsts, astrometry_library=astrometry_library
-            )
-            # This only checks the LSTs, which is not necessary if they are being
-            # computed now
-            run_check_acceptability = False
-
-        if run_check_acceptability:
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
-            uvutils.check_lsts_against_times(
-                jd_array=self.time_array,
-                lst_array=self.lst_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
-                lst_tols=(0, uvutils.LST_RAD_TOL),
-                frame=self._telescope_location.frame,
-                ellipsoid=self._telescope_location.ellipsoid,
             )
 
         # Required parameters
@@ -734,7 +733,11 @@ class UVH5(UVData):
             self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
         # set telescope params
         try:
-            self.set_telescope_params()
+            self.set_telescope_params(
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
         except ValueError as ve:
             warnings.warn(str(ve))
 
@@ -1158,6 +1161,8 @@ class UVH5(UVData):
         # open hdf5 file for reading
         self._read_header(
             meta,
+            run_check=run_check,
+            check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             background_lsts=background_lsts,
             astrometry_library=astrometry_library,
@@ -1267,9 +1272,9 @@ class UVH5(UVData):
         header["version"] = np.bytes_("1.2")
 
         # write out telescope and source information
-        header["telescope_frame"] = np.bytes_(self._telescope_location.frame)
-        if self._telescope_location.frame == "mcmf":
-            header["ellipsoid"] = self._telescope_location.ellipsoid
+        header["telescope_frame"] = np.bytes_(self.telescope._location.frame)
+        if self.telescope._location.frame == "mcmf":
+            header["ellipsoid"] = self.telescope._location.ellipsoid
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]

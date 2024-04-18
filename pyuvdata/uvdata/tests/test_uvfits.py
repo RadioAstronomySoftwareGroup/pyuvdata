@@ -119,7 +119,6 @@ def uvfits_nospw(uvfits_nospw_main):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_nrao(casa_uvfits):
     """Test reading in a CASA tutorial uvfits file."""
     uvobj = casa_uvfits
@@ -192,7 +191,6 @@ def test_time_precision(tmp_path):
     )
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_break_read_uvfits(tmp_path):
     """Test errors on reading in a uvfits file with subarrays and other problems."""
     uvobj = UVData()
@@ -241,7 +239,6 @@ def test_break_read_uvfits(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:UVFITS file is missing AIPS SU table")
 def test_source_group_params(casa_uvfits, tmp_path):
     # make a file with a single source to test that it works
@@ -288,7 +285,6 @@ def test_source_group_params(casa_uvfits, tmp_path):
     assert uv_in == uv_out
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The entry name")
 @pytest.mark.filterwarnings("ignore:The provided name")
 @pytest.mark.parametrize("frame", [["icrs"], ["fk5"], ["fk4"], ["fk5", "icrs"]])
@@ -337,7 +333,6 @@ def test_read_write_multi_source(casa_uvfits, tmp_path, frame, high_precision):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.parametrize("frame", ["icrs", "fk4"])
 @pytest.mark.filterwarnings("ignore:UVFITS file is missing AIPS SU table")
@@ -379,7 +374,6 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The entry name")
 @pytest.mark.filterwarnings("ignore:The provided name")
 @pytest.mark.parametrize("frame_list", [["fk5", "fk5"], ["fk4", "fk4"], ["fk4", "fk5"]])
@@ -442,7 +436,6 @@ def test_multi_source_frame_defaults(casa_uvfits, tmp_path, frame_list):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_missing_aips_su_table(casa_uvfits, tmp_path):
     # make a file with multiple sources to test error condition
     uv_in = casa_uvfits
@@ -477,10 +470,9 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
         hdulist.close()
 
     with uvtest.check_warnings(
-        [UserWarning] * 3 + [DeprecationWarning],
+        [UserWarning] * 2 + [DeprecationWarning],
         [
             "UVFITS file is missing AIPS SU table, which is required when ",
-            "Telescope EVLA is not",
             "The uvw_array does not match the expected values",
             _future_array_shapes_warning,
         ],
@@ -493,10 +485,7 @@ def test_casa_nonascii_bytes_antenna_names():
     uv1 = UVData()
     testfile = os.path.join(DATA_PATH, "corrected2_zen.2458106.28114.ant012.HH.uvfits")
     # this file has issues with the telescope location so turn checking off
-    with uvtest.check_warnings(
-        UserWarning, "Telescope mock-HERA is not in known_telescopes."
-    ):
-        uv1.read(testfile, run_check=False, use_future_array_shapes=True)
+    uv1.read(testfile, run_check=False, use_future_array_shapes=True)
     # fmt: off
     expected_ant_names = [
         'HH0', 'HH1', 'HH2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2', 'H2',
@@ -523,7 +512,6 @@ def test_casa_nonascii_bytes_antenna_names():
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, selenoid):
@@ -542,8 +530,8 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
         pytest.importorskip("lunarsky")
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-        uv_in._telescope_location.frame = "mcmf"
-        uv_in._telescope_location.ellipsoid = selenoid
+        uv_in.telescope._location.frame = "mcmf"
+        uv_in.telescope._location.ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -570,8 +558,8 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
     assert uv_out.filename == ["outtest_casa.uvfits"]
     uv_in.filename = uv_out.filename
 
-    assert uv_in._telescope_location.frame == uv_out._telescope_location.frame
-    assert uv_in._telescope_location.ellipsoid == uv_out._telescope_location.ellipsoid
+    assert uv_in.telescope._location.frame == uv_out.telescope._location.frame
+    assert uv_in.telescope._location.ellipsoid == uv_out.telescope._location.ellipsoid
 
     uv_out._consolidate_phase_center_catalogs(
         reference_catalog=uv_in.phase_center_catalog
@@ -582,7 +570,6 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.parametrize("uvw_suffix", ["---SIN", "---NCP"])
 def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
     uv_in = casa_uvfits
@@ -619,7 +606,6 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
         with uvtest.check_warnings(
             UserWarning,
             match=[
-                "Telescope EVLA is not in known_telescopes.",
                 (
                     "The baseline coordinates (uvws) in this file are specified in the "
                     "---NCP coordinate system"
@@ -641,7 +627,6 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.parametrize(
     "uvw_suffix", [["---SIN", "", ""], ["", "---NCP", ""], ["", "---NCP", "---SIN"]]
 )
@@ -684,7 +669,6 @@ def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_no_lst(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -708,7 +692,6 @@ def test_readwriteread_no_lst(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -733,7 +716,6 @@ def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -760,7 +742,6 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -804,7 +785,6 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("lat_lon_alt", [True, False])
 def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
     uv_in = casa_uvfits
@@ -851,7 +831,6 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
                 "ignorance. Defaulting the frame to 'itrs', but this may lead to other "
                 "warnings or errors."
             ),
-            "Telescope EVLA is not in known_telescopes.",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -866,7 +845,6 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_error_timesys(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     write_file = str(tmp_path / "outtest_casa.uvfits")
@@ -883,7 +861,6 @@ def test_readwriteread_error_timesys(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -924,15 +901,8 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         ValueError, match="Required UVParameter _integration_time has not been set"
     ):
         with uvtest.check_warnings(
+            [erfa.core.ErfaWarning, erfa.core.ErfaWarning, UserWarning, UserWarning],
             [
-                UserWarning,
-                erfa.core.ErfaWarning,
-                erfa.core.ErfaWarning,
-                UserWarning,
-                UserWarning,
-            ],
-            [
-                "Telescope EVLA is not",
                 "ERFA function 'utcut1' yielded 1 of 'dubious year (Note 3)'",
                 "ERFA function 'utctai' yielded 1 of 'dubious year (Note 3)'",
                 "LST values stored in this file are not self-consistent",
@@ -945,7 +915,6 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     write_file = str(tmp_path / "outtest_casa.uvfits")
@@ -969,7 +938,6 @@ def test_readwriteread_unflagged_data_warnings(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize(
     "kwd_name,kwd_value,warnstr,errstr",
     (
@@ -1025,7 +993,6 @@ def test_extra_keywords_errors(
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize(
     "kwd_names,kwd_values",
     (
@@ -1067,7 +1034,6 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("order", ["time", "bda"])
 def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     uv_in = casa_uvfits
@@ -1090,7 +1056,6 @@ def test_roundtrip_blt_order(casa_uvfits, order, tmp_path):
     assert uv_in == uv_out
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "select_kwargs",
@@ -1176,7 +1141,6 @@ def test_select_read_nospw(uvfits_nospw, tmp_path, select_kwargs):
     assert uvfits_uv == uvfits_uv2
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_read_nospw_pol(casa_uvfits, tmp_path):
     # this requires writing a new file because the no spw file we have has only 1 pol
@@ -1242,7 +1206,6 @@ def test_select_read_nospw_pol(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     """
     read uvfits, write miriad test.
@@ -1311,7 +1274,6 @@ def test_read_uvfits_write_miriad(casa_uvfits, tmp_path):
     assert miriad_uv == uvfits_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files(casa_uvfits, tmp_path):
     """
@@ -1358,7 +1320,6 @@ def test_multi_files(casa_uvfits, tmp_path):
     assert uv1 == uv_full
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files_axis(casa_uvfits, tmp_path):
     """
@@ -1401,7 +1362,6 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
     assert uv1 == uv_full
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     """
@@ -1446,7 +1406,6 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 def test_read_ms_write_uvfits_casa_history(tmp_path):
     """
     read in .ms file.
@@ -1508,7 +1467,6 @@ def test_cotter_telescope_frame(tmp_path):
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_readwriteread_reorder_pols(tmp_path, casa_uvfits, future_shapes):
     """
@@ -1711,7 +1669,6 @@ def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
         hera_uvh5.write_uvfits(tmp_path)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings(
     "ignore:The shapes of several attributes will be changing "
