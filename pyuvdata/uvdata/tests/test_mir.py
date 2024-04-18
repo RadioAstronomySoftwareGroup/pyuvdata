@@ -74,6 +74,9 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
         sma_mir.use_current_array_shapes()
     sma_mir.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile, use_future_array_shapes=future_shapes)
+    print("sma_mir instrument", sma_mir.instrument)
+    print("uvfits_uv instrument", uvfits_uv.instrument)
+    assert sma_mir.instrument == uvfits_uv.instrument
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
         # Check to make sure that the UVFITS-specific paramters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
@@ -138,7 +141,6 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
     assert sma_mir.filename == ["sma_test.mir"]
     assert uvfits_uv.filename == ["outtest_mir.uvfits"]
     sma_mir.filename = uvfits_uv.filename
-    assert sma_mir == uvfits_uv
 
     assert sma_mir == uvfits_uv
 
