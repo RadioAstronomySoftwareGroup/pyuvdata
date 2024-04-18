@@ -959,6 +959,7 @@ class MS(UVData):
         self.extra_keywords["observer"] = obs_dict["observer"]
         full_antenna_positions = tb_ant_dict["antenna_positions"]
         xyz_telescope_frame = tb_ant_dict["telescope_frame"]
+        xyz_telescope_ellipsoid = tb_ant_dict["telescope_ellipsoid"]
         self.antenna_numbers = tb_ant_dict["antenna_numbers"]
 
         # check to see if a TELESCOPE_LOCATION column is present in the observation
@@ -971,6 +972,7 @@ class MS(UVData):
             self.set_telescope_params()
         else:
             self._telescope_location.frame = xyz_telescope_frame
+            self._telescope_location.ellipsoid = xyz_telescope_ellipsoid
 
             if "telescope_location" in obs_dict:
                 self.telescope_location = np.squeeze(obs_dict["telescope_location"])

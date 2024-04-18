@@ -285,8 +285,8 @@ def read_ms_antenna(filepath, check_frame=True):
         (list of type string, shape (Nants_telescope,)), "station_names" (list of type
         string, shape (Nants_telescope,)), "antenna_numbers" (ndarray of type int,
         shape (Nants_telescope,)), "antenna_diameters" (ndarray of type float, shape
-        (Nants_telescope,)), "telescope_frame" (str), and "antenna_positions" (ndarray
-        of type float, shape (Nants_telescope, 3)).
+        (Nants_telescope,)), "telescope_frame" (str), "telescope_ellipsoid" (str),
+        and "antenna_positions" (ndarray of type float, shape (Nants_telescope, 3)).
 
     Raises
     ------
@@ -299,7 +299,13 @@ def read_ms_antenna(filepath, check_frame=True):
     # open table with antenna location information
     with tables.table(filepath + "/ANTENNA", ack=False) as tb_ant:
         antenna_positions = tb_ant.getcol("POSITION")
-        telescope_frame = tb_ant.getcolkeyword("POSITION", "MEASINFO")["Ref"].lower()
+        meas_info_dict = tb_ant.getcolkeyword("POSITION", "MEASINFO")
+        telescope_frame = meas_info_dict["Ref"].lower()
+        try:
+            telescope_ellipsoid = str(meas_info_dict["RefEllipsoid"])
+        except KeyError:
+            # No keyword means go to defaults
+            telescope_ellipsoid = "SPHERE" if telescope_frame == "mcmf" else None
 
         if check_frame:
             # Check the telescope frame to make sure it's supported
@@ -331,6 +337,7 @@ def read_ms_antenna(filepath, check_frame=True):
         "antenna_positions": antenna_positions,
         "antenna_numbers": antenna_numbers,
         "telescope_frame": telescope_frame,
+        "telescope_ellipsoid": telescope_ellipsoid,
         "antenna_names": antenna_names,
         "station_names": station_names,
         "antenna_diameters": ant_diameters,
@@ -350,6 +357,7 @@ def write_ms_antenna(
     antenna_diameters=None,
     telescope_location=None,
     telescope_frame=None,
+    telescope_ellipsoid=None,
 ):
     """
     Write out the antenna information into a CASA table.
@@ -381,6 +389,10 @@ def write_ms_antenna(
     telescope_frame : str
         Required if uvobj not provided, name of the frame in which the telescope
         positions are provided (typically "MCMF", "ITRS", or "ITRF").
+    telescope_ellipsoid : str
+        Required if uvobj not provided and telescope frame is "MCMF", ellipsoid to use
+        for lunar coordinates. Must be one of "SPHERE", "GSFC", "GRAIL23",
+        "CE-1-LAM-GEO" (see lunarsky package for details).
 
     Raises
     ------
@@ -397,6 +409,7 @@ def write_ms_antenna(
         antenna_diameters = uvobj.antenna_diameters
         telescope_location = uvobj.telescope_location
         telescope_frame = uvobj._telescope_location.frame
+        telescope_ellipsoid = uvobj._telescope_location.ellipsoid
 
     tabledesc = tables.required_ms_desc("ANTENNA")
     dminfo = tables.makedminfo(tabledesc)
@@ -446,11 +459,12 @@ def write_ms_antenna(
             antenna_table.putcol("DISH_DIAMETER", ant_diam_table)
 
         # Add telescope frame
-        # TODO: ask Karto what the best way is to put in the lunar ellipsoid
         telescope_frame = telescope_frame.upper()
         telescope_frame = "ITRF" if (telescope_frame == "ITRS") else telescope_frame
         meas_info_dict = antenna_table.getcolkeyword("POSITION", "MEASINFO")
         meas_info_dict["Ref"] = telescope_frame
+        if telescope_frame == "MCMF" and telescope_ellipsoid is not None:
+            meas_info_dict["RefEllipsoid"] = telescope_ellipsoid
         antenna_table.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)
 
 

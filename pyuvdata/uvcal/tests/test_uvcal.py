@@ -2814,9 +2814,6 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
             calobj3.history,
         )
     elif axis == "spw":
-        print(calobj3.history)
-        print(calobj_full.history)
-        print("hasdsadsada")
         assert uvutils._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
