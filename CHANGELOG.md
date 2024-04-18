@@ -52,6 +52,12 @@ times for those solutions.
 ### Fixed
 - Fixed #1445 in which in some corner cases the `antpairs` array was not correctly interpreted as int.
 
+### Fixed
+- Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
+`required=True` set.
+- Fixed a bug where selection and addition/concat methods did not operate correctly on
+flex-spw `UVCal` objects where `Nspws>1`.
+
 ## [2.4.4] - 2024-6-7
 
 ### Changed
@@ -69,12 +75,6 @@ entries resulted in an error on read.
 catalog entries resulted in an error.
 - Bug in which `correct_cable_len` defaulted to `None` instead of `True`
 for `read_mwa_corr_fits`.
-
-### Fixed
-- Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
-`required=True` set.
-- Fixed a bug where selection and addition/concat methods did not operate correctly on
-flex-spw `UVCal` objects where `Nspws>1`.
 
 ## [2.4.3] - 2024-3-25
 
