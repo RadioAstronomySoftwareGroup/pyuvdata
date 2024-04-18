@@ -18,11 +18,6 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
-pytestmark = pytest.mark.filterwarnings(
-    "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions are not set or are being overwritten. Using known values",
-)
-
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -134,6 +129,7 @@ def test_write_inttime_equal_timediff(future_shapes, gain_data, delay_data, tmp_
     return
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize(
     "filein,caltype",
     [
@@ -172,6 +168,7 @@ def test_readwriteread_no_freq_range(gain_data, tmp_path):
     return
 
 
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_readwriteread_no_time_range(tmp_path):
     # test without time_range parameter
     testfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits")

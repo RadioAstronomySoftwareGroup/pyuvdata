@@ -21,9 +21,9 @@ def gain_data_main():
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions are not set or are being overwritten. Using known "
-            "values for HERA.",
+            "telescope_location, antenna_positions, antenna_diameters are not "
+            "set or are being overwritten. telescope_location, antenna_positions, "
+            "antenna_diameters are set using values from known telescopes for HERA."
         ],
     ):
         gain_object = UVCal.from_file(gainfile, use_future_array_shapes=True)
@@ -51,9 +51,9 @@ def delay_data_main():
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "telescope_location is not set. Using known values for HERA.",
-            "antenna_positions are not set or are being overwritten. Using known "
-            "values for HERA.",
+            "telescope_location, antenna_positions, antenna_diameters are not "
+            "set or are being overwritten. telescope_location, antenna_positions, "
+            "antenna_diameters are set using values from known telescopes for HERA.",
             "When converting a delay-style cal to future array shapes the flag_array"
             " (and input_flag_array if it exists) must drop the frequency axis",
         ],
