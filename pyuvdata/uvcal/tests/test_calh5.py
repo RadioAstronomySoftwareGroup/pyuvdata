@@ -10,8 +10,10 @@ import numpy as np
 import pytest
 
 import pyuvdata.tests as uvtest
+import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.uvcal import FastCalH5Meta
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
@@ -33,6 +35,8 @@ def test_calh5_write_read_loop_gain(gain_data, tmp_path, time_range, future_shap
     calobj.total_quality_array = np.ones(
         calobj._total_quality_array.expected_shape(calobj)
     )
+    # add instrument
+    calobj.instrument = calobj.telescope_name
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
@@ -107,6 +111,47 @@ def test_calh5_loop_bitshuffle(gain_data, tmp_path):
     calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
 
     assert calobj == calobj2
+
+
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_calh5_loop_moon(tmp_path, gain_data, selenoid):
+    pytest.importorskip("lunarsky")
+    cal_in = gain_data
+
+    latitude, longitude, altitude = cal_in.telescope_location_lat_lon_alt
+    enu_antpos = uvutils.ENU_from_ECEF(
+        (cal_in.antenna_positions + cal_in.telescope_location),
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        frame=cal_in.telescope._location.frame,
+        ellipsoid=cal_in.telescope._location.ellipsoid,
+    )
+
+    cal_in.telescope._location.frame = "mcmf"
+    cal_in.telescope._location.ellipsoid = selenoid
+    cal_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+    new_full_antpos = uvutils.ECEF_from_ENU(
+        enu=enu_antpos,
+        latitude=latitude,
+        longitude=longitude,
+        altitude=altitude,
+        frame="mcmf",
+        ellipsoid=selenoid,
+    )
+    cal_in.antenna_positions = new_full_antpos - cal_in.telescope_location
+    cal_in.set_lsts_from_time_array()
+    cal_in.check()
+
+    write_file = str(tmp_path / "outtest.calh5")
+    cal_in.write_calh5(write_file, clobber=True)
+
+    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
+
+    assert cal_out.telescope._location.frame == "mcmf"
+    assert cal_out.telescope._location.ellipsoid == selenoid
+
+    assert cal_in == cal_out
 
 
 def test_calh5_meta(gain_data, tmp_path):
@@ -189,19 +234,6 @@ def test_none_extra_keywords(gain_data, tmp_path):
         assert h5f["Header/extra_keywords/foo"].shape is None
 
     return
-
-
-def test_calh5_unknown_telescope(gain_data, tmp_path):
-    cal_obj = gain_data
-
-    cal_obj.telescope_name = "foo"
-
-    testfile = str(tmp_path / "unknown_telescope.calh5")
-    cal_obj.write_calh5(testfile)
-
-    cal_obj2 = UVCal.from_file(testfile, use_future_array_shapes=True)
-
-    assert cal_obj2 == cal_obj
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
