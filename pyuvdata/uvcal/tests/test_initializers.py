@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 
+from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.uvcal import UVCal
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
@@ -54,6 +55,21 @@ def test_new_uvcal_simplest(uvc_kw):
     assert uvc.Nants_telescope == 3
     assert uvc.Nfreqs == 10
     assert uvc.Ntimes == 12
+
+
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_new_uvcal_simple_moon(uvc_kw, selenoid):
+    pytest.importorskip("lunarsky")
+    from pyuvdata.utils import MoonLocation
+
+    uvc_kw["telescope_location"] = MoonLocation.from_selenodetic(
+        0, 0, 0, ellipsoid=selenoid
+    )
+    uvc = UVCal.new(**uvc_kw)
+    assert uvc.telescope._location.frame == "mcmf"
+    assert uvc.telescope._location.ellipsoid == selenoid
+    assert uvc.telescope.location_obj == uvc_kw["telescope_location"]
+    assert uvc.telescope.location_obj.ellipsoid == selenoid
 
 
 def test_new_uvcal_time_range(uvc_kw):
@@ -202,11 +218,16 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
             0: uvd_kw["antenna_positions"][0],
             1: uvd_kw["antenna_positions"][1],
         },
+        antenna_diameters=[10.0, 10.0],
         **uvc_only_kw
     )
 
     assert np.all(uvc.antenna_positions[0] == uvd_kw["antenna_positions"][0])
     assert len(uvc.antenna_positions) == 2
+
+    uvd.antenna_diameters = np.zeros(uvd.Nants_telescope, dtype=float) + 5.0
+    uvc = new_uvcal_from_uvdata(uvd, **uvc_only_kw)
+    assert np.all(uvc.antenna_diameters == uvd.antenna_diameters)
 
 
 def test_new_uvcal_set_freq_range_for_gain_type(uvd_kw, uvc_only_kw):
@@ -241,8 +262,14 @@ def test_new_uvcal_get_freq_range_without_spwids(uvd_kw, uvc_only_kw):
     assert uvc.freq_range.max() == uvd.freq_array.max()
 
 
-def test_new_uvcal_from_uvdata_specify_numbers_names(uvd_kw, uvc_only_kw):
+@pytest.mark.parametrize("diameters", ["uvdata", "kwargs", None, "both"])
+def test_new_uvcal_from_uvdata_specify_numbers_names(uvd_kw, uvc_only_kw, diameters):
     uvd = new_uvdata(**uvd_kw)
+
+    if diameters in ["uvdata", "both"]:
+        uvd.antenna_diameters = np.zeros(uvd.Nants_telescope, dtype=float) + 5.0
+    elif diameters in ["kwargs", "both"]:
+        uvc_only_kw["antenna_diameters"] = np.zeros(1, dtype=float) + 5.0
 
     with pytest.raises(
         ValueError, match="Cannot specify both antenna_numbers and antenna_names"
@@ -260,6 +287,9 @@ def test_new_uvcal_from_uvdata_specify_numbers_names(uvd_kw, uvc_only_kw):
     uvc2 = new_uvcal_from_uvdata(
         uvd, antenna_names=uvd.antenna_names[:1], **uvc_only_kw
     )
+    if diameters is not None:
+        assert np.all(uvc.antenna_diameters == 5.0)
+
     uvc.history = uvc2.history
     assert uvc == uvc2
 

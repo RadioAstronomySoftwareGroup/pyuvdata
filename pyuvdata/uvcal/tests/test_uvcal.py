@@ -23,9 +23,7 @@ from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
-    "ignore:telescope_location is not set. Using known values",
-    "ignore:antenna_positions are not set or are being overwritten. Using known values",
-    "ignore:key CASA_Version in extra_keywords is longer than 8 characters",
+    "ignore:key CASA_Version in extra_keywords is longer than 8 characters"
 )
 
 
@@ -75,12 +73,9 @@ def uvcal_data():
         "Ntimes",
         "Nspws",
         "Nants_data",
-        "Nants_telescope",
         "wide_band",
-        "antenna_names",
-        "antenna_numbers",
         "ant_array",
-        "telescope_name",
+        "telescope",
         "freq_array",
         "channel_width",
         "spw_array",
@@ -91,15 +86,12 @@ def uvcal_data():
         "flag_array",
         "cal_type",
         "cal_style",
-        "x_orientation",
         "future_array_shapes",
         "history",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
     extra_properties = [
-        "telescope_location",
-        "antenna_positions",
         "lst_array",
         "lst_range",
         "gain_array",
@@ -127,13 +119,25 @@ def uvcal_data():
         "scan_number_array",
         "phase_center_catalog",
         "phase_center_id_array",
-        "antenna_diameters",
         "Nphase",
         "ref_antenna_array",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
-    other_properties = ["pyuvdata_version_str"]
+    other_attributes = [
+        "pyuvdata_version_str",
+        "telescope_name",
+        "telescope_location",
+        "instrument",
+        "Nants_telescope",
+        "antenna_names",
+        "antenna_numbers",
+        "antenna_positions",
+        "x_orientation",
+        "antenna_diameters",
+        "telescope_location_lat_lon_alt",
+        "telescope_location_lat_lon_alt_degrees",
+    ]
 
     uv_cal_object = UVCal()
 
@@ -144,7 +148,7 @@ def uvcal_data():
         required_properties,
         extra_parameters,
         extra_properties,
-        other_properties,
+        other_attributes,
     )
 
     # some post-test object cleanup
@@ -199,10 +203,10 @@ def test_unexpected_parameters(uvcal_data):
 
 def test_unexpected_attributes(uvcal_data):
     """Test for extra attributes."""
-    (uv_cal_object, _, required_properties, _, extra_properties, other_properties) = (
+    (uv_cal_object, _, required_properties, _, extra_properties, other_attributes) = (
         uvcal_data
     )
-    expected_attributes = required_properties + extra_properties + other_properties
+    expected_attributes = required_properties + extra_properties + other_attributes
     attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] != "_"]
     for a in attributes:
         assert a in expected_attributes, "unexpected attribute " + a + " found in UVCal"
@@ -518,11 +522,13 @@ def test_unknown_telescopes(gain_data, tmp_path):
         ValueError, match="Required UVParameter _antenna_positions has not been set."
     ):
         with uvtest.check_warnings(
-            [UserWarning], match=["Telescope foo is not in known_telescopes"]
+            UserWarning,
+            match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
         ):
             UVCal.from_file(write_file2, use_future_array_shapes=True)
     with uvtest.check_warnings(
-        [UserWarning], match=["Telescope foo is not in known_telescopes"]
+        UserWarning,
+        match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
     ):
         UVCal.from_file(write_file2, use_future_array_shapes=True, run_check=False)
 
@@ -536,6 +542,11 @@ def test_nants_data_telescope_larger(gain_data):
     gain_data.antenna_positions = np.concatenate(
         (gain_data.antenna_positions, np.zeros((1, 3), dtype=float))
     )
+    if gain_data.antenna_diameters is not None:
+        gain_data.antenna_diameters = np.concatenate(
+            (gain_data.antenna_diameters, np.ones((1,), dtype=float))
+        )
+
     assert gain_data.check()
 
 
@@ -545,6 +556,8 @@ def test_ant_array_not_in_antnums(gain_data):
     gain_data.antenna_names = gain_data.antenna_names[1:]
     gain_data.antenna_numbers = gain_data.antenna_numbers[1:]
     gain_data.antenna_positions = gain_data.antenna_positions[1:, :]
+    if gain_data.antenna_diameters is not None:
+        gain_data.antenna_diameters = gain_data.antenna_diameters[1:]
     gain_data.Nants_telescope = gain_data.antenna_numbers.size
     with pytest.raises(ValueError) as cm:
         gain_data.check()
@@ -3545,7 +3558,7 @@ def test_add_errors(
 
     # test compatibility param mismatch
     calobj2.telescope_name = "PAPER"
-    with pytest.raises(ValueError, match="Parameter telescope_name does not match"):
+    with pytest.raises(ValueError, match="Parameter telescope does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
 
     # test array shape mismatch
@@ -4082,8 +4095,8 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
 
     with uvtest.check_warnings(
         UserWarning,
-        match="antenna_positions are not set or are being overwritten. Using known "
-        "values for HERA.",
+        match="antenna_positions are not set or are being overwritten. "
+        "antenna_positions are set using values from known telescopes for HERA.",
     ):
         gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
 
@@ -4138,8 +4151,9 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         with uvtest.check_warnings(
             [UserWarning],
             match=[
-                "Not all antennas have positions in the telescope object. "
-                "Not setting antenna_positions."
+                "Not all antennas have positions in the known_telescope data. "
+                "Not setting antenna_positions.",
+                "Required UVParameter _antenna_positions has not been set.",
             ],
         ):
             gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
@@ -4147,8 +4161,9 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Not all antennas have positions in the telescope object. "
-            "Not setting antenna_positions."
+            "Not all antennas have positions in the known_telescope data. "
+            "Not setting antenna_positions.",
+            "Required UVParameter _antenna_positions has not been set.",
         ],
     ):
         gain_data2 = UVCal.from_file(
@@ -4237,6 +4252,11 @@ def test_init_from_uvdata(
     )
 
     uvc_new.history = uvc2.history
+
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4336,6 +4356,11 @@ def test_init_from_uvdata_setfreqs(
         )[:200],
     )
 
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
+
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
     # in the lsts of 5.86770454e-09 which are larger than our tolerance
@@ -4418,6 +4443,11 @@ def test_init_from_uvdata_settimes(
 
     uvc_new.history = uvc2.history
 
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
+
     if not metadata_only:
         uvc2.gain_array[:] = 1.0
         uvc2.quality_array = None
@@ -4478,6 +4508,11 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
 
     uvc_new.history = uvc2.history
 
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
+
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
     # in the lsts of 5.86770454e-09 which are larger than our tolerance
@@ -4528,6 +4563,11 @@ def test_init_single_pol(uvcalibrate_data, pol):
 
     uvc_new.history = uvc2.history
 
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
+
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
     # in the lsts of 5.86770454e-09 which are larger than our tolerance
@@ -4571,6 +4611,11 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     )
 
     uvc_new.history = uvc2.history
+
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4658,6 +4703,11 @@ def test_init_from_uvdata_sky(
     )
 
     uvc_new.history = uvc2.history
+
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4766,6 +4816,11 @@ def test_init_from_uvdata_delay(
 
     uvc_new.history = uvc2.history
 
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
+
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
     # in the lsts of 5.86770454e-09 which are larger than our tolerance
@@ -4864,6 +4919,11 @@ def test_init_from_uvdata_wideband(
     )
 
     uvc_new.history = uvc2.history
+
+    # the new one has an instrument set because UVData requires it
+    assert uvc_new.instrument == uvd.instrument
+    # remove it to match uvc2
+    uvc_new.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences

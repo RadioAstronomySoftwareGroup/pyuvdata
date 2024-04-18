@@ -12,24 +12,28 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 import pyuvdata
-from pyuvdata import UVData
+from pyuvdata import Telescope, UVData
 from pyuvdata.data import DATA_PATH
 
-required_parameters = ["_telescope_name", "_telescope_location"]
-required_properties = ["telescope_name", "telescope_location"]
+required_parameters = ["_name", "_location"]
+required_properties = ["name", "location"]
 extra_parameters = [
     "_antenna_diameters",
-    "_Nants_telescope",
+    "_Nants",
     "_antenna_names",
     "_antenna_numbers",
     "_antenna_positions",
+    "_x_orientation",
+    "_instrument",
 ]
 extra_properties = [
     "antenna_diameters",
-    "Nants_telescope",
+    "Nants",
     "antenna_names",
     "antenna_numbers",
     "antenna_positions",
+    "x_orientation",
+    "instrument",
 ]
 other_attributes = [
     "citation",
@@ -124,10 +128,10 @@ def test_known_telescopes():
     assert sorted(pyuvdata.known_telescopes()) == sorted(expected_known_telescopes)
 
 
-def test_get_telescope():
+def test_get_telescope_from_known():
     for inst in pyuvdata.known_telescopes():
-        telescope_obj = pyuvdata.get_telescope(inst)
-        assert telescope_obj.telescope_name == inst
+        telescope_obj = Telescope.get_telescope_from_known_telescopes(inst)
+        assert telescope_obj.name == inst
 
 
 def test_get_telescope_center_xyz():
@@ -149,19 +153,19 @@ def test_get_telescope_center_xyz():
             "citation": "",
         },
     }
-    telescope_obj = pyuvdata.get_telescope(
-        "test", telescope_dict_in=test_telescope_dict
+    telescope_obj = Telescope.get_telescope_from_known_telescopes(
+        "test", known_telescope_dict=test_telescope_dict
     )
-    telescope_obj_ext = pyuvdata.Telescope()
+    telescope_obj_ext = Telescope()
     telescope_obj_ext.citation = ""
-    telescope_obj_ext.telescope_name = "test"
-    telescope_obj_ext.telescope_location = ref_xyz
+    telescope_obj_ext.name = "test"
+    telescope_obj_ext.location = ref_xyz
 
     assert telescope_obj == telescope_obj_ext
 
-    telescope_obj_ext.telescope_name = "test2"
-    telescope_obj2 = pyuvdata.get_telescope(
-        "test2", telescope_dict_in=test_telescope_dict
+    telescope_obj_ext.name = "test2"
+    telescope_obj2 = Telescope.get_telescope_from_known_telescopes(
+        "test2", known_telescope_dict=test_telescope_dict
     )
     assert telescope_obj2 == telescope_obj_ext
 
@@ -176,12 +180,27 @@ def test_get_telescope_no_loc():
             "citation": "",
         }
     }
-    pytest.raises(
+    with pytest.raises(
         ValueError,
-        pyuvdata.get_telescope,
-        "test",
-        telescope_dict_in=test_telescope_dict,
-    )
+        match="Bad location information in known_telescopes_dict for telescope "
+        "test. Either the center_xyz or the latitude, longitude and altitude of "
+        "the telescope must be specified.",
+    ):
+        Telescope.get_telescope_from_known_telescopes(
+            "test", known_telescope_dict=test_telescope_dict
+        )
+
+
+def test_bad_location_obj():
+    tel = Telescope()
+    tel.name = "foo"
+
+    with pytest.raises(
+        ValueError,
+        match="location_obj is not a recognized location object. Must be an "
+        "EarthLocation or MoonLocation object.",
+    ):
+        tel.location_obj = (-2562123.42683, 5094215.40141, -2848728.58869)
 
 
 def test_hera_loc():
@@ -191,11 +210,11 @@ def test_hera_loc():
         hera_file, read_data=False, file_type="uvh5", use_future_array_shapes=True
     )
 
-    telescope_obj = pyuvdata.get_telescope("HERA")
+    telescope_obj = Telescope.get_telescope_from_known_telescopes("HERA")
 
     assert np.allclose(
-        telescope_obj.telescope_location,
+        telescope_obj.location,
         hera_data.telescope_location,
-        rtol=hera_data._telescope_location.tols[0],
-        atol=hera_data._telescope_location.tols[1],
+        rtol=hera_data.telescope._location.tols[0],
+        atol=hera_data.telescope._location.tols[1],
     )
