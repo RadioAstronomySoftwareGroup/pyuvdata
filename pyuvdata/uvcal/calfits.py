@@ -574,19 +574,17 @@ class CALFITS(UVCal):
                 # Remove the padded entries.
                 self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
-            if anthdu.header["TFIELDS"] > 3:
+            if "ANTXYZ" in antdata.names:
                 self.antenna_positions = antdata["ANTXYZ"]
 
-            try:
-                self.antenna_diameters = np.array(list(map(float, antdata["ANTDIAM"])))
-            except KeyError:
-                # No field by this name, which means ant diams not recorded.
-                # Move along...
-                pass
+            if "ANTDIAM" in antdata.names:
+                self.antenna_diameters = antdata["ANTDIAM"]
 
             self.channel_width = hdr.pop("CHWIDTH")
             self.integration_time = hdr.pop("INTTIME")
             self.telescope_name = hdr.pop("TELESCOP")
+
+            self.x_orientation = hdr.pop("XORIENT")
 
             x_telescope = hdr.pop("ARRAYX", None)
             y_telescope = hdr.pop("ARRAYY", None)
@@ -604,11 +602,10 @@ class CALFITS(UVCal):
                 )
             elif lat is not None and lon is not None and alt is not None:
                 self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
-            if self.telescope_location is None or self.antenna_positions is None:
-                try:
-                    self.set_telescope_params()
-                except ValueError as ve:
-                    warnings.warn(str(ve))
+            try:
+                self.set_telescope_params()
+            except ValueError as ve:
+                warnings.warn(str(ve))
 
             self.history = str(hdr.get("HISTORY", ""))
 
@@ -622,7 +619,6 @@ class CALFITS(UVCal):
 
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
-            self.x_orientation = hdr.pop("XORIENT")
             self.cal_type = hdr.pop("CALTYPE")
 
             # old files might have a freq range for gain types but we don't want them

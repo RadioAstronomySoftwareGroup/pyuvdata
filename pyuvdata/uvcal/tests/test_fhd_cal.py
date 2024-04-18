@@ -297,7 +297,6 @@ def test_unknown_telescope():
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Telescope foo is not in known_telescopes.",
             "Telescope location derived from obs lat/lon/alt",
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['obs']",
@@ -364,8 +363,8 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 
     message_list = [
         "No layout file, antenna_postions will not be defined.",
-        "antenna_positions are not set or are being overwritten. Using known values "
-        "for mwa.",
+        "antenna_positions are not set or are being overwritten. "
+        "antenna_positions are set using values from known telescopes for mwa.",
     ] * nfiles + ["UVParameter diffuse_model does not match"] * (nfiles - 1)
 
     warning_list = [UserWarning] * (3 * nfiles - 1)
