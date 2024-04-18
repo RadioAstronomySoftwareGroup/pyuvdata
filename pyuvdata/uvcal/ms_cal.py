@@ -130,8 +130,6 @@ class MSCal(UVCal):
             if keyword in main_keywords:
                 self.extra_keywords[keyword] = main_keywords[keyword]
 
-        # tb_field = tables.table(filepath + "/FIELD", ack=False)
-
         # open table with antenna location information
         ant_info = ms_utils.read_ms_antenna(filepath)
         obs_info = ms_utils.read_ms_observation(filepath)
@@ -139,6 +137,7 @@ class MSCal(UVCal):
         self.observer = obs_info["observer"]
         self.telescope_name = obs_info["telescope_name"]
         self._telescope_location.frame = ant_info["telescope_frame"]
+        self._telescope_location.ellipsoid = ant_info["telescope_ellipsoid"]
 
         # check to see if a TELESCOPE_LOCATION column is present in the observation
         # table. This is non-standard, but inserted by pyuvdata
