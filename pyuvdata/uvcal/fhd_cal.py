@@ -142,6 +142,7 @@ class FHDCal(UVCal):
             cat_lat=np.deg2rad(float(obs_data["OBSDEC"][0])),
             cat_frame=astrometry["RADECSYS"][0].decode().lower(),
             cat_epoch=astrometry["EQUINOX"][0],
+            info_source="file",
         )
         self.phase_center_id_array = np.zeros(self.Ntimes, dtype=int) + cat_id
 
