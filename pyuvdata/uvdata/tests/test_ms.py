@@ -21,8 +21,6 @@ from ..uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
 
-allowed_failures = "filename"
-
 
 def is_within_directory(directory, target):
     abs_directory = os.path.abspath(directory)
@@ -45,7 +43,12 @@ def check_members(tar, path):
 def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
     # this is factored this way (splitting out the `check_members` function)
     # to appease bandit.
-    tar.extractall(path, members=check_members(tar, path), numeric_owner=numeric_owner)
+    tar.extractall(
+        path,
+        members=check_members(tar, path),
+        numeric_owner=numeric_owner,
+        filter="data",
+    )
 
 
 @pytest.fixture(scope="session")
@@ -86,7 +89,7 @@ def nrao_uv_legacy():
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
-@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_names")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_cotter_ms():
     """Test reading in an ms made from MWA data with cotter (no dysco compression)"""
     uvobj = UVData()
@@ -100,10 +103,7 @@ def test_cotter_ms():
         [UserWarning] * 3 + [DeprecationWarning],
         match=[
             "Warning: select on read keyword set",
-            (
-                "telescope_location are not set or are being overwritten. Using known "
-                "values for MWA."
-            ),
+            "Setting telescope_location to value in known_telescopes for MWA.",
             "UVW orientation appears to be flipped,",
             _future_array_shapes_warning,
         ],
@@ -125,8 +125,8 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
         pytest.importorskip("lunarsky")
         enu_antpos, _ = uvobj.get_ENU_antpos()
         latitude, longitude, altitude = uvobj.telescope_location_lat_lon_alt
-        uvobj._telescope_location.frame = "mcmf"
-        uvobj._telescope_location.ellipsoid = selenoid
+        uvobj.telescope._location.frame = "mcmf"
+        uvobj.telescope._location.ellipsoid = selenoid
         uvobj.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -164,7 +164,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
     assert uvobj2.filename == ["ms_testfile.ms"]
     uvobj.filename = uvobj2.filename
 
-    assert uvobj._telescope_location.frame == uvobj2._telescope_location.frame
+    assert uvobj.telescope._location.frame == uvobj2.telescope._location.frame
 
     # Test that the scan numbers are equal
     assert (uvobj.scan_number_array == uvobj2.scan_number_array).all()
@@ -207,7 +207,7 @@ def test_read_lwa(tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:telescope_location are not set")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_no_spw():
     """Test reading in a PAPER ms converted by CASA from a uvfits with no spw axis."""
     uvobj = UVData()
@@ -218,7 +218,7 @@ def test_no_spw():
 
 @pytest.mark.filterwarnings("ignore:Coordinate reference frame not detected,")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped,")
-@pytest.mark.filterwarnings("ignore:telescope_location are not set")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 def test_extra_pol_setup(tmp_path):
     """Test reading in an ms file with extra polarization setups (not used in data)."""
     uvobj = UVData()
@@ -239,7 +239,6 @@ def test_extra_pol_setup(tmp_path):
     shutil.rmtree(new_filename)
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
 def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
@@ -280,7 +279,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
 
     # they are equal if only required parameters are checked:
     # scan numbers only defined for the MS
-    assert uvfits_uv.__eq__(ms_uv, check_extra=False, allowed_failures=allowed_failures)
+    assert uvfits_uv.__eq__(ms_uv, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
     ms_uv.antenna_diameters = None
@@ -307,7 +306,6 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     assert uvfits_uv == ms_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     """
@@ -343,7 +341,6 @@ def test_read_ms_write_uvfits(nrao_uv, tmp_path):
     assert uvfits_uv == ms_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_ms_write_miriad(nrao_uv, tmp_path):
     """
@@ -379,7 +376,6 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     assert miriad_uv == ms_uv
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:The older phase attributes")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
@@ -459,7 +455,7 @@ def test_multi_files(casa_uvfits, axis, tmp_path):
     uv_multi.filename = uv_full.filename
     uv_multi._filename.form = (1,)
 
-    assert uv_multi.__eq__(uv_full, allowed_failures=allowed_failures)
+    assert uv_multi == uv_full
     del uv_full
     del uv_multi
 
@@ -924,7 +920,7 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     uv_obj2._consolidate_phase_center_catalogs(
         reference_catalog=uv_obj.phase_center_catalog
     )
-    assert uv_obj2.__eq__(uv_obj, allowed_failures=allowed_failures)
+    assert uv_obj2 == uv_obj
 
 
 def test_no_source(sma_mir, tmp_path):
@@ -942,7 +938,7 @@ def test_no_source(sma_mir, tmp_path):
     assert uv == uv2
 
 
-@pytest.mark.filterwarnings("ignore:Nants_telescope, antenna_names")
+@pytest.mark.filterwarnings("ignore:Setting telescope_location to value")
 @pytest.mark.filterwarnings("ignore:UVW orientation appears to be flipped")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_timescale_handling():
@@ -998,7 +994,6 @@ def test_ms_bad_history(sma_mir, tmp_path):
     assert sma_mir.history in sma_ms.history
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_flip_conj(nrao_uv, tmp_path):
     filename = os.path.join(tmp_path, "flip_conj.ms")

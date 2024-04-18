@@ -58,16 +58,10 @@ def uvdata_props():
         "spw_array",
         "integration_time",
         "channel_width",
-        "telescope_name",
-        "instrument",
-        "telescope_location",
+        "telescope",
         "history",
         "vis_units",
         "Nants_data",
-        "Nants_telescope",
-        "antenna_names",
-        "antenna_numbers",
-        "antenna_positions",
         "flex_spw",
         "phase_center_app_ra",
         "phase_center_app_dec",
@@ -81,8 +75,6 @@ def uvdata_props():
 
     extra_properties = [
         "extra_keywords",
-        "x_orientation",
-        "antenna_diameters",
         "blt_order",
         "gst0",
         "rdate",
@@ -101,7 +93,16 @@ def uvdata_props():
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
-    other_properties = [
+    other_attributes = [
+        "telescope_name",
+        "telescope_location",
+        "instrument",
+        "Nants_telescope",
+        "antenna_names",
+        "antenna_nubers",
+        "antenna_positions",
+        "x_orientation",
+        "antenna_diameters",
         "telescope_location_lat_lon_alt",
         "telescope_location_lat_lon_alt_degrees",
         "phase_center_ra_degrees",
@@ -119,7 +120,7 @@ def uvdata_props():
             "required_properties",
             "extra_parameters",
             "extra_properties",
-            "other_properties",
+            "other_attributes",
         ],
     )
 
@@ -129,7 +130,7 @@ def uvdata_props():
         required_properties,
         extra_parameters,
         extra_properties,
-        other_properties,
+        other_attributes,
     )
     # yields the data we need but will continue to the del call after tests
     yield uvdata_props
@@ -269,11 +270,7 @@ def bda_test_file_main():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
     with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Unknown phase types are no longer supported",
-            "Telescope mock-HERA is not in known_telescopes",
-        ],
+        UserWarning, match="Unknown phase types are no longer supported"
     ):
         uv_object.read(testfile, use_future_array_shapes=True)
 
@@ -459,7 +456,7 @@ def test_unexpected_attributes(uvdata_props):
     expected_attributes = (
         uvdata_props.required_properties
         + uvdata_props.extra_properties
-        + uvdata_props.other_properties
+        + uvdata_props.other_attributes
     )
     attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] != "_"]
     for a in attributes:
@@ -894,8 +891,8 @@ def test_hera_diameters(paper_uvh5):
     with uvtest.check_warnings(
         UserWarning,
         match=(
-            "antenna_diameters are not set or are being overwritten. Using known "
-            "values for HERA."
+            "antenna_diameters are not set or are being overwritten. "
+            "antenna_diameters are set using values from known telescopes for HERA."
         ),
     ):
         uv_in.set_telescope_params()
@@ -2179,12 +2176,11 @@ def test_select_lsts_too_big(casa_uvfits, tmp_path):
         UserWarning,
         match=warn_msg
         + [
-            "Telescope EVLA is not in known_telescopes.",
             (
                 "The lst_array is not self-consistent with the time_array and telescope"
                 " location. Consider recomputing with the `set_lsts_from_time_array`"
                 " method"
-            ),
+            )
         ],
     ):
         UVData.from_file(test_filename, use_future_array_shapes=True)
@@ -2227,11 +2223,7 @@ def test_select_lst_range(casa_uvfits, tmp_path):
     uv_object.write_uvh5(testfile)
 
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Telescope EVLA is not in known_telescopes",
-            "The uvw_array does not match the expected values",
-        ],
+        UserWarning, "The uvw_array does not match the expected values"
     ):
         uv2_in = UVData.from_file(
             testfile, lst_range=lst_range, use_future_array_shapes=True
@@ -3560,17 +3552,17 @@ def test_sum_vis(casa_uvfits, future_shapes):
 
     # check override_params
     uv_overrides = uv_full.copy()
-    uv_overrides.instrument = "test_telescope"
+    uv_overrides.timesys = "foo"
     uv_overrides.telescope_location = [
         -1601183.15377712,
         -5042003.74810822,
         3554841.17192104,
     ]
     uv_overrides_2 = uv_overrides.sum_vis(
-        uv_full, override_params=["instrument", "telescope_location"]
+        uv_full, override_params=["timesys", "telescope"]
     )
 
-    assert uv_overrides_2.instrument == "test_telescope"
+    assert uv_overrides_2.timesys == "foo"
     assert uv_overrides_2.telescope_location == [
         -1601183.15377712,
         -5042003.74810822,
@@ -3587,7 +3579,7 @@ def test_sum_vis(casa_uvfits, future_shapes):
         [["use_current_array_shapes"], {}, {}, "Both objects must have the same `futu"],
         [[], {}, {"override": ["fake"]}, "Provided parameter fake is not a recogniza"],
         [[], {"__class__": UVCal}, {}, "Only UVData (or subclass) objects can be"],
-        [[], {"instrument": "foo"}, {"inplace": True}, "UVParameter instrument does"],
+        [[], {"timesys": "foo"}, {"inplace": True}, "UVParameter timesys does"],
     ],
 )
 def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
@@ -5376,19 +5368,18 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     fname = str(tmp_path / "test.uvh5")
     uv.write_uvh5(fname, run_check=False, check_extra=False, clobber=True)
 
-    # try to read file without checks (passing is implicit)
+    # try to read file without checks, should be no warnings
     uv.read(fname, run_check=False, use_future_array_shapes=True)
 
-    # try to read without checks: assert it fails
+    # try to read without checks: should be warnings
     with uvtest.check_warnings(
         UserWarning,
-        [
-            "The uvw_array does not match the expected",
-            (
-                "itrs position vector magnitudes must be on the order "
-                "of the radius of Earth -- they appear to lie well below this."
-            ),
-        ],
+        match=["The uvw_array does not match the expected"]
+        + [
+            "itrs position vector magnitudes must be on the order "
+            "of the radius of Earth -- they appear to lie well below this."
+        ]
+        * 3,
     ):
         uv.read(fname, use_future_array_shapes=True)
 
@@ -8589,7 +8580,6 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported,")
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("driftscan", [True, False])
@@ -8658,7 +8648,6 @@ def test_resample_in_time(bda_test_file, future_shapes, driftscan, partial_phase
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_downsample_only(bda_test_file):
     """Test resample_in_time with downsampling only"""
@@ -8711,7 +8700,6 @@ def test_resample_in_time_downsample_only(bda_test_file):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_only_upsample(bda_test_file):
     """Test resample_in_time with only upsampling"""
@@ -8760,7 +8748,6 @@ def test_resample_in_time_only_upsample(bda_test_file):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 def test_resample_in_time_partial_flags(bda_test_file):
     """Test resample_in_time with partial flags"""
@@ -9904,7 +9891,6 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_background_lsts():
     """Test reading a file with the lst calc in the background."""
@@ -11495,7 +11481,6 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
 
 
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 def test_eq_allowed_failures(bda_test_file, capsys):
     """
     Test that the allowed_failures keyword on the __eq__ method works as intended.
@@ -11504,15 +11489,14 @@ def test_eq_allowed_failures(bda_test_file, capsys):
     uv2 = uv1.copy()
 
     # adjust optional parameters to be different
-    uv1.x_orientation = "NORTH"
-    uv2.x_orientation = "EAST"
-    assert uv1.__eq__(uv2, check_extra=True, allowed_failures=["x_orientation"])
+    uv1.extra_keywords = {"foo": 2}
+    uv2.extra_keywords = {"foo": 4}
+    assert uv1.__eq__(uv2, check_extra=True, allowed_failures=["extra_keywords"])
     captured = capsys.readouterr()
     assert (
-        captured.out
-        == "x_orientation parameter value is a string, values are different\n"
-        "parameter _x_orientation does not match, but is not required to for equality. "
-        "Left is NORTH, right is EAST.\n"
+        captured.out == "extra_keywords parameter is a dict, key foo is not equal\n"
+        "parameter _extra_keywords does not match, but is not required to for "
+        "equality. Left is {'foo': 2}, right is {'foo': 4}.\n"
     )
 
     # make sure that objects are not equal without specifying allowed_failures
@@ -11522,7 +11506,6 @@ def test_eq_allowed_failures(bda_test_file, capsys):
 
 
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 def test_eq_allowed_failures_filename(bda_test_file, capsys):
     """
     Test that the `filename` parameter does not trip up the __eq__ method.
@@ -11545,7 +11528,6 @@ def test_eq_allowed_failures_filename(bda_test_file, capsys):
 
 
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported")
-@pytest.mark.filterwarnings("ignore:Telescope mock-HERA is not in known_telescopes")
 def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
     """
     Try passing a string to the __eq__ method instead of an iterable.
@@ -11590,7 +11572,6 @@ def test_set_data(hera_uvh5, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes")
 @pytest.mark.parametrize("future_shapes", [True, False])
 def test_set_data_evla(future_shapes):
     """
@@ -12446,7 +12427,6 @@ def test_normalize_by_autos_flag_noautos(hera_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes")
 @pytest.mark.parametrize("multi_phase", [True, False])
 def test_split_write_comb_read(tmp_path, multi_phase):
     """Pulled from a failed tutorial example."""

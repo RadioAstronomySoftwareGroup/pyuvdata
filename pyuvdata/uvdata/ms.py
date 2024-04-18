@@ -14,7 +14,7 @@ import numpy as np
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import ms_utils
+from .. import Telescope, ms_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
@@ -969,10 +969,17 @@ class MS(UVData):
             and self.telescope_name in self.known_telescopes()
         ):
             # get it from known telescopes
-            self.set_telescope_params()
+            telescope_obj = Telescope.get_telescope_from_known_telescopes(
+                self.telescope_name
+            )
+            warnings.warn(
+                "Setting telescope_location to value in known_telescopes for "
+                f"{self.telescope_name}."
+            )
+            self.telescope_location = telescope_obj.location
         else:
-            self._telescope_location.frame = xyz_telescope_frame
-            self._telescope_location.ellipsoid = xyz_telescope_ellipsoid
+            self.telescope._location.frame = xyz_telescope_frame
+            self.telescope._location.ellipsoid = xyz_telescope_ellipsoid
 
             if "telescope_location" in obs_dict:
                 self.telescope_location = np.squeeze(obs_dict["telescope_location"])

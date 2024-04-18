@@ -70,8 +70,8 @@ class UVFITS(UVData):
                 longitude=longitude,
                 altitude=altitude,
                 lst_tols=(0, uvutils.LST_RAD_TOL),
-                frame=self._telescope_location.frame,
-                ellipsoid=self._telescope_location.ellipsoid,
+                frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
 
         else:
@@ -570,7 +570,7 @@ class UVFITS(UVData):
             if "FRAME" in ant_hdu.header.keys():
                 if ant_hdu.header["FRAME"] == "ITRF":
                     # uvfits uses ITRF, astropy uses itrs. They are the same.
-                    self._telescope_location.frame = "itrs"
+                    self.telescope._location.frame = "itrs"
                 elif ant_hdu.header["FRAME"] == "????":
                     # default to itrs, but use the lat/lon/alt to set the location
                     # if they are available.
@@ -580,7 +580,7 @@ class UVFITS(UVData):
                         "may lead to other warnings or errors."
                     )
                     prefer_lat_lon_alt = True
-                    self._telescope_location.frame = "itrs"
+                    self.telescope._location.frame = "itrs"
                 else:
                     telescope_frame = ant_hdu.header["FRAME"].lower()
                     if telescope_frame not in ["itrs", "mcmf"]:
@@ -588,19 +588,19 @@ class UVFITS(UVData):
                             f"Telescope frame in file is {telescope_frame}. "
                             "Only 'itrs' and 'mcmf' are currently supported."
                         )
-                    self._telescope_location.frame = telescope_frame
+                    self.telescope._location.frame = telescope_frame
                     if (
                         telescope_frame != "itrs"
                         and "ELLIPSOI" in ant_hdu.header.keys()
                     ):
-                        self._telescope_location.ellipsoid = ant_hdu.header["ELLIPSOI"]
+                        self.telescope._location.ellipsoid = ant_hdu.header["ELLIPSOI"]
 
             else:
                 warnings.warn(
                     "Required Antenna keyword 'FRAME' not set; "
                     "Assuming frame is 'ITRF'."
                 )
-                self._telescope_location.frame = "itrs"
+                self.telescope._location.frame = "itrs"
 
             # get telescope location and antenna positions.
             # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
@@ -627,8 +627,8 @@ class UVFITS(UVData):
                 rot_ecef_positions = ant_hdu.data.field("STABXYZ")
                 _, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
-                    frame=self._telescope_location.frame,
-                    ellipsoid=self._telescope_location.ellipsoid,
+                    frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                     check_acceptability=run_check_acceptability,
                 )
                 self.antenna_positions = uvutils.ECEF_from_rotECEF(
@@ -682,7 +682,11 @@ class UVFITS(UVData):
                 self.antenna_diameters = ant_hdu.data.field("DIAMETER")
 
             try:
-                self.set_telescope_params()
+                self.set_telescope_params(
+                    run_check=run_check,
+                    check_extra=check_extra,
+                    run_check_acceptability=run_check_acceptability,
+                )
             except ValueError as ve:
                 warnings.warn(str(ve))
 
@@ -1334,13 +1338,13 @@ class UVFITS(UVData):
         ant_hdu.header["ARRAYX"] = self.telescope_location[0]
         ant_hdu.header["ARRAYY"] = self.telescope_location[1]
         ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
-        if self._telescope_location.frame == "itrs":
+        if self.telescope._location.frame == "itrs":
             # uvfits uses "ITRF" rather than "ITRS". They are the same thing.
             ant_hdu.header["FRAME"] = "ITRF"
         else:
-            ant_hdu.header["FRAME"] = self._telescope_location.frame.upper()
+            ant_hdu.header["FRAME"] = self.telescope._location.frame.upper()
             # use ELLIPSOI because of FITS 8 character limit for header items
-            ant_hdu.header["ELLIPSOI"] = self._telescope_location.ellipsoid
+            ant_hdu.header["ELLIPSOI"] = self.telescope._location.ellipsoid
 
         # TODO Karto: Do this more intelligently in the future
         if self.future_array_shapes:

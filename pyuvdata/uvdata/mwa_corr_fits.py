@@ -19,8 +19,7 @@ from scipy.special import erf
 
 from pyuvdata.data import DATA_PATH
 
-from .. import _corr_fits
-from .. import telescopes as uvtel
+from .. import Telescope, _corr_fits
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning
@@ -73,20 +72,18 @@ def read_metafits(
         antenna_positions[:, 1] = meta_tbl["North"][1::2]
         antenna_positions[:, 2] = meta_tbl["Height"][1::2]
 
-        mwa_telescope_obj = uvtel.get_telescope("mwa")
+        mwa_telescope_obj = Telescope.get_telescope_from_known_telescopes("mwa")
 
         # convert antenna positions from enu to ecef
         # antenna positions are "relative to
         # the centre of the array in local topocentric \"east\", \"north\",
         # \"height\". Units are meters."
-        latitude, longitude, altitude = mwa_telescope_obj.telescope_location_lat_lon_alt
+        latitude, longitude, altitude = mwa_telescope_obj.location_lat_lon_alt
         antenna_positions_ecef = uvutils.ECEF_from_ENU(
             antenna_positions, latitude=latitude, longitude=longitude, altitude=altitude
         )
         # make antenna positions relative to telescope location
-        antenna_positions = (
-            antenna_positions_ecef - mwa_telescope_obj.telescope_location
-        )
+        antenna_positions = antenna_positions_ecef - mwa_telescope_obj.location
 
         # reorder antenna parameters from metafits ordering
         reordered_inds = antenna_inds.argsort()
@@ -99,7 +96,7 @@ def read_metafits(
         if telescope_info_only:
             return {
                 "telescope_name": telescope_name,
-                "telescope_location": mwa_telescope_obj.telescope_location,
+                "telescope_location": mwa_telescope_obj.location,
                 "instrument": instrument,
                 "antenna_numbers": antenna_numbers,
                 "antenna_names": antenna_names,
@@ -198,7 +195,7 @@ def read_metafits(
 
     meta_dict = {
         "telescope_name": telescope_name,
-        "telescope_location": mwa_telescope_obj.telescope_location,
+        "telescope_location": mwa_telescope_obj.location,
         "instrument": instrument,
         "antenna_inds": antenna_inds,
         "antenna_numbers": antenna_numbers,
