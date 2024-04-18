@@ -15,7 +15,7 @@ from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import telescopes as uvtel
+from .. import Telescope
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
@@ -296,46 +296,43 @@ class Miriad(UVData):
         except KeyError:
             # get info from known telescopes.
             # Check to make sure the lat/lon values match reasonably well
-            telescope_obj = uvtel.get_telescope(self.telescope_name)
-            if telescope_obj is not False:
+            try:
+                telescope_obj = Telescope.get_telescope_from_known_telescopes(
+                    self.telescope_name
+                )
+            except ValueError:
+                telescope_obj = None
+            if telescope_obj is not None:
                 tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
                 lat_close = np.isclose(
-                    telescope_obj.telescope_location_lat_lon_alt[0],
-                    latitude,
-                    rtol=0,
-                    atol=tol,
+                    telescope_obj.location_lat_lon_alt[0], latitude, rtol=0, atol=tol
                 )
                 lon_close = np.isclose(
-                    telescope_obj.telescope_location_lat_lon_alt[1],
-                    longitude,
-                    rtol=0,
-                    atol=tol,
+                    telescope_obj.location_lat_lon_alt[1], longitude, rtol=0, atol=tol
                 )
                 if correct_lat_lon:
                     self.telescope_location_lat_lon_alt = (
-                        telescope_obj.telescope_location_lat_lon_alt
+                        telescope_obj.location_lat_lon_alt
                     )
                 else:
                     self.telescope_location_lat_lon_alt = (
                         latitude,
                         longitude,
-                        telescope_obj.telescope_location_lat_lon_alt[2],
+                        telescope_obj.location_lat_lon_alt[2],
                     )
                 if lat_close and lon_close:
                     if correct_lat_lon:
                         warnings.warn(
                             "Altitude is not present in Miriad file, "
                             "using known location values for "
-                            "{telescope_name}.".format(
-                                telescope_name=telescope_obj.telescope_name
-                            )
+                            f"{telescope_obj.name}."
                         )
                     else:
                         warnings.warn(
                             "Altitude is not present in Miriad file, "
                             "using known location altitude value "
-                            "for {telescope_name} and lat/lon from "
-                            "file.".format(telescope_name=telescope_obj.telescope_name)
+                            f"for {telescope_obj.name} and lat/lon from "
+                            "file."
                         )
                 else:
                     warn_string = "Altitude is not present in file "
@@ -356,29 +353,23 @@ class Miriad(UVData):
                             )
                     if correct_lat_lon:
                         warn_string = (
-                            warn_string + "for {telescope_name} in known "
-                            "telescopes. Using values from known "
-                            "telescopes.".format(
-                                telescope_name=telescope_obj.telescope_name
-                            )
+                            warn_string + f"for {telescope_obj.name} in known "
+                            "telescopes. Using values from known telescopes."
                         )
                         warnings.warn(warn_string)
                     else:
                         warn_string = (
-                            warn_string + "for {telescope_name} in known "
+                            warn_string + f"for {telescope_obj.name} in known "
                             "telescopes. Using altitude value from known "
-                            "telescopes and lat/lon from "
-                            "file.".format(telescope_name=telescope_obj.telescope_name)
+                            "telescopes and lat/lon from file."
                         )
                         warnings.warn(warn_string)
             else:
                 warnings.warn(
                     "Altitude is not present in Miriad file, and "
-                    "telescope {telescope_name} is not in "
+                    f"telescope {self.telescope_name} is not in "
                     "known_telescopes. Telescope location will be "
-                    "set using antenna positions.".format(
-                        telescope_name=self.telescope_name
-                    )
+                    "set using antenna positions."
                 )
 
     def _load_antpos(self, uv, *, sorted_unique_ants=None, correct_lat_lon=True):
@@ -459,7 +450,7 @@ class Miriad(UVData):
                 self.telescope_location = np.mean(ecef_antpos[good_antpos, :], axis=0)
                 valid_location = uvutils.check_surface_based_positions(
                     telescope_loc=self.telescope_location,
-                    telescope_frame=self._telescope_location.frame,
+                    telescope_frame=self.telescope._location.frame,
                     raise_error=False,
                     raise_warning=False,
                 )
@@ -1580,7 +1571,11 @@ class Miriad(UVData):
             # in.
             self._set_app_coords_helper(pa_only=record_app)
         try:
-            self.set_telescope_params()
+            self.set_telescope_params(
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
         except ValueError as ve:
             warnings.warn(str(ve))
 
@@ -1680,7 +1675,7 @@ class Miriad(UVData):
         """
         from . import aipy_extracts
 
-        if self._telescope_location.frame != "itrs":
+        if self.telescope._location.frame != "itrs":
             raise ValueError(
                 "Only ITRS telescope locations are supported in Miriad files."
             )

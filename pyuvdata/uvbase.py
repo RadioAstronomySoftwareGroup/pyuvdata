@@ -331,11 +331,20 @@ class UVBase(object):
             Object attributes, exclusively UVParameter objects if uvparams_only is True.
 
         """
-        attribute_list = [
-            a
-            for a in dir(self)
-            if not a.startswith("__") and not callable(getattr(self, a))
-        ]
+        if uvparams_only:
+            attribute_list = [
+                a
+                for a in dir(self)
+                if a.startswith("_")
+                and not a.startswith("__")
+                and not callable(getattr(self, a))
+            ]
+        else:
+            attribute_list = [
+                a
+                for a in dir(self)
+                if not a.startswith("__") and not callable(getattr(self, a))
+            ]
         param_list = []
         for a in attribute_list:
             if uvparams_only:
@@ -360,7 +369,9 @@ class UVBase(object):
         attribute_list = [
             a
             for a in dir(self)
-            if not a.startswith("__") and not callable(getattr(self, a))
+            if a.startswith("_")
+            and not a.startswith("__")
+            and not callable(getattr(self, a))
         ]
         required_list = []
         for a in attribute_list:
@@ -427,14 +438,18 @@ class UVBase(object):
         """
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
+            if hasattr(self, "metadata_only"):
+                self.metadata_only
+                other.metadata_only
+
             self_required = set(self.required())
             other_required = set(other.required())
             if self_required != other_required:
                 if not silent:
                     print(
-                        "Sets of required parameters do not match. "
-                        f"Left is {self_required},"
-                        f" right is {other_required}. Left has "
+                        "Sets of required parameters do not match. \n"
+                        f"Left is {self_required},\n"
+                        f" right is {other_required}.\n\n Left has "
                         f"{self_required.difference(other_required)} extra."
                         f" Right has {other_required.difference(self_required)} extra."
                     )
@@ -479,12 +494,20 @@ class UVBase(object):
                 self_param = getattr(self, param)
                 other_param = getattr(other, param)
                 if self_param.__ne__(other_param, silent=silent):
-                    if not silent:
-                        print(
-                            f"parameter {param} does not match. Left is "
-                            f"{self_param.value}, right is {other_param.value}."
-                        )
-                    p_equal = False
+                    if isinstance(self_param.value, UVBase):
+                        if self_param.value.__ne__(
+                            other_param.value, check_extra=check_extra, silent=silent
+                        ):
+                            if not silent:
+                                print(f"parameter {param} does not match.")
+                            p_equal = False
+                    else:
+                        if not silent:
+                            print(
+                                f"parameter {param} does not match. Left is "
+                                f"{self_param.value}, right is {other_param.value}."
+                            )
+                        p_equal = False
 
             if allowed_failures is not None:
                 for param in allowed_failures:
