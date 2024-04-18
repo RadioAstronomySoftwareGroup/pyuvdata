@@ -21,8 +21,8 @@ from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
 
+from .. import Telescope, known_telescopes
 from .. import parameter as uvp
-from .. import telescopes as uvtel
 from .. import utils as uvutils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
@@ -361,33 +361,6 @@ class UVData(UVBase):
             "channel_width", description=desc, expected_type=float, tols=1e-3
         )  # 1 mHz
 
-        self._telescope_name = uvp.UVParameter(
-            "telescope_name",
-            description="Name of telescope or array (string).",
-            form="str",
-            expected_type=str,
-        )
-
-        self._instrument = uvp.UVParameter(
-            "instrument",
-            description="Receiver or backend. Sometimes identical to telescope_name.",
-            form="str",
-            expected_type=str,
-        )
-
-        desc = (
-            "Telescope location: xyz position in specified frame (default ITRS). "
-            "Can also be accessed using telescope_location_lat_lon_alt or "
-            "telescope_location_lat_lon_alt_degrees properties."
-        )
-        self._telescope_location = uvp.LocationParameter(
-            "telescope_location",
-            description=desc,
-            frame="itrs",
-            ellipsoid=None,
-            tols=1e-3,
-        )
-
         self._history = uvp.UVParameter(
             "history",
             description="String of history, units English.",
@@ -562,71 +535,13 @@ class UVData(UVBase):
             "Nants_data", description=desc, expected_type=int
         )
 
-        desc = (
-            "Number of antennas in the array. May be larger "
-            "than the number of antennas with data."
-        )
-        self._Nants_telescope = uvp.UVParameter(
-            "Nants_telescope", description=desc, expected_type=int
-        )
-
-        desc = (
-            "List of antenna names, shape (Nants_telescope), "
-            "with numbers given by antenna_numbers (which can be matched "
-            "to ant_1_array and ant_2_array). There must be one entry "
-            "here for each unique entry in ant_1_array and "
-            "ant_2_array, but there may be extras as well. "
-        )
-        self._antenna_names = uvp.UVParameter(
-            "antenna_names",
-            description=desc,
-            form=("Nants_telescope",),
-            expected_type=str,
-        )
-
-        desc = (
-            "List of integer antenna numbers corresponding to antenna_names, "
-            "shape (Nants_telescope). There must be one "
-            "entry here for each unique entry in ant_1_array and "
-            "ant_2_array, but there may be extras as well."
-            "Note that these are not indices -- they do not need to start "
-            "at zero or be continuous."
-        )
-        self._antenna_numbers = uvp.UVParameter(
-            "antenna_numbers",
-            description=desc,
-            form=("Nants_telescope",),
-            expected_type=int,
-        )
-
-        desc = (
-            "Array giving coordinates of antennas relative to telescope_location "
-            "(in frame _telescope_location.frame), shape (Nants_telescope, 3), units "
-            "meters. See the UVData tutorial page in the documentation for an example "
-            "of how to convert this to topocentric frame."
-        )
-        self._antenna_positions = uvp.UVParameter(
-            "antenna_positions",
-            description=desc,
-            form=("Nants_telescope", 3),
-            expected_type=float,
-            tols=1e-3,  # 1 mm
+        self._telescope = uvp.UVParameter(
+            "telescope",
+            description="Telescope object containing the telescope metadata.",
+            expected_type=Telescope,
         )
 
         # -------- extra, non-required parameters ----------
-        desc = (
-            "Orientation of the physical dipole corresponding to what is "
-            "labelled as the x polarization. Options are 'east' "
-            "(indicating east/west orientation) and 'north (indicating "
-            "north/south orientation)."
-        )
-        self._x_orientation = uvp.UVParameter(
-            "x_orientation",
-            description=desc,
-            required=False,
-            expected_type=str,
-            acceptable_vals=["east", "north"],
-        )
 
         blt_order_options = ["time", "baseline", "ant1", "ant2", "bda"]
         desc = (
@@ -684,19 +599,6 @@ class UVData(UVBase):
             value={},
             spoof_val={},
             expected_type=dict,
-        )
-
-        desc = (
-            "Array of antenna diameters in meters. Used by CASA to "
-            "construct a default beam if no beam is supplied."
-        )
-        self._antenna_diameters = uvp.UVParameter(
-            "antenna_diameters",
-            required=False,
-            description=desc,
-            form=("Nants_telescope",),
-            expected_type=float,
-            tols=1e-3,  # 1 mm
         )
 
         # --- other stuff ---
@@ -777,7 +679,139 @@ class UVData(UVBase):
         self.__antpair2ind_cache = {}
         self.__key2ind_cache = {}
 
+        # initialize the telescope object
+        self.telescope = Telescope()
+
+        # set the appropriate telescope attributes as required
+        self.telescope._instrument.required = True
+        self.telescope._Nants.required = True
+        self.telescope._antenna_names.required = True
+        self.telescope._antenna_numbers.required = True
+        self.telescope._antenna_positions.required = True
+
         super(UVData, self).__init__()
+
+    @property
+    def telescope_name(self):
+        """The telescope name (stored on the Telescope object internally)."""
+        return self.telescope.name
+
+    @telescope_name.setter
+    def telescope_name(self, val):
+        self.telescope.name = val
+
+    @property
+    def instrument(self):
+        """The instrument name (stored on the Telescope object internally)."""
+        return self.telescope.instrument
+
+    @instrument.setter
+    def instrument(self, val):
+        self.telescope.instrument = val
+
+    @property
+    def telescope_location(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location
+
+    @telescope_location.setter
+    def telescope_location(self, val):
+        self.telescope.location = val
+
+    @property
+    def telescope_location_lat_lon_alt(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location_lat_lon_alt
+
+    @telescope_location_lat_lon_alt.setter
+    def telescope_location_lat_lon_alt(self, val):
+        self.telescope.location_lat_lon_alt = val
+
+    @property
+    def telescope_location_lat_lon_alt_degrees(self):
+        """The telescope location (stored on the Telescope object internally)."""
+        return self.telescope.location_lat_lon_alt_degrees
+
+    @telescope_location_lat_lon_alt_degrees.setter
+    def telescope_location_lat_lon_alt_degrees(self, val):
+        self.telescope.location_lat_lon_alt_degrees = val
+
+    @property
+    def Nants_telescope(self):
+        """
+        The number of antennas in the telescope.
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.Nants
+
+    @Nants_telescope.setter
+    def Nants_telescope(self, val):
+        self.telescope.Nants = val
+
+    @property
+    def antenna_names(self):
+        """The antenna names, shape (Nants_telescope,).
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_names
+
+    @antenna_names.setter
+    def antenna_names(self, val):
+        self.telescope.antenna_names = val
+
+    @property
+    def antenna_numbers(self):
+        """The antenna numbers corresponding to antenna_names, shape (Nants_telescope,).
+
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_numbers
+
+    @antenna_numbers.setter
+    def antenna_numbers(self, val):
+        self.telescope.antenna_numbers = val
+
+    @property
+    def antenna_positions(self):
+        """The antenna positions coordinates of antennas relative to telescope_location.
+
+        The coordinates are in the ITRF frame, shape (Nants_telescope, 3).
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_positions
+
+    @antenna_positions.setter
+    def antenna_positions(self, val):
+        self.telescope.antenna_positions = val
+
+    @property
+    def x_orientation(self):
+        """Orientation of the physical dipole corresponding to the x label.
+
+        Options are 'east' (indicating east/west orientation) and 'north (indicating
+        north/south orientation).
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.x_orientation
+
+    @x_orientation.setter
+    def x_orientation(self, val):
+        self.telescope.x_orientation = val
+
+    @property
+    def antenna_diameters(self):
+        """The antenna diameters in meters.
+
+        Used by CASA to construct a default beam if no beam is supplied.
+        This property is stored on the Telescope object internally.
+        """
+        return self.telescope.antenna_diameters
+
+    @antenna_diameters.setter
+    def antenna_diameters(self, val):
+        self.telescope.antenna_diameters = val
 
     @staticmethod
     def _clear_antpair2ind_cache(obj):
@@ -1770,15 +1804,23 @@ class UVData(UVBase):
         list of str
             List of names of known telescopes
         """
-        return uvtel.known_telescopes()
+        return known_telescopes()
 
-    def set_telescope_params(self, *, overwrite=False, warn=True):
+    def set_telescope_params(
+        self,
+        *,
+        overwrite=False,
+        warn=True,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
         """
         Set telescope related parameters.
 
-        If the telescope_name is in the known_telescopes, set any missing
-        telescope-associated parameters (e.g. telescope location) to the value
-        for the known telescope.
+        If the telescope_name is in astropy sites or known_telescopes, set any
+        missing telescope parameters (e.g. telescope location, antenna information)
+        to the value(s) from astropy sites or known telescopes.
 
         Parameters
         ----------
@@ -1789,64 +1831,15 @@ class UVData(UVBase):
         Raises
         ------
         ValueError
-            if the telescope_name is not in known telescopes
+            If the telescope_name is not in astropy sites or known telescopes.
         """
-        telescope_obj = uvtel.get_telescope(self.telescope_name)
-        if telescope_obj is not False:
-            params_set = []
-            for p in telescope_obj:
-                telescope_param = getattr(telescope_obj, p)
-                self_param = getattr(self, p)
-                if telescope_param.value is not None and (
-                    overwrite is True or self_param.value is None
-                ):
-                    telescope_shape = telescope_param.expected_shape(telescope_obj)
-                    self_shape = self_param.expected_shape(self)
-                    if telescope_shape == self_shape:
-                        params_set.append(self_param.name)
-                        prop_name = self_param.name
-                        setattr(self, prop_name, getattr(telescope_obj, prop_name))
-                    else:
-                        # expected shapes aren't equal. This can happen
-                        # e.g. with diameters,
-                        # which is a single value on the telescope object but is
-                        # an array of length Nants_telescope on the UVData object
-
-                        # use an assert here because we want an error if this condition
-                        # isn't true, but it's really an internal consistency check.
-                        # This will error if there are changes to the Telescope
-                        # object definition, but nothing that a normal user
-                        # does will cause an error
-                        assert telescope_shape == () and self_shape != "str", (
-                            "There is a mismatch in one or more array sizes of the "
-                            "UVData and telescope objects. This should not happen, "
-                            "if you see this error please make an issue in the "
-                            "pyuvdata issue log."
-                        )
-                        # this parameter is as of this comment most likely a float
-                        # since only diameters and antenna positions will probably
-                        # trigger this else statement
-                        # assign float64 as the type of the array
-                        array_val = (
-                            np.zeros(self_shape, dtype=np.float64)
-                            + telescope_param.value
-                        )
-                        params_set.append(self_param.name)
-                        prop_name = self_param.name
-                        setattr(self, prop_name, array_val)
-
-            if len(params_set) > 0:
-                if warn:
-                    params_set_str = ", ".join(params_set)
-                    warnings.warn(
-                        f"{params_set_str} are not set or are being "
-                        "overwritten. Using known values for "
-                        f"{telescope_obj.telescope_name}."
-                    )
-        else:
-            raise ValueError(
-                f"Telescope {self.telescope_name} is not in known_telescopes."
-            )
+        self.telescope.update_params_from_known_telescopes(
+            overwrite=overwrite,
+            warn=warn,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
 
     def _calc_single_integration_time(self):
         """
@@ -1874,8 +1867,8 @@ class UVData(UVBase):
             latitude=latitude,
             longitude=longitude,
             altitude=altitude,
-            frame=self._telescope_location.frame,
-            ellipsoid=self._telescope_location.ellipsoid,
+            frame=self.telescope._location.frame,
+            ellipsoid=self.telescope._location.ellipsoid,
             astrometry_library=astrometry_library,
         )
         return
@@ -1928,8 +1921,8 @@ class UVData(UVBase):
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
                     telescope_loc=self.telescope_location_lat_lon_alt,
-                    telescope_frame=self._telescope_location.frame,
-                    ellipsoid=self._telescope_location.ellipsoid,
+                    telescope_frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                     coord_type=cat_type,
                 )
 
@@ -1951,8 +1944,8 @@ class UVData(UVBase):
                     telescope_loc=self.telescope_location_lat_lon_alt,
                     ref_frame=frame,
                     ref_epoch=epoch,
-                    telescope_frame=self._telescope_location.frame,
-                    ellipsoid=self._telescope_location.ellipsoid,
+                    telescope_frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                 )
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
@@ -2725,6 +2718,11 @@ class UVData(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
         logger.debug("... Done UVBase Check")
+        self.telescope.check(
+            check_extra=check_extra, run_check_acceptability=run_check_acceptability
+        )
+
+        # then run telescope object check
 
         # Check blt axis rectangularity arguments
         if self.time_axis_faster_than_bls and not self.blts_are_rectangular:
@@ -2823,7 +2821,7 @@ class UVData(UVBase):
             uvutils.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.telescope_location,
-                telescope_frame=self._telescope_location.frame,
+                telescope_frame=self.telescope._location.frame,
                 raise_error=False,
             )
 
@@ -2836,8 +2834,8 @@ class UVData(UVBase):
                 longitude=lon,
                 altitude=alt,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                frame=self._telescope_location.frame,
-                ellipsoid=self._telescope_location.ellipsoid,
+                frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
 
             # create a metadata copy to do operations on
@@ -3790,8 +3788,8 @@ class UVData(UVBase):
             latitude=latitude,
             longitude=longitude,
             altitude=altitude,
-            frame=self._telescope_location.frame,
-            ellipsoid=self._telescope_location.ellipsoid,
+            frame=self.telescope._location.frame,
+            ellipsoid=self.telescope._location.ellipsoid,
         )
         ants = self.antenna_numbers
 
@@ -5297,8 +5295,8 @@ class UVData(UVBase):
             vrad=phase_dict["cat_vrad"],
             dist=phase_dict["cat_dist"],
             telescope_loc=self.telescope_location_lat_lon_alt,
-            telescope_frame=self._telescope_location.frame,
-            ellipsoid=self._telescope_location.ellipsoid,
+            telescope_frame=self.telescope._location.frame,
+            ellipsoid=self.telescope._location.ellipsoid,
         )
 
         # Now calculate position angles.
@@ -5310,8 +5308,8 @@ class UVData(UVBase):
                 telescope_loc=self.telescope_location_lat_lon_alt,
                 ref_frame=phase_frame,
                 ref_epoch=epoch,
-                telescope_frame=self._telescope_location.frame,
-                ellipsoid=self._telescope_location.ellipsoid,
+                telescope_frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
         else:
             new_frame_pa = np.zeros(time_array.shape, dtype=float)
@@ -5849,16 +5847,7 @@ class UVData(UVBase):
             )
 
         # Define parameters that must be the same to add objects
-        compatibility_params = [
-            "_vis_units",
-            "_telescope_name",
-            "_instrument",
-            "_telescope_location",
-            "_Nants_telescope",
-            "_antenna_names",
-            "_antenna_numbers",
-            "_antenna_positions",
-        ]
+        compatibility_params = ["_vis_units", "_telescope"]
         if not this.future_array_shapes and not this.flex_spw:
             compatibility_params.append("_channel_width")
 
@@ -6732,16 +6721,7 @@ class UVData(UVBase):
         # Because self was at the beginning of the list,
         # all the phase centers are merged into it at the end of this loop
 
-        compatibility_params = [
-            "_vis_units",
-            "_telescope_name",
-            "_instrument",
-            "_telescope_location",
-            "_Nants_telescope",
-            "_antenna_names",
-            "_antenna_numbers",
-            "_antenna_positions",
-        ]
+        compatibility_params = ["_vis_units", "_telescope"]
         if not this.future_array_shapes and not this.flex_spw:
             compatibility_params.append("_channel_width")
 
@@ -7829,16 +7809,25 @@ class UVData(UVBase):
             if ind_arr is None:
                 continue
 
-            for param in self:
+            if key == "Nants_telescope":
+                # need to iterate over params in self.telescope NOT in self
+                obj_use = self.telescope
+                key_use = "Nants"
+            else:
+                obj_use = self
+                key_use = key
+
+            for param in obj_use:
                 # For each attribute, if the value is None, then bail, otherwise
                 # attempt to figure out along which axis ind_arr will apply.
-                attr = getattr(self, param)
+
+                attr = getattr(obj_use, param)
                 if attr.value is not None:
                     try:
-                        sel_axis = attr.form.index(key)
+                        sel_axis = attr.form.index(key_use)
                     except (AttributeError, ValueError):
                         # If form is not a tuple/list (and therefore not
-                        # array-like), it'll throw an AttributeError, and if key is
+                        # array-like), it'll throw an AttributeError, and if key_use is
                         # not found in the tuple/list, it'll throw a ValueError.
                         # In both cases, skip!
                         continue
@@ -7847,7 +7836,7 @@ class UVData(UVBase):
                         # If we're working with an ndarray, use take to slice along
                         # the axis that we want to grab from.
                         attr.value = attr.value.take(ind_arr, axis=sel_axis)
-                        attr.setter(self)
+                        attr.setter(obj_use)
                     elif isinstance(attr.value, list):
                         # If this is a list, it _should_ always have 1-dimension.
                         assert sel_axis == 0, (
@@ -7856,7 +7845,7 @@ class UVData(UVBase):
                             "issue in our GitHub issue log so that we can fix it."
                         )
                         attr.value = [attr.value[idx] for idx in ind_arr]
-                        attr.setter(self)
+                        attr.setter(obj_use)
 
             if key == "Nblts":
                 # Process post blt-specific selection actions, including counting

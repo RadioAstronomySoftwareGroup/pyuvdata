@@ -408,8 +408,8 @@ def write_ms_antenna(
         antenna_positions = uvobj.antenna_positions
         antenna_diameters = uvobj.antenna_diameters
         telescope_location = uvobj.telescope_location
-        telescope_frame = uvobj._telescope_location.frame
-        telescope_ellipsoid = uvobj._telescope_location.ellipsoid
+        telescope_frame = uvobj.telescope._location.frame
+        telescope_ellipsoid = uvobj.telescope._location.ellipsoid
 
     tabledesc = tables.required_ms_desc("ANTENNA")
     dminfo = tables.makedminfo(tabledesc)

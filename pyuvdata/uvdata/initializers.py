@@ -13,7 +13,7 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from .. import __version__, utils
+from .. import Telescope, __version__, utils
 
 try:
     from lunarsky import MoonLocation
@@ -596,16 +596,19 @@ def new_uvdata(
     )
 
     # Now set all the metadata
+    # initialize telescope object first
+    obj.telescope = Telescope()
+
     obj.freq_array = freq_array
     obj.polarization_array = polarization_array
     obj.antenna_positions = antenna_positions
-    obj.telescope_location = [
+    obj.telescope.location = [
         telescope_location.x.to_value("m"),
         telescope_location.y.to_value("m"),
         telescope_location.z.to_value("m"),
     ]
-    obj._telescope_location.frame = telescope_frame
-    obj._telescope_location.ellipsoid = ellipsoid
+    obj.telescope._location.frame = telescope_frame
+    obj.telescope._location.ellipsoid = ellipsoid
     obj.telescope_name = telescope_name
     obj.baseline_array = baseline_array
     obj.ant_1_array = ant_1_array

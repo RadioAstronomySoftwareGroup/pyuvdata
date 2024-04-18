@@ -204,8 +204,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(
         pytest.importorskip("lunarsky")
         enu_antpos, _ = uv_in.get_ENU_antpos()
         latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-        uv_in._telescope_location.frame = "mcmf"
-        uv_in._telescope_location.ellipsoid = selenoid
+        uv_in.telescope._location.frame = "mcmf"
+        uv_in.telescope._location.ellipsoid = selenoid
         uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
         new_full_antpos = uvutils.ECEF_from_ENU(
             enu=enu_antpos,
@@ -219,8 +219,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(
         uv_in.set_lsts_from_time_array()
         uv_in.check()
 
-    assert uv_in._telescope_location.frame == telescope_frame
-    assert uv_in._telescope_location.ellipsoid == selenoid
+    assert uv_in.telescope._location.frame == telescope_frame
+    assert uv_in.telescope._location.ellipsoid == selenoid
 
     uv_out = UVData()
     fname = f"outtest_{telescope_frame}_uvfits.uvh5"
@@ -228,8 +228,8 @@ def test_read_uvfits_write_uvh5_read_uvh5(
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
 
-    assert uv_out._telescope_location.frame == telescope_frame
-    assert uv_out._telescope_location.ellipsoid == selenoid
+    assert uv_out.telescope._location.frame == telescope_frame
+    assert uv_out.telescope._location.ellipsoid == selenoid
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -314,9 +314,8 @@ def test_write_uvh5_errors(casa_uvfits, tmp_path):
     # use clobber=True to write out anyway
     uv_in.write_uvh5(testfile, clobber=True)
     with uvtest.check_warnings(
-        [UserWarning, UserWarning, DeprecationWarning],
+        [UserWarning, DeprecationWarning],
         match=[
-            "Telescope EVLA is not in known_telescopes.",
             "The uvw_array does not match the expected values",
             _future_array_shapes_warning,
         ],
@@ -433,7 +432,6 @@ def test_uvh5_compression_options(casa_uvfits, tmp_path):
     return
 
 
-@pytest.mark.filterwarnings("ignore:Telescope EVLA is not in known_telescopes.")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     """
@@ -3510,11 +3508,10 @@ def test_old_phase_attributes_header(casa_uvfits, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Telescope EVLA is not in known_telescopes.",
             "This data appears to have been phased-up using the old `phase` method, "
             "which is incompatible with the current set of methods. Please run the "
             "`fix_phase` method (or set `fix_old_proj=True` when loading the dataset) "
-            "to address this issue.",
+            "to address this issue."
         ],
     ):
         uvd = UVData.from_file(
@@ -3524,11 +3521,7 @@ def test_old_phase_attributes_header(casa_uvfits, tmp_path):
     assert uvd == casa_uvfits
 
     with uvtest.check_warnings(
-        UserWarning,
-        match=[
-            "Telescope EVLA is not in known_telescopes.",
-            "Fixing phases using antenna positions.",
-        ],
+        UserWarning, match=["Fixing phases using antenna positions."]
     ):
         uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
 
