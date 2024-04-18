@@ -61,6 +61,7 @@ class FHDCal(UVCal):
         this_dict = readsav(obs_file, python_dict=True)
         obs_data = this_dict["obs"]
         bl_info = obs_data["BASELINE_INFO"][0]
+        astrometry = obs_data["ASTR"][0]
 
         self.Nspws = 1
         self.spw_array = np.array([0])
@@ -115,6 +116,34 @@ class FHDCal(UVCal):
         latitude = np.deg2rad(float(obs_data["LAT"][0]))
         longitude = np.deg2rad(float(obs_data["LON"][0]))
         altitude = float(obs_data["ALT"][0])
+
+        # This is a bit of a kludge because nothing like a phase center name
+        # exists in FHD files.
+        # At least for the MWA, obs.ORIG_PHASERA and obs.ORIG_PHASEDEC specify
+        # the field the telescope was nominally pointing at
+        # (May need to be revisited, but probably isn't too important)
+        cat_name = (
+            "Field RA(deg): "
+            + str(obs_data["ORIG_PHASERA"][0])
+            + ", Dec:"
+            + str(obs_data["ORIG_PHASEDEC"][0])
+        )
+        # For the MWA, this can sometimes be converted to EoR fields
+        if self.telescope_name.lower() == "mwa":
+            if np.isclose(obs_data["ORIG_PHASERA"][0], 0) and np.isclose(
+                obs_data["ORIG_PHASEDEC"][0], -27
+            ):
+                cat_name = "EoR 0 Field"
+
+        cat_id = self._add_phase_center(
+            cat_name=cat_name,
+            cat_type="sidereal",
+            cat_lon=np.deg2rad(float(obs_data["OBSRA"][0])),
+            cat_lat=np.deg2rad(float(obs_data["OBSDEC"][0])),
+            cat_frame=astrometry["RADECSYS"][0].decode().lower(),
+            cat_epoch=astrometry["EQUINOX"][0],
+        )
+        self.phase_center_id_array = np.zeros(self.Ntimes, dtype=int) + cat_id
 
         # get the stuff FHD read from the antenna table (in layout file)
         if layout_file is not None:
