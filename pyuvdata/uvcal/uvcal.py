@@ -1602,6 +1602,7 @@ class UVCal(UVBase):
                 altitude=altitude,
                 astrometry_library=astrometry_library,
                 frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
 
         if self.time_range is not None:
@@ -1612,6 +1613,7 @@ class UVCal(UVBase):
                 altitude=altitude,
                 astrometry_library=astrometry_library,
                 frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
         return
 
@@ -2271,6 +2273,7 @@ class UVCal(UVBase):
                     altitude=alt,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                     frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                 )
             if self.time_range is not None:
                 uvutils.check_lsts_against_times(
@@ -2281,6 +2284,7 @@ class UVCal(UVBase):
                     altitude=alt,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                     frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                 )
         return True
 
@@ -2577,6 +2581,7 @@ class UVCal(UVBase):
                 altitude=altitude,
                 astrometry_library=astrometry_library,
                 frame=self.telescope._location.frame,
+                ellipsoid=self.telescope._location.ellipsoid,
             )
         else:
             return self.lst_array
