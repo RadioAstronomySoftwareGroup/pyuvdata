@@ -24,11 +24,7 @@ def casa_uvfits_main():
     """Read in CASA tutorial uvfits file."""
     uv_in = UVData()
     with uvtest.check_warnings(
-        UserWarning,
-        [
-            "Telescope EVLA is not in known_telescopes",
-            "The uvw_array does not match the expected values",
-        ],
+        UserWarning, "The uvw_array does not match the expected values"
     ):
         uv_in.read(casa_tutorial_uvfits, use_future_array_shapes=True)
 
