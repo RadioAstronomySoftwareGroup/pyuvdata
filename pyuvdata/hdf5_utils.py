@@ -361,6 +361,66 @@ class HDF5Meta:
                 raise AttributeError(f"{name} not found in {self.path}") from e
 
     @cached_property
+    def antpos_enu(self) -> np.ndarray:
+        """The antenna positions in ENU coordinates, in meters."""
+        lat, lon, alt = self.telescope_location_lat_lon_alt
+        return uvutils.ENU_from_ECEF(
+            self.antenna_positions + self.telescope_location,
+            latitude=lat,
+            longitude=lon,
+            altitude=alt,
+            frame=self.telescope_frame,
+            ellipsoid=self.ellipsoid,
+        )
+
+    @cached_property
+    def telescope_location(self):
+        """The telescope location in ECEF coordinates, in meters."""
+        return uvutils.XYZ_from_LatLonAlt(
+            *self.telescope_location_lat_lon_alt,
+            frame=self.telescope_frame,
+            ellipsoid=self.ellipsoid,
+        )
+
+    @property
+    def telescope_location_lat_lon_alt(self) -> tuple[float, float, float]:
+        """The telescope location in latitude, longitude, and altitude, in degrees."""
+        return self.latitude * np.pi / 180, self.longitude * np.pi / 180, self.altitude
+
+    @property
+    def telescope_location_lat_lon_alt_degrees(self) -> tuple[float, float, float]:
+        """The telescope location in latitude, longitude, and altitude, in degrees."""
+        return self.latitude, self.longitude, self.altitude
+
+    @property
+    def telescope_frame(self) -> str:
+        """The telescope frame."""
+        h = self.header
+        if "telescope_frame" in h:
+            telescope_frame = bytes(h["telescope_frame"][()]).decode("utf8")
+            if telescope_frame not in ["itrs", "mcmf"]:
+                raise ValueError(
+                    f"Telescope frame in file is {telescope_frame}. "
+                    "Only 'itrs' and 'mcmf' are currently supported."
+                )
+            return telescope_frame
+        else:
+            # default to ITRS
+            return "itrs"
+
+    @property
+    def ellipsoid(self) -> str:
+        """The reference ellipsoid to use for lunar coordinates."""
+        h = self.header
+        if self.telescope_frame == "mcmf":
+            if "ellipsoid" in h:
+                return bytes(h["ellipsoid"][()]).decode("utf8")
+            else:
+                return "SPHERE"
+        else:
+            return None
+
+    @cached_property
     def extra_keywords(self) -> dict:
         """The extra_keywords from the file."""
         header = self.header

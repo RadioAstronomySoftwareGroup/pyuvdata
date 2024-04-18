@@ -208,6 +208,10 @@ class CALFITS(UVCal):
         prihdr["ARRAYX"] = self.telescope_location[0]
         prihdr["ARRAYY"] = self.telescope_location[1]
         prihdr["ARRAYZ"] = self.telescope_location[2]
+        prihdr["FRAME"] = self.telescope._location.frame
+        if self.telescope._location.ellipsoid is not None:
+            # use ELLIPSOI because of FITS 8 character limit for header items
+            prihdr["ELLIPSOI"] = self.telescope._location.ellipsoid
         prihdr["LAT"] = self.telescope_location_lat_lon_alt_degrees[0]
         prihdr["LON"] = self.telescope_location_lat_lon_alt_degrees[1]
         prihdr["ALT"] = self.telescope_location_lat_lon_alt[2]
@@ -261,6 +265,10 @@ class CALFITS(UVCal):
 
         if self.observer:
             prihdr["OBSERVER"] = self.observer
+
+        if self.instrument:
+            prihdr["INSTRUME"] = self.instrument
+
         if self.git_origin_cal:
             prihdr["ORIGCAL"] = self.git_origin_cal
         if self.git_hash_cal:
@@ -592,6 +600,12 @@ class CALFITS(UVCal):
             lat = hdr.pop("LAT", None)
             lon = hdr.pop("LON", None)
             alt = hdr.pop("ALT", None)
+
+            telescope_frame = hdr.pop("FRAME", "itrs")
+            ellipsoid = None
+            if telescope_frame != "itrs":
+                ellipsoid = hdr.pop("ELLIPSOI", "SPHERE")
+
             if (
                 x_telescope is not None
                 and y_telescope is not None
@@ -602,6 +616,9 @@ class CALFITS(UVCal):
                 )
             elif lat is not None and lon is not None and alt is not None:
                 self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
+
+            self.telescope._location.frame = telescope_frame
+            self.telescope._location.ellipsoid = ellipsoid
             try:
                 self.set_telescope_params()
             except ValueError as ve:
@@ -643,6 +660,8 @@ class CALFITS(UVCal):
             self.diffuse_model = hdr.pop("DIFFUSE", None)
 
             self.observer = hdr.pop("OBSERVER", None)
+            self.instrument = hdr.pop("INSTRUME", None)
+
             self.git_origin_cal = hdr.pop("ORIGCAL", None)
             self.git_hash_cal = hdr.pop("HASHCAL", None)
 

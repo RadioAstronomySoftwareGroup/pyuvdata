@@ -71,6 +71,7 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
             "ref_antenna_name",
             "sky_catalog",
             "sky_field",
+            "instrument",
             "version",
         }
     )
@@ -117,21 +118,6 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
         return np.asarray(
             uvutils.jnum2str(self.jones_array, x_orientation=self.x_orientation)
         )
-
-    @cached_property
-    def telescope_location(self):
-        """The telescope location in ECEF coordinates, in meters."""
-        return uvutils.XYZ_from_LatLonAlt(*self.telescope_location_lat_lon_alt)
-
-    @property
-    def telescope_location_lat_lon_alt(self) -> tuple[float, float, float]:
-        """The telescope location in latitude, longitude, and altitude, in degrees."""
-        return self.latitude * np.pi / 180, self.longitude * np.pi / 180, self.altitude
-
-    @property
-    def telescope_location_lat_lon_alt_degrees(self) -> tuple[float, float, float]:
-        """The telescope location in latitude, longitude, and altitude, in degrees."""
-        return self.latitude, self.longitude, self.altitude
 
     def to_uvcal(
         self, *, check_lsts: bool = False, astrometry_library: str | None = None
@@ -194,9 +180,16 @@ class CalH5(UVCal):
         """
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
+
+        # must set the frame before setting the location using lat/lon/alt
+        self.telescope._location.frame = meta.telescope_frame
+        if self.telescope._location.frame == "mcmf":
+            self.telescope._location.ellipsoid = meta.ellipsoid
+
         self.telescope_location_lat_lon_alt_degrees = (
             meta.telescope_location_lat_lon_alt_degrees
         )
+
         if "time_array" in meta.header:
             self.time_array = meta.time_array
             if "lst_array" in meta.header:
@@ -277,6 +270,7 @@ class CalH5(UVCal):
             "scan_number_array",
             "sky_catalog",
             "sky_field",
+            "instrument",
         ]:
             try:
                 setattr(self, attr, getattr(meta, attr))
@@ -304,6 +298,7 @@ class CalH5(UVCal):
                     altitude=alt,
                     lst_tols=(0, uvutils.LST_RAD_TOL),
                     frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                 )
             if self.time_range is not None:
                 uvutils.check_lsts_against_times(
@@ -314,6 +309,7 @@ class CalH5(UVCal):
                     altitude=alt,
                     lst_tols=(0, uvutils.LST_RAD_TOL),
                     frame=self.telescope._location.frame,
+                    ellipsoid=self.telescope._location.ellipsoid,
                 )
 
     def _get_data(
@@ -733,6 +729,9 @@ class CalH5(UVCal):
         header["version"] = np.string_("0.1")
 
         # write out telescope and source information
+        header["telescope_frame"] = np.string_(self.telescope._location.frame)
+        if self.telescope._location.frame == "mcmf":
+            header["ellipsoid"] = self.telescope._location.ellipsoid
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
@@ -822,6 +821,10 @@ class CalH5(UVCal):
                         this_group[key] = h5py.Empty("f")
                     else:
                         this_group[key] = value
+
+        # extra telescope-related parameters
+        if self.instrument is not None:
+            header["instrument"] = np.string_(self.instrument)
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
