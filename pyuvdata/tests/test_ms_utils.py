@@ -19,9 +19,9 @@ pytest.importorskip("casacore")
 @pytest.mark.parametrize(
     "frame,epoch,msg",
     (
-        ["fk5", 1991.1, "Frame fk5 (epoch 1991.1) does not have a corresponding match"],
-        ["fk4", 1991.1, "Frame fk4 (epoch 1991.1) does not have a corresponding match"],
-        ["icrs", 2021.0, "Frame icrs (epoch 2021) does not have a corresponding"],
+        ["fk5", 1991.1, r"Frame fk5 \(epoch 1991.1\) does not have a corresponding"],
+        ["fk4", 1991.1, r"Frame fk4 \(epoch 1991.1\) does not have a corresponding"],
+        ["icrs", 2021.0, r"Frame icrs \(epoch 2021\) does not have a corresponding"],
     ),
 )
 def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
@@ -32,9 +32,8 @@ def test_parse_pyuvdata_frame_ref_errors(check_warning, frame, epoch, msg):
         with uvtest.check_warnings(UserWarning, match=msg):
             ms_utils._parse_pyuvdata_frame_ref(frame, epoch, raise_error=False)
     else:
-        with pytest.raises(ValueError) as cm:
+        with pytest.raises(ValueError, match=msg):
             ms_utils._parse_pyuvdata_frame_ref(frame, epoch)
-        assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize("check_warning", [True, False])
@@ -56,9 +55,8 @@ def test_parse_casa_frame_ref_errors(check_warning, frame, errtype, msg):
         with uvtest.check_warnings(UserWarning, match=msg):
             ms_utils._parse_casa_frame_ref(frame, raise_error=False)
     else:
-        with pytest.raises(errtype) as cm:
+        with pytest.raises(errtype, match=msg):
             ms_utils._parse_casa_frame_ref(frame)
-        assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
