@@ -683,11 +683,7 @@ class UVData(UVBase):
         self.telescope = Telescope()
 
         # set the appropriate telescope attributes as required
-        self.telescope._instrument.required = True
-        self.telescope._Nants.required = True
-        self.telescope._antenna_names.required = True
-        self.telescope._antenna_numbers.required = True
-        self.telescope._antenna_positions.required = True
+        self.telescope._set_uvdata_requirements()
 
         super(UVData, self).__init__()
 
@@ -2718,11 +2714,11 @@ class UVData(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
         logger.debug("... Done UVBase Check")
+
+        # then run telescope object check
         self.telescope.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
-
-        # then run telescope object check
 
         # Check blt axis rectangularity arguments
         if self.time_axis_faster_than_bls and not self.blts_are_rectangular:

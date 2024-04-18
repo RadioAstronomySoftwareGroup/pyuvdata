@@ -164,7 +164,7 @@ class FHDCal(UVCal):
                 longitude=longitude,
                 altitude=altitude,
                 radian_tol=uvutils.RADIAN_TOL,
-                loc_tols=self._telescope_location.tols,
+                loc_tols=self.telescope._location.tols,
                 obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )
@@ -202,6 +202,8 @@ class FHDCal(UVCal):
 
         self.antenna_names = np.asarray(self.antenna_names)
 
+        self.x_orientation = "east"
+
         try:
             self.set_telescope_params()
         except ValueError as ve:
@@ -215,8 +217,6 @@ class FHDCal(UVCal):
 
         self._set_sky()
         self.gain_convention = "divide"
-        self.x_orientation = "east"
-
         self._set_gain()
 
         # currently don't have branch info. may change in future.
