@@ -702,128 +702,6 @@ class UVData(UVBase):
         self.telescope._x_orientation.required = False
         self.telescope._antenna_diameters.required = False
 
-    @property
-    def telescope_name(self):
-        """The telescope name (stored on the Telescope object internally)."""
-        return self.telescope.name
-
-    @telescope_name.setter
-    def telescope_name(self, val):
-        self.telescope.name = val
-
-    @property
-    def instrument(self):
-        """The instrument name (stored on the Telescope object internally)."""
-        return self.telescope.instrument
-
-    @instrument.setter
-    def instrument(self, val):
-        self.telescope.instrument = val
-
-    @property
-    def telescope_location(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location
-
-    @telescope_location.setter
-    def telescope_location(self, val):
-        self.telescope.location = val
-
-    @property
-    def telescope_location_lat_lon_alt(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt
-
-    @telescope_location_lat_lon_alt.setter
-    def telescope_location_lat_lon_alt(self, val):
-        self.telescope.location_lat_lon_alt = val
-
-    @property
-    def telescope_location_lat_lon_alt_degrees(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt_degrees
-
-    @telescope_location_lat_lon_alt_degrees.setter
-    def telescope_location_lat_lon_alt_degrees(self, val):
-        self.telescope.location_lat_lon_alt_degrees = val
-
-    @property
-    def Nants_telescope(self):
-        """
-        The number of antennas in the telescope.
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.Nants
-
-    @Nants_telescope.setter
-    def Nants_telescope(self, val):
-        self.telescope.Nants = val
-
-    @property
-    def antenna_names(self):
-        """The antenna names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_names
-
-    @antenna_names.setter
-    def antenna_names(self, val):
-        self.telescope.antenna_names = val
-
-    @property
-    def antenna_numbers(self):
-        """The antenna numbers corresponding to antenna_names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_numbers
-
-    @antenna_numbers.setter
-    def antenna_numbers(self, val):
-        self.telescope.antenna_numbers = val
-
-    @property
-    def antenna_positions(self):
-        """The antenna positions coordinates of antennas relative to telescope_location.
-
-        The coordinates are in the ITRF frame, shape (Nants_telescope, 3).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_positions
-
-    @antenna_positions.setter
-    def antenna_positions(self, val):
-        self.telescope.antenna_positions = val
-
-    @property
-    def x_orientation(self):
-        """Orientation of the physical dipole corresponding to the x label.
-
-        Options are 'east' (indicating east/west orientation) and 'north (indicating
-        north/south orientation).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.x_orientation
-
-    @x_orientation.setter
-    def x_orientation(self, val):
-        self.telescope.x_orientation = val
-
-    @property
-    def antenna_diameters(self):
-        """The antenna diameters in meters.
-
-        Used by CASA to construct a default beam if no beam is supplied.
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_diameters
-
-    @antenna_diameters.setter
-    def antenna_diameters(self, val):
-        self.telescope.antenna_diameters = val
-
     @staticmethod
     def _clear_antpair2ind_cache(obj):
         """Clear the antpair2ind cache."""
@@ -1871,13 +1749,10 @@ class UVData(UVBase):
         return np.diff(np.sort(list(set(self.time_array))))[0] * 86400
 
     def _set_lsts_helper(self, *, astrometry_library=None):
-        latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         # the utility function is efficient -- it only calculates unique times
         self.lst_array = uvutils.get_lst_for_time(
             jd_array=self.time_array,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
+            telescope_loc=self.telescope.location,
             frame=self.telescope._location.frame,
             ellipsoid=self.telescope._location.ellipsoid,
             astrometry_library=astrometry_library,
@@ -1931,9 +1806,7 @@ class UVData(UVBase):
                     dist=dist,
                     time_array=self.time_array[select_mask],
                     lst_array=self.lst_array[select_mask],
-                    telescope_loc=self.telescope_location_lat_lon_alt,
-                    telescope_frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
+                    telescope_loc=self.telescope.location,
                     coord_type=cat_type,
                 )
 
@@ -1952,11 +1825,9 @@ class UVData(UVBase):
                     time_array=self.time_array[select_mask],
                     app_ra=app_ra[select_mask],
                     app_dec=app_dec[select_mask],
-                    telescope_loc=self.telescope_location_lat_lon_alt,
+                    telescope_loc=self.telescope.location,
                     ref_frame=frame,
                     ref_epoch=epoch,
-                    telescope_frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
                 )
         self.phase_center_app_ra = app_ra
         self.phase_center_app_dec = app_dec
@@ -2803,9 +2674,13 @@ class UVData(UVBase):
         # require that all entries in ant_1_array and ant_2_array exist in
         # antenna_numbers
         logger.debug("Doing Antenna Uniqueness Check...")
-        if not set(np.unique(self.ant_1_array)).issubset(self.antenna_numbers):
+        if not set(np.unique(self.ant_1_array)).issubset(
+            self.telescope.antenna_numbers
+        ):
             raise ValueError("All antennas in ant_1_array must be in antenna_numbers.")
-        if not set(np.unique(self.ant_2_array)).issubset(self.antenna_numbers):
+        if not set(np.unique(self.ant_2_array)).issubset(
+            self.telescope.antenna_numbers
+        ):
             raise ValueError("All antennas in ant_2_array must be in antenna_numbers.")
         logger.debug("... Done Antenna Uniqueness Check")
 
@@ -2830,23 +2705,17 @@ class UVData(UVBase):
         if run_check_acceptability:
             # Check antenna positions
             uvutils.check_surface_based_positions(
-                antenna_positions=self.antenna_positions,
-                telescope_loc=self.telescope_location,
-                telescope_frame=self.telescope._location.frame,
+                antenna_positions=self.telescope.antenna_positions,
+                telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
             # Check the LSTs against what we expect given up-to-date IERS data
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
+                telescope_loc=self.telescope.location,
             )
 
             # create a metadata copy to do operations on
@@ -3055,7 +2924,7 @@ class UVData(UVBase):
             second antenna number(s)
         """
         return uvutils.baseline_to_antnums(
-            baseline, Nants_telescope=self.Nants_telescope
+            baseline, Nants_telescope=self.telescope.Nants
         )
 
     def antnums_to_baseline(
@@ -3089,7 +2958,7 @@ class UVData(UVBase):
         return uvutils.antnums_to_baseline(
             ant1,
             ant2,
-            Nants_telescope=self.Nants_telescope,
+            Nants_telescope=self.telescope.Nants,
             attempt256=attempt256,
             use_miriad_convention=use_miriad_convention,
         )
@@ -3251,7 +3120,7 @@ class UVData(UVBase):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(
                 self.polarization_array
-                == uvutils.polstr2num(key, x_orientation=self.x_orientation)
+                == uvutils.polstr2num(key, x_orientation=self.telescope.x_orientation)
             )[0]
             if len(pol_ind1) > 0:
                 blt_ind1 = slice(None)
@@ -3296,7 +3165,9 @@ class UVData(UVBase):
             if len(key) == 3:
                 orig_pol = key[2]
                 if isinstance(key[2], str):
-                    pol = uvutils.polstr2num(key[2], x_orientation=self.x_orientation)
+                    pol = uvutils.polstr2num(
+                        key[2], x_orientation=self.telescope.x_orientation
+                    )
                 else:
                     pol = key[2]
 
@@ -3479,7 +3350,7 @@ class UVData(UVBase):
             list of polarizations (as strings) in the data.
         """
         return uvutils.polnum2str(
-            self.polarization_array, x_orientation=self.x_orientation
+            self.polarization_array, x_orientation=self.telescope.x_orientation
         )
 
     def get_antpairpols(self):
@@ -3793,20 +3664,13 @@ class UVData(UVBase):
             Antenna numbers matching ordering of antpos, shape=(Nants,)
 
         """
-        latitude, longitude, altitude = self.telescope_location_lat_lon_alt
-        antpos = uvutils.ENU_from_ECEF(
-            (self.antenna_positions + self.telescope_location),
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame=self.telescope._location.frame,
-            ellipsoid=self.telescope._location.ellipsoid,
-        )
-        ants = self.antenna_numbers
+        antenna_xyz = self.telescope.antenna_positions + self.telescope._location.xyz()
+        antpos = uvutils.ENU_from_ECEF(antenna_xyz, center_loc=self.telescope.location)
+        ants = self.telescope.antenna_numbers
 
         if pick_data_ants:
             data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
-            telescope_ants = self.antenna_numbers
+            telescope_ants = self.telescope.antenna_numbers
             select = np.isin(telescope_ants, data_ants)
             antpos = antpos[select, :]
             ants = telescope_ants[select]
@@ -4729,8 +4593,12 @@ class UVData(UVBase):
             # get indices for this key
             blt_inds = self.antpair2ind(key)
 
-            ant1_index = np.asarray(self.antenna_numbers == key[0]).nonzero()[0][0]
-            ant2_index = np.asarray(self.antenna_numbers == key[1]).nonzero()[0][0]
+            ant1_index = np.asarray(self.telescope.antenna_numbers == key[0]).nonzero()[
+                0
+            ][0]
+            ant2_index = np.asarray(self.telescope.antenna_numbers == key[1]).nonzero()[
+                0
+            ][0]
 
             eq_coeff1 = self.eq_coeffs[ant1_index, :]
             eq_coeff2 = self.eq_coeffs[ant2_index, :]
@@ -4873,15 +4741,15 @@ class UVData(UVBase):
             lst_array=self.lst_array,
             use_ant_pos=use_ant_pos,
             uvw_array=self.uvw_array,
-            antenna_positions=self.antenna_positions,
-            antenna_numbers=self.antenna_numbers,
+            antenna_positions=self.telescope.antenna_positions,
+            antenna_numbers=self.telescope.antenna_numbers,
             ant_1_array=self.ant_1_array,
             ant_2_array=self.ant_2_array,
             old_app_ra=self.phase_center_app_ra,
             old_app_dec=self.phase_center_app_dec,
             old_frame_pa=self.phase_center_frame_pa,
-            telescope_lat=self.telescope_location_lat_lon_alt[0],
-            telescope_lon=self.telescope_location_lat_lon_alt[1],
+            telescope_lat=self.telescope.location.lat.rad,
+            telescope_lon=self.telescope.location.lon.rad,
             to_enu=True,
         )
 
@@ -4904,9 +4772,7 @@ class UVData(UVBase):
         self.phase_center_app_ra[select_mask_use] = self.lst_array[
             select_mask_use
         ].copy()
-        self.phase_center_app_dec[select_mask_use] = (
-            self.telescope_location_lat_lon_alt[0]
-        )
+        self.phase_center_app_dec[select_mask_use] = self.telescope.location.lat.rad
         self.phase_center_frame_pa[select_mask_use] = 0
 
         return
@@ -4958,9 +4824,7 @@ class UVData(UVBase):
             if (cat_type is None) or (cat_type == "ephem"):
                 [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
                     uvutils.lookup_jplhorizons(
-                        cat_name,
-                        time_array,
-                        telescope_loc=self.telescope_location_lat_lon_alt,
+                        cat_name, time_array, telescope_loc=self.telescope.location
                     )
                 )
                 cat_type = "ephem"
@@ -5069,7 +4933,7 @@ class UVData(UVBase):
                     uvutils.lookup_jplhorizons(
                         cat_name,
                         np.concatenate((np.reshape(time_array, -1), cat_times)),
-                        telescope_loc=self.telescope_location_lat_lon_alt,
+                        telescope_loc=self.telescope.location,
                     )
                 )
             elif check_ephem:
@@ -5305,9 +5169,7 @@ class UVData(UVBase):
             pm_dec=phase_dict["cat_pm_dec"],
             vrad=phase_dict["cat_vrad"],
             dist=phase_dict["cat_dist"],
-            telescope_loc=self.telescope_location_lat_lon_alt,
-            telescope_frame=self.telescope._location.frame,
-            ellipsoid=self.telescope._location.ellipsoid,
+            telescope_loc=self.telescope.location,
         )
 
         # Now calculate position angles.
@@ -5316,11 +5178,9 @@ class UVData(UVBase):
                 time_array=time_array,
                 app_ra=new_app_ra,
                 app_dec=new_app_dec,
-                telescope_loc=self.telescope_location_lat_lon_alt,
+                telescope_loc=self.telescope.location,
                 ref_frame=phase_frame,
                 ref_epoch=epoch,
-                telescope_frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
             )
         else:
             new_frame_pa = np.zeros(time_array.shape, dtype=float)
@@ -5333,15 +5193,15 @@ class UVData(UVBase):
             lst_array=lst_array,
             use_ant_pos=use_ant_pos,
             uvw_array=uvw_array,
-            antenna_positions=self.antenna_positions,
-            antenna_numbers=self.antenna_numbers,
+            antenna_positions=self.telescope.antenna_positions,
+            antenna_numbers=self.telescope.antenna_numbers,
             ant_1_array=ant_1_array,
             ant_2_array=ant_2_array,
             old_app_ra=old_app_ra,
             old_app_dec=old_app_dec,
             old_frame_pa=old_frame_pa,
-            telescope_lat=self.telescope_location_lat_lon_alt[0],
-            telescope_lon=self.telescope_location_lat_lon_alt[1],
+            telescope_lat=self.telescope.location.lat.rad,
+            telescope_lon=self.telescope.location.lon.rad,
         )
 
         # With all operations complete, we now start manipulating the UVData object
@@ -5428,14 +5288,12 @@ class UVData(UVBase):
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate
         # system to use for phasing
-        telescope_location = self.telescope.location_obj
-
         zenith_coord = SkyCoord(
             alt=Angle(90 * units.deg),
             az=Angle(0 * units.deg),
             obstime=time,
             frame="altaz",
-            location=telescope_location,
+            location=self.telescope.location,
         )
 
         obs_zenith_coord = zenith_coord.transform_to(phase_frame)
@@ -5465,7 +5323,6 @@ class UVData(UVBase):
             trusted), as misuse can significantly corrupt data.
 
         """
-        telescope_location = self.telescope_location_lat_lon_alt
         unprojected_blts = self._check_for_cat_type("unprojected")
 
         new_uvw = uvutils.calc_uvw(
@@ -5474,12 +5331,12 @@ class UVData(UVBase):
             frame_pa=self.phase_center_frame_pa,
             lst_array=self.lst_array,
             use_ant_pos=True,
-            antenna_positions=self.antenna_positions,
-            antenna_numbers=self.antenna_numbers,
+            antenna_positions=self.telescope.antenna_positions,
+            antenna_numbers=self.telescope.antenna_numbers,
             ant_1_array=self.ant_1_array,
             ant_2_array=self.ant_2_array,
-            telescope_lat=telescope_location[0],
-            telescope_lon=telescope_location[1],
+            telescope_lat=self.telescope.location.lat.rad,
+            telescope_lon=self.telescope.location.lon.rad,
         )
         if np.any(~unprojected_blts):
             # At least some are phased
@@ -5528,15 +5385,15 @@ class UVData(UVBase):
             circumstances (e.g., when certain metadata like exact times are not
             trusted), as misuse can significantly corrupt data.
         """
-        new_antpos = self.antenna_positions.copy()
-        for idx, ant in enumerate(self.antenna_numbers):
+        new_antpos = self.telescope.antenna_positions.copy()
+        for idx, ant in enumerate(self.telescope.antenna_numbers):
             try:
                 new_antpos[idx] = new_positions[ant]
             except KeyError:
                 # If no updated position is found, then just keep going
                 pass
 
-        if np.array_equal(new_antpos, self.antenna_positions):
+        if np.array_equal(new_antpos, self.telescope.antenna_positions):
             warnings.warn("No antenna positions appear to have changed, returning.")
             return
 
@@ -5553,12 +5410,12 @@ class UVData(UVBase):
                 frame_pa=self.phase_center_frame_pa,
                 lst_array=self.lst_array,
                 use_ant_pos=True,
-                antenna_positions=new_antpos - self.antenna_positions,
-                antenna_numbers=self.antenna_numbers,
+                antenna_positions=new_antpos - self.telescope.antenna_positions,
+                antenna_numbers=self.telescope.antenna_numbers,
                 ant_1_array=self.ant_1_array,
                 ant_2_array=self.ant_2_array,
-                telescope_lat=self.telescope_location_lat_lon_alt[0],
-                telescope_lon=self.telescope_location_lat_lon_alt[1],
+                telescope_lat=self.telescope.location.lat.rad,
+                telescope_lon=self.telescope.location.lon.rad,
             )
 
             # Calculate the new uvw values, relate to the old ones, and add that to
@@ -5575,14 +5432,14 @@ class UVData(UVBase):
                 )
 
             # Assign the new antenna position values.
-            self.antenna_positions = new_antpos
+            self.telescope.antenna_positions = new_antpos
 
             # Finally, add the deltas to the original uvw array.
             self.uvw_array += delta_uvw
         else:
             # Otherwise under "normal" circumstances, just plug in the new values and
             # update the uvws accordingly.
-            self.antenna_positions = new_antpos
+            self.telescope.antenna_positions = new_antpos
             self.set_uvws_from_antenna_positions(update_vis=update_vis)
 
     def fix_phase(self, *, use_ant_pos=True):
@@ -5672,9 +5529,10 @@ class UVData(UVBase):
 
             unique_times, _ = np.unique(self.time_array, return_index=True)
 
-            telescope_location = self.telescope.location_obj
             obs_times = Time(unique_times, format="jd")
-            itrs_telescope_locations = telescope_location.get_itrs(obstime=obs_times)
+            itrs_telescope_locations = self.telescope.location.get_itrs(
+                obstime=obs_times
+            )
             itrs_telescope_locations = SkyCoord(itrs_telescope_locations)
             # just calling transform_to(coord.GCRS) will delete the obstime information
             # need to re-add obstimes for a GCRS transformation
@@ -5696,7 +5554,6 @@ class UVData(UVBase):
                 obs_time = obs_times[ind]
 
                 frame_telescope_location = frame_telescope_locations[ind]
-                itrs_lat_lon_alt = self.telescope_location_lat_lon_alt
 
                 uvws_use = self.uvw_array[inds, :]
 
@@ -5714,13 +5571,10 @@ class UVData(UVBase):
                 )
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
-                lat, lon, alt = itrs_lat_lon_alt
                 # now convert them to ENU, which is the space uvws are in
                 self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(
                     itrs_uvw_coord.cartesian.get_xyz().value.T,
-                    latitude=lat,
-                    longitude=lon,
-                    altitude=alt,
+                    center_loc=self.telescope.location,
                 )
 
             # remove/add phase center
@@ -5731,7 +5585,7 @@ class UVData(UVBase):
 
             self.phase_center_app_ra = self.lst_array.copy()
             self.phase_center_app_dec[:] = (
-                np.zeros(self.Nblts) + self.telescope_location_lat_lon_alt[0]
+                np.zeros(self.Nblts) + self.telescope.location.lat.rad
             )
             self.phase_center_frame_pa = np.zeros(self.Nblts)
 
@@ -7255,7 +7109,7 @@ class UVData(UVBase):
             uv=self,
             ant_str=ant_str,
             print_toggle=print_toggle,
-            x_orientation=self.x_orientation,
+            x_orientation=self.telescope.x_orientation,
         )
 
     def _select_preprocess(
@@ -7440,13 +7294,15 @@ class UVData(UVBase):
                 antenna_names = np.array(antenna_names).flatten()
             antenna_nums = []
             for s in antenna_names:
-                if s not in self.antenna_names:
+                if s not in self.telescope.antenna_names:
                     raise ValueError(
                         "Antenna name {a} is not present in the antenna_names"
                         " array".format(a=s)
                     )
                 antenna_nums.append(
-                    self.antenna_numbers[np.where(np.array(self.antenna_names) == s)][0]
+                    self.telescope.antenna_numbers[
+                        np.where(np.array(self.telescope.antenna_names) == s)
+                    ][0]
                 )
 
         if antenna_nums is not None:
@@ -7705,7 +7561,9 @@ class UVData(UVBase):
             spw_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
-                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                    p_num = uvutils.polstr2num(
+                        p, x_orientation=self.telescope.x_orientation
+                    )
                 else:
                     p_num = p
                 if p_num in self.polarization_array:
@@ -7867,7 +7725,7 @@ class UVData(UVBase):
                     # evaluate the antenna axis of all parameters
                     ind_dict["Nants_telescope"] = np.where(
                         np.isin(
-                            self.antenna_numbers,
+                            self.telescope.antenna_numbers,
                             list(set(self.ant_1_array).union(self.ant_2_array)),
                         )
                     )[0]
@@ -7887,7 +7745,7 @@ class UVData(UVBase):
                 self.Nspws = len(ind_arr)
             elif key == "Nants_telescope":
                 # Count the number of unique ants after ant-based selection
-                self.Nants_telescope = len(ind_arr)
+                self.telescope.Nants = len(ind_arr)
 
         # Update the history string
         self.history += history_update_string
@@ -9164,7 +9022,7 @@ class UVData(UVBase):
         final_channel_width = np.zeros(final_nchan, dtype=float)
         final_flex_spw_id_array = np.zeros(final_nchan, dtype=int)
         if self.eq_coeffs is not None:
-            final_eq_coeffs = np.zeros((self.Nants_telescope, final_nchan), dtype=float)
+            final_eq_coeffs = np.zeros((self.telescope.Nants, final_nchan), dtype=float)
 
         if not self.metadata_only:
             final_shape_tuple = (self.Nblts, final_nchan, self.Npols)
@@ -9228,7 +9086,7 @@ class UVData(UVBase):
             if self.eq_coeffs is not None:
                 final_eq_coeffs[:, this_final_reg_inds] = (
                     self.eq_coeffs[:, regular_inds]
-                    .reshape((self.Nants_telescope, n_final_chan_reg, n_chan_to_avg))
+                    .reshape((self.telescope.Nants, n_final_chan_reg, n_chan_to_avg))
                     .mean(axis=2)
                 )
                 if this_ragged:

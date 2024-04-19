@@ -385,7 +385,6 @@ def new_uvdata(
     phase_center_id_array: np.ndarray | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     astrometry_library: str | None = None,
-    ellipsoid: Literal["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"] | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -501,10 +500,6 @@ def new_uvdata(
         (which uses the astropy utilities). Default is erfa unless the
         telescope_location frame is MCMF (on the moon), in which case the default
         is astropy.
-    ellipsoid : str
-        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
-        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if telescope_location is a MoonLocation.
 
     Other Parameters
     ----------------
@@ -527,8 +522,11 @@ def new_uvdata(
         antname_format=antname_format,
     )
 
-    if hasmoon and isinstance(telescope_location, MoonLocation):
-        telescope_location.ellipsoid = ellipsoid
+    if not isinstance(telescope_location, tuple(utils.allowed_location_types)):
+        raise ValueError(
+            "telescope_location has an unsupported type, it must be one of "
+            f"{utils.allowed_location_types}"
+        )
 
     lst_array, integration_time = get_time_params(
         telescope_location=telescope_location,
@@ -598,22 +596,22 @@ def new_uvdata(
 
     obj.freq_array = freq_array
     obj.polarization_array = polarization_array
-    obj.antenna_positions = antenna_positions
-    obj.telescope.location_obj = telescope_location
-    obj.telescope_name = telescope_name
+    obj.telescope.antenna_positions = antenna_positions
+    obj.telescope.location = telescope_location
+    obj.telescope.name = telescope_name
     obj.baseline_array = baseline_array
     obj.ant_1_array = ant_1_array
     obj.ant_2_array = ant_2_array
     obj.time_array = time_array
     obj.lst_array = lst_array
     obj.channel_width = channel_width
-    obj.antenna_names = antenna_names
-    obj.antenna_numbers = antenna_numbers
+    obj.telescope.antenna_names = antenna_names
+    obj.telescope.antenna_numbers = antenna_numbers
     obj.history = history
-    obj.instrument = instrument
+    obj.telescope.instrument = instrument
     obj.vis_units = vis_units
     obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
-    obj.Nants_telescope = len(antenna_numbers)
+    obj.telescope.Nants = len(antenna_numbers)
     obj.Nbls = nbls
     obj.Nblts = len(baseline_array)
     obj.Nfreqs = len(freq_array)
@@ -623,7 +621,7 @@ def new_uvdata(
     obj.spw_array = spw_array
     obj.flex_spw_id_array = flex_spw_id_array
     obj.integration_time = integration_time
-    obj.x_orientation = x_orientation
+    obj.telescope.x_orientation = x_orientation
 
     set_phase_params(
         obj,

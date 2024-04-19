@@ -368,9 +368,10 @@ def write_ms_antenna(
         Path to MS (without ANTENNA suffix).
     uvobj : UVBase (with matching parameters)
         Optional parameter, can be used to automatically fill the other required
-        keywords for this function. Note that the UVBase object must have parameters
-        that match by name to the other keywords required here (with the exception of
-        telescope_frame, which is pulled from the telescope_location UVParameter).
+        keywords for this function. Note that the UVBase object must have a telescope
+        parameter with parameters that match by name to the other keywords
+        required here (with the exception of telescope_frame and telescope_ellipsoid,
+        which are derived from the telescope.location UVParameter).
     antenna_numbers : ndarray
         Required if uvobj not provided, antenna numbers for all antennas of the
         telescope, dtype int and shape (Nants_telescope,).
@@ -403,11 +404,11 @@ def write_ms_antenna(
     filepath += "::ANTENNA"
 
     if uvobj is not None:
-        antenna_numbers = uvobj.antenna_numbers
-        antenna_names = uvobj.antenna_names
-        antenna_positions = uvobj.antenna_positions
-        antenna_diameters = uvobj.antenna_diameters
-        telescope_location = uvobj.telescope_location
+        antenna_numbers = uvobj.telescope.antenna_numbers
+        antenna_names = uvobj.telescope.antenna_names
+        antenna_positions = uvobj.telescope.antenna_positions
+        antenna_diameters = uvobj.telescope.antenna_diameters
+        telescope_location = uvobj.telescope._location.xyz()
         telescope_frame = uvobj.telescope._location.frame
         telescope_ellipsoid = uvobj.telescope._location.ellipsoid
 
@@ -1160,8 +1161,8 @@ def write_ms_observation(
     filepath += "::OBSERVATION"
 
     if uvobj is not None:
-        telescope_name = uvobj.telescope_name
-        telescope_location = uvobj.telescope_location
+        telescope_name = uvobj.telescope.name
+        telescope_location = uvobj.telescope._location.xyz()
         observer = telescope_name
         for key in uvobj.extra_keywords:
             if key.upper() == "OBSERVER":
@@ -1402,7 +1403,7 @@ def write_ms_feed(
     filepath += "::FEED"
 
     if uvobj is not None:
-        antenna_numbers = uvobj.antenna_numbers
+        antenna_numbers = uvobj.telescope.antenna_numbers
         polarization_array = uvobj.polarization_array
         flex_spw_polarization_array = uvobj.flex_spw_polarization_array
         nspws = uvobj.Nspws
@@ -1698,7 +1699,7 @@ def write_ms_pointing(
     filepath += "::POINTING"
 
     if uvobj is not None:
-        max_ant = np.max(uvobj.antenna_numbers)
+        max_ant = np.max(uvobj.telescope.antenna_numbers)
         integration_time = uvobj.integration_time
         time_array = uvobj.time_array
 

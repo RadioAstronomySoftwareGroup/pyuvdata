@@ -73,7 +73,8 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
 
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
-    uvd = UVData.new(**lunar_simple_params, ellipsoid=selenoid)
+    lunar_simple_params["telescope_location"].ellipsoid = selenoid
+    uvd = UVData.new(**lunar_simple_params)
 
     assert uvd.telescope._location.frame == "mcmf"
     assert uvd.telescope._location.ellipsoid == selenoid
@@ -568,9 +569,9 @@ def test_get_spw_params():
 def test_passing_xorient(simplest_working_params, xorient):
     uvd = UVData.new(x_orientation=xorient, **simplest_working_params)
     if xorient.lower().startswith("e"):
-        assert uvd.x_orientation == "east"
+        assert uvd.telescope.x_orientation == "east"
     else:
-        assert uvd.x_orientation == "north"
+        assert uvd.telescope.x_orientation == "north"
 
 
 def test_passing_directional_pols(simplest_working_params):
