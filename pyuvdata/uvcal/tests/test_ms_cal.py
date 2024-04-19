@@ -7,6 +7,7 @@ import os
 
 import numpy as np
 import pytest
+from astropy.units import Quantity
 
 from ... import tests as uvtest
 from ...data import DATA_PATH
@@ -29,8 +30,7 @@ sma_warnings = [
     "Unknown x_orientation basis for solutions, assuming",
     "key CASA_Version in extra_keywords is longer than 8 characters. "
     "It will be truncated to 8 if written to a calfits file format.",
-    "telescope_location are not set or are being overwritten. "
-    "telescope_location are set using values from known telescopes for SMA.",
+    "Setting telescope_location to value in known_telescopes for SMA.",
 ]
 
 
@@ -216,8 +216,8 @@ def test_ms_default_setting():
     with uvtest.check_warnings(UserWarning, match=sma_warnings):
         uvc2.read(testfile)
 
-    assert uvc1.x_orientation == "north"
-    assert uvc2.x_orientation == "east"
+    assert uvc1.telescope.x_orientation == "north"
+    assert uvc2.telescope.x_orientation == "east"
     assert np.array_equal(uvc1.jones_array, [-5, -6])
     assert np.array_equal(uvc2.jones_array, [0, 0])
 
@@ -244,9 +244,12 @@ def test_ms_muck_ants(sma_pcal, tmp_path):
 
     uvc.read(testfile)
 
-    assert uvc.telescope_name == "FOO"
-    assert uvc.antenna_names == sma_pcal.antenna_names
-    assert np.allclose(uvc.telescope_location, sma_pcal.telescope_location)
+    assert uvc.telescope.name == "FOO"
+    assert uvc.telescope.antenna_names == sma_pcal.telescope.antenna_names
+    assert np.allclose(
+        Quantity(list(uvc.telescope.location.geocentric)),
+        Quantity(list(sma_pcal.telescope.location.geocentric)),
+    )
 
 
 def test_ms_total_quality(sma_pcal, tmp_path):

@@ -65,8 +65,10 @@ def test_readwriteread(
         cal_in._total_quality_array.expected_shape(cal_in)
     )
     # add instrument and antenna_diameters
-    cal_in.instrument = cal_in.telescope_name
-    cal_in.antenna_diameters = np.zeros((cal_in.Nants_telescope,), dtype=float) + 5.0
+    cal_in.telescope.instrument = cal_in.telescope.name
+    cal_in.telescope.antenna_diameters = (
+        np.zeros((cal_in.telescope.Nants,), dtype=float) + 5.0
+    )
 
     write_file = str(tmp_path / "outtest.fits")
     cal_in.write_calfits(write_file, clobber=True)
@@ -103,30 +105,27 @@ def test_readwriteread(
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_moon_loopback(tmp_path, gain_data, selenoid):
     pytest.importorskip("lunarsky")
+    from lunarsky import MoonLocation
+
     cal_in = gain_data
 
-    latitude, longitude, altitude = cal_in.telescope_location_lat_lon_alt
     enu_antpos = uvutils.ENU_from_ECEF(
-        (cal_in.antenna_positions + cal_in.telescope_location),
-        latitude=latitude,
-        longitude=longitude,
-        altitude=altitude,
-        frame=cal_in.telescope._location.frame,
-        ellipsoid=cal_in.telescope._location.ellipsoid,
+        (cal_in.telescope.antenna_positions + cal_in.telescope._location.xyz()),
+        center_loc=cal_in.telescope.location,
     )
-
-    cal_in.telescope._location.frame = "mcmf"
-    cal_in.telescope._location.ellipsoid = selenoid
-    cal_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-    new_full_antpos = uvutils.ECEF_from_ENU(
-        enu=enu_antpos,
-        latitude=latitude,
-        longitude=longitude,
-        altitude=altitude,
-        frame="mcmf",
+    cal_in.telescope.location = MoonLocation.from_selenodetic(
+        lat=cal_in.telescope.location.lat,
+        lon=cal_in.telescope.location.lon,
+        height=cal_in.telescope.location.height,
         ellipsoid=selenoid,
     )
-    cal_in.antenna_positions = new_full_antpos - cal_in.telescope_location
+
+    new_full_antpos = uvutils.ECEF_from_ENU(
+        enu=enu_antpos, center_loc=cal_in.telescope.location
+    )
+    cal_in.telescope.antenna_positions = (
+        new_full_antpos - cal_in.telescope._location.xyz()
+    )
     cal_in.set_lsts_from_time_array()
     cal_in.check()
 

@@ -102,7 +102,7 @@ def new_uvcal(
         Telescope object containing the telescope-related metadata including
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
-    telescope_location : ndarray of float or str
+    telescope_location : EarthLocation or MoonLocation object
         Telescope location as an astropy EarthLocation object or MoonLocation
         object. Not required or used if a Telescope object is passed to `telescope`.
     telescope_name : str
@@ -197,7 +197,7 @@ def new_uvcal(
 
     if telescope is not None:
         antenna_numbers = telescope.antenna_numbers
-        telescope_location = telescope.location_obj
+        telescope_location = telescope.location
     else:
         antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
             antenna_positions=antenna_positions,
@@ -298,9 +298,10 @@ def new_uvcal(
         new_telescope = Telescope()
 
         new_telescope.name = telescope_name
-        new_telescope.location_obj = telescope_location
+        new_telescope.location = telescope_location
         new_telescope.antenna_names = antenna_names
         new_telescope.antenna_numbers = antenna_numbers
+        new_telescope.Nants = len(antenna_numbers)
         new_telescope.antenna_positions = antenna_positions
         new_telescope.x_orientation = x_orientation
 
@@ -345,7 +346,6 @@ def new_uvcal(
     uvc._set_wide_band(wide_band)
 
     uvc.Nants_data = len(ant_array)
-    uvc.Nants_telescope = len(antenna_numbers)
     uvc.Nfreqs = len(freq_array) if freq_array is not None else 1
 
     uvc.Nspws = len(spw_array)
