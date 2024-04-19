@@ -678,128 +678,6 @@ class UVCal(UVBase):
         self.telescope._antenna_diameters.required = False
         self.telescope._x_orientation.required = True
 
-    @property
-    def telescope_name(self):
-        """The telescope name (stored on the Telescope object internally)."""
-        return self.telescope.name
-
-    @telescope_name.setter
-    def telescope_name(self, val):
-        self.telescope.name = val
-
-    @property
-    def instrument(self):
-        """The instrument name (stored on the Telescope object internally)."""
-        return self.telescope.instrument
-
-    @instrument.setter
-    def instrument(self, val):
-        self.telescope.instrument = val
-
-    @property
-    def telescope_location(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location
-
-    @telescope_location.setter
-    def telescope_location(self, val):
-        self.telescope.location = val
-
-    @property
-    def telescope_location_lat_lon_alt(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt
-
-    @telescope_location_lat_lon_alt.setter
-    def telescope_location_lat_lon_alt(self, val):
-        self.telescope.location_lat_lon_alt = val
-
-    @property
-    def telescope_location_lat_lon_alt_degrees(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt_degrees
-
-    @telescope_location_lat_lon_alt_degrees.setter
-    def telescope_location_lat_lon_alt_degrees(self, val):
-        self.telescope.location_lat_lon_alt_degrees = val
-
-    @property
-    def Nants_telescope(self):  # noqa
-        """
-        The number of antennas in the telescope.
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.Nants
-
-    @Nants_telescope.setter
-    def Nants_telescope(self, val):  # noqa
-        self.telescope.Nants = val
-
-    @property
-    def antenna_names(self):
-        """The antenna names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_names
-
-    @antenna_names.setter
-    def antenna_names(self, val):
-        self.telescope.antenna_names = val
-
-    @property
-    def antenna_numbers(self):
-        """The antenna numbers corresponding to antenna_names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_numbers
-
-    @antenna_numbers.setter
-    def antenna_numbers(self, val):
-        self.telescope.antenna_numbers = val
-
-    @property
-    def antenna_positions(self):
-        """The antenna positions coordinates of antennas relative to telescope_location.
-
-        The coordinates are in the ITRF frame, shape (Nants_telescope, 3).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_positions
-
-    @antenna_positions.setter
-    def antenna_positions(self, val):
-        self.telescope.antenna_positions = val
-
-    @property
-    def x_orientation(self):
-        """Orientation of the physical dipole corresponding to the x label.
-
-        Options are 'east' (indicating east/west orientation) and 'north (indicating
-        north/south orientation).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.x_orientation
-
-    @x_orientation.setter
-    def x_orientation(self, val):
-        self.telescope.x_orientation = val
-
-    @property
-    def antenna_diameters(self):
-        """The antenna diameters in meters.
-
-        Used by CASA to construct a default beam if no beam is supplied.
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_diameters
-
-    @antenna_diameters.setter
-    def antenna_diameters(self, val):
-        self.telescope.antenna_diameters = val
-
     @staticmethod
     @combine_docstrings(initializers.new_uvcal, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):
@@ -1608,27 +1486,14 @@ class UVCal(UVBase):
         )
 
     def _set_lsts_helper(self, *, astrometry_library=None):
-        latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         if self.time_array is not None:
             self.lst_array = uvutils.get_lst_for_time(
-                jd_array=self.time_array,
-                latitude=latitude,
-                longitude=longitude,
-                altitude=altitude,
-                astrometry_library=astrometry_library,
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
+                jd_array=self.time_array, telescope_loc=self.telescope.location
             )
 
         if self.time_range is not None:
             self.lst_range = uvutils.get_lst_for_time(
-                jd_array=self.time_range,
-                latitude=latitude,
-                longitude=longitude,
-                altitude=altitude,
-                astrometry_library=astrometry_library,
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
+                jd_array=self.time_range, telescope_loc=self.telescope.location
             )
         return
 
@@ -2198,7 +2063,7 @@ class UVCal(UVBase):
             # Assume they are ok if time_ranges are ok.
 
         # require that all entries in ant_array exist in antenna_numbers
-        if not all(ant in self.antenna_numbers for ant in self.ant_array):
+        if not all(ant in self.telescope.antenna_numbers for ant in self.ant_array):
             raise ValueError("All antennas in ant_array must be in antenna_numbers.")
 
         # issue warning if extra_keywords keys are longer than 8 characters
@@ -2272,34 +2137,24 @@ class UVCal(UVBase):
         if run_check_acceptability:
             # Check antenna positions
             uvutils.check_surface_based_positions(
-                antenna_positions=self.antenna_positions,
-                telescope_loc=self.telescope_location,
-                telescope_frame=self.telescope._location.frame,
+                antenna_positions=self.telescope.antenna_positions,
+                telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
             if self.time_array is not None:
                 uvutils.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
-                    latitude=lat,
-                    longitude=lon,
-                    altitude=alt,
+                    telescope_loc=self.telescope.location,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                    frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
                 )
             if self.time_range is not None:
                 uvutils.check_lsts_against_times(
                     jd_array=self.time_range,
                     lst_array=self.lst_range,
-                    latitude=lat,
-                    longitude=lon,
-                    altitude=alt,
+                    telescope_loc=self.telescope.location,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                    frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
                 )
         return True
 
@@ -2357,7 +2212,9 @@ class UVCal(UVBase):
                 return False
         if jpol is not None:
             if isinstance(jpol, (str, np.str_)):
-                jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
+                jpol = uvutils.jstr2num(
+                    jpol, x_orientation=self.telescope.x_orientation
+                )
             if jpol not in self.jones_array:
                 return False
 
@@ -2397,7 +2254,7 @@ class UVCal(UVBase):
             Antenna polarization index in data arrays
         """
         if isinstance(jpol, (str, np.str_)):
-            jpol = uvutils.jstr2num(jpol, x_orientation=self.x_orientation)
+            jpol = uvutils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
 
         if not self._key_exists(jpol=jpol):
             raise ValueError("{} not found in jones_array".format(jpol))
@@ -2588,15 +2445,8 @@ class UVCal(UVBase):
 
         """
         if self.lst_range is not None:
-            latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
             return uvutils.get_lst_for_time(
-                jd_array=self.get_time_array(),
-                latitude=latitude,
-                longitude=longitude,
-                altitude=altitude,
-                astrometry_library=astrometry_library,
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
+                jd_array=self.get_time_array(), telescope_loc=self.telescope.location
             )
         else:
             return self.lst_array
@@ -2653,13 +2503,13 @@ class UVCal(UVBase):
             if "number" in order:
                 index_array = np.argsort(self.ant_array)
             elif "name" in order:
-                temp = np.asarray(self.antenna_names)
+                temp = np.asarray(self.telescope.antenna_names)
                 dtype_use = temp.dtype
                 name_array = np.zeros_like(self.ant_array, dtype=dtype_use)
                 # there has to be a better way to do this without a loop...
                 for ind, ant in enumerate(self.ant_array):
-                    name_array[ind] = self.antenna_names[
-                        np.nonzero(self.antenna_numbers == ant)[0][0]
+                    name_array[ind] = self.telescope.antenna_names[
+                        np.nonzero(self.telescope.antenna_numbers == ant)[0][0]
                     ]
                 index_array = np.argsort(name_array)
 
@@ -3016,7 +2866,9 @@ class UVCal(UVBase):
                 index_array = np.argsort(self.jones_array)
             elif "name" in order:
                 name_array = np.asarray(
-                    uvutils.jnum2str(self.jones_array, x_orientation=self.x_orientation)
+                    uvutils.jnum2str(
+                        self.jones_array, x_orientation=self.telescope.x_orientation
+                    )
                 )
                 index_array = np.argsort(name_array)
 
@@ -5299,12 +5151,12 @@ class UVCal(UVBase):
             antenna_names = uvutils._get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
-                if s not in self.antenna_names:
+                if s not in self.telescope.antenna_names:
                     raise ValueError(
                         f"Antenna name {s} is not present in the antenna_names array"
                     )
-                ind = np.where(np.array(self.antenna_names) == s)[0][0]
-                antenna_nums.append(self.antenna_numbers[ind])
+                ind = np.where(np.array(self.telescope.antenna_names) == s)[0][0]
+                antenna_nums.append(self.telescope.antenna_numbers[ind])
 
         if antenna_nums is not None:
             antenna_nums = uvutils._get_iterable(antenna_nums)
@@ -5522,7 +5374,9 @@ class UVCal(UVBase):
             jones_spws = np.zeros(0, dtype=np.int64)
             for j in jones:
                 if isinstance(j, str):
-                    j_num = uvutils.jstr2num(j, x_orientation=self.x_orientation)
+                    j_num = uvutils.jstr2num(
+                        j, x_orientation=self.telescope.x_orientation
+                    )
                 else:
                     j_num = j
                 if j_num in self.jones_array:

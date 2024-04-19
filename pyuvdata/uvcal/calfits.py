@@ -6,8 +6,17 @@ import os
 import warnings
 
 import numpy as np
+from astropy import units
+from astropy.coordinates import EarthLocation
 from astropy.io import fits
 from docstring_parser import DocstringStyle
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
@@ -204,17 +213,18 @@ class CALFITS(UVCal):
             sechdr["EXTNAME"] = "FLAGS"
         # Conforming to fits format
         prihdr["SIMPLE"] = True
-        prihdr["TELESCOP"] = self.telescope_name
-        prihdr["ARRAYX"] = self.telescope_location[0]
-        prihdr["ARRAYY"] = self.telescope_location[1]
-        prihdr["ARRAYZ"] = self.telescope_location[2]
+        prihdr["TELESCOP"] = self.telescope.name
+        tel_x, tel_y, tel_z = self.telescope._location.xyz()
+        prihdr["ARRAYX"] = tel_x
+        prihdr["ARRAYY"] = tel_y
+        prihdr["ARRAYZ"] = tel_z
         prihdr["FRAME"] = self.telescope._location.frame
         if self.telescope._location.ellipsoid is not None:
             # use ELLIPSOI because of FITS 8 character limit for header items
             prihdr["ELLIPSOI"] = self.telescope._location.ellipsoid
-        prihdr["LAT"] = self.telescope_location_lat_lon_alt_degrees[0]
-        prihdr["LON"] = self.telescope_location_lat_lon_alt_degrees[1]
-        prihdr["ALT"] = self.telescope_location_lat_lon_alt[2]
+        prihdr["LAT"] = self.telescope.location.lat.rad
+        prihdr["LON"] = self.telescope.location.lon.rad
+        prihdr["ALT"] = self.telescope.location.height.to("m").value
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
         prihdr["CALSTYLE"] = self.cal_style
@@ -250,7 +260,7 @@ class CALFITS(UVCal):
         else:
             prihdr["CHWIDTH"] = self.channel_width
 
-        prihdr["XORIENT"] = self.x_orientation
+        prihdr["XORIENT"] = self.telescope.x_orientation
         if self.future_array_shapes and self.freq_range is not None:
             freq_range_use = self.freq_range[0, :]
         else:
@@ -266,8 +276,8 @@ class CALFITS(UVCal):
         if self.observer:
             prihdr["OBSERVER"] = self.observer
 
-        if self.instrument:
-            prihdr["INSTRUME"] = self.instrument
+        if self.telescope.instrument:
+            prihdr["INSTRUME"] = self.telescope.instrument
 
         if self.git_origin_cal:
             prihdr["ORIGCAL"] = self.git_origin_cal
@@ -512,23 +522,31 @@ class CALFITS(UVCal):
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
         # ant HDU
-        col1 = fits.Column(name="ANTNAME", format="8A", array=self.antenna_names)
-        col2 = fits.Column(name="ANTINDEX", format="D", array=self.antenna_numbers)
-        if self.Nants_data == self.Nants_telescope:
+        col1 = fits.Column(
+            name="ANTNAME", format="8A", array=self.telescope.antenna_names
+        )
+        col2 = fits.Column(
+            name="ANTINDEX", format="D", array=self.telescope.antenna_numbers
+        )
+        if self.Nants_data == self.telescope.Nants:
             col3 = fits.Column(name="ANTARR", format="D", array=self.ant_array)
         else:
             # ant_array is shorter than the other columns.
             # Pad the extra rows with -1s. Need to undo on read.
-            nants_add = self.Nants_telescope - self.Nants_data
+            nants_add = self.telescope.Nants - self.Nants_data
             ant_array_use = np.append(
                 self.ant_array, np.zeros(nants_add, dtype=np.int64) - 1
             )
             col3 = fits.Column(name="ANTARR", format="D", array=ant_array_use)
-        col4 = fits.Column(name="ANTXYZ", format="3D", array=self.antenna_positions)
+        col4 = fits.Column(
+            name="ANTXYZ", format="3D", array=self.telescope.antenna_positions
+        )
         collist = [col1, col2, col3, col4]
-        if self.antenna_diameters is not None:
+        if self.telescope.antenna_diameters is not None:
             collist.append(
-                fits.Column(name="ANTDIAM", format="D", array=self.antenna_diameters)
+                fits.Column(
+                    name="ANTDIAM", format="D", array=self.telescope.antenna_diameters
+                )
             )
         cols = fits.ColDefs(collist)
         ant_hdu = fits.BinTableHDU.from_columns(cols)
@@ -571,10 +589,12 @@ class CALFITS(UVCal):
             hdunames = uvutils._fits_indexhdus(fname)
 
             anthdu = fname[hdunames["ANTENNAS"]]
-            self.Nants_telescope = anthdu.header["NAXIS2"]
+            self.telescope.Nants = anthdu.header["NAXIS2"]
             antdata = anthdu.data
-            self.antenna_names = np.array(list(map(str, antdata["ANTNAME"])))
-            self.antenna_numbers = np.array(list(map(int, antdata["ANTINDEX"])))
+            self.telescope.antenna_names = np.array(list(map(str, antdata["ANTNAME"])))
+            self.telescope.antenna_numbers = np.array(
+                list(map(int, antdata["ANTINDEX"]))
+            )
             self.ant_array = np.array(list(map(int, antdata["ANTARR"])))
             if np.min(self.ant_array) < 0:
                 # ant_array was shorter than the other columns, so it was
@@ -583,16 +603,16 @@ class CALFITS(UVCal):
                 self.ant_array = self.ant_array[np.where(self.ant_array >= 0)[0]]
 
             if "ANTXYZ" in antdata.names:
-                self.antenna_positions = antdata["ANTXYZ"]
+                self.telescope.antenna_positions = antdata["ANTXYZ"]
 
             if "ANTDIAM" in antdata.names:
-                self.antenna_diameters = antdata["ANTDIAM"]
+                self.telescope.antenna_diameters = antdata["ANTDIAM"]
 
             self.channel_width = hdr.pop("CHWIDTH")
             self.integration_time = hdr.pop("INTTIME")
-            self.telescope_name = hdr.pop("TELESCOP")
+            self.telescope.name = hdr.pop("TELESCOP")
 
-            self.x_orientation = hdr.pop("XORIENT")
+            self.telescope.x_orientation = hdr.pop("XORIENT")
 
             x_telescope = hdr.pop("ARRAYX", None)
             y_telescope = hdr.pop("ARRAYY", None)
@@ -603,7 +623,12 @@ class CALFITS(UVCal):
 
             telescope_frame = hdr.pop("FRAME", "itrs")
             ellipsoid = None
-            if telescope_frame != "itrs":
+            if telescope_frame == "mcmf":
+                if not hasmoon:
+                    raise ValueError(
+                        "Need to install `lunarsky` package to work with "
+                        "MCMF frames."
+                    )
                 ellipsoid = hdr.pop("ELLIPSOI", "SPHERE")
 
             if (
@@ -611,14 +636,29 @@ class CALFITS(UVCal):
                 and y_telescope is not None
                 and z_telescope is not None
             ):
-                self.telescope_location = np.array(
-                    [x_telescope, y_telescope, z_telescope]
-                )
-            elif lat is not None and lon is not None and alt is not None:
-                self.telescope_location_lat_lon_alt_degrees = (lat, lon, alt)
+                if telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geocentric(
+                        x_telescope, y_telescope, z_telescope, unit="m"
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenocentric(
+                        x_telescope, y_telescope, z_telescope, unit="m"
+                    )
+                    self.telescope.location.ellipsoid = ellipsoid
 
-            self.telescope._location.frame = telescope_frame
-            self.telescope._location.ellipsoid = ellipsoid
+            elif lat is not None and lon is not None and alt is not None:
+                if telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geodetic(
+                        lat=lat * units.rad, lon=lon * units.rad, height=alt * units.m
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenodetic(
+                        lat=lat * units.rad,
+                        lon=lon * units.rad,
+                        height=alt * units.m,
+                        ellipsoid=ellipsoid,
+                    )
+
             try:
                 self.set_telescope_params()
             except ValueError as ve:
@@ -660,7 +700,7 @@ class CALFITS(UVCal):
             self.diffuse_model = hdr.pop("DIFFUSE", None)
 
             self.observer = hdr.pop("OBSERVER", None)
-            self.instrument = hdr.pop("INSTRUME", None)
+            self.telescope.instrument = hdr.pop("INSTRUME", None)
 
             self.git_origin_cal = hdr.pop("ORIGCAL", None)
             self.git_hash_cal = hdr.pop("HASHCAL", None)
@@ -681,7 +721,7 @@ class CALFITS(UVCal):
             else:
                 self.time_array = main_hdr_time_array
 
-            if self.telescope_location is not None:
+            if self.telescope.location is not None:
                 proc = self.set_lsts_from_time_array(
                     background=background_lsts, astrometry_library=astrometry_library
                 )

@@ -31,7 +31,7 @@ pytestmark = pytest.mark.filterwarnings(
 def uvcal_phase_center_main(gain_data_main):
     gain_copy = gain_data_main.copy()
     gain_copy._set_sky()
-    gain_copy.ref_antenna_name = gain_copy.antenna_names[0]
+    gain_copy.ref_antenna_name = gain_copy.telescope.antenna_names[0]
     gain_copy.sky_catalog = "unknown"
 
     # Copying the catalog from sma_test.mir
@@ -265,7 +265,6 @@ def test_check_time_range_errors(gain_data):
     original_range = copy.copy(calobj.time_range)
 
     calobj.time_range[1, 1] = calobj.time_range[0, 0]
-    print(calobj.time_range[:, 1] - calobj.time_range[:, 0])
     with pytest.raises(
         ValueError,
         match="The time ranges are not well-formed, some stop times are after start "
@@ -535,16 +534,20 @@ def test_unknown_telescopes(gain_data, tmp_path):
 
 def test_nants_data_telescope_larger(gain_data):
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
-    gain_data.Nants_telescope += 1
+    gain_data.telescope.Nants += 1
     # add dummy information for "new antenna" to pass object check
-    gain_data.antenna_names = np.concatenate((gain_data.antenna_names, ["dummy_ant"]))
-    gain_data.antenna_numbers = np.concatenate((gain_data.antenna_numbers, [20]))
-    gain_data.antenna_positions = np.concatenate(
-        (gain_data.antenna_positions, np.zeros((1, 3), dtype=float))
+    gain_data.telescope.antenna_names = np.concatenate(
+        (gain_data.telescope.antenna_names, ["dummy_ant"])
     )
-    if gain_data.antenna_diameters is not None:
-        gain_data.antenna_diameters = np.concatenate(
-            (gain_data.antenna_diameters, np.ones((1,), dtype=float))
+    gain_data.telescope.antenna_numbers = np.concatenate(
+        (gain_data.telescope.antenna_numbers, [20])
+    )
+    gain_data.telescope.antenna_positions = np.concatenate(
+        (gain_data.telescope.antenna_positions, np.zeros((1, 3), dtype=float))
+    )
+    if gain_data.telescope.antenna_diameters is not None:
+        gain_data.telescope.antenna_diameters = np.concatenate(
+            (gain_data.telescope.antenna_diameters, np.ones((1,), dtype=float))
         )
 
     assert gain_data.check()
@@ -553,12 +556,14 @@ def test_nants_data_telescope_larger(gain_data):
 def test_ant_array_not_in_antnums(gain_data):
     # make sure an error is raised if antennas with data not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
-    gain_data.antenna_names = gain_data.antenna_names[1:]
-    gain_data.antenna_numbers = gain_data.antenna_numbers[1:]
-    gain_data.antenna_positions = gain_data.antenna_positions[1:, :]
-    if gain_data.antenna_diameters is not None:
-        gain_data.antenna_diameters = gain_data.antenna_diameters[1:]
-    gain_data.Nants_telescope = gain_data.antenna_numbers.size
+    gain_data.telescope.antenna_names = gain_data.telescope.antenna_names[1:]
+    gain_data.telescope.antenna_numbers = gain_data.telescope.antenna_numbers[1:]
+    gain_data.telescope.antenna_positions = gain_data.telescope.antenna_positions[1:, :]
+    if gain_data.telescope.antenna_diameters is not None:
+        gain_data.telescope.antenna_diameters = gain_data.telescope.antenna_diameters[
+            1:
+        ]
+    gain_data.telescope.Nants = gain_data.telescope.antenna_numbers.size
     with pytest.raises(ValueError) as cm:
         gain_data.check()
     assert str(cm.value).startswith(
@@ -958,8 +963,8 @@ def test_select_antennas(
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
-        ind = np.where(calobj.antenna_numbers == a)[0][0]
-        ant_names.append(calobj.antenna_names[ind])
+        ind = np.where(calobj.telescope.antenna_numbers == a)[0][0]
+        ant_names.append(calobj.telescope.antenna_names[ind])
 
     calobj3 = calobj.select(antenna_names=ant_names, inplace=False)
 
@@ -1524,7 +1529,7 @@ def test_select_polarizations(
             assert j in calobj2.jones_array
         else:
             assert (
-                uvutils.jstr2num(j, x_orientation=calobj2.x_orientation)
+                uvutils.jstr2num(j, x_orientation=calobj2.telescope.x_orientation)
                 in calobj2.jones_array
             )
     for j in np.unique(calobj2.jones_array):
@@ -1532,7 +1537,7 @@ def test_select_polarizations(
             assert j in jones_to_keep
         else:
             assert j in uvutils.jstr2num(
-                jones_to_keep, x_orientation=calobj2.x_orientation
+                jones_to_keep, x_orientation=calobj2.telescope.x_orientation
             )
 
     assert uvutils._check_histories(
@@ -1856,14 +1861,14 @@ def test_reorder_ants(
     ant_num_diff = np.diff(calobj2.ant_array)
     assert np.all(ant_num_diff < 0)
 
-    sorted_names = np.sort(calobj.antenna_names)
+    sorted_names = np.sort(calobj.telescope.antenna_names)
     calobj.reorder_antennas("name")
-    temp = np.asarray(calobj.antenna_names)
+    temp = np.asarray(calobj.telescope.antenna_names)
     dtype_use = temp.dtype
     name_array = np.zeros_like(calobj.ant_array, dtype=dtype_use)
     for ind, ant in enumerate(calobj.ant_array):
-        name_array[ind] = calobj.antenna_names[
-            np.nonzero(calobj.antenna_numbers == ant)[0][0]
+        name_array[ind] = calobj.telescope.antenna_names[
+            np.nonzero(calobj.telescope.antenna_numbers == ant)[0][0]
         ]
 
     assert np.all(sorted_names == name_array)
@@ -1889,14 +1894,14 @@ def test_reorder_ants_errors(gain_data):
         match="If order is an index array, it must contain all indicies for the"
         "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(gain_data.antenna_numbers.astype(float))
+        gain_data.reorder_antennas(gain_data.telescope.antenna_numbers.astype(float))
 
     with pytest.raises(
         ValueError,
         match="If order is an index array, it must contain all indicies for the"
         "ant_array, without duplicates.",
     ):
-        gain_data.reorder_antennas(gain_data.antenna_numbers[:8])
+        gain_data.reorder_antennas(gain_data.telescope.antenna_numbers[:8])
 
 
 @pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
@@ -2187,13 +2192,17 @@ def test_reorder_jones(
     # the default order is "name"
     calobj2.reorder_jones()
     name_array = np.asarray(
-        uvutils.jnum2str(calobj2.jones_array, x_orientation=calobj2.x_orientation)
+        uvutils.jnum2str(
+            calobj2.jones_array, x_orientation=calobj2.telescope.x_orientation
+        )
     )
     sorted_names = np.sort(name_array)
     assert np.all(sorted_names == name_array)
 
     # test sorting with an index array. Sort back to number first so indexing works
-    sorted_nums = uvutils.jstr2num(sorted_names, x_orientation=calobj.x_orientation)
+    sorted_nums = uvutils.jstr2num(
+        sorted_names, x_orientation=calobj.telescope.x_orientation
+    )
     index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
     calobj.reorder_jones(index_array)
     assert calobj2 == calobj
@@ -2558,8 +2567,6 @@ def test_add_frequencies(future_shapes, gain_data, method):
     calobj2.quality_array = None
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(calobj.input_flag_array, tot_ifa)
-    print(calobj.quality_array[2:4, :, 0, 0])
-    print(tot_qa[2:4, :, 0, 0])
     assert np.allclose(calobj.quality_array, tot_qa)
 
     # test for when input_flag_array is present in second file but not first
@@ -3557,7 +3564,7 @@ def test_add_errors(
         getattr(calobj, method)("foo", **kwargs)
 
     # test compatibility param mismatch
-    calobj2.telescope_name = "PAPER"
+    calobj2.telescope.name = "PAPER"
     with pytest.raises(ValueError, match="Parameter telescope does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
 
@@ -4065,14 +4072,14 @@ def test_copy(future_shapes, gain_data, delay_data_inputflag, caltype):
 def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
     # fix the antenna names in the uvcal object to match telescope object
     new_names = np.array(
-        [name.replace("ant", "HH") for name in gain_data.antenna_names]
+        [name.replace("ant", "HH") for name in gain_data.telescope.antenna_names]
     )
     if antnamefix == "all":
-        gain_data.antenna_names = new_names
+        gain_data.telescope.antenna_names = new_names
     else:
-        gain_data.antenna_names[0 : gain_data.Nants_telescope // 2] = new_names[
-            0 : gain_data.Nants_telescope // 2
-        ]
+        gain_data.telescope.antenna_names[0 : gain_data.telescope.Nants // 2] = (
+            new_names[0 : gain_data.telescope.Nants // 2]
+        )
 
     # remove the antenna_positions to test matching them on read
     write_file = str(tmp_path / "test.calfits")
@@ -4100,7 +4107,7 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
     ):
         gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
 
-    assert gain_data2.antenna_positions is not None
+    assert gain_data2.telescope.antenna_positions is not None
     assert gain_data == gain_data2
 
 
@@ -4109,22 +4116,22 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
     """Test that setting antenna positions doesn't happen if ants don't match."""
     # fix the antenna names in the uvcal object to match telescope object
     new_names = np.array(
-        [name.replace("ant", "HH") for name in gain_data.antenna_names]
+        [name.replace("ant", "HH") for name in gain_data.telescope.antenna_names]
     )
-    gain_data.antenna_names = new_names
+    gain_data.telescope.antenna_names = new_names
 
     if modtype == "rename":
         # change the name & number of one of the antennas
-        orig_num = gain_data.antenna_numbers[0]
-        gain_data.antenna_names[0] = "HH400"
-        gain_data.antenna_numbers[0] = 400
+        orig_num = gain_data.telescope.antenna_numbers[0]
+        gain_data.telescope.antenna_names[0] = "HH400"
+        gain_data.telescope.antenna_numbers[0] = 400
         gain_data.ant_array[np.where(gain_data.ant_array == orig_num)[0]] = 400
     else:
         # change the name of one antenna and swap the number with a different antenna
-        orig_num = gain_data.antenna_numbers[0]
-        gain_data.antenna_names[0] = "HH400"
-        gain_data.antenna_numbers[0] = gain_data.antenna_numbers[1]
-        gain_data.antenna_numbers[1] = orig_num
+        orig_num = gain_data.telescope.antenna_numbers[0]
+        gain_data.telescope.antenna_names[0] = "HH400"
+        gain_data.telescope.antenna_numbers[0] = gain_data.telescope.antenna_numbers[1]
+        gain_data.telescope.antenna_numbers[1] = orig_num
 
     # remove the antenna_positions to test matching them on read
     write_file = str(tmp_path / "test.calfits")
@@ -4170,7 +4177,7 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
             write_file2, use_future_array_shapes=True, run_check=False
         )
 
-    assert gain_data2.antenna_positions is None
+    assert gain_data2.telescope.antenna_positions is None
 
 
 def test_read_errors():
@@ -4240,8 +4247,10 @@ def test_init_from_uvdata(
         future_array_shapes=uvcal_future_shapes,
     )
 
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4254,9 +4263,9 @@ def test_init_from_uvdata(
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4290,9 +4299,6 @@ def test_init_from_uvdata_setfreqs(
 
     if not uvcal_future_shapes:
         uvc.use_current_array_shapes()
-
-    print(uvc.cal_type)
-    print(uvc.freq_range)
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -4345,8 +4351,10 @@ def test_init_from_uvdata_setfreqs(
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4357,9 +4365,9 @@ def test_init_from_uvdata_setfreqs(
     )
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4430,8 +4438,10 @@ def test_init_from_uvdata_settimes(
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4444,9 +4454,9 @@ def test_init_from_uvdata_settimes(
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     if not metadata_only:
         uvc2.gain_array[:] = 1.0
@@ -4495,8 +4505,10 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4509,9 +4521,9 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4550,8 +4562,10 @@ def test_init_single_pol(uvcalibrate_data, pol):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4564,9 +4578,9 @@ def test_init_single_pol(uvcalibrate_data, pol):
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4599,8 +4613,10 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4613,9 +4629,9 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4691,8 +4707,10 @@ def test_init_from_uvdata_sky(
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4705,9 +4723,9 @@ def test_init_from_uvdata_sky(
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4803,8 +4821,10 @@ def test_init_from_uvdata_delay(
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4817,9 +4837,9 @@ def test_init_from_uvdata_delay(
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -4907,8 +4927,10 @@ def test_init_from_uvdata_wideband(
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(uvc2.antenna_positions, uvc_new.antenna_positions, atol=0.1)
-    uvc_new.antenna_positions = uvc2.antenna_positions
+    assert np.allclose(
+        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    )
+    uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert uvutils._check_histories(
         uvc_new.history[:200],
@@ -4921,9 +4943,9 @@ def test_init_from_uvdata_wideband(
     uvc_new.history = uvc2.history
 
     # the new one has an instrument set because UVData requires it
-    assert uvc_new.instrument == uvd.instrument
+    assert uvc_new.telescope.instrument == uvd.telescope.instrument
     # remove it to match uvc2
-    uvc_new.instrument = None
+    uvc_new.telescope.instrument = None
 
     # The times are different by 9.31322575e-10, which is below than our tolerance on
     # the time array (which is 1ms = 1.1574074074074074e-08) but it leads to differences
@@ -5155,7 +5177,7 @@ def test_flex_jones_write(multi_spw_gain, func, suffix, tmp_path):
     uvc_copy.jones_array[0] = -6
     multi_spw_gain += uvc_copy
     multi_spw_gain.convert_to_flex_jones()
-    multi_spw_gain.ref_antenna_name = multi_spw_gain.antenna_names[0]
+    multi_spw_gain.ref_antenna_name = multi_spw_gain.telescope.antenna_names[0]
 
     filename = os.path.join(tmp_path, "flex_jones_write." + suffix)
     getattr(multi_spw_gain, func)(filename)
@@ -5347,8 +5369,6 @@ def test_flex_jones_shuffle(multi_spw_gain, multi_spw_delay, mode):
 
     uvc_comb = uvc2.fast_concat(uvc1, axis=("spw" if (mode == "delay") else "freq"))
     uvc_comb.history = uvc.history
-    print(uvc_comb.flex_jones_array)
-    print(uvc.flex_jones_array)
     assert uvc_comb != uvc
     uvc_comb.reorder_freqs(spw_order="number")
     assert uvc_comb == uvc
@@ -5458,9 +5478,13 @@ def test_refant_array_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
     if suffix == "ms":
         pytest.importorskip("casacore")
     uvcal_phase_center.ref_antenna_array = np.full(
-        uvcal_phase_center.Ntimes, uvcal_phase_center.antenna_numbers[0], dtype=int
+        uvcal_phase_center.Ntimes,
+        uvcal_phase_center.telescope.antenna_numbers[0],
+        dtype=int,
     )
-    uvcal_phase_center.ref_antenna_array[-1] = uvcal_phase_center.antenna_numbers[1]
+    uvcal_phase_center.ref_antenna_array[-1] = (
+        uvcal_phase_center.telescope.antenna_numbers[1]
+    )
     uvcal_phase_center.ref_antenna_name = "various"
 
     filename = os.path.join(tmp_path, "refantarr_roundtrip." + suffix)
@@ -5493,8 +5517,8 @@ def test_antdiam_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
         pytest.importorskip("casacore")
 
     filename = os.path.join(tmp_path, "pc_roundtrip." + suffix)
-    uvcal_phase_center.antenna_diameters = np.full(
-        uvcal_phase_center.Nants_telescope, 10.0
+    uvcal_phase_center.telescope.antenna_diameters = np.full(
+        uvcal_phase_center.telescope.Nants, 10.0
     )
     getattr(uvcal_phase_center, func)(filename)
 
