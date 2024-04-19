@@ -74,9 +74,9 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
         sma_mir.use_current_array_shapes()
     sma_mir.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile, use_future_array_shapes=future_shapes)
-    print("sma_mir instrument", sma_mir.instrument)
-    print("uvfits_uv instrument", uvfits_uv.instrument)
-    assert sma_mir.instrument == uvfits_uv.instrument
+    print("sma_mir instrument", sma_mir.telescope.instrument)
+    print("uvfits_uv instrument", uvfits_uv.telescope.instrument)
+    assert sma_mir.telescope.instrument == uvfits_uv.telescope.instrument
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
         # Check to make sure that the UVFITS-specific paramters are set on the
         # UVFITS-based obj, and not on our original object. Then set it to None for the
@@ -206,9 +206,9 @@ def test_read_mir_write_ms(sma_mir, tmp_path, future_shapes):
 
     # MS doesn't have the concept of an "instrument" name like FITS does, and instead
     # defaults to the telescope name. Make sure that checks out here.
-    assert sma_mir.instrument == "SWARM"
-    assert ms_uv.instrument == "SMA"
-    sma_mir.instrument = ms_uv.instrument
+    assert sma_mir.telescope.instrument == "SWARM"
+    assert ms_uv.telescope.instrument == "SMA"
+    sma_mir.telescope.instrument = ms_uv.telescope.instrument
 
     # Quick check for history here
     assert ms_uv.history != sma_mir.history
@@ -372,9 +372,9 @@ def test_read_mir_write_ms_flex_pol(mir_data, tmp_path):
 
     # MS doesn't have the concept of an "instrument" name like FITS does, and instead
     # defaults to the telescope name. Make sure that checks out here.
-    assert mir_uv.instrument == "SWARM"
-    assert ms_uv.instrument == "SMA"
-    mir_uv.instrument = ms_uv.instrument
+    assert mir_uv.telescope.instrument == "SWARM"
+    assert ms_uv.telescope.instrument == "SMA"
+    mir_uv.telescope.instrument = ms_uv.telescope.instrument
 
     # Quick check for history here
     assert ms_uv.history != mir_uv.history
@@ -818,7 +818,9 @@ def test_generate_sma_antpos_dict(use_file, sma_mir):
         filepath = os.path.join(filepath, "antennas")
 
     ant_dict = generate_sma_antpos_dict(filepath)
-    for ant_num, xyz_pos in zip(sma_mir.antenna_numbers, sma_mir.antenna_positions):
+    for ant_num, xyz_pos in zip(
+        sma_mir.telescope.antenna_numbers, sma_mir.telescope.antenna_positions
+    ):
         assert np.allclose(ant_dict[ant_num], xyz_pos)
 
 
