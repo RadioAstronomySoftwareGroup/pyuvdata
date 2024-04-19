@@ -8,6 +8,7 @@ import os
 import h5py
 import numpy as np
 import pytest
+from astropy.units import Quantity
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
@@ -36,7 +37,7 @@ def test_calh5_write_read_loop_gain(gain_data, tmp_path, time_range, future_shap
         calobj._total_quality_array.expected_shape(calobj)
     )
     # add instrument
-    calobj.instrument = calobj.telescope_name
+    calobj.telescope.instrument = calobj.telescope.name
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
@@ -116,30 +117,27 @@ def test_calh5_loop_bitshuffle(gain_data, tmp_path):
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_calh5_loop_moon(tmp_path, gain_data, selenoid):
     pytest.importorskip("lunarsky")
+    from lunarsky import MoonLocation
+
     cal_in = gain_data
 
-    latitude, longitude, altitude = cal_in.telescope_location_lat_lon_alt
     enu_antpos = uvutils.ENU_from_ECEF(
-        (cal_in.antenna_positions + cal_in.telescope_location),
-        latitude=latitude,
-        longitude=longitude,
-        altitude=altitude,
-        frame=cal_in.telescope._location.frame,
-        ellipsoid=cal_in.telescope._location.ellipsoid,
+        (cal_in.telescope.antenna_positions + cal_in.telescope._location.xyz()),
+        center_loc=cal_in.telescope.location,
     )
-
-    cal_in.telescope._location.frame = "mcmf"
-    cal_in.telescope._location.ellipsoid = selenoid
-    cal_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-    new_full_antpos = uvutils.ECEF_from_ENU(
-        enu=enu_antpos,
-        latitude=latitude,
-        longitude=longitude,
-        altitude=altitude,
-        frame="mcmf",
+    cal_in.telescope.location = MoonLocation.from_selenodetic(
+        lat=cal_in.telescope.location.lat,
+        lon=cal_in.telescope.location.lon,
+        height=cal_in.telescope.location.height,
         ellipsoid=selenoid,
     )
-    cal_in.antenna_positions = new_full_antpos - cal_in.telescope_location
+
+    new_full_antpos = uvutils.ECEF_from_ENU(
+        enu=enu_antpos, center_loc=cal_in.telescope.location
+    )
+    cal_in.telescope.antenna_positions = (
+        new_full_antpos - cal_in.telescope._location.xyz()
+    )
     cal_in.set_lsts_from_time_array()
     cal_in.check()
 
@@ -184,7 +182,10 @@ def test_calh5_meta(gain_data, tmp_path):
     assert not cal_meta.has_key(600)
     assert not cal_meta.has_key(ant_nums[5], "ll")
 
-    assert np.allclose(cal_meta.telescope_location, calobj.telescope_location)
+    assert np.allclose(
+        Quantity(list(cal_meta.telescope_location_obj.geocentric)),
+        Quantity(list(calobj.telescope.location.geocentric)),
+    )
 
     # remove history to test adding pyuvdata version
     cal_meta.history = ""

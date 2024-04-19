@@ -7,11 +7,19 @@ import os
 import warnings
 
 import numpy as np
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from . import __version__
+from . import __version__, telescopes
 from . import utils as uvutils
 from .uvdata.uvdata import reporting_request
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 no_casa_message = (
     "casacore is not installed but is required for measurement set functionality"
@@ -2098,3 +2106,75 @@ def init_ms_cal_file(filename, delay_table=False):
         ms.putkeyword("VisCal", "unknown")
         ms.putkeyword("PolBasis", "unknown")
         ms.putkeyword("CASA_Version", "unknown")
+
+
+def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
+    """
+    Get the telescope location object.
+
+    Parameters
+    ----------
+    tb_ant_dict : dict
+        dict returned by `read_ms_antenna`
+    obs_dict : dict
+        dict returned by `read_ms_observation`
+
+    """
+    xyz_telescope_frame = tb_ant_dict["telescope_frame"]
+    xyz_telescope_ellipsoid = tb_ant_dict["telescope_ellipsoid"]
+
+    # check to see if a TELESCOPE_LOCATION column is present in the observation
+    # table. This is non-standard, but inserted by pyuvdata
+    if (
+        "telescope_location" not in obs_dict
+        and obs_dict["telescope_name"] in telescopes.known_telescopes()
+    ):
+        # get it from known telescopes
+        telescope_obj = telescopes.Telescope.from_known_telescopes(
+            obs_dict["telescope_name"]
+        )
+        warnings.warn(
+            "Setting telescope_location to value in known_telescopes for "
+            f"{obs_dict['telescope_name']}."
+        )
+        return telescope_obj.location
+    else:
+        if xyz_telescope_frame not in ["itrs", "mcmf"]:
+            raise ValueError(
+                f"Telescope frame in file is {xyz_telescope_frame}. "
+                "Only 'itrs' and 'mcmf' are currently supported."
+            )
+        if xyz_telescope_frame == "mcmf":
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with " "MCMF frames."
+                )
+
+            if xyz_telescope_ellipsoid is None:
+                xyz_telescope_ellipsoid = "SPHERE"
+
+        if "telescope_location" in obs_dict:
+            if xyz_telescope_frame == "itrs":
+                return EarthLocation.from_geocentric(
+                    *np.squeeze(obs_dict["telescope_location"]), unit="m"
+                )
+            else:
+                loc = MoonLocation.from_selenocentric(
+                    *np.squeeze(obs_dict["telescope_location"]), unit="m"
+                )
+                loc.ellipsoid = xyz_telescope_ellipsoid
+                return loc
+        else:
+            # Set it to be the mean of the antenna positions (this is not ideal!)
+            if xyz_telescope_frame == "itrs":
+                return EarthLocation.from_geocentric(
+                    *np.array(np.mean(tb_ant_dict["antenna_positions"], axis=0)),
+                    unit="m",
+                )
+            else:
+                loc = MoonLocation.from_selenocentric(
+                    *np.array(np.mean(tb_ant_dict["antenna_positions"], axis=0)),
+                    unit="m",
+                )
+                loc.ellipsoid = xyz_telescope_ellipsoid
+                return loc
