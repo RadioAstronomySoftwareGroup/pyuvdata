@@ -86,7 +86,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         Library used for calculating the LSTs. Allowed options are
         'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
         library), and 'astropy' (which uses the astropy utilities). Default is erfa
-        unless the telescope_location frame is MCMF (on the moon), in which case the
+        unless the telescope location frame is MCMF (on the moon), in which case the
         default is astropy.
 
     Notes
@@ -337,14 +337,10 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         if "lst_array" in h:
             return h["lst_array"][:]
         else:
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
             lst_array = uvutils.get_lst_for_time(
                 jd_array=self.time_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
+                telescope_loc=self.telescope_location_obj,
                 astrometry_library=self._astrometry_library,
-                frame=self.telescope_frame,
             )
             return lst_array
 
@@ -476,7 +472,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             Library used for calculating the LSTs. Allowed options are
             'erfa' (which uses the pyERFA), 'novas' (which uses the python-novas
             library), and 'astropy' (which uses the astropy utilities). Default is erfa
-            unless the telescope_location frame is MCMF (on the moon), in which case the
+            unless the telescope location frame is MCMF (on the moon), in which case the
             default is astropy.
 
         """
@@ -529,29 +525,18 @@ class UVH5(UVData):
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
         self.time_array = obj.time_array
-        # must set the frame before setting the location using lat/lon/alt
-        self.telescope._location.frame = obj.telescope_frame
-        if self.telescope._location.frame == "mcmf":
-            self.telescope._location.ellipsoid = obj.ellipsoid
-        self.telescope_location_lat_lon_alt_degrees = (
-            obj.telescope_location_lat_lon_alt_degrees
-        )
+        self.telescope.location = obj.telescope_location_obj
 
         if "lst_array" in obj.header:
             self.lst_array = obj.header["lst_array"][:]
             proc = None
 
             if run_check_acceptability:
-                lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
                 uvutils.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
-                    latitude=lat,
-                    longitude=lon,
-                    altitude=alt,
+                    telescope_loc=self.telescope.location,
                     lst_tols=(0, uvutils.LST_RAD_TOL),
-                    frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
                 )
         else:
             proc = self.set_lsts_from_time_array(
@@ -560,8 +545,6 @@ class UVH5(UVData):
 
         # Required parameters
         for attr in [
-            "instrument",
-            "telescope_name",
             "history",
             "vis_units",
             "Nfreqs",
@@ -571,10 +554,6 @@ class UVH5(UVData):
             "Nblts",
             "Nbls",
             "Nants_data",
-            "Nants_telescope",
-            "antenna_names",
-            "antenna_numbers",
-            "antenna_positions",
             "ant_1_array",
             "ant_2_array",
             "phase_center_id_array",
@@ -589,6 +568,21 @@ class UVH5(UVData):
         ]:
             try:
                 setattr(self, attr, getattr(obj, attr))
+            except AttributeError as e:
+                raise KeyError(str(e)) from e
+
+        # Required telescope parameters
+        telescope_attrs = {
+            "instrument": "instrument",
+            "telescope_name": "name",
+            "Nants_telescope": "Nants",
+            "antenna_names": "antenna_names",
+            "antenna_numbers": "antenna_numbers",
+            "antenna_positions": "antenna_positions",
+        }
+        for attr, tel_attr in telescope_attrs.items():
+            try:
+                setattr(self.telescope, tel_attr, getattr(obj, attr))
             except AttributeError as e:
                 raise KeyError(str(e)) from e
 
@@ -622,9 +616,7 @@ class UVH5(UVData):
             "gst0",
             "rdate",
             "timesys",
-            "x_orientation",
             "blt_order",
-            "antenna_diameters",
             "uvplane_reference_time",
             "eq_coeffs",
             "eq_coeffs_convention",
@@ -637,6 +629,17 @@ class UVH5(UVData):
         ]:
             try:
                 setattr(self, attr, getattr(obj, attr))
+            except AttributeError:
+                pass
+
+        # Optional telescope parameters
+        telescope_attrs = {
+            "x_orientation": "x_orientation",
+            "antenna_diameters": "antenna_diameters",
+        }
+        for attr, tel_attr in telescope_attrs.items():
+            try:
+                setattr(self.telescope, tel_attr, getattr(obj, attr))
             except AttributeError:
                 pass
 
@@ -1217,22 +1220,23 @@ class UVH5(UVData):
         header["telescope_frame"] = np.string_(self.telescope._location.frame)
         if self.telescope._location.frame == "mcmf":
             header["ellipsoid"] = self.telescope._location.ellipsoid
-        header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
-        header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
-        header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
-        header["telescope_name"] = np.string_(self.telescope_name)
-        header["instrument"] = np.string_(self.instrument)
+        lat, lon, alt = self.telescope.location_lat_lon_alt_degrees
+        header["latitude"] = lat
+        header["longitude"] = lon
+        header["altitude"] = alt
+        header["telescope_name"] = np.string_(self.telescope.name)
+        header["instrument"] = np.string_(self.telescope.instrument)
 
         # write out required UVParameters
         header["Nants_data"] = self.Nants_data
-        header["Nants_telescope"] = self.Nants_telescope
+        header["Nants_telescope"] = self.telescope.Nants
         header["Nbls"] = self.Nbls
         header["Nblts"] = self.Nblts
         header["Nfreqs"] = self.Nfreqs
         header["Npols"] = self.Npols
         header["Nspws"] = self.Nspws
         header["Ntimes"] = self.Ntimes
-        header["antenna_numbers"] = self.antenna_numbers
+        header["antenna_numbers"] = self.telescope.antenna_numbers
         header["uvw_array"] = self.uvw_array
         header["vis_units"] = np.string_(self.vis_units)
         header["channel_width"] = self.channel_width
@@ -1244,10 +1248,12 @@ class UVH5(UVData):
         header["spw_array"] = self.spw_array
         header["ant_1_array"] = self.ant_1_array
         header["ant_2_array"] = self.ant_2_array
-        header["antenna_positions"] = self.antenna_positions
+        header["antenna_positions"] = self.telescope.antenna_positions
         header["flex_spw"] = self.flex_spw
         # handle antenna_names; works for lists or arrays
-        header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
+        header["antenna_names"] = np.asarray(
+            self.telescope.antenna_names, dtype="bytes"
+        )
 
         # write out phasing information
         # Write out the catalog, if available
@@ -1280,12 +1286,12 @@ class UVH5(UVData):
             header["rdate"] = np.string_(self.rdate)
         if self.timesys is not None:
             header["timesys"] = np.string_(self.timesys)
-        if self.x_orientation is not None:
-            header["x_orientation"] = np.string_(self.x_orientation)
+        if self.telescope.x_orientation is not None:
+            header["x_orientation"] = np.string_(self.telescope.x_orientation)
         if self.blt_order is not None:
             header["blt_order"] = np.string_(", ".join(self.blt_order))
-        if self.antenna_diameters is not None:
-            header["antenna_diameters"] = self.antenna_diameters
+        if self.telescope.antenna_diameters is not None:
+            header["antenna_diameters"] = self.telescope.antenna_diameters
         if self.uvplane_reference_time is not None:
             header["uvplane_reference_time"] = self.uvplane_reference_time
         if self.eq_coeffs is not None:

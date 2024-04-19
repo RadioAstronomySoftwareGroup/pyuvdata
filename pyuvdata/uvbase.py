@@ -20,6 +20,21 @@ from .utils import _get_iterable
 
 __all__ = ["UVBase"]
 
+# the old names of attributes as keys, values are the names on the telescope object
+old_telescope_metadata_attrs = {
+    "telescope_name": "name",
+    "telescope_location": None,
+    "telescope_location_lat_lon_alt": None,
+    "telescope_location_lat_lon_alt_degrees": None,
+    "instrument": "instrument",
+    "Nants_telescope": "Nants",
+    "antenna_names": "antenna_names",
+    "antenna_numbers": "antenna_numbers",
+    "antenna_positions": "antenna_positions",
+    "x_orientation": "x_orientation",
+    "antenna_diameters": "antenna_diameters",
+}
+
 
 def _warning(msg, *a, **kwargs):
     """
@@ -125,6 +140,28 @@ class UVBase(object):
         """
         self.__dict__ = state
         self._setup_parameters()
+
+    def __getattribute__(self, __name):
+        """Handle old names for telescope metadata."""
+        if __name in old_telescope_metadata_attrs:
+            # _warn_old_phase_attr(__name)
+
+            if hasattr(self, "telescope"):
+                tel_name = old_telescope_metadata_attrs[__name]
+                if tel_name is not None:
+                    # if it's a simple remapping, just return the value
+                    ret_val = getattr(self.telescope, tel_name)
+                else:
+                    # handle location related stuff
+                    if __name == "telescope_location":
+                        ret_val = self.telescope._location.xyz()
+                    elif __name == "telescope_location_lat_lon_alt":
+                        ret_val = self.telescope.location_lat_lon_alt()
+                    elif __name == "telescope_location_lat_lon_alt_degrees":
+                        ret_val = self.telescope.location_lat_lon_alt_degrees()
+                return ret_val
+
+        return super().__getattribute__(__name)
 
     def prop_fget(self, param_name):
         """

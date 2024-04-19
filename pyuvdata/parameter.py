@@ -18,9 +18,18 @@ import warnings
 
 import astropy.units as units
 import numpy as np
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import EarthLocation, SkyCoord
 
-from . import utils
+allowed_location_types = [EarthLocation]
+try:
+    from lunarsky import MoonLocation
+
+    allowed_location_types.append(MoonLocation)
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
+
 
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter"]
 
@@ -843,6 +852,8 @@ class LocationParameter(UVParameter):
     """
     Subclass of UVParameter for location type parameters.
 
+    Supports either :class:`astropy.coordinates.EarthLocation` objects or
+    :class:`lunarsky.MoonLocation` objects.
     Adds extra methods for conversion to & from lat/lon/alt in radians or
     degrees (used by UVBase objects for _lat_lon_alt and _lat_lon_alt_degrees
     properties associated with these parameters).
@@ -857,30 +868,12 @@ class LocationParameter(UVParameter):
         the class with this UVParameter as an attribute. Default is True.
     value
         The value of the data or metadata.
-    spoof_val
-        A fake value that can be assigned to a non-required UVParameter if the
-        metadata is required for a particular file-type.
-        This is not an attribute of required UVParameters.
     description : str
         Description of the data or metadata in the object.
-    frame : str, optional
-        Coordinate frame. Valid options are "itrs" (default) or "mcmf".
-    ellipsoid : str, optional
-        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
-        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details).
-        Default is "SPHERE". Only used if frame is "mcmf".
-    acceptable_vals : list, optional
-        List giving allowed values for elements of value.
-    acceptable_range: 2-tuple, optional
-        Tuple giving a range of allowed magnitudes for elements of value.
     tols : float or 2-tuple of float
         Tolerances for testing the equality of UVParameters. Either a single
         absolute value or a tuple of relative and absolute values to be used by
         np.isclose()
-    strict_type_check : bool
-        When True, the input expected_type is used exactly, otherwise a more
-        generic type is found to allow changes in precicions or to/from numpy
-        dtypes to not break checks.
 
     Attributes
     ----------
@@ -893,25 +886,17 @@ class LocationParameter(UVParameter):
     value
         The value of the data or metadata.
     spoof_val
-        A fake value that can be assigned to a non-required UVParameter if the
-        metadata is required for a particular file-type.
-        This is not an attribute of required UVParameters.
+        Always set to None.
     form : int
-       Always set to 3.
+       Always set to None.
     description : str
         Description of the data or metadata in the object.
-    frame : str, optional
-        Coordinate frame. Valid options are "itrs" (default) or "mcmf".
-    ellipsoid : str, optional
-        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
-        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if frame is "mcmf".
     expected_type
-        Always set to float.
+        Set to EarthLocation or MoonLocation
     acceptable_vals : list, optional
-        List giving allowed values for elements of value.
+        Always set to None.
     acceptable_range: 2-tuple, optional
-        Tuple giving a range of allowed magnitudes for elements of value.
+        Always set to None.
     tols : 2-tuple of float
         Relative and absolute tolerances for testing the equality of UVParameters, to be
         used by np.isclose()
@@ -930,9 +915,6 @@ class LocationParameter(UVParameter):
         value=None,
         spoof_val=None,
         description="",
-        frame="itrs",
-        ellipsoid=None,
-        acceptable_range=None,
         tols=1e-3,
     ):
         super(LocationParameter, self).__init__(
@@ -940,33 +922,71 @@ class LocationParameter(UVParameter):
             required=required,
             value=value,
             spoof_val=spoof_val,
-            form=3,
             description=description,
-            expected_type=float,
-            acceptable_range=acceptable_range,
+            expected_type=tuple(allowed_location_types),
+            strict_type_check=True,
+            acceptable_range=None,
             tols=tols,
         )
-        self.frame = frame
 
-        if frame == "mcmf" and ellipsoid is None:
-            ellipsoid = "SPHERE"
+    @property
+    def frame(self):
+        """Get the frame."""
+        if isinstance(self.value, EarthLocation):
+            return "itrs"
+        elif hasmoon and isinstance(self.value, MoonLocation):
+            return "mcmf"
 
-        self.ellipsoid = ellipsoid
+    @property
+    def ellipsoid(self):
+        """Get the ellipsoid."""
+        if isinstance(self.value, EarthLocation):
+            return None
+        elif hasmoon and isinstance(self.value, MoonLocation):
+            return self.value.ellipsoid
+
+    def xyz(self):
+        """Get the body centric coordinates in meters."""
+        if self.value is None:
+            return None
+        else:
+            if hasmoon and isinstance(self.value, MoonLocation):
+                centric_coords = self.value.selenocentric
+            else:
+                centric_coords = self.value.geocentric
+            return units.Quantity(centric_coords).to("m").value
+
+    def set_xyz(self, xyz, frame="itrs", ellipsoid=None):
+        """Set the body centric coordinates in meters."""
+        allowed_frames = ["itrs"]
+        if hasmoon:
+            allowed_frames += ["mcmf"]
+        if frame not in allowed_frames:
+            raise ValueError(f"frame must be one of {allowed_frames}")
+        if xyz is None:
+            self.value = None
+        else:
+            if frame == "itrs":
+                self.value = EarthLocation.from_geocentric(*(xyz * units.m))
+            else:
+                if ellipsoid is None and isinstance(self.value, MoonLocation):
+                    ellipsoid = self.value.ellipsoid
+                moonloc = MoonLocation.from_selenocentric(*(xyz * units.m))
+                if ellipsoid is not None:
+                    moonloc.ellipsoid = ellipsoid
+                self.value = moonloc
 
     def lat_lon_alt(self):
         """Get value in (latitude, longitude, altitude) tuple in radians."""
         if self.value is None:
             return None
         else:
-            # check defaults to False b/c exposed check kwarg exists in UVData
-            return utils.LatLonAlt_from_XYZ(
-                self.value,
-                check_acceptability=False,
-                frame=self.frame,
-                ellipsoid=self.ellipsoid,
-            )
+            lat = self.value.lat.rad
+            lon = self.value.lon.rad
+            alt = self.value.height.to("m").value
+            return lat, lon, alt
 
-    def set_lat_lon_alt(self, lat_lon_alt):
+    def set_lat_lon_alt(self, lat_lon_alt, ellipsoid=None):
         """
         Set value from (latitude, longitude, altitude) tuple in radians.
 
@@ -975,27 +995,40 @@ class LocationParameter(UVParameter):
         lat_lon_alt : 3-tuple of float
             Tuple with the latitude (radians), longitude (radians)
             and altitude (meters) to use to set the value attribute.
+        ellipsoid : str or None
+            Ellipsoid to use to convert between lat/lon/alt and xyz. Only used
+            for MoonLocation objects.
         """
         if lat_lon_alt is None:
             self.value = None
         else:
-            self.value = utils.XYZ_from_LatLonAlt(
-                latitude=lat_lon_alt[0],
-                longitude=lat_lon_alt[1],
-                altitude=lat_lon_alt[2],
-                frame=self.frame,
-                ellipsoid=self.ellipsoid,
-            )
+            if hasmoon and isinstance(self.value, MoonLocation):
+                if ellipsoid is None:
+                    ellipsoid = self.value.ellipsoid
+                self.value = MoonLocation.from_selenodetic(
+                    lon=lat_lon_alt[1] * units.rad,
+                    lat=lat_lon_alt[0] * units.rad,
+                    height=lat_lon_alt[2] * units.m,
+                    ellipsoid=ellipsoid,
+                )
+            else:
+                self.value = EarthLocation.from_geodetic(
+                    lon=lat_lon_alt[1] * units.rad,
+                    lat=lat_lon_alt[0] * units.rad,
+                    height=lat_lon_alt[2] * units.m,
+                )
 
     def lat_lon_alt_degrees(self):
         """Get value in (latitude, longitude, altitude) tuple in degrees."""
         if self.value is None:
             return None
         else:
-            latitude, longitude, altitude = self.lat_lon_alt()
-            return latitude * 180.0 / np.pi, longitude * 180.0 / np.pi, altitude
+            lat = self.value.lat.deg
+            lon = self.value.lon.deg
+            alt = self.value.height.to("m").value
+            return lat, lon, alt
 
-    def set_lat_lon_alt_degrees(self, lat_lon_alt_degree):
+    def set_lat_lon_alt_degrees(self, lat_lon_alt_degree, ellipsoid=None):
         """
         Set value from (latitude, longitude, altitude) tuple in degrees.
 
@@ -1004,39 +1037,60 @@ class LocationParameter(UVParameter):
         lat_lon_alt : 3-tuple of float
             Tuple with the latitude (degrees), longitude (degrees)
             and altitude (meters) to use to set the value attribute.
+        ellipsoid : str or None
+            Ellipsoid to use to convert between lat/lon/alt and xyz. Only used
+            for MoonLocation objects.
 
         """
         if lat_lon_alt_degree is None:
             self.value = None
         else:
-            latitude, longitude, altitude = lat_lon_alt_degree
-            self.value = utils.XYZ_from_LatLonAlt(
-                latitude=latitude * np.pi / 180.0,
-                longitude=longitude * np.pi / 180.0,
-                altitude=altitude,
-                frame=self.frame,
-                ellipsoid=self.ellipsoid,
+            lat_lon_alt = (
+                lat_lon_alt_degree[0] * np.pi / 180.0,
+                lat_lon_alt_degree[1] * np.pi / 180.0,
+                lat_lon_alt_degree[2],
             )
+            self.set_lat_lon_alt(lat_lon_alt, ellipsoid=ellipsoid)
 
     def check_acceptability(self):
         """Check that vector magnitudes are in range."""
-        if self.frame not in utils._range_dict.keys():
-            return False, f"Frame must be one of {utils._range_dict.keys()}"
+        if not isinstance(self.value, allowed_location_types):
+            return (
+                False,
+                f"Location must be an object of type: {allowed_location_types}",
+            )
 
-        if self.acceptable_range is None:
-            return True, "No acceptability check"
-        else:
-            # acceptable_range is a tuple giving a range of allowed vector magnitudes
-            testval = np.sqrt(np.sum(np.abs(self.value) ** 2))
-            if (testval >= self.acceptable_range[0]) and (
-                testval <= self.acceptable_range[1]
-            ):
-                return True, "Value is acceptable"
-            else:
-                message = (
-                    f"Value {testval}, is not in allowed range: {self.acceptable_range}"
-                )
-                return False, message
+    def __eq__(self, other, *, silent=False):
+        """Handle equality properly for Earth/Moon Location objects."""
+        if not isinstance(self.value, tuple(allowed_location_types)) or not isinstance(
+            other.value, tuple(allowed_location_types)
+        ):
+            return super(LocationParameter, self).__eq__(other, silent=silent)
+
+        if self.value.shape != other.value.shape:
+            if not silent:
+                print(f"{self.name} parameter shapes are different")
+            return False
+
+        if not isinstance(other.value, self.value.__class__):
+            if not silent:
+                print("Classes do not match")
+            return False
+
+        if hasmoon and isinstance(self.value, MoonLocation):
+            if self.value.ellipsoid != other.value.ellipsoid:
+                if not silent:
+                    print(f"{self.name} parameter ellipsoid is not the same. ")
+                return False
+
+        if not np.allclose(
+            self.xyz(), other.xyz(), rtol=self.tols[0], atol=self.tols[1]
+        ):
+            if not silent:
+                print(f"{self.name} parameter is not close. ")
+            return False
+
+        return True
 
 
 class SkyCoordParameter(UVParameter):

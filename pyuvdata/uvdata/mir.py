@@ -525,35 +525,36 @@ class Mir(UVData):
                 np.concatenate((mir_data.bl_data["iant1"], mir_data.bl_data["iant2"]))
             )
         )
-        self.Nants_telescope = 8
+        self.telescope.Nants = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
         self.Nblts = Nblts
         self.Npols = Npols
         self.Ntimes = len(mir_data.in_data)
-        self.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
+        self.telescope.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
 
-        self.antenna_numbers = np.arange(1, 9)
+        self.telescope.antenna_numbers = np.arange(1, 9)
 
         # Prepare the XYZ coordinates of the antenna positions.
-        antXYZ = np.zeros([self.Nants_telescope, 3])
-        for idx in range(self.Nants_telescope):
+        antXYZ = np.zeros([self.telescope.Nants, 3])
+        for idx in range(self.telescope.Nants):
             if (idx + 1) in mir_data.antpos_data["antenna"]:
                 antXYZ[idx] = mir_data.antpos_data["xyz_pos"][
                     mir_data.antpos_data["antenna"] == (idx + 1)
                 ]
 
         # Get the coordinates from the entry in telescope.py
-        lat, lon, alt = Telescope.from_known_telescopes("SMA").location_lat_lon_alt
-        self.telescope_location_lat_lon_alt = (lat, lon, alt)
+        self.telescope.location = Telescope.from_known_telescopes("SMA").location
 
         # Calculate antenna positions in ECEF frame. Note that since both
         # coordinate systems are in relative units, no subtraction from
         # telescope geocentric position is required , i.e we are going from
         # relRotECEF -> relECEF
-        self.antenna_positions = uvutils.ECEF_from_rotECEF(antXYZ, lon)
+        self.telescope.antenna_positions = uvutils.ECEF_from_rotECEF(
+            antXYZ, self.telescope.location.lon.rad
+        )
 
         self.history = "Raw Data"
-        self.instrument = "SWARM"
+        self.telescope.instrument = "SWARM"
 
         # Before proceeding, we want to check that information that's stored on a
         # per-spectral record basis (sphid) is consistent across a given baseline-time
@@ -691,7 +692,7 @@ class Mir(UVData):
         self.polarization_array = polarization_array
         self.flex_spw_polarization_array = flex_pol
         self.spw_array = np.array(spw_array, dtype=int)
-        self.telescope_name = "SMA"
+        self.telescope.name = "SMA"
 
         # Need to flip the sign convention here on uvw, since we use a1-a2 versus the
         # standard a2-a1 that uvdata expects
@@ -717,7 +718,7 @@ class Mir(UVData):
                     time_array=time_arr,
                     app_ra=mir_data.in_data["ara"][source_mask],
                     app_dec=mir_data.in_data["adec"][source_mask],
-                    telescope_loc=self.telescope_location_lat_lon_alt,
+                    telescope_loc=self.telescope.location,
                 )
             self._add_phase_center(
                 source_name,
@@ -763,7 +764,7 @@ class Mir(UVData):
             use_ant_pos=False,
         )
 
-        self.antenna_diameters = np.zeros(self.Nants_telescope) + 6.0
+        self.telescope.antenna_diameters = np.zeros(self.telescope.Nants) + 6.0
         self.blt_order = ("time", "baseline")
 
         # set filename attribute
