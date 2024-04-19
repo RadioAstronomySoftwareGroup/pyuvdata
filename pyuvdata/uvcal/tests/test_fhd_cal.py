@@ -311,7 +311,7 @@ def test_unknown_telescope():
             settings_file=settings_testfile,
             use_future_array_shapes=True,
         )
-    assert fhd_cal.telescope_name == "foo"
+    assert fhd_cal.telescope.name == "foo"
 
 
 @pytest.mark.parametrize(

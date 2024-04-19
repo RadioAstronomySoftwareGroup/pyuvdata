@@ -7,6 +7,8 @@ import os
 import warnings
 
 import numpy as np
+from astropy import units
+from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
@@ -112,7 +114,7 @@ class FHDCal(UVCal):
             (1, 2),
         )
 
-        self.telescope_name = obs_data["instrument"][0].decode("utf8")
+        self.telescope.name = obs_data["instrument"][0].decode("utf8")
         latitude = np.deg2rad(float(obs_data["LAT"][0]))
         longitude = np.deg2rad(float(obs_data["LON"][0]))
         altitude = float(obs_data["ALT"][0])
@@ -129,7 +131,7 @@ class FHDCal(UVCal):
             + str(obs_data["ORIG_PHASEDEC"][0])
         )
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope_name.lower() == "mwa":
+        if self.telescope.name.lower() == "mwa":
             if np.isclose(obs_data["ORIG_PHASERA"][0], 0) and np.isclose(
                 obs_data["ORIG_PHASEDEC"][0], -27
             ):
@@ -151,7 +153,7 @@ class FHDCal(UVCal):
             obs_tile_names = [
                 ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            if self.telescope_name.lower() == "mwa":
+            if self.telescope.name.lower() == "mwa":
                 obs_tile_names = [
                     "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
                     for ant in obs_tile_names
@@ -159,7 +161,7 @@ class FHDCal(UVCal):
 
             layout_param_dict = get_fhd_layout_info(
                 layout_file=layout_file,
-                telescope_name=self.telescope_name,
+                telescope_name=self.telescope.name,
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
@@ -177,8 +179,22 @@ class FHDCal(UVCal):
                 "timesys",
                 "diameters",
             ]
+
+            telescope_attrs = {
+                "telescope_location": "location",
+                "Nants_telescope": "Nants",
+                "antenna_names": "antenna_names",
+                "antenna_numbers": "antenna_numbers",
+                "antenna_positions": "antenna_positions",
+                "diameters": "antenna_diameters",
+            }
+
             for key, value in layout_param_dict.items():
-                if key not in layout_params_to_ignore:
+                if key in layout_params_to_ignore:
+                    continue
+                if key in telescope_attrs:
+                    setattr(self.telescope, telescope_attrs[key], value)
+                else:
                     setattr(self, key, value)
 
         else:
@@ -187,22 +203,28 @@ class FHDCal(UVCal):
                 "and antenna_names might be incorrect."
             )
 
-            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+            self.telescope.location = EarthLocation.from_geodetic(
+                lat=latitude * units.rad,
+                lon=longitude * units.rad,
+                height=altitude * units.m,
+            )
             # FHD stores antenna numbers, not names, in the "TILE_NAMES" field
-            self.antenna_names = [
+            self.telescope.antenna_names = [
                 ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
-            if self.telescope_name.lower() == "mwa":
-                self.antenna_names = [
+            self.telescope.antenna_numbers = np.array(
+                [int(ant) for ant in self.telescope.antenna_names]
+            )
+            if self.telescope.name.lower() == "mwa":
+                self.telescope.antenna_names = [
                     "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
-                    for ant in self.antenna_names
+                    for ant in self.telescope.antenna_names
                 ]
-            self.Nants_telescope = len(self.antenna_names)
+            self.telescope.Nants = len(self.telescope.antenna_names)
 
-        self.antenna_names = np.asarray(self.antenna_names)
+        self.telescope.antenna_names = np.asarray(self.telescope.antenna_names)
 
-        self.x_orientation = "east"
+        self.telescope.x_orientation = "east"
 
         try:
             self.set_telescope_params()
@@ -210,7 +232,7 @@ class FHDCal(UVCal):
             warnings.warn(str(ve))
 
         # need to make sure telescope location is defined properly before this call
-        if self.telescope_location is not None:
+        if self.telescope.location is not None:
             proc = self.set_lsts_from_time_array(
                 background=background_lsts, astrometry_library=astrometry_library
             )
@@ -255,7 +277,7 @@ class FHDCal(UVCal):
 
             # for calibration FHD includes all antennas in the antenna table,
             # regardless of whether or not they have data
-            self.Nants_data = len(self.antenna_names)
+            self.Nants_data = len(self.telescope.antenna_names)
 
             # get details from settings file
             keywords = [
@@ -397,7 +419,7 @@ class FHDCal(UVCal):
             for freq in flagged_freqs:
                 self.flag_array[:, :, freq] = 1
 
-        if self.telescope_name.lower() == "mwa":
+        if self.telescope.name.lower() == "mwa":
             self.ref_antenna_name = (
                 "Tile" + "0" * (3 - len(self.ref_antenna_name)) + self.ref_antenna_name
             )
@@ -436,7 +458,7 @@ class FHDCal(UVCal):
         # rather than (Nfreqs, Nants_data). This means the antenna array will
         # contain all antennas in the antenna table instead of only those
         # which had data in the original uvfits file
-        self.ant_array = self.antenna_numbers
+        self.ant_array = self.telescope.antenna_numbers
 
         self.extra_keywords["autoscal".upper()] = (
             "[" + ", ".join(str(d) for d in auto_scale) + "]"
