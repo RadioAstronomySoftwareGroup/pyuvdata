@@ -62,16 +62,6 @@ class Body(enum.Enum):
     # lunar sky not installed, don't add any moon bodies
     pass
 
-# expose up to python
-# in order to not have circular dependencies
-# define transformation parameters here
-# parameters for transforming between xyz & lat/lon/alt
-# keep for consistent API though these really shouldn't be used anymore
-gps_a = Body.Earth.value.gps_a
-gps_b =  Body.Earth.value.gps_b
-e_squared =  Body.Earth.value.e_squared
-e_prime_squared =  Body.Earth.value.e_prime_squared
-
 ctypedef fused int_or_float:
     numpy.uint64_t
     numpy.int64_t
