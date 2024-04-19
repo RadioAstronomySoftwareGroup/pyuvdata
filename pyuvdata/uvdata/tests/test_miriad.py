@@ -26,6 +26,7 @@ import shutil
 import numpy as np
 import pytest
 from astropy import constants as const
+from astropy import units
 from astropy.coordinates import Angle
 from astropy.time import Time, TimeDelta
 
@@ -90,7 +91,7 @@ warn_dict = {
     "telescope_at_sealevel": (
         "Telescope location is set at sealevel at the file lat/lon "
         "coordinates. Antenna positions are present, but the mean antenna "
-        "position does not give a telescope_location on the surface of the "
+        "position does not give a telescope location on the surface of the "
         "earth. Antenna positions do not appear to be on the surface of the "
         "earth and will be treated as relative."
     ),
@@ -348,9 +349,9 @@ def test_read_carma_miriad_write_ms(tmp_path):
         uv_in.read(carma_file, use_future_array_shapes=True)
 
     # MIRIAD is missing these in the file, so we'll fill it in here.
-    uv_in.antenna_diameters = np.zeros(uv_in.Nants_telescope)
-    uv_in.antenna_diameters[:6] = 10.0
-    uv_in.antenna_diameters[15:] = 3.5
+    uv_in.telescope.antenna_diameters = np.zeros(uv_in.telescope.Nants)
+    uv_in.telescope.antenna_diameters[:6] = 10.0
+    uv_in.telescope.antenna_diameters[15:] = 3.5
 
     # We need to recalculate app coords here for one source ("NOISE"), which was
     # not actually correctly calculated in the online CARMA system (long story). Since
@@ -590,16 +591,17 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     # Test for using antenna positions to get telescope position
     # extract antenna positions and rotate them for miriad
     nants = aipy_uv["nants"]
-    rel_ecef_antpos = np.zeros((nants, 3), dtype=uv_in.antenna_positions.dtype)
-    for ai, num in enumerate(uv_in.antenna_numbers):
-        rel_ecef_antpos[num, :] = uv_in.antenna_positions[ai, :]
+    rel_ecef_antpos = np.zeros(
+        (nants, 3), dtype=uv_in.telescope.antenna_positions.dtype
+    )
+    for ai, num in enumerate(uv_in.telescope.antenna_numbers):
+        rel_ecef_antpos[num, :] = uv_in.telescope.antenna_positions[ai, :]
 
     # find zeros so antpos can be zeroed there too
     antpos_length = np.sqrt(np.sum(np.abs(rel_ecef_antpos) ** 2, axis=1))
 
-    ecef_antpos = rel_ecef_antpos + uv_in.telescope_location
-    longitude = uv_in.telescope_location_lat_lon_alt[1]
-    antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
+    ecef_antpos = rel_ecef_antpos + uv_in.telescope._location.xyz()
+    antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, uv_in.telescope.location.lon.rad)
 
     # zero out bad locations (these are checked on read)
     antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
@@ -732,8 +734,12 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
     good_antpos = np.where(antpos_length > 0)[0]
     rot_ants = good_antpos[: len(good_antpos) // 2]
-    rot_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos[rot_ants, :], longitude + np.pi)
-    modified_antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, longitude)
+    rot_antpos = uvutils.rotECEF_from_ECEF(
+        ecef_antpos[rot_ants, :], uv_in.telescope.location.lon.rad + np.pi
+    )
+    modified_antpos = uvutils.rotECEF_from_ECEF(
+        ecef_antpos, uv_in.telescope.location.lon.rad
+    )
     modified_antpos[rot_ants, :] = rot_antpos
 
     # zero out bad locations (these are checked on read)
@@ -758,17 +764,13 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            (
-                "Altitude is not present in Miriad file, and "
-                "telescope foo is not in known_telescopes. "
-                "Telescope location will be set using antenna positions."
-            ),
-            "Altitude is not present ",
+            warn_dict["altitude_missing_foo"],
+            warn_dict["altitude_missing_foo"],
             (
                 "Telescope location is set at sealevel at the "
                 "file lat/lon coordinates. Antenna positions "
                 "are present, but the mean antenna position "
-                "does not give a telescope_location on the "
+                "does not give a telescope location on the "
                 "surface of the earth."
             ),
             warn_dict["uvw_mismatch"],
@@ -901,22 +903,23 @@ def test_miriad_multi_phase_error(tmp_path, paper_miriad):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_miriad_only_itrs(tmp_path, paper_miriad):
     pytest.importorskip("lunarsky")
+    from lunarsky import MoonLocation
+
     uv_in = paper_miriad
     testfile = os.path.join(tmp_path, "outtest_miriad.uv")
 
     enu_antpos, _ = uv_in.get_ENU_antpos()
-    latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-    uv_in.telescope._location.frame = "mcmf"
-    uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+    latitude, longitude, altitude = uv_in.telescope.location_lat_lon_alt
+    uv_in.telescope.location = MoonLocation.from_selenodetic(
+        lat=latitude * units.rad, lon=longitude * units.rad, height=altitude * units.m
+    )
     new_full_antpos = uvutils.ECEF_from_ENU(
-        enu=enu_antpos,
-        latitude=latitude,
-        longitude=longitude,
-        altitude=altitude,
-        frame="mcmf",
+        enu=enu_antpos, center_loc=uv_in.telescope.location
     )
 
-    uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+    uv_in.telescope.antenna_positions = (
+        new_full_antpos - uv_in.telescope._location.xyz()
+    )
     uv_in.set_lsts_from_time_array()
     uv_in.check()
 
@@ -987,10 +990,6 @@ def test_miriad_ephem(tmp_path, casa_uvfits, cut_ephem_pts, extrapolate):
     uv2.phase_center_catalog[1]["info_source"] = uv_in.phase_center_catalog[1][
         "info_source"
     ]
-
-    uv_in.print_phase_center_info()
-    print("")
-    uv2.print_phase_center_info()
 
     if cut_ephem_pts:
         # Only one ephem points results in only one ra/dec, so it is interpretted as
@@ -1186,7 +1185,7 @@ def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
 def test_roundtrip_optional_params(uv_in_paper, tmp_path):
     uv_in, uv_out, testfile = uv_in_paper
 
-    uv_in.x_orientation = "east"
+    uv_in.telescope.x_orientation = "east"
     uv_in.reorder_blts()
 
     _write_miriad(uv_in, testfile, clobber=True)
@@ -1297,7 +1296,7 @@ def test_read_write_read_miriad(uv_in_paper):
     assert str(cm.value).startswith("File exists: skipping")
 
     # check that if x_orientation is set, it's read back out properly
-    uv_in.x_orientation = "east"
+    uv_in.telescope.x_orientation = "east"
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file, use_future_array_shapes=True)
     uv_out._consolidate_phase_center_catalogs(other=uv_in)
@@ -1308,8 +1307,8 @@ def test_read_write_read_miriad(uv_in_paper):
 def test_miriad_antenna_diameters(uv_in_paper):
     # check that if antenna_diameters is set, it's read back out properly
     uv_in, uv_out, write_file = uv_in_paper
-    uv_in.antenna_diameters = (
-        np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
+    uv_in.telescope.antenna_diameters = (
+        np.zeros((uv_in.telescope.Nants,), dtype=np.float32) + 14.0
     )
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file, use_future_array_shapes=True)
@@ -1323,8 +1322,8 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_in == uv_out
 
     # check that antenna diameters get written if not exactly float
-    uv_in.antenna_diameters = (
-        np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
+    uv_in.telescope.antenna_diameters = (
+        np.zeros((uv_in.telescope.Nants,), dtype=np.float32) + 14.0
     )
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file, use_future_array_shapes=True)
@@ -1332,10 +1331,10 @@ def test_miriad_antenna_diameters(uv_in_paper):
     assert uv_in == uv_out
 
     # check warning when antenna diameters vary
-    uv_in.antenna_diameters = (
-        np.zeros((uv_in.Nants_telescope,), dtype=np.float32) + 14.0
+    uv_in.telescope.antenna_diameters = (
+        np.zeros((uv_in.telescope.Nants,), dtype=np.float32) + 14.0
     )
-    uv_in.antenna_diameters[1] = 15.0
+    uv_in.telescope.antenna_diameters[1] = 15.0
     _write_miriad(
         uv_in,
         write_file,
@@ -1347,8 +1346,8 @@ def test_miriad_antenna_diameters(uv_in_paper):
         ],
     )
     uv_out.read(write_file, use_future_array_shapes=True)
-    assert uv_out.antenna_diameters is None
-    uv_out.antenna_diameters = uv_in.antenna_diameters
+    assert uv_out.telescope.antenna_diameters is None
+    uv_out.telescope.antenna_diameters = uv_in.telescope.antenna_diameters
     uv_out._consolidate_phase_center_catalogs(other=uv_in)
     assert uv_in == uv_out
 
@@ -1397,13 +1396,13 @@ def test_miriad_telescope_locations():
     uv_in = Miriad()
     uv = aipy_extracts.UV(paper_miriad_file)
     uv_in._load_telescope_coords(uv)
-    assert uv_in.telescope_location_lat_lon_alt is not None
+    assert uv_in.telescope.location is not None
     uv.close()
     # test load_antpos w/ blank Miriad
     uv_in = Miriad()
     uv = aipy_extracts.UV(paper_miriad_file)
     uv_in._load_antpos(uv)
-    assert uv_in.antenna_positions is not None
+    assert uv_in.telescope.antenna_positions is not None
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1773,17 +1772,18 @@ def test_read_write_read_miriad_partial_metadata_only(uv_in_paper, tmp_path):
     assert uv_in_meta.time_array is None
     assert uv_in_meta.data_array is None
     assert uv_in_meta.integration_time is None
-    metadata = [
+    metadata = ["channel_width", "history", "vis_units"]
+    for par in metadata:
+        assert getattr(uv_in_meta, par) is not None
+
+    telescope_metadata = [
         "antenna_positions",
         "antenna_names",
         "antenna_positions",
-        "channel_width",
-        "history",
-        "vis_units",
-        "telescope_location",
+        "location",
     ]
-    for m in metadata:
-        assert getattr(uv_in_meta, m) is not None
+    for par in telescope_metadata:
+        assert getattr(uv_in_meta.telescope, par) is not None
 
     # metadata only multiple file read-in
     del uv_in_meta
@@ -1850,7 +1850,7 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     uv_in, uv_out, write_file = uv_in_paper
 
     uv_in_copy = uv_in.copy()
-    uv_in_copy.antenna_positions = None
+    uv_in_copy.telescope.antenna_positions = None
     _write_miriad(
         uv_in_copy,
         write_file,
@@ -1873,8 +1873,8 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
 
     uv_in_copy = uv_in.copy()
     ants_with_data = list(set(uv_in_copy.ant_1_array).union(uv_in_copy.ant_2_array))
-    ant_ind = np.where(uv_in_copy.antenna_numbers == ants_with_data[0])[0]
-    uv_in_copy.antenna_positions[ant_ind, :] = [0, 0, 0]
+    ant_ind = np.where(uv_in_copy.telescope.antenna_numbers == ants_with_data[0])[0]
+    uv_in_copy.telescope.antenna_positions[ant_ind, :] = [0, 0, 0]
     _write_miriad(
         uv_in_copy,
         write_file,
@@ -1895,17 +1895,17 @@ def test_rwr_miriad_antpos_issues(uv_in_paper, tmp_path):
     uv_out._consolidate_phase_center_catalogs(other=uv_in_copy)
     assert uv_in_copy == uv_out
 
-    uv_in.antenna_positions = None
+    uv_in.telescope.antenna_positions = None
     ants_with_data = sorted(set(uv_in.ant_1_array).union(uv_in.ant_2_array))
     new_nums = []
     new_names = []
     for a in ants_with_data:
         new_nums.append(a)
-        ind = np.where(uv_in.antenna_numbers == a)[0][0]
-        new_names.append(uv_in.antenna_names[ind])
-    uv_in.antenna_numbers = np.array(new_nums)
-    uv_in.antenna_names = new_names
-    uv_in.Nants_telescope = len(uv_in.antenna_numbers)
+        ind = np.where(uv_in.telescope.antenna_numbers == a)[0][0]
+        new_names.append(uv_in.telescope.antenna_names[ind])
+    uv_in.telescope.antenna_numbers = np.array(new_nums)
+    uv_in.telescope.antenna_names = new_names
+    uv_in.telescope.Nants = len(uv_in.telescope.antenna_numbers)
     _write_miriad(
         uv_in,
         write_file,
@@ -2011,12 +2011,12 @@ def test_antpos_units(casa_uvfits, tmp_path):
     _write_miriad(uv, testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
     aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
-    aantpos = aantpos[uv.antenna_numbers, :]
+    aantpos = aantpos[uv.telescope.antenna_numbers, :]
     aantpos = (
-        uvutils.ECEF_from_rotECEF(aantpos, uv.telescope_location_lat_lon_alt[1])
-        - uv.telescope_location
+        uvutils.ECEF_from_rotECEF(aantpos, uv.telescope.location.lon.rad)
+        - uv.telescope._location.xyz()
     )
-    assert np.allclose(aantpos, uv.antenna_positions)
+    assert np.allclose(aantpos, uv.telescope.antenna_positions)
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
@@ -2035,12 +2035,11 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     uv = aipy_extracts.UV(fname)
     uv_t = uv["time"] + uv["inttime"] / (24 * 3600.0) / 2
 
-    lat, lon, alt = uvd.telescope_location_lat_lon_alt
-    t1 = Time(uv["time"], format="jd", location=(lon, lat))
+    t1 = Time(uv["time"], format="jd", location=uvd.telescope.location)
     dt = TimeDelta(uv["inttime"] / 2, format="sec")
     t2 = t1 + dt
     lsts = uvutils.get_lst_for_time(
-        np.array([t1.jd, t2.jd]), latitude=lat, longitude=lon, altitude=alt
+        np.array([t1.jd, t2.jd]), telescope_loc=uvd.telescope.location
     )
     delta_lst = lsts[1] - lsts[0]
     uv_l = uv["lst"] + delta_lst

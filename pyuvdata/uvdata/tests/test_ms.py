@@ -125,19 +125,21 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         enu_antpos, _ = uvobj.get_ENU_antpos()
-        latitude, longitude, altitude = uvobj.telescope_location_lat_lon_alt
-        uvobj.telescope._location.frame = "mcmf"
-        uvobj.telescope._location.ellipsoid = selenoid
-        uvobj.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        new_full_antpos = uvutils.ECEF_from_ENU(
-            enu=enu_antpos,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame="mcmf",
+        uvobj.telescope.location = MoonLocation.from_selenodetic(
+            lat=uvobj.telescope.location.lat,
+            lon=uvobj.telescope.location.lon,
+            height=uvobj.telescope.location.height,
+            ellipsoid=selenoid,
         )
-        uvobj.antenna_positions = new_full_antpos - uvobj.telescope_location
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos, center_loc=uvobj.telescope.location
+        )
+        uvobj.telescope.antenna_positions = (
+            new_full_antpos - uvobj.telescope._location.xyz()
+        )
         uvobj.set_lsts_from_time_array()
         uvobj.set_uvws_from_antenna_positions()
         uvobj._set_app_coords_helper()
@@ -267,7 +269,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
 
     # The uvfits was written by CASA, which adds one to all the antenna numbers relative
     # to the measurement set. Adjust those:
-    uvfits_uv.antenna_numbers = uvfits_uv.antenna_numbers - 1
+    uvfits_uv.telescope.antenna_numbers = uvfits_uv.telescope.antenna_numbers - 1
     uvfits_uv.ant_1_array = uvfits_uv.ant_1_array - 1
     uvfits_uv.ant_2_array = uvfits_uv.ant_2_array - 1
     uvfits_uv.baseline_array = uvfits_uv.antnums_to_baseline(
@@ -284,7 +286,7 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     assert uvfits_uv.__eq__(ms_uv, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
-    ms_uv.antenna_diameters = None
+    ms_uv.telescope.antenna_diameters = None
     uvfits_required_extra = ["dut1", "earth_omega", "gst0", "rdate", "timesys"]
     for p in uvfits_uv.extra():
         fits_param = getattr(uvfits_uv, p)
@@ -437,7 +439,7 @@ def test_multi_files(casa_uvfits, axis, tmp_path):
     assert uv_multi.__eq__(uv_full, check_extra=False)
 
     # set those parameters to none to check that the rest of the objects match
-    uv_multi.antenna_diameters = None
+    uv_multi.telescope.antenna_diameters = None
 
     uvfits_required_extra = ["dut1", "earth_omega", "gst0", "rdate", "timesys"]
     for p in uv_full.extra():
@@ -569,9 +571,7 @@ def test_ms_phasing(sma_mir, future_shapes, tmp_path):
     ms_uv.read(testfile, use_future_array_shapes=True)
 
     assert np.allclose(ms_uv.phase_center_app_ra, ms_uv.lst_array)
-    assert np.allclose(
-        ms_uv.phase_center_app_dec, ms_uv.telescope_location_lat_lon_alt[0]
-    )
+    assert np.allclose(ms_uv.phase_center_app_dec, ms_uv.telescope.location.lat.rad)
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
@@ -621,7 +621,7 @@ def test_ms_single_chan(sma_mir, future_shapes, tmp_path):
     ms_uv.extra_keywords = {}
     ms_uv.history = sma_mir.history
     ms_uv.filename = sma_mir.filename
-    ms_uv.instrument = sma_mir.instrument
+    ms_uv.telescope.instrument = sma_mir.telescope.instrument
     ms_uv.reorder_blts()
 
     # propagate scan numbers to the uvfits, ONLY for comparison
@@ -670,9 +670,9 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
         miriad_uv.read(carma_file, use_future_array_shapes=True)
 
     # MIRIAD is missing these in the file, so we'll fill it in here.
-    miriad_uv.antenna_diameters = np.zeros(miriad_uv.Nants_telescope)
-    miriad_uv.antenna_diameters[:6] = 10.0
-    miriad_uv.antenna_diameters[15:] = 3.5
+    miriad_uv.telescope.antenna_diameters = np.zeros(miriad_uv.telescope.Nants)
+    miriad_uv.telescope.antenna_diameters[:6] = 10.0
+    miriad_uv.telescope.antenna_diameters[15:] = 3.5
 
     # We need to recalculate app coords here for one source ("NOISE"), which was
     # not actually correctly calculated in the online CARMA system (long story). Since
@@ -781,7 +781,7 @@ def test_ms_extra_data_descrip(sma_mir, tmp_path):
     ms_uv.reorder_blts()
 
     # Fix the remaining differences between the two objects, all of which are expected
-    sma_mir.instrument = sma_mir.telescope_name
+    sma_mir.telescope.instrument = sma_mir.telescope.name
     ms_uv.history = sma_mir.history
     sma_mir.extra_keywords = ms_uv.extra_keywords
     sma_mir.filename = ms_uv.filename = None
@@ -905,7 +905,9 @@ def test_ms_reader_errs(sma_mir, tmp_path, badcol, badval, errtype, msg):
 def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     uv_obj = hera_uvh5
 
-    uv_obj.antenna_diameters = np.asarray(uv_obj.antenna_diameters, dtype=">f4")
+    uv_obj.telescope.antenna_diameters = np.asarray(
+        uv_obj.telescope.antenna_diameters, dtype=">f4"
+    )
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     with uvtest.check_warnings(
@@ -1033,7 +1035,7 @@ def test_importuvfits_flip_conj(sma_mir, tmp_path):
     uv.read(filename, use_future_array_shapes=True)
     uv.history = sma_mir.history
     uv.extra_keywords = sma_mir.extra_keywords
-    uv.instrument = sma_mir.instrument
+    uv.telescope.instrument = sma_mir.telescope.instrument
 
     assert sma_mir == uv
 
@@ -1051,9 +1053,9 @@ def test_flip_conj_multispw(sma_mir, tmp_path):
 
     # MS doesn't have the concept of an "instrument" name like FITS does, and instead
     # defaults to the telescope name. Make sure that checks out here.
-    assert sma_mir.instrument == "SWARM"
-    assert ms_uv.instrument == "SMA"
-    sma_mir.instrument = ms_uv.instrument
+    assert sma_mir.telescope.instrument == "SWARM"
+    assert ms_uv.telescope.instrument == "SMA"
+    sma_mir.telescope.instrument = ms_uv.telescope.instrument
 
     # Quick check for history here
     assert ms_uv.history != sma_mir.history
@@ -1110,7 +1112,7 @@ def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
 
     assert uvd.extra_keywords["DATA_COL"] == data_column
     uvd.extra_keywords = sma_mir.extra_keywords
-    uvd.instrument = sma_mir.instrument
+    uvd.telescope.instrument = sma_mir.telescope.instrument
     assert sma_mir.history in uvd.history
     uvd.history = sma_mir.history
     assert uvd == sma_mir

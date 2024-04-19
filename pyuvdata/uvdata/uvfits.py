@@ -9,9 +9,18 @@ import warnings
 
 import numpy as np
 from astropy import constants as const
+from astropy import units
+from astropy.coordinates import EarthLocation
 from astropy.io import fits
 from astropy.time import Time
 from docstring_parser import DocstringStyle
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
@@ -60,20 +69,12 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                (latitude, longitude, altitude) = (
-                    self.telescope_location_lat_lon_alt_degrees
+                uvutils.check_lsts_against_times(
+                    jd_array=self.time_array,
+                    lst_array=self.lst_array,
+                    telescope_loc=self.telescope.location,
+                    lst_tols=(0, uvutils.LST_RAD_TOL),
                 )
-            uvutils.check_lsts_against_times(
-                jd_array=self.time_array,
-                lst_array=self.lst_array,
-                latitude=latitude,
-                longitude=longitude,
-                altitude=altitude,
-                lst_tols=(0, uvutils.LST_RAD_TOL),
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
-            )
-
         else:
             proc = self.set_lsts_from_time_array(
                 background=background_lsts, astrometry_library=astrometry_library
@@ -468,12 +469,12 @@ class UVFITS(UVData):
 
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
             # other info -- not required but frequently used
-            self.telescope_name = vis_hdr.pop("TELESCOP", None)
-            self.instrument = vis_hdr.pop("INSTRUME", None)
+            self.telescope.name = vis_hdr.pop("TELESCOP", None)
+            self.telescope.instrument = vis_hdr.pop("INSTRUME", None)
             latitude_degrees = vis_hdr.pop("LAT", None)
             longitude_degrees = vis_hdr.pop("LON", None)
             altitude = vis_hdr.pop("ALT", None)
-            self.x_orientation = vis_hdr.pop("XORIENT", None)
+            self.telescope.x_orientation = vis_hdr.pop("XORIENT", None)
             blt_order_str = vis_hdr.pop("BLTORDER", None)
             if blt_order_str is not None:
                 self.blt_order = tuple(blt_order_str.split(", "))
@@ -553,8 +554,8 @@ class UVFITS(UVData):
             ant_hdu = hdu_list[hdunames["AIPS AN"]]
 
             # stuff in the header
-            if self.telescope_name is None:
-                self.telescope_name = ant_hdu.header["ARRNAM"]
+            if self.telescope.name is None:
+                self.telescope.name = ant_hdu.header["ARRNAM"]
 
             self.gst0 = ant_hdu.header["GSTIA0"]
             self.rdate = ant_hdu.header["RDATE"]
@@ -567,10 +568,11 @@ class UVFITS(UVData):
                 self.timesys = ant_hdu.header["TIMSYS"]
 
             prefer_lat_lon_alt = False
+            ellipsoid = None
             if "FRAME" in ant_hdu.header.keys():
                 if ant_hdu.header["FRAME"] == "ITRF":
                     # uvfits uses ITRF, astropy uses itrs. They are the same.
-                    self.telescope._location.frame = "itrs"
+                    telescope_frame = "itrs"
                 elif ant_hdu.header["FRAME"] == "????":
                     # default to itrs, but use the lat/lon/alt to set the location
                     # if they are available.
@@ -580,7 +582,7 @@ class UVFITS(UVData):
                         "may lead to other warnings or errors."
                     )
                     prefer_lat_lon_alt = True
-                    self.telescope._location.frame = "itrs"
+                    telescope_frame = "itrs"
                 else:
                     telescope_frame = ant_hdu.header["FRAME"].lower()
                     if telescope_frame not in ["itrs", "mcmf"]:
@@ -588,19 +590,24 @@ class UVFITS(UVData):
                             f"Telescope frame in file is {telescope_frame}. "
                             "Only 'itrs' and 'mcmf' are currently supported."
                         )
-                    self.telescope._location.frame = telescope_frame
-                    if (
-                        telescope_frame != "itrs"
-                        and "ELLIPSOI" in ant_hdu.header.keys()
-                    ):
-                        self.telescope._location.ellipsoid = ant_hdu.header["ELLIPSOI"]
+                    if telescope_frame == "mcmf":
+                        if not hasmoon:
+                            raise ValueError(
+                                "Need to install `lunarsky` package to work with "
+                                "MCMF frames."
+                            )
+
+                        if "ELLIPSOI" in ant_hdu.header.keys():
+                            ellipsoid = ant_hdu.header["ELLIPSOI"]
+                        else:
+                            ellipsoid = "SPHERE"
 
             else:
                 warnings.warn(
                     "Required Antenna keyword 'FRAME' not set; "
                     "Assuming frame is 'ITRF'."
                 )
-                self.telescope._location.frame = "itrs"
+                telescope_frame = "itrs"
 
             # get telescope location and antenna positions.
             # VLA incorrectly sets ARRAYX/ARRAYY/ARRAYZ to 0, and puts array center
@@ -613,9 +620,9 @@ class UVFITS(UVData):
                 x_telescope = np.mean(ant_hdu.data["STABXYZ"][:, 0])
                 y_telescope = np.mean(ant_hdu.data["STABXYZ"][:, 1])
                 z_telescope = np.mean(ant_hdu.data["STABXYZ"][:, 2])
-                self.antenna_positions = ant_hdu.data.field("STABXYZ") - np.array(
-                    [x_telescope, y_telescope, z_telescope]
-                )
+                self.telescope.antenna_positions = ant_hdu.data.field(
+                    "STABXYZ"
+                ) - np.array([x_telescope, y_telescope, z_telescope])
 
             else:
                 x_telescope = ant_hdu.header["ARRAYX"]
@@ -627,11 +634,11 @@ class UVFITS(UVData):
                 rot_ecef_positions = ant_hdu.data.field("STABXYZ")
                 _, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
                     np.array([x_telescope, y_telescope, z_telescope]),
-                    frame=self.telescope._location.frame,
-                    ellipsoid=self.telescope._location.ellipsoid,
+                    frame=telescope_frame,
+                    ellipsoid=ellipsoid,
                     check_acceptability=run_check_acceptability,
                 )
-                self.antenna_positions = uvutils.ECEF_from_rotECEF(
+                self.telescope.antenna_positions = uvutils.ECEF_from_rotECEF(
                     rot_ecef_positions, longitude
                 )
 
@@ -640,19 +647,37 @@ class UVFITS(UVData):
                 and longitude_degrees is not None
                 and altitude is not None
             ):
-                self.telescope_location_lat_lon_alt_degrees = (
-                    latitude_degrees,
-                    longitude_degrees,
-                    altitude,
-                )
+                if telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geodetic(
+                        lat=latitude_degrees * units.deg,
+                        lon=longitude_degrees * units.deg,
+                        height=altitude * units.m,
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenodetic(
+                        lat=latitude_degrees * units.deg,
+                        lon=longitude_degrees * units.deg,
+                        height=altitude * units.m,
+                        ellipsoid=self.ellipsoid,
+                    )
             else:
-                self.telescope_location = np.array(
-                    [x_telescope, y_telescope, z_telescope]
-                )
+                if telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geocentric(
+                        x=x_telescope * units.m,
+                        y=y_telescope * units.m,
+                        z=z_telescope * units.m,
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenocentric(
+                        x=x_telescope * units.m,
+                        y=y_telescope * units.m,
+                        z=z_telescope * units.m,
+                    )
+                    self.telescope.location.ellipsoid = ellipsoid
 
             # stuff in columns
             ant_names = ant_hdu.data.field("ANNAME").tolist()
-            self.antenna_names = []
+            self.telescope.antenna_names = []
             for name in ant_names:
                 # Sometimes CASA writes antnames as bytes not strings.
                 # If the ant name is shorter than 8 characters, the trailing
@@ -669,17 +694,17 @@ class UVFITS(UVData):
                     .replace("\x07", "")
                     .replace("!", "")
                 )
-                self.antenna_names.append(ant_name_str)
+                self.telescope.antenna_names.append(ant_name_str)
 
             # Note: we no longer subtract one to get to 0-indexed values
             # rather than 1-indexed values. Antenna numbers are not indices
             # but are unique to each antenna.
-            self.antenna_numbers = ant_hdu.data.field("NOSTA")
+            self.telescope.antenna_numbers = ant_hdu.data.field("NOSTA")
 
-            self.Nants_telescope = len(self.antenna_numbers)
+            self.telescope.Nants = len(self.telescope.antenna_numbers)
 
             if "DIAMETER" in ant_hdu.columns.names:
-                self.antenna_diameters = ant_hdu.data.field("DIAMETER")
+                self.telescope.antenna_diameters = ant_hdu.data.field("DIAMETER")
 
             try:
                 self.set_telescope_params(
@@ -1031,7 +1056,7 @@ class UVFITS(UVData):
         int_time_array = self.integration_time
 
         # If using MIRIAD convention, we need 1-indexed data
-        ant_nums_use = copy.copy(self.antenna_numbers)
+        ant_nums_use = copy.copy(self.telescope.antenna_numbers)
         ant1_array_use = copy.copy(self.ant_1_array)
         ant2_array_use = copy.copy(self.ant_2_array)
         if use_miriad_convention:
@@ -1228,11 +1253,12 @@ class UVFITS(UVData):
         hdu.header["BZERO   "] = 0.0
 
         hdu.header["OBJECT  "] = name_use
-        hdu.header["TELESCOP"] = self.telescope_name
-        hdu.header["LAT     "] = self.telescope_location_lat_lon_alt_degrees[0]
-        hdu.header["LON     "] = self.telescope_location_lat_lon_alt_degrees[1]
-        hdu.header["ALT     "] = self.telescope_location_lat_lon_alt[2]
-        hdu.header["INSTRUME"] = self.instrument
+        hdu.header["TELESCOP"] = self.telescope.name
+        lat, lon, alt = self.telescope.location_lat_lon_alt_degrees
+        hdu.header["LAT     "] = lat
+        hdu.header["LON     "] = lon
+        hdu.header["ALT     "] = alt
+        hdu.header["INSTRUME"] = self.telescope.instrument
         if self.Nphase == 1:
             hdu.header["EPOCH   "] = float(phase_dict["cat_epoch"])
         # TODO: This is a keyword that should at some point get added for velocity
@@ -1262,8 +1288,8 @@ class UVFITS(UVData):
                             hdu.header["RADESYS"] = frame
                             break
 
-        if self.x_orientation is not None:
-            hdu.header["XORIENT"] = self.x_orientation
+        if self.telescope.x_orientation is not None:
+            hdu.header["XORIENT"] = self.telescope.x_orientation
 
         if self.blt_order is not None:
             blt_order_str = ", ".join(self.blt_order)
@@ -1296,24 +1322,25 @@ class UVFITS(UVData):
                 hdu.header[keyword] = value
 
         # ADD the ANTENNA table
-        staxof = np.zeros(self.Nants_telescope)
+        staxof = np.zeros(self.telescope.Nants)
 
         # 0 specifies alt-az, 6 would specify a phased array
-        mntsta = np.zeros(self.Nants_telescope)
+        mntsta = np.zeros(self.telescope.Nants)
 
         # beware, X can mean just about anything
-        poltya = np.full((self.Nants_telescope), "X", dtype=np.object_)
-        polaa = [90.0] + np.zeros(self.Nants_telescope)
-        poltyb = np.full((self.Nants_telescope), "Y", dtype=np.object_)
-        polab = [0.0] + np.zeros(self.Nants_telescope)
+        poltya = np.full((self.telescope.Nants), "X", dtype=np.object_)
+        polaa = [90.0] + np.zeros(self.telescope.Nants)
+        poltyb = np.full((self.telescope.Nants), "Y", dtype=np.object_)
+        polab = [0.0] + np.zeros(self.telescope.Nants)
 
-        col1 = fits.Column(name="ANNAME", format="8A", array=self.antenna_names)
+        col1 = fits.Column(
+            name="ANNAME", format="8A", array=self.telescope.antenna_names
+        )
         # AIPS memo #117 says that antenna_positions should be relative to
         # the array center, but in a rotated ECEF frame so that the x-axis
         # goes through the local meridian.
-        longitude = self.telescope_location_lat_lon_alt[1]
         rot_ecef_positions = uvutils.rotECEF_from_ECEF(
-            self.antenna_positions, longitude
+            self.telescope.antenna_positions, self.telescope.location.lon.rad
         )
         col2 = fits.Column(name="STABXYZ", format="3D", array=rot_ecef_positions)
         # col3 = fits.Column(name="ORBPARAM", format="0D", array=Norb)
@@ -1330,9 +1357,9 @@ class UVFITS(UVData):
         # The commented out entires are up above to help check for consistency with the
         # UVFITS format. ORBPARAM, POLCALA, and POLCALB are all technically required,
         # but are all of zero length. Added here to help with debugging.
-        if self.antenna_diameters is not None:
+        if self.telescope.antenna_diameters is not None:
             col12 = fits.Column(
-                name="DIAMETER", format="1E", array=self.antenna_diameters
+                name="DIAMETER", format="1E", array=self.telescope.antenna_diameters
             )
             col_list.append(col12)
 
@@ -1344,9 +1371,10 @@ class UVFITS(UVData):
         ant_hdu.header["EXTVER"] = 1
 
         # write XYZ coordinates
-        ant_hdu.header["ARRAYX"] = self.telescope_location[0]
-        ant_hdu.header["ARRAYY"] = self.telescope_location[1]
-        ant_hdu.header["ARRAYZ"] = self.telescope_location[2]
+        tel_x, tel_y, tel_z = self.telescope._location.xyz()
+        ant_hdu.header["ARRAYX"] = tel_x
+        ant_hdu.header["ARRAYY"] = tel_y
+        ant_hdu.header["ARRAYZ"] = tel_z
         if self.telescope._location.frame == "itrs":
             # uvfits uses "ITRF" rather than "ITRS". They are the same thing.
             ant_hdu.header["FRAME"] = "ITRF"
@@ -1388,7 +1416,7 @@ class UVFITS(UVData):
                 '"UTC" time system files are supported'.format(tsys=self.timesys)
             )
         ant_hdu.header["TIMESYS"] = "UTC"
-        ant_hdu.header["ARRNAM"] = self.telescope_name
+        ant_hdu.header["ARRNAM"] = self.telescope.name
         ant_hdu.header["NO_IF"] = self.Nspws
         # Note the value below is basically 360 deg x num of sidereal days in a year /
         # num of soalr days in a year.

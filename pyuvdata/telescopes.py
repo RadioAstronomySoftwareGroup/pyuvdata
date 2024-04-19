@@ -7,6 +7,7 @@ import os
 import warnings
 
 import numpy as np
+from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
 from pyuvdata.data import DATA_PATH
@@ -128,19 +129,14 @@ def known_telescopes():
 
 class Telescope(uvbase.UVBase):
     """
-    A class for defining a telescope for use with UVData objects.
+    A class for telescope metadata, used on UVData, UVCal and UVFlag objects.
 
     Attributes
     ----------
-    citation : str
-        text giving source of telescope information
-    telescope_name : UVParameter of str
-        name of the telescope
-    telescope_location : UVParameter of array_like
-        telescope location xyz coordinates in ITRF (earth-centered frame).
-    antenna_diameters : UVParameter of float
-        Optional, antenna diameters in meters. Used by CASA to construct a
-        default beam if no beam is supplied.
+    UVParameter objects :
+        For full list see the documentation on ReadTheDocs:
+        http://pyuvdata.readthedocs.io/en/latest/.
+
     """
 
     def __init__(self):
@@ -153,9 +149,8 @@ class Telescope(uvbase.UVBase):
             "name", description="name of telescope (string)", form="str"
         )
         desc = (
-            "telescope location: xyz in ITRF (earth-centered frame). "
-            "Can also be set using telescope_location_lat_lon_alt or "
-            "telescope_location_lat_lon_alt_degrees properties"
+            "telescope location: Either an astropy.EarthLocation oject or a "
+            "lunarsky MoonLocation object."
         )
         self._location = uvp.LocationParameter("location", description=desc, tols=1e-3)
 
@@ -277,40 +272,10 @@ class Telescope(uvbase.UVBase):
             uvutils.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.location,
-                telescope_frame=self._location.frame,
                 raise_error=False,
             )
 
         return True
-
-    @property
-    def location_obj(self):
-        """The location as an EarthLocation or MoonLocation object."""
-        if self.location is None:
-            return None
-
-        if self._location.frame == "itrs":
-            return EarthLocation.from_geocentric(*self.location, unit="m")
-        elif uvutils.hasmoon and self._location.frame == "mcmf":
-            moon_loc = uvutils.MoonLocation.from_selenocentric(*self.location, unit="m")
-            moon_loc.ellipsoid = self._location.ellipsoid
-            return moon_loc
-
-    @location_obj.setter
-    def location_obj(self, val):
-        if isinstance(val, EarthLocation):
-            self._location.frame = "itrs"
-        elif uvutils.hasmoon and isinstance(val, uvutils.MoonLocation):
-            self._location.frame = "mcmf"
-            self._location.ellipsoid = val.ellipsoid
-        else:
-            raise ValueError(
-                "location_obj is not a recognized location object. Must be an "
-                "EarthLocation or MoonLocation object."
-            )
-        self.location = np.array(
-            [val.x.to("m").value, val.y.to("m").value, val.z.to("m").value]
-        )
 
     def update_params_from_known_telescopes(
         self,
@@ -352,6 +317,11 @@ class Telescope(uvbase.UVBase):
             different dict to use in place of the KNOWN_TELESCOPES dict.
 
         """
+        if self.name is None:
+            raise ValueError(
+                "The telescope name attribute must be set to update from "
+                "known_telescopes."
+            )
         astropy_sites = EarthLocation.get_site_names()
         telescope_keys = list(known_telescope_dict.keys())
         telescope_list = [tel.lower() for tel in telescope_keys]
@@ -364,9 +334,7 @@ class Telescope(uvbase.UVBase):
                 tel_loc = EarthLocation.of_site(self.name)
 
                 self.citation = "astropy sites"
-                self.location = np.array(
-                    [tel_loc.x.value, tel_loc.y.value, tel_loc.z.value]
-                )
+                self.location = tel_loc
                 astropy_sites_list.append("telescope_location")
 
             elif self.name.lower() in telescope_list:
@@ -376,7 +344,9 @@ class Telescope(uvbase.UVBase):
 
                 known_telescope_list.append("telescope_location")
                 if telescope_dict["center_xyz"] is not None:
-                    self.location = telescope_dict["center_xyz"]
+                    self.location = EarthLocation.from_geocentric(
+                        telescope_dict["center_xyz"], unit="m"
+                    )
                 else:
                     if (
                         telescope_dict["latitude"] is None
@@ -389,10 +359,10 @@ class Telescope(uvbase.UVBase):
                             "or the latitude, longitude and altitude of the "
                             "telescope must be specified."
                         )
-                    self.location_lat_lon_alt = (
-                        telescope_dict["latitude"],
-                        telescope_dict["longitude"],
-                        telescope_dict["altitude"],
+                    self.location = EarthLocation.from_geodetic(
+                        lat=telescope_dict["latitude"] * units.rad,
+                        lon=telescope_dict["longitude"] * units.rad,
+                        height=telescope_dict["altitude"] * units.m,
                     )
             else:
                 # no telescope matching this name

@@ -55,9 +55,8 @@ def uv_partial_write(casa_uvfits, tmp_path):
     # convert a uvfits file to uvh5, cutting down the amount of data
     uv_uvfits = casa_uvfits
     uv_uvfits.select(antenna_nums=[3, 7, 24])
-    lat, lon, alt = uv_uvfits.telescope_location_lat_lon_alt_degrees
     uv_uvfits.lst_array = uvutils.get_lst_for_time(
-        uv_uvfits.time_array, latitude=lat, longitude=lon, altitude=alt
+        uv_uvfits.time_array, telescope_loc=uv_uvfits.telescope.location
     )
 
     testfile = str(tmp_path / "outtest.uvh5")
@@ -203,20 +202,21 @@ def test_read_uvfits_write_uvh5_read_uvh5(
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         enu_antpos, _ = uv_in.get_ENU_antpos()
-        latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-        uv_in.telescope._location.frame = "mcmf"
-        uv_in.telescope._location.ellipsoid = selenoid
-        uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        new_full_antpos = uvutils.ECEF_from_ENU(
-            enu=enu_antpos,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame="mcmf",
+        uv_in.telescope.location = MoonLocation.from_selenodetic(
+            lat=uv_in.telescope.location.lat,
+            lon=uv_in.telescope.location.lon,
+            height=uv_in.telescope.location.height,
             ellipsoid=selenoid,
         )
-        uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos, center_loc=uv_in.telescope.location
+        )
+        uv_in.telescope.antenna_positions = (
+            new_full_antpos - uv_in.telescope._location.xyz()
+        )
         uv_in.set_lsts_from_time_array()
         uv_in.check()
 
@@ -346,8 +346,10 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
 
     # set optional parameters
-    uv_in.x_orientation = "east"
-    uv_in.antenna_diameters = np.ones_like(uv_in.antenna_numbers) * 1.0
+    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.antenna_diameters = (
+        np.ones_like(uv_in.telescope.antenna_numbers) * 1.0
+    )
     uv_in.uvplane_reference_time = 0
 
     # reorder_blts
@@ -571,7 +573,7 @@ def test_uvh5_partial_read_antennas(casa_uvfits, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     uvh5_uv.read(testfile, use_future_array_shapes=True)
 
@@ -599,7 +601,7 @@ def test_uvh5_partial_read_freqs(casa_uvfits, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     uvh5_uv.read(testfile, use_future_array_shapes=True)
@@ -629,7 +631,7 @@ def test_uvh5_partial_read_pols(casa_uvfits, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     uvh5_uv.read(testfile, use_future_array_shapes=True)
 
@@ -667,7 +669,7 @@ def test_uvh5_partial_read_times(casa_uvfits, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     uvh5_uv.read(testfile, use_future_array_shapes=True)
 
@@ -699,7 +701,7 @@ def test_uvh5_partial_read_lsts(casa_uvfits, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     uvh5_uv.read(testfile, use_future_array_shapes=True)
 
@@ -737,7 +739,7 @@ def test_uvh5_partial_read_multi1(casa_uvfits, future_shapes, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     if not future_shapes:
@@ -812,7 +814,7 @@ def test_uvh5_partial_read_multi2(casa_uvfits, future_shapes, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     if not future_shapes:
@@ -886,7 +888,7 @@ def test_uvh5_partial_read_multi3(casa_uvfits, future_shapes, tmp_path):
     uvh5_uv2 = UVData()
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     if not future_shapes:
@@ -959,7 +961,7 @@ def test_uvh5_read_multdim_index(tmp_path, future_shapes, casa_uvfits):
 
     testfile = str(tmp_path / "outtest.uvh5")
     # change telescope name to avoid errors
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     uvh5_uv = UVData()
     uvh5_uv.read(testfile, use_future_array_shapes=future_shapes)
@@ -1447,7 +1449,7 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, future_shapes, tm
     Test writing a uvh5 file using irregular intervals for blts and freqs.
     """
     full_uvh5 = uv_partial_write
-    full_uvh5.telescope_name = "PAPER"
+    full_uvh5.telescope.name = "PAPER"
     if not future_shapes:
         full_uvh5.use_current_array_shapes()
 
@@ -1548,7 +1550,7 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, future_shapes, tm
     Test writing a uvh5 file using irregular intervals for freqs and pols.
     """
     full_uvh5 = uv_partial_write
-    full_uvh5.telescope_name = "PAPER"
+    full_uvh5.telescope.name = "PAPER"
     if not future_shapes:
         full_uvh5.use_current_array_shapes()
 
@@ -1653,7 +1655,7 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, future_shapes, tm
     Test writing a uvh5 file using irregular intervals for blts and pols.
     """
     full_uvh5 = uv_partial_write
-    full_uvh5.telescope_name = "PAPER"
+    full_uvh5.telescope.name = "PAPER"
     if not future_shapes:
         full_uvh5.use_current_array_shapes()
 
@@ -1749,7 +1751,7 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, future_shapes, tm
     Test writing a uvh5 file using irregular intervals for all axes.
     """
     full_uvh5 = uv_partial_write
-    full_uvh5.telescope_name = "PAPER"
+    full_uvh5.telescope.name = "PAPER"
     if not future_shapes:
         full_uvh5.use_current_array_shapes()
 
@@ -2068,7 +2070,7 @@ def test_uvh5_lst_array(casa_uvfits, tmp_path):
     uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
 
     # remove lst_array from file; check that it's correctly computed on read
@@ -2119,7 +2121,7 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
-    uv_in.telescope_name = "PAPER"
+    uv_in.telescope.name = "PAPER"
     uv_in.write_uvh5(testfile, clobber=True)
     # change some of the metadata to trip certain if/else clauses
     with h5py.File(testfile, "r+") as h5f:
@@ -3371,14 +3373,14 @@ def test_antenna_names_not_list(casa_uvfits, tmp_path):
     testfile = str(tmp_path / "outtest_uvfits_ant_names.uvh5")
 
     # simulate a user defining antenna names as an array of unicode
-    uv_in.antenna_names = np.array(uv_in.antenna_names, dtype="U")
+    uv_in.telescope.antenna_names = np.array(uv_in.telescope.antenna_names, dtype="U")
 
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
 
     # recast as list since antenna names should be a list and will be cast as
     # list on read
-    uv_in.antenna_names = uv_in.antenna_names.tolist()
+    uv_in.telescope.antenna_names = uv_in.telescope.antenna_names.tolist()
 
     # make sure filenames are what we expect
     assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
@@ -3399,7 +3401,7 @@ def test_eq_coeffs_roundtrip(casa_uvfits, tmp_path):
     uv_in = casa_uvfits
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_eq_coeffs.uvh5")
-    uv_in.eq_coeffs = np.ones((uv_in.Nants_telescope, uv_in.Nfreqs))
+    uv_in.eq_coeffs = np.ones((uv_in.telescope.Nants, uv_in.Nfreqs))
     uv_in.eq_coeffs_convention = "divide"
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile, use_future_array_shapes=True)
@@ -3432,7 +3434,7 @@ def test_read_metadata(casa_uvfits, tmp_path):
     # now read
     uv_out = UVData()
     uv_out.read(testfile, use_future_array_shapes=True)
-    assert isinstance(uv_out.telescope_name, str)
+    assert isinstance(uv_out.telescope.name, str)
 
     # clean up when done
     os.remove(testfile)
@@ -3732,6 +3734,7 @@ class TestFastUVH5Meta:
             del f["/Header/lst_array"]
 
         meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "no_lsts.uvh5"))
+        assert np.allclose(meta1.lsts, meta.lsts)
         assert np.allclose(meta1.lst_array, meta.lst_array)
 
         # Now test a different ordering.
@@ -3831,7 +3834,7 @@ class TestFastUVH5Meta:
         uvd = meta.to_uvdata()
         uvd.Nbls = uvd.Nblts
         uvd.Ntimes = uvd.Nblts // nbls
-        uvd.telescope_name = "HERA"
+        uvd.telescope.name = "HERA"
         uvd.initialize_uvh5_file(newfl, clobber=True)
         meta.close()
 
@@ -3841,7 +3844,7 @@ class TestFastUVH5Meta:
 
         newfl = os.path.join(self.tmp_path.name, "not_hera.uvh5")
         uvd = meta.to_uvdata()
-        uvd.telescope_name = "not-HERA"
+        uvd.telescope.name = "not-HERA"
         uvd.initialize_uvh5_file(newfl, clobber=True)
         meta.close()
 

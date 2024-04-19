@@ -83,7 +83,7 @@ def read_metafits(
             antenna_positions, latitude=latitude, longitude=longitude, altitude=altitude
         )
         # make antenna positions relative to telescope location
-        antenna_positions = antenna_positions_ecef - mwa_telescope_obj.location
+        antenna_positions = antenna_positions_ecef - mwa_telescope_obj._location.xyz()
 
         # reorder antenna parameters from metafits ordering
         reordered_inds = antenna_inds.argsort()
@@ -1507,7 +1507,7 @@ class MWACorrFITS(UVData):
         self.spw_array = np.array([0])
         self.vis_units = "uncalib"
         self.Npols = 4
-        self.xorientation = "east"
+        self.telescope.x_orientation = "east"
 
         meta_dict = read_metafits(
             metafits_file,
@@ -1518,12 +1518,12 @@ class MWACorrFITS(UVData):
             telescope_info_only=False,
         )
 
-        self.telescope_name = meta_dict["telescope_name"]
-        self.telescope_location = meta_dict["telescope_location"]
-        self.instrument = meta_dict["instrument"]
-        self.antenna_numbers = meta_dict["antenna_numbers"]
-        self.antenna_names = meta_dict["antenna_names"]
-        self.antenna_positions = meta_dict["antenna_positions"]
+        self.telescope.name = meta_dict["telescope_name"]
+        self.telescope.location = meta_dict["telescope_location"]
+        self.telescope.instrument = meta_dict["instrument"]
+        self.telescope.antenna_numbers = meta_dict["antenna_numbers"]
+        self.telescope.antenna_names = meta_dict["antenna_names"]
+        self.telescope.antenna_positions = meta_dict["antenna_positions"]
         self.history = meta_dict["history"]
         if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
@@ -1536,10 +1536,12 @@ class MWACorrFITS(UVData):
                     self.extra_keywords[key] = value
 
         # set parameters from other parameters
-        self.Nants_telescope = len(self.antenna_numbers)
-        self.Nants_data = len(self.antenna_numbers)
+        self.telescope.Nants = len(self.telescope.antenna_numbers)
+        self.Nants_data = len(self.telescope.antenna_numbers)
         self.Nbls = int(
-            len(self.antenna_numbers) * (len(self.antenna_numbers) + 1) / 2.0
+            len(self.telescope.antenna_numbers)
+            * (len(self.telescope.antenna_numbers) + 1)
+            / 2.0
         )
         if phase_to_pointing_center:
             # use another name to prevent name collision in phase call below
@@ -1579,7 +1581,11 @@ class MWACorrFITS(UVData):
         # this is a little faster than having nested for-loops moving over the
         # upper triangle of antenna-pair combinations matrix.
         ant_1_array, ant_2_array = np.transpose(
-            list(itertools.combinations_with_replacement(self.antenna_numbers, 2))
+            list(
+                itertools.combinations_with_replacement(
+                    self.telescope.antenna_numbers, 2
+                )
+            )
         )
 
         self.ant_1_array = np.tile(np.array(ant_1_array), self.Ntimes)
@@ -1838,7 +1844,7 @@ class MWACorrFITS(UVData):
         # select must be called after lst thread is re-joined
         if remove_flagged_ants:
             good_ants = np.delete(
-                np.array(self.antenna_numbers), meta_dict["flagged_ant_inds"]
+                np.array(self.telescope.antenna_numbers), meta_dict["flagged_ant_inds"]
             )
             self.select(antenna_nums=good_ants, run_check=False)
 

@@ -10,6 +10,8 @@ import warnings
 
 import numpy as np
 from astropy import constants as const
+from astropy import units
+from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
@@ -278,7 +280,7 @@ def get_fhd_layout_info(
         if _xyz_close(location_latlonalt, arr_center, loc_tols) or _latlonalt_close(
             (latitude, longitude, altitude), latlonalt_arr_center, radian_tol, loc_tols
         ):
-            telescope_location = arr_center
+            telescope_location = EarthLocation.from_geocentric(arr_center, unit="m")
         else:
             # values do not agree with each other to within the tolerances.
             # this is a known issue with FHD runs on cotter uvfits
@@ -302,11 +304,17 @@ def get_fhd_layout_info(
                     " Telescope is not in known_telescopes. "
                     "Defaulting to using the obs derived values."
                 )
-                telescope_location = location_latlonalt
+                telescope_location = EarthLocation.from_geocentric(
+                    *location_latlonalt, unit="m"
+                )
             # issue warning
             warnings.warn(message)
     else:
-        telescope_location = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+        telescope_location = EarthLocation.from_geodetic(
+            lat=latitude * units.rad,
+            lon=longitude * units.rad,
+            height=altitude * units.m,
+        )
 
     # The FHD positions derive directly from uvfits, so they are in the rotated
     # ECEF frame and must be converted to ECEF
@@ -362,7 +370,7 @@ def get_fhd_layout_info(
     layout_fields.remove("time_system")
 
     if "diameters" in layout_fields:
-        diameters = np.asarray(layout["diameters"])
+        diameters = np.asarray(layout["diameters"][0])
         layout_fields.remove("diameters")
     else:
         diameters = None
@@ -606,7 +614,7 @@ class FHD(UVData):
             np.ones_like(self.time_array, dtype=np.float64) * time_res[0]
         )
         # # --- observation information ---
-        self.telescope_name = obs["INSTRUMENT"][0].decode("utf8")
+        self.telescope.name = obs["INSTRUMENT"][0].decode("utf8")
 
         # This is a bit of a kludge because nothing like a phase center name exists
         # in FHD files.
@@ -620,13 +628,13 @@ class FHD(UVData):
             + str(obs["ORIG_PHASEDEC"][0])
         )
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope_name.lower() == "mwa":
+        if self.telescope.name.lower() == "mwa":
             if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
                 obs["ORIG_PHASEDEC"][0], -27
             ):
                 cat_name = "EoR 0 Field"
 
-        self.instrument = self.telescope_name
+        self.telescope.instrument = self.telescope.name
         latitude = np.deg2rad(float(obs["LAT"][0]))
         longitude = np.deg2rad(float(obs["LON"][0]))
         altitude = float(obs["ALT"][0])
@@ -639,14 +647,14 @@ class FHD(UVData):
             obs_tile_names = [
                 ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            if self.telescope_name.lower() == "mwa" and obs_tile_names[0][0] != "T":
+            if self.telescope.name.lower() == "mwa" and obs_tile_names[0][0] != "T":
                 obs_tile_names = [
                     "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
                     for ant in obs_tile_names
                 ]
             layout_param_dict = get_fhd_layout_info(
                 layout_file=layout_file,
-                telescope_name=self.telescope_name,
+                telescope_name=self.telescope.name,
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
@@ -656,24 +664,42 @@ class FHD(UVData):
                 run_check_acceptability=True,
             )
 
+            telescope_attrs = {
+                "telescope_location": "location",
+                "Nants_telescope": "Nants",
+                "antenna_names": "antenna_names",
+                "antenna_numbers": "antenna_numbers",
+                "antenna_positions": "antenna_positions",
+                "diameters": "antenna_diameters",
+            }
+
             for key, value in layout_param_dict.items():
-                setattr(self, key, value)
+                if key in telescope_attrs:
+                    setattr(self.telescope, telescope_attrs[key], value)
+                else:
+                    setattr(self, key, value)
 
         else:
-            self.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
+            self.telescope.location = EarthLocation.from_geodetic(
+                lat=latitude * units.rad,
+                lon=longitude * units.rad,
+                height=altitude * units.m,
+            )
 
             # we don't have layout info, so go ahead and set the antenna_names,
             # antenna_numbers and Nants_telescope from the baseline info struct.
-            self.antenna_names = [
+            self.telescope.antenna_names = [
                 ant.decode("utf8") for ant in bl_info["TILE_NAMES"][0].tolist()
             ]
-            self.antenna_numbers = np.array([int(ant) for ant in self.antenna_names])
-            if self.telescope_name.lower() == "mwa":
-                self.antenna_names = [
+            self.telescope.antenna_numbers = np.array(
+                [int(ant) for ant in self.telescope.antenna_names]
+            )
+            if self.telescope.name.lower() == "mwa":
+                self.telescope.antenna_names = [
                     "Tile" + "0" * (3 - len(ant.strip())) + ant.strip()
-                    for ant in self.antenna_names
+                    for ant in self.telescope.antenna_names
                 ]
-            self.Nants_telescope = len(self.antenna_names)
+            self.telescope.Nants = len(self.telescope.antenna_names)
 
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(
@@ -702,8 +728,8 @@ class FHD(UVData):
         # to get 0-indexed arrays
         ind_1_array = bl_info["TILE_A"][0] - 1
         ind_2_array = bl_info["TILE_B"][0] - 1
-        self.ant_1_array = self.antenna_numbers[ind_1_array]
-        self.ant_2_array = self.antenna_numbers[ind_2_array]
+        self.ant_1_array = self.telescope.antenna_numbers[ind_1_array]
+        self.ant_2_array = self.telescope.antenna_numbers[ind_2_array]
         self.Nants_data = int(np.union1d(self.ant_1_array, self.ant_2_array).size)
 
         self.baseline_array = self.antnums_to_baseline(

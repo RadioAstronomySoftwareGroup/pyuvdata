@@ -158,10 +158,9 @@ def test_time_precision(tmp_path):
     uvd2 = UVData()
     uvd2.read(testfile, use_future_array_shapes=True)
 
-    latitude, longitude, altitude = uvd2.telescope_location_lat_lon_alt_degrees
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
     unique_lst_array = uvutils.get_lst_for_time(
-        unique_times, latitude=latitude, longitude=longitude, altitude=altitude
+        unique_times, telescope_loc=uvd.telescope.location
     )
 
     calc_lst_array = unique_lst_array[inverse_inds]
@@ -506,7 +505,7 @@ def test_casa_nonascii_bytes_antenna_names():
         'H124', 'H124', 'H124', 'H124', 'HH136', 'HH137', 'HH138', 'HH139',
         'HH140', 'HH141', 'HH142', 'HH143']
     # fmt: on
-    assert uv1.antenna_names == expected_ant_names
+    assert uv1.telescope.antenna_names == expected_ant_names
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
@@ -528,20 +527,21 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         enu_antpos, _ = uv_in.get_ENU_antpos()
-        latitude, longitude, altitude = uv_in.telescope_location_lat_lon_alt
-        uv_in.telescope._location.frame = "mcmf"
-        uv_in.telescope._location.ellipsoid = selenoid
-        uv_in.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        new_full_antpos = uvutils.ECEF_from_ENU(
-            enu=enu_antpos,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame="mcmf",
+        uv_in.telescope.location = MoonLocation.from_selenodetic(
+            lat=uv_in.telescope.location.lat,
+            lon=uv_in.telescope.location.lon,
+            height=uv_in.telescope.location.height,
             ellipsoid=selenoid,
         )
-        uv_in.antenna_positions = new_full_antpos - uv_in.telescope_location
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos, center_loc=uv_in.telescope.location
+        )
+        uv_in.telescope.antenna_positions = (
+            new_full_antpos - uv_in.telescope._location.xyz()
+        )
         uv_in.set_lsts_from_time_array()
         uv_in.set_uvws_from_antenna_positions()
         uv_in._set_app_coords_helper()
@@ -698,7 +698,7 @@ def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if x_orientation is set, it's read back out properly
-    uv_in.x_orientation = "east"
+    uv_in.telescope.x_orientation = "east"
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file, use_future_array_shapes=True)
 
@@ -722,8 +722,8 @@ def test_readwriteread_antenna_diameters(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if antenna_diameters is set, it's read back out properly
-    uv_in.antenna_diameters = (
-        np.zeros((uv_in.Nants_telescope,), dtype=np.float64) + 14.0
+    uv_in.telescope.antenna_diameters = (
+        np.zeros((uv_in.telescope.Nants,), dtype=np.float64) + 14.0
     )
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file, use_future_array_shapes=True)
@@ -748,7 +748,7 @@ def test_readwriteread_large_antnums(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if antenna_numbers are > 256 everything works
-    uv_in.antenna_numbers = uv_in.antenna_numbers + 256
+    uv_in.telescope.antenna_numbers = uv_in.telescope.antenna_numbers + 256
     uv_in.ant_1_array = uv_in.ant_1_array + 256
     uv_in.ant_2_array = uv_in.ant_2_array + 256
     uv_in.baseline_array = uv_in.antnums_to_baseline(
@@ -838,7 +838,7 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
         ],
     ):
         uv_out.read(write_file2, use_future_array_shapes=True)
-    assert uv_out.telescope_name == "EVLA"
+    assert uv_out.telescope.name == "EVLA"
     assert uv_out.timesys == time_sys
 
     return
@@ -1682,10 +1682,10 @@ def test_miriad_convention(tmp_path):
     uv.read(casa_tutorial_uvfits)
 
     # Change an antenna ID to 512
-    old_idx = uv.antenna_numbers[10]  # This is antenna 19
+    old_idx = uv.telescope.antenna_numbers[10]  # This is antenna 19
     new_idx = 512
 
-    uv.antenna_numbers[10] = new_idx
+    uv.telescope.antenna_numbers[10] = new_idx
     uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
     uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
     uv.baseline_array = uv.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array)
@@ -1720,9 +1720,9 @@ def test_miriad_convention(tmp_path):
     assert uv2 == uv
 
     # Test that antennas get +1 if there is a 0-indexed antennas
-    old_idx = uv.antenna_numbers[0]
+    old_idx = uv.telescope.antenna_numbers[0]
     new_idx = 0
-    uv.antenna_numbers[0] = new_idx
+    uv.telescope.antenna_numbers[0] = new_idx
     uv.ant_1_array[uv.ant_1_array == old_idx] = new_idx
     uv.ant_2_array[uv.ant_2_array == old_idx] = new_idx
     uv.baseline_array = uv.antnums_to_baseline(uv.ant_1_array, uv.ant_2_array)
@@ -1746,7 +1746,7 @@ def test_miriad_convention(tmp_path):
     ]
 
     # adjust for expected antenna number changes:
-    uv2.antenna_numbers -= 1
+    uv2.telescope.antenna_numbers -= 1
     uv2.ant_1_array -= 1
     uv2.ant_2_array -= 1
     uv2.baseline_array = uv2.antnums_to_baseline(uv2.ant_1_array, uv2.ant_2_array)
