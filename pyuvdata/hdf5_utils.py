@@ -11,6 +11,15 @@ from typing import Any
 
 import h5py
 import numpy as np
+from astropy import units
+from astropy.coordinates import EarthLocation
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from . import utils as uvutils
 
@@ -245,8 +254,6 @@ class HDF5Meta:
 
     def __getstate__(self):
         """Get the state of the object."""
-        print(self.__dict__.keys())
-        print(self.__class__.__name__)
         return {
             k: v
             for k, v in self.__dict__.items()
@@ -373,15 +380,6 @@ class HDF5Meta:
             ellipsoid=self.ellipsoid,
         )
 
-    @cached_property
-    def telescope_location(self):
-        """The telescope location in ECEF coordinates, in meters."""
-        return uvutils.XYZ_from_LatLonAlt(
-            *self.telescope_location_lat_lon_alt,
-            frame=self.telescope_frame,
-            ellipsoid=self.ellipsoid,
-        )
-
     @property
     def telescope_location_lat_lon_alt(self) -> tuple[float, float, float]:
         """The telescope location in latitude, longitude, and altitude, in degrees."""
@@ -419,6 +417,36 @@ class HDF5Meta:
                 return "SPHERE"
         else:
             return None
+
+    @cached_property
+    def telescope_location_obj(self):
+        """The telescope location object."""
+        if self.telescope_frame == "itrs":
+            return EarthLocation.from_geodetic(
+                lat=self.telescope_location_lat_lon_alt_degrees[0] * units.deg,
+                lon=self.telescope_location_lat_lon_alt_degrees[1] * units.deg,
+                height=self.telescope_location_lat_lon_alt_degrees[2] * units.m,
+            )
+        else:
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MCMF frames."
+                )
+            return MoonLocation.from_selenodetic(
+                lat=self.telescope_location_lat_lon_alt_degrees[0] * units.deg,
+                lon=self.telescope_location_lat_lon_alt_degrees[1] * units.deg,
+                height=self.telescope_location_lat_lon_alt_degrees[2] * units.m,
+                ellipsoid=self.ellipsoid,
+            )
+
+    @cached_property
+    def telescope_location(self):
+        """The telescope location in ECEF coordinates, in meters."""
+        return uvutils.XYZ_from_LatLonAlt(
+            *self.telescope_location_lat_lon_alt,
+            frame=self.telescope_frame,
+            ellipsoid=self.ellipsoid,
+        )
 
     @cached_property
     def extra_keywords(self) -> dict:

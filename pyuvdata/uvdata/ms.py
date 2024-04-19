@@ -11,8 +11,16 @@ import os
 import warnings
 
 import numpy as np
+from astropy.coordinates import EarthLocation
 from astropy.time import Time
 from docstring_parser import DocstringStyle
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from .. import Telescope, ms_utils
 from .. import utils as uvutils
@@ -364,8 +372,8 @@ class MS(UVData):
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
 
-        if self.x_orientation is not None:
-            ms.putkeyword("pyuvdata_xorient", self.x_orientation)
+        if self.telescope.x_orientation is not None:
+            ms.putkeyword("pyuvdata_xorient", self.telescope.x_orientation)
 
         ms.done()
 
@@ -458,7 +466,7 @@ class MS(UVData):
             self.extra_keywords = main_keywords["pyuvdata_extra"]
 
         if "pyuvdata_xorient" in main_keywords.keys():
-            self.x_orientation = main_keywords["pyuvdata_xorient"]
+            self.telescope.x_orientation = main_keywords["pyuvdata_xorient"]
 
         default_vis_units = {
             "DATA": "uncalib",
@@ -954,45 +962,72 @@ class MS(UVData):
         # open table with antenna location information
         tb_ant_dict = ms_utils.read_ms_antenna(filepath)
         obs_dict = ms_utils.read_ms_observation(filepath)
-        self.telescope_name = obs_dict["telescope_name"]
-        self.instrument = obs_dict["telescope_name"]
+        self.telescope.name = obs_dict["telescope_name"]
+        self.telescope.instrument = obs_dict["telescope_name"]
         self.extra_keywords["observer"] = obs_dict["observer"]
         full_antenna_positions = tb_ant_dict["antenna_positions"]
         xyz_telescope_frame = tb_ant_dict["telescope_frame"]
         xyz_telescope_ellipsoid = tb_ant_dict["telescope_ellipsoid"]
-        self.antenna_numbers = tb_ant_dict["antenna_numbers"]
+        self.telescope.antenna_numbers = tb_ant_dict["antenna_numbers"]
 
         # check to see if a TELESCOPE_LOCATION column is present in the observation
         # table. This is non-standard, but inserted by pyuvdata
         if (
             "telescope_location" not in obs_dict
-            and self.telescope_name in self.known_telescopes()
+            and self.telescope.name in self.known_telescopes()
         ):
             # get it from known telescopes
-            telescope_obj = Telescope.from_known_telescopes(self.telescope_name)
+            telescope_obj = Telescope.from_known_telescopes(self.telescope.name)
             warnings.warn(
                 "Setting telescope_location to value in known_telescopes for "
-                f"{self.telescope_name}."
+                f"{self.telescope.name}."
             )
-            self.telescope_location = telescope_obj.location
+            self.telescope.location = telescope_obj.location
         else:
-            self.telescope._location.frame = xyz_telescope_frame
-            self.telescope._location.ellipsoid = xyz_telescope_ellipsoid
+            if xyz_telescope_frame not in ["itrs", "mcmf"]:
+                raise ValueError(
+                    f"Telescope frame in file is {xyz_telescope_frame}. "
+                    "Only 'itrs' and 'mcmf' are currently supported."
+                )
+            if xyz_telescope_frame == "mcmf":
+                if not hasmoon:
+                    raise ValueError(
+                        "Need to install `lunarsky` package to work with "
+                        "MCMF frames."
+                    )
+
+                if xyz_telescope_ellipsoid is None:
+                    xyz_telescope_ellipsoid = "SPHERE"
 
             if "telescope_location" in obs_dict:
-                self.telescope_location = np.squeeze(obs_dict["telescope_location"])
+                if xyz_telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geocentric(
+                        *np.squeeze(obs_dict["telescope_location"]), unit="m"
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenocentric(
+                        *np.squeeze(obs_dict["telescope_location"]), unit="m"
+                    )
+                    self.telescope.location.ellipsoid = xyz_telescope_ellipsoid
+
             else:
                 # Set it to be the mean of the antenna positions (this is not ideal!)
-                self.telescope_location = np.array(
-                    np.mean(full_antenna_positions, axis=0)
-                )
+                if xyz_telescope_frame == "itrs":
+                    self.telescope.location = EarthLocation.from_geocentric(
+                        *np.array(np.mean(full_antenna_positions, axis=0)), unit="m"
+                    )
+                else:
+                    self.telescope.location = MoonLocation.from_selenocentric(
+                        *np.array(np.mean(full_antenna_positions, axis=0)), unit="m"
+                    )
+                    self.telescope.location.ellipsoid = xyz_telescope_ellipsoid
 
         # antenna names
         ant_names = tb_ant_dict["antenna_names"]
         station_names = tb_ant_dict["station_names"]
         antenna_diameters = tb_ant_dict["antenna_diameters"]
         if np.any(antenna_diameters > 0):
-            self.antenna_diameters = antenna_diameters
+            self.telescope.antenna_diameters = antenna_diameters
 
         # importuvfits measurement sets store antenna names in the STATION column.
         # cotter measurement sets store antenna names in the NAME column, which is
@@ -1002,17 +1037,17 @@ class MS(UVData):
         if ("importuvfits" not in self.history) and (
             len(ant_names) == len(np.unique(ant_names)) and ("" not in ant_names)
         ):
-            self.antenna_names = ant_names
+            self.telescope.antenna_names = ant_names
         else:
-            self.antenna_names = station_names
+            self.telescope.antenna_names = station_names
 
-        self.Nants_telescope = len(self.antenna_names)
+        self.telescope.Nants = len(self.telescope.antenna_names)
 
         relative_positions = np.zeros_like(full_antenna_positions)
-        relative_positions = full_antenna_positions - self.telescope_location.reshape(
-            1, 3
+        relative_positions = (
+            full_antenna_positions - self.telescope._location.xyz().reshape(1, 3)
         )
-        self.antenna_positions = relative_positions
+        self.telescope.antenna_positions = relative_positions
 
         # set LST array from times and itrf
         proc = self.set_lsts_from_time_array(
