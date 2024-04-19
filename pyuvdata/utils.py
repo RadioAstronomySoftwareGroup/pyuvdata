@@ -130,6 +130,7 @@ _range_dict = {
     "mcmf": (1717100.0, 1757100.0, "Moon"),
 }
 
+allowed_location_types = [EarthLocation]
 if hasmoon:
     selenoids = {
         "SPHERE": _utils.Body.Moon_sphere,
@@ -137,6 +138,7 @@ if hasmoon:
         "GRAIL23": _utils.Body.Moon_grail23,
         "CE-1-LAM-GEO": _utils.Body.Moon_ce1lamgeo,
     }
+    allowed_location_types.append(MoonLocation)
 
 allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
 
@@ -1824,7 +1826,16 @@ def ECEF_from_rotECEF(xyz, longitude):
     return rot_matrix.dot(xyz.T).T
 
 
-def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
+def ENU_from_ECEF(
+    xyz,
+    *,
+    center_loc=None,
+    latitude=None,
+    longitude=None,
+    altitude=None,
+    frame="ITRS",
+    ellipsoid=None,
+):
     """
     Calculate local ENU (east, north, up) coordinates from ECEF coordinates.
 
@@ -1832,19 +1843,26 @@ def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
     ----------
     xyz : ndarray of float
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
+    center_loc : EarthLocation or MoonLocation object
+        An EarthLocation or MoonLocation object giving the center of the ENU
+        coordinates. Either `center_loc` or all of `latitude`, `longitude`,
+        `altitude` must be passed.
     latitude : float
         Latitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     longitude : float
         Longitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     altitude : float
         Altitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     frame : str
-        Coordinate frame of xyz.
-        Valid options are ITRS (default) or MCMF.
+        Coordinate frame of xyz and center of ENU coordinates. Valid options are
+        ITRS (default) or MCMF. Not used if `center_loc` is passed.
     ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if frame is MCMF.
+        is "SPHERE". Only used if frame is MCMF. Not used if `center_loc` is passed.
 
     Returns
     -------
@@ -1852,9 +1870,31 @@ def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
         numpy array, shape (Npts, 3), with local ENU coordinates
 
     """
-    frame = frame.upper()
-    if not hasmoon and frame == "MCMF":
-        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
+    if center_loc is not None:
+        if not isinstance(center_loc, tuple(allowed_location_types)):
+            raise ValueError(
+                "center_loc is not a supported type. It must be one of "
+                f"{allowed_location_types}"
+            )
+        latitude = center_loc.lat.rad
+        longitude = center_loc.lon.rad
+        altitude = center_loc.height.to("m").value
+        if isinstance(center_loc, EarthLocation):
+            frame = "ITRS"
+        else:
+            frame = "MCMF"
+            ellipsoid = center_loc.ellipsoid
+    else:
+        if latitude is None or longitude is None or altitude is None:
+            raise ValueError(
+                "Either center_loc or all of latitude, longitude and altitude "
+                "must be passed."
+            )
+        frame = frame.upper()
+        if not hasmoon and frame == "MCMF":
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
 
     if frame == "ITRS":
         sensible_radius_range = (6.35e6, 6.39e6)
@@ -1864,7 +1904,6 @@ def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
         sensible_radius_range = (1.71e6, 1.75e6)
         if ellipsoid is None:
             ellipsoid = "SPHERE"
-
     else:
         raise ValueError(f'No ENU_from_ECEF transform defined for frame "{frame}".')
 
@@ -1908,7 +1947,15 @@ def ENU_from_ECEF(xyz, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
     return enu
 
 
-def ECEF_from_ENU(enu, *, latitude, longitude, altitude, frame="ITRS", ellipsoid=None):
+def ECEF_from_ENU(
+    enu,
+    center_loc=None,
+    latitude=None,
+    longitude=None,
+    altitude=None,
+    frame="ITRS",
+    ellipsoid=None,
+):
     """
     Calculate ECEF coordinates from local ENU (east, north, up) coordinates.
 
@@ -1916,19 +1963,26 @@ def ECEF_from_ENU(enu, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
     ----------
     enu : ndarray of float
         numpy array, shape (Npts, 3), with local ENU coordinates.
+    center_loc : EarthLocation or MoonLocation object
+        An EarthLocation or MoonLocation object giving the center of the ENU
+        coordinates. Either `center_loc` or all of `latitude`, `longitude`,
+        `altitude` must be passed.
     latitude : float
         Latitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     longitude : float
         Longitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     altitude : float
-        Altitude of center of ENU coordinates in meters.
+        Altitude of center of ENU coordinates in radians.
+        Not used if `center_loc` is passed.
     frame : str
-        Coordinate frame of xyz.
-        Valid options are ITRS (default) or MCMF.
+        Coordinate frame of xyz and center of ENU coordinates. Valid options are
+        ITRS (default) or MCMF. Not used if `center_loc` is passed.
     ellipsoid : str
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
         "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if frame is MCMF.
+        is "SPHERE". Only used if frame is MCMF. Not used if `center_loc` is passed.
 
     Returns
     -------
@@ -1936,16 +1990,37 @@ def ECEF_from_ENU(enu, *, latitude, longitude, altitude, frame="ITRS", ellipsoid
         numpy array, shape (Npts, 3), with ECEF x,y,z coordinates.
 
     """
-    frame = frame.upper()
+    if center_loc is not None:
+        if not isinstance(center_loc, tuple(allowed_location_types)):
+            raise ValueError(
+                "center_loc is not a supported type. It must be one of "
+                f"{allowed_location_types}"
+            )
+        latitude = center_loc.lat.rad
+        longitude = center_loc.lon.rad
+        altitude = center_loc.height.to("m").value
+        if isinstance(center_loc, EarthLocation):
+            frame = "ITRS"
+        else:
+            frame = "MCMF"
+            ellipsoid = center_loc.ellipsoid
+    else:
+        if latitude is None or longitude is None or altitude is None:
+            raise ValueError(
+                "Either center_loc or all of latitude, longitude and altitude "
+                "must be passed."
+            )
+        frame = frame.upper()
+        if not hasmoon and frame == "MCMF":
+            raise ValueError(
+                "Need to install `lunarsky` package to work with MCMF frame."
+            )
 
-    if frame not in ["ITRS", "MCMF"]:
-        raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
+        if frame not in ["ITRS", "MCMF"]:
+            raise ValueError(f'No ECEF_from_ENU transform defined for frame "{frame}".')
 
-    if not hasmoon and frame == "MCMF":
-        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
-
-    if frame == "MCMF" and ellipsoid is None:
-        ellipsoid = "SPHERE"
+        if frame == "MCMF" and ellipsoid is None:
+            ellipsoid = "SPHERE"
 
     enu = np.asarray(enu)
     if enu.ndim > 1 and enu.shape[1] != 3:
@@ -2892,8 +2967,8 @@ def transform_icrs_to_app(
         ICRS Dec of the celestial target, expressed in units of radians. Can either
         be a single float or array of shape (Ntimes,), although this must be consistent
         with other parameters (with the exception of telescope location parameters).
-    telescope_loc : array-like of floats or EarthLocation
-        ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
+    telescope_loc : array-like of floats or EarthLocation or MoonLocation
+        ITRS latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, or a tuple
         of shape (3,) containing (in order) the latitude, longitude, and altitude,
         in units of radians, radians, and meters, respectively.
@@ -3683,11 +3758,11 @@ def lookup_jplhorizons(
         in the JPL-Horizons database.
     time_array : array-like of float
         Times in UTC Julian days to gather an ephemeris for.
-    telescope_loc : array-like of float
-        ITRF latitude, longitude, and altitude (rel to sea-level) of the observer. Must
-        be an array-like of shape (3,) containing the latitude, longitude, and
-        altitude, in that order, with units of radians, radians, and meters,
-        respectively.
+    telescope_loc : tuple of floats or EarthLocation
+        ITRS latitude, longitude, and altitude (rel to sea-level) of the observer.
+        Can either be provided as an EarthLocation object, or an
+        array-like of shape (3,) containing the latitude, longitude, and altitude,
+        in that order, with units of radians, radians, and meters, respectively.
     high_cadence : bool
         If set to True, will calculate ephemeris points every 3 minutes in time, as
         opposed to the default of every 3 hours.
@@ -3995,6 +4070,232 @@ def interpolate_ephem(
     return (ra_vals, dec_vals, dist_vals, vel_vals)
 
 
+def get_lst_for_time(
+    jd_array=None,
+    *,
+    telescope_loc=None,
+    latitude=None,
+    longitude=None,
+    altitude=None,
+    astrometry_library=None,
+    frame="itrs",
+    ellipsoid=None,
+):
+    """
+    Get the local apparent sidereal time for a set of jd times at an earth location.
+
+    This function calculates the local apparent sidereal time (LAST), given a UTC time
+    and a position on the Earth, using either the astropy or NOVAS libraries. It
+    is important to note that there is an apporoximate 20 microsecond difference
+    between the two methods, presumably due to small differences in the apparent
+    reference frame. These differences will cancel out when calculating coordinates
+    in the TOPO frame, so long as apparent coordinates are calculated using the
+    same library (i.e., astropy or NOVAS). Failing to do so can introduce errors
+    up to ~1 mas in the horizontal coordinate system (i.e., AltAz).
+
+    Parameters
+    ----------
+    jd_array : ndarray of float
+        JD times to get lsts for.
+    telescope_loc : tuple or EarthLocation or MoonLocation
+        Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
+        or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
+        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
+    latitude : float
+        Latitude of location to get lst for in degrees. Cannot specify both `latitute`
+        and `telescope_loc`.
+    longitude : float
+        Longitude of location to get lst for in degrees. Cannot specify both `longitude`
+        and `telescope_loc`.
+    altitude : float
+        Altitude of location to get lst for in meters. Cannot specify both `altitude`
+        and `telescope_loc`.
+    astrometry_library : str
+        Library used for running the LST calculations. Allowed options are 'erfa'
+        (which uses the pyERFA), 'novas' (which uses the python-novas library),
+        and 'astropy' (which uses the astropy utilities). Default is erfa unless
+        the telescope_location is a MoonLocation object, in which case the default is
+        astropy.
+    frame : str
+        Reference frame for latitude/longitude/altitude. Options are itrs (default)
+        or mcmf. Not used if telescope_loc is an EarthLocation or MoonLocation object.
+    ellipsoid : str
+        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
+        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
+        is "SPHERE". Only used if frame is mcmf.  Not used if telescope_loc is
+        an EarthLocation or MoonLocation object.
+
+    Returns
+    -------
+    ndarray of float
+        LASTs in radians corresponding to the jd_array.
+
+    """
+    site_loc = None
+    if telescope_loc is not None:
+        if not all(item is None for item in [latitude, longitude, altitude]):
+            raise ValueError(
+                "Cannot set both telescope_loc and latitude/longitude/altitude"
+            )
+        if isinstance(telescope_loc, EarthLocation) or (
+            hasmoon and isinstance(telescope_loc, MoonLocation)
+        ):
+            site_loc = telescope_loc
+            if isinstance(telescope_loc, EarthLocation):
+                frame = "ITRS"
+            else:
+                frame = "MCMF"
+        else:
+            latitude, longitude, altitude = telescope_loc
+
+    if site_loc is None:
+        if frame.upper() == "MCMF":
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MCMF frame."
+                )
+            if ellipsoid is None:
+                ellipsoid = "SPHERE"
+
+            site_loc = MoonLocation.from_selenodetic(
+                Angle(longitude, unit="deg"),
+                Angle(latitude, unit="deg"),
+                altitude,
+                ellipsoid=ellipsoid,
+            )
+        else:
+            site_loc = EarthLocation.from_geodetic(
+                Angle(longitude, unit="deg"),
+                Angle(latitude, unit="deg"),
+                height=altitude,
+            )
+    if astrometry_library is None:
+        if frame == "itrs":
+            astrometry_library = "erfa"
+        else:
+            astrometry_library = "astropy"
+
+    if astrometry_library not in ["erfa", "astropy", "novas"]:
+        raise ValueError(
+            "Requested coordinate transformation library is not supported, please "
+            "select either 'erfa' or 'astropy' for astrometry_library."
+        )
+
+    if isinstance(jd_array, np.ndarray):
+        lst_array = np.zeros_like(jd_array)
+        if lst_array.ndim == 0:
+            lst_array = lst_array.reshape(1)
+    else:
+        lst_array = np.zeros(1)
+
+    jd, reverse_inds = np.unique(jd_array, return_inverse=True)
+
+    if isinstance(site_loc, EarthLocation):
+        TimeClass = Time
+    else:
+        if not astrometry_library == "astropy":
+            raise NotImplementedError(
+                "The MCMF frame is only supported with the 'astropy' astrometry library"
+            )
+        TimeClass = LTime
+
+    times = TimeClass(jd, format="jd", scale="utc", location=site_loc)
+
+    if iers.conf.auto_max_age is None:  # pragma: no cover
+        delta, status = times.get_delta_ut1_utc(return_status=True)
+        if np.any(
+            np.isin(status, (iers.TIME_BEFORE_IERS_RANGE, iers.TIME_BEYOND_IERS_RANGE))
+        ):
+            warnings.warn(
+                "time is out of IERS range, setting delta ut1 utc to extrapolated value"
+            )
+            times.delta_ut1_utc = delta
+    if astrometry_library == "erfa":
+        # This appears to be what astropy is using under the hood,
+        # so it _should_ be totally consistent.
+        gast_array = erfa.gst06a(
+            times.ut1.jd1, times.ut1.jd2, times.tt.jd1, times.tt.jd2
+        )
+
+        # Technically one should correct for the polar wobble here, but the differences
+        # along the equitorial are miniscule -- of order 10s of nanoradians, well below
+        # the promised accuracy of IERS -- and rotation matricies can be expensive.
+        # We do want to correct though for for secular polar drift (s'/TIO locator),
+        # which nudges the Earth rotation angle of order 47 uas per century.
+        sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
+
+        lst_array = np.mod(gast_array + sp + site_loc.lon.rad, 2.0 * np.pi)[
+            reverse_inds
+        ]
+    elif astrometry_library == "astropy":
+        lst_array = times.sidereal_time("apparent").radian
+        if lst_array.ndim == 0:
+            lst_array = lst_array.reshape(1)
+        lst_array = lst_array[reverse_inds]
+    elif astrometry_library == "novas":
+        # Import the NOVAS library only if it's needed/available.
+        try:
+            import novas_de405  # noqa
+            from novas import compat as novas
+            from novas.compat import eph_manager
+        except ImportError as e:  # pragma: no cover
+            raise ImportError(
+                "novas and/or novas_de405 are not installed but is required for "
+                "NOVAS functionality"
+            ) from e
+
+        jd_start, jd_end, number = eph_manager.ephem_open()
+
+        tt_time_array = times.tt.value
+        ut1_high_time_array = times.ut1.jd1
+        ut1_low_time_array = times.ut1.jd2
+        full_ut1_time_array = ut1_high_time_array + ut1_low_time_array
+        polar_motion_data = iers.earth_orientation_table.get()
+
+        delta_x_array = np.interp(
+            times.mjd,
+            polar_motion_data["MJD"].value,
+            polar_motion_data["dX_2000A_B"].value,
+            left=0.0,
+            right=0.0,
+        )
+
+        delta_y_array = np.interp(
+            times.mjd,
+            polar_motion_data["MJD"].value,
+            polar_motion_data["dY_2000A_B"].value,
+            left=0.0,
+            right=0.0,
+        )
+
+        # Catch the case where we don't have CIP delta values yet (they don't typically
+        # have predictive values like the polar motion does)
+        delta_x_array[np.isnan(delta_x_array)] = 0.0
+        delta_y_array[np.isnan(delta_y_array)] = 0.0
+
+        for idx in range(len(times)):
+            novas.cel_pole(
+                tt_time_array[idx], 2, delta_x_array[idx], delta_y_array[idx]
+            )
+            # The NOVAS routine will return Greenwich Apparent Sidereal Time (GAST),
+            # in units of hours
+            lst_array[reverse_inds == idx] = novas.sidereal_time(
+                ut1_high_time_array[idx],
+                ut1_low_time_array[idx],
+                (tt_time_array[idx] - full_ut1_time_array[idx]) * 86400.0,
+            )
+
+        # Add the telescope lon to convert from GAST to LAST (local)
+        lst_array = np.mod(lst_array + (longitude / 15.0), 24.0)
+
+        # Convert from hours back to rad
+        lst_array *= np.pi / 12.0
+
+    lst_array = np.reshape(lst_array, jd_array.shape)
+
+    return lst_array
+
+
 def calc_app_coords(
     *,
     lon_coord,
@@ -4114,11 +4415,6 @@ def calc_app_coords(
             height=telescope_loc[2],
         )
 
-    if isinstance(site_loc, EarthLocation):
-        frame = "itrs"
-    else:
-        frame = "mcmf"
-
     # Time objects and unique don't seem to play well together, so we break apart
     # their handling here
     if isinstance(time_array, Time):
@@ -4128,14 +4424,7 @@ def calc_app_coords(
 
     if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
-            unique_lst = get_lst_for_time(
-                unique_time_array,
-                latitude=site_loc.lat.deg,
-                longitude=site_loc.lon.deg,
-                altitude=site_loc.height.to_value("m"),
-                frame=frame,
-                ellipsoid=ellipsoid,
-            )
+            unique_lst = get_lst_for_time(unique_time_array, telescope_loc=site_loc)
         else:
             unique_lst = lst_array[unique_mask]
 
@@ -4158,7 +4447,6 @@ def calc_app_coords(
             ra=icrs_ra,
             dec=icrs_dec,
             telescope_loc=site_loc,
-            ellipsoid=ellipsoid,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
             vrad=vrad,
@@ -4201,7 +4489,6 @@ def calc_app_coords(
             ra=icrs_ra,
             dec=icrs_dec,
             telescope_loc=site_loc,
-            ellipsoid=ellipsoid,
             pm_ra=pm_ra,
             pm_dec=pm_dec,
         )
@@ -4324,238 +4611,17 @@ def calc_sidereal_coords(
     return ref_ra, ref_dec
 
 
-def get_lst_for_time(
-    jd_array=None,
-    *,
-    latitude=None,
-    longitude=None,
-    altitude=None,
-    astrometry_library=None,
-    frame="itrs",
-    ellipsoid=None,
-    telescope_loc=None,
-):
-    """
-    Get the local apparent sidereal time for a set of jd times at an earth location.
-
-    This function calculates the local apparent sidereal time (LAST), given a UTC time
-    and a position on the Earth, using either the astropy or NOVAS libraries. It
-    is important to note that there is an apporoximate 20 microsecond difference
-    between the two methods, presumably due to small differences in the apparent
-    reference frame. These differences will cancel out when calculating coordinates
-    in the TOPO frame, so long as apparent coordinates are calculated using the
-    same library (i.e., astropy or NOVAS). Failing to do so can introduce errors
-    up to ~1 mas in the horizontal coordinate system (i.e., AltAz).
-
-    Parameters
-    ----------
-    jd_array : ndarray of float
-        JD times to get lsts for.
-    latitude : float
-        Latitude of location to get lst for in degrees. Cannot specify both `latitute`
-        and `telescope_loc`.
-    longitude : float
-        Longitude of location to get lst for in degrees. Cannot specify both `longitude`
-        and `telescope_loc`.
-    altitude : float
-        Altitude of location to get lst for in meters. Cannot specify both `altitude`
-        and `telescope_loc`.
-    astrometry_library : str
-        Library used for running the LST calculations. Allowed options are 'erfa'
-        (which uses the pyERFA), 'novas' (which uses the python-novas library),
-        and 'astropy' (which uses the astropy utilities). Default is erfa unless
-        the telescope_location is a MoonLocation object, in which case the default is
-        astropy.
-    frame : str
-        Reference frame for latitude/longitude/altitude.
-        Options are itrs (default) or mcmf.
-    ellipsoid : str
-        Ellipsoid to use for lunar coordinates. Must be one of "SPHERE",
-        "GSFC", "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
-        is "SPHERE". Only used if frame is mcmf.
-    telescope_loc : tuple or EarthLocation or MoonLocation
-        Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
-        or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
-        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
-
-    Returns
-    -------
-    ndarray of float
-        LASTs in radians corresponding to the jd_array.
-
-    """
-    if astrometry_library is None:
-        if frame == "itrs":
-            astrometry_library = "erfa"
-        else:
-            astrometry_library = "astropy"
-
-    if astrometry_library not in ["erfa", "astropy", "novas"]:
-        raise ValueError(
-            "Requested coordinate transformation library is not supported, please "
-            "select either 'erfa' or 'astropy' for astrometry_library."
-        )
-
-    if isinstance(jd_array, np.ndarray):
-        lst_array = np.zeros_like(jd_array)
-        if lst_array.ndim == 0:
-            lst_array = lst_array.reshape(1)
-    else:
-        lst_array = np.zeros(1)
-
-    jd, reverse_inds = np.unique(jd_array, return_inverse=True)
-
-    site_loc = None
-    if telescope_loc is not None:
-        if not all(item is None for item in [latitude, longitude, altitude]):
-            raise ValueError(
-                "Cannot set both telescope_loc and latitude/longitude/altitude"
-            )
-        if isinstance(telescope_loc, EarthLocation) or (
-            hasmoon and isinstance(telescope_loc, MoonLocation)
-        ):
-            site_loc = telescope_loc
-        else:
-            latitude, longitude, altitude = telescope_loc
-
-    if site_loc is None:
-        if frame.upper() == "MCMF":
-            if not hasmoon:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with MCMF frame."
-                )
-            if ellipsoid is None:
-                ellipsoid = "SPHERE"
-
-            site_loc = MoonLocation.from_selenodetic(
-                Angle(longitude, unit="deg"),
-                Angle(latitude, unit="deg"),
-                altitude,
-                ellipsoid=ellipsoid,
-            )
-        else:
-            site_loc = EarthLocation.from_geodetic(
-                Angle(longitude, unit="deg"),
-                Angle(latitude, unit="deg"),
-                height=altitude,
-            )
-
-    if isinstance(site_loc, EarthLocation):
-        TimeClass = Time
-    else:
-        if not astrometry_library == "astropy":
-            raise NotImplementedError(
-                "The MCMF frame is only supported with the 'astropy' astrometry library"
-            )
-        TimeClass = LTime
-
-    times = TimeClass(jd, format="jd", scale="utc", location=site_loc)
-
-    if iers.conf.auto_max_age is None:  # pragma: no cover
-        delta, status = times.get_delta_ut1_utc(return_status=True)
-        if np.any(
-            np.isin(status, (iers.TIME_BEFORE_IERS_RANGE, iers.TIME_BEYOND_IERS_RANGE))
-        ):
-            warnings.warn(
-                "time is out of IERS range, setting delta ut1 utc to extrapolated value"
-            )
-            times.delta_ut1_utc = delta
-    if astrometry_library == "erfa":
-        # This appears to be what astropy is using under the hood,
-        # so it _should_ be totally consistent.
-        gast_array = erfa.gst06a(
-            times.ut1.jd1, times.ut1.jd2, times.tt.jd1, times.tt.jd2
-        )
-
-        # Technically one should correct for the polar wobble here, but the differences
-        # along the equitorial are miniscule -- of order 10s of nanoradians, well below
-        # the promised accuracy of IERS -- and rotation matricies can be expensive.
-        # We do want to correct though for for secular polar drift (s'/TIO locator),
-        # which nudges the Earth rotation angle of order 47 uas per century.
-        sp = erfa.sp00(times.tt.jd1, times.tt.jd2)
-
-        lst_array = np.mod(gast_array + sp + site_loc.lon.rad, 2.0 * np.pi)[
-            reverse_inds
-        ]
-    elif astrometry_library == "astropy":
-        lst_array = times.sidereal_time("apparent").radian
-        if lst_array.ndim == 0:
-            lst_array = lst_array.reshape(1)
-        lst_array = lst_array[reverse_inds]
-    elif astrometry_library == "novas":
-        # Import the NOVAS library only if it's needed/available.
-        try:
-            import novas_de405  # noqa
-            from novas import compat as novas
-            from novas.compat import eph_manager
-        except ImportError as e:  # pragma: no cover
-            raise ImportError(
-                "novas and/or novas_de405 are not installed but is required for "
-                "NOVAS functionality"
-            ) from e
-
-        jd_start, jd_end, number = eph_manager.ephem_open()
-
-        tt_time_array = times.tt.value
-        ut1_high_time_array = times.ut1.jd1
-        ut1_low_time_array = times.ut1.jd2
-        full_ut1_time_array = ut1_high_time_array + ut1_low_time_array
-        polar_motion_data = iers.earth_orientation_table.get()
-
-        delta_x_array = np.interp(
-            times.mjd,
-            polar_motion_data["MJD"].value,
-            polar_motion_data["dX_2000A_B"].value,
-            left=0.0,
-            right=0.0,
-        )
-
-        delta_y_array = np.interp(
-            times.mjd,
-            polar_motion_data["MJD"].value,
-            polar_motion_data["dY_2000A_B"].value,
-            left=0.0,
-            right=0.0,
-        )
-
-        # Catch the case where we don't have CIP delta values yet (they don't typically
-        # have predictive values like the polar motion does)
-        delta_x_array[np.isnan(delta_x_array)] = 0.0
-        delta_y_array[np.isnan(delta_y_array)] = 0.0
-
-        for idx in range(len(times)):
-            novas.cel_pole(
-                tt_time_array[idx], 2, delta_x_array[idx], delta_y_array[idx]
-            )
-            # The NOVAS routine will return Greenwich Apparent Sidereal Time (GAST),
-            # in units of hours
-            lst_array[reverse_inds == idx] = novas.sidereal_time(
-                ut1_high_time_array[idx],
-                ut1_low_time_array[idx],
-                (tt_time_array[idx] - full_ut1_time_array[idx]) * 86400.0,
-            )
-
-        # Add the telescope lon to convert from GAST to LAST (local)
-        lst_array = np.mod(lst_array + (longitude / 15.0), 24.0)
-
-        # Convert from hours back to rad
-        lst_array *= np.pi / 12.0
-
-    lst_array = np.reshape(lst_array, jd_array.shape)
-
-    return lst_array
-
-
 def check_lsts_against_times(
     *,
     jd_array,
     lst_array,
-    latitude,
-    longitude,
-    altitude,
     lst_tols,
+    latitude=None,
+    longitude=None,
+    altitude=None,
     frame="itrs",
     ellipsoid=None,
+    telescope_loc=None,
 ):
     """
     Check that LSTs are consistent with the time_array and telescope location.
@@ -4585,6 +4651,10 @@ def check_lsts_against_times(
         Ellipsoid to use for lunar coordinates. Must be one of "SPHERE", "GSFC",
         "GRAIL23", "CE-1-LAM-GEO" (see lunarsky package for details). Default
         is "SPHERE". Only used if frame is mcmf.
+    telescope_loc : tuple or EarthLocation or MoonLocation
+        Alternative way of specifying telescope lat/lon/alt, either as a 3-element tuple
+        or as an astropy EarthLocation (or lunarsky MoonLocation). Cannot supply both
+        `telescope_loc` and `latitute`, `longitude`, or `altitude`.
 
     Returns
     -------
@@ -4602,6 +4672,7 @@ def check_lsts_against_times(
     # to better than our standard lst tolerances.
     lsts = get_lst_for_time(
         jd_array=jd_array,
+        telescope_loc=telescope_loc,
         latitude=latitude,
         longitude=longitude,
         altitude=altitude,
@@ -4670,6 +4741,10 @@ def check_surface_based_positions(
             telescope_loc.y.to("m").value,
             telescope_loc.z.to("m").value,
         )
+        if isinstance(telescope_loc, EarthLocation):
+            telescope_frame = "itrs"
+        else:
+            telescope_frame = "mcmf"
     elif telescope_loc is not None:
         antenna_positions = antenna_positions + telescope_loc
 
@@ -4861,9 +4936,7 @@ def uvw_track_generator(
 
             time_array = np.repeat(time_array, Nbase)
 
-    lst_array = get_lst_for_time(
-        jd_array=time_array, telescope_loc=site_loc, frame=telescope_frame
-    )
+    lst_array = get_lst_for_time(jd_array=time_array, telescope_loc=site_loc)
     app_ra, app_dec = calc_app_coords(
         lon_coord=lon_coord,
         lat_coord=lat_coord,
