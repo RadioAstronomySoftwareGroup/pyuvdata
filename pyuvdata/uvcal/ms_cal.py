@@ -135,36 +135,24 @@ class MSCal(UVCal):
         obs_info = ms_utils.read_ms_observation(filepath)
 
         self.observer = obs_info["observer"]
-        self.telescope_name = obs_info["telescope_name"]
-        self.telescope._location.frame = ant_info["telescope_frame"]
-        self.telescope._location.ellipsoid = ant_info["telescope_ellipsoid"]
+        self.telescope.name = obs_info["telescope_name"]
+        self.telescope.location = ms_utils.get_ms_telescope_location(
+            tb_ant_dict=ant_info, obs_dict=obs_info
+        )
 
-        # check to see if a TELESCOPE_LOCATION column is present in the observation
-        # table. This is non-standard, but inserted by pyuvdata
-        if "telescope_location" in obs_info:
-            self.telescope_location = obs_info["telescope_location"]
-        else:
-            # get it from known telescopes
-            try:
-                self.set_telescope_params()
-            except ValueError:
-                # If no telescope is found, the we will set the telescope position to be
-                # the mean of the antenna positions (this is not ideal!)
-                self.telescope_location = np.mean(ant_info["antenna_positions"], axis=0)
-
-        self.antenna_names = ant_info["antenna_names"]
-        self.Nants_telescope = len(self.antenna_names)
-        self.antenna_numbers = ant_info["antenna_numbers"]
+        self.telescope.antenna_names = ant_info["antenna_names"]
+        self.telescope.Nants = len(self.telescope.antenna_names)
+        self.telescope.antenna_numbers = ant_info["antenna_numbers"]
         if all(ant_info["antenna_diameters"] > 0):
-            self.antenna_diameters = ant_info["antenna_diameters"]
+            self.telescope.antenna_diameters = ant_info["antenna_diameters"]
         # MS-format seems to want to preserve the blank entries in the gains tables
         # This looks to be the same for MS files.
-        self.ant_array = self.antenna_numbers
-        self.Nants_data = self.Nants_telescope
+        self.ant_array = self.telescope.antenna_numbers
+        self.Nants_data = self.telescope.Nants
 
-        self.antenna_positions = ant_info["antenna_positions"]
+        self.telescope.antenna_positions = ant_info["antenna_positions"]
         # Subtract off telescope location to get relative ECEF
-        self.antenna_positions -= self.telescope_location.reshape(1, 3)
+        self.telescope.antenna_positions -= self.telescope._location.xyz().reshape(1, 3)
         self.phase_center_catalog, field_id_map = ms_utils.read_ms_field(
             filepath, return_phase_center_catalog=True
         )
@@ -180,10 +168,10 @@ class MSCal(UVCal):
         # inline with the MS definition doc. In that case all the station names are
         # the same. Default to using what the MS definition doc specifies, unless
         # we read importuvfits in the history, or if the antenna column is not filled.
-        if self.Nants_telescope != len(np.unique(self.antenna_names)) or (
-            "" in self.antenna_names
+        if self.telescope.Nants != len(np.unique(self.telescope.antenna_names)) or (
+            "" in self.telescope.antenna_names
         ):
-            self.antenna_names = ant_info["station_names"]
+            self.telescope.antenna_names = ant_info["station_names"]
 
         spw_info = ms_utils.read_ms_spectral_window(filepath)
 
@@ -291,7 +279,7 @@ class MSCal(UVCal):
         self.Ntimes = time_count
 
         # Make a map to things.
-        ant_dict = {ant: idx for idx, ant in enumerate(self.antenna_numbers)}
+        ant_dict = {ant: idx for idx, ant in enumerate(self.telescope.antenna_numbers)}
         cal_arr_shape = (self.Nants_data, nchan, self.Ntimes, self.Njones)
 
         ms_cal_soln = np.zeros(
@@ -352,8 +340,8 @@ class MSCal(UVCal):
             refant = self.ref_antenna_array[0]
             self.ref_antenna_array = None
             try:
-                self.ref_antenna_name = self.antenna_names[
-                    np.where(self.antenna_numbers == refant)[0][0]
+                self.ref_antenna_name = self.telescope.antenna_names[
+                    np.where(self.telescope.antenna_numbers == refant)[0][0]
                 ]
             except IndexError:
                 if self.cal_style == "sky":
@@ -385,15 +373,15 @@ class MSCal(UVCal):
                 [field_id_map[idx] for idx in self.phase_center_id_array]
             )
 
-        self.x_orientation = main_keywords.get("pyuvdata_xorient", None)
-        if self.x_orientation is None:
+        self.telescope.x_orientation = main_keywords.get("pyuvdata_xorient", None)
+        if self.telescope.x_orientation is None:
             if default_x_orientation is None:
-                self.x_orientation = "east"
+                self.telescope.x_orientation = "east"
                 warnings.warn(
                     'Unknown x_orientation basis for solutions, assuming "east".'
                 )
             else:
-                self.x_orientation = default_x_orientation
+                self.telescope.x_orientation = default_x_orientation
 
         # Use if this is a delay soln
         if self.cal_type == "gain":
@@ -501,8 +489,8 @@ class MSCal(UVCal):
                 if len(extra_copy) != 0:
                     ms.putkeyword("pyuvdata_extra", extra_copy)
 
-            if self.x_orientation is not None:
-                ms.putkeyword("pyuvdata_xorient", self.x_orientation)
+            if self.telescope.x_orientation is not None:
+                ms.putkeyword("pyuvdata_xorient", self.telescope.x_orientation)
 
             if self.jones_array is not None:
                 ms.putkeyword("pyuvdata_jones", self.jones_array)
@@ -540,7 +528,7 @@ class MSCal(UVCal):
             # For some reason, CASA seems to want to pad the main table with zero
             # entries for the "blank" antennas, similar to what's seen in the ANTENNA
             # table. So we'll calculate this up front for convenience.
-            Nants_casa = np.max(self.antenna_numbers) + 1
+            Nants_casa = np.max(self.telescope.antenna_numbers) + 1
 
             # Add all the rows we need up front, which will allow us to fill the
             # columns all in one shot.
@@ -571,8 +559,10 @@ class MSCal(UVCal):
                 try:
                     # Cast list here to deal w/ ndarrays
                     refant = str(
-                        self.antenna_numbers[
-                            list(self.antenna_names).index(self.ref_antenna_name)
+                        self.telescope.antenna_numbers[
+                            list(self.telescope.antenna_names).index(
+                                self.ref_antenna_name
+                            )
                         ]
                     )
                 except ValueError:
