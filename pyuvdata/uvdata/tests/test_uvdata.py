@@ -300,7 +300,11 @@ def pyuvsim_redundant_main():
     # read in test file for the compress/inflate redundancy functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
-    uv_object.read(testfile, use_future_array_shapes=True)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", "antenna_diameters are not set or are being overwritten."
+        )
+        uv_object.read(testfile, use_future_array_shapes=True)
 
     yield uv_object
 
@@ -326,11 +330,11 @@ def pyuvsim_redundant(pyuvsim_redundant_main):
 @pytest.fixture(scope="function")
 def uvdata_baseline():
     uv_object = UVData()
-    uv_object.Nants_telescope = 128
+    uv_object.telescope.Nants = 128
     uv_object2 = UVData()
-    uv_object2.Nants_telescope = 2147483649
+    uv_object2.telescope.Nants = 2147483649
     uv_object3 = UVData()
-    uv_object3.Nants_telescope = 2050
+    uv_object3.telescope.Nants = 2050
 
     DataHolder = namedtuple("DataHolder", ["uv_object", "uv_object2", "uv_object3"])
 
@@ -715,12 +719,16 @@ def test_future_array_shape(casa_uvfits):
 def test_nants_data_telescope_larger(casa_uvfits):
     uvobj = casa_uvfits
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
-    uvobj.Nants_telescope += 1
+    uvobj.telescope.Nants += 1
     # add dummy information for "new antenna" to pass object check
-    uvobj.antenna_names = np.concatenate((uvobj.antenna_names, ["dummy_ant"]))
-    uvobj.antenna_numbers = np.concatenate((uvobj.antenna_numbers, [20]))
-    uvobj.antenna_positions = np.concatenate(
-        (uvobj.antenna_positions, np.zeros((1, 3))), axis=0
+    uvobj.telescope.antenna_names = np.concatenate(
+        (uvobj.telescope.antenna_names, ["dummy_ant"])
+    )
+    uvobj.telescope.antenna_numbers = np.concatenate(
+        (uvobj.telescope.antenna_numbers, [20])
+    )
+    uvobj.telescope.antenna_positions = np.concatenate(
+        (uvobj.telescope.antenna_positions, np.zeros((1, 3))), axis=0
     )
     assert uvobj.check()
 
@@ -730,10 +738,10 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj = casa_uvfits
     # make sure an error is raised if antennas in ant_1_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
-    uvobj.antenna_names = uvobj.antenna_names[1:]
-    uvobj.antenna_numbers = uvobj.antenna_numbers[1:]
-    uvobj.antenna_positions = uvobj.antenna_positions[1:, :]
-    uvobj.Nants_telescope = uvobj.antenna_numbers.size
+    uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[1:]
+    uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[1:]
+    uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[1:, :]
+    uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
     ):
@@ -746,10 +754,10 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     # make sure an error is raised if antennas in ant_2_array not in antenna_numbers
     # remove antennas from antenna_names & antenna_numbers by hand
     uvobj = uvobj
-    uvobj.antenna_names = uvobj.antenna_names[:-1]
-    uvobj.antenna_numbers = uvobj.antenna_numbers[:-1]
-    uvobj.antenna_positions = uvobj.antenna_positions[:-1]
-    uvobj.Nants_telescope = uvobj.antenna_numbers.size
+    uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[:-1]
+    uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[:-1]
+    uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[:-1]
+    uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_2_array must be in antenna_numbers"
     ):
@@ -778,7 +786,7 @@ def test_baseline_to_antnums(uvdata_baseline):
     with pytest.raises(
         Exception,
         match=(
-            f"error Nants={uvdata_baseline.uv_object2.Nants_telescope}>2147483648"
+            f"error Nants={uvdata_baseline.uv_object2.telescope.Nants}>2147483648"
             " not supported"
         ),
     ):
@@ -835,7 +843,7 @@ def test_antnums_to_baselines(uvdata_baseline):
         ValueError,
         match=(
             "cannot convert ant1, ant2 to a baseline index with Nants={Nants}"
-            ">2147483648.".format(Nants=uvdata_baseline.uv_object2.Nants_telescope)
+            ">2147483648.".format(Nants=uvdata_baseline.uv_object2.telescope.Nants)
         ),
     ):
         uvdata_baseline.uv_object2.antnums_to_baseline(0, 0)
@@ -887,7 +895,7 @@ def test_known_telescopes():
 def test_hera_diameters(paper_uvh5):
     uv_in = paper_uvh5
 
-    uv_in.telescope_name = "HERA"
+    uv_in.telescope.name = "HERA"
     with uvtest.check_warnings(
         UserWarning,
         match=(
@@ -897,8 +905,8 @@ def test_hera_diameters(paper_uvh5):
     ):
         uv_in.set_telescope_params()
 
-    assert uv_in.telescope_name == "HERA"
-    assert uv_in.antenna_diameters is not None
+    assert uv_in.telescope.name == "HERA"
+    assert uv_in.telescope.antenna_diameters is not None
 
     uv_in.check()
 
@@ -926,8 +934,8 @@ def test_generic_read():
     ):
         uv_in.read(
             uvfits_file,
-            antenna_nums=uv_in.antenna_numbers[0],
-            antenna_names=uv_in.antenna_names[1],
+            antenna_nums=uv_in.telescope.antenna_numbers[0],
+            antenna_names=uv_in.telescope.antenna_names[1],
             use_future_array_shapes=True,
         )
 
@@ -1013,21 +1021,23 @@ def test_phase_unphase_hera_antpos(hera_uvh5):
     uv_raw = hera_uvh5
     # check that they match if you phase & unphase using antenna locations
     # first replace the uvws with the right values
-    lat, lon, alt = uv_raw.telescope_location_lat_lon_alt
+    lat, lon, alt = uv_raw.telescope.location_lat_lon_alt
     antenna_enu = uvutils.ENU_from_ECEF(
-        (uv_raw.antenna_positions + uv_raw.telescope_location),
-        latitude=lat,
-        longitude=lon,
-        altitude=alt,
+        (uv_raw.telescope.antenna_positions + uv_raw.telescope._location.xyz()),
+        center_loc=uv_raw.telescope.location,
     )
     uvw_calc = np.zeros_like(uv_raw.uvw_array)
-    unique_times, unique_inds = np.unique(uv_raw.time_array, return_index=True)
+    unique_times = np.unique(uv_raw.time_array)
     for jd in unique_times:
         inds = np.where(uv_raw.time_array == jd)[0]
         for bl_ind in inds:
-            wh_ant1 = np.where(uv_raw.antenna_numbers == uv_raw.ant_1_array[bl_ind])
+            wh_ant1 = np.where(
+                uv_raw.telescope.antenna_numbers == uv_raw.ant_1_array[bl_ind]
+            )
             ant1_index = wh_ant1[0][0]
-            wh_ant2 = np.where(uv_raw.antenna_numbers == uv_raw.ant_2_array[bl_ind])
+            wh_ant2 = np.where(
+                uv_raw.telescope.antenna_numbers == uv_raw.ant_2_array[bl_ind]
+            )
             ant2_index = wh_ant2[0][0]
             uvw_calc[bl_ind, :] = (
                 antenna_enu[ant2_index, :] - antenna_enu[ant1_index, :]
@@ -1442,6 +1452,7 @@ def test_select_blts(paper_uvh5, future_shapes):
 def test_select_phase_center_id(tmp_path, carma_miriad):
     uv_obj = carma_miriad
     testfile = os.path.join(tmp_path, "outtest.uvh5")
+    assert uv_obj.telescope.instrument is not None
 
     uv1 = uv_obj.select(phase_center_ids=0, inplace=False)
     uv2 = uv_obj.select(phase_center_ids=[1, 2], inplace=False)
@@ -1557,8 +1568,8 @@ def test_select_antennas(casa_uvfits):
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
-        ind = np.where(uv_object3.antenna_numbers == a)[0][0]
-        ant_names.append(uv_object3.antenna_names[ind])
+        ind = np.where(uv_object3.telescope.antenna_numbers == a)[0][0]
+        ant_names.append(uv_object3.telescope.antenna_names[ind])
 
     uv_object3.select(antenna_names=ant_names)
 
@@ -1569,8 +1580,8 @@ def test_select_antennas(casa_uvfits):
     ants_to_keep = np.array(sorted(ants_to_keep))
     ant_names = []
     for a in ants_to_keep:
-        ind = np.where(uv_object3.antenna_numbers == a)[0][0]
-        ant_names.append(uv_object3.antenna_names[ind])
+        ind = np.where(uv_object3.telescope.antenna_numbers == a)[0][0]
+        ant_names.append(uv_object3.telescope.antenna_names[ind])
 
     uv_object3.select(antenna_names=[ant_names])
 
@@ -1578,26 +1589,32 @@ def test_select_antennas(casa_uvfits):
 
     # test removing metadata associated with antennas that are no longer present
     # also add (different) antenna_diameters to test downselection
-    uv_object.antenna_diameters = 1.0 * np.ones(
-        (uv_object.Nants_telescope,), dtype=np.float64
+    uv_object.telescope.antenna_diameters = 1.0 * np.ones(
+        (uv_object.telescope.Nants,), dtype=np.float64
     )
-    for i in range(uv_object.Nants_telescope):
-        uv_object.antenna_diameters += i
+    for i in range(uv_object.telescope.Nants):
+        uv_object.telescope.antenna_diameters += i
     uv_object4 = uv_object.copy()
     uv_object4.select(antenna_nums=ants_to_keep, keep_all_metadata=False)
-    assert uv_object4.Nants_telescope == 9
-    assert set(uv_object4.antenna_numbers) == set(ants_to_keep)
+    assert uv_object4.telescope.Nants == 9
+    assert set(uv_object4.telescope.antenna_numbers) == set(ants_to_keep)
     for a in ants_to_keep:
-        idx1 = uv_object.antenna_numbers.tolist().index(a)
-        idx2 = uv_object4.antenna_numbers.tolist().index(a)
-        assert uv_object.antenna_names[idx1] == uv_object4.antenna_names[idx2]
-        assert np.allclose(
-            uv_object.antenna_positions[idx1, :], uv_object4.antenna_positions[idx2, :]
+        idx1 = uv_object.telescope.antenna_numbers.tolist().index(a)
+        idx2 = uv_object4.telescope.antenna_numbers.tolist().index(a)
+        assert (
+            uv_object.telescope.antenna_names[idx1]
+            == uv_object4.telescope.antenna_names[idx2]
         )
-        assert uv_object.antenna_diameters[idx1], uv_object4.antenna_diameters[idx2]
+        assert np.allclose(
+            uv_object.telescope.antenna_positions[idx1, :],
+            uv_object4.telescope.antenna_positions[idx2, :],
+        )
+        assert uv_object.telescope.antenna_diameters[
+            idx1
+        ], uv_object4.telescope.antenna_diameters[idx2]
 
     # remove antenna_diameters from object
-    uv_object.antenna_diameters = None
+    uv_object.telescope.antenna_diameters = None
 
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
@@ -1778,7 +1795,14 @@ def test_select_bls(casa_uvfits):
     with pytest.raises(
         ValueError, match="bls must be a list of tuples of antenna numbers"
     ):
-        uv_object.select(bls=[(uv_object.antenna_names[0], uv_object.antenna_names[1])])
+        uv_object.select(
+            bls=[
+                (
+                    uv_object.telescope.antenna_names[0],
+                    uv_object.telescope.antenna_names[1],
+                )
+            ]
+        )
 
     with pytest.raises(
         ValueError, match=re.escape("Antenna pair (5, 1) does not have any data")
@@ -2598,7 +2622,7 @@ def test_select_polarizations(hera_uvh5, future_shapes, pols_to_keep):
             assert p in uv_object2.polarization_array
         else:
             assert (
-                uvutils.polstr2num(p, x_orientation=uv_object2.x_orientation)
+                uvutils.polstr2num(p, x_orientation=uv_object2.telescope.x_orientation)
                 in uv_object2.polarization_array
             )
     for p in np.unique(uv_object2.polarization_array):
@@ -2606,7 +2630,7 @@ def test_select_polarizations(hera_uvh5, future_shapes, pols_to_keep):
             assert p in pols_to_keep
         else:
             assert p in uvutils.polstr2num(
-                pols_to_keep, x_orientation=uv_object2.x_orientation
+                pols_to_keep, x_orientation=uv_object2.telescope.x_orientation
             )
 
     assert uvutils._check_histories(
@@ -3456,7 +3480,7 @@ def test_reorder_freqs_eq_coeffs(casa_uvfits):
     # with a pre-determined order that we can flip
     casa_uvfits.reorder_freqs(channel_order="-freq")
     casa_uvfits.eq_coeffs = np.tile(
-        np.arange(casa_uvfits.Nfreqs, dtype=float), (casa_uvfits.Nants_telescope, 1)
+        np.arange(casa_uvfits.Nfreqs, dtype=float), (casa_uvfits.telescope.Nants, 1)
     )
     # modify the channel widths so we can check them too
     casa_uvfits.channel_width += np.arange(casa_uvfits.Nfreqs, dtype=float)
@@ -3553,21 +3577,18 @@ def test_sum_vis(casa_uvfits, future_shapes):
     # check override_params
     uv_overrides = uv_full.copy()
     uv_overrides.timesys = "foo"
-    uv_overrides.telescope_location = [
-        -1601183.15377712,
-        -5042003.74810822,
-        3554841.17192104,
-    ]
+    uv_overrides.telescope.location = EarthLocation.from_geocentric(
+        -1601183.15377712, -5042003.74810822, 3554841.17192104, unit="m"
+    )
     uv_overrides_2 = uv_overrides.sum_vis(
         uv_full, override_params=["timesys", "telescope"]
     )
 
     assert uv_overrides_2.timesys == "foo"
-    assert uv_overrides_2.telescope_location == [
-        -1601183.15377712,
-        -5042003.74810822,
-        3554841.17192104,
-    ]
+    assert np.allclose(
+        uv_overrides_2.telescope._location.xyz(),
+        np.array([-1601183.15377712, -5042003.74810822, 3554841.17192104]),
+    )
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -5010,9 +5031,9 @@ def test_key2inds_conj_all_pols_bl_fringe(casa_uvfits):
     uv.ant_1_array[0] = ant2
     uv.ant_2_array[0] = ant1
     uv.baseline_array[0] = uvutils.antnums_to_baseline(
-        ant2, ant1, Nants_telescope=uv.Nants_telescope
+        ant2, ant1, Nants_telescope=uv.telescope.Nants
     )
-    bl = uvutils.antnums_to_baseline(ant1, ant2, Nants_telescope=uv.Nants_telescope)
+    bl = uvutils.antnums_to_baseline(ant1, ant2, Nants_telescope=uv.telescope.Nants)
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     ind1, ind2, indp = uv._key2inds(bl)
 
@@ -5041,7 +5062,7 @@ def test_key2inds_conj_all_pols_bls(casa_uvfits):
 
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
-    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.Nants_telescope)
+    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.telescope.Nants)
     bltind = np.where((uv.ant_1_array == ant1) & (uv.ant_2_array == ant2))[0]
     ind1, ind2, indp = uv._key2inds(bl)
 
@@ -5059,7 +5080,7 @@ def test_key2inds_conj_all_pols_missing_data_bls(casa_uvfits):
     uv.select(polarizations=["rl"])
     ant1 = uv.ant_1_array[0]
     ant2 = uv.ant_2_array[0]
-    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.Nants_telescope)
+    bl = uvutils.antnums_to_baseline(ant2, ant1, Nants_telescope=uv.telescope.Nants)
 
     with pytest.raises(
         KeyError, match="Baseline 81924 not found for polarization array in data."
@@ -5244,14 +5265,11 @@ def test_get_data(casa_uvfits, kind):
 def test_antpair2ind(paper_uvh5):
     paper_uvh5.set_rectangularity()
 
-    print(paper_uvh5.blts_are_rectangular, paper_uvh5.time_axis_faster_than_bls)
-
     # Test for baseline-time axis indexer
     uv = paper_uvh5
 
     # get indices
     inds = uv.antpair2ind(0, 1, ordered=False)
-    print(inds)
     assert inds == slice(1, None, 21)
 
 
@@ -5362,7 +5380,9 @@ def test_get_enu_antpos(hera_uvh5_xx):
 def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     # test that improper telescope locations can still be read
     uv = paper_uvh5
-    uv.telescope_location = uvutils.XYZ_from_LatLonAlt(*uv.telescope_location)
+    uv.telescope.location = EarthLocation.from_geocentric(
+        *uvutils.XYZ_from_LatLonAlt(*uv.telescope._location.xyz()), unit="m"
+    )
     # fix LST values
     uv.set_lsts_from_time_array()
     fname = str(tmp_path / "test.uvh5")
@@ -5396,13 +5416,13 @@ def test_get_pols(casa_uvfits):
 def test_get_pols_x_orientation(paper_uvh5):
     uv_in = paper_uvh5
 
-    uv_in.x_orientation = "east"
+    uv_in.telescope.x_orientation = "east"
 
     pols = uv_in.get_pols()
     pols_data = ["en"]
     assert pols == pols_data
 
-    uv_in.x_orientation = "north"
+    uv_in.telescope.x_orientation = "north"
 
     pols = uv_in.get_pols()
     pols_data = ["ne"]
@@ -6591,6 +6611,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
     assert uv3 == uv1
 
 
+@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 def test_compress_redundancy_variable_inttime(grid_alg):
     uv0 = UVData()
@@ -6676,6 +6697,7 @@ def test_compress_redundancy_wrong_method(pyuvsim_redundant):
         uv0.compress_by_redundancy(method="foo", tol=tol, inplace=True)
 
 
+@pytest.mark.filterwarnings("ignore:antenna_diameters are not set or are being")
 @pytest.mark.parametrize("grid_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path):
@@ -6705,7 +6727,6 @@ def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path
     uv1._consolidate_phase_center_catalogs(
         reference_catalog=uv0.phase_center_catalog, ignore_name=True
     )
-    print(uv0.flag_array.shape, uv1.flag_array.shape)
     assert uv0 == uv1  # Check that writing compressed files causes no issues.
 
     with uvtest.check_warnings(
@@ -6922,10 +6943,9 @@ def test_lsts_from_time_with_only_unique(paper_uvh5):
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
     uv = paper_uvh5
-    lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(
-        uv.time_array, latitude=lat, longitude=lon, altitude=alt
+        uv.time_array, telescope_loc=uv.telescope.location
     )
     # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
     uv.set_lsts_from_time_array()
@@ -6938,10 +6958,9 @@ def test_lsts_from_time_with_only_unique_background(paper_uvh5):
     Test `set_lsts_from_time_array` with only unique values is identical to full array.
     """
     uv = paper_uvh5
-    lat, lon, alt = uv.telescope_location_lat_lon_alt_degrees
     # calculate the lsts for all elements in time array
     full_lsts = uvutils.get_lst_for_time(
-        uv.time_array, latitude=lat, longitude=lon, altitude=alt
+        uv.time_array, telescope_loc=uv.telescope.location
     )
     # use `set_lst_from_time_array` to set the uv.lst_array using only unique values
     proc = uv.set_lsts_from_time_array(background=True)
@@ -8853,7 +8872,7 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
     uvobj2 = uvobj.copy()
 
     eq_coeffs = np.tile(
-        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1)
+        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.telescope.Nants, 1)
     )
     uvobj.eq_coeffs = eq_coeffs
 
@@ -8892,7 +8911,7 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
     assert np.max(np.abs(uvobj.channel_width - expected_chan_widths)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
-        uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2
+        uvobj2.telescope.Nants, int(uvobj2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
@@ -8932,7 +8951,7 @@ def test_frequency_average_uneven(
         uvobj.use_current_array_shapes()
 
     eq_coeffs = np.tile(
-        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1)
+        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.telescope.Nants, 1)
     )
     uvobj.eq_coeffs = eq_coeffs
 
@@ -9452,7 +9471,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     uvobj = casa_uvfits
     uvobj2 = uvobj.copy()
     eq_coeffs = np.tile(
-        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.Nants_telescope, 1)
+        np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.telescope.Nants, 1)
     )
     uvobj.eq_coeffs = eq_coeffs
     uvobj.check()
@@ -9475,7 +9494,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
-        uvobj2.Nants_telescope, int(uvobj2.Nfreqs / 2), 2
+        uvobj2.telescope.Nants, int(uvobj2.Nfreqs / 2), 2
     ).mean(axis=2)
     assert np.max(np.abs(uvobj.eq_coeffs - expected_coeffs)) == 0
 
@@ -9560,8 +9579,8 @@ def test_remove_eq_coeffs_divide(casa_uvfits, future_shapes):
     uvobj2 = uvobj.copy()
 
     # give eq_coeffs to the object
-    eq_coeffs = np.empty((uvobj.Nants_telescope, uvobj.Nfreqs), dtype=np.float64)
-    for i, ant in enumerate(uvobj.antenna_numbers):
+    eq_coeffs = np.empty((uvobj.telescope.Nants, uvobj.Nfreqs), dtype=np.float64)
+    for i, ant in enumerate(uvobj.telescope.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
     uvobj.eq_coeffs = eq_coeffs
     uvobj.eq_coeffs_convention = "divide"
@@ -9591,8 +9610,8 @@ def test_remove_eq_coeffs_multiply(casa_uvfits, future_shapes):
     uvobj2 = uvobj.copy()
 
     # give eq_coeffs to the object
-    eq_coeffs = np.empty((uvobj.Nants_telescope, uvobj.Nfreqs), dtype=np.float64)
-    for i, ant in enumerate(uvobj.antenna_numbers):
+    eq_coeffs = np.empty((uvobj.telescope.Nants, uvobj.Nfreqs), dtype=np.float64)
+    for i, ant in enumerate(uvobj.telescope.antenna_numbers):
         eq_coeffs[i, :] = ant + 1
     uvobj.eq_coeffs = eq_coeffs
     uvobj.eq_coeffs_convention = "multiply"
@@ -9618,7 +9637,7 @@ def test_remove_eq_coeffs_errors(casa_uvfits):
         uvobj.remove_eq_coeffs()
 
     # raise error when eq_coeffs are defined but not eq_coeffs_convention
-    uvobj.eq_coeffs = np.ones((uvobj.Nants_telescope, uvobj.Nfreqs))
+    uvobj.eq_coeffs = np.ones((uvobj.telescope.Nants, uvobj.Nfreqs))
     with pytest.raises(
         ValueError, match="The eq_coeffs_convention attribute must be defined"
     ):
@@ -10012,16 +10031,12 @@ def test_rephase_to_time():
     time = Time(phase_time, format="jd")
     # Generate ra/dec of zenith at time in the phase_frame coordinate
     # system to use for phasing
-    telescope_location = EarthLocation.from_geocentric(
-        *uvd.telescope_location, unit="m"
-    )
-
     zenith_coord = SkyCoord(
         alt=Angle(90 * units.deg),
         az=Angle(0 * units.deg),
         obstime=time,
         frame="altaz",
-        location=telescope_location,
+        location=uvd.telescope.location,
     )
 
     obs_zenith_coord = zenith_coord.transform_to("icrs")
@@ -10139,7 +10154,6 @@ def test_print_object_full(sma_mir, frame, epoch):
             epoch_str = epoch
         else:
             epoch_str = "B" + str(epoch)
-    print(epoch_str)
     check_str = (
         "   ID     Cat Entry          Type     Az/Lon/RA"
         "    El/Lat/Dec  Frame    Epoch   PM-Ra  PM-Dec     Dist   V_rad \n"
@@ -11128,7 +11142,7 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
     # These values could be anything -- we're just picking something that we know should
     # be visible from the telescope at the time of obs (ignoring horizon limits).
     phase_ra = uv_in.lst_array[-1]
-    phase_dec = uv_in.telescope_location_lat_lon_alt[0] * 0.333
+    phase_dec = uv_in.telescope.location.lat.rad * 0.333
 
     # Do the improved phasing on the data set.
     uv_in.phase(lon=phase_ra, lat=phase_dec, phase_frame=phase_frame, cat_name="foo")
@@ -11186,6 +11200,9 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
         with warnings.catch_warnings():
             warnings.filterwarnings(
                 "ignore", "Fixing auto-correlations to be be real-only"
+            )
+            warnings.filterwarnings(
+                "ignore", "antenna_diameters are not set or are being overwritten."
             )
             uv_in_bad2 = UVData.from_file(
                 outfile,
@@ -11559,10 +11576,9 @@ def test_set_data(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     data = 2 * uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
-    inds1, inds2, indp = uv._key2inds((ant1, ant2))
     uv.set_data(data, ant1, ant2)
     data2 = uv.get_data(ant1, ant2, squeeze="none")
 
@@ -11584,8 +11600,8 @@ def test_set_data_evla(future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     data = 2 * uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     inds1, inds2, indp = uv._key2inds((ant1, ant2))
     uv.set_data(data, ant1, ant2)
@@ -11607,8 +11623,8 @@ def test_set_data_polkey(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     pol = "xx"
     data = 2 * uv.get_data(ant1, ant2, pol, squeeze="none", force_copy=True)
     inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
@@ -11630,8 +11646,8 @@ def test_set_flags(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
     if future_shapes:
         flags[:, :, :] = True
@@ -11657,8 +11673,8 @@ def test_set_flags_polkey(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     pol = "xx"
     flags = uv.get_flags(ant1, ant2, pol, squeeze="none", force_copy=True)
     if future_shapes:
@@ -11685,8 +11701,8 @@ def test_set_nsamples(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
     if future_shapes:
         nsamples[:, :, :] = np.pi
@@ -11712,8 +11728,8 @@ def test_set_nsamples_polkey(hera_uvh5, future_shapes):
     if not future_shapes:
         uv.use_current_array_shapes()
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     pol = "xx"
     nsamples = uv.get_nsamples(ant1, ant2, pol, squeeze="none", force_copy=True)
     if future_shapes:
@@ -11736,8 +11752,8 @@ def test_set_data_bad_key_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     match = "no more than 3 key values can be passed"
     with pytest.raises(ValueError, match=match):
@@ -11753,8 +11769,8 @@ def test_set_data_conj_data_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     match = "the requested key is present on the object, but conjugated"
     with pytest.raises(ValueError, match=match):
@@ -11770,8 +11786,8 @@ def test_set_data_wrong_shape_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     data = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     data = data[0]
@@ -11789,8 +11805,8 @@ def test_set_flags_bad_key_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     flags = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     match = "no more than 3 key values can be passed"
     with pytest.raises(ValueError, match=match):
@@ -11806,8 +11822,8 @@ def test_set_flags_conj_data_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
     match = "the requested key is present on the object, but conjugated"
     with pytest.raises(ValueError, match=match):
@@ -11823,8 +11839,8 @@ def test_set_flags_wrong_shape_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     flags = flags[0]
@@ -11842,8 +11858,8 @@ def test_set_nsamples_bad_key_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     nsamples = uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     match = "no more than 3 key values can be passed"
     with pytest.raises(ValueError, match=match):
@@ -11859,8 +11875,8 @@ def test_set_nsamples_conj_data_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
     match = "the requested key is present on the object, but conjugated"
     with pytest.raises(ValueError, match=match):
@@ -11876,8 +11892,8 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
     """
     uv = hera_uvh5
 
-    ant1 = np.unique(uv.antenna_numbers)[0]
-    ant2 = np.unique(uv.antenna_numbers)[1]
+    ant1 = np.unique(uv.telescope.antenna_numbers)[0]
+    ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
     # make data the wrong rank
     nsamples = nsamples[0]
@@ -12480,7 +12496,6 @@ def test_init_like_hera_cal(
 
     params = [
         "Nants_data",
-        "Nants_telescope",
         "Nbls",
         "Nblts",
         "Nfreqs",
@@ -12489,16 +12504,12 @@ def test_init_like_hera_cal(
         "Ntimes",
         "ant_1_array",
         "ant_2_array",
-        "antenna_names",
-        "antenna_numbers",
         "baseline_array",
         "channel_width",
         "data_array",
         "flag_array",
         "freq_array",
         "history",
-        "x_orientation",
-        "instrument",
         "integration_time",
         "lst_array",
         "nsample_array",
@@ -12506,11 +12517,19 @@ def test_init_like_hera_cal(
         "phase_type",
         "polarization_array",
         "spw_array",
-        "telescope_location",
-        "telescope_name",
         "time_array",
         "uvw_array",
         "vis_units",
+    ]
+
+    tel_params = [
+        "name",
+        "location",
+        "instrument",
+        "x_orientation",
+        "Nants",
+        "antenna_names",
+        "antenna_numbers",
         "antenna_positions",
     ]
 
@@ -12548,6 +12567,9 @@ def test_init_like_hera_cal(
             msg = ""
         with uvtest.check_warnings(warn_type, match=msg):
             uvd.__setattr__(par, param_dict[par])
+
+    for par in tel_params:
+        setattr(uvd.telescope, par, getattr(hera_uvh5.telescope, par))
 
     assert uvd.phase_center_catalog is None
 
@@ -12600,7 +12622,7 @@ def test_init_like_hera_cal(
             uvd.check()
         return
 
-    uvd.antenna_diameters = hera_uvh5.antenna_diameters
+    uvd.telescope.antenna_diameters = hera_uvh5.telescope.antenna_diameters
     uvd.extra_keywords = hera_uvh5.extra_keywords
 
     if check_before_write:
@@ -12744,12 +12766,14 @@ def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
         # Flip the coords and antpos to see if we get back to where we are supposed to
         # be in the uvws (though we'll ignore the data in this case).
         sma_mir.uvw_array *= -1
-        sma_mir.antenna_positions *= -1
+        sma_mir.telescope.antenna_positions *= -1
     else:
         # Introduce a small delta to all ants so that the positions are different
-        sma_mir.antenna_positions += 1
+        sma_mir.telescope.antenna_positions += 1
 
-    new_positions = dict(zip(sma_copy.antenna_numbers, sma_copy.antenna_positions))
+    new_positions = dict(
+        zip(sma_copy.telescope.antenna_numbers, sma_copy.telescope.antenna_positions)
+    )
 
     sma_mir.update_antenna_positions(
         new_positions=new_positions, delta_antpos=delta_antpos
@@ -12765,8 +12789,6 @@ def test_antpair2ind_rect_not_ordered(hera_uvh5):
     hera_uvh5.reorder_blts(order="baseline", minor_order="time")
 
     assert hera_uvh5.blts_are_rectangular
-
-    print(hera_uvh5.get_antpairs())
 
     inds = hera_uvh5.antpair2ind((0, 1), ordered=True)
 

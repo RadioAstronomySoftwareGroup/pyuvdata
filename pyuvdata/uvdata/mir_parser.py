@@ -4139,9 +4139,7 @@ class MirParser(object):
         # if swarm_only:
         #     self.select(where=("correlator", "eq", 1))
         # Get SMA coordinates for various data-filling stuff
-        sma_lat, sma_lon, sma_alt = Telescope.from_known_telescopes(
-            "SMA"
-        ).location_lat_lon_alt
+        telescope_location = Telescope.from_known_telescopes("SMA").location
 
         # in_data updates: mjd, lst, ara, adec
         # First sort out the time stamps using the day reference inside codes_data, and
@@ -4165,10 +4163,7 @@ class MirParser(object):
 
         # Calculate the LST at the time of obs
         lst_arr = (12.0 / np.pi) * uvutils.get_lst_for_time(
-            jd_array=jd_arr,
-            latitude=np.rad2deg(sma_lat),
-            longitude=np.rad2deg(sma_lon),
-            altitude=sma_alt,
+            jd_array=jd_arr, telescope_loc=telescope_location
         )
 
         # Finally, calculate the apparent coordinates based on what we have in the data
@@ -4176,7 +4171,7 @@ class MirParser(object):
             lon_coord=self.in_data["rar"],
             lat_coord=self.in_data["decr"],
             time_array=jd_arr,
-            telescope_loc=(sma_lat, sma_lon, sma_alt),
+            telescope_loc=telescope_location,
         )
 
         # Update the fields accordingly
