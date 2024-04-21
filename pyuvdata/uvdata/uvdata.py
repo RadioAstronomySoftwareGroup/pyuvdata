@@ -49,66 +49,6 @@ _future_array_shapes_warning = (
     "shape changes."
 )
 
-old_phase_attrs = [
-    "phase_type",
-    "phase_center_ra",
-    "phase_center_dec",
-    "phase_center_frame",
-    "phase_center_epoch",
-    "object_name",
-]
-
-
-def _warn_old_phase_attr(__name):
-    warn_str = (
-        "The older phase attributes, including "
-        + ", ".join(old_phase_attrs)
-        + ", are deprecated in favor of representing phasing using the "
-        "phase_center_catalog."
-    )
-
-    if __name == "phase_type":
-        warn_str += (
-            " The phase_type is now represented as the 'cat_type' in the "
-            "phase_center_catalog (the old 'drift' type corresponds to the "
-            "new 'unprojected' type, the old 'phased' type corresponds to the "
-            "new 'sidereal' type, and there is also now support for an 'ephem' "
-            "type to support moving objects and a new 'driftscan' type which "
-            "can point at any alt/az (not just zenith) and which always has "
-            "w-projection applied)."
-        )
-    elif __name == "phase_center_ra":
-        warn_str += (
-            " The phase_center_ra is now represented as the 'cat_lon' in the "
-            "phase_center_catalog."
-        )
-    elif __name == "phase_center_dec":
-        warn_str += (
-            " The phase_center_dec is now represented as the 'cat_lat' in the "
-            "phase_center_catalog."
-        )
-    elif __name == "phase_center_frame":
-        warn_str += (
-            " The phase_center_frame is now represented as the 'cat_frame' in "
-            "the phase_center_catalog."
-        )
-    elif __name == "phase_center_epoch":
-        warn_str += (
-            " The phase_center_epoch is now represented as the 'cat_epoch' in "
-            "the phase_center_catalog."
-        )
-    elif __name == "object_name":
-        warn_str += (
-            " The object_name is now represented as the 'cat_name' in "
-            "the phase_center_catalog."
-        )
-    warn_str += (
-        " To see a nice representation of the phase_center_catalog, use the "
-        "`print_phase_center_info` method. The older attributes will be "
-        "removed in version 3.0"
-    )
-    warnings.warn(warn_str, DeprecationWarning)
-
 
 class UVData(UVBase):
     """
@@ -1555,61 +1495,6 @@ class UVData(UVBase):
         else:
             return True, None
 
-    def __getattribute__(self, __name):
-        """Issue deprecation warnings for old phasing attributes."""
-        if __name in old_phase_attrs:
-            compatible, reason = self._old_phase_attributes_compatible()
-            if not compatible:
-                raise ValueError(
-                    "The older phase attributes, including "
-                    + ", ".join(old_phase_attrs)
-                    + " cannot be used with data phased with the new method. This was "
-                    + "phased with the new method because it has "
-                    + reason
-                    + "."
-                )
-            _warn_old_phase_attr(__name)
-
-            if self.phase_center_catalog is not None:
-                phase_dict = next(iter(self.phase_center_catalog.values()))
-                if __name == "phase_type":
-                    if phase_dict["cat_type"] == "unprojected":
-                        ret_val = "drift"
-                    else:
-                        ret_val = "phased"
-                elif __name == "phase_center_ra":
-                    ret_val = phase_dict["cat_lon"]
-                elif __name == "phase_center_dec":
-                    ret_val = phase_dict["cat_lat"]
-                elif __name == "phase_center_frame":
-                    ret_val = phase_dict["cat_frame"]
-                elif __name == "phase_center_epoch":
-                    ret_val = phase_dict["cat_epoch"]
-                elif __name == "object_name":
-                    ret_val = phase_dict["cat_name"]
-                return ret_val
-
-        return super().__getattribute__(__name)
-
-    def __setattr__(self, __name, __value) -> None:
-        """Issue deprecation warnings for old phasing attributes."""
-        if __name in old_phase_attrs:
-            if (
-                self.phase_center_catalog is not None
-                and len(self.phase_center_catalog) > 0
-            ):
-                warnings.warn(
-                    f"phase_center_catalog is already set, so {__name}, which is an "
-                    "old phase attribute, cannot be set. This will become an error in "
-                    "version 3.0",
-                    DeprecationWarning,
-                )
-                return
-
-            _warn_old_phase_attr(__name)
-
-        return super().__setattr__(__name, __value)
-
     def _set_future_array_shapes(self):
         """
         Set future_array_shapes to True and adjust required parameters.
@@ -2440,85 +2325,6 @@ class UVData(UVBase):
             # Finally, plug the modified values back into data_array
             self.data_array[auto_screen] = auto_data
 
-    def _convert_old_phase_attributes(self):
-        """
-        Convert old phase attributes set on object to the phase_center_catalog.
-
-        This method can be removed in version 3.0.
-        """
-        if self.phase_center_catalog is None or len(self.phase_center_catalog) == 0:
-            # first handle any old phase parameters that have been added to the object
-            old_phase_attrs = [
-                "phase_type",
-                "phase_center_ra",
-                "phase_center_dec",
-                "phase_center_frame",
-                "phase_center_epoch",
-                "object_name",
-            ]
-            old_phase_info = {}
-            for attr in old_phase_attrs:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore", "The older phase attributes, including"
-                    )
-                    if hasattr(self, attr):
-                        old_phase_info[attr] = getattr(self, attr)
-            if len(old_phase_info) > 0:
-                converted = False
-                if "phase_type" in old_phase_info.keys():
-                    if old_phase_info["phase_type"] != "phased":
-                        if "object_name" in old_phase_info.keys():
-                            cat_name = old_phase_info["object_name"]
-                        else:
-                            cat_name = "unprojected"
-                        cat_id = self._add_phase_center(
-                            cat_name=cat_name, cat_type="unprojected"
-                        )
-                        converted = True
-                    else:
-                        if (
-                            "phase_center_ra" in old_phase_info.keys()
-                            and "phase_center_dec" in old_phase_info.keys()
-                            and "phase_center_frame" in old_phase_info.keys()
-                            and "phase_center_epoch" in old_phase_info.keys()
-                            and "object_name" in old_phase_info.keys()
-                        ):
-                            cat_id = self._add_phase_center(
-                                cat_name=old_phase_info["object_name"],
-                                cat_type="sidereal",
-                                cat_lon=old_phase_info["phase_center_ra"],
-                                cat_lat=old_phase_info["phase_center_dec"],
-                                cat_frame=old_phase_info["phase_center_frame"],
-                                cat_epoch=old_phase_info["phase_center_epoch"],
-                            )
-                            converted = True
-
-                if converted:
-                    warnings.warn(
-                        "The phase_center_catalog was not set and a complete set of "
-                        f"old phase attributes ({', '.join(old_phase_info.keys())}) "
-                        "were detected so the old phase attributes were converted into "
-                        "the phase_center_catalog. "
-                        f"The older attributes including {', '.join(old_phase_attrs)} "
-                        "will be removed in version 3.0",
-                        DeprecationWarning,
-                    )
-                    self.phase_center_id_array = np.full(self.Nblts, cat_id, dtype=int)
-                    self._set_app_coords_helper()
-                    for attr in old_phase_attrs:
-                        if attr in old_phase_info.keys():
-                            delattr(self, attr)
-                else:
-                    raise ValueError(
-                        "The phase_center_catalog was not set and some old phase "
-                        f"attributes ({', '.join(old_phase_info.keys())}) were "
-                        "detected, but not enough to define the phase status of the "
-                        "object, so they could not be converted into the "
-                        "phase_center_catalog. You can use `_add_phase_center_catalog` "
-                        "to set the phase_center_catalog."
-                    )
-
     def check(
         self,
         *,
@@ -2584,9 +2390,6 @@ class UVData(UVBase):
             values (if run_check_acceptability is True)
 
         """
-        # first check for any old phase attributes set on the object and move the info
-        # into the phase_center_catalog.
-        self._convert_old_phase_attributes()
         self._set_telescope_requirements()
 
         if self.flex_spw_id_array is None:
@@ -9794,16 +9597,9 @@ class UVData(UVBase):
         else:
             raise ValueError("filetype must be uvfits, mir, miriad, ms, fhd, or uvh5")
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", "The older phase attributes, including")
-            for par in self:
-                param = getattr(self, par)
-                setattr(other_obj, par, param)
-            if self.phase_center_catalog is None or len(self.phase_center_catalog) == 0:
-                for attr in old_phase_attrs:
-                    if hasattr(self, attr):
-                        attr_val = getattr(self, attr)
-                        setattr(other_obj, attr, attr_val)
+        for par in self:
+            setattr(other_obj, par, getattr(self, par))
+
         return other_obj
 
     def read_fhd(self, vis_files, *, params_file, **kwargs):
@@ -10046,12 +9842,6 @@ class UVData(UVBase):
             are not fast to read in (e.g. uvws, times) so will not be read in
             if this keyword is False. Therefore, setting read_data to False
             results in an incompletely defined object (check will not pass).
-        phase_type : str, optional
-            Deprecated, use the `projected` parameter insted. Option to specify the
-            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
-            is the same as setting the projected parameter to False, 'phased' is the
-            same as setting the projected parameter to True. Ignored if `projected`
-            is set.
         projected : bool or None
             Option to force the dataset to be labelled as projected or unprojected
             regardless of the evidence in the file. The default is None which means that
@@ -10757,7 +10547,6 @@ class UVData(UVBase):
         fix_autos=True,
         # file-type specific parameters
         # miriad
-        phase_type=None,
         projected=None,
         correct_lat_lon=True,
         calc_lst=True,
@@ -10981,12 +10770,6 @@ class UVData(UVBase):
 
         Miriad
         ------
-        phase_type : str, optional
-            Deprecated, use the `projected` parameter insted. Option to specify the
-            phasing status of the data. Options are 'drift', 'phased' or None. 'drift'
-            is the same as setting the projected parameter to False, 'phased' is the
-            same as setting the projected parameter to True. Ignored if `projected`
-            is set.
         projected : bool or None
             Option to force the dataset to be labelled as projected or unprojected
             regardless of the evidence in the file. The default is None which means that
@@ -11457,7 +11240,6 @@ class UVData(UVBase):
                         fix_autos=fix_autos,
                         # file-type specific parameters
                         # miriad
-                        phase_type=phase_type,
                         projected=projected,
                         correct_lat_lon=correct_lat_lon,
                         calc_lst=calc_lst,
@@ -11595,7 +11377,6 @@ class UVData(UVBase):
                             fix_autos=fix_autos,
                             # file-type specific parameters
                             # miriad
-                            phase_type=phase_type,
                             projected=projected,
                             correct_lat_lon=correct_lat_lon,
                             calc_lst=calc_lst,
@@ -11919,7 +11700,6 @@ class UVData(UVBase):
                     polarizations=polarizations,
                     time_range=time_range,
                     read_data=read_data,
-                    phase_type=phase_type,
                     projected=projected,
                     correct_lat_lon=correct_lat_lon,
                     background_lsts=background_lsts,
