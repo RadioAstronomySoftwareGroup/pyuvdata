@@ -878,8 +878,7 @@ class UVFITS(UVData):
         Raises
         ------
         ValueError
-            The `phase_type` of the object is "drift" and the `force_phase`
-            keyword is not set.
+            The object contains unprojected data and `force_phase` keyword is not set.
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.

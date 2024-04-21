@@ -1711,7 +1711,7 @@ def test_uvfits_extra_phase_centers(sma_mir, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvfits_phasing_errors(hera_uvh5, tmp_path):
-    # check error if phase_type is wrong and force_phase not set
+    # check error if data are not phase to a sidereal source and force_phase not set
     with pytest.raises(
         ValueError, match="The data are not all phased to a sidereal source"
     ):

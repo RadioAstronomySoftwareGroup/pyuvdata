@@ -107,7 +107,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             "rdate",
             "timesys",
             "eq_coeffs_convention",
-            "phase_type",
             "phase_center_frame",
             "version",
         }
@@ -276,36 +275,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         if self.Ntimes == self.Nblts:
             return True
         return self.header["time_array"][1] != self.header["time_array"][0]
-
-    @cached_property
-    def phase_type(self) -> str:
-        """The phase type of the data."""
-        h = self.header
-        if self.phase_center_catalog is not None:
-            if all(
-                pc["cat_type"] == "unprojected"
-                for pc in self.phase_center_catalog.values()
-            ):
-                return "drift"
-            else:
-                return "phased"
-
-        phs = bytes(h["phase_type"][()]).decode("utf8")
-        if phs in ("drift", "phased"):
-            return phs
-        warnings.warn(
-            "Unknown phase types are no longer supported, marking this "
-            "object as unprojected (unphased) by default."
-        )
-        return "drift"
-
-    @cached_property
-    def phase_center_id_array(self):
-        """Array of phase center IDs."""
-        if self.phase_center_catalog:
-            return self.header["phase_center_id_array"][:]
-        else:
-            return None
 
     @cached_property
     def times(self) -> np.ndarray:
@@ -557,8 +526,7 @@ class UVH5(UVData):
                 background=background_lsts, astrometry_library=astrometry_library
             )
 
-        # Required parameters
-        for attr in [
+        req_params = [
             "history",
             "vis_units",
             "Nfreqs",
@@ -570,7 +538,6 @@ class UVH5(UVData):
             "Nants_data",
             "ant_1_array",
             "ant_2_array",
-            "phase_center_id_array",
             "baseline_array",
             "integration_time",
             "freq_array",
@@ -578,8 +545,22 @@ class UVH5(UVData):
             "polarization_array",
             "uvw_array",
             "channel_width",
-            "phase_center_catalog",
-        ]:
+        ]
+
+        # Take care of the phase center attributes separately, in order to support
+        # older versions of the format.
+        if obj.phase_center_catalog is not None:
+            req_params += [
+                "phase_center_catalog",
+                "phase_center_app_ra",
+                "phase_center_app_dec",
+                "phase_center_frame_pa",
+                "phase_center_id_array",
+                "Nphase",
+            ]
+
+        # Required parameters
+        for attr in req_params:
             try:
                 setattr(self, attr, getattr(obj, attr))
             except AttributeError as e:
@@ -621,9 +602,6 @@ class UVH5(UVData):
             "eq_coeffs_convention",
             "flex_spw_id_array",
             "flex_spw_polarization_array",
-            "phase_center_app_ra",
-            "phase_center_app_dec",
-            "phase_center_frame_pa",
             "extra_keywords",
         ]:
             try:
@@ -645,25 +623,28 @@ class UVH5(UVData):
 
         # Here is where we start handling phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
-        if self.phase_center_catalog is not None:
-            self.Nphase = obj.Nphase
-        else:
-            cat_name = getattr(obj, "object_name", None)
-
-            if obj.phase_type == "drift":
-                if cat_name is None:
-                    cat_name = "unprojected"
-                cat_id = self._add_phase_center(cat_name, cat_type="unprojected")
-            else:
+        if obj.phase_center_catalog is None:
+            phase_type = bytes(obj.header["phase_type"][()]).decode("utf8")
+            if phase_type == "phased":
                 cat_id = self._add_phase_center(
-                    cat_name,
+                    getattr(obj, "object_name", "unknown"),
                     cat_type="sidereal",
                     cat_lon=obj.phase_center_ra,
                     cat_lat=obj.phase_center_dec,
                     cat_frame=obj.phase_center_frame,
                     cat_epoch=obj.phase_center_epoch,
                 )
-            self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
+            else:
+                if phase_type != "drift":
+                    warnings.warn(
+                        "Unknown phase type, assuming object is unprojected "
+                        "(unphased) by default."
+                    )
+                cat_id = self._add_phase_center(
+                    getattr(obj, "object_name", "unprojected"), cat_type="unprojected"
+                )
+
+            self.phase_center_id_array = np.full(obj.Nblts, cat_id, dtype=int)
         # set any extra telescope params
         self.set_telescope_params(
             run_check=run_check,
