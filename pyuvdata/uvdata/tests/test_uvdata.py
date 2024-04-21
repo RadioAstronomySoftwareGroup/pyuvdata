@@ -26,7 +26,7 @@ from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
-from pyuvdata.uvdata.uvdata import _future_array_shapes_warning, old_phase_attrs
+from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 try:
     import pyuvdata._miriad  # noqa F401
@@ -106,8 +106,6 @@ def uvdata_props():
         "antenna_diameters",
         "telescope_location_lat_lon_alt",
         "telescope_location_lat_lon_alt_degrees",
-        "phase_center_ra_degrees",
-        "phase_center_dec_degrees",
         "pyuvdata_version_str",
     ]
 
@@ -271,7 +269,7 @@ def bda_test_file_main():
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
     with uvtest.check_warnings(
-        UserWarning, match="Unknown phase types are no longer supported"
+        UserWarning, match="Unknown phase type, assuming object is unprojected"
     ):
         uv_object.read(testfile, use_future_array_shapes=True)
 
@@ -10006,98 +10004,6 @@ def test_parse_ants_x_orientation_kwarg(hera_uvh5):
     assert np.array_equal(pols, pols2)
 
 
-def test_getattr_error(casa_uvfits):
-    with pytest.raises(
-        ValueError,
-        match=(
-            "The older phase attributes, including phase_type, phase_center_ra,"
-            " phase_center_dec, phase_center_frame, phase_center_epoch, object_name"
-            " cannot be used with data phased with the new method. This was phased with"
-            " the new method because it has fk5 phase frames."
-        ),
-    ):
-        casa_uvfits.phase_type
-
-
-@pytest.mark.parametrize(
-    ["old_attr", "msg"],
-    [
-        (
-            "phase_type",
-            (
-                " The phase_type is now represented as the 'cat_type' in the "
-                "phase_center_catalog (the old 'drift' type corresponds to the "
-                "new 'unprojected' type, the old 'phased' type corresponds to the "
-                "new 'sidereal' type, and there is also now support for an 'ephem' "
-                "type to support moving objects and a new 'driftscan' type which "
-                "can point at any alt/az (not just zenith) and which always has "
-                "w-projection applied)."
-            ),
-        ),
-        (
-            "phase_center_ra",
-            (
-                " The phase_center_ra is now represented as the 'cat_lon' in the "
-                "phase_center_catalog."
-            ),
-        ),
-        (
-            "phase_center_dec",
-            (
-                " The phase_center_dec is now represented as the 'cat_lat' in the "
-                "phase_center_catalog."
-            ),
-        ),
-        (
-            "phase_center_frame",
-            (
-                " The phase_center_frame is now represented as the 'cat_frame' in the "
-                "phase_center_catalog."
-            ),
-        ),
-        (
-            "phase_center_epoch",
-            (
-                " The phase_center_epoch is now represented as the 'cat_epoch' in the "
-                "phase_center_catalog."
-            ),
-        ),
-        (
-            "object_name",
-            (
-                " The object_name is now represented as the 'cat_name' in the "
-                "phase_center_catalog."
-            ),
-        ),
-    ],
-)
-def test_getattr(casa_uvfits, old_attr, msg):
-    casa_uvfits.phase_center_catalog[0]["cat_frame"] = "icrs"
-    initial_msg = (
-        "The older phase attributes, including phase_type, phase_center_ra, "
-        "phase_center_dec, phase_center_frame, phase_center_epoch, object_name, are "
-        "deprecated in favor of representing phasing using the phase_center_catalog."
-    )
-    expected_vals = {
-        "phase_type": "phased",
-        "phase_center_ra": casa_uvfits.phase_center_catalog[0]["cat_lon"],
-        "phase_center_dec": casa_uvfits.phase_center_catalog[0]["cat_lat"],
-        "phase_center_frame": casa_uvfits.phase_center_catalog[0]["cat_frame"],
-        "phase_center_epoch": casa_uvfits.phase_center_catalog[0]["cat_epoch"],
-        "object_name": casa_uvfits.phase_center_catalog[0]["cat_name"],
-    }
-
-    with uvtest.check_warnings(DeprecationWarning, match=initial_msg + msg):
-        assert getattr(casa_uvfits, old_attr) == expected_vals[old_attr]
-
-    if old_attr == "phase_type":
-        # also test for drift identification
-        casa_uvfits.unproject_phase()
-
-        with uvtest.check_warnings(DeprecationWarning, match=initial_msg + msg):
-            assert getattr(casa_uvfits, old_attr) == "drift"
-
-
 def test_rephase_to_time():
     uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     uvd = UVData()
@@ -10120,16 +10026,10 @@ def test_rephase_to_time():
     zenith_dec = obs_zenith_coord.dec.rad
 
     uvd.phase_to_time(phase_time)
+    cat_id = uvd.phase_center_id_array[0]
 
-    with uvtest.check_warnings(
-        DeprecationWarning, match="The older phase attributes, including phase_type"
-    ):
-        assert uvd.phase_center_ra == zenith_ra
-
-    with uvtest.check_warnings(
-        DeprecationWarning, match="The older phase attributes, including phase_type"
-    ):
-        assert uvd.phase_center_dec == zenith_dec
+    assert uvd.phase_center_catalog[cat_id]["cat_lon"] == zenith_ra
+    assert uvd.phase_center_catalog[cat_id]["cat_lat"] == zenith_dec
 
 
 @pytest.mark.parametrize(
@@ -12554,21 +12454,12 @@ def test_split_write_comb_read(tmp_path, multi_phase):
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("set_obj_name", [True, False])
 @pytest.mark.parametrize("projected", [True, False])
 @pytest.mark.parametrize("check_before_write", [True, False])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_init_like_hera_cal(
-    hera_uvh5, tmp_path, set_obj_name, projected, check_before_write, future_shapes
-):
+def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
     """Pulled from an error in hera_cal."""
-
-    if not future_shapes:
-        hera_uvh5.use_current_array_shapes()
 
     params = [
         "Nants_data",
@@ -12578,19 +12469,24 @@ def test_init_like_hera_cal(
         "Npols",
         "Nspws",
         "Ntimes",
+        "Nphase",
         "ant_1_array",
         "ant_2_array",
         "baseline_array",
         "channel_width",
         "data_array",
         "flag_array",
+        "flex_spw_id_array",
         "freq_array",
         "history",
         "integration_time",
         "lst_array",
         "nsample_array",
-        "object_name",
-        "phase_type",
+        "phase_center_catalog",
+        "phase_center_id_array",
+        "phase_center_app_ra",
+        "phase_center_app_dec",
+        "phase_center_frame_pa",
         "polarization_array",
         "spw_array",
         "time_array",
@@ -12609,94 +12505,37 @@ def test_init_like_hera_cal(
         "antenna_positions",
     ]
 
-    uvd = UVData()
-    if future_shapes:
-        uvd._set_future_array_shapes()
-    else:
-        hera_uvh5.use_current_array_shapes()
-
-    param_dict = {}
-    for par in params:
-        if par in ["phase_type", "object_name"]:
-            continue
-        param_dict[par] = getattr(hera_uvh5, par)
-
-    if projected:
-        param_dict["phase_type"] = "phased"
-    else:
-        param_dict["phase_type"] = "drift"
-    if set_obj_name:
-        param_dict["object_name"] = hera_uvh5.phase_center_catalog[0]["cat_name"]
-
-    uvd = UVData()
-    if future_shapes:
-        uvd._set_future_array_shapes()
-    # set parameters in uvd
-    for par in params:
-        if par not in param_dict.keys():
-            continue
-        if par in old_phase_attrs:
-            warn_type = DeprecationWarning
-            msg = "The older phase attributes, including"
-        else:
-            warn_type = None
-            msg = ""
-        with uvtest.check_warnings(warn_type, match=msg):
-            uvd.__setattr__(par, param_dict[par])
-
     for par in tel_params:
         setattr(uvd.telescope, par, getattr(hera_uvh5.telescope, par))
 
-    assert uvd.phase_center_catalog is None
-
     if projected:
-        with uvtest.check_warnings(
-            DeprecationWarning, match=["The older phase attributes, including"] * 4
-        ):
-            uvd.phase_center_ra = 0.0
-            uvd.phase_center_dec = 0.0
-            uvd.phase_center_epoch = 2000.0
-            uvd.phase_center_frame = "icrs"
-
         hera_uvh5.phase_center_catalog[0]["cat_type"] = "sidereal"
         hera_uvh5.phase_center_catalog[0]["cat_lon"] = 0.0
         hera_uvh5.phase_center_catalog[0]["cat_lat"] = 0.0
         hera_uvh5.phase_center_catalog[0]["cat_frame"] = "icrs"
         hera_uvh5.phase_center_catalog[0]["cat_epoch"] = 2000.0
         hera_uvh5._set_app_coords_helper()
-        warn_type = [DeprecationWarning, DeprecationWarning, UserWarning]
-        msg = [
-            (
-                "The phase_center_catalog was not set and a complete set of old phase "
-                "attributes (phase_type, phase_center_ra, phase_center_dec, "
-                "phase_center_frame, phase_center_epoch, object_name)"
-            ),
-            "flex_spw_id_array is not set. It will be required starting in version 3.0",
-            "The uvw_array does not match the expected values",
-        ]
-
+        warn_type = UserWarning
+        msg = "The uvw_array does not match the expected values"
     else:
-        warn_type = [DeprecationWarning]
-        msg = [
-            (
-                "The phase_center_catalog was not set and a complete set of old phase "
-                "attributes (phase_type"
-            ),
-            "flex_spw_id_array is not set. It will be required starting in version 3.0",
-        ]
+        warn_type = None
+        msg = None
 
-    if projected and not set_obj_name:
-        with pytest.raises(
-            ValueError,
-            match=re.escape(
-                "The phase_center_catalog was not set and some old phase attributes "
-                "(phase_type, phase_center_ra, phase_center_dec, phase_center_frame, "
-                "phase_center_epoch) were detected, but not enough to define the phase "
-                "status of the object, so they could not be converted "
-            ),
-        ):
-            uvd.check()
-        return
+    hera_uvh5._set_future_array_shapes()
+
+    uvd = UVData()
+    param_dict = {}
+    for par in params:
+        param_dict[par] = getattr(hera_uvh5, par)
+
+    uvd = UVData()
+    uvd._set_future_array_shapes()
+
+    # set parameters in uvd
+    for par in params:
+        if par not in param_dict.keys():
+            continue
+        uvd.__setattr__(par, param_dict[par])
 
     uvd.telescope.antenna_diameters = hera_uvh5.telescope.antenna_diameters
     uvd.extra_keywords = hera_uvh5.extra_keywords
@@ -12707,40 +12546,25 @@ def test_init_like_hera_cal(
 
         if projected:
             assert uvd.phase_center_catalog[0]["cat_type"] == "sidereal"
-        elif not set_obj_name:
-            assert uvd.phase_center_catalog[0]["cat_name"] == "unprojected"
+        else:
+            assert uvd.phase_center_catalog[0]["cat_name"] == "zenith"
             uvd.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[0][
                 "cat_name"
             ]
-
-        # check that setting an old phase attribute when the phase_center_catalog is
-        # already set will issue the correct warning (and do nothing)
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match=(
-                "phase_center_catalog is already set, so object_name, which is an "
-                "old phase attribute, cannot be set."
-            ),
-        ):
-            uvd.object_name = "foo"
 
         uvd.flex_spw_id_array = hera_uvh5.flex_spw_id_array
         assert uvd == hera_uvh5
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
-    if check_before_write:
-        uvd.write_uvh5(testfile)
-    else:
-        with uvtest.check_warnings(warn_type, match=msg):
-            uvd.write_uvh5(testfile)
+    uvd.write_uvh5(testfile)
 
-    uvd2 = UVData.from_file(testfile, use_future_array_shapes=future_shapes)
+    uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
 
     if not check_before_write:
         if projected:
             assert uvd2.phase_center_catalog[0]["cat_type"] == "sidereal"
-        elif not set_obj_name:
-            assert uvd2.phase_center_catalog[0]["cat_name"] == "unprojected"
+        else:
+            assert uvd2.phase_center_catalog[0]["cat_name"] == "zenith"
             uvd2.phase_center_catalog[0]["cat_name"] = hera_uvh5.phase_center_catalog[
                 0
             ]["cat_name"]

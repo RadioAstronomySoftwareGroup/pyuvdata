@@ -742,7 +742,6 @@ class Miriad(UVData):
         polarizations=None,
         time_range=None,
         read_data=True,
-        phase_type=None,
         projected=None,
         correct_lat_lon=True,
         background_lsts=True,
@@ -764,23 +763,6 @@ class Miriad(UVData):
         if not os.path.exists(filepath):
             raise IOError(filepath + " not found")
         uv = aipy_extracts.UV(filepath)
-
-        if phase_type is not None:
-            warnings.warn(
-                "The phase_type parameter is deprecated, use the projected parameter "
-                "instead. This will become an error in version 3.0.",
-                DeprecationWarning,
-            )
-            if projected is None:
-                if phase_type not in ["phased", "drift"]:
-                    raise ValueError(
-                        "The phase_type was not one of the recognized options: "
-                        "'drift', 'phased'. Instead, use the `projected` parameter."
-                    )
-                if phase_type == "drift":
-                    projected = False
-                else:
-                    projected = True
 
         # load metadata
         (

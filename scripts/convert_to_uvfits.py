@@ -73,7 +73,7 @@ for filename in args.files:
     UV = pyuvdata.UVData()
     UV.read(filename)
 
-    if UV.phase_type == "drift":
+    if any(UV._check_for_cat_type("unprojected")):
         # phase data
         if args.phase_time is not None:
             UV.phase_to_time(Time(args.phase_time, format="jd", scale="utc"))
