@@ -2133,7 +2133,7 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     with uvtest.check_warnings(
         UserWarning,
         [
-            "Unknown phase types are no longer",
+            "Unknown phase type, assuming object is unprojected",
             "The uvw_array does not match the expected values",
         ],
     ):
@@ -2142,6 +2142,9 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
     # make input and output values match now
     uv_in.history = uv_out.history
     uv_in.phase_center_catalog = uv_out.phase_center_catalog
+    uv_in.phase_center_app_ra = uv_out.phase_center_app_ra
+    uv_in.phase_center_app_dec = uv_out.phase_center_app_dec
+    uv_in.phase_center_frame_pa = uv_out.phase_center_frame_pa
     uv_in.vis_units = "uncalib"
 
     # make sure filenames are what we expect
@@ -3715,17 +3718,6 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl_singletime, blts_are_rectangular=True)
         assert not meta.time_axis_faster_than_bls
 
-    def test_phase_type_with_pcc(self):
-        meta = uvh5.FastUVH5Meta(self.fl)
-        assert meta.phase_type == "drift"
-
-        uvd = meta.to_uvdata()
-        uvd.initialize_uvh5_file(os.path.join(self.tmp_path.name, "new_pcc.uvh5"))
-
-        meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "new_pcc.uvh5"))
-        assert meta1.phase_center_catalog is not None
-        assert meta1.phase_type == "drift"
-
     def test_getting_lsts(self):
         meta = uvh5.FastUVH5Meta(self.fl)
 
@@ -3793,12 +3785,6 @@ class TestFastUVH5Meta:
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
         assert np.allclose(meta.antpos_enu, uvd.telescope.get_enu_antpos())
-
-    def test_phased_phase_type(self, sma_mir, tmp_path_factory):
-        testdir = tmp_path_factory.mktemp("test_phased_phase_type")
-        sma_mir.write_uvh5(os.path.join(testdir, "sma_mir.uvh5"))
-        meta = uvh5.FastUVH5Meta(os.path.join(testdir, "sma_mir.uvh5"))
-        assert meta.phase_type == "phased"
 
     def test_rectangularity_roundtrip(self):
         meta = uvh5.FastUVH5Meta(self.fl)

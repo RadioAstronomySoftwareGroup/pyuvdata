@@ -109,9 +109,6 @@ warn_dict = {
         "Altitude is not present in Miriad file, and telescope foo is not in"
         " known_telescopes."
     ),
-    "phase_type_deprecated": (
-        "The phase_type parameter is deprecated, use the projected parameter instead."
-    ),
     "no_telescope_loc": (
         "Telescope location is not set, but antenna positions are "
         "present. Mean antenna latitude and longitude values match file "
@@ -225,12 +222,9 @@ def test_read_nrao_write_miriad_read_miriad(casa_uvfits, tmp_path):
     assert miriad_uv2 == miriad_uv
 
     # check that setting projected also works
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        match=[warn_dict["phase_type_deprecated"], warn_dict["uvw_mismatch"]],
-    ):
+    with uvtest.check_warnings(UserWarning, match=warn_dict["uvw_mismatch"]):
         miriad_uv2 = UVData.from_file(
-            writefile, phase_type="phased", use_future_array_shapes=True
+            writefile, projected=True, use_future_array_shapes=True
         )
     assert miriad_uv2 == miriad_uv
 
@@ -464,20 +458,6 @@ def test_miriad_read_warning_lat_lon_corrected():
         miriad_uv.read(
             paper_miriad_file, correct_lat_lon=False, use_future_array_shapes=True
         )
-
-
-def test_read_miriad_phasing_errors():
-    miriad_uv = UVData()
-    # check that setting the phase_type to something wrong errors
-    with pytest.raises(
-        ValueError, match="The phase_type was not one of the recognized options."
-    ):
-        with uvtest.check_warnings(
-            DeprecationWarning, match=warn_dict["phase_type_deprecated"]
-        ):
-            miriad_uv.read(
-                paper_miriad_file, phase_type="foo", use_future_array_shapes=True
-            )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -833,12 +813,9 @@ def test_singletimeselect_unprojected(uv_in_paper):
     uv_out.read(testfile, projected=False, use_future_array_shapes=True)
     assert uv_in == uv_out
 
-    # also check that setting phase_type works
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        match=[warn_dict["phase_type_deprecated"], warn_dict["uvw_mismatch"]],
-    ):
-        uv_out.read(testfile, phase_type="drift", use_future_array_shapes=True)
+    # also check that setting projected works
+    with uvtest.check_warnings(UserWarning, match=warn_dict["uvw_mismatch"]):
+        uv_out.read(testfile, projected=False, use_future_array_shapes=True)
         assert uv_in == uv_out
 
     # check again with more than one time but only 1 unflagged time
