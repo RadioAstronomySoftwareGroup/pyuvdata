@@ -21,21 +21,12 @@ from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
 @pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("quality", [True, False])
-@pytest.mark.parametrize("input_flag_array", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
 def test_readwriteread(
-    future_shapes,
-    caltype,
-    quality,
-    input_flag_array,
-    time_range,
-    gain_data,
-    delay_data,
-    tmp_path,
+    future_shapes, caltype, quality, time_range, gain_data, delay_data, tmp_path
 ):
     """
     Omnical/Firstcal fits loopback test.
@@ -58,8 +49,6 @@ def test_readwriteread(
 
     if not quality:
         cal_in.quality_array = None
-    if input_flag_array:
-        cal_in.input_flag_array = cal_in.flag_array
     # add total_quality_array so that can be tested as well
     cal_in.total_quality_array = np.ones(
         cal_in._total_quality_array.expected_shape(cal_in)
@@ -81,12 +70,6 @@ def test_readwriteread(
     else:
         warn_type = []
         warn_msg = []
-
-    if input_flag_array:
-        warn_type.append(DeprecationWarning)
-        warn_msg.append(
-            "The input_flag_array is deprecated and will be removed in version 2.5"
-        )
 
     if len(warn_type) == 0:
         warn_type = None
@@ -269,27 +252,6 @@ def test_readwriteread_no_time_range(tmp_path):
     cal_in.write_calfits(write_file, clobber=True)
     cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
     assert cal_in == cal_out
-
-    return
-
-
-def test_error_unknown_cal_type(delay_data, tmp_path):
-    """
-    Test an error is raised when writing an unknown cal type.
-    """
-    cal_in = delay_data
-    write_file = str(tmp_path / "outtest_firstcal.fits")
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="Setting the cal_type to 'unknown' is deprecated. This will become an "
-        "error in version 2.5",
-    ):
-        cal_in._set_unknown_cal_type()
-    with pytest.raises(ValueError, match="unknown calibration type"):
-        cal_in.write_calfits(write_file, run_check=False, clobber=True)
-
-    return
 
 
 @pytest.mark.parametrize(
@@ -525,30 +487,6 @@ def test_extra_keywords_warnings(gain_data, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
-@pytest.mark.filterwarnings("ignore:The input_flag_array is deprecated")
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_input_flag_array(caltype, gain_data, delay_data, tmp_path):
-    """
-    Test when data file has input flag array.
-
-    Currently we do not have a testfile, so we will artifically create one
-    and check for internal consistency.
-    """
-    if caltype == "gain":
-        cal_in = gain_data
-    else:
-        cal_in = delay_data
-
-    write_file = str(tmp_path / "outtest_input_flags.fits")
-    cal_in.input_flag_array = np.zeros(
-        cal_in._input_flag_array.expected_shape(cal_in), dtype=bool
-    )
-    cal_in.write_calfits(write_file, clobber=True)
-    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
-    assert cal_in == cal_out
-
-
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_jones(caltype, gain_data, delay_data, tmp_path):
     """
@@ -747,7 +685,7 @@ def test_calfits_partial_read(gain_data, delay_data, tmp_path, caltype, param_di
     if caltype == "delay":
         msg.append(
             "When converting a delay-style cal to future array shapes the flag_array "
-            "(and input_flag_array if it exists) must drop the frequency axis so that "
+            "must drop the frequency axis so that "
             "it will be the same shape as the delay_array"
         )
 

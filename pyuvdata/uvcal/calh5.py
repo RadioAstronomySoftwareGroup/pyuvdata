@@ -71,7 +71,6 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
             "observer",
             "ref_antenna_name",
             "sky_catalog",
-            "sky_field",
             "instrument",
             "version",
         }
@@ -269,7 +268,6 @@ class CalH5(UVCal):
             "ref_antenna_array",
             "scan_number_array",
             "sky_catalog",
-            "sky_field",
         ]:
             try:
                 setattr(self, attr, getattr(meta, attr))
@@ -779,8 +777,6 @@ class CalH5(UVCal):
             header["ref_antenna_name"] = np.string_(self.ref_antenna_name)
         if self.sky_catalog is not None:
             header["sky_catalog"] = np.string_(self.sky_catalog)
-        if self.sky_field is not None:
-            header["sky_field"] = np.string_(self.sky_field)
         if self.phase_center_id_array is not None:
             header["phase_center_id_array"] = self.phase_center_id_array
         if self.Nphase is not None:
