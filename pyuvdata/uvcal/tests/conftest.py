@@ -54,8 +54,8 @@ def delay_data_main():
             "telescope_location, antenna_positions, antenna_diameters are not "
             "set or are being overwritten. telescope_location, antenna_positions, "
             "antenna_diameters are set using values from known telescopes for HERA.",
-            "When converting a delay-style cal to future array shapes the flag_array"
-            " (and input_flag_array if it exists) must drop the frequency axis",
+            "When converting a delay-style cal to future array shapes the flag_array "
+            "must drop the frequency axis",
         ],
     ):
         delay_object = UVCal.from_file(delayfile, use_future_array_shapes=True)
@@ -73,23 +73,14 @@ def delay_data(delay_data_main):
 
     yield delay_object
 
-    del delay_object
-
 
 @pytest.fixture(scope="session")
 def delay_data_inputflag_main(delay_data_main):
     """Add an input flag array to delay object."""
     delay_object = delay_data_main.copy()
 
-    # add an input flag array for testing
-    delay_object.input_flag_array = np.zeros(
-        delay_object._input_flag_array.expected_shape(delay_object), dtype=bool
-    )
-
     # yield the data for testing, then del after tests finish
     yield delay_object
-
-    del delay_object
 
 
 @pytest.fixture(scope="function")
@@ -98,8 +89,6 @@ def delay_data_inputflag(delay_data_inputflag_main):
     delay_object = delay_data_inputflag_main.copy()
 
     yield delay_object
-
-    del delay_object
 
 
 @pytest.fixture(scope="session")
@@ -194,9 +183,6 @@ def wideband_gain(gain_data):
     gain_obj.gain_array = gain_obj.gain_array[:, 0:3, :, :]
     gain_obj.flag_array = gain_obj.flag_array[:, 0:3, :, :]
     gain_obj.quality_array = gain_obj.quality_array[:, 0:3, :, :]
-    gain_obj.input_flag_array = np.zeros(
-        gain_obj._input_flag_array.expected_shape(gain_obj)
-    ).astype(np.bool_)
 
     gain_obj.freq_range = np.zeros((gain_obj.Nspws, 2), dtype=gain_obj.freq_array.dtype)
     gain_obj.freq_range[0, :] = gain_obj.freq_array[[0, 2]]
@@ -208,15 +194,10 @@ def wideband_gain(gain_data):
     gain_obj.flex_spw_id_array = None
     gain_obj.Nfreqs = 1
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The input_flag_array is deprecated and will be removed in version 2.5",
-    ):
+    with uvtest.check_warnings(None):
         gain_obj.check(check_freq_spacing=True)
 
     yield gain_obj
-
-    del gain_obj
 
 
 @pytest.fixture
@@ -228,9 +209,6 @@ def multi_spw_delay(delay_data_inputflag):
     # copy the delay array to the second SPW
     delay_obj.delay_array = np.repeat(delay_obj.delay_array, delay_obj.Nspws, axis=1)
     delay_obj.flag_array = np.repeat(delay_obj.flag_array, delay_obj.Nspws, axis=1)
-    delay_obj.input_flag_array = np.repeat(
-        delay_obj.input_flag_array, delay_obj.Nspws, axis=1
-    )
     delay_obj.quality_array = np.repeat(
         delay_obj.quality_array, delay_obj.Nspws, axis=1
     )
@@ -242,12 +220,7 @@ def multi_spw_delay(delay_data_inputflag):
     delay_obj.freq_range[2, 0] = delay_obj.freq_range[1, 1]
     delay_obj.freq_range[2, 1] = delay_obj.freq_range[1, 1] + 10e6
 
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The input_flag_array is deprecated and will be removed in version 2.5",
-    ):
+    with uvtest.check_warnings(None):
         delay_obj.check()
 
     yield delay_obj
-
-    del delay_obj

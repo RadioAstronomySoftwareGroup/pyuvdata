@@ -338,7 +338,7 @@ class UVCal(UVBase):
             expected_type=str,
             value="gain",
             description=desc,
-            acceptable_vals=["delay", "gain", "unknown"],
+            acceptable_vals=["delay", "gain"],
         )
 
         desc = (
@@ -426,14 +426,6 @@ class UVCal(UVBase):
             acceptable_vals=["sky", "redundant"],
         )
 
-        desc = (
-            "Deprecated, will be removed in version 2.5. Only used if cal_style is "
-            "'sky'. Short string describing field center or dominant source."
-        )
-        self._sky_field = uvp.UVParameter(
-            "sky_field", form="str", required=False, expected_type=str, description=desc
-        )
-
         desc = 'Required if cal_style = "sky". Name of calibration catalog.'
         self._sky_catalog = uvp.UVParameter(
             "sky_catalog",
@@ -507,20 +499,6 @@ class UVCal(UVBase):
             expected_type=str,
             description=desc,
             required=False,
-        )
-
-        desc = (
-            "Deprecated, support will be removed in version 2.5. Array of input flags, "
-            "True is flagged. shape: (Nants_data, 1, Nfreqs, Ntimes, Njones) or "
-            "(Nants_data, Nfreqs, Ntimes, Njones) if future_array_shapes=True, "
-            "type = bool."
-        )
-        self._input_flag_array = uvp.UVParameter(
-            "input_flag_array",
-            description=desc,
-            required=False,
-            form=("Nants_data", 1, "Nfreqs", "Ntimes", "Njones"),
-            expected_type=bool,
         )
 
         desc = "Origin (on github for e.g) of calibration software. Url and branch."
@@ -743,7 +721,6 @@ class UVCal(UVBase):
                 "gain_array",
                 "delay_array",
                 "flag_array",
-                "input_flag_array",
                 "quality_array",
             ]
             data_form = ("Nants_data", "Nspws", "Ntimes", "Njones")
@@ -763,12 +740,7 @@ class UVCal(UVBase):
 
             if self.future_array_shapes:
                 # can only get here if not a delay solution
-                data_shape_params = [
-                    "gain_array",
-                    "flag_array",
-                    "input_flag_array",
-                    "quality_array",
-                ]
+                data_shape_params = ["gain_array", "flag_array", "quality_array"]
 
                 data_form = ("Nants_data", "Nfreqs", "Ntimes", "Njones")
                 tot_qual_form = ("Nfreqs", "Ntimes", "Njones")
@@ -804,24 +776,6 @@ class UVCal(UVBase):
         if self.future_array_shapes:
             self._set_wide_band()
 
-    def _set_unknown_cal_type(self):
-        """Set cal_type to 'unknown' and adjust required parameters.
-
-        Deprecated.
-        """
-        warnings.warn(
-            "Setting the cal_type to 'unknown' is deprecated. This will become an "
-            "error in version 2.5",
-            DeprecationWarning,
-        )
-        self.cal_type = "unknown"
-        self._gain_array.required = False
-        self._delay_array.required = False
-        self._freq_range.required = False
-        self._freq_array.required = True
-        self._quality_array.form = self._gain_array.form
-        self._total_quality_array.form = self._gain_array.form[1:]
-
     def _set_sky(self):
         """Set cal_style to 'sky' and adjust required parameters."""
         self.cal_style = "sky"
@@ -843,7 +797,6 @@ class UVCal(UVBase):
             "flag_array",
             "quality_array",
             "total_quality_array",
-            "input_flag_array",
         ]
 
     @property
@@ -899,12 +852,7 @@ class UVCal(UVBase):
         self._integration_time.form = ("Ntimes",)
         self._freq_range.form = ("Nspws", 2)
 
-        data_shape_params = [
-            "gain_array",
-            "flag_array",
-            "input_flag_array",
-            "quality_array",
-        ]
+        data_shape_params = ["gain_array", "flag_array", "quality_array"]
         if self.cal_type == "delay":
             self._set_wide_band()
             data_shape_params.append("delay_array")
@@ -955,7 +903,7 @@ class UVCal(UVBase):
             if self.cal_type == "delay":
                 warnings.warn(
                     "When converting a delay-style cal to future array shapes the "
-                    "flag_array (and input_flag_array if it exists) must drop the "
+                    "flag_array must drop the "
                     "frequency axis so that it will be the same shape as the "
                     "delay_array. This will be done using the "
                     "`pyuvdata.utils.and_collapse` function which will only flag an "
@@ -968,10 +916,6 @@ class UVCal(UVBase):
                 self.flag_array = uvutils.and_collapse(self.flag_array, axis=1)[
                     :, np.newaxis, :, :
                 ]
-                if self.input_flag_array is not None:
-                    self.input_flag_array = uvutils.and_collapse(
-                        self.input_flag_array, axis=1
-                    )[:, np.newaxis, :, :]
 
         if self.cal_type == "delay":
             self.freq_array = None
@@ -1052,7 +996,7 @@ class UVCal(UVBase):
         self.future_array_shapes = False
         self.wide_band = False
 
-        gain_shape_params = ["gain_array", "flag_array", "input_flag_array"]
+        gain_shape_params = ["gain_array", "flag_array"]
         delay_shape_params = ["delay_array"]
         if self.cal_type == "delay":
             delay_shape_params.append("quality_array")
@@ -1113,10 +1057,6 @@ class UVCal(UVBase):
             if self.cal_type == "delay":
                 # make the flag array have a frequency axis again
                 self.flag_array = np.repeat(self.flag_array, self.Nfreqs, axis=2)
-                if self.input_flag_array is not None:
-                    self.input_flag_array = np.repeat(
-                        self.input_flag_array, self.Nfreqs, axis=2
-                    )
 
         self._freq_array.form = (1, "Nfreqs")
         if self.freq_array is not None:
@@ -2005,22 +1945,6 @@ class UVCal(UVBase):
                     category=DeprecationWarning,
                 )
 
-        # deprecate 'unknown' cal_type
-        if self.cal_type == "unknown":
-            warnings.warn(
-                "The 'unknown' cal_type is deprecated and will be removed in version "
-                "2.5",
-                DeprecationWarning,
-            )
-
-        # deprecate sky_field
-        if self.sky_field is not None:
-            warnings.warn(
-                "The sky_field parameter is deprecated and will be removed in version "
-                "2.5",
-                DeprecationWarning,
-            )
-
         # call metadata_only to make sure that parameter requirements are set properly
         self.metadata_only
 
@@ -2126,12 +2050,6 @@ class UVCal(UVBase):
                     "This will become an error in version 3.0.",
                     DeprecationWarning,
                 )
-
-        if self.input_flag_array is not None:
-            warnings.warn(
-                "The input_flag_array is deprecated and will be removed in version 2.5",
-                DeprecationWarning,
-            )
 
         if check_freq_spacing:
             self._check_freq_spacing()
@@ -2946,9 +2864,6 @@ class UVCal(UVBase):
         """
         if self.cal_type == "gain":
             raise ValueError("The data is already a gain cal_type.")
-        elif self.cal_type != "delay":
-            # TODO remove this when the unknown cal_type is removed.
-            raise ValueError("cal_type is unknown, cannot convert to gain")
 
         if self.Nspws > 1:
             raise ValueError(
@@ -3081,7 +2996,7 @@ class UVCal(UVBase):
                 warnings.warn(
                     "Existing flag array has a frequency axis of length > 1 but "
                     "frequencies do not match freq_array. The existing flag array "
-                    "(and input_flag_array if it exists) will be collapsed using "
+                    "will be collapsed using "
                     "the `pyuvdata.utils.and_collapse` function which will only "
                     "flag an antpol-time if all of the frequecies are flagged for "
                     "that antpol-time. Then it will be broadcast to all the new "
@@ -3095,22 +3010,9 @@ class UVCal(UVBase):
                     axis=freq_axis,
                 )
                 self.flag_array = np.repeat(new_flag_array, Nfreqs_use, axis=freq_axis)
-                if self.input_flag_array is not None:
-                    new_input_flag_array = np.expand_dims(
-                        uvutils.and_collapse(self.input_flag_array, axis=freq_axis),
-                        axis=freq_axis,
-                    )
-                    self.input_flag_array = np.repeat(
-                        new_input_flag_array, Nfreqs_use, axis=freq_axis
-                    )
         else:
             new_flag_array = np.repeat(self.flag_array, Nfreqs_use, axis=freq_axis)
             self.flag_array = new_flag_array
-            if self.input_flag_array is not None:
-                new_input_flag_array = np.repeat(
-                    self.input_flag_array, Nfreqs_use, axis=freq_axis
-                )
-                self.input_flag_array = new_input_flag_array
 
         if self.total_quality_array is not None:
             if self.future_array_shapes:
@@ -3271,7 +3173,6 @@ class UVCal(UVBase):
         warning_params = [
             "_observer",
             "_git_hash_cal",
-            "_sky_field",
             "_sky_catalog",
             "_Nsources",
             "_baseline_range",
@@ -3568,15 +3469,6 @@ class UVCal(UVBase):
 
         if (
             not self.metadata_only
-            and this.input_flag_array is None
-            and other.input_flag_array is not None
-        ):
-            this.input_flag_array = np.full(
-                this._input_flag_array.expected_shape(this), True, dtype=bool
-            )
-
-        if (
-            not self.metadata_only
             and this.quality_array is None
             and other.quality_array is not None
         ):
@@ -3641,24 +3533,6 @@ class UVCal(UVBase):
                     )
                     this.total_quality_array = None
                     can_combine_tqa = False
-
-                if this.input_flag_array is not None:
-                    if self.future_array_shapes:
-                        zero_pad = np.zeros(
-                            (
-                                len(anew_inds),
-                                this.input_flag_array.shape[1],
-                                this.Ntimes,
-                                this.Njones,
-                            )
-                        )
-                    else:
-                        zero_pad = np.zeros(
-                            (len(anew_inds), 1, this.Nfreqs, this.Ntimes, this.Njones)
-                        )
-                    this.input_flag_array = np.concatenate(
-                        [this.input_flag_array, 1 - zero_pad], axis=0
-                    ).astype(np.bool_)
 
         f_order = None
         if len(fnew_inds) > 0:
@@ -3862,33 +3736,6 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=1
                         )
 
-                if this.input_flag_array is not None:
-                    if self.future_array_shapes:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                len(fnew_inds),
-                                this.Ntimes,
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=1
-                        ).astype(np.bool_)
-                    else:
-                        zero_pad = np.zeros(
-                            (
-                                this.flag_array.shape[0],
-                                1,
-                                len(fnew_inds),
-                                this.Ntimes,
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=2
-                        ).astype(np.bool_)
-
         t_order = None
         if len(tnew_inds) > 0:
             if this.time_array is not None:
@@ -3977,19 +3824,6 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=1
                         )
 
-                    if this.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.input_flag_array.shape[0],
-                                this.input_flag_array.shape[1],
-                                len(tnew_inds),
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=2
-                        ).astype(np.bool_)
-
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -4042,20 +3876,6 @@ class UVCal(UVBase):
                         this.total_quality_array = np.concatenate(
                             [this.total_quality_array, zero_pad], axis=2
                         )
-
-                    if this.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.input_flag_array.shape[0],
-                                1,
-                                this.input_flag_array.shape[2],
-                                len(tnew_inds),
-                                this.Njones,
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)
 
         j_order = None
         if len(jnew_inds) > 0:
@@ -4116,18 +3936,6 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=2
                         )
 
-                    if this.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.input_flag_array.shape[0],
-                                this.input_flag_array.shape[1],
-                                this.input_flag_array.shape[2],
-                                len(jnew_inds),
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=3
-                        ).astype(np.bool_)
                 else:
                     zero_pad_data = np.zeros(
                         (
@@ -4191,20 +3999,6 @@ class UVCal(UVBase):
                             [this.total_quality_array, zero_pad], axis=3
                         )
 
-                    if this.input_flag_array is not None:
-                        zero_pad = np.zeros(
-                            (
-                                this.input_flag_array.shape[0],
-                                1,
-                                this.input_flag_array.shape[2],
-                                this.input_flag_array.shape[3],
-                                len(jnew_inds),
-                            )
-                        )
-                        this.input_flag_array = np.concatenate(
-                            [this.input_flag_array, 1 - zero_pad], axis=4
-                        ).astype(np.bool_)
-
         # Now populate the data
         if not self.metadata_only:
             jones_t2o = np.nonzero(np.isin(this.jones_array, other.jones_array))[0]
@@ -4256,11 +4050,6 @@ class UVCal(UVBase):
                         this.total_quality_array[
                             np.ix_(freqs_t2o, times_t2o, jones_t2o)
                         ] = other.total_quality_array
-                if this.input_flag_array is not None:
-                    if other.input_flag_array is not None:
-                        this.input_flag_array[
-                            np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)
-                        ] = other.input_flag_array
             else:
                 if this.cal_type == "delay":
                     this.delay_array[
@@ -4291,11 +4080,6 @@ class UVCal(UVBase):
                             this.total_quality_array[
                                 np.ix_([0], freqs_t2o, times_t2o, jones_t2o)
                             ] = other.total_quality_array
-                if this.input_flag_array is not None:
-                    if other.input_flag_array is not None:
-                        this.input_flag_array[
-                            np.ix_(ants_t2o, [0], freqs_t2o, times_t2o, jones_t2o)
-                        ] = other.input_flag_array
 
             # Fix ordering
             ant_axis_num = 0
@@ -4633,7 +4417,6 @@ class UVCal(UVBase):
         warning_params = [
             "_observer",
             "_git_hash_cal",
-            "_sky_field",
             "_sky_catalog",
             "_Nsources",
             "_baseline_range",
@@ -4749,11 +4532,6 @@ class UVCal(UVBase):
             obj.total_quality_array is not None for obj in other
         ]
         this_tqa_exp_shape = this._total_quality_array.expected_shape(this)
-
-        input_flag_exists = [this.input_flag_array is not None] + [
-            obj.input_flag_array is not None for obj in other
-        ]
-        this_ifa_exp_shape = this._input_flag_array.expected_shape(this)
 
         quality_exists = [this.quality_array is not None] + [
             obj.quality_array is not None for obj in other
@@ -4946,32 +4724,6 @@ class UVCal(UVBase):
                     [this.delay_array] + [obj.delay_array for obj in other],
                     axis=axis_num,
                 )
-
-            if np.any(input_flag_exists):
-                if np.all(input_flag_exists):
-                    this.input_flag_array = np.concatenate(
-                        [this.input_flag_array]
-                        + [obj.input_flag_array for obj in other],
-                        axis=axis_num,
-                    )
-                else:
-                    ifa_list = []
-                    if this.input_flag_array is None:
-                        ifa_list.append(np.full(this_ifa_exp_shape, True, dtype=bool))
-                    else:
-                        ifa_list.append(this.input_flag_array)
-                    for obj in other:
-                        if obj.input_flag_array is None:
-                            ifa_list.append(
-                                np.full(
-                                    (obj._input_flag_array.expected_shape(obj)),
-                                    True,
-                                    dtype=bool,
-                                )
-                            )
-                        else:
-                            ifa_list.append(obj.input_flag_array)
-                    this.input_flag_array = np.concatenate(ifa_list, axis=axis_num)
 
             if np.any(quality_exists):
                 if np.all(quality_exists):
@@ -5741,9 +5493,6 @@ class UVCal(UVBase):
         cal_style,
         future_array_shapes=True,
         metadata_only=True,
-        times=None,
-        frequencies=None,
-        jones=None,
         **kwargs,
     ):
         """
@@ -5761,35 +5510,7 @@ class UVCal(UVBase):
             Option to only initialize the metadata. If False, this method also
             initializes the data-like arrays to zeros/ones as appropriate
             (or False for the flag_array) with the appropriate sizes.
-        times : array_like of float, optional
-            Deprecated alias for ``time_array``. Will be removed in v2.5.
-        frequencies : array_like of float, optional
-            Deprecated alias for ``freq_array``. Will be removed in v2.5.
-        jones : array_like of int, optional
-            Deprecated alias for ``jones_array``. Will be removed in v2.5.
         """  # noqa: D207,RST203
-        if times is not None:
-            warnings.warn(
-                "The times keyword is deprecated in favor of time_array and will be "
-                "removed in v2.5.",
-                DeprecationWarning,
-            )
-            kwargs["time_array"] = np.array(times)
-        if frequencies is not None:
-            warnings.warn(
-                "The frequencies keyword is deprecated in favor of freq_array and will "
-                "be removed in v2.5.",
-                DeprecationWarning,
-            )
-            kwargs["freq_array"] = np.array(frequencies)
-        if jones is not None:
-            warnings.warn(
-                "The jones keyword is deprecated in favor of jones_array and will be "
-                "removed in v2.5.",
-                DeprecationWarning,
-            )
-            kwargs["jones_array"] = jones
-
         new = initializers.new_uvcal_from_uvdata(
             uvdata=uvdata,
             gain_convention=gain_convention,
@@ -5842,28 +5563,14 @@ class UVCal(UVBase):
         from . import calfits
 
         if isinstance(filename, (list, tuple)):
-            warnings.warn(
-                "Reading multiple files from file specific read methods is deprecated. "
-                "Use the generic `UVCal.read` method instead. This will become an "
-                "error in version 2.5",
-                DeprecationWarning,
+            raise ValueError(
+                "Use the generic `UVCal.read` method to read multiple files."
             )
 
-            # cannot just call `read` here and let it handle the recursion because we
-            # can get a max recursion depth error. So leave the old handling for
-            # recursion until v2.5
-            self.read_calfits(filename[0], **kwargs)
-            if len(filename) > 1:
-                for f in filename[1:]:
-                    uvcal2 = UVCal()
-                    uvcal2.read_calfits(f, **kwargs)
-                    self += uvcal2
-                del uvcal2
-        else:
-            calfits_obj = calfits.CALFITS()
-            calfits_obj.read_calfits(filename, **kwargs)
-            self._convert_from_filetype(calfits_obj)
-            del calfits_obj
+        calfits_obj = calfits.CALFITS()
+        calfits_obj.read_calfits(filename, **kwargs)
+        self._convert_from_filetype(calfits_obj)
+        del calfits_obj
 
     def read_calh5(self, filename, **kwargs):
         """
@@ -6031,107 +5738,21 @@ class UVCal(UVBase):
         """
         from . import fhd_cal
 
-        if (
-            isinstance(cal_file, (list, tuple))
-            or isinstance(obs_file, (list, tuple))
-            or isinstance(layout_file, (list, tuple))
-            or isinstance(settings_file, (list, tuple))
-        ):
-            warnings.warn(
-                "Reading multiple files from file specific read methods is deprecated. "
-                "Use the generic `UVCal.read` method instead. This will become an "
-                "error in version 2.5",
-                DeprecationWarning,
-            )
-            # cannot just call `read` here and let it handle the recursion because we
-            # can get a max recursion depth error. So leave the old handling for
-            # recursion until v2.5
-
         if isinstance(cal_file, (list, tuple)):
-            if isinstance(obs_file, (list, tuple)):
-                if len(obs_file) != len(cal_file):
-                    raise ValueError(
-                        "Number of obs_files must match number of cal_files"
-                    )
-            else:
-                raise ValueError("Number of obs_files must match number of cal_files")
-
-            if layout_file is not None:
-                if isinstance(layout_file, (list, tuple)):
-                    if len(layout_file) != len(cal_file):
-                        raise ValueError(
-                            "Number of layout_files must match number of cal_files"
-                        )
-                else:
-                    raise ValueError(
-                        "Number of layout_files must match number of cal_files"
-                    )
-                layout_file_use = layout_file[0]
-            else:
-                layout_file_use = None
-
-            if settings_file is not None:
-                if isinstance(settings_file, (list, tuple)):
-                    if len(settings_file) != len(cal_file):
-                        raise ValueError(
-                            "Number of settings_files must match number of cal_files"
-                        )
-                else:
-                    raise ValueError(
-                        "Number of settings_files must match number of cal_files"
-                    )
-                settings_file_use = settings_file[0]
-            else:
-                settings_file_use = None
-
-            self.read_fhd_cal(
-                cal_file=cal_file[0],
-                obs_file=obs_file[0],
-                layout_file=layout_file_use,
-                settings_file=settings_file_use,
-                **kwargs,
+            raise ValueError(
+                "Use the generic `UVCal.read` method to read multiple files."
             )
-            if len(cal_file) > 1:
-                for ind, f in enumerate(cal_file[1:]):
-                    uvcal2 = UVCal()
-                    if settings_file is not None:
-                        settings_file_use = settings_file[ind + 1]
-                    if layout_file is not None:
-                        layout_file_use = layout_file[ind + 1]
-                    uvcal2.read_fhd_cal(
-                        cal_file=f,
-                        obs_file=obs_file[ind + 1],
-                        layout_file=layout_file_use,
-                        settings_file=settings_file_use,
-                        **kwargs,
-                    )
 
-                    self += uvcal2
-                del uvcal2
-        else:
-            if isinstance(obs_file, (list, tuple)):
-                raise ValueError("Number of obs_files must match number of cal_files")
-            if layout_file is not None:
-                if isinstance(layout_file, (list, tuple)) and len(layout_file) > 1:
-                    raise ValueError(
-                        "Number of layout_files must match number of cal_files"
-                    )
-            if settings_file is not None:
-                if isinstance(settings_file, (list, tuple)) and len(settings_file) > 1:
-                    raise ValueError(
-                        "Number of settings_files must match number of cal_files"
-                    )
-
-            fhd_cal_obj = fhd_cal.FHDCal()
-            fhd_cal_obj.read_fhd_cal(
-                cal_file=cal_file,
-                obs_file=obs_file,
-                layout_file=layout_file,
-                settings_file=settings_file,
-                **kwargs,
-            )
-            self._convert_from_filetype(fhd_cal_obj)
-            del fhd_cal_obj
+        fhd_cal_obj = fhd_cal.FHDCal()
+        fhd_cal_obj.read_fhd_cal(
+            cal_file=cal_file,
+            obs_file=obs_file,
+            layout_file=layout_file,
+            settings_file=settings_file,
+            **kwargs,
+        )
+        self._convert_from_filetype(fhd_cal_obj)
+        del fhd_cal_obj
 
     def read_ms_cal(self, filename, **kwargs):
         """
@@ -6167,6 +5788,11 @@ class UVCal(UVBase):
                 default is astropy.
         """
         from . import ms_cal
+
+        if isinstance(filename, (list, tuple)):
+            raise ValueError(
+                "Use the generic `UVCal.read` method to read multiple files."
+            )
 
         ms_cal_obj = ms_cal.MSCal()
         ms_cal_obj.read_ms_cal(filename, **kwargs)

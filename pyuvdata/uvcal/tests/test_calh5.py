@@ -64,7 +64,6 @@ def test_calh5_write_read_loop_multi_spw_gain(multi_spw_gain, tmp_path):
 
 def test_calh5_write_read_loop_wideband_gain(wideband_gain, tmp_path):
     calobj = wideband_gain
-    calobj.input_flag_array = None
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
@@ -94,7 +93,6 @@ def test_calh5_write_read_loop_delay(delay_data, tmp_path, time_range, future_sh
 
 def test_calh5_write_read_loop_multi_spw_delay(multi_spw_delay, tmp_path):
     calobj = multi_spw_delay
-    calobj.input_flag_array = None
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
@@ -359,7 +357,6 @@ def test_calh5_partial_read(
         calobj = gain_data
     else:
         calobj = multi_spw_delay
-        calobj.input_flag_array = None
 
     orig_time_array = calobj.time_array
     orig_lst_array = calobj.lst_array

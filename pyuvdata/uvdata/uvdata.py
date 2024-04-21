@@ -8718,7 +8718,7 @@ class UVData(UVBase):
         summing_correlator_mode=False,
         propagate_flags=False,
         respect_spws=True,
-        keep_ragged=None,
+        keep_ragged=True,
     ):
         """
         Average in frequency.
@@ -8754,19 +8754,9 @@ class UVData(UVBase):
             respect_spw=False) does not divide evenly by n_chan_to_avg, this
             option controls whether the frequencies at the end of the spectral window
             will be dropped to make it evenly divisable (keep_ragged=False) or will be
-            combined into a smaller frequency bin (keep_ragged=True). Note that if
-            ragged frequencies are kept, the final averaged object will have
-            future_array_shapes=True because it will have varying channel widths.
+            combined into a smaller frequency bin (keep_ragged=True). Default is True.
 
         """
-        # The default will be changing soon, so it's currently set to None in the
-        # function signature so we can detect that it's not set and warn about the
-        # changing default.
-        kr_use_default = False
-        if keep_ragged is None:
-            kr_use_default = True
-            keep_ragged = False
-
         # All the logic with future array shapes.
         # Test to see if we need to restore it to current shapes at the end.
         reset_cs = False
@@ -8827,24 +8817,6 @@ class UVData(UVBase):
                 final_nchan, final_nchan + this_final_nchan
             )
             final_nchan += this_final_nchan
-
-        # Warn about changing keep_ragged default if it applies
-        if some_uneven and kr_use_default:
-            warnings.warn(
-                "Some spectral windows do not divide evenly by `n_chan_to_avg` and the "
-                "keep_ragged parameter was not set. The current default is False, but "
-                "that will be changing to True in version 2.5. Set `keep_ragged` to "
-                "True or False to silence this warning.",
-                DeprecationWarning,
-            )
-        # Cannot go back to current array shapes if we have ragged channels that we're
-        # keeping
-        if some_uneven and keep_ragged and reset_cs:
-            warnings.warn(
-                "Ragged frequencies will result in varying channel widths, so "
-                "this object will have future array shapes after averaging. "
-                "Use keep_ragged=False to avoid this."
-            )
 
         # Since we have to loop through the spws, we cannot do the averaging with a
         # simple reshape and average. So we need to create arrays to hold the
