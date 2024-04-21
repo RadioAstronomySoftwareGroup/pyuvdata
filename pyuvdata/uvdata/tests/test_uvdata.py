@@ -9054,13 +9054,7 @@ def test_frequency_average_uneven(
             "`remove_eq_coeffs` before frequency averaging"
         )
     ]
-    if keep_ragged and not future_shapes:
-        warn.append(UserWarning)
-        msg.append(
-            "Ragged frequencies will result in varying channel widths, so "
-            "this object will have future array shapes after averaging. "
-            "Use keep_ragged=False to avoid this."
-        )
+
     with uvtest.check_warnings(warn, match=msg):
         uvobj.frequency_average(
             n_chan_to_avg=n_chan_to_avg,
@@ -9286,17 +9280,7 @@ def test_frequency_average_flagging(
             uvobj.flag_array[inds01[0], 0, 1:n_chan_to_avg, :] = True
         assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg - 1)
 
-    if keep_ragged and not future_shapes:
-        warn = UserWarning
-        msg = [
-            "Ragged frequencies will result in varying channel widths, so "
-            "this object will have future array shapes after averaging. "
-            "Use keep_ragged=False to avoid this."
-        ]
-    else:
-        warn = None
-        msg = ""
-    with uvtest.check_warnings(warn, match=msg):
+    with uvtest.check_warnings(None):
         uvobj.frequency_average(n_chan_to_avg=n_chan_to_avg, keep_ragged=keep_ragged)
 
     input_freqs = np.squeeze(uvobj2.freq_array)
@@ -9459,17 +9443,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
 
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg * 2 - 1)
 
-    if keep_ragged and not future_shapes:
-        warn = UserWarning
-        msg = [
-            "Ragged frequencies will result in varying channel widths, so "
-            "this object will have future array shapes after averaging. "
-            "Use keep_ragged=False to avoid this."
-        ]
-    else:
-        warn = None
-        msg = ""
-    with uvtest.check_warnings(warn, match=msg):
+    with uvtest.check_warnings(None):
         uvobj.frequency_average(
             n_chan_to_avg=n_chan_to_avg, propagate_flags=True, keep_ragged=keep_ragged
         )
@@ -9588,18 +9562,12 @@ def test_frequency_average_warnings(casa_uvfits):
     uvd.use_future_array_shapes()
     uvd.freq_array[-1] += uvd.channel_width[0]
     with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
+        UserWarning,
         match=[
-            re.escape(
-                "Some spectral windows do not divide evenly by `n_chan_to_avg` and the "
-                "keep_ragged parameter was not set. The current default is False, but "
-                "that will be changing to True in version 2.5. Set `keep_ragged` to "
-                "True or False to silence this warning."
-            ),
             re.escape(
                 "Frequencies spacing and/or channel widths vary, so after averaging "
                 "they will also vary."
-            ),
+            )
         ],
     ):
         uvd.frequency_average(n_chan_to_avg=3)

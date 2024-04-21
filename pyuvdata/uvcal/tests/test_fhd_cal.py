@@ -352,35 +352,17 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 
     warning_list = [UserWarning] * (3 * nfiles - 1)
 
-    if nfiles > 1:
-        warning_list += [DeprecationWarning, UserWarning]
-        message_list += [
-            "Reading multiple files from file specific read methods is deprecated. Use "
-            "the generic `UVCal.read` method instead. This will become an error in "
-            "version 2.5"
-        ]
-        message_list.append(
-            "Some FHD input files do not have the expected subfolder so FHD folder "
-            "matching could not be done. The affected file types are: "
-            "['cal', 'obs', 'settings']"
-        )
+    if nfiles == 1:
+        with uvtest.check_warnings(warning_list, match=message_list):
+            fhd_cal.read_fhd_cal(
+                cal_file=cal_file,
+                obs_file=obs_file,
+                settings_file=settings_file,
+                use_future_array_shapes=True,
+            )
 
-    with uvtest.check_warnings(warning_list, match=message_list):
-        fhd_cal.read_fhd_cal(
-            cal_file=cal_file,
-            obs_file=obs_file,
-            settings_file=settings_file,
-            use_future_array_shapes=True,
-        )
-
-    with pytest.raises(
-        ValueError, match="A settings_file must be provided if read_data is False."
-    ):
-        with uvtest.check_warnings(
-            [DeprecationWarning],
-            match="Reading multiple files from file specific read methods is "
-            "deprecated. Use the generic `UVCal.read` method instead. This will become "
-            "an error in version 2.5",
+        with pytest.raises(
+            ValueError, match="A settings_file must be provided if read_data is False."
         ):
             fhd_cal.read_fhd_cal(
                 cal_file=cal_file,
@@ -393,8 +375,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 
 @pytest.mark.filterwarnings("ignore:The calfits format does not support")
 @pytest.mark.parametrize(
-    ["concat_method", "read_method"],
-    [["__add__", "read"], ["__add__", "read_fhd_cal"], ["fast_concat", "read"]],
+    ["concat_method", "read_method"], [["__add__", "read"], ["fast_concat", "read"]]
 )
 def test_read_multi(tmp_path, concat_method, read_method):
     """Test reading in multiple files."""
@@ -525,29 +506,14 @@ def test_read_multi(tmp_path, concat_method, read_method):
         ],
     ],
 )
-@pytest.mark.parametrize("read_method", ["read", "read_fhd_cal"])
-def test_break_read_multi(
-    cal_file, obs_file, layout_file, settings_file, message, read_method
-):
+def test_break_read_multi(cal_file, obs_file, layout_file, settings_file, message):
     """Test errors for different numbers of files."""
     cal = UVCal()
-    if read_method == "read_fhd_cal":
-        warn_type = DeprecationWarning
-        msg = [
-            "Reading multiple files from file specific read methods is deprecated. "
-            "Use the generic `UVCal.read` method instead."
-        ]
-    else:
-        warn_type = None
-        msg = ""
-    if obs_file is None and read_method == "read_fhd_cal":
-        message = "Number of obs_files must match number of cal_files"
     with pytest.raises(ValueError, match=message):
-        with uvtest.check_warnings(warn_type, match=msg):
-            getattr(cal, read_method)(
-                cal_file,
-                obs_file=obs_file,
-                layout_file=layout_file,
-                settings_file=settings_file,
-                use_future_array_shapes=True,
-            )
+        cal.read(
+            cal_file,
+            obs_file=obs_file,
+            layout_file=layout_file,
+            settings_file=settings_file,
+            use_future_array_shapes=True,
+        )
