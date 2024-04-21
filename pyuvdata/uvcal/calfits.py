@@ -228,8 +228,6 @@ class CALFITS(UVCal):
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
         prihdr["CALSTYLE"] = self.cal_style
-        if self.sky_field is not None:
-            prihdr["FIELD"] = self.sky_field
         if self.sky_catalog is not None:
             prihdr["CATALOG"] = self.sky_catalog
         if self.ref_antenna_name is not None:
@@ -385,11 +383,6 @@ class CALFITS(UVCal):
                 ],
                 axis=-1,
             )
-            if self.input_flag_array is not None:
-                pridata = np.concatenate(
-                    [pridata, np.reshape(self.input_flag_array, calfits_data_shape)],
-                    axis=-1,
-                )
 
             if self.quality_array is not None:
                 pridata = np.concatenate(
@@ -458,28 +451,10 @@ class CALFITS(UVCal):
             if self.future_array_shapes:
                 # need to broadcast the flags back to the expected shape
                 flag_array_use = np.repeat(self.flag_array, self.Nfreqs, axis=2)
-                if self.input_flag_array is not None:
-                    input_flag_array_use = np.repeat(
-                        self.input_flag_array, self.Nfreqs, axis=2
-                    )
             else:
                 flag_array_use = self.flag_array
-                input_flag_array_use = self.input_flag_array
 
-            if self.input_flag_array is not None:
-                secdata = np.concatenate(
-                    [
-                        np.reshape(flag_array_use.astype(np.int64), calfits_data_shape),
-                        np.reshape(
-                            input_flag_array_use.astype(np.int64), calfits_data_shape
-                        ),
-                    ],
-                    axis=-1,
-                )
-            else:
-                secdata = np.reshape(
-                    flag_array_use.astype(np.int64), calfits_data_shape
-                )
+            secdata = np.reshape(flag_array_use.astype(np.int64), calfits_data_shape)
 
         if self.total_quality_array is not None:
             # Set headers for the hdu containing the total_quality_array
@@ -688,7 +663,6 @@ class CALFITS(UVCal):
             elif self.cal_style == "redundant":
                 self._set_redundant()
 
-            self.sky_field = hdr.pop("FIELD", None)
             self.sky_catalog = hdr.pop("CATALOG", None)
             self.ref_antenna_name = hdr.pop("REFANT", None)
             self.Nsources = hdr.pop("NSOURCES", None)
@@ -801,15 +775,19 @@ class CALFITS(UVCal):
                     self.flag_array = data[:, :, :, :, :, 2].astype("bool")
                     n_arrays = hdr.pop("NAXIS1")
                     if n_arrays == 5:
-                        self.input_flag_array = data[:, :, :, :, :, 3].astype("bool")
+                        # The 3rd element in the array belongs to the old input flags,
+                        # which were dropped in v3, and is now merged into the
+                        # "normal" flags.
+                        self.flag_array |= data[:, :, :, :, :, 3].astype("bool")
                         self.quality_array = data[:, :, :, :, :, 4]
                     elif n_arrays == 4:
                         if has_quality:
                             self.quality_array = data[:, :, :, :, :, 3]
                         else:
-                            self.input_flag_array = data[:, :, :, :, :, 3].astype(
-                                "bool"
-                            )
+                            # The 3rd element in the array belongs to the old input
+                            # flags, which were dropped in v3, and is now merged into
+                            # the "normal" flags.
+                            self.flag_array |= data[:, :, :, :, :, 3].astype("bool")
 
                 if self.cal_type == "delay":
                     self.delay_array = data[:, :, :, :, :, 0]
@@ -819,9 +797,7 @@ class CALFITS(UVCal):
                     flag_data = sechdu.data
                     if sechdu.header["NAXIS1"] == 2:
                         self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
-                        self.input_flag_array = flag_data[:, :, :, :, :, 1].astype(
-                            "bool"
-                        )
+                        self.flag_array |= flag_data[:, :, :, :, :, 1].astype("bool")
                     else:
                         self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
 

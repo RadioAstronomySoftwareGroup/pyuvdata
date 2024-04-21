@@ -28,7 +28,6 @@ def extend_jones_axis(calobj, input_flag=True, total_quality=True):
                 "gain_array",
                 "delay_array",
                 "flag_array",
-                "input_flag_array",
                 "quality_array",
                 "total_quality_array",
             ]
@@ -41,8 +40,6 @@ def extend_jones_axis(calobj, input_flag=True, total_quality=True):
                     setattr(calobj, attr, attr_value)
 
     if not calobj.metadata_only:
-        if calobj.input_flag_array is None and input_flag:
-            calobj.input_flag_array = calobj.flag_array
         if calobj.total_quality_array is None and total_quality:
             calobj.total_quality_array = np.ones(
                 calobj._total_quality_array.expected_shape(calobj)
