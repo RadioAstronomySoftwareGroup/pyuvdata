@@ -10,7 +10,7 @@ import re
 import numpy as np
 import pytest
 from astropy import units
-from astropy.coordinates import Distance, Latitude, Longitude, SkyCoord
+from astropy.coordinates import Distance, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 
 from pyuvdata import parameter as uvp
@@ -83,7 +83,9 @@ class UVTest(UVBase):
         )
 
         self._location = uvp.LocationParameter(
-            "location", description="location", value=np.array(ref_xyz)
+            "location",
+            description="location",
+            value=EarthLocation.from_geocentric(*ref_xyz, unit="m"),
         )
 
         self._time = uvp.UVParameter(
