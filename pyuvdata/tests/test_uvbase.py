@@ -15,7 +15,8 @@ from astropy.time import Time
 
 from pyuvdata import parameter as uvp
 from pyuvdata import tests as uvtest
-from pyuvdata.uvbase import UVBase, _warning
+from pyuvdata.telescopes import Telescope
+from pyuvdata.uvbase import UVBase, _warning, old_telescope_metadata_attrs
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
@@ -175,6 +176,8 @@ class UVTest(UVBase):
             ),
             form=(),
         )
+
+        self.telescope = Telescope.from_known_telescopes("mwa")
 
         super(UVTest, self).__init__()
 
@@ -459,3 +462,64 @@ def test_name_error():
     test_obj._location.name = "place"
     with pytest.raises(ValueError, match="UVParameter _location does not follow the"):
         test_obj.check()
+
+
+def test_getattr_old_telescope():
+    test_obj = UVTest()
+
+    for param, tel_param in old_telescope_metadata_attrs.items():
+        param_val = getattr(test_obj, param)
+        if tel_param is not None:
+            tel_param_val = getattr(test_obj.telescope, tel_param)
+            if not isinstance(param_val, np.ndarray):
+                assert param_val == tel_param_val
+            else:
+                if not isinstance(param_val.flat[0], str):
+                    np.testing.assert_allclose(param_val, tel_param_val)
+                else:
+                    assert param_val.tolist() == tel_param_val.tolist()
+        elif param == "telescope_location":
+            np.testing.assert_allclose(param_val, test_obj.telescope._location.xyz())
+        elif param == "telescope_location_lat_lon_alt":
+            np.testing.assert_allclose(
+                param_val, test_obj.telescope._location.lat_lon_alt()
+            )
+        elif param == "telescope_location_lat_lon_alt_degrees":
+            np.testing.assert_allclose(
+                param_val, test_obj.telescope._location.lat_lon_alt_degrees()
+            )
+
+
+def test_setattr_old_telescope():
+    test_obj = UVTest()
+
+    new_telescope = Telescope.from_known_telescopes("hera")
+
+    for param, tel_param in old_telescope_metadata_attrs.items():
+        if tel_param is not None:
+            tel_val = getattr(new_telescope, tel_param)
+            setattr(test_obj, param, tel_val)
+            param_val = getattr(test_obj, param)
+            if not isinstance(param_val, np.ndarray):
+                assert param_val == tel_val
+            else:
+                if not isinstance(param_val.flat[0], str):
+                    np.testing.assert_allclose(param_val, tel_val)
+                else:
+                    assert param_val.tolist() == tel_val.tolist()
+        elif param == "telescope_location":
+            tel_val = new_telescope._location.xyz()
+            test_obj.telescope_location = tel_val
+            assert new_telescope.location == test_obj.telescope.location
+        elif param == "telescope_location_lat_lon_alt":
+            tel_val = new_telescope._location.lat_lon_alt()
+            test_obj.telescope_location_lat_lon_alt = tel_val
+            np.testing.assert_allclose(
+                new_telescope._location.xyz(), test_obj.telescope._location.xyz()
+            )
+        elif param == "telescope_location_lat_lon_alt_degrees":
+            tel_val = new_telescope._location.lat_lon_alt_degrees()
+            test_obj.telescope_location_lat_lon_alt_degrees = tel_val
+            np.testing.assert_allclose(
+                new_telescope._location.xyz(), test_obj.telescope._location.xyz()
+            )
