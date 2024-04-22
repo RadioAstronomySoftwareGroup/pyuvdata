@@ -20,6 +20,7 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvflag.uvflag import _future_array_shapes_warning
 
+from ...uvbase import old_telescope_metadata_attrs
 from ..uvflag import and_rows_cols, flags2waterfall
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
@@ -160,9 +161,9 @@ def uvf_from_file_future_main():
         match=["channel_width not available in file, computing it from the freq_array"],
     ):
         uvf = UVFlag(test_f_file, use_future_array_shapes=True, telescope_name="HERA")
-    uvf.telescope_name = "HERA"
-    uvf.antenna_numbers = None
-    uvf.antenna_names = None
+    uvf.telescope.name = "HERA"
+    uvf.telescope.antenna_numbers = None
+    uvf.telescope.antenna_names = None
     uvf.set_telescope_params()
 
     yield uvf
@@ -412,11 +413,11 @@ def test_read_extra_keywords(uvdata_obj):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_uvdata_x_orientation(uvdata_obj):
     uv = uvdata_obj
-    uv.x_orientation = "east"
+    uv.telescope.x_orientation = "east"
     uvf = UVFlag(
         uv, history="I made a UVFlag object", label="test", use_future_array_shapes=True
     )
-    assert uvf.x_orientation == uv.x_orientation
+    assert uvf.telescope.x_orientation == uv.telescope.x_orientation
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -541,7 +542,7 @@ def test_init_uvcal():
     assert uvf.type == "antenna"
     assert uvf.mode == "metric"
     assert np.all(uvf.time_array == uvc.time_array)
-    assert uvf.x_orientation == uvc.x_orientation
+    assert uvf.telescope.x_orientation == uvc.telescope.x_orientation
     assert np.all(uvf.lst_array == uvc.lst_array)
     assert np.all(uvf.freq_array == uvc.freq_array)
     assert np.all(uvf.polarization_array == uvc.jones_array)
@@ -870,20 +871,19 @@ def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid
 
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
         enu_antpos, _ = uv.get_ENU_antpos()
-        latitude, longitude, altitude = uv.telescope_location_lat_lon_alt
-        uv.telescope._location.frame = "mcmf"
-        uv.telescope._location.ellipsoid = selenoid
-        uv.telescope_location_lat_lon_alt = (latitude, longitude, altitude)
-        new_full_antpos = uvutils.ECEF_from_ENU(
-            enu=enu_antpos,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
-            frame="mcmf",
+        uv.telescope.location = MoonLocation.from_selenodetic(
+            lat=uv.telescope.location.lat,
+            lon=uv.telescope.location.lon,
+            height=uv.telescope.location.height,
             ellipsoid=selenoid,
         )
-        uv.antenna_positions = new_full_antpos - uv.telescope_location
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos, center_loc=uv.telescope.location
+        )
+        uv.telescope.antenna_positions = new_full_antpos - uv.telescope._location.xyz()
         uv.set_lsts_from_time_array()
         uv.check()
 
@@ -1144,13 +1144,19 @@ def test_read_write_loop_missing_telescope_info(
             uv.set_telescope_params(overwrite=True)
     elif uv_mod == "remove_extra_metadata":
         if uvf_type == "antenna":
-            ant_inds_keep = np.nonzero(np.isin(uv.antenna_numbers, uv.ant_array))[0]
-            uv.antenna_names = uv.antenna_names[ant_inds_keep]
-            uv.antenna_numbers = uv.antenna_numbers[ant_inds_keep]
-            uv.antenna_positions = uv.antenna_positions[ant_inds_keep]
-            if uv.antenna_diameters is not None:
-                uv.antenna_diameters = uv.antenna_diameters[ant_inds_keep]
-            uv.Nants_telescope = ant_inds_keep.size
+            ant_inds_keep = np.nonzero(
+                np.isin(uv.telescope.antenna_numbers, uv.ant_array)
+            )[0]
+            uv.telescope.antenna_names = uv.telescope.antenna_names[ant_inds_keep]
+            uv.telescope.antenna_numbers = uv.telescope.antenna_numbers[ant_inds_keep]
+            uv.telescope.antenna_positions = uv.telescope.antenna_positions[
+                ant_inds_keep
+            ]
+            if uv.telescope.antenna_diameters is not None:
+                uv.telescope.antenna_diameters = uv.telescope.antenna_diameters[
+                    ant_inds_keep
+                ]
+            uv.telescope.Nants = ant_inds_keep.size
             uv.check()
         else:
             uv.select(
@@ -1163,13 +1169,17 @@ def test_read_write_loop_missing_telescope_info(
             max_ant = np.max(uv.ant_array)
             new_max = max_ant + 300
             uv.ant_array[np.nonzero(uv.ant_array == max_ant)[0]] = new_max
-            uv.antenna_numbers[np.nonzero(uv.antenna_numbers == max_ant)[0]] = new_max
+            uv.telescope.antenna_numbers[
+                np.nonzero(uv.telescope.antenna_numbers == max_ant)[0]
+            ] = new_max
         else:
             max_ant = np.max(np.union1d(uv.ant_1_array, uv.ant_2_array))
             new_max = max_ant + 300
             uv.ant_1_array[np.nonzero(uv.ant_1_array == max_ant)[0]] = new_max
             uv.ant_2_array[np.nonzero(uv.ant_2_array == max_ant)[0]] = new_max
-            uv.antenna_numbers[np.nonzero(uv.antenna_numbers == max_ant)[0]] = new_max
+            uv.telescope.antenna_numbers[
+                np.nonzero(uv.telescope.antenna_numbers == max_ant)[0]
+            ] = new_max
     else:
         run_check = False
 
@@ -1190,16 +1200,19 @@ def test_read_write_loop_missing_telescope_info(
 
     if uv_mod is None:
         if param_list == ["antenna_names"]:
-            assert not np.array_equal(uvf2.antenna_names, uvf.antenna_numbers)
-            uvf2.antenna_names = uvf.antenna_names
+            assert not np.array_equal(
+                uvf2.telescope.antenna_names, uvf.telescope.antenna_numbers
+            )
+            uvf2.telescope.antenna_names = uvf.telescope.antenna_names
         else:
             for param in param_list:
+                tel_param = old_telescope_metadata_attrs[param]
                 if param != "Nants_telescope":
-                    assert getattr(uvf2, param) is None
-                setattr(uvf2, param, getattr(uv, param))
+                    assert getattr(uvf2.telescope, tel_param) is None
+                setattr(uvf2.telescope, tel_param, getattr(uv.telescope, tel_param))
     elif "telescope_name" in param_list:
-        assert uvf2.telescope_name is None
-        uvf2.telescope_name = uvf.telescope_name
+        assert uvf2.telescope.name is None
+        uvf2.telescope.name = uvf.telescope.name
     if uv_mod != "change_ant_numbers":
         assert uvf.__eq__(uvf2, check_history=True)
         assert uvf2.filename == [os.path.basename(test_outfile)]
@@ -1280,7 +1293,7 @@ def test_missing_telescope_info_mwa(test_outfile):
             test_outfile, use_future_array_shapes=True, mwa_metafits_file=metafits
         )
 
-    assert uvf2.Nants_telescope > uvf3.Nants_telescope
+    assert uvf2.telescope.Nants > uvf3.telescope.Nants
 
 
 def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
@@ -1348,7 +1361,7 @@ def test_read_write_loop_missing_spw_array(uvdata_obj, test_outfile):
 def test_read_write_loop_with_optional_x_orientation(uvdata_obj, test_outfile):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test", use_future_array_shapes=True)
-    uvf.x_orientation = "east"
+    uvf.telescope.x_orientation = "east"
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile, use_future_array_shapes=True)
     assert uvf.__eq__(uvf2, check_history=True)
@@ -1551,8 +1564,8 @@ def test_init_list(uvdata_obj):
     uvf1 = UVFlag(uv, use_future_array_shapes=True)
     uvf2 = UVFlag(test_f_file, use_future_array_shapes=True)
 
-    uv.telescope_location = uvf2.telescope_location
-    uv.antenna_names = uvf2.antenna_names
+    uv.telescope.location = uvf2.telescope.location
+    uv.telescope.antenna_names = uvf2.telescope.antenna_names
     uvf = UVFlag([uv, test_f_file], use_future_array_shapes=True)
 
     assert np.array_equal(
@@ -1720,7 +1733,7 @@ def test_set_telescope_params(uvdata_obj):
     assert uvf.telescope._antenna_positions == uvd.telescope._antenna_positions
 
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
-    uvf.antenna_positions = None
+    uvf.telescope.antenna_positions = None
     with uvtest.check_warnings(
         UserWarning,
         match="antenna_positions are not set or are being overwritten. "
@@ -1729,8 +1742,8 @@ def test_set_telescope_params(uvdata_obj):
         uvf.set_telescope_params()
 
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
-    uvf.telescope_name = "foo"
-    uvf.telescope_location = None
+    uvf.telescope.name = "foo"
+    uvf.telescope.location = None
     with pytest.raises(
         ValueError,
         match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
@@ -1850,8 +1863,10 @@ def test_add_antenna(uvcal_obj):
     uv1 = UVFlag(uvc, use_future_array_shapes=True)
     uv2 = uv1.copy()
     uv2.ant_array += 100  # Arbitrary
-    uv2.antenna_numbers += 100
-    uv2.antenna_names = np.array([name + "_new" for name in uv2.antenna_names])
+    uv2.telescope.antenna_numbers += 100
+    uv2.telescope.antenna_names = np.array(
+        [name + "_new" for name in uv2.telescope.antenna_names]
+    )
     uv3 = uv1.__add__(uv2, axis="antenna")
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
@@ -2074,7 +2089,7 @@ def test_add_errors(uvdata_obj, uvcal_obj):
         uv1.__add__(uv3)
 
     uv3 = uv1.copy()
-    uv3.telescope_name = "foo"
+    uv3.telescope.name = "foo"
     with pytest.raises(
         ValueError,
         match="telescope_name is not the same the two objects. The value on this "
@@ -2109,7 +2124,7 @@ def test_clear_unused_attributes():
     assert hasattr(uv, "baseline_array")
     assert hasattr(uv, "ant_1_array")
     assert hasattr(uv, "ant_2_array")
-    assert hasattr(uv, "Nants_telescope")
+    assert hasattr(uv.telescope, "Nants")
     uv._set_type_antenna()
     uv.clear_unused_attributes()
     # clear_unused_attributes now sets these to None
@@ -2442,15 +2457,19 @@ def test_to_baseline_flags(uvdata_obj, uvd_future_shapes, uvf_future_shapes, res
 
     if resort:
         rng = np.random.default_rng()
-        new_order = rng.permutation(uvf.Nants_telescope)
+        new_order = rng.permutation(uvf.telescope.Nants)
         if uvf_future_shapes:
-            uvf.antenna_numbers = uvf.antenna_numbers[new_order]
-            uvf.antenna_names = uvf.antenna_names[new_order]
-            uvf.antenna_positions = uvf.antenna_positions[new_order, :]
+            uvf.telescope.antenna_numbers = uvf.telescope.antenna_numbers[new_order]
+            uvf.telescope.antenna_names = uvf.telescope.antenna_names[new_order]
+            uvf.telescope.antenna_positions = uvf.telescope.antenna_positions[
+                new_order, :
+            ]
         else:
-            uv.antenna_numbers = uvf.antenna_numbers[new_order]
-            uv.antenna_names = uvf.antenna_names[new_order]
-            uv.antenna_positions = uvf.antenna_positions[new_order, :]
+            uv.telescope.antenna_numbers = uvf.telescope.antenna_numbers[new_order]
+            uv.telescope.antenna_names = uvf.telescope.antenna_names[new_order]
+            uv.telescope.antenna_positions = uvf.telescope.antenna_positions[
+                new_order, :
+            ]
 
     uvf.to_baseline(uv)
     assert uvf.type == "baseline"
@@ -2487,23 +2506,23 @@ def test_to_baseline_metric(uvdata_obj, uvd_future_shapes, uvf_future_shapes):
     uvf = UVFlag(uv, use_future_array_shapes=uvf_future_shapes)
     uvf.to_waterfall()
     # remove telescope info to check that it's set properly
-    uvf.telescope_name = None
-    uvf.telescope_location = None
+    uvf.telescope.name = None
+    uvf.telescope.location = None
 
     # remove antenna info to check that it's set properly
-    uvf.antenna_names = None
-    uvf.antenna_numbers = None
-    uvf.antenna_positions = None
+    uvf.telescope.antenna_names = None
+    uvf.telescope.antenna_numbers = None
+    uvf.telescope.antenna_positions = None
 
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
 
     uvf.to_baseline(uv)
-    assert uvf.telescope_name == uv.telescope_name
-    assert np.all(uvf.telescope_location == uv.telescope_location)
-    assert np.all(uvf.antenna_names == uv.antenna_names)
-    assert np.all(uvf.antenna_numbers == uv.antenna_numbers)
-    assert np.all(uvf.antenna_positions == uv.antenna_positions)
+    assert uvf.telescope.name == uv.telescope.name
+    assert np.all(uvf.telescope._location.xyz() == uv.telescope._location.xyz())
+    assert np.all(uvf.telescope.antenna_names == uv.telescope.antenna_names)
+    assert np.all(uvf.telescope.antenna_numbers == uv.telescope.antenna_numbers)
+    assert np.all(uvf.telescope.antenna_positions == uv.telescope.antenna_positions)
 
     assert np.all(uvf.baseline_array == uv.baseline_array)
     assert np.all(uvf.time_array == uv.time_array)
@@ -2828,15 +2847,19 @@ def test_to_antenna_flags(uvcal_obj, uvf_future_shapes, uvc_future_shapes, resor
 
     if resort:
         rng = np.random.default_rng()
-        new_order = rng.permutation(uvf.Nants_telescope)
+        new_order = rng.permutation(uvf.telescope.Nants)
         if uvf_future_shapes:
-            uvf.antenna_numbers = uvf.antenna_numbers[new_order]
-            uvf.antenna_names = uvf.antenna_names[new_order]
-            uvf.antenna_positions = uvf.antenna_positions[new_order, :]
+            uvf.telescope.antenna_numbers = uvf.telescope.antenna_numbers[new_order]
+            uvf.telescope.antenna_names = uvf.telescope.antenna_names[new_order]
+            uvf.telescope.antenna_positions = uvf.telescope.antenna_positions[
+                new_order, :
+            ]
         else:
-            uvc.antenna_numbers = uvf.antenna_numbers[new_order]
-            uvc.antenna_names = uvf.antenna_names[new_order]
-            uvc.antenna_positions = uvf.antenna_positions[new_order, :]
+            uvc.telescope.antenna_numbers = uvf.telescope.antenna_numbers[new_order]
+            uvc.telescope.antenna_names = uvf.telescope.antenna_names[new_order]
+            uvc.telescope.antenna_positions = uvf.telescope.antenna_positions[
+                new_order, :
+            ]
 
     uvf.to_antenna(uvc)
     assert uvf.type == "antenna"
@@ -2878,22 +2901,22 @@ def test_to_antenna_metric(uvcal_obj, future_shapes):
     uvf = UVFlag(uvc, use_future_array_shapes=future_shapes)
     uvf.to_waterfall()
     # remove telescope info to check that it's set properly
-    uvf.telescope_name = None
-    uvf.telescope_location = None
+    uvf.telescope.name = None
+    uvf.telescope.location = None
 
     # remove antenna info to check that it's set properly
-    uvf.antenna_names = None
-    uvf.antenna_numbers = None
-    uvf.antenna_positions = None
+    uvf.telescope.antenna_names = None
+    uvf.telescope.antenna_numbers = None
+    uvf.telescope.antenna_positions = None
 
     uvf.metric_array[0, 10, 0] = 3.2  # Fill in time0, chan10
     uvf.metric_array[1, 15, 0] = 2.1  # Fill in time1, chan15
     uvf.to_antenna(uvc)
-    assert uvf.telescope_name == uvc.telescope_name
-    assert np.all(uvf.telescope_location == uvc.telescope_location)
-    assert np.all(uvf.antenna_names == uvc.antenna_names)
-    assert np.all(uvf.antenna_numbers == uvc.antenna_numbers)
-    assert np.all(uvf.antenna_positions == uvc.antenna_positions)
+    assert uvf.telescope.name == uvc.telescope.name
+    assert np.all(uvf.telescope._location.xyz() == uvc.telescope._location.xyz())
+    assert np.all(uvf.telescope.antenna_names == uvc.telescope.antenna_names)
+    assert np.all(uvf.telescope.antenna_numbers == uvc.telescope.antenna_numbers)
+    assert np.all(uvf.telescope.antenna_positions == uvc.telescope.antenna_positions)
 
     assert np.all(uvf.ant_array == uvc.ant_array)
     assert np.all(uvf.time_array == uvc.time_array)
@@ -3978,7 +4001,7 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
     np.random.seed(0)
     old_history = uvf.history
 
-    uvf.x_orientation = "north"
+    uvf.telescope.x_orientation = "north"
     uvf2 = uvf.copy()
     uvf2.select(polarizations=pols_to_keep)
 
@@ -3991,7 +4014,7 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
             assert p in uvf2.polarization_array
         else:
             assert (
-                uvutils.polstr2num(p, x_orientation=uvf2.x_orientation)
+                uvutils.polstr2num(p, x_orientation=uvf2.telescope.x_orientation)
                 in uvf2.polarization_array
             )
     for p in np.unique(uvf2.polarization_array):
@@ -3999,7 +4022,7 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
             assert p in pols_to_keep
         else:
             assert p in uvutils.polstr2num(
-                pols_to_keep, x_orientation=uvf2.x_orientation
+                pols_to_keep, x_orientation=uvf2.telescope.x_orientation
             )
 
     assert uvutils._check_histories(
@@ -4222,7 +4245,7 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
         np.unique(uvf.baseline_array),
         uvutils.antnums_to_baseline(
             *np.transpose([(88, 97), (97, 104), (97, 105)]),
-            Nants_telescope=uvf.Nants_telescope,
+            Nants_telescope=uvf.telescope.Nants,
         ),
     )
 
