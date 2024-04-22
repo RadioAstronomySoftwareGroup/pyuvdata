@@ -159,7 +159,7 @@ def test_get_telescope_center_xyz():
     telescope_obj_ext = Telescope()
     telescope_obj_ext.citation = ""
     telescope_obj_ext.name = "test"
-    telescope_obj_ext.location = ref_xyz
+    telescope_obj_ext.location = EarthLocation(*ref_xyz, unit="m")
 
     assert telescope_obj == telescope_obj_ext
 
@@ -191,18 +191,6 @@ def test_get_telescope_no_loc():
         )
 
 
-def test_bad_location_obj():
-    tel = Telescope()
-    tel.name = "foo"
-
-    with pytest.raises(
-        ValueError,
-        match="location_obj is not a recognized location object. Must be an "
-        "EarthLocation or MoonLocation object.",
-    ):
-        tel.location_obj = (-2562123.42683, 5094215.40141, -2848728.58869)
-
-
 def test_hera_loc():
     hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
     hera_data = UVData()
@@ -213,8 +201,8 @@ def test_hera_loc():
     telescope_obj = Telescope.from_known_telescopes("HERA")
 
     assert np.allclose(
-        telescope_obj.location,
-        hera_data.telescope_location,
+        telescope_obj._location.xyz(),
+        hera_data.telescope._location.xyz(),
         rtol=hera_data.telescope._location.tols[0],
         atol=hera_data.telescope._location.tols[1],
     )
