@@ -11,6 +11,14 @@ import warnings
 
 import h5py
 import numpy as np
+from astropy.coordinates import EarthLocation
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from .. import Telescope
 from .. import parameter as uvp
@@ -647,128 +655,6 @@ class UVFlag(UVBase):
         self.telescope._x_orientation.required = False
 
     @property
-    def telescope_name(self):
-        """The telescope name (stored on the Telescope object internally)."""
-        return self.telescope.name
-
-    @telescope_name.setter
-    def telescope_name(self, val):
-        self.telescope.name = val
-
-    @property
-    def instrument(self):
-        """The instrument name (stored on the Telescope object internally)."""
-        return self.telescope.instrument
-
-    @instrument.setter
-    def instrument(self, val):
-        self.telescope.instrument = val
-
-    @property
-    def telescope_location(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location
-
-    @telescope_location.setter
-    def telescope_location(self, val):
-        self.telescope.location = val
-
-    @property
-    def telescope_location_lat_lon_alt(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt
-
-    @telescope_location_lat_lon_alt.setter
-    def telescope_location_lat_lon_alt(self, val):
-        self.telescope.location_lat_lon_alt = val
-
-    @property
-    def telescope_location_lat_lon_alt_degrees(self):
-        """The telescope location (stored on the Telescope object internally)."""
-        return self.telescope.location_lat_lon_alt_degrees
-
-    @telescope_location_lat_lon_alt_degrees.setter
-    def telescope_location_lat_lon_alt_degrees(self, val):
-        self.telescope.location_lat_lon_alt_degrees = val
-
-    @property
-    def Nants_telescope(self):  # noqa
-        """
-        The number of antennas in the telescope.
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.Nants
-
-    @Nants_telescope.setter
-    def Nants_telescope(self, val):  # noqa
-        self.telescope.Nants = val
-
-    @property
-    def antenna_names(self):
-        """The antenna names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_names
-
-    @antenna_names.setter
-    def antenna_names(self, val):
-        self.telescope.antenna_names = val
-
-    @property
-    def antenna_numbers(self):
-        """The antenna numbers corresponding to antenna_names, shape (Nants_telescope,).
-
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_numbers
-
-    @antenna_numbers.setter
-    def antenna_numbers(self, val):
-        self.telescope.antenna_numbers = val
-
-    @property
-    def antenna_positions(self):
-        """The antenna positions coordinates of antennas relative to telescope_location.
-
-        The coordinates are in the ITRF frame, shape (Nants_telescope, 3).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_positions
-
-    @antenna_positions.setter
-    def antenna_positions(self, val):
-        self.telescope.antenna_positions = val
-
-    @property
-    def x_orientation(self):
-        """Orientation of the physical dipole corresponding to the x label.
-
-        Options are 'east' (indicating east/west orientation) and 'north (indicating
-        north/south orientation).
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.x_orientation
-
-    @x_orientation.setter
-    def x_orientation(self, val):
-        self.telescope.x_orientation = val
-
-    @property
-    def antenna_diameters(self):
-        """The antenna diameters in meters.
-
-        Used by CASA to construct a default beam if no beam is supplied.
-        This property is stored on the Telescope object internally.
-        """
-        return self.telescope.antenna_diameters
-
-    @antenna_diameters.setter
-    def antenna_diameters(self, val):
-        self.telescope.antenna_diameters = val
-
-    @property
     def _data_params(self):
         """List of strings giving the data-like parameters."""
         if not hasattr(self, "mode") or self.mode is None:
@@ -1084,19 +970,23 @@ class UVFlag(UVBase):
                     "times in the time_array"
                 )
 
-            if self.antenna_numbers is not None:
-                if not set(np.unique(self.ant_1_array)).issubset(self.antenna_numbers):
+            if self.telescope.antenna_numbers is not None:
+                if not set(np.unique(self.ant_1_array)).issubset(
+                    self.telescope.antenna_numbers
+                ):
                     raise ValueError(
                         "All antennas in ant_1_array must be in antenna_numbers."
                     )
-                if not set(np.unique(self.ant_2_array)).issubset(self.antenna_numbers):
+                if not set(np.unique(self.ant_2_array)).issubset(
+                    self.telescope.antenna_numbers
+                ):
                     raise ValueError(
                         "All antennas in ant_2_array must be in antenna_numbers."
                     )
         elif self.type == "antenna":
-            if self.antenna_numbers is not None:
+            if self.telescope.antenna_numbers is not None:
                 missing_ants = self.ant_array[
-                    ~np.isin(self.ant_array, self.antenna_numbers)
+                    ~np.isin(self.ant_array, self.telescope.antenna_numbers)
                 ]
                 if missing_ants.size > 0:
                     raise ValueError(
@@ -1121,22 +1011,16 @@ class UVFlag(UVBase):
         if run_check_acceptability:
             # Check antenna positions
             uvutils.check_surface_based_positions(
-                antenna_positions=self.antenna_positions,
-                telescope_loc=self.telescope_location,
-                telescope_frame=self.telescope._location.frame,
+                antenna_positions=self.telescope.antenna_positions,
+                telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
-            lat, lon, alt = self.telescope_location_lat_lon_alt_degrees
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
-                latitude=lat,
-                longitude=lon,
-                altitude=alt,
+                telescope_loc=self.telescope.location,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
-                frame=self.telescope._location.frame,
-                ellipsoid=self.telescope._location.ellipsoid,
             )
 
         return True
@@ -1218,15 +1102,10 @@ class UVFlag(UVBase):
         )
 
     def _set_lsts_helper(self, astrometry_library=None):
-        latitude, longitude, altitude = self.telescope_location_lat_lon_alt_degrees
         self.lst_array = uvutils.get_lst_for_time(
             jd_array=self.time_array,
-            latitude=latitude,
-            longitude=longitude,
-            altitude=altitude,
+            telescope_loc=self.telescope.location,
             astrometry_library=astrometry_library,
-            frame=self.telescope._location.frame,
-            ellipsoid=self.telescope._location.ellipsoid,
         )
         return
 
@@ -1331,7 +1210,7 @@ class UVFlag(UVBase):
         """
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.baseline_to_antnums(
-            baseline, Nants_telescope=self.Nants_telescope
+            baseline, Nants_telescope=self.telescope.Nants
         )
 
     def antnums_to_baseline(self, ant1, ant2, *, attempt256=False):
@@ -1355,7 +1234,7 @@ class UVFlag(UVBase):
         """
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
         return uvutils.antnums_to_baseline(
-            ant1, ant2, Nants_telescope=self.Nants_telescope, attempt256=attempt256
+            ant1, ant2, Nants_telescope=self.telescope.Nants, attempt256=attempt256
         )
 
     def get_baseline_nums(self):
@@ -1394,7 +1273,7 @@ class UVFlag(UVBase):
             list of polarizations (as strings) in the data.
         """
         return uvutils.polnum2str(
-            self.polarization_array, x_orientation=self.x_orientation
+            self.polarization_array, x_orientation=self.telescope.x_orientation
         )
 
     def parse_ants(self, ant_str, *, print_toggle=False):
@@ -1440,7 +1319,7 @@ class UVFlag(UVBase):
             self,
             ant_str=ant_str,
             print_toggle=print_toggle,
-            x_orientation=self.x_orientation,
+            x_orientation=self.telescope.x_orientation,
         )
 
     def collapse_pol(
@@ -1658,29 +1537,39 @@ class UVFlag(UVBase):
 
         """
         if (
-            self.antenna_numbers is not None
-            and uv.antenna_numbers is not None
-            and np.intersect1d(self.antenna_numbers, uv.antenna_numbers).size
-            == self.Nants_telescope
-            and not np.allclose(self.antenna_numbers, uv.antenna_numbers)
+            self.telescope.antenna_numbers is not None
+            and uv.telescope.antenna_numbers is not None
+            and np.intersect1d(
+                self.telescope.antenna_numbers, uv.telescope.antenna_numbers
+            ).size
+            == self.telescope.Nants
+            and not np.allclose(
+                self.telescope.antenna_numbers, uv.telescope.antenna_numbers
+            )
         ):
             # first get sort order for each
-            this_order = np.argsort(self.antenna_numbers)
-            uv_order = np.argsort(uv.antenna_numbers)
+            this_order = np.argsort(self.telescope.antenna_numbers)
+            uv_order = np.argsort(uv.telescope.antenna_numbers)
 
             # now get array to invert the uv sort
             inv_uv_order = np.empty_like(uv_order)
-            inv_uv_order[uv_order] = np.arange(uv.Nants_telescope)
+            inv_uv_order[uv_order] = np.arange(uv.telescope.Nants)
 
             # generate the array to sort self like uv
             this_uv_sort = this_order[inv_uv_order]
 
             # do the sorting
-            self.antenna_numbers = self.antenna_numbers[this_uv_sort]
-            if self.antenna_names is not None:
-                self.antenna_names = self.antenna_names[this_uv_sort]
-            if self.antenna_positions is not None:
-                self.antenna_positions = self.antenna_positions[this_uv_sort]
+            self.telescope.antenna_numbers = self.telescope.antenna_numbers[
+                this_uv_sort
+            ]
+            if self.telescope.antenna_names is not None:
+                self.telescope.antenna_names = self.telescope.antenna_names[
+                    this_uv_sort
+                ]
+            if self.telescope.antenna_positions is not None:
+                self.telescope.antenna_positions = self.telescope.antenna_positions[
+                    this_uv_sort
+                ]
 
     def to_baseline(
         self,
@@ -2499,18 +2388,21 @@ class UVFlag(UVBase):
             this.ant_array = np.concatenate([this.ant_array, other.ant_array])
             this.Nants_data = len(this.ant_array)
             temp_ant_nums = np.concatenate(
-                [this.antenna_numbers, other.antenna_numbers]
+                [this.telescope.antenna_numbers, other.telescope.antenna_numbers]
             )
-            temp_ant_names = np.concatenate([this.antenna_names, other.antenna_names])
+            temp_ant_names = np.concatenate(
+                [this.telescope.antenna_names, other.telescope.antenna_names]
+            )
             temp_ant_pos = np.concatenate(
-                [this.antenna_positions, other.antenna_positions], axis=0
+                [this.telescope.antenna_positions, other.telescope.antenna_positions],
+                axis=0,
             )
-            this.antenna_numbers, unique_inds = np.unique(
+            this.telescope.antenna_numbers, unique_inds = np.unique(
                 temp_ant_nums, return_index=True
             )
-            this.antenna_names = temp_ant_names[unique_inds]
-            this.antenna_positions = temp_ant_pos[unique_inds]
-            this.Nants_telescope = len(this.antenna_numbers)
+            this.telescope.antenna_names = temp_ant_names[unique_inds]
+            this.telescope.antenna_positions = temp_ant_pos[unique_inds]
+            this.Nants_telescope = len(this.telescope.antenna_numbers)
 
         elif axis == "frequency":
             this.freq_array = np.concatenate(
@@ -3140,7 +3032,9 @@ class UVFlag(UVBase):
             pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
-                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                    p_num = uvutils.polstr2num(
+                        p, x_orientation=self.telescope.x_orientation
+                    )
                 else:
                     p_num = p
                 if p_num in self.polarization_array:
@@ -3557,9 +3451,11 @@ class UVFlag(UVBase):
                     )
 
                 if "x_orientation" in header.keys():
-                    self.x_orientation = header["x_orientation"][()].decode("utf8")
+                    self.telescope.x_orientation = header["x_orientation"][()].decode(
+                        "utf8"
+                    )
                 if "instrument" in header.keys():
-                    self.instrument = header["instrument"][()].decode("utf8")
+                    self.telescope.instrument = header["instrument"][()].decode("utf8")
 
                 self.time_array = header["time_array"][()]
                 if "Ntimes" in header.keys():
@@ -3651,11 +3547,11 @@ class UVFlag(UVBase):
                         mwa_metafits_file, telescope_info_only=True
                     )
 
-                    self.telescope_name = meta_dict["telescope_name"]
-                    self.telescope_location = meta_dict["telescope_location"]
-                    self.antenna_numbers = meta_dict["antenna_numbers"]
-                    self.antenna_names = meta_dict["antenna_names"]
-                    self.antenna_positions = meta_dict["antenna_positions"]
+                    self.telescope.name = meta_dict["telescope_name"]
+                    self.telescope.location = meta_dict["telescope_location"]
+                    self.telescope.antenna_numbers = meta_dict["antenna_numbers"]
+                    self.telescope.antenna_names = meta_dict["antenna_names"]
+                    self.telescope.antenna_positions = meta_dict["antenna_positions"]
 
                     override_params = []
                     params_to_check = [
@@ -3677,7 +3573,7 @@ class UVFlag(UVBase):
                         )
                 else:
                     if telescope_name is not None:
-                        self.telescope_name = telescope_name
+                        self.telescope.name = telescope_name
 
                     if "telescope_name" in header.keys():
                         file_telescope_name = header["telescope_name"][()].decode(
@@ -3691,24 +3587,36 @@ class UVFlag(UVBase):
                                     f"name in the file ({file_telescope_name})."
                                 )
                         else:
-                            self.telescope_name = file_telescope_name
+                            self.telescope.name = file_telescope_name
 
                     if "telescope_location" in header.keys():
-                        self.telescope_location = header["telescope_location"][()]
                         if "telescope_frame" in header.keys():
-                            self.telescope._location.frame = header["telescope_frame"][
-                                ()
-                            ].decode("utf8")
-                        if self.telescope._location.frame != "itrs":
-                            self.telescope._location.ellipsoid = header["ellipsoid"][
-                                ()
-                            ].decode("utf8")
+                            telescope_frame = header["telescope_frame"][()].decode(
+                                "utf8"
+                            )
+                        else:
+                            telescope_frame = "itrs"
+                        if telescope_frame == "itrs":
+                            self.telescope.location = EarthLocation.from_geocentric(
+                                *header["telescope_location"][()], unit="m"
+                            )
+                        else:
+                            if not hasmoon:
+                                raise ValueError(
+                                    "Need to install `lunarsky` package to work with "
+                                    "MCMF frames."
+                                )
+                            ellipsoid = header["ellipsoid"][()].decode("utf8")
+                            self.telescope.location = MoonLocation.from_selenocentric(
+                                *header["telescope_location"][()], unit="m"
+                            )
+                            self.telescope.location.ellipsoid = ellipsoid
 
                     if "antenna_numbers" in header.keys():
-                        self.antenna_numbers = header["antenna_numbers"][()]
+                        self.telescope.antenna_numbers = header["antenna_numbers"][()]
 
                     if "antenna_names" in header.keys():
-                        self.antenna_names = np.array(
+                        self.telescope.antenna_names = np.array(
                             [
                                 bytes(n).decode("utf8")
                                 for n in header["antenna_names"][:]
@@ -3716,9 +3624,13 @@ class UVFlag(UVBase):
                         )
 
                     if "antenna_positions" in header.keys():
-                        self.antenna_positions = header["antenna_positions"][()]
+                        self.telescope.antenna_positions = header["antenna_positions"][
+                            ()
+                        ]
                     if "antenna_diameters" in header.keys():
-                        self.antenna_diameters = header["antenna_diameters"][()]
+                        self.telescope.antenna_diameters = header["antenna_diameters"][
+                            ()
+                        ]
 
                 self.history = header["history"][()].decode("utf8")
 
@@ -3799,9 +3711,9 @@ class UVFlag(UVBase):
                         self.Nants_data = len(self.ant_array)
 
                 if "Nants_telescope" in header.keys():
-                    self.Nants_telescope = int(header["Nants_telescope"][()])
+                    self.telescope.Nants = int(header["Nants_telescope"][()])
 
-                if self.telescope_name is None:
+                if self.telescope.name is None:
                     warnings.warn(
                         "telescope_name not available in file, so telescope related "
                         "parameters cannot be set. This will result in errors when the "
@@ -3810,22 +3722,22 @@ class UVFlag(UVBase):
                         "to turn off the check."
                     )
                 elif (
-                    self.telescope_location is None
-                    or self.antenna_numbers is None
-                    or self.antenna_names is None
-                    or self.antenna_positions is None
+                    self.telescope.location is None
+                    or self.telescope.antenna_numbers is None
+                    or self.telescope.antenna_names is None
+                    or self.telescope.antenna_positions is None
                 ):
                     if (
-                        self.antenna_numbers is None
-                        and self.antenna_names is None
-                        and self.antenna_positions is None
+                        self.telescope.antenna_numbers is None
+                        and self.telescope.antenna_names is None
+                        and self.telescope.antenna_positions is None
                     ):
-                        self.Nants_telescope = None
+                        self.telescope.Nants = None
 
-                    if "mwa" in self.telescope_name.lower() and (
-                        self.antenna_numbers is None
-                        or self.antenna_names is None
-                        or self.antenna_positions is None
+                    if "mwa" in self.telescope.name.lower() and (
+                        self.telescope.antenna_numbers is None
+                        or self.telescope.antenna_names is None
+                        or self.telescope.antenna_positions is None
                     ):
                         warnings.warn(
                             "Antenna metadata are missing for this file. Since this "
@@ -3838,23 +3750,23 @@ class UVFlag(UVBase):
                         )
                     self.set_telescope_params(run_check=False)
 
-                if self.antenna_numbers is None and self.type in [
+                if self.telescope.antenna_numbers is None and self.type in [
                     "baseline",
                     "antenna",
                 ]:
                     msg = "antenna_numbers not in file"
                     if (
-                        self.Nants_telescope is None
-                        or self.Nants_telescope == self.Nants_data
+                        self.telescope.Nants is None
+                        or self.telescope.Nants == self.Nants_data
                     ):
                         if self.type == "baseline":
                             msg += ", setting based on ant_1_array and ant_2_array."
-                            self.antenna_numbers = np.unique(
+                            self.telescope.antenna_numbers = np.unique(
                                 np.union1d(self.ant_1_array, self.ant_2_array)
                             )
                         else:
                             msg += ", setting based on ant_array."
-                            self.antenna_numbers = np.unique(self.ant_array)
+                            self.telescope.antenna_numbers = np.unique(self.ant_array)
                     else:
                         msg += ", cannot be set based on "
                         if self.type == "baseline":
@@ -3869,19 +3781,26 @@ class UVFlag(UVBase):
                         )
                     warnings.warn(msg)
 
-                if self.antenna_names is None and self.antenna_numbers is not None:
+                if (
+                    self.telescope.antenna_names is None
+                    and self.telescope.antenna_numbers is not None
+                ):
                     warnings.warn(
                         "antenna_names not in file, setting based on antenna_numbers"
                     )
-                    self.antenna_names = self.antenna_numbers.astype(str)
+                    self.telescope.antenna_names = (
+                        self.telescope.antenna_numbers.astype(str)
+                    )
 
-                if self.Nants_telescope is None:
-                    if self.antenna_numbers is not None:
-                        self.Nants_telescope = self.antenna_numbers.size
-                    elif self.antenna_names is not None:
-                        self.Nants_telescope = self.antenna_names.size
-                    elif self.antenna_positions is not None:
-                        self.Nants_telescope = (self.antenna_positions.shape)[0]
+                if self.telescope.Nants is None:
+                    if self.telescope.antenna_numbers is not None:
+                        self.telescope.Nants = self.telescope.antenna_numbers.size
+                    elif self.telescope.antenna_names is not None:
+                        self.telescope.Nants = self.telescope.antenna_names.size
+                    elif self.telescope.antenna_positions is not None:
+                        self.telescope.Nants = (self.telescope.antenna_positions.shape)[
+                            0
+                        ]
 
             self.clear_unused_attributes()
 
@@ -3939,10 +3858,10 @@ class UVFlag(UVBase):
             header["type"] = np.string_(self.type)
             header["mode"] = np.string_(self.mode)
 
-            if self.telescope_name is not None:
-                header["telescope_name"] = np.string_(self.telescope_name)
-            if self.telescope_location is not None:
-                header["telescope_location"] = self.telescope_location
+            if self.telescope.name is not None:
+                header["telescope_name"] = np.string_(self.telescope.name)
+            if self.telescope.location is not None:
+                header["telescope_location"] = self.telescope._location.xyz()
                 header["telescope_frame"] = np.string_(self.telescope._location.frame)
                 if self.telescope._location.frame == "mcmf":
                     header["ellipsoid"] = np.string_(self.telescope._location.ellipsoid)
@@ -3962,12 +3881,12 @@ class UVFlag(UVBase):
 
             header["Npols"] = self.Npols
 
-            if self.x_orientation is not None:
-                header["x_orientation"] = np.string_(self.x_orientation)
-            if self.instrument is not None:
-                header["instrument"] = np.string_(self.instrument)
-            if self.antenna_diameters is not None:
-                header["antenna_diameters"] = self.antenna_diameters
+            if self.telescope.x_orientation is not None:
+                header["x_orientation"] = np.string_(self.telescope.x_orientation)
+            if self.telescope.instrument is not None:
+                header["instrument"] = np.string_(self.telescope.instrument)
+            if self.telescope.antenna_diameters is not None:
+                header["antenna_diameters"] = self.telescope.antenna_diameters
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(
@@ -4007,13 +3926,15 @@ class UVFlag(UVBase):
                 header["ant_array"] = self.ant_array
                 header["Nants_data"] = self.Nants_data
 
-            header["Nants_telescope"] = self.Nants_telescope
-            if self.antenna_names is not None:
-                header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
-            if self.antenna_numbers is not None:
-                header["antenna_numbers"] = self.antenna_numbers
-            if self.antenna_positions is not None:
-                header["antenna_positions"] = self.antenna_positions
+            header["Nants_telescope"] = self.telescope.Nants
+            if self.telescope.antenna_names is not None:
+                header["antenna_names"] = np.asarray(
+                    self.telescope.antenna_names, dtype="bytes"
+                )
+            if self.telescope.antenna_numbers is not None:
+                header["antenna_numbers"] = self.telescope.antenna_numbers
+            if self.telescope.antenna_positions is not None:
+                header["antenna_positions"] = self.telescope.antenna_positions
 
             dgrp = f.create_group("Data")
             if self.mode == "metric":
