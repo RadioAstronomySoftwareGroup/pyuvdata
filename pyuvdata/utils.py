@@ -5658,18 +5658,22 @@ def uvcalibrate(
     # Check whether the UVData antennas *that have data associated with them*
     # have associated data in the UVCal object
     uvdata_unique_nums = np.unique(np.append(uvdata.ant_1_array, uvdata.ant_2_array))
-    uvdata.antenna_names = np.asarray(uvdata.antenna_names)
+    uvdata.telescope.antenna_names = np.asarray(uvdata.telescope.antenna_names)
     uvdata_used_antnames = np.array(
         [
-            uvdata.antenna_names[np.where(uvdata.antenna_numbers == antnum)][0]
+            uvdata.telescope.antenna_names[
+                np.where(uvdata.telescope.antenna_numbers == antnum)
+            ][0]
             for antnum in uvdata_unique_nums
         ]
     )
     uvcal_unique_nums = np.unique(uvcal.ant_array)
-    uvcal.antenna_names = np.asarray(uvcal.antenna_names)
+    uvcal.telescope.antenna_names = np.asarray(uvcal.telescope.antenna_names)
     uvcal_used_antnames = np.array(
         [
-            uvcal.antenna_names[np.where(uvcal.antenna_numbers == antnum)][0]
+            uvcal.telescope.antenna_names[
+                np.where(uvcal.telescope.antenna_numbers == antnum)
+            ][0]
             for antnum in uvcal_unique_nums
         ]
     )
@@ -5842,24 +5846,26 @@ def uvcalibrate(
             if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
                 downselect_cal_freq = True
 
-    # check if uvdata.x_orientation isn't set (it's required for uvcal)
-    uvd_x = uvdata.x_orientation
+    # check if uvdata.telescope.x_orientation isn't set (it's required for uvcal)
+    uvd_x = uvdata.telescope.x_orientation
     if uvd_x is None:
         # use the uvcal x_orientation throughout
-        uvd_x = uvcal.x_orientation
+        uvd_x = uvcal.telescope.x_orientation
         warnings.warn(
             "UVData object does not have `x_orientation` specified but UVCal does. "
             "Matching based on `x` and `y` only "
         )
 
     uvdata_pol_strs = polnum2str(uvdata.polarization_array, x_orientation=uvd_x)
-    uvcal_pol_strs = jnum2str(uvcal.jones_array, x_orientation=uvcal.x_orientation)
+    uvcal_pol_strs = jnum2str(
+        uvcal.jones_array, x_orientation=uvcal.telescope.x_orientation
+    )
     uvdata_feed_pols = {
         feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
     }
     for feed in uvdata_feed_pols:
         # get diagonal jones str
-        jones_str = parse_jpolstr(feed, x_orientation=uvcal.x_orientation)
+        jones_str = parse_jpolstr(feed, x_orientation=uvcal.telescope.x_orientation)
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
                 f"Feed polarization {feed} exists on UVData but not on UVCal. "
@@ -5916,9 +5922,13 @@ def uvcalibrate(
     # No D-term calibration
     else:
         # key is number, value is name
-        uvdata_ant_dict = dict(zip(uvdata.antenna_numbers, uvdata.antenna_names))
+        uvdata_ant_dict = dict(
+            zip(uvdata.telescope.antenna_numbers, uvdata.telescope.antenna_names)
+        )
         # opposite: key is name, value is number
-        uvcal_ant_dict = dict(zip(uvcal.antenna_names, uvcal.antenna_numbers))
+        uvcal_ant_dict = dict(
+            zip(uvcal.telescope.antenna_names, uvcal.telescope.antenna_numbers)
+        )
 
         # iterate over keys
         for key in uvdata.get_antpairpols():
@@ -6181,9 +6191,10 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
         )
 
     if x_orientation is None and (
-        hasattr(uv, "x_orientation") and uv.x_orientation is not None
+        hasattr(uv.telescope, "x_orientation")
+        and uv.telescope.x_orientation is not None
     ):
-        x_orientation = uv.x_orientation
+        x_orientation = uv.telescope.x_orientation
 
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
     bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)

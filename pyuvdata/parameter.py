@@ -956,8 +956,13 @@ class LocationParameter(UVParameter):
                 centric_coords = self.value.geocentric
             return units.Quantity(centric_coords).to("m").value
 
-    def set_xyz(self, xyz, frame="itrs", ellipsoid=None):
+    def set_xyz(self, xyz, frame=None, ellipsoid=None):
         """Set the body centric coordinates in meters."""
+        if frame is None and hasmoon and isinstance(self.value, MoonLocation):
+            frame = "mcmf"
+        else:
+            frame = "itrs"
+
         allowed_frames = ["itrs"]
         if hasmoon:
             allowed_frames += ["mcmf"]
@@ -1053,12 +1058,14 @@ class LocationParameter(UVParameter):
             self.set_lat_lon_alt(lat_lon_alt, ellipsoid=ellipsoid)
 
     def check_acceptability(self):
-        """Check that vector magnitudes are in range."""
-        if not isinstance(self.value, allowed_location_types):
+        """Check that value is an allowed object type."""
+        if not isinstance(self.value, tuple(allowed_location_types)):
             return (
                 False,
                 f"Location must be an object of type: {allowed_location_types}",
             )
+        else:
+            return True, ""
 
     def __eq__(self, other, *, silent=False):
         """Handle equality properly for Earth/Moon Location objects."""
