@@ -346,7 +346,7 @@ class Telescope(uvbase.UVBase):
                 known_telescope_list.append("telescope_location")
                 if telescope_dict["center_xyz"] is not None:
                     self.location = EarthLocation.from_geocentric(
-                        telescope_dict["center_xyz"], unit="m"
+                        *telescope_dict["center_xyz"], unit="m"
                     )
                 else:
                     if (

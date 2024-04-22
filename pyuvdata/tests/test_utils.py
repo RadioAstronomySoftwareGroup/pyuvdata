@@ -3628,7 +3628,7 @@ def test_uvcalibrate_apply_gains_oldfiles():
         use_future_array_shapes=True,
     )
     # give it an x_orientation
-    uvd.x_orientation = "east"
+    uvd.telescope.x_orientation = "east"
     uvc = UVCal()
     uvc.read_calfits(
         os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"),
@@ -3887,12 +3887,14 @@ def test_uvcalibrate_flag_propagation(
     uvc_sub = uvc.select(antenna_nums=[1, 12], inplace=False)
 
     uvdata_unique_nums = np.unique(np.append(uvd.ant_1_array, uvd.ant_2_array))
-    uvd.antenna_names = np.array(uvd.antenna_names)
+    uvd.telescope.antenna_names = np.array(uvd.telescope.antenna_names)
     missing_ants = uvdata_unique_nums.tolist()
     missing_ants.remove(1)
     missing_ants.remove(12)
     missing_ant_names = [
-        uvd.antenna_names[np.where(uvd.antenna_numbers == antnum)[0][0]]
+        uvd.telescope.antenna_names[
+            np.where(uvd.telescope.antenna_numbers == antnum)[0][0]
+        ]
         for antnum in missing_ants
     ]
 
@@ -4195,7 +4197,7 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # downselect the feed polarization to get warnings
-    uvc.select(jones=uvutils.jstr2num("Jnn", x_orientation=uvc.x_orientation))
+    uvc.select(jones=uvutils.jstr2num("Jnn", x_orientation=uvc.telescope.x_orientation))
     with pytest.raises(
         ValueError, match=("Feed polarization e exists on UVData but not on UVCal.")
     ):
@@ -4206,8 +4208,8 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # next check None uvd_x
-    uvd.x_orientation = None
-    uvc.x_orientation = "east"
+    uvd.telescope.x_orientation = None
+    uvc.telescope.x_orientation = "east"
     with pytest.warns(
         UserWarning,
         match=r"UVData object does not have `x_orientation` specified but UVCal does",
@@ -4742,16 +4744,18 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
     sma_mir.set_uvws_from_antenna_positions()
     if not use_uvw:
         # Just subselect the antennas in the dataset
-        sma_mir.antenna_positions = sma_mir.antenna_positions[[0, 3], :]
+        sma_mir.telescope.antenna_positions = sma_mir.telescope.antenna_positions[
+            [0, 3], :
+        ]
 
     if use_earthloc:
         telescope_loc = EarthLocation.from_geodetic(
-            lon=sma_mir.telescope_location_lat_lon_alt_degrees[1],
-            lat=sma_mir.telescope_location_lat_lon_alt_degrees[0],
-            height=sma_mir.telescope_location_lat_lon_alt_degrees[2],
+            lon=sma_mir.telescope.location_lat_lon_alt_degrees[1],
+            lat=sma_mir.telescope.location_lat_lon_alt_degrees[0],
+            height=sma_mir.telescope.location_lat_lon_alt_degrees[2],
         )
     else:
-        telescope_loc = sma_mir.telescope_location_lat_lon_alt_degrees
+        telescope_loc = sma_mir.telescope.location_lat_lon_alt_degrees
 
     if use_uvw:
         sma_copy = sma_mir.copy()
@@ -4768,7 +4772,9 @@ def test_uvw_track_generator(flip_u, use_uvw, use_earthloc):
         coord_epoch=cat_dict["cat_epoch"],
         telescope_loc=telescope_loc,
         time_array=sma_mir.time_array if use_uvw else sma_mir.time_array[0],
-        antenna_positions=sma_mir.antenna_positions if uvw_array is None else None,
+        antenna_positions=(
+            sma_mir.telescope.antenna_positions if uvw_array is None else None
+        ),
         force_postive_u=flip_u,
         uvw_array=uvw_array,
     )
@@ -4893,7 +4899,8 @@ def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
     else:
         with pytest.raises(ValueError, match=(f"{frame} position vector")):
             uvutils.check_surface_based_positions(
-                telescope_loc=loc, telescope_frame=frame
+                telescope_loc=[loc.x.value, loc.y.value, loc.z.value],
+                telescope_frame=frame,
             )
 
 
