@@ -6,10 +6,23 @@ import copy
 import astropy.units as units
 import numpy as np
 import pytest
-from astropy.coordinates import CartesianRepresentation, Latitude, Longitude, SkyCoord
+from astropy.coordinates import (
+    CartesianRepresentation,
+    EarthLocation,
+    Latitude,
+    Longitude,
+    SkyCoord,
+)
+
+try:
+    from lunarsky import MoonLocation
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
 
 from pyuvdata import parameter as uvp
-from pyuvdata import utils
+from pyuvdata.parameter import allowed_location_types
 from pyuvdata.tests.test_utils import (
     frame_selenoid,
     ref_latlonalt,
@@ -410,25 +423,54 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
     if frame == "itrs":
         xyz_val = ref_xyz
         latlonalt_val = ref_latlonalt
+        loc_centric = EarthLocation.from_geocentric(*ref_xyz, unit="m")
+        loc_detic = EarthLocation.from_geodetic(
+            lat=ref_latlonalt[0] * units.rad,
+            lon=ref_latlonalt[1] * units.rad,
+            height=ref_latlonalt[2] * units.m,
+        )
+        wrong_obj = EarthLocation.of_site("mwa")
     else:
         xyz_val = ref_xyz_moon[selenoid]
         latlonalt_val = ref_latlonalt_moon
+        loc_centric = MoonLocation.from_selenocentric(*ref_xyz_moon[selenoid], unit="m")
+        loc_centric.ellipsoid = selenoid
+        loc_detic = MoonLocation.from_selenodetic(
+            lat=ref_latlonalt_moon[0] * units.rad,
+            lon=ref_latlonalt_moon[1] * units.rad,
+            height=ref_latlonalt_moon[2] * units.m,
+            ellipsoid=selenoid,
+        )
+        wrong_obj = MoonLocation.from_selenocentric(0, 0, 0, unit="m")
+        wrong_obj.ellipsoid = selenoid
 
-    param1 = uvp.LocationParameter(
-        name="p1", value=xyz_val, frame=frame, ellipsoid=selenoid
-    )
+    param1 = uvp.LocationParameter(name="p1", value=loc_centric)
     np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
 
+    param4 = uvp.LocationParameter(name="p1", value=wrong_obj)
+    param4.set_xyz(xyz_val)
+    assert param1 == param4
+
     if selenoid == "SPHERE":
-        param1 = uvp.LocationParameter(name="p1", value=xyz_val, frame=frame)
+        param1 = uvp.LocationParameter(
+            name="p1",
+            value=MoonLocation.from_selenodetic(
+                lat=ref_latlonalt_moon[0] * units.rad,
+                lon=ref_latlonalt_moon[1] * units.rad,
+                height=ref_latlonalt_moon[2] * units.m,
+            ),
+        )
         np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
 
-    param2 = uvp.LocationParameter(name="p2", frame=frame, ellipsoid=selenoid)
-    param2.set_lat_lon_alt(latlonalt_val)
+    param2 = uvp.LocationParameter(name="p2", value=loc_detic)
+    np.testing.assert_allclose(xyz_val, param2.xyz())
 
-    np.testing.assert_allclose(xyz_val, param2.value)
+    param5 = uvp.LocationParameter(name="p2", value=wrong_obj)
+    param5.set_lat_lon_alt(latlonalt_val, ellipsoid=selenoid)
 
-    param3 = uvp.LocationParameter(name="p2", frame=frame, ellipsoid=selenoid)
+    assert param2 == param5
+
+    param3 = uvp.LocationParameter(name="p2", value=wrong_obj)
     latlonalt_deg_val = np.array(
         [
             latlonalt_val[0] * 180 / np.pi,
@@ -438,23 +480,21 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
     )
     param3.set_lat_lon_alt_degrees(latlonalt_deg_val)
 
-    np.testing.assert_allclose(xyz_val, param3.value)
+    np.testing.assert_allclose(xyz_val, param3.xyz())
 
 
 def test_location_acceptability():
     """Test check_acceptability with LocationParameters"""
-    val = np.array([0.5, 0.5, 0.5])
-    param1 = uvp.LocationParameter("p1", value=val, acceptable_range=[0, 1])
+    param1 = uvp.LocationParameter(
+        "p1", value=EarthLocation.from_geocentric(*ref_xyz, unit="m")
+    )
     assert param1.check_acceptability()[0]
 
-    val += 0.5
-    param1 = uvp.LocationParameter("p1", value=val, acceptable_range=[0, 1])
-    assert not param1.check_acceptability()[0]
-
-    param1 = uvp.LocationParameter("p1", value=val, frame="foo")
+    val = np.array([0.5, 0.5, 0.5])
+    param1 = uvp.LocationParameter("p1", value=val)
     acceptable, reason = param1.check_acceptability()
     assert not acceptable
-    assert reason == f"Frame must be one of {utils._range_dict.keys()}"
+    assert reason == f"Location must be an object of type: {allowed_location_types}"
 
 
 @pytest.mark.parametrize(
