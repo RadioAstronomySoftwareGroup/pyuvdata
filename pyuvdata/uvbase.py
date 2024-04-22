@@ -141,7 +141,7 @@ class UVBase(object):
         self.__dict__ = state
         self._setup_parameters()
 
-    def __getattribute__(self, __name):
+    def __getattr__(self, __name):
         """Handle old names for telescope metadata."""
         if __name in old_telescope_metadata_attrs:
             # _warn_old_phase_attr(__name)
@@ -156,12 +156,34 @@ class UVBase(object):
                     if __name == "telescope_location":
                         ret_val = self.telescope._location.xyz()
                     elif __name == "telescope_location_lat_lon_alt":
-                        ret_val = self.telescope.location_lat_lon_alt()
+                        ret_val = self.telescope._location.lat_lon_alt()
                     elif __name == "telescope_location_lat_lon_alt_degrees":
-                        ret_val = self.telescope.location_lat_lon_alt_degrees()
+                        ret_val = self.telescope._location.lat_lon_alt_degrees()
                 return ret_val
 
         return super().__getattribute__(__name)
+
+    def __setattr__(self, __name, __value):
+        """Handle old names for telescope metadata."""
+        if __name in old_telescope_metadata_attrs:
+            # _warn_old_phase_attr(__name)
+
+            if hasattr(self, "telescope"):
+                tel_name = old_telescope_metadata_attrs[__name]
+                if tel_name is not None:
+                    # if it's a simple remapping, just set the value
+                    setattr(self.telescope, tel_name, __value)
+                else:
+                    # handle location related stuff
+                    if __name == "telescope_location":
+                        self.telescope._location.set_xyz(__value)
+                    elif __name == "telescope_location_lat_lon_alt":
+                        self.telescope._location.set_lat_lon_alt(__value)
+                    elif __name == "telescope_location_lat_lon_alt_degrees":
+                        self.telescope._location.set_lat_lon_alt_degrees(__value)
+                return
+
+        return super().__setattr__(__name, __value)
 
     def prop_fget(self, param_name):
         """
