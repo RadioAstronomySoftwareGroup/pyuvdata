@@ -189,6 +189,24 @@ def calc_uvw_args():
     yield default_args
 
 
+@pytest.fixture(scope="session")
+def utils_uvdata_main():
+    uvd = UVData()
+    uvd.read(
+        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
+        use_future_array_shapes=True,
+    )
+
+    yield uvd
+
+
+@pytest.fixture(scope="function")
+def utils_uvdata(utils_uvdata_main):
+    uvd = utils_uvdata_main.copy()
+
+    yield uvd
+
+
 def test_XYZ_from_LatLonAlt():
     """Test conversion from lat/lon/alt to ECEF xyz with reference values."""
     out_xyz = uvutils.XYZ_from_LatLonAlt(
@@ -3746,13 +3764,10 @@ def test_and_collapse_errors():
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
-def test_uvcalibrate_apply_gains_oldfiles():
+def test_uvcalibrate_apply_gains_oldfiles(utils_uvdata):
     # read data
-    uvd = UVData()
-    uvd.read(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
-        use_future_array_shapes=True,
-    )
+    uvd = utils_uvdata
+
     # give it an x_orientation
     uvd.telescope.x_orientation = "east"
     uvc = UVCal()
@@ -3813,12 +3828,8 @@ def test_uvcalibrate_apply_gains_oldfiles():
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("uvc_future_shapes", [True, False])
-def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes):
-    uvd = UVData()
-    uvd.read(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
-        use_future_array_shapes=uvd_future_shapes,
-    )
+def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes, utils_uvdata):
+    uvd = utils_uvdata
 
     uvc = UVCal()
     uvc.read_calfits(
@@ -4377,12 +4388,8 @@ def test_uvcalibrate_wideband_gain(uvcalibrate_data):
 @pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
-def test_uvcalibrate_delay_multispw():
-    uvd = UVData()
-    uvd.read(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
-        use_future_array_shapes=True,
-    )
+def test_uvcalibrate_delay_multispw(utils_uvdata):
+    uvd = utils_uvdata
 
     uvc = UVCal()
     uvc.read_calfits(
@@ -4420,19 +4427,13 @@ def test_uvcalibrate_delay_multispw():
 @pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvflag_future_shapes", [True, False])
-def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
+def test_apply_uvflag(utils_uvdata):
     # load data and insert some flags
-    uvd = UVData()
-    uvd.read(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
-        use_future_array_shapes=uvdata_future_shapes,
-    )
+    uvd = utils_uvdata
     uvd.flag_array[uvd.antpair2ind(9, 20)] = True
 
     # load a UVFlag into flag type
-    uvf = UVFlag(uvd, use_future_array_shapes=uvflag_future_shapes)
+    uvf = UVFlag(uvd)
     uvf.to_flag()
 
     # insert flags for 2 out of 3 times
@@ -4497,10 +4498,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
         uvutils.apply_uvflag(uvd2, uvf2, force_pol=False)
 
     # test time and frequency mismatch exceptions
-    if uvflag_future_shapes:
-        uvf2 = uvf.select(frequencies=uvf.freq_array[:2], inplace=False)
-    else:
-        uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
+    uvf2 = uvf.select(frequencies=uvf.freq_array[:2], inplace=False)
     with pytest.raises(
         ValueError, match="UVFlag and UVData have mismatched frequency arrays"
     ):
@@ -4527,10 +4525,7 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
         uvutils.apply_uvflag(uvd, uvf2)
 
     # assert implicit broadcasting works
-    if uvflag_future_shapes:
-        uvf2 = uvf.select(frequencies=uvf.freq_array[:1], inplace=False)
-    else:
-        uvf2 = uvf.select(frequencies=uvf.freq_array[:, :1], inplace=False)
+    uvf2 = uvf.select(frequencies=uvf.freq_array[:1], inplace=False)
     uvd2 = uvutils.apply_uvflag(uvd, uvf2, inplace=False)
     assert np.all(uvd2.get_flags(9, 10)[:2])
     uvf2 = uvf.select(times=np.unique(uvf.time_array)[:1], inplace=False)
