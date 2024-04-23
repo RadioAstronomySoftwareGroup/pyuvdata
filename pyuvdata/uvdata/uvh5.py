@@ -1008,9 +1008,7 @@ class UVH5(UVData):
 
         return
 
-    @copy_replace_short_description(
-        UVData.read_mwa_corr_fits, style=DocstringStyle.NUMPYDOC
-    )
+    @copy_replace_short_description(UVData.read_uvh5, style=DocstringStyle.NUMPYDOC)
     def read_uvh5(
         self,
         filename,
