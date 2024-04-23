@@ -7,10 +7,12 @@ import warnings
 
 import h5py
 import numpy as np
+from docstring_parser import DocstringStyle
 from scipy.special import factorial, lpmv  # associated Legendre function
 
 from .. import utils as uvutils
-from .uvbeam import UVBeam, _future_array_shapes_warning
+from ..docstrings import copy_replace_short_description
+from .uvbeam import UVBeam
 
 __all__ = ["P1sin", "P1sin_array", "MWABeam"]
 
@@ -477,11 +479,12 @@ class MWABeam(UVBeam):
 
         return jones
 
+    @copy_replace_short_description(UVBeam.read_mwa_beam, style=DocstringStyle.NUMPYDOC)
     def read_mwa_beam(
         self,
         h5filepath,
         *,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         delays=None,
         amplitudes=None,
         pixels_per_deg=5,
@@ -492,57 +495,10 @@ class MWABeam(UVBeam):
         check_auto_power=True,
         fix_auto_power=True,
     ):
-        """
-        Read in the full embedded element MWA beam.
+        """Read in the full embedded element MWA beam."""
+        # Check for defunct future array shapes call
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
-        Parameters
-        ----------
-        h5filepath : str
-            path to input h5 file containing the MWA full embedded element spherical
-            harmonic modes. Download via
-            `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-        delays : array of ints
-            Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
-        amplitudes : array of floats
-            Array of dipole amplitudes, these are absolute values
-            (i.e. relatable to physical units).
-            Should be shape (n_pols, n_dipoles).
-        pixels_per_deg : float
-            Number of theta/phi pixels per degree. Sets the resolution of the beam.
-        freq_range : array_like of float
-            Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2.
-        run_check : bool
-            Option to check for the existence and proper shapes of
-            required parameters after reading in the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of
-            required parameters after reading in the file.
-        check_auto_power : bool
-            For power beams, check whether the auto polarization beams have non-zero
-            imaginary values in the data_array (which should not mathematically exist).
-        fix_auto_power : bool
-            For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ValueError
-            If the amplitudes or delays are the wrong shape or there are delays
-            greater than 32 or delays are not integer types.
-            If the frequency range doesn't include any
-            available frequencies.
-
-        """
         # update filename attribute
         basename = os.path.basename(h5filepath)
         self.filename = [basename]
@@ -674,8 +630,7 @@ class MWABeam(UVBeam):
 
         self.Nfreqs = freqs_use.size
         self.freq_array = freqs_use.astype(np.float64)
-        self.freq_array = self.freq_array[np.newaxis, :]
-        self.bandpass_array = np.ones((1, self.Nfreqs))
+        self.bandpass_array = np.ones(self.Nfreqs)
 
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
@@ -694,18 +649,12 @@ class MWABeam(UVBeam):
         # and axes (2, 1) correspond to (theta, phi)
         # Then add an empty dimension for Nspws.
         self.data_array = np.transpose(jones, axes=[1, 0, 2, 4, 3])
-        self.data_array = self.data_array[:, np.newaxis, :, :, :, :]
 
         self.basis_vector_array = np.zeros(
             (self.Naxes_vec, self.Ncomponents_vec, self.Naxes2, self.Naxes1)
         )
         self.basis_vector_array[0, 0, :, :] = 1.0
         self.basis_vector_array[1, 1, :, :] = 1.0
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(
