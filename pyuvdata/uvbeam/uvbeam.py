@@ -340,6 +340,18 @@ class UVBeam(UVBase):
             tols=1e-3,
         )
 
+        desc = (
+            "Flag indicating that this object is using the future array shapes. "
+            "Defunct, will be removed in version 3.2."
+        )
+        self._future_array_shapes = uvp.UVParameter(
+            "future_array_shapes",
+            description=desc,
+            expected_type=bool,
+            value=True,
+            acceptable_vals=[True],
+        )
+
         # --------- metadata -------------
         self._telescope_name = uvp.UVParameter(
             "telescope_name",
