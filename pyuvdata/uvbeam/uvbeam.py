@@ -17,20 +17,11 @@ from scipy import interpolate
 from .. import _uvbeam
 from .. import parameter as uvp
 from .. import utils as uvutils
-from ..docstrings import combine_docstrings
+from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
 from . import initializers
 
 __all__ = ["UVBeam"]
-
-_future_array_shapes_warning = (
-    "The shapes of several attributes will be changing in the future to remove the "
-    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
-    "method to convert to the future array shapes now or set the parameter of the same "
-    "name on this method to both convert to the future array shapes and silence this "
-    "warning. See the UVBeam tutorial on ReadTheDocs for more details about these "
-    "shape changes."
-)
 
 
 class UVBeam(UVBase):
@@ -260,7 +251,7 @@ class UVBeam(UVBase):
             required=False,
             expected_type=str,
             form=("Nfeeds",),
-            acceptable_vals=["N", "E", "x", "y", "R", "L", "n", "e", "r", "l"],
+            acceptable_vals=["x", "y", "n", "e", "r", "l"],
         )
 
         self._Npols = uvp.UVParameter(
@@ -286,14 +277,11 @@ class UVBeam(UVBase):
             acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
         )
 
-        desc = (
-            "Array of frequencies, center of the channel, "
-            "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz."
-        )
+        desc = "Array of frequencies, center of the channel, shape (Nfreqs,), units Hz."
         self._freq_array = uvp.UVParameter(
             "freq_array",
             description=desc,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
         )  # mHz
@@ -325,21 +313,16 @@ class UVBeam(UVBase):
             "Depending on beam type, either complex E-field values "
             "('efield' beam type) or power values ('power' beam type) for "
             "beam model. Units are normalized to either peak or solid angle as "
-            "given by data_normalization. The shape depends on whether "
-            "future_array_shapes is True, the beam_type and pixel_coordinate_system, "
-            "If future_array_shapes is True, and it is a 'healpix' beam, the shape is: "
+            "given by data_normalization. The shape depends on the beam_type and "
+            "pixel_coordinate_system. If it is a 'healpix' beam, the shape is: "
             "(Naxes_vec, Nfeeds or Npols, Nfreqs, Npixels), if it is not a healpix "
             "beam it is (Naxes_vec, Nfeeds or Npols, Nfreqs, Naxes2, Naxes1)."
-            "If future_array_shapes is False, and it is a 'healpix' beam, the shape "
-            "is: (Naxes_vec, 1, Nfeeds or Npols, Nfreqs, Npixels), "
-            "if it is not a healpix beam it is "
-            "(Naxes_vec, 1, Nfeeds or Npols, Nfreqs, Naxes2, Naxes1)."
         )
         self._data_array = uvp.UVParameter(
             "data_array",
             description=desc,
             expected_type=complex,
-            form=("Naxes_vec", 1, "Nfeeds", "Nfreqs", "Naxes2", "Naxes1"),
+            form=("Naxes_vec", "Nfeeds", "Nfreqs", "Naxes2", "Naxes1"),
             tols=1e-3,
         )
 
@@ -347,20 +330,14 @@ class UVBeam(UVBase):
             "Frequency dependence of the beam. Depending on the data_normalization, "
             "this may contain only the frequency dependence of the receiving "
             "chain ('physical' normalization) or all the frequency dependence "
-            "('peak' normalization). Shape (1, Nfreqs) or (Nfreqs,) if "
-            "future_array_shapes=True"
+            "('peak' normalization). Shape is (Nfreqs,)."
         )
         self._bandpass_array = uvp.UVParameter(
             "bandpass_array",
             description=desc,
             expected_type=float,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             tols=1e-3,
-        )
-
-        desc = "Flag indicating that this object is using the future array shapes."
-        self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes", description=desc, expected_type=bool, value=False
         )
 
         # --------- metadata -------------
@@ -478,15 +455,13 @@ class UVBeam(UVBase):
         desc = (
             'Required if antenna_type = "phased_array". Matrix of complex '
             "element couplings, units: dB, "
-            "shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, Nfreqs) or "
-            "(Nelements, Nelements, Nfeeds, Nfeeds, Nfreqs) if future_array_shapes is "
-            "True."
+            "shape: (Nelements, Nelements, Nfeeds, Nfeeds, Nfreqs)."
         )
         self._coupling_matrix = uvp.UVParameter(
             "coupling_matrix",
             required=False,
             description=desc,
-            form=("Nelements", "Nelements", "Nfeeds", "Nfeeds", 1, "Nfreqs"),
+            form=("Nelements", "Nelements", "Nfeeds", "Nfeeds", "Nfreqs"),
             expected_type=complex,
         )
 
@@ -533,41 +508,32 @@ class UVBeam(UVBase):
             tols=1e-3,
         )
 
-        desc = (
-            "Array of receiver temperatures, units K. Shape (1, Nfreqs) or (Nfreqs,) "
-            "if future_array_shapes=True"
-        )
+        desc = "Array of receiver temperatures, units K. Shape (Nfreqs,)."
         self._receiver_temperature_array = uvp.UVParameter(
             "receiver_temperature_array",
             required=False,
             description=desc,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
         )
 
-        desc = (
-            "Array of antenna losses, units dB? Shape (1, Nfreqs) or (Nfreqs,) "
-            "if future_array_shapes=True"
-        )
+        desc = "Array of antenna losses, units dB? Shape (Nfreqs,)."
         self._loss_array = uvp.UVParameter(
             "loss_array",
             required=False,
             description=desc,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
         )
 
-        desc = (
-            "Array of antenna-amplifier mismatches, units ? Shape (1, Nfreqs) or "
-            "(Nfreqs,) if future_array_shapes=True"
-        )
+        desc = "Array of antenna-amplifier mismatches, units ? Shape (Nfreqs,)."
         self._mismatch_array = uvp.UVParameter(
             "mismatch_array",
             required=False,
             description=desc,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
         )
@@ -575,13 +541,13 @@ class UVBeam(UVBase):
         desc = (
             "S parameters of receiving chain, ordering: s11, s12, s21, s22. see "
             "https://en.wikipedia.org/wiki/Scattering_parameters#Two-Port_S-Parameters"
-            "Shape (4, 1, Nfreqs) or (4, Nfreqs) if future_array_shapes is True"
+            "Shape (4, Nfreqs)."
         )
         self._s_parameters = uvp.UVParameter(
             "s_parameters",
             required=False,
             description=desc,
-            form=(4, 1, "Nfreqs"),
+            form=(4, "Nfreqs"),
             expected_type=float,
             tols=1e-3,
         )
@@ -612,58 +578,6 @@ class UVBeam(UVBase):
         """
         return initializers.new_uvbeam(**kwargs)
 
-    def __setattr__(self, __name: str, __value) -> None:
-        """Raise DeprecationWarnings for setting freq_interp_kind."""
-        if __name == "freq_interp_kind":
-            warnings.warn(
-                "The freq_interp_kind attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6. "
-                "Instead, pass the desired function to the `interp` or "
-                "`to_healpix` methods. ",
-                DeprecationWarning,
-            )
-        elif __name == "spw_array":
-            warnings.warn(
-                "The spw_array attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6.",
-                DeprecationWarning,
-            )
-        elif __name == "Nspws":
-            warnings.warn(
-                "The Nspws attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6.",
-                DeprecationWarning,
-            )
-        return super().__setattr__(__name, __value)
-
-    def __getattr__(self, __name: str):
-        """Raise DeprecationWarnings for interpolation_function."""
-        if __name == "freq_interp_kind":
-            warnings.warn(
-                "The freq_interp_kind attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6."
-                "Instead, pass the desired function to the `interp` or "
-                "`to_healpix` methods. ",
-                DeprecationWarning,
-            )
-            return None
-        elif __name == "spw_array":
-            warnings.warn(
-                "The spw_array attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6.",
-                DeprecationWarning,
-            )
-            return None
-        elif __name == "Nspws":
-            warnings.warn(
-                "The Nspws attribute on UVBeam objects is "
-                "deprecated and support for it will be removed in version 2.6.",
-                DeprecationWarning,
-            )
-            return None
-        # Error if attribute not found
-        return self.__getattribute__(__name)
-
     def _freq_params(self):
         """List of strings giving the parameters shaped like the freq_array."""
         form = self._freq_array.form
@@ -674,120 +588,39 @@ class UVBeam(UVBase):
                 param_list.append(this_par.name)
         return param_list
 
-    def _set_future_array_shapes(self):
+    def _set_future_array_shapes(self, use_future_array_shapes=None):
         """
         Set future_array_shapes to True and adjust required parameters.
 
         This method should not be called directly by users; instead it is called
         by file-reading methods and `use_future_array_shapes` to indicate the
         `future_array_shapes` is True and define expected parameter shapes.
-
+        This function has been deprecated, and will result in an error in version 3.2.
         """
-        for prop_name in self._freq_params():
-            getattr(self, "_" + prop_name).form = ("Nfreqs",)
-
-        self._s_parameters.form = (4, "Nfreqs")
-        self._data_array.form = ("Naxes_vec", "Nfeeds", "Nfreqs", "Naxes2", "Naxes1")
-        self._coupling_matrix.form = (
-            "Nelements",
-            "Nelements",
-            "Nfeeds",
-            "Nfeeds",
-            "Nfreqs",
-        )
-        self.future_array_shapes = True
-
-    def use_future_array_shapes(self, *, unset_spw_params=None):
-        """
-        Change the array shapes of this object to match the planned future shapes.
-
-        This method sets allows users to convert to the planned array shapes changes
-        before the changes go into effect. This method sets the `future_array_shapes`
-        parameter on this object to True.
-
-        Parameters
-        ----------
-        unset_spw_params : bool
-            Deprecated and has no effect.
-
-        """
-        if unset_spw_params is not None:
-            warnings.warn(
-                "The unset_spw_params parameter is deprecated and has no effect. "
-                "This will become an error in version 2.6.",
-                DeprecationWarning,
-            )
-
-        if self.future_array_shapes:
+        if use_future_array_shapes is None:
+            # This basically wraps no-ops when no argument is passed.
             return
-        self._set_future_array_shapes()
-        self.data_array = self.data_array[:, 0]
-        if self.coupling_matrix is not None:
-            self.coupling_matrix = self.coupling_matrix[:, :, :, :, 0]
 
-        for prop_name in self._freq_params():
-            this_prop = getattr(self, prop_name)
-            if this_prop is not None:
-                setattr(self, prop_name, this_prop[0, :])
-
-        if self.s_parameters is not None:
-            self.s_parameters = self.s_parameters[:, 0, :]
-
-    def use_current_array_shapes(self, *, set_spw_params=None):
-        """
-        Change the array shapes of this object to match the current future shapes.
-
-        This method sets allows users to convert back to the current array shapes.
-        This method sets the `future_array_shapes` parameter on this object to False.
-
-        Parameters
-        ----------
-        set_spw_params : bool
-            Deprecated and has no effect.
-
-        """
+        if not use_future_array_shapes:
+            raise ValueError(
+                'The future is now! So-called "current" array shapes no longer '
+                'supported, must use "future" array shapes (spw-axis dropped).'
+            )
         warnings.warn(
-            "This method will be removed in version 3.0 when the current array shapes "
-            "are no longer supported.",
+            (
+                "Future array shapes are now always used, setting/calling "
+                "use_future_array_shapes will result in an error in version 3.2."
+            ),
             DeprecationWarning,
         )
 
-        if set_spw_params is not None:
-            warnings.warn(
-                "The set_spw_params parameter is deprecated and has no effect. "
-                "This will become an error in version 2.6.",
-                DeprecationWarning,
-            )
+    def use_future_array_shapes(self):
+        """
+        Change the array shapes of this object to match the planned future shapes.
 
-        if not self.future_array_shapes:
-            return
-
-        self._data_array.form = ("Naxes_vec", 1, "Nfeeds", "Nfreqs", "Naxes2", "Naxes1")
-        self.data_array = self.data_array[:, np.newaxis]
-
-        self._coupling_matrix.form = (
-            "Nelements",
-            "Nelements",
-            "Nfeeds",
-            "Nfeeds",
-            1,
-            "Nfreqs",
-        )
-        if self.coupling_matrix is not None:
-            self.coupling_matrix = self.coupling_matrix[:, :, :, :, np.newaxis]
-
-        self._s_parameters.form = (4, 1, "Nfreqs")
-        if self.s_parameters is not None:
-            self.s_parameters = self.s_parameters[:, np.newaxis, :]
-
-        for prop_name in self._freq_params():
-            getattr(self, "_" + prop_name).form = (1, "Nfreqs")
-
-            this_prop = getattr(self, prop_name)
-            if this_prop is not None:
-                setattr(self, prop_name, this_prop[np.newaxis, :])
-
-        self.future_array_shapes = False
+        This function has been deprecated, and will result in an error in version 3.2.
+        """
+        self._set_future_array_shapes(True)
 
     def _set_cs_params(self):
         """Set parameters depending on pixel_coordinate_system."""
@@ -802,28 +635,10 @@ class UVBeam(UVBase):
             self._pixel_array.required = True
             self._basis_vector_array.form = ("Naxes_vec", "Ncomponents_vec", "Npixels")
 
-            if self.future_array_shapes:
-                if self.beam_type == "power":
-                    self._data_array.form = ("Naxes_vec", "Npols", "Nfreqs", "Npixels")
-                else:
-                    self._data_array.form = ("Naxes_vec", "Nfeeds", "Nfreqs", "Npixels")
+            if self.beam_type == "power":
+                self._data_array.form = ("Naxes_vec", "Npols", "Nfreqs", "Npixels")
             else:
-                if self.beam_type == "power":
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        1,
-                        "Npols",
-                        "Nfreqs",
-                        "Npixels",
-                    )
-                else:
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        1,
-                        "Nfeeds",
-                        "Nfreqs",
-                        "Npixels",
-                    )
+                self._data_array.form = ("Naxes_vec", "Nfeeds", "Nfreqs", "Npixels")
         else:
             self._Naxes1.required = True
             self._axis1_array.required = True
@@ -842,42 +657,22 @@ class UVBeam(UVBase):
                 "Naxes2",
                 "Naxes1",
             )
-            if self.future_array_shapes:
-                if self.beam_type == "power":
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        "Npols",
-                        "Nfreqs",
-                        "Naxes2",
-                        "Naxes1",
-                    )
-                else:
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        "Nfeeds",
-                        "Nfreqs",
-                        "Naxes2",
-                        "Naxes1",
-                    )
+            if self.beam_type == "power":
+                self._data_array.form = (
+                    "Naxes_vec",
+                    "Npols",
+                    "Nfreqs",
+                    "Naxes2",
+                    "Naxes1",
+                )
             else:
-                if self.beam_type == "power":
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        1,
-                        "Npols",
-                        "Nfreqs",
-                        "Naxes2",
-                        "Naxes1",
-                    )
-                else:
-                    self._data_array.form = (
-                        "Naxes_vec",
-                        1,
-                        "Nfeeds",
-                        "Nfreqs",
-                        "Naxes2",
-                        "Naxes1",
-                    )
+                self._data_array.form = (
+                    "Naxes_vec",
+                    "Nfeeds",
+                    "Nfreqs",
+                    "Naxes2",
+                    "Naxes1",
+                )
 
     def _set_efield(self):
         """Set beam_type to 'efield' and adjust required parameters."""
@@ -955,12 +750,7 @@ class UVBeam(UVBase):
             # If we only have auto pol beams the data_array should be float not complex
             self.data_array = np.abs(self.data_array)
         elif np.any(pol_screen):
-            if self.future_array_shapes:
-                self.data_array[:, pol_screen] = np.abs(self.data_array[:, pol_screen])
-            else:
-                self.data_array[:, :, pol_screen] = np.abs(
-                    self.data_array[:, :, pol_screen]
-                )
+            self.data_array[:, pol_screen] = np.abs(self.data_array[:, pol_screen])
 
     def _check_auto_power(self, *, fix_auto_power=False, warn_tols=(0, 0)):
         """
@@ -994,10 +784,7 @@ class UVBeam(UVBase):
                 for pol in self.polarization_array
             ]
         )
-        if self.future_array_shapes:
-            pol_axis = 1
-        else:
-            pol_axis = 2
+        pol_axis = 1
         if np.any(pol_screen) and np.any(
             np.iscomplex(np.rollaxis(self.data_array, pol_axis)[pol_screen])
         ):
@@ -1120,14 +907,9 @@ class UVBeam(UVBase):
                 "normalization is not yet implemented"
             )
         for i in range(self.Nfreqs):
-            if self.future_array_shapes:
-                max_val = abs(self.data_array[:, :, i]).max()
-                self.data_array[:, :, i, :] /= max_val
-                self.bandpass_array[i] *= max_val
-            else:
-                max_val = abs(self.data_array[:, :, :, i]).max()
-                self.data_array[:, :, :, i] /= max_val
-                self.bandpass_array[:, i] *= max_val
+            max_val = abs(self.data_array[:, :, i]).max()
+            self.data_array[:, :, i, :] /= max_val
+            self.bandpass_array[i] *= max_val
         self.data_normalization = "peak"
 
     def efield_to_power(
@@ -1220,64 +1002,32 @@ class UVBeam(UVBase):
 
         if keep_basis_vector:
             for pol_i, pair in enumerate(feed_pol_order):
-                if beam_object.future_array_shapes:
-                    power_data[:, pol_i] = efield_data[:, pair[0]] * np.conj(
-                        efield_data[:, pair[1]]
-                    )
-                else:
-                    power_data[:, :, pol_i] = efield_data[:, :, pair[0]] * np.conj(
-                        efield_data[:, :, pair[1]]
-                    )
+                power_data[:, pol_i] = efield_data[:, pair[0]] * np.conj(
+                    efield_data[:, pair[1]]
+                )
         else:
             for pol_i, pair in enumerate(feed_pol_order):
                 if efield_naxes_vec == 2:
                     for comp_i in range(2):
-                        if beam_object.future_array_shapes:
-                            power_data[0, pol_i] += (
-                                (
-                                    efield_data[0, pair[0]]
-                                    * np.conj(efield_data[0, pair[1]])
-                                )
-                                * beam_object.basis_vector_array[0, comp_i] ** 2
-                                + (
-                                    efield_data[1, pair[0]]
-                                    * np.conj(efield_data[1, pair[1]])
-                                )
-                                * beam_object.basis_vector_array[1, comp_i] ** 2
-                                + (
-                                    efield_data[0, pair[0]]
-                                    * np.conj(efield_data[1, pair[1]])
-                                    + efield_data[1, pair[0]]
-                                    * np.conj(efield_data[0, pair[1]])
-                                )
-                                * (
-                                    beam_object.basis_vector_array[0, comp_i]
-                                    * beam_object.basis_vector_array[1, comp_i]
-                                )
+                        power_data[0, pol_i] += (
+                            (efield_data[0, pair[0]] * np.conj(efield_data[0, pair[1]]))
+                            * beam_object.basis_vector_array[0, comp_i] ** 2
+                            + (
+                                efield_data[1, pair[0]]
+                                * np.conj(efield_data[1, pair[1]])
                             )
-                        else:
-                            power_data[0, :, pol_i] += (
-                                (
-                                    efield_data[0, :, pair[0]]
-                                    * np.conj(efield_data[0, :, pair[1]])
-                                )
-                                * beam_object.basis_vector_array[0, comp_i] ** 2
-                                + (
-                                    efield_data[1, :, pair[0]]
-                                    * np.conj(efield_data[1, :, pair[1]])
-                                )
-                                * beam_object.basis_vector_array[1, comp_i] ** 2
-                                + (
-                                    efield_data[0, :, pair[0]]
-                                    * np.conj(efield_data[1, :, pair[1]])
-                                    + efield_data[1, :, pair[0]]
-                                    * np.conj(efield_data[0, :, pair[1]])
-                                )
-                                * (
-                                    beam_object.basis_vector_array[0, comp_i]
-                                    * beam_object.basis_vector_array[1, comp_i]
-                                )
+                            * beam_object.basis_vector_array[1, comp_i] ** 2
+                            + (
+                                efield_data[0, pair[0]]
+                                * np.conj(efield_data[1, pair[1]])
+                                + efield_data[1, pair[0]]
+                                * np.conj(efield_data[0, pair[1]])
                             )
+                            * (
+                                beam_object.basis_vector_array[0, comp_i]
+                                * beam_object.basis_vector_array[1, comp_i]
+                            )
+                        )
                 else:
                     raise ValueError(
                         "Conversion to power with 3-vector efields "
@@ -1453,14 +1203,9 @@ class UVBeam(UVBase):
         # construct jones matrix containing the electric field
 
         pol_strings = ["pI", "pQ", "pU", "pV"]
-        if beam_object.future_array_shapes:
-            power_data = np.zeros(
-                (1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex128
-            )
-        else:
-            power_data = np.zeros(
-                (1, 1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex128
-            )
+        power_data = np.zeros(
+            (1, len(pol_strings), _sh[-2], _sh[-1]), dtype=np.complex128
+        )
         beam_object.polarization_array = np.array(
             [
                 uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
@@ -1471,26 +1216,15 @@ class UVBeam(UVBase):
         for fq_i in range(Nfreqs):
             jones = np.zeros((_sh[-1], 2, 2), dtype=np.complex128)
             pol_strings = ["pI", "pQ", "pU", "pV"]
-            if beam_object.future_array_shapes:
-                jones[:, 0, 0] = efield_data[0, 0, fq_i, :]
-                jones[:, 0, 1] = efield_data[0, 1, fq_i, :]
-                jones[:, 1, 0] = efield_data[1, 0, fq_i, :]
-                jones[:, 1, 1] = efield_data[1, 1, fq_i, :]
-            else:
-                jones[:, 0, 0] = efield_data[0, 0, 0, fq_i, :]
-                jones[:, 0, 1] = efield_data[0, 0, 1, fq_i, :]
-                jones[:, 1, 0] = efield_data[1, 0, 0, fq_i, :]
-                jones[:, 1, 1] = efield_data[1, 0, 1, fq_i, :]
+            jones[:, 0, 0] = efield_data[0, 0, fq_i, :]
+            jones[:, 0, 1] = efield_data[0, 1, fq_i, :]
+            jones[:, 1, 0] = efield_data[1, 0, fq_i, :]
+            jones[:, 1, 1] = efield_data[1, 1, fq_i, :]
 
             for pol_i in range(len(pol_strings)):
-                if beam_object.future_array_shapes:
-                    power_data[:, pol_i, fq_i, :] = self._construct_mueller(
-                        jones=jones, pol_index1=pol_i, pol_index2=pol_i
-                    )
-                else:
-                    power_data[:, :, pol_i, fq_i, :] = self._construct_mueller(
-                        jones=jones, pol_index1=pol_i, pol_index2=pol_i
-                    )
+                power_data[:, pol_i, fq_i, :] = self._construct_mueller(
+                    jones=jones, pol_index1=pol_i, pol_index2=pol_i
+                )
         assert not np.any(np.iscomplex(power_data)), (
             "The calculated pstokes beams are complex but should be real. This is a "
             "bug, please report it in our issue log"
@@ -1541,19 +1275,14 @@ class UVBeam(UVBase):
         Returns
         -------
         interp_data : array_like of float or complex
-            The array of interpolated data values,
-            shape: (Naxes_vec, 1, Nfeeds or Npols, freq_array.size,
-            Npixels or (Naxis2, Naxis1)) or (Naxes_vec, Nfeeds or Npols,
-            freq_array.size, Npixels or (Naxis2, Naxis1)) if future_array_shapes is True
+            The array of interpolated data values, shape: (Naxes_vec, Nfeeds or Npols,
+            freq_array.size, Npixels or (Naxis2, Naxis1))
         interp_bandpass : array_like of float
-            The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size)
-            if future_array_shapes is True
+            The interpolated bandpass. shape: (freq_array.size)
         interp_coupling_matrix : array_like of complex, optional
             The interpolated coupling matrix. Only returned if antenna_type is
             "phased_array".
-            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
-            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
-            future_array_shapes is True.
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
         assert isinstance(freq_array, np.ndarray)
@@ -1561,35 +1290,20 @@ class UVBeam(UVBase):
 
         # use the beam at nearest neighbors if kind is 'nearest'
         if kind == "nearest":
-            if self.future_array_shapes:
-                freq_dists = np.abs(
-                    self.freq_array[np.newaxis] - freq_array.reshape(-1, 1)
-                )
-                nearest_inds = np.argmin(freq_dists, axis=1)
-                interp_arrays = [
-                    self.data_array[:, :, nearest_inds, :],
-                    self.bandpass_array[nearest_inds],
-                ]
-            else:
-                freq_dists = np.abs(self.freq_array - freq_array.reshape(-1, 1))
-                nearest_inds = np.argmin(freq_dists, axis=1)
-                interp_arrays = [
-                    self.data_array[:, :, :, nearest_inds, :],
-                    self.bandpass_array[:, nearest_inds],
-                ]
+            freq_dists = np.abs(self.freq_array[np.newaxis] - freq_array.reshape(-1, 1))
+            nearest_inds = np.argmin(freq_dists, axis=1)
+            interp_arrays = [
+                self.data_array[:, :, nearest_inds, :],
+                self.bandpass_array[nearest_inds],
+            ]
             if self.antenna_type == "phased_array":
                 interp_arrays.append(self.coupling_matrix[..., nearest_inds])
 
         # otherwise interpolate the beam
         else:
-            if self.future_array_shapes:
-                beam_freqs = copy.copy(self.freq_array)
-                data_axis = 2
-                bandpass_axis = 0
-            else:
-                beam_freqs = self.freq_array[0, :]
-                data_axis = 3
-                bandpass_axis = 1
+            beam_freqs = copy.copy(self.freq_array)
+            data_axis = 2
+            bandpass_axis = 0
 
             if self.Nfreqs == 1:
                 raise ValueError("Only one frequency in UVBeam so cannot interpolate.")
@@ -1640,10 +1354,7 @@ class UVBeam(UVBase):
 
                 interp_arrays.append(lut(freq_array))
 
-        if self.future_array_shapes:
-            exp_ndim = 1
-        else:
-            exp_ndim = 2
+        exp_ndim = 1
 
         assert interp_arrays[1].ndim == exp_ndim
 
@@ -1693,21 +1404,16 @@ class UVBeam(UVBase):
         -------
         interp_data : array_like of float or complex
             The array of interpolated data values,
-            shape: (Naxes_vec, 1, Nfeeds or Npols, freq_array.size, az_array.size) or
-            (Naxes_vec, Nfeeds or Npols, freq_array.size, az_array.size) if
-            future_array_shapes is True
+            shape: (Naxes_vec, Nfeeds or Npols, freq_array.size, az_array.size)
         interp_basis_vector : array_like of float
             The array of interpolated basis vectors,
             shape: (Naxes_vec, Ncomponents_vec, az_array.size)
         interp_bandpass : array_like of float
-            The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size,)
-            if future_array_shapes is True
+            The interpolated bandpass. shape: (freq_array.size,)
         interp_coupling_matrix : array_like of complex, optional
             The interpolated coupling matrix. Only returned if antenna_type is
             "phased_array".
-            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
-            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
-            future_array_shapes is True.
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
         if self.pixel_coordinate_system != "az_za":
@@ -1731,10 +1437,7 @@ class UVBeam(UVBase):
         else:
             input_data_array = self.data_array
             input_nfreqs = self.Nfreqs
-            if self.future_array_shapes:
-                freq_array = self.freq_array
-            else:
-                freq_array = self.freq_array[0]
+            freq_array = self.freq_array
             interp_bandpass = self.bandpass_array[0]
             if self.antenna_type == "phased_array":
                 interp_coupling_matrix = self.coupling_matrix
@@ -1760,11 +1463,7 @@ class UVBeam(UVBase):
 
         phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
 
-        if self.future_array_shapes:
-            freq_axis = 2
-        else:
-            freq_axis = 3
-
+        freq_axis = 2
         assert input_data_array.shape[freq_axis] == input_nfreqs
 
         if np.iscomplexobj(input_data_array):
@@ -1873,10 +1572,7 @@ class UVBeam(UVBase):
                         "is outside of the UVBeam pixel coverage."
                     )
 
-        if self.future_array_shapes:
-            data_shape = (self.Naxes_vec, Npol_feeds, input_nfreqs, npoints)
-        else:
-            data_shape = (self.Naxes_vec, 1, Npol_feeds, input_nfreqs, npoints)
+        data_shape = (self.Naxes_vec, Npol_feeds, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
 
         if spline_opts is None or not isinstance(spline_opts, dict):
@@ -1896,10 +1592,7 @@ class UVBeam(UVBase):
                             lut = self.saved_interp_functions[key]
 
                     if do_interp:
-                        if self.future_array_shapes:
-                            data_inds = (index0, index2, index3)
-                        else:
-                            data_inds = (index0, 0, index2, index3)
+                        data_inds = (index0, index2, index3)
                         if np.iscomplexobj(data_use):
                             # interpolate real and imaginary parts separately
                             real_lut = interpolate.RectBivariateSpline(
@@ -1926,14 +1619,9 @@ class UVBeam(UVBase):
                         if reuse_spline:
                             self.saved_interp_functions[key] = lut
 
-                    if self.future_array_shapes:
-                        interp_data[index0, pol_return_ind, index3, :] = lut(
-                            za_array, az_array
-                        )
-                    else:
-                        interp_data[index0, 0, pol_return_ind, index3, :] = lut(
-                            za_array, az_array
-                        )
+                    interp_data[index0, pol_return_ind, index3, :] = lut(
+                        za_array, az_array
+                    )
 
         interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
         if self.antenna_type == "phased_array":
@@ -1975,21 +1663,16 @@ class UVBeam(UVBase):
         -------
         interp_data : array_like of float or complex
             The array of interpolated data values,
-            shape: (Naxes_vec, 1, Nfeeds or Npols, Nfreqs, az_array.size) or
-            (Naxes_vec, Nfeeds or Npols, Nfreqs, az_array.size) if future_array_shapes
-            is True
+            shape: (Naxes_vec, Nfeeds or Npols, Nfreqs, az_array.size)
         interp_basis_vector : array_like of float
             The array of interpolated basis vectors,
             shape: (Naxes_vec, Ncomponents_vec, az_array.size)
         interp_bandpass : array_like of float
-            The interpolated bandpass. shape: (1, freq_array.size) or (freq_array.size,)
-            if future_array_shapes is True
+            The interpolated bandpass. shape: (freq_array.size,)
         interp_coupling_matrix : array_like of complex, optional
             The interpolated coupling matrix. Only returned if antenna_type is
             "phased_array".
-            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
-            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
-            future_array_shapes is True.
+            shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
         if self.pixel_coordinate_system != "healpix":
@@ -2078,16 +1761,9 @@ class UVBeam(UVBase):
             data_type = np.complex128
         else:
             data_type = np.float64
-        if self.future_array_shapes:
-            interp_data = np.zeros(
-                (self.Naxes_vec, Npol_feeds, input_nfreqs, len(az_array)),
-                dtype=data_type,
-            )
-        else:
-            interp_data = np.zeros(
-                (self.Naxes_vec, 1, Npol_feeds, input_nfreqs, len(az_array)),
-                dtype=data_type,
-            )
+        interp_data = np.zeros(
+            (self.Naxes_vec, Npol_feeds, input_nfreqs, len(az_array)), dtype=data_type
+        )
 
         if self.basis_vector_array is not None:
             if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
@@ -2118,10 +1794,7 @@ class UVBeam(UVBase):
         for index3 in range(input_nfreqs):
             for index0 in range(self.Naxes_vec):
                 for index2 in range(Npol_feeds):
-                    if self.future_array_shapes:
-                        data_inds = (index0, pol_inds[index2], index3)
-                    else:
-                        data_inds = (index0, 0, pol_inds[index2], index3)
+                    data_inds = (index0, pol_inds[index2], index3)
                     if np.iscomplexobj(input_data_array):
                         # interpolate real and imaginary parts separately
                         real_hmap = hp_obj.interpolate_bilinear_lonlat(
@@ -2138,10 +1811,7 @@ class UVBeam(UVBase):
                             lon_array, lat_array, input_data_array[data_inds]
                         )
 
-                    if self.future_array_shapes:
-                        interp_data[index0, index2, index3, :] = hmap
-                    else:
-                        interp_data[index0, 0, index2, index3, :] = hmap
+                    interp_data[index0, index2, index3, :] = hmap
 
         interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
         if self.antenna_type == "phased_array":
@@ -2200,11 +1870,9 @@ class UVBeam(UVBase):
             objects with the "healpix" pixel_coordinate_system.
         freq_interp_kind : str
             Interpolation method to use frequency. See scipy.interpolate.interp1d
-            for details. Defaults to the freq_interp_kind attribute on the object
-            if it is set (setting it is deprecated), otherwise it defaults to:
-            "cubic" (Note that this is a change. It used to default to "linear"
-            when it was assigned to the object. However, multiple groups have
-            found that a linear interpolation leads to nasty artifacts in
+            for details. Deefaults to "cubic" (Note that this is a change. It used to
+            default to "linear" when it was assigned to the object. However, multiple
+            groups have found that a linear interpolation leads to nasty artifacts in
             visibility simulations for EoR applications.)
         az_za_grid : bool
             Option to treat the `az_array` and `za_array` as the input vectors
@@ -2256,11 +1924,10 @@ class UVBeam(UVBase):
         array_like of float or complex or a UVBeam object
             Either an array of interpolated values or a UVBeam object if
             `new_object` is True. The shape of the interpolated data will be:
-            (Naxes_vec, 1, Nfeeds or Npols, Nfreqs or freq_array.size if
+            (Naxes_vec, Nfeeds or Npols, Nfreqs or freq_array.size if
             freq_array is passed, Npixels/(Naxis1, Naxis2) or az_array.size if
             az/za_arrays are passed) or (Naxes_vec, Nfeeds or Npols,
             Nfreqs or freq_array.size if freq_array is passed, Npixels/(Naxis1, Naxis2)
-            or az_array.size if az/za_arrays are passed) if future_array_shapes is True.
         interp_basis_vector : array_like of float, optional
             The array of interpolated basis vectors (or self.basis_vector_array
             if az/za_arrays are not passed). Only returned if `new_object` is False.
@@ -2268,15 +1935,11 @@ class UVBeam(UVBase):
             az_array.size if az/za_arrays are passed)
         interp_bandpass : array_like of float, optional
             The interpolated bandpass, only returned if `return_bandpass` is True and
-            `new_object` is False.
-            shape: (1, freq_array.size) or (freq_array.size,) if future_array_shapes is
-            True.
+            `new_object` is False. Shape: (freq_array.size,)
         interp_coupling_matrix : array_like of complex, optional
             The interpolated coupling matrix. Only returned if return_coupling is True
             and `new_object` is False.
-            shape: (Nelements, Nelements, Nfeeds, Nfeeds, 1, freq_array.size) or
-            (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size) if
-            future_array_shapes is True.
+            Shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
         if interpolation_function is None:
@@ -2290,24 +1953,8 @@ class UVBeam(UVBase):
                     f"pixel_coordinate_system: {self.pixel_coordinate_system}"
                 )
 
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", "The freq_interp_kind attribute on UVBeam objects"
-            )
-            if freq_interp_kind is None and self.freq_interp_kind is None:
-                freq_interp_kind = "cubic"
-            elif freq_interp_kind is not None and self.freq_interp_kind is not None:
-                if freq_interp_kind != self.freq_interp_kind:
-                    warnings.warn(
-                        "The freq_interp_kind parameter was set but it does not "
-                        "match the freq_interp_kind attribute on the object. "
-                        "Using the one passed to this method."
-                    )
-
-            if freq_interp_kind is not None:
-                kind_use = freq_interp_kind
-            else:
-                kind_use = self.freq_interp_kind
+        if freq_interp_kind is None:
+            freq_interp_kind = "cubic"
 
         if return_coupling is True and self.antenna_type != "phased_array":
             raise ValueError(
@@ -2339,7 +1986,7 @@ class UVBeam(UVBase):
 
             # use the beam at nearest neighbors if not interp_bool
             if not interp_bool:
-                kind_use = "nearest"
+                freq_interp_kind = "nearest"
 
         if az_za_grid:
             if az_array is None or za_array is None:
@@ -2390,7 +2037,7 @@ class UVBeam(UVBase):
             az_array=az_array_use,
             za_array=za_array_use,
             freq_array=freq_array,
-            freq_interp_kind=kind_use,
+            freq_interp_kind=freq_interp_kind,
             polarizations=polarizations,
             **extra_keyword_dict,
         )
@@ -2422,10 +2069,7 @@ class UVBeam(UVBase):
             if freq_array is not None:
                 history_update_string += " in frequency"
                 new_uvb.Nfreqs = freq_array.size
-                if self.future_array_shapes:
-                    new_uvb.freq_array = freq_array
-                else:
-                    new_uvb.freq_array = freq_array.reshape(1, -1)
+                new_uvb.freq_array = freq_array
                 new_uvb.bandpass_array = interp_bandpass
 
                 if self.antenna_type == "phased_array":
@@ -2506,7 +2150,7 @@ class UVBeam(UVBase):
                 f" using pyuvdata with interpolation_function = {interp_func_name}"
             )
             if freq_array is not None:
-                history_update_string += f" and freq_interp_kind = {kind_use}"
+                history_update_string += f" and freq_interp_kind = {freq_interp_kind}"
             history_update_string += "."
             new_uvb.history = new_uvb.history + history_update_string
             new_uvb.data_array = interp_data
@@ -2663,10 +2307,7 @@ class UVBeam(UVBase):
         pol_array = self.polarization_array
         if pol in pol_array:
             stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
-            if self.future_array_shapes:
-                beam = self.data_array[0, stokes_p_ind]
-            else:
-                beam = self.data_array[0, 0, stokes_p_ind]
+            beam = self.data_array[0, stokes_p_ind]
         else:
             raise ValueError("Do not have the right polarization information")
 
@@ -2812,14 +2453,6 @@ class UVBeam(UVBase):
                 )
         other.check(check_extra=check_extra, run_check_acceptability=False)
 
-        # check that both objects have the same array shapes
-        if this.future_array_shapes != other.future_array_shapes:
-            raise ValueError(
-                "Both objects must have the same `future_array_shapes` parameter. "
-                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
-                "methods to convert them."
-            )
-
         # Check objects are compatible
         compatibility_params = [
             "_beam_type",
@@ -2884,10 +2517,7 @@ class UVBeam(UVBase):
         else:
             both_pol = np.intersect1d(this.feed_array, other.feed_array)
 
-        if self.future_array_shapes:
-            both_freq = np.intersect1d(this.freq_array, other.freq_array)
-        else:
-            both_freq = np.intersect1d(this.freq_array[0, :], other.freq_array[0, :])
+        both_freq = np.intersect1d(this.freq_array, other.freq_array)
 
         if this.pixel_coordinate_system == "healpix":
             both_pixels = np.intersect1d(this.pixel_array, other.pixel_array)
@@ -2944,12 +2574,7 @@ class UVBeam(UVBase):
             else:
                 ax2_new_inds = []
 
-        if self.future_array_shapes:
-            temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
-        else:
-            temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[
-                0
-            ]
+        temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
         if len(temp) > 0:
             fnew_inds = temp
             if n_axes > 0:
@@ -2988,10 +2613,7 @@ class UVBeam(UVBase):
         # Pad out self to accommodate new data
         if this.pixel_coordinate_system == "healpix":
             if len(pix_new_inds) > 0:
-                if self.future_array_shapes:
-                    data_pix_axis = 3
-                else:
-                    data_pix_axis = 4
+                data_pix_axis = 3
                 data_pad_dims = tuple(
                     list(this.data_array.shape[0:data_pix_axis])
                     + [len(pix_new_inds)]
@@ -3024,10 +2646,7 @@ class UVBeam(UVBase):
                     )[:, :, order]
         else:
             if len(ax1_new_inds) > 0:
-                if self.future_array_shapes:
-                    data_ax1_axis = 4
-                else:
-                    data_ax1_axis = 5
+                data_ax1_axis = 4
                 data_pad_dims = tuple(
                     list(this.data_array.shape[0:data_ax1_axis])
                     + [len(ax1_new_inds)]
@@ -3059,10 +2678,7 @@ class UVBeam(UVBase):
                     )[:, :, :, order]
 
             if len(ax2_new_inds) > 0:
-                if self.future_array_shapes:
-                    data_ax2_axis = 3
-                else:
-                    data_ax2_axis = 4
+                data_ax2_axis = 3
                 data_pad_dims = tuple(
                     list(this.data_array.shape[0:data_ax2_axis])
                     + [len(ax2_new_inds)]
@@ -3095,10 +2711,7 @@ class UVBeam(UVBase):
                     )[:, :, order, ...]
 
         if len(fnew_inds) > 0:
-            if self.future_array_shapes:
-                faxis = 2
-            else:
-                faxis = 3
+            faxis = 2
             data_pad_dims = tuple(
                 list(this.data_array.shape[0:faxis])
                 + [len(fnew_inds)]
@@ -3106,68 +2719,34 @@ class UVBeam(UVBase):
             )
             data_zero_pad = np.zeros(data_pad_dims, dtype=this.data_array.dtype)
 
-            if self.future_array_shapes:
-                this.freq_array = np.concatenate(
-                    [this.freq_array, other.freq_array[fnew_inds]]
-                )
-                order = np.argsort(this.freq_array)
-                this.freq_array = this.freq_array[order]
+            this.freq_array = np.concatenate(
+                [this.freq_array, other.freq_array[fnew_inds]]
+            )
+            order = np.argsort(this.freq_array)
+            this.freq_array = this.freq_array[order]
 
-                this.bandpass_array = np.concatenate(
-                    [this.bandpass_array, np.zeros(len(fnew_inds))]
+            this.bandpass_array = np.concatenate(
+                [this.bandpass_array, np.zeros(len(fnew_inds))]
+            )[order]
+            this.data_array = np.concatenate(
+                [this.data_array, data_zero_pad], axis=faxis
+            )[:, :, order, ...]
+            if this.receiver_temperature_array is not None:
+                this.receiver_temperature_array = np.concatenate(
+                    [this.receiver_temperature_array, np.zeros(len(fnew_inds))]
                 )[order]
-                this.data_array = np.concatenate(
-                    [this.data_array, data_zero_pad], axis=faxis
-                )[:, :, order, ...]
-                if this.receiver_temperature_array is not None:
-                    this.receiver_temperature_array = np.concatenate(
-                        [this.receiver_temperature_array, np.zeros(len(fnew_inds))]
-                    )[order]
-                if this.loss_array is not None:
-                    this.loss_array = np.concatenate(
-                        [this.loss_array, np.zeros(len(fnew_inds))]
-                    )[order]
-                if this.mismatch_array is not None:
-                    this.mismatch_array = np.concatenate(
-                        [this.mismatch_array, np.zeros(len(fnew_inds))]
-                    )[order]
-                if this.s_parameters is not None:
-                    this.s_parameters = np.concatenate(
-                        [this.s_parameters, np.zeros((4, len(fnew_inds)))], axis=1
-                    )[:, order]
-            else:
-                this.freq_array = np.concatenate(
-                    [this.freq_array, other.freq_array[:, fnew_inds]], axis=1
-                )
-                order = np.argsort(this.freq_array[0, :])
-                this.freq_array = this.freq_array[:, order]
-
-                this.bandpass_array = np.concatenate(
-                    [this.bandpass_array, np.zeros((1, len(fnew_inds)))], axis=1
+            if this.loss_array is not None:
+                this.loss_array = np.concatenate(
+                    [this.loss_array, np.zeros(len(fnew_inds))]
+                )[order]
+            if this.mismatch_array is not None:
+                this.mismatch_array = np.concatenate(
+                    [this.mismatch_array, np.zeros(len(fnew_inds))]
+                )[order]
+            if this.s_parameters is not None:
+                this.s_parameters = np.concatenate(
+                    [this.s_parameters, np.zeros((4, len(fnew_inds)))], axis=1
                 )[:, order]
-                this.data_array = np.concatenate(
-                    [this.data_array, data_zero_pad], axis=faxis
-                )[:, :, :, order, ...]
-                if this.receiver_temperature_array is not None:
-                    this.receiver_temperature_array = np.concatenate(
-                        [
-                            this.receiver_temperature_array,
-                            np.zeros((1, len(fnew_inds))),
-                        ],
-                        axis=1,
-                    )[:, order]
-                if this.loss_array is not None:
-                    this.loss_array = np.concatenate(
-                        [this.loss_array, np.zeros((1, len(fnew_inds)))], axis=1
-                    )[:, order]
-                if this.mismatch_array is not None:
-                    this.mismatch_array = np.concatenate(
-                        [this.mismatch_array, np.zeros((1, len(fnew_inds)))], axis=1
-                    )[:, order]
-                if this.s_parameters is not None:
-                    this.s_parameters = np.concatenate(
-                        [this.s_parameters, np.zeros((4, 1, len(fnew_inds)))], axis=2
-                    )[:, :, order]
             if this.antenna_type == "phased_array":
                 coupling_pad_dims = tuple(
                     list(this.coupling_matrix.shape[0:-1]) + [len(fnew_inds)]
@@ -3180,10 +2759,7 @@ class UVBeam(UVBase):
                 )[..., order]
 
         if len(pnew_inds) > 0:
-            if self.future_array_shapes:
-                paxis = 1
-            else:
-                paxis = 2
+            paxis = 1
             data_pad_dims = tuple(
                 list(this.data_array.shape[0:paxis])
                 + [len(pnew_inds)]
@@ -3231,14 +2807,9 @@ class UVBeam(UVBase):
                         [this.coupling_matrix, coupling_zero_pad], axis=3
                     )[:, :, :, order]
 
-            if self.future_array_shapes:
-                this.data_array = np.concatenate(
-                    [this.data_array, data_zero_pad], axis=paxis
-                )[:, order, ...]
-            else:
-                this.data_array = np.concatenate(
-                    [this.data_array, data_zero_pad], axis=paxis
-                )[:, :, order, ...]
+            this.data_array = np.concatenate(
+                [this.data_array, data_zero_pad], axis=paxis
+            )[:, order, ...]
 
         # Now populate the data
         if this.beam_type == "power":
@@ -3263,24 +2834,14 @@ class UVBeam(UVBase):
             this.Nfeeds = this.feed_array.shape[0]
             pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
 
-        if self.future_array_shapes:
-            freq_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
-        else:
-            freq_t2o = np.nonzero(
-                np.in1d(this.freq_array[0, :], other.freq_array[0, :])
-            )[0]
+        freq_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
 
         if this.pixel_coordinate_system == "healpix":
             this.Npixels = this.pixel_array.shape[0]
             pix_t2o = np.nonzero(np.in1d(this.pixel_array, other.pixel_array))[0]
-            if self.future_array_shapes:
-                this.data_array[
-                    np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, pix_t2o)
-                ] = other.data_array
-            else:
-                this.data_array[
-                    np.ix_(np.arange(this.Naxes_vec), [0], pol_t2o, freq_t2o, pix_t2o)
-                ] = other.data_array
+            this.data_array[
+                np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, pix_t2o)
+            ] = other.data_array
             if this.beam_type == "efield":
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), pix_t2o)
@@ -3290,89 +2851,43 @@ class UVBeam(UVBase):
             this.Naxes2 = this.axis2_array.shape[0]
             ax1_t2o = np.nonzero(np.in1d(this.axis1_array, other.axis1_array))[0]
             ax2_t2o = np.nonzero(np.in1d(this.axis2_array, other.axis2_array))[0]
-            if self.future_array_shapes:
-                this.data_array[
-                    np.ix_(
-                        np.arange(this.Naxes_vec), pol_t2o, freq_t2o, ax2_t2o, ax1_t2o
-                    )
-                ] = other.data_array
-            else:
-                this.data_array[
-                    np.ix_(
-                        np.arange(this.Naxes_vec),
-                        [0],
-                        pol_t2o,
-                        freq_t2o,
-                        ax2_t2o,
-                        ax1_t2o,
-                    )
-                ] = other.data_array
+            this.data_array[
+                np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, ax2_t2o, ax1_t2o)
+            ] = other.data_array
             if this.beam_type == "efield":
                 this.basis_vector_array[
                     np.ix_(np.arange(this.Naxes_vec), np.arange(2), ax2_t2o, ax1_t2o)
                 ] = other.basis_vector_array
 
-        if self.future_array_shapes:
-            this.bandpass_array[np.ix_(freq_t2o)] = other.bandpass_array
-            if this.receiver_temperature_array is not None:
-                this.receiver_temperature_array[np.ix_(freq_t2o)] = (
-                    other.receiver_temperature_array
-                )
-            if this.loss_array is not None:
-                this.loss_array[np.ix_(freq_t2o)] = other.loss_array
-            if this.mismatch_array is not None:
-                this.mismatch_array[np.ix_(freq_t2o)] = other.mismatch_array
-            if this.s_parameters is not None:
-                this.s_parameters[np.ix_(np.arange(4), freq_t2o)] = other.s_parameters
+        this.bandpass_array[np.ix_(freq_t2o)] = other.bandpass_array
+        if this.receiver_temperature_array is not None:
+            this.receiver_temperature_array[np.ix_(freq_t2o)] = (
+                other.receiver_temperature_array
+            )
+        if this.loss_array is not None:
+            this.loss_array[np.ix_(freq_t2o)] = other.loss_array
+        if this.mismatch_array is not None:
+            this.mismatch_array[np.ix_(freq_t2o)] = other.mismatch_array
+        if this.s_parameters is not None:
+            this.s_parameters[np.ix_(np.arange(4), freq_t2o)] = other.s_parameters
 
-            if this.antenna_type == "phased_array":
-                this.coupling_matrix[
-                    np.ix_(
-                        np.arange(this.Nelements),
-                        np.arange(this.Nelements),
-                        pol_t2o,
-                        pol_t2o,
-                        freq_t2o,
-                    )
-                ] = other.coupling_matrix
-        else:
-            this.bandpass_array[np.ix_([0], freq_t2o)] = other.bandpass_array
-
-            if this.receiver_temperature_array is not None:
-                this.receiver_temperature_array[np.ix_([0], freq_t2o)] = (
-                    other.receiver_temperature_array
+        if this.antenna_type == "phased_array":
+            this.coupling_matrix[
+                np.ix_(
+                    np.arange(this.Nelements),
+                    np.arange(this.Nelements),
+                    pol_t2o,
+                    pol_t2o,
+                    freq_t2o,
                 )
-            if this.loss_array is not None:
-                this.loss_array[np.ix_([0], freq_t2o)] = other.loss_array
-            if this.mismatch_array is not None:
-                this.mismatch_array[np.ix_([0], freq_t2o)] = other.mismatch_array
-            if this.s_parameters is not None:
-                this.s_parameters[np.ix_(np.arange(4), [0], freq_t2o)] = (
-                    other.s_parameters
-                )
-
-            if this.antenna_type == "phased_array":
-                this.coupling_matrix[
-                    np.ix_(
-                        np.arange(this.Nelements),
-                        np.arange(this.Nelements),
-                        pol_t2o,
-                        pol_t2o,
-                        [0],
-                        freq_t2o,
-                    )
-                ] = other.coupling_matrix
+            ] = other.coupling_matrix
 
         this.Nfreqs = this.freq_array.size
 
         # Check specific requirements
         if this.Nfreqs > 1:
-            if self.future_array_shapes:
-                freq_arr_test = this.freq_array
-            else:
-                freq_arr_test = this.freq_array[0, :]
             if not uvutils._test_array_constant_spacing(
-                freq_arr_test, tols=this._freq_array.tols
+                this.freq_array, tols=this._freq_array.tols
             ):
                 warnings.warn(
                     "Combined frequencies are not evenly spaced. This will "
@@ -3589,25 +3104,13 @@ class UVBeam(UVBase):
 
         if freq_chans is not None:
             freq_chans = uvutils._get_iterable(freq_chans)
-            if self.future_array_shapes:
-                if frequencies is None:
-                    frequencies = beam_object.freq_array[freq_chans]
-                else:
-                    frequencies = uvutils._get_iterable(frequencies)
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
-                    )
+            if frequencies is None:
+                frequencies = beam_object.freq_array[freq_chans]
             else:
-                if frequencies is None:
-                    frequencies = beam_object.freq_array[0, freq_chans]
-                else:
-                    frequencies = uvutils._get_iterable(frequencies)
-                    frequencies = np.sort(
-                        list(
-                            set(frequencies)
-                            | set(beam_object.freq_array[0, freq_chans])
-                        )
-                    )
+                frequencies = uvutils._get_iterable(frequencies)
+                frequencies = np.sort(
+                    list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
+                )
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
@@ -3618,10 +3121,7 @@ class UVBeam(UVBase):
             n_selects += 1
 
             freq_inds = np.zeros(0, dtype=np.int64)
-            if self.future_array_shapes:
-                freq_arr_use = beam_object.freq_array
-            else:
-                freq_arr_use = beam_object.freq_array[0, :]
+            freq_arr_use = beam_object.freq_array
             for f in frequencies:
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
@@ -3632,62 +3132,32 @@ class UVBeam(UVBase):
 
             freq_inds = sorted(set(freq_inds))
             beam_object.Nfreqs = len(freq_inds)
-            if self.future_array_shapes:
-                beam_object.freq_array = beam_object.freq_array[freq_inds]
-                beam_object.bandpass_array = beam_object.bandpass_array[freq_inds]
+            beam_object.freq_array = beam_object.freq_array[freq_inds]
+            beam_object.bandpass_array = beam_object.bandpass_array[freq_inds]
 
-                if beam_object.Nfreqs > 1:
-                    freq_separation = (
-                        beam_object.freq_array[1:] - beam_object.freq_array[:-1]
+            if beam_object.Nfreqs > 1:
+                freq_separation = (
+                    beam_object.freq_array[1:] - beam_object.freq_array[:-1]
+                )
+                if not uvutils._test_array_constant(
+                    freq_separation, tols=beam_object._freq_array.tols
+                ):
+                    warnings.warn(
+                        "Selected frequencies are not evenly spaced. This "
+                        "is not supported by the regularly gridded beam fits format"
                     )
-                    if not uvutils._test_array_constant(
-                        freq_separation, tols=beam_object._freq_array.tols
-                    ):
-                        warnings.warn(
-                            "Selected frequencies are not evenly spaced. This "
-                            "is not supported by the regularly gridded beam fits format"
-                        )
-                if beam_object.receiver_temperature_array is not None:
-                    rx_temp_array = beam_object.receiver_temperature_array
-                    beam_object.receiver_temperature_array = rx_temp_array[freq_inds]
+            if beam_object.receiver_temperature_array is not None:
+                rx_temp_array = beam_object.receiver_temperature_array
+                beam_object.receiver_temperature_array = rx_temp_array[freq_inds]
 
-                if beam_object.loss_array is not None:
-                    beam_object.loss_array = beam_object.loss_array[freq_inds]
+            if beam_object.loss_array is not None:
+                beam_object.loss_array = beam_object.loss_array[freq_inds]
 
-                if beam_object.mismatch_array is not None:
-                    beam_object.mismatch_array = beam_object.mismatch_array[freq_inds]
+            if beam_object.mismatch_array is not None:
+                beam_object.mismatch_array = beam_object.mismatch_array[freq_inds]
 
-                if beam_object.s_parameters is not None:
-                    beam_object.s_parameters = beam_object.s_parameters[:, freq_inds]
-            else:
-                beam_object.freq_array = beam_object.freq_array[:, freq_inds]
-                beam_object.bandpass_array = beam_object.bandpass_array[:, freq_inds]
-
-                if beam_object.Nfreqs > 1:
-                    freq_separation = (
-                        beam_object.freq_array[0, 1:] - beam_object.freq_array[0, :-1]
-                    )
-                    if not uvutils._test_array_constant(
-                        freq_separation, tols=beam_object._freq_array.tols
-                    ):
-                        warnings.warn(
-                            "Selected frequencies are not evenly spaced. This "
-                            "is not supported by the regularly gridded beam fits format"
-                        )
-                if beam_object.receiver_temperature_array is not None:
-                    rx_temp_array = beam_object.receiver_temperature_array
-                    beam_object.receiver_temperature_array = rx_temp_array[:, freq_inds]
-
-                if beam_object.loss_array is not None:
-                    beam_object.loss_array = beam_object.loss_array[:, freq_inds]
-
-                if beam_object.mismatch_array is not None:
-                    beam_object.mismatch_array = beam_object.mismatch_array[
-                        :, freq_inds
-                    ]
-
-                if beam_object.s_parameters is not None:
-                    beam_object.s_parameters = beam_object.s_parameters[:, :, freq_inds]
+            if beam_object.s_parameters is not None:
+                beam_object.s_parameters = beam_object.s_parameters[:, freq_inds]
 
             if beam_object.pixel_coordinate_system == "healpix":
                 beam_object.data_array = beam_object.data_array[..., freq_inds, :]
@@ -3857,20 +3327,7 @@ class UVBeam(UVBase):
             setattr(other_obj, p, param)
         return other_obj
 
-    def read_beamfits(
-        self,
-        filename,
-        *,
-        use_future_array_shapes=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
-        freq_range=None,
-        az_range=None,
-        za_range=None,
-    ):
+    def read_beamfits(self, filename, **kwargs):
         """
         Read in data from a beamfits file.
 
@@ -3879,8 +3336,7 @@ class UVBeam(UVBase):
         filename : str or list of str
             The beamfits file or list of files to read from.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         run_check : bool
             Option to check for the existence and proper shapes of
             required parameters after reading in the file.
@@ -3911,49 +3367,16 @@ class UVBeam(UVBase):
         from . import beamfits
 
         if isinstance(filename, (list, tuple)):
-            self.read_beamfits(
-                filename[0],
-                use_future_array_shapes=use_future_array_shapes,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                check_auto_power=check_auto_power,
-                fix_auto_power=fix_auto_power,
-                freq_range=freq_range,
-                az_range=az_range,
-                za_range=za_range,
-            )
+            self.read_beamfits(filename[0], **kwargs)
             if len(filename) > 1:
                 for f in filename[1:]:
                     beam2 = UVBeam()
-                    beam2.read_beamfits(
-                        f,
-                        use_future_array_shapes=use_future_array_shapes,
-                        run_check=run_check,
-                        check_extra=check_extra,
-                        run_check_acceptability=run_check_acceptability,
-                        check_auto_power=check_auto_power,
-                        fix_auto_power=fix_auto_power,
-                        freq_range=freq_range,
-                        az_range=az_range,
-                        za_range=za_range,
-                    )
+                    beam2.read_beamfits(f, *kwargs)
                     self += beam2
                 del beam2
         else:
             beamfits_obj = beamfits.BeamFITS()
-            beamfits_obj.read_beamfits(
-                filename,
-                use_future_array_shapes=use_future_array_shapes,
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-                check_auto_power=check_auto_power,
-                fix_auto_power=fix_auto_power,
-                freq_range=freq_range,
-                az_range=az_range,
-                za_range=za_range,
-            )
+            beamfits_obj.read_beamfits(filename, **kwargs)
             self._convert_from_filetype(beamfits_obj)
             del beamfits_obj
 
@@ -4001,7 +3424,7 @@ class UVBeam(UVBase):
         filename,
         *,
         beam_type="power",
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         feed_pol=None,
         rotate_pol=None,
         frequency=None,
@@ -4057,8 +3480,7 @@ class UVBeam(UVBase):
         beam_type : str
             What beam_type to read in ('power' or 'efield').
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         feed_pol : str
             The feed or polarization or list of feeds or polarizations the
             files correspond to.
@@ -4371,7 +3793,6 @@ class UVBeam(UVBase):
             cst_beam_obj.read_cst_beam(
                 cst_filename,
                 beam_type=beam_type,
-                use_future_array_shapes=use_future_array_shapes,
                 feed_pol=feed_pol,
                 rotate_pol=rotate_pol,
                 frequency=frequency,
@@ -4399,21 +3820,7 @@ class UVBeam(UVBase):
             self.filename = uvutils._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
-    def read_mwa_beam(
-        self,
-        h5filepath,
-        *,
-        use_future_array_shapes=False,
-        delays=None,
-        amplitudes=None,
-        pixels_per_deg=5,
-        freq_range=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
-    ):
+    def read_mwa_beam(self, h5filepath, **kwargs):
         """
         Read in the full embedded element MWA beam.
 
@@ -4430,8 +3837,7 @@ class UVBeam(UVBase):
             harmonic modes. Download via
             `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         delays : array of ints
             Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
         amplitudes : array of floats
@@ -4462,19 +3868,7 @@ class UVBeam(UVBase):
         from . import mwa_beam
 
         mwabeam_obj = mwa_beam.MWABeam()
-        mwabeam_obj.read_mwa_beam(
-            h5filepath,
-            use_future_array_shapes=use_future_array_shapes,
-            delays=delays,
-            amplitudes=amplitudes,
-            pixels_per_deg=pixels_per_deg,
-            freq_range=freq_range,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            check_auto_power=check_auto_power,
-            fix_auto_power=fix_auto_power,
-        )
+        mwabeam_obj.read_mwa_beam(h5filepath, **kwargs)
         self._convert_from_filetype(mwabeam_obj)
         del mwabeam_obj
 
@@ -4484,7 +3878,7 @@ class UVBeam(UVBase):
         *,
         file_type=None,
         skip_bad_files=False,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         # checking parameters
         run_check=True,
         check_extra=True,
@@ -4565,8 +3959,7 @@ class UVBeam(UVBase):
             that produce errors will be printed. Default is False (files will
             not be skipped).
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
 
         Checking
         --------
@@ -4685,6 +4078,8 @@ class UVBeam(UVBase):
         ValueError
             If the file_type is not set and cannot be determined from the file name.
         """
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         if isinstance(filename, (list, tuple, np.ndarray)):
             multi = True
         else:
@@ -4716,7 +4111,6 @@ class UVBeam(UVBase):
             # beam reading. Let it handle the hard work.
             self.read_cst_beam(
                 filename,
-                use_future_array_shapes=use_future_array_shapes,
                 beam_type=beam_type,
                 feed_pol=feed_pol,
                 rotate_pol=rotate_pol,
@@ -4749,7 +4143,6 @@ class UVBeam(UVBase):
                             filename[file_num],
                             file_type=file_type,
                             skip_bad_files=skip_bad_files,
-                            use_future_array_shapes=use_future_array_shapes,
                             # checking parameters
                             run_check=run_check,
                             check_extra=check_extra,
@@ -4801,7 +4194,6 @@ class UVBeam(UVBase):
                                 fname,
                                 file_type=file_type,
                                 skip_bad_files=skip_bad_files,
-                                use_future_array_shapes=use_future_array_shapes,
                                 # checking parameters
                                 run_check=run_check,
                                 check_extra=check_extra,
@@ -4867,7 +4259,6 @@ class UVBeam(UVBase):
                 if file_type == "mwa_beam":
                     self.read_mwa_beam(
                         filename,
-                        use_future_array_shapes=use_future_array_shapes,
                         delays=delays,
                         amplitudes=amplitudes,
                         pixels_per_deg=pixels_per_deg,
@@ -4881,7 +4272,6 @@ class UVBeam(UVBase):
                 elif file_type == "beamfits":
                     self.read_beamfits(
                         filename,
-                        use_future_array_shapes=use_future_array_shapes,
                         run_check=run_check,
                         check_extra=check_extra,
                         run_check_acceptability=run_check_acceptability,
@@ -4893,262 +4283,14 @@ class UVBeam(UVBase):
                     )
 
     @classmethod
-    def from_file(
-        cls,
-        filename,
-        *,
-        file_type=None,
-        skip_bad_files=False,
-        use_future_array_shapes=False,
-        # checking parameters
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
-        # beamfits parameters
-        az_range=None,
-        za_range=None,
-        # beamfits & mwa parameters
-        freq_range=None,
-        # cst parameters
-        beam_type="power",
-        feed_pol=None,
-        rotate_pol=None,
-        frequency=None,
-        telescope_name=None,
-        feed_name=None,
-        feed_version=None,
-        model_name=None,
-        model_version=None,
-        history=None,
-        x_orientation=None,
-        reference_impedance=None,
-        extra_keywords=None,
-        frequency_select=None,
-        # mwa parameters
-        delays=None,
-        amplitudes=None,
-        pixels_per_deg=5,
-    ):
-        """
-        Initialize a new UVBeam object by reading the input file(s).
-
-        Some parameters only apply to certain file types.
-
-        Parameters
-        ----------
-        filename : str or array_like of str
-            The file(s) or list(s) (or array(s)) of files to read from.
-
-            For cst yaml files only:
-
-            Settings yaml files must include the following keywords:
-
-                |  - telescope_name (str)
-                |  - feed_name (str)
-                |  - feed_version (str)
-                |  - model_name (str)
-                |  - model_version (str)
-                |  - history (str)
-                |  - frequencies (list(float))
-                |  - cst text filenames (list(str)) -- path relative to yaml file
-                |  - feed_pol (str) or (list(str))
-
-            and they may include the following optional keywords:
-
-                |  - x_orientation (str): Optional but strongly encouraged!
-                |  - ref_imp (float): beam model reference impedance
-                |  - sim_beam_type (str): e.g. 'E-farfield'
-                |  - all other fields will go into the extra_keywords attribute
-
-            More details and an example are available in the docs
-            (cst_settings_yaml.rst).
-            Specifying any of the associated keywords to this function will
-            override the values in the settings file.
-
-        file_type : str
-            One of ['mwa_beam', 'beamfits', 'cst'] or None.
-            If None, the code attempts to guess what the file type is.
-            based on file extensions
-            (mwa_beam: .hdf5, .h5; cst: .yaml, .txt; beamfits: .fits, .beamfits).
-            Note that if a list of datasets is passed, the file type is
-            determined from the first dataset.
-        skip_bad_files : bool
-            Option when reading multiple files to catch read errors such that
-            the read continues even if one or more files are corrupted. Files
-            that produce errors will be printed. Default is False (files will
-            not be skipped).
-        use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Checking
-        --------
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after after reading in the file (the default is True,
-            meaning the check will be run). Ignored if read_data is False.
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-            Ignored if read_data is False.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters after
-            reading in the file (the default is True, meaning the acceptable
-            range check will be done). Ignored if read_data is False.
-        check_auto_power : bool
-            For power beams, check whether the auto polarization beams have non-zero
-            imaginary values in the data_array (which should not mathematically exist).
-        fix_auto_power : bool
-            For power beams, if auto polarization beams with imaginary values are found,
-            fix those values so that they are real-only in data_array.
-
-        Beamfits
-        --------
-        az_range : tuple of float in deg
-            The azimuth range to read in, if the beam is specified in az/za coordinates.
-            Default is to read in all azimuths. Restricting the azimuth reduces peak
-            memory usage. Only used for beamfits files that have their coordinates
-            in az/za grid.
-        za_range : tuple of float in deg
-            The zenith angle range to read in, if the beam is specified in za/za
-            coordinates. Default is to read in all za. Restricting the za reduces peak
-            memory. Only used for beamfits files that have their coordinates
-            in az/za grid.
-
-        Beamfits & MWA
-        --------------
-        freq_range : array_like of float
-            Range of frequencies to include in Hz, defaults to all available
-            frequencies. Must be length 2. Only applies to mwa_beam and beamfits
-            type files. For beamfits, this will cause a *partial read* (i.e. reduce
-            peak memory usage).
-
-        CST
-        ---
-        beam_type : str
-            What beam_type to read in ('power' or 'efield').
-            Only applies to cst file types.
-        feed_pol : str
-            The feed or polarization or list of feeds or polarizations the
-            files correspond to.
-            Defaults to 'x' (meaning x for efield or xx for power beams).
-            Only applies to cst file types.
-        rotate_pol : bool
-            If True, assume the structure in the simulation is symmetric under
-            90 degree rotations about the z-axis (so that the y polarization can be
-            constructed by rotating the x polarization or vice versa).
-            Default: True if feed_pol is a single value or a list with all
-            the same values in it, False if it is a list with varying values.
-            Only applies to cst file types.
-        frequency : float or list of float, optional
-            The frequency or list of frequencies corresponding to the filename(s).
-            This is assumed to be in the same order as the files.
-            If not passed, the code attempts to parse it from the filenames.
-            Only applies to cst file types.
-        telescope_name : str, optional
-            The name of the telescope corresponding to the filename(s).
-            Only applies to cst file types.
-        feed_name : str, optional
-            The name of the feed corresponding to the filename(s).
-            Only applies to cst file types.
-        feed_version : str, optional
-            The version of the feed corresponding to the filename(s).
-            Only applies to cst file types.
-        model_name : str, optional
-            The name of the model corresponding to the filename(s).
-            Only applies to cst file types.
-        model_version : str, optional
-            The version of the model corresponding to the filename(s).
-            Only applies to cst file types.
-        history : str, optional
-            A string detailing the history of the filename(s).
-            Only applies to cst file types.
-        x_orientation : str, optional
-            Orientation of the physical dipole corresponding to what is
-            labelled as the x polarization. Options are "east" (indicating
-            east/west orientation) and "north" (indicating north/south orientation)
-            Only applies to cst file types.
-        reference_impedance : float, optional
-            The reference impedance of the model(s).
-            Only applies to cst file types.
-        extra_keywords : dict, optional
-            A dictionary containing any extra_keywords.
-            Only applies to cst file types.
-        frequency_select : list of float, optional
-            Only used if the file is a yaml file. Indicates which frequencies
-            to include (only read in files for those frequencies)
-            Only applies to cst file types.
-
-        MWA
-        ---
-        delays : array of ints
-            Array of MWA beamformer delay steps. Should be shape (n_pols, n_dipoles).
-            Only applies to mwa_beam type files.
-        amplitudes : array of floats
-            Array of dipole amplitudes, these are absolute values
-            (i.e. relatable to physical units).
-            Should be shape (n_pols, n_dipoles).
-            Only applies to mwa_beam type files.
-        pixels_per_deg : float
-            Number of theta/phi pixels per degree. Sets the resolution of the beam.
-            Only applies to mwa_beam type files.
-
-        Raises
-        ------
-        ValueError
-            If the file_type is not set and cannot be determined from the file name.
-        """
+    @copy_replace_short_description(read, style=DocstringStyle.NUMPYDOC)
+    def from_file(cls, filename, **kwargs):
+        """Initialize a new UVBeam object by reading the input file(s)."""
         uvbeam = cls()
-        uvbeam.read(
-            filename,
-            file_type=file_type,
-            skip_bad_files=skip_bad_files,
-            use_future_array_shapes=use_future_array_shapes,
-            # checking parameters
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            check_auto_power=check_auto_power,
-            fix_auto_power=fix_auto_power,
-            # beamfits parameters
-            az_range=az_range,
-            za_range=za_range,
-            # cst parameters
-            beam_type=beam_type,
-            feed_pol=feed_pol,
-            rotate_pol=rotate_pol,
-            frequency=frequency,
-            telescope_name=telescope_name,
-            feed_name=feed_name,
-            feed_version=feed_version,
-            model_name=model_name,
-            model_version=model_version,
-            history=history,
-            x_orientation=x_orientation,
-            reference_impedance=reference_impedance,
-            extra_keywords=extra_keywords,
-            frequency_select=frequency_select,
-            # mwa parameters
-            delays=delays,
-            amplitudes=amplitudes,
-            pixels_per_deg=pixels_per_deg,
-            freq_range=freq_range,
-        )
+        uvbeam.read(filename, **kwargs)
         return uvbeam
 
-    def write_beamfits(
-        self,
-        filename,
-        *,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=False,
-        clobber=False,
-    ):
+    def write_beamfits(self, filename, **kwargs):
         """
         Write the data to a beamfits file.
 
@@ -5176,13 +4318,5 @@ class UVBeam(UVBase):
 
         """
         beamfits_obj = self._convert_to_filetype("beamfits")
-        beamfits_obj.write_beamfits(
-            filename,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            check_auto_power=check_auto_power,
-            fix_auto_power=fix_auto_power,
-            clobber=clobber,
-        )
+        beamfits_obj.write_beamfits(filename, **kwargs)
         del beamfits_obj
