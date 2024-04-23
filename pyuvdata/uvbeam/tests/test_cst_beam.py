@@ -12,7 +12,6 @@ import pyuvdata.tests as uvtest
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvbeam.cst_beam import CSTBeam
-from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
@@ -105,10 +104,7 @@ def test_frequencyparse_decimal_non_mhz():
     assert parsed_freqs == [120.87e3, 120.87e9, 120.87]
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_read_yaml(cst_efield_2freq_mod, future_shapes):
+def test_read_yaml(cst_efield_2freq_mod):
     beam1 = UVBeam()
     beam2 = UVBeam()
 
@@ -120,13 +116,9 @@ def test_read_yaml(cst_efield_2freq_mod, future_shapes):
     }
 
     beam1 = cst_efield_2freq_mod
-    if not future_shapes:
-        beam1.use_current_array_shapes()
     assert beam1.filename == ["HERA_NicCST_123MHz.txt", "HERA_NicCST_150MHz.txt"]
 
-    beam2.read_cst_beam(
-        cst_yaml_file, beam_type="efield", use_future_array_shapes=future_shapes
-    )
+    beam2.read_cst_beam(cst_yaml_file, beam_type="efield")
     assert beam2.filename == sorted(
         [
             os.path.basename(cst_yaml_file),
@@ -169,9 +161,7 @@ def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
 
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(
-        test_yaml_file, beam_type="efield", use_future_array_shapes=True
-    )
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
@@ -200,12 +190,7 @@ def test_read_yaml_override(cst_efield_2freq_mod):
             "the value in the settings yaml file."
         ),
     ):
-        beam2.read_cst_beam(
-            cst_yaml_file,
-            beam_type="efield",
-            telescope_name="test",
-            use_future_array_shapes=True,
-        )
+        beam2.read_cst_beam(cst_yaml_file, beam_type="efield", telescope_name="test")
 
     assert beam1 == beam2
 
@@ -220,24 +205,14 @@ def test_read_yaml_freq_select(cst_efield_1freq_mod):
 
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(
-        cst_yaml_file,
-        beam_type="efield",
-        frequency_select=[150e6],
-        use_future_array_shapes=True,
-    )
+    beam2.read_cst_beam(cst_yaml_file, beam_type="efield", frequency_select=[150e6])
 
     assert beam1 == beam2
 
     # test error with using frequency_select where no such frequency
     freq = 180e6
     with pytest.raises(ValueError, match=f"frequency {freq} not in frequency list"):
-        beam2.read_cst_beam(
-            cst_yaml_file,
-            beam_type="power",
-            frequency_select=[freq],
-            use_future_array_shapes=True,
-        )
+        beam2.read_cst_beam(cst_yaml_file, beam_type="power", frequency_select=[freq])
 
 
 def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
@@ -264,9 +239,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
 
     beam1 = cst_efield_2freq_mod
 
-    beam2.read_cst_beam(
-        test_yaml_file, beam_type="efield", use_future_array_shapes=True
-    )
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
 
     assert beam2.reference_impedance == 100
@@ -275,12 +248,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
     # also test with frequency_select
     beam1 = cst_efield_1freq_mod
 
-    beam2.read_cst_beam(
-        test_yaml_file,
-        beam_type="efield",
-        frequency_select=[150e6],
-        use_future_array_shapes=True,
-    )
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
     assert beam1 == beam2
 
     os.remove(test_yaml_file)
@@ -334,21 +302,13 @@ def test_read_yaml_multi_pol(tmp_path):
             history="Derived from https://github.com/Nicolas-Fagnoni/Simulations."
             "\nOnly 2 files included to keep test data volume low.",
             extra_keywords=extra_keywords,
-            use_future_array_shapes=True,
         )
 
-    beam2.read_cst_beam(
-        test_yaml_file, beam_type="efield", use_future_array_shapes=True
-    )
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield")
     assert beam1 == beam2
 
     # also test with frequency_select
-    beam2.read_cst_beam(
-        test_yaml_file,
-        beam_type="efield",
-        frequency_select=[150e6],
-        use_future_array_shapes=True,
-    )
+    beam2.read_cst_beam(test_yaml_file, beam_type="efield", frequency_select=[150e6])
     assert beam2.feed_array.tolist() == ["x", "y"]
     assert beam1 == beam2
 
@@ -375,9 +335,7 @@ def test_read_yaml_errors(tmp_path):
             "not present."
         ),
     ):
-        beam1.read_cst_beam(
-            test_yaml_file, beam_type="power", use_future_array_shapes=True
-        )
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
@@ -388,9 +346,7 @@ def test_read_yaml_errors(tmp_path):
 
     beam1 = UVBeam()
     with pytest.raises(ValueError, match=("filenames in yaml file must be a list.")):
-        beam1.read_cst_beam(
-            test_yaml_file, beam_type="power", use_future_array_shapes=True
-        )
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     with open(cst_yaml_file, "r") as file:
         settings_dict = yaml.safe_load(file)
@@ -401,9 +357,7 @@ def test_read_yaml_errors(tmp_path):
 
     beam1 = UVBeam()
     with pytest.raises(ValueError, match=("frequencies in yaml file must be a list.")):
-        beam1.read_cst_beam(
-            test_yaml_file, beam_type="power", use_future_array_shapes=True
-        )
+        beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
     os.remove(test_yaml_file)
 
@@ -434,7 +388,6 @@ def test_read_power(cst_power_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
-        use_future_array_shapes=True,
     )
 
     assert np.allclose(beam1.freq_array, beam2.freq_array)
@@ -467,7 +420,6 @@ def test_read_power_single_freq(cst_power_1freq):
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
-            use_future_array_shapes=True,
         )
 
     assert beam2.freq_array == [150e6]
@@ -493,7 +445,6 @@ def test_read_power_multi_pol():
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
-        use_future_array_shapes=True,
     )
     assert beam1.data_array.shape == (1, 2, 1, 181, 360)
     assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
@@ -509,7 +460,6 @@ def test_read_power_multi_pol():
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
-        use_future_array_shapes=True,
     )
     assert np.allclose(beam2.polarization_array, np.array([-7, -8]))
     assert beam2.data_array.shape == (1, 2, 1, 181, 360)
@@ -590,7 +540,7 @@ def test_read_errors(files, kwargs, err_msg):
     )
 
     with pytest.raises(ValueError, match=err_msg):
-        beam1.read_cst_beam(files, **kwargs, use_future_array_shapes=True)
+        beam1.read_cst_beam(files, **kwargs)
 
 
 def test_read_efield(cst_efield_2freq):
@@ -613,7 +563,6 @@ def test_read_efield(cst_efield_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
-        use_future_array_shapes=True,
     )
     assert beam2.feed_array[0] == "y"
     assert beam2.feed_array[1] == "x"
@@ -633,7 +582,6 @@ def test_read_efield(cst_efield_2freq):
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
             rotate_pol=False,
-            use_future_array_shapes=True,
         )
 
     assert beam2.pixel_coordinate_system == "az_za"
@@ -654,7 +602,6 @@ def test_read_efield(cst_efield_2freq):
         feed_version="0.1",
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
-        use_future_array_shapes=True,
     )
     assert beam1.data_array.shape == (2, 2, 1, 181, 360)
     assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
@@ -817,7 +764,6 @@ def test_no_deg_units(tmp_path):
             feed_version="0.1",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
-            use_future_array_shapes=True,
         )
 
     with uvtest.check_warnings(
@@ -831,7 +777,6 @@ def test_no_deg_units(tmp_path):
             feed_version="0.1",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
-            use_future_array_shapes=True,
         )
 
     assert beam1 == beam2
@@ -854,7 +799,6 @@ def test_no_deg_units(tmp_path):
             feed_version="0.1",
             model_name="E-field pattern - Rigging height 4.9m",
             model_version="1.0",
-            use_future_array_shapes=True,
         )
 
 
@@ -963,12 +907,7 @@ def test_hera_yaml():
     beam1 = UVBeam()
     beam2 = UVBeam()
 
-    beam1.read_cst_beam(
-        cst_yaml_vivaldi,
-        beam_type="efield",
-        frequency_select=[150e6],
-        use_future_array_shapes=True,
-    )
+    beam1.read_cst_beam(cst_yaml_vivaldi, beam_type="efield", frequency_select=[150e6])
 
     assert beam1.reference_impedance == 100
     extra_keywords = {
@@ -979,12 +918,7 @@ def test_hera_yaml():
     }
     assert beam1.extra_keywords == extra_keywords
 
-    beam2.read_cst_beam(
-        cst_yaml_vivaldi,
-        beam_type="power",
-        frequency_select=[150e6],
-        use_future_array_shapes=True,
-    )
+    beam2.read_cst_beam(cst_yaml_vivaldi, beam_type="power", frequency_select=[150e6])
 
     beam1.efield_to_power(calc_cross_pols=False)
 
