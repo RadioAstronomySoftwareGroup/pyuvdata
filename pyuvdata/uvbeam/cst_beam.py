@@ -9,7 +9,7 @@ import warnings
 import numpy as np
 
 from .. import utils as uvutils
-from .uvbeam import UVBeam, _future_array_shapes_warning
+from .uvbeam import UVBeam
 
 __all__ = ["CSTBeam"]
 
@@ -56,7 +56,7 @@ class CSTBeam(UVBeam):
         filename,
         *,
         beam_type="power",
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         feed_pol="x",
         rotate_pol=True,
         frequency=None,
@@ -138,6 +138,9 @@ class CSTBeam(UVBeam):
             fix those values so that they are real-only in data_array.
 
         """
+        # Check for defunct future array shapes call
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]
@@ -198,8 +201,8 @@ class CSTBeam(UVBeam):
         self.antenna_type = "simple"
 
         self.Nfreqs = 1
-        self.freq_array = np.zeros((1, self.Nfreqs))
-        self.bandpass_array = np.zeros((1, self.Nfreqs))
+        self.freq_array = np.zeros(self.Nfreqs)
+        self.bandpass_array = np.zeros(self.Nfreqs)
 
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
@@ -274,9 +277,9 @@ class CSTBeam(UVBeam):
             )
 
         if frequency is not None:
-            self.freq_array[0] = frequency
+            self.freq_array[:] = frequency
         else:
-            self.freq_array[0] = self.name2freq(filename)
+            self.freq_array[:] = self.name2freq(filename)
 
         if rotate_pol:
             # for second polarization, rotate by pi/2
@@ -308,12 +311,12 @@ class CSTBeam(UVBeam):
                 ** 2.0
             )
 
-            self.data_array[0, 0, 0, 0, :, :] = power_beam1
+            self.data_array[0, 0, 0, :, :] = power_beam1
 
             if rotate_pol:
                 # rotate by pi/2 for second polarization
                 power_beam2 = np.roll(power_beam1, int((np.pi / 2) / delta_phi), axis=1)
-                self.data_array[0, 0, 1, 0, :, :] = power_beam2
+                self.data_array[0, 1, 0, :, :] = power_beam2
         else:
             self.basis_vector_array = np.zeros(
                 (self.Naxes_vec, self.Ncomponents_vec, self.Naxes2, self.Naxes1)
@@ -348,15 +351,15 @@ class CSTBeam(UVBeam):
             theta_beam = theta_mag * np.exp(1j * theta_phase)
             phi_beam = phi_mag * np.exp(1j * phi_phase)
 
-            self.data_array[0, 0, 0, 0, :, :] = phi_beam
-            self.data_array[1, 0, 0, 0, :, :] = theta_beam
+            self.data_array[0, 0, 0, :, :] = phi_beam
+            self.data_array[1, 0, 0, :, :] = theta_beam
 
             if rotate_pol:
                 # rotate by pi/2 for second polarization
                 theta_beam2 = np.roll(theta_beam, int((np.pi / 2) / delta_phi), axis=1)
                 phi_beam2 = np.roll(phi_beam, int((np.pi / 2) / delta_phi), axis=1)
-                self.data_array[0, 0, 1, 0, :, :] = phi_beam2
-                self.data_array[1, 0, 1, 0, :, :] = theta_beam2
+                self.data_array[0, 1, 0, :, :] = phi_beam2
+                self.data_array[1, 1, 0, :, :] = theta_beam2
 
         self.bandpass_array[0] = 1
 
@@ -365,11 +368,6 @@ class CSTBeam(UVBeam):
                 "No frequency provided. Detected frequency is: "
                 "{freqs} Hz".format(freqs=self.freq_array)
             )
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(
