@@ -23,7 +23,6 @@ from pyuvdata import UVBeam, _uvbeam
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvbeam.tests.test_cst_beam import cst_files, cst_yaml_file
 from pyuvdata.uvbeam.tests.test_mwa_beam import filename as mwa_beam_file
-from pyuvdata.uvbeam.uvbeam import _future_array_shapes_warning
 
 try:
     from astropy_healpix import HEALPix
@@ -54,7 +53,6 @@ def uvbeam_data():
         "model_version",
         "history",
         "antenna_type",
-        "future_array_shapes",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -258,80 +256,6 @@ def test_properties(uvbeam_data):
             raise
 
 
-@pytest.mark.parametrize("beam_type", ["efield", "power", "phased_array"])
-def test_future_array_shapes(
-    beam_type, cst_efield_2freq, cst_power_2freq, phased_array_beam_2freq
-):
-    if beam_type == "efield":
-        beam = cst_efield_2freq
-    elif beam_type == "power":
-        beam = cst_power_2freq
-    elif beam_type == "phased_array":
-        beam = phased_array_beam_2freq
-
-    beam2 = beam.copy()
-
-    # test the no-op
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The unset_spw_params parameter is deprecated and has no effect. "
-        "This will become an error in version 2.6.",
-    ):
-        beam.use_future_array_shapes(unset_spw_params=True)
-
-    with uvtest.check_warnings(
-        [DeprecationWarning] * 2,
-        match=[
-            "This method will be removed in version 3.0",
-            "The set_spw_params parameter is deprecated and has no effect. "
-            "This will become an error in version 2.6.",
-        ],
-    ):
-        beam.use_current_array_shapes(set_spw_params=False)
-    beam.check()
-
-    # test the no-op
-    with uvtest.check_warnings(
-        DeprecationWarning, match="This method will be removed in version 3.0"
-    ):
-        beam.use_current_array_shapes()
-
-    beam.use_future_array_shapes()
-    beam.check()
-
-    assert beam == beam2
-
-
-@pytest.mark.parametrize("param", ["freq_interp_kind", "spw_array", "Nspws"])
-def test_deprecated_params(cst_efield_2freq, param):
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=f"The {param} attribute on UVBeam objects is "
-        "deprecated and support for it will be removed in version 2.6.",
-    ):
-        getattr(cst_efield_2freq, param)
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=f"The {param} attribute on UVBeam objects is "
-        "deprecated and support for it will be removed in version 2.6.",
-    ):
-        setattr(cst_efield_2freq, param, "foo")
-
-    assert getattr(cst_efield_2freq, param) == "foo"
-
-
-def test_deprecated_feed_names(cst_efield_2freq):
-    cst_efield_2freq.feed_array = np.array(["N", "E"])
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="Feed array has values ['N', 'E'] that are deprecated. Values in "
-        "feed_array should be lower case. This will become an error in version 2.6",
-    ):
-        cst_efield_2freq.check()
-
-
 def test_set_cs_params(cst_efield_2freq):
     """
     Test _set_cs_params.
@@ -388,13 +312,9 @@ def test_errors():
         beam_obj._convert_to_filetype("foo")
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_check_auto_power(future_shapes, cst_efield_2freq_cut):
+def test_check_auto_power(cst_efield_2freq_cut):
     power_beam = cst_efield_2freq_cut.copy()
     power_beam.efield_to_power()
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     power_beam.data_array[..., 0, :, :, :] += power_beam.data_array[..., 2, :, :, :]
 
@@ -439,17 +359,12 @@ def test_check_auto_power_errors(cst_efield_2freq_cut):
         cst_efield_2freq_cut._fix_auto_power()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
-def test_peak_normalize(future_shapes, beam_type, cst_efield_2freq, cst_power_2freq):
+def test_peak_normalize(beam_type, cst_efield_2freq, cst_power_2freq):
     if beam_type == "efield":
         beam = cst_efield_2freq
     else:
         beam = cst_power_2freq
-
-    if not future_shapes:
-        beam.use_current_array_shapes()
 
     orig_bandpass_array = copy.deepcopy(beam.bandpass_array)
     maxima = np.zeros(beam.Nfreqs)
@@ -480,17 +395,9 @@ def test_stokes_matrix():
         beam._stokes_matrix(5)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_efield_to_pstokes(
-    future_shapes, cst_efield_2freq_cut, cst_efield_2freq_cut_healpix
-):
+def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
     pstokes_beam = cst_efield_2freq_cut
     pstokes_beam_2 = cst_efield_2freq_cut_healpix
-
-    if not future_shapes:
-        pstokes_beam.use_current_array_shapes()
-        pstokes_beam_2.use_current_array_shapes()
 
     # convert to pstokes after interpolating
     beam_return = pstokes_beam_2.efield_to_pstokes(inplace=False)
@@ -515,19 +422,12 @@ def test_efield_to_pstokes_error(cst_power_2freq_cut):
         power_beam.efield_to_pstokes()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize(
-    ["future_shapes", "physical_orientation"], [[True, False], [False, True]]
-)
+@pytest.mark.parametrize("physical_orientation", [True, False])
 def test_efield_to_power(
-    future_shapes, physical_orientation, cst_efield_2freq_cut, cst_power_2freq_cut
+    physical_orientation, cst_efield_2freq_cut, cst_power_2freq_cut
 ):
     efield_beam = cst_efield_2freq_cut
     power_beam = cst_power_2freq_cut
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
-        power_beam.use_current_array_shapes()
 
     if physical_orientation:
         efield_beam.feed_array = np.array(["e", "n"])
@@ -659,14 +559,8 @@ def test_efield_to_power_rotated(cst_efield_2freq_cut):
     assert new_power_beam == new_power_beam2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_efield_to_power_crosspol(future_shapes, cst_efield_2freq_cut, tmp_path):
+def test_efield_to_power_crosspol(cst_efield_2freq_cut, tmp_path):
     efield_beam = cst_efield_2freq_cut
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     # test calculating cross pols
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
@@ -684,7 +578,7 @@ def test_efield_to_power_crosspol(future_shapes, cst_efield_2freq_cut, tmp_path)
     write_file = str(tmp_path / "outtest_beam.fits")
     new_power_beam.write_beamfits(write_file, clobber=True)
     new_power_beam2 = UVBeam()
-    new_power_beam2.read_beamfits(write_file, use_future_array_shapes=future_shapes)
+    new_power_beam2.read_beamfits(write_file)
     assert new_power_beam == new_power_beam2
 
     # test keeping basis vectors
@@ -711,19 +605,12 @@ def test_efield_to_power_errors(cst_efield_2freq_cut, cst_power_2freq_cut):
         efield_beam.efield_to_power()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_freq_interpolation(
-    future_shapes, antenna_type, cst_power_2freq, phased_array_beam_2freq
-):
+def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2freq):
     if antenna_type == "simple":
         beam = cst_power_2freq
     else:
         beam = phased_array_beam_2freq
-
-    if not future_shapes:
-        beam.use_current_array_shapes()
 
     # test frequency interpolation returns data arrays for small and large tolerances
     freq_orig_vals = np.array([123e6, 150e6])
@@ -797,23 +684,16 @@ def test_freq_interpolation(
             "currently support interpolating it in frequency. Returned "
             "object will have it set to None."
         )
-    # check setting freq_interp_kind on object also works
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The freq_interp_kind attribute on UVBeam objects is "
-        "deprecated and support for it will be removed in version 2.6. ",
-    ):
-        beam.freq_interp_kind = "linear"
+
+    # test that saved functions are erased in new obj
     with uvtest.check_warnings(UserWarning, match=exp_warnings):
         new_beam_obj = beam.interp(
-            freq_array=freq_orig_vals, freq_interp_tol=0.0, new_object=True
+            freq_array=freq_orig_vals,
+            freq_interp_tol=0.0,
+            new_object=True,
+            freq_interp_kind="linear",
         )
-    assert isinstance(new_beam_obj, UVBeam)
-    if future_shapes:
-        np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
-    else:
-        np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
-    # test that saved functions are erased in new obj
+    np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
     assert not hasattr(new_beam_obj, "saved_interp_functions")
     assert "freq_interp_kind = linear" in new_beam_obj.history
     assert beam.history != new_beam_obj.history
@@ -823,15 +703,7 @@ def test_freq_interpolation(
         setattr(new_beam_obj, param_name, getattr(beam, param_name))
     assert beam == new_beam_obj
 
-    with uvtest.check_warnings(
-        [UserWarning] * (len(exp_warnings) + 1),
-        match=exp_warnings
-        + [
-            "The freq_interp_kind parameter was set but it does not "
-            "match the freq_interp_kind attribute on the object. "
-            "Using the one passed to this method."
-        ],
-    ):
+    with uvtest.check_warnings(UserWarning, match=exp_warnings):
         new_beam_obj = beam.interp(
             freq_array=freq_orig_vals,
             freq_interp_tol=1.0,
@@ -839,10 +711,8 @@ def test_freq_interpolation(
             new_object=True,
         )
     assert isinstance(new_beam_obj, UVBeam)
-    if future_shapes:
-        np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
-    else:
-        np.testing.assert_array_almost_equal(new_beam_obj.freq_array[0], freq_orig_vals)
+    np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
+
     # assert interp kind is 'nearest' when within tol
     assert "freq_interp_kind = nearest" in new_beam_obj.history
     assert beam.history != new_beam_obj.history
@@ -864,14 +734,9 @@ def test_freq_interpolation(
         )
 
     assert isinstance(new_beam_obj, UVBeam)
-    if future_shapes:
-        np.testing.assert_array_almost_equal(
-            new_beam_obj.freq_array, np.linspace(123e6, 150e6, num=5)
-        )
-    else:
-        np.testing.assert_array_almost_equal(
-            new_beam_obj.freq_array[0], np.linspace(123e6, 150e6, num=5)
-        )
+    np.testing.assert_array_almost_equal(
+        new_beam_obj.freq_array, np.linspace(123e6, 150e6, num=5)
+    )
     # test that saved functions are erased in new obj
     assert not hasattr(new_beam_obj, "saved_interp_functions")
     assert beam.history != new_beam_obj.history
@@ -891,14 +756,10 @@ def test_freq_interpolation(
     # Therefore, to test that interp_bool is False returns array slice as desired,
     # test that ValueError is not raised in this case.
     # Other ways of testing this (e.g. interp_data_array.flags['OWNDATA']) does not work
-    if future_shapes:
-        _pb = beam.select(frequencies=beam.freq_array[:1], inplace=False)
-        freq_arr_use = _pb.freq_array
-    else:
-        _pb = beam.select(frequencies=beam.freq_array[0, :1], inplace=False)
-        freq_arr_use = _pb.freq_array[0]
+    _pb = beam.select(frequencies=beam.freq_array[:1], inplace=False)
+
     try:
-        interp_data, interp_basis_vector = _pb.interp(freq_array=freq_arr_use)
+        interp_data, interp_basis_vector = _pb.interp(freq_array=_pb.freq_array)
     except ValueError as err:
         raise AssertionError(
             "UVBeam.interp didn't return an array slice as expected"
@@ -912,14 +773,9 @@ def test_freq_interpolation(
         beam_singlef.interp(freq_array=np.array([150e6]))
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_freq_interp_real_and_complex(future_shapes, cst_power_2freq):
+def test_freq_interp_real_and_complex(cst_power_2freq):
     # test interpolation of real and complex data are the same
     power_beam = cst_power_2freq
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     # make a new object with more frequencies
     freqs = np.linspace(123e6, 150e6, 4)
@@ -1086,11 +942,9 @@ def test_spatial_interpolation_samepoints(
         assert np.allclose(data_array_compare, interp_data_array)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interpolation_everyother(
-    future_shapes, beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
+    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut
 ):
     """
     test that interp to every other point returns an object that matches a select
@@ -1099,9 +953,6 @@ def test_spatial_interpolation_everyother(
         uvbeam = cst_power_2freq_cut
     else:
         uvbeam = cst_efield_2freq_cut
-
-    if not future_shapes:
-        uvbeam.use_current_array_shapes()
 
     axis1_inds = np.arange(0, uvbeam.Naxes1, 2)
     axis2_inds = np.arange(0, uvbeam.Naxes2, 2)
@@ -1376,20 +1227,13 @@ def test_interp_healpix_errors(cst_efield_2freq_cut, cst_efield_2freq_cut_healpi
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_healpix_interpolation(
-    future_shapes, antenna_type, cst_efield_2freq, phased_array_beam_2freq
-):
+def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam_2freq):
     pytest.importorskip("astropy_healpix")
     if antenna_type == "simple":
         efield_beam = cst_efield_2freq
     else:
         efield_beam = phased_array_beam_2freq
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     # select every fourth point to make it smaller
     axis1_inds = np.arange(0, efield_beam.Naxes1, 4)
@@ -1591,14 +1435,9 @@ def test_healpix_interpolation(
         )
 
     # check error when pixels out of order
-    if future_shapes:
-        power_beam.pixel_array = power_beam.pixel_array[
-            np.argsort(power_beam.data_array[0, 0, 0, :])
-        ]
-    else:
-        power_beam.pixel_array = power_beam.pixel_array[
-            np.argsort(power_beam.data_array[0, 0, 0, 0, :])
-        ]
+    power_beam.pixel_array = power_beam.pixel_array[
+        np.argsort(power_beam.data_array[0, 0, 0, :])
+    ]
     with pytest.raises(
         ValueError,
         match="simple healpix interpolation requires healpix pixels to be in order.",
@@ -1649,17 +1488,9 @@ def test_find_healpix_indices(start, stop, phi_start, phi_end):
     assert np.array_equal(np.sort(pixels[inds_to_use1]), np.sort(pixels[inds_to_use2]))
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_to_healpix_power(
-    future_shapes, cst_power_2freq_cut, cst_power_2freq_cut_healpix
-):
+def test_to_healpix_power(cst_power_2freq_cut, cst_power_2freq_cut_healpix):
     power_beam = cst_power_2freq_cut
     power_beam_healpix = cst_power_2freq_cut_healpix
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
-        power_beam_healpix.use_current_array_shapes()
 
     sky_area_reduction_factor = (1.0 - np.cos(np.deg2rad(10))) / 2.0
 
@@ -1690,17 +1521,9 @@ def test_to_healpix_power(
         power_beam.to_healpix()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_to_healpix_efield(
-    future_shapes, cst_efield_2freq_cut, cst_efield_2freq_cut_healpix
-):
+def test_to_healpix_efield(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
     efield_beam = cst_efield_2freq_cut
     interp_then_sq = cst_efield_2freq_cut_healpix
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
-        interp_then_sq.use_current_array_shapes()
 
     interp_then_sq.efield_to_power(calc_cross_pols=False)
 
@@ -1762,12 +1585,8 @@ def test_to_healpix_no_op(cst_power_2freq_cut_healpix, inplace):
     assert uvbeam == uvbeam2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_axis(future_shapes, cst_power_1freq, tmp_path):
+def test_select_axis(cst_power_1freq, tmp_path):
     power_beam = cst_power_1freq
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     old_history = power_beam.history
 
@@ -1856,19 +1675,14 @@ def test_select_axis(future_shapes, cst_power_1freq, tmp_path):
         power_beam2.write_beamfits(write_file_beamfits)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
 def test_select_frequencies(
-    future_shapes, antenna_type, cst_power_1freq, phased_array_beam_1freq, tmp_path
+    antenna_type, cst_power_1freq, phased_array_beam_1freq, tmp_path
 ):
     if antenna_type == "simple":
         beam = cst_power_1freq
     else:
         beam = phased_array_beam_1freq
-
-    if not future_shapes:
-        beam.use_current_array_shapes()
 
     # generate more frequencies for testing by copying and adding several times
     while beam.Nfreqs < 8:
@@ -1877,10 +1691,7 @@ def test_select_frequencies(
         beam += new_beam
 
     old_history = beam.history
-    if future_shapes:
-        freqs_to_keep = beam.freq_array[np.arange(2, 7)]
-    else:
-        freqs_to_keep = beam.freq_array[0, np.arange(2, 7)]
+    freqs_to_keep = beam.freq_array[np.arange(2, 7)]
 
     beam2 = beam.select(frequencies=freqs_to_keep, inplace=False)
 
@@ -1898,10 +1709,7 @@ def test_select_frequencies(
     write_file_beamfits = str(tmp_path / "select_beam.fits")
     # test writing beamfits with only one frequency
 
-    if future_shapes:
-        freqs_to_keep = beam.freq_array[5]
-    else:
-        freqs_to_keep = beam.freq_array[0, 5]
+    freqs_to_keep = beam.freq_array[5]
     beam2 = beam.select(frequencies=freqs_to_keep, inplace=False)
 
     if antenna_type == "simple":
@@ -1918,10 +1726,7 @@ def test_select_frequencies(
     # check for warnings and errors associated with unevenly spaced frequencies
     if antenna_type == "simple":
         beam2 = beam.copy()
-        if future_shapes:
-            freqs_to_keep = beam.freq_array[[0, 5, 6]]
-        else:
-            freqs_to_keep = beam.freq_array[0, [0, 5, 6]]
+        freqs_to_keep = beam.freq_array[[0, 5, 6]]
         with uvtest.check_warnings(
             UserWarning, "Selected frequencies are not evenly spaced"
         ):
@@ -1935,16 +1740,11 @@ def test_select_frequencies(
     beam2 = beam.select(freq_chans=chans_to_keep, inplace=False)
 
     assert len(chans_to_keep) == beam2.Nfreqs
-    if future_shapes:
-        for chan in chans_to_keep:
-            assert beam.freq_array[chan] in beam2.freq_array
-        for f in np.unique(beam2.freq_array):
-            assert f in beam.freq_array[chans_to_keep]
-    else:
-        for chan in chans_to_keep:
-            assert beam.freq_array[0, chan] in beam2.freq_array
-        for f in np.unique(beam2.freq_array):
-            assert f in beam.freq_array[0, chans_to_keep]
+
+    for chan in chans_to_keep:
+        assert beam.freq_array[chan] in beam2.freq_array
+    for f in np.unique(beam2.freq_array):
+        assert f in beam.freq_array[chans_to_keep]
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
@@ -1952,10 +1752,7 @@ def test_select_frequencies(
     )
 
     # Test selecting both channels and frequencies
-    if future_shapes:
-        freqs_to_keep = beam.freq_array[np.arange(6, 8)]  # Overlaps with chans
-    else:
-        freqs_to_keep = beam.freq_array[0, np.arange(6, 8)]  # Overlaps with chans
+    freqs_to_keep = beam.freq_array[np.arange(6, 8)]  # Overlaps with chans
     all_chans_to_keep = np.arange(2, 8)
 
     beam2 = beam.select(
@@ -1963,24 +1760,14 @@ def test_select_frequencies(
     )
 
     assert len(all_chans_to_keep) == beam2.Nfreqs
-    if future_shapes:
-        for chan in all_chans_to_keep:
-            assert beam.freq_array[chan] in beam2.freq_array
-        for f in np.unique(beam2.freq_array):
-            assert f in beam.freq_array[all_chans_to_keep]
-    else:
-        for chan in all_chans_to_keep:
-            assert beam.freq_array[0, chan] in beam2.freq_array
-        for f in np.unique(beam2.freq_array):
-            assert f in beam.freq_array[0, all_chans_to_keep]
+    for chan in all_chans_to_keep:
+        assert beam.freq_array[chan] in beam2.freq_array
+    for f in np.unique(beam2.freq_array):
+        assert f in beam.freq_array[all_chans_to_keep]
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_select_feeds(
-    future_shapes, antenna_type, cst_efield_1freq, phased_array_beam_2freq
-):
+def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
     if antenna_type == "simple":
         efield_beam = cst_efield_1freq
         efield_beam.feed_array = np.array(["n", "e"])
@@ -1988,9 +1775,6 @@ def test_select_feeds(
     else:
         efield_beam = phased_array_beam_2freq
         feeds_to_keep = ["x"]
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     old_history = efield_beam.history
 
@@ -2054,17 +1838,13 @@ def test_select_feeds(
         efield_beam.check()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(future_shapes, pols_to_keep, cst_efield_1freq):
+def test_select_polarizations(pols_to_keep, cst_efield_1freq):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = cst_efield_1freq
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
     power_beam.efield_to_power()
 
     old_history = power_beam.history
@@ -2138,17 +1918,12 @@ def test_select_polarizations_errors(cst_efield_1freq):
             power_beam.select(polarizations=[-5, -6])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
-def test_select(future_shapes, beam_type, cst_power_1freq, cst_efield_1freq):
+def test_select(beam_type, cst_power_1freq, cst_efield_1freq):
     if beam_type == "efield":
         beam = cst_efield_1freq
     else:
         beam = cst_power_1freq
-
-    if not future_shapes:
-        beam.use_current_array_shapes()
 
     # generate more frequencies for testing by copying and adding
     new_beam = beam.copy()
@@ -2160,10 +1935,8 @@ def test_select(future_shapes, beam_type, cst_power_1freq, cst_efield_1freq):
 
     inds1_to_keep = np.arange(14, 63)
     inds2_to_keep = np.arange(5, 14)
-    if future_shapes:
-        freqs_to_keep = [beam.freq_array[0]]
-    else:
-        freqs_to_keep = [beam.freq_array[0, 0]]
+    freqs_to_keep = [beam.freq_array[0]]
+
     if beam_type == "efield":
         feeds_to_keep = ["x"]
         pols_to_keep = None
@@ -2228,13 +2001,8 @@ def test_select(future_shapes, beam_type, cst_power_1freq, cst_efield_1freq):
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_axis1(future_shapes, power_beam_for_adding):
+def test_add_axis1(power_beam_for_adding):
     power_beam = power_beam_for_adding
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     # Add along first image axis
     beam1 = power_beam.select(axis1_inds=np.arange(0, 180), inplace=False)
@@ -2259,13 +2027,8 @@ def test_add_axis1(future_shapes, power_beam_for_adding):
     assert beam1 == power_beam
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_axis2(future_shapes, power_beam_for_adding):
+def test_add_axis2(power_beam_for_adding):
     power_beam = power_beam_for_adding
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     # Add along second image axis
     beam1 = power_beam.select(axis2_inds=np.arange(0, 90), inplace=False)
@@ -2290,13 +2053,8 @@ def test_add_axis2(future_shapes, power_beam_for_adding):
     assert beam1 == power_beam
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_frequencies(future_shapes, power_beam_for_adding):
+def test_add_frequencies(power_beam_for_adding):
     power_beam = power_beam_for_adding
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     # Add frequencies
     beam1 = power_beam.select(freq_chans=0, inplace=False)
@@ -2320,13 +2078,8 @@ def test_add_frequencies(future_shapes, power_beam_for_adding):
     assert beam1 == power_beam
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add_pols(future_shapes, power_beam_for_adding):
+def test_add_pols(power_beam_for_adding):
     power_beam = power_beam_for_adding
-
-    if not future_shapes:
-        power_beam.use_current_array_shapes()
 
     # Add polarizations
     beam1 = power_beam.select(polarizations=-5, inplace=False)
@@ -2349,19 +2102,12 @@ def test_add_pols(future_shapes, power_beam_for_adding):
     assert beam1 == power_beam
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_add_feeds(
-    future_shapes, antenna_type, efield_beam_for_adding, phased_array_beam_2freq
-):
+def test_add_feeds(antenna_type, efield_beam_for_adding, phased_array_beam_2freq):
     if antenna_type == "simple":
         efield_beam = efield_beam_for_adding
     else:
         efield_beam = phased_array_beam_2freq
-
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     if antenna_type == "phased_array":
         expected_warning = UserWarning
@@ -2552,7 +2298,6 @@ def test_add_cross_power(cross_power_beam_for_adding, use_double):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
 def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
     power_beam = power_beam_for_adding
     efield_beam = efield_beam_for_adding
@@ -2597,20 +2342,6 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         ):
             beam1_copy.__iadd__(beam2_copy)
 
-    # different future shapes
-    beam1_copy = beam1.copy()
-    beam2_copy = beam2.copy()
-    beam2_copy.use_current_array_shapes()
-
-    with pytest.raises(
-        ValueError,
-        match="Both objects must have the same `future_array_shapes` parameter.",
-    ):
-        beam1_copy.__iadd__(beam2_copy)
-
-    del beam1_copy
-    del beam2_copy
-
     # Overlapping data
     beam2 = power_beam.copy()
     with pytest.raises(
@@ -2619,23 +2350,14 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
         beam1.__iadd__(beam2)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_select_healpix_pixels(
-    future_shapes,
-    beam_type,
-    cst_power_1freq_cut_healpix,
-    cst_efield_1freq_cut_healpix,
-    tmp_path,
+    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix, tmp_path
 ):
     if beam_type == "power":
         beam_healpix = cst_power_1freq_cut_healpix
     else:
         beam_healpix = cst_efield_1freq_cut_healpix
-
-    if not future_shapes:
-        beam_healpix.use_current_array_shapes()
 
     old_history = beam_healpix.history
     pixels_to_keep = np.arange(31, 184)
@@ -2691,10 +2413,7 @@ def test_select_healpix_pixels(
 
     # ------------------------
     # test selecting along all axes at once for healpix beams
-    if future_shapes:
-        freqs_to_keep = [beam_healpix.freq_array[0]]
-    else:
-        freqs_to_keep = [beam_healpix.freq_array[0, 0]]
+    freqs_to_keep = [beam_healpix.freq_array[0]]
 
     if beam_type == "efield":
         feeds_to_keep = ["x"]
@@ -2764,19 +2483,14 @@ def test_select_healpix_pixels_error(
         beam.select(pixels=np.arange(31, 184))
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_add_healpix(
-    future_shapes, beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
+    beam_type, cst_power_2freq_cut_healpix, cst_efield_2freq_cut_healpix
 ):
     if beam_type == "power":
         beam_healpix = cst_power_2freq_cut_healpix
     else:
         beam_healpix = cst_efield_2freq_cut_healpix
-
-    if not future_shapes:
-        beam_healpix.use_current_array_shapes()
 
     # Test adding a different combo with healpix
     beam_ref = beam_healpix.copy()
@@ -2853,15 +2567,8 @@ def test_add_healpix(
         beam1.__iadd__(beam2)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_beam_area_healpix(
-    future_shapes, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
-):
+def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix):
     power_beam_healpix = cst_power_1freq_cut_healpix
-
-    if not future_shapes:
-        power_beam_healpix.use_current_array_shapes()
 
     # Test beam area methods
     # Check that non-peak normalizations error
@@ -2938,8 +2645,6 @@ def test_beam_area_healpix(
         healpix_norm.get_beam_sq_area(pol="xx")
 
     efield_beam = cst_efield_1freq_cut_healpix.copy()
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     healpix_norm_fullpol = efield_beam.efield_to_power(inplace=False)
     healpix_norm_fullpol.peak_normalize()
@@ -2973,8 +2678,6 @@ def test_beam_area_healpix(
 
     # check pseudo-Stokes parameters
     efield_beam = cst_efield_1freq_cut_healpix
-    if not future_shapes:
-        efield_beam.use_current_array_shapes()
 
     efield_beam.efield_to_pstokes()
     efield_beam.peak_normalize()
@@ -3028,13 +2731,10 @@ def test_get_beam_functions(cst_power_1freq_cut_healpix):
         healpix_power_beam._get_beam(4)
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_generic_read_cst(future_shapes):
+def test_generic_read_cst():
     uvb = UVBeam()
     uvb.read(
         cst_files,
-        use_future_array_shapes=future_shapes,
         beam_type="power",
         frequency=np.array([150e6, 123e6]),
         feed_pol="y",
@@ -3048,14 +2748,12 @@ def test_generic_read_cst(future_shapes):
     assert uvb.check()
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-def test_generic_read(filename, future_shapes):
+def test_generic_read(filename):
     """Test generic read can infer the file types correctly."""
     uvb = UVBeam()
     # going to check in a second anyway, no need to double check.
-    uvb.read(filename, use_future_array_shapes=future_shapes, run_check=False)
+    uvb.read(filename, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:
@@ -3081,12 +2779,7 @@ def test_generic_read_bad_filetype():
 
 def test_generic_read_multi(tmp_path):
     uvb = UVBeam()
-    uvb.read(
-        mwa_beam_file,
-        pixels_per_deg=1,
-        freq_range=[100e6, 200e6],
-        use_future_array_shapes=True,
-    )
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
     uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
@@ -3096,7 +2789,7 @@ def test_generic_read_multi(tmp_path):
     uvb2.write_beamfits(fname2)
 
     uvb3 = UVBeam()
-    uvb3.read([fname1, fname2], use_future_array_shapes=True)
+    uvb3.read([fname1, fname2])
     assert uvb3.filename == ["test_beam1.beamfits", "test_beam2.beamfits"]
     # the histories will be different
     uvb3.history = uvb.history
@@ -3109,12 +2802,7 @@ def test_generic_read_multi(tmp_path):
 def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
     uvb = UVBeam()
     uvb = UVBeam()
-    uvb.read(
-        mwa_beam_file,
-        pixels_per_deg=1,
-        freq_range=[100e6, 200e6],
-        use_future_array_shapes=True,
-    )
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
     uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
@@ -3134,23 +2822,17 @@ def test_generic_read_multi_bad_files(tmp_path, skip, flip_order):
         with uvtest.check_warnings(
             UserWarning, f"Failed to read {filenames[0]} due to ValueError"
         ):
-            uvb3.read(filenames, skip_bad_files=skip, use_future_array_shapes=True)
+            uvb3.read(filenames, skip_bad_files=skip)
         assert uvb3 == uvb2
 
     else:
         with pytest.raises(ValueError, match="Unknown beam_type: foobar, beam_type"):
-            uvb3.read(filenames, skip_bad_files=skip, use_future_array_shapes=True)
+            uvb3.read(filenames, skip_bad_files=skip)
 
 
 def test_generic_read_all_bad_files(tmp_path):
     uvb = UVBeam()
-    uvb = UVBeam()
-    uvb.read(
-        mwa_beam_file,
-        pixels_per_deg=1,
-        freq_range=[100e6, 200e6],
-        use_future_array_shapes=True,
-    )
+    uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
 
     uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
     uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
@@ -3164,20 +2846,16 @@ def test_generic_read_all_bad_files(tmp_path):
     uvb3 = UVBeam()
     filenames = [fname1, fname2]
     with uvtest.check_warnings(UserWarning, "ALL FILES FAILED ON READ"):
-        uvb3.read(filenames, skip_bad_files=True, use_future_array_shapes=True)
+        uvb3.read(filenames, skip_bad_files=True)
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-def test_from_file(future_shapes, filename):
+def test_from_file(filename):
     """Test from file produces same the results as reading explicitly."""
     uvb = UVBeam()
     # don't run checks because of casa_beamfits, we'll do that later
-    uvb2 = UVBeam.from_file(
-        filename, use_future_array_shapes=future_shapes, run_check=False
-    )
-    uvb.read(filename, use_future_array_shapes=future_shapes, run_check=False)
+    uvb2 = UVBeam.from_file(filename, run_check=False)
+    uvb.read(filename, run_check=False)
     # hera casa beam is missing some parameters but we just want to check
     # that reading is going okay
     if filename == casa_beamfits:
