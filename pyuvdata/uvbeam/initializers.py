@@ -12,7 +12,6 @@ import numpy.typing as npt
 from astropy.time import Time
 
 from .. import __version__, utils
-from ..uvdata.initializers import XORIENTMAP
 
 
 def new_uvbeam(
@@ -243,7 +242,7 @@ def new_uvbeam(
     uvb.Nfreqs = freq_array.size
 
     if x_orientation is not None:
-        uvb.x_orientation = XORIENTMAP[x_orientation.lower()]
+        uvb.x_orientation = utils.XORIENTMAP[x_orientation.lower()]
 
     if basis_vector_array is not None:
         if uvb.pixel_coordinate_system == "healpix":

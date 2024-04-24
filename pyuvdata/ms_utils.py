@@ -2130,14 +2130,12 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
         and obs_dict["telescope_name"] in telescopes.known_telescopes()
     ):
         # get it from known telescopes
-        telescope_obj = telescopes.Telescope.from_known_telescopes(
-            obs_dict["telescope_name"]
-        )
+        telescope_loc = telescopes.known_telescope_location(obs_dict["telescope_name"])
         warnings.warn(
             "Setting telescope_location to value in known_telescopes for "
             f"{obs_dict['telescope_name']}."
         )
-        return telescope_obj.location
+        return telescope_loc
     else:
         if xyz_telescope_frame not in ["itrs", "mcmf"]:
             raise ValueError(

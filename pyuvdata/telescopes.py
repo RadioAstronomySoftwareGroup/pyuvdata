@@ -6,6 +6,7 @@
 
 import os
 import warnings
+from typing import Literal, Union
 
 import numpy as np
 from astropy import units
@@ -18,6 +19,8 @@ from . import utils as uvutils
 from . import uvbase
 
 __all__ = ["Telescope", "known_telescopes"]
+
+Locations = Union[uvutils.allowed_location_types]
 
 # We use astropy sites for telescope locations. The dict below is for
 # telescopes not in astropy sites, or to include extra information for a telescope.
@@ -128,6 +131,139 @@ def known_telescopes():
     return known_telescopes
 
 
+def known_telescope_location(
+    name: str,
+    return_citation: bool = False,
+    known_telescope_dict: dict = KNOWN_TELESCOPES,
+):
+    """
+    Get the location for a known telescope.
+
+    Parameters
+    ----------
+    name : str
+        Name of the telescope
+    return_citation : bool
+        Option to return the citation.
+    known_telescope_dict: dict
+        This should only be used for testing. This allows passing in a
+        different dict to use in place of the KNOWN_TELESCOPES dict.
+
+    Returns
+    -------
+    location : EarthLocation
+        Telescope location as an EarthLocation object.
+    citation : str, optional
+        Citation string.
+
+    """
+    astropy_sites = EarthLocation.get_site_names()
+    telescope_keys = list(known_telescope_dict.keys())
+    telescope_list = [tel.lower() for tel in telescope_keys]
+
+    # first deal with location.
+    if name in astropy_sites:
+        location = EarthLocation.of_site(name)
+
+        citation = "astropy sites"
+    elif name.lower() in telescope_list:
+        telescope_index = telescope_list.index(name.lower())
+        telescope_dict = known_telescope_dict[telescope_keys[telescope_index]]
+        citation = telescope_dict["citation"]
+
+        if telescope_dict["center_xyz"] is not None:
+            location = EarthLocation.from_geocentric(
+                *telescope_dict["center_xyz"], unit="m"
+            )
+        else:
+            if (
+                telescope_dict["latitude"] is None
+                or telescope_dict["longitude"] is None
+                or telescope_dict["altitude"] is None
+            ):
+                raise ValueError(
+                    "Bad location information in known_telescopes_dict "
+                    f"for telescope {name}. Either the center_xyz "
+                    "or the latitude, longitude and altitude of the "
+                    "telescope must be specified."
+                )
+            location = EarthLocation.from_geodetic(
+                lat=telescope_dict["latitude"] * units.rad,
+                lon=telescope_dict["longitude"] * units.rad,
+                height=telescope_dict["altitude"] * units.m,
+            )
+    else:
+        # no telescope matching this name
+        raise ValueError(
+            f"Telescope {name} is not in astropy_sites or " "known_telescopes_dict."
+        )
+
+    if not return_citation:
+        return location
+    else:
+        return location, citation
+
+
+def get_antenna_params(
+    *,
+    antenna_positions: np.ndarray | dict[str | int, np.ndarray],
+    antenna_names: list[str] | None = None,
+    antenna_numbers: list[int] | None = None,
+    antname_format: str = "{0:03d}",
+) -> tuple[np.ndarray, list[str], list[int]]:
+    """Configure antenna parameters for new UVData object."""
+    # Get Antenna Parameters
+
+    if isinstance(antenna_positions, dict):
+        keys = list(antenna_positions.keys())
+        if all(isinstance(key, int) for key in keys):
+            antenna_numbers = list(antenna_positions.keys())
+        elif all(isinstance(key, str) for key in keys):
+            antenna_names = list(antenna_positions.keys())
+        else:
+            raise ValueError(
+                "antenna_positions must be a dictionary with keys that are all type "
+                "int or all type str."
+            )
+        antenna_positions = np.array(list(antenna_positions.values()))
+
+    if antenna_numbers is None and antenna_names is None:
+        raise ValueError(
+            "Either antenna_numbers or antenna_names must be provided unless "
+            "antenna_positions is a dict."
+        )
+
+    if antenna_names is None:
+        antenna_names = [antname_format.format(i) for i in antenna_numbers]
+    elif antenna_numbers is None:
+        try:
+            antenna_numbers = [int(name) for name in antenna_names]
+        except ValueError as e:
+            raise ValueError(
+                "Antenna names must be integers if antenna_numbers is not provided."
+            ) from e
+
+    if not isinstance(antenna_positions, np.ndarray):
+        raise ValueError("antenna_positions must be a numpy array or a dictionary.")
+
+    if antenna_positions.shape != (len(antenna_numbers), 3):
+        raise ValueError(
+            "antenna_positions must be a 2D array with shape (N_antennas, 3), "
+            f"got {antenna_positions.shape}"
+        )
+
+    if len(antenna_names) != len(set(antenna_names)):
+        raise ValueError("Duplicate antenna names found.")
+
+    if len(antenna_numbers) != len(set(antenna_numbers)):
+        raise ValueError("Duplicate antenna numbers found.")
+
+    if len(antenna_numbers) != len(antenna_names):
+        raise ValueError("antenna_numbers and antenna_names must have the same length.")
+
+    return antenna_positions, np.asarray(antenna_names), np.asarray(antenna_numbers)
+
+
 class Telescope(uvbase.UVBase):
     """
     A class for telescope metadata, used on UVData, UVCal and UVFlag objects.
@@ -155,29 +291,15 @@ class Telescope(uvbase.UVBase):
         )
         self._location = uvp.LocationParameter("location", description=desc, tols=1e-3)
 
-        self._instrument = uvp.UVParameter(
-            "instrument",
-            description="Receiver or backend. Sometimes identical to telescope_name.",
-            required=False,
-            form="str",
-            expected_type=str,
-        )
-
         desc = "Number of antennas in the array."
-        self._Nants = uvp.UVParameter(
-            "Nants", required=False, description=desc, expected_type=int
-        )
+        self._Nants = uvp.UVParameter("Nants", description=desc, expected_type=int)
 
         desc = (
             "Array of antenna names, shape (Nants), "
             "with numbers given by antenna_numbers."
         )
         self._antenna_names = uvp.UVParameter(
-            "antenna_names",
-            description=desc,
-            required=False,
-            form=("Nants",),
-            expected_type=str,
+            "antenna_names", description=desc, form=("Nants",), expected_type=str
         )
 
         desc = (
@@ -185,26 +307,29 @@ class Telescope(uvbase.UVBase):
             "shape (Nants)."
         )
         self._antenna_numbers = uvp.UVParameter(
-            "antenna_numbers",
-            description=desc,
-            required=False,
-            form=("Nants",),
-            expected_type=int,
+            "antenna_numbers", description=desc, form=("Nants",), expected_type=int
         )
 
         desc = (
             "Array giving coordinates of antennas relative to "
-            "telescope_location (ITRF frame), shape (Nants, 3), "
+            "location (ITRF frame), shape (Nants, 3), "
             "units meters. See the tutorial page in the documentation "
             "for an example of how to convert this to topocentric frame."
         )
         self._antenna_positions = uvp.UVParameter(
             "antenna_positions",
             description=desc,
-            required=False,
             form=("Nants", 3),
             expected_type=float,
             tols=1e-3,  # 1 mm
+        )
+
+        self._instrument = uvp.UVParameter(
+            "instrument",
+            description="Receiver or backend. Sometimes identical to name.",
+            required=False,
+            form="str",
+            expected_type=str,
         )
 
         desc = (
@@ -323,7 +448,6 @@ class Telescope(uvbase.UVBase):
                 "The telescope name attribute must be set to update from "
                 "known_telescopes."
             )
-        astropy_sites = EarthLocation.get_site_names()
         telescope_keys = list(known_telescope_dict.keys())
         telescope_list = [tel.lower() for tel in telescope_keys]
 
@@ -331,46 +455,16 @@ class Telescope(uvbase.UVBase):
         known_telescope_list = []
         # first deal with location.
         if overwrite or self.location is None:
-            if self.name in astropy_sites:
-                tel_loc = EarthLocation.of_site(self.name)
-
-                self.citation = "astropy sites"
-                self.location = tel_loc
+            location, citation = known_telescope_location(
+                self.name,
+                return_citation=True,
+                known_telescope_dict=known_telescope_dict,
+            )
+            self.location = location
+            if "astropy sites" in citation:
                 astropy_sites_list.append("telescope_location")
-
-            elif self.name.lower() in telescope_list:
-                telescope_index = telescope_list.index(self.name.lower())
-                telescope_dict = known_telescope_dict[telescope_keys[telescope_index]]
-                self.citation = telescope_dict["citation"]
-
-                known_telescope_list.append("telescope_location")
-                if telescope_dict["center_xyz"] is not None:
-                    self.location = EarthLocation.from_geocentric(
-                        *telescope_dict["center_xyz"], unit="m"
-                    )
-                else:
-                    if (
-                        telescope_dict["latitude"] is None
-                        or telescope_dict["longitude"] is None
-                        or telescope_dict["altitude"] is None
-                    ):
-                        raise ValueError(
-                            "Bad location information in known_telescopes_dict "
-                            f"for telescope {self.name}. Either the center_xyz "
-                            "or the latitude, longitude and altitude of the "
-                            "telescope must be specified."
-                        )
-                    self.location = EarthLocation.from_geodetic(
-                        lat=telescope_dict["latitude"] * units.rad,
-                        lon=telescope_dict["longitude"] * units.rad,
-                        height=telescope_dict["altitude"] * units.m,
-                    )
             else:
-                # no telescope matching this name
-                raise ValueError(
-                    f"Telescope {self.name} is not in astropy_sites or "
-                    "known_telescopes_dict."
-                )
+                known_telescope_list.append("telescope_location")
 
         # check for extra info
         if self.name.lower() in telescope_list:
@@ -545,4 +639,95 @@ class Telescope(uvbase.UVBase):
             run_check_acceptability=run_check_acceptability,
             known_telescope_dict=known_telescope_dict,
         )
+        return tel_obj
+
+    @classmethod
+    def from_params(
+        cls,
+        name: str,
+        location: Locations,
+        antenna_positions: np.ndarray | dict[str | int, np.ndarray] | None = None,
+        antenna_names: list[str] | np.ndarray | None = None,
+        antenna_numbers: list[int] | np.ndarray | None = None,
+        antname_format: str = "{0:03d}",
+        instrument: str | None = None,
+        x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
+        antenna_diameters: list[float] | np.ndarray | None = None,
+    ):
+        """
+        Initialize a new Telescope object from keyword arguments.
+
+        Parameters
+        ----------
+        name : str
+            Telescope name.
+        location : EarthLocation or MoonLocation object
+            Telescope location as an astropy EarthLocation object or MoonLocation
+            object.
+        antenna_positions : ndarray of float or dict of ndarray of float
+            Array of antenna positions in ECEF coordinates in meters.
+            If a dict, keys can either be antenna numbers or antenna names, and
+            values are position arrays. Keys are interpreted as antenna numbers
+            if they are integers, otherwise they are interpreted as antenna names
+            if strings. You cannot provide a mix of different types of keys.
+        antenna_names : list or np.ndarray of str, optional
+            List or array of antenna names. Not used if antenna_positions is a
+            dict with string keys. Otherwise, if not provided, antenna numbers
+            will be used to form the antenna_names, according to the antname_format.
+        antenna_numbers : list or np.ndarray of int, optional
+            List or array of antenna numbers. Not used if antenna_positions is a
+            dict with integer keys. Otherwise, if not provided, antenna names
+            will be used to form the antenna_numbers, but in this case the
+            antenna_names must be strings that can be converted to integers.
+        antname_format : str, optional
+            Format string for antenna names. Default is '{0:03d}'.
+        instrument : str, optional
+            Instrument name.
+        x_orientation : str
+            Orientation of the x-axis. Options are 'east', 'north', 'e', 'n',
+            'ew', 'ns'.
+        antenna_diameters :  list or np.ndarray of float, optional
+            List or array of antenna diameters.
+
+        Returns
+        -------
+        Telescope object
+            A Telescope object with the specified metadata.
+
+        """
+        tel_obj = cls()
+
+        if not isinstance(location, tuple(uvutils.allowed_location_types)):
+            raise ValueError(
+                "telescope_location has an unsupported type, it must be one of "
+                f"{uvutils.allowed_location_types}"
+            )
+
+        tel_obj.name = name
+        tel_obj.location = location
+
+        antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
+            antenna_positions=antenna_positions,
+            antenna_names=antenna_names,
+            antenna_numbers=antenna_numbers,
+            antname_format=antname_format,
+        )
+
+        tel_obj.antenna_positions = antenna_positions
+        tel_obj.antenna_names = antenna_names
+        tel_obj.antenna_numbers = antenna_numbers
+        tel_obj.Nants = len(antenna_numbers)
+
+        if instrument is not None:
+            tel_obj.instrument = instrument
+
+        if x_orientation is not None:
+            x_orientation = uvutils.XORIENTMAP[x_orientation.lower()]
+            tel_obj.x_orientation = x_orientation
+
+        if antenna_diameters is not None:
+            tel_obj.antenna_diameters = np.asarray(antenna_diameters)
+
+        tel_obj.check()
+
         return tel_obj

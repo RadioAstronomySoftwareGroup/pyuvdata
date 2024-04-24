@@ -14,27 +14,26 @@ from astropy.coordinates import EarthLocation
 import pyuvdata
 from pyuvdata import Telescope, UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.telescopes import get_antenna_params
 
-required_parameters = ["_name", "_location"]
-required_properties = ["name", "location"]
-extra_parameters = [
-    "_antenna_diameters",
+required_parameters = [
+    "_name",
+    "_location",
     "_Nants",
     "_antenna_names",
     "_antenna_numbers",
     "_antenna_positions",
-    "_x_orientation",
-    "_instrument",
 ]
-extra_properties = [
-    "antenna_diameters",
+required_properties = [
+    "name",
+    "location",
     "Nants",
     "antenna_names",
     "antenna_numbers",
     "antenna_positions",
-    "x_orientation",
-    "instrument",
 ]
+extra_parameters = ["_antenna_diameters", "_x_orientation", "_instrument"]
+extra_properties = ["antenna_diameters", "x_orientation", "instrument"]
 other_attributes = [
     "citation",
     "telescope_location_lat_lon_alt",
@@ -49,6 +48,19 @@ while "" in astropy_sites:
 expected_known_telescopes = list(
     set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA"])
 )
+
+
+@pytest.fixture(scope="function")
+def simplest_working_params():
+    return {
+        "antenna_positions": {
+            0: [0.0, 0.0, 0.0],
+            1: [0.0, 0.0, 1.0],
+            2: [0.0, 0.0, 2.0],
+        },
+        "location": EarthLocation.from_geodetic(0, 0, 0),
+        "name": "test",
+    }
 
 
 # Tests for Telescope object
@@ -130,7 +142,8 @@ def test_known_telescopes():
 
 def test_from_known():
     for inst in pyuvdata.known_telescopes():
-        telescope_obj = Telescope.from_known_telescopes(inst)
+        # don't run check b/c some telescopes won't have antenna info defined
+        telescope_obj = Telescope.from_known_telescopes(inst, run_check=False)
         assert telescope_obj.name == inst
 
 
@@ -154,7 +167,7 @@ def test_get_telescope_center_xyz():
         },
     }
     telescope_obj = Telescope.from_known_telescopes(
-        "test", known_telescope_dict=test_telescope_dict
+        "test", known_telescope_dict=test_telescope_dict, run_check=False
     )
     telescope_obj_ext = Telescope()
     telescope_obj_ext.citation = ""
@@ -165,7 +178,7 @@ def test_get_telescope_center_xyz():
 
     telescope_obj_ext.name = "test2"
     telescope_obj2 = Telescope.from_known_telescopes(
-        "test2", known_telescope_dict=test_telescope_dict
+        "test2", known_telescope_dict=test_telescope_dict, run_check=False
     )
     assert telescope_obj2 == telescope_obj_ext
 
@@ -206,3 +219,121 @@ def test_hera_loc():
         rtol=hera_data.telescope._location.tols[0],
         atol=hera_data.telescope._location.tols[1],
     )
+
+
+def test_alternate_antenna_inputs():
+    antpos_dict = {
+        0: np.array([0.0, 0.0, 0.0]),
+        1: np.array([0.0, 0.0, 1.0]),
+        2: np.array([0.0, 0.0, 2.0]),
+    }
+
+    antpos_array = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]], dtype=float)
+    antnum = np.array([0, 1, 2])
+    antname = np.array(["000", "001", "002"])
+
+    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
+    pos2, names2, nums2 = get_antenna_params(
+        antenna_positions=antpos_array, antenna_numbers=antnum, antenna_names=antname
+    )
+
+    assert np.allclose(pos, pos2)
+    assert np.all(names == names2)
+    assert np.all(nums == nums2)
+
+    antpos_dict = {
+        "000": np.array([0, 0, 0]),
+        "001": np.array([0, 0, 1]),
+        "002": np.array([0, 0, 2]),
+    }
+    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
+    assert np.allclose(pos, pos2)
+    assert np.all(names == names2)
+    assert np.all(nums == nums2)
+
+
+def test_bad_antenna_inputs(simplest_working_params):
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(
+        ValueError, match="Either antenna_numbers or antenna_names must be provided"
+    ):
+        Telescope.from_params(
+            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+            antenna_numbers=None,
+            antenna_names=None,
+            **badp,
+        )
+
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(
+        ValueError,
+        match=(
+            "antenna_positions must be a dictionary with keys that are all type int "
+            "or all type str"
+        ),
+    ):
+        Telescope.from_params(antenna_positions={1: [0, 1, 2], "2": [3, 4, 5]}, **badp)
+
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(ValueError, match="Antenna names must be integers"):
+        Telescope.from_params(
+            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+            antenna_numbers=None,
+            antenna_names=["foo", "bar", "baz"],
+            **badp,
+        )
+
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(ValueError, match="antenna_positions must be a numpy array"):
+        Telescope.from_params(
+            antenna_positions="foo",
+            antenna_numbers=[0, 1, 2],
+            antenna_names=["foo", "bar", "baz"],
+            **badp,
+        )
+
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(ValueError, match="antenna_positions must be a 2D array"):
+        Telescope.from_params(
+            antenna_positions=np.array([0, 0, 0]), antenna_numbers=np.array([0]), **badp
+        )
+
+    with pytest.raises(ValueError, match="Duplicate antenna names found"):
+        Telescope.from_params(
+            antenna_names=["foo", "bar", "foo"], **simplest_working_params
+        )
+
+    badp = {
+        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
+    }
+    with pytest.raises(ValueError, match="Duplicate antenna numbers found"):
+        Telescope.from_params(
+            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+            antenna_numbers=[0, 1, 0],
+            antenna_names=["foo", "bar", "baz"],
+            **badp,
+        )
+
+    with pytest.raises(
+        ValueError, match="antenna_numbers and antenna_names must have the same length"
+    ):
+        Telescope.from_params(antenna_names=["foo", "bar"], **simplest_working_params)
+
+
+@pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
+def test_passing_xorient(simplest_working_params, xorient):
+    tel = Telescope.from_params(x_orientation=xorient, **simplest_working_params)
+    if xorient.lower().startswith("e"):
+        assert tel.x_orientation == "east"
+    else:
+        assert tel.x_orientation == "north"
