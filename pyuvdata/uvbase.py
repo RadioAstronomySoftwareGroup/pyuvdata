@@ -392,11 +392,7 @@ class UVBase(object):
         """
         if uvparams_only:
             attribute_list = [
-                a
-                for a in dir(self)
-                if a.startswith("_")
-                and not a.startswith("__")
-                and not callable(getattr(self, a))
+                a for a in dir(self) if isinstance(getattr(self, a), uvp.UVParameter)
             ]
         else:
             attribute_list = [
@@ -425,19 +421,12 @@ class UVBase(object):
             required UVParameters on this object.
 
         """
-        attribute_list = [
-            a
-            for a in dir(self)
-            if a.startswith("_")
-            and not a.startswith("__")
-            and not callable(getattr(self, a))
-        ]
+        attribute_list = list(self.__iter__(uvparams_only=True))
         required_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
-                if attr.required:
-                    required_list.append(a)
+            if attr.required:
+                required_list.append(a)
         for a in required_list:
             yield a
 
@@ -451,17 +440,12 @@ class UVBase(object):
             optional (non-required) UVParameters on this object.
 
         """
-        attribute_list = [
-            a
-            for a in dir(self)
-            if not a.startswith("__") and not callable(getattr(self, a))
-        ]
+        attribute_list = list(self.__iter__(uvparams_only=True))
         extra_list = []
         for a in attribute_list:
             attr = getattr(self, a)
-            if isinstance(attr, uvp.UVParameter):
-                if not attr.required:
-                    extra_list.append(a)
+            if not attr.required:
+                extra_list.append(a)
         for a in extra_list:
             yield a
 

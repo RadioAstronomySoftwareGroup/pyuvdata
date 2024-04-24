@@ -421,6 +421,7 @@ def test_required_parameter_iter(uvdata_props):
     uvdata_props.uv_object.data_array = 1
     uvdata_props.uv_object.nsample_array = 1
     uvdata_props.uv_object.flag_array = 1
+    assert uvdata_props.uv_object.metadata_only is False
     required = []
     for prop in uvdata_props.uv_object.required():
         required.append(prop)

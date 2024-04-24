@@ -1723,6 +1723,9 @@ def test_set_telescope_params(uvdata_obj):
         inplace=False,
     )
     uvf = UVFlag(uvd2, use_future_array_shapes=True)
+    # the telescope objects aren't equal because they have different sets of
+    # required parameters (UVData's requires instrument while UVFlag's does not)
+    # so just test the relevant attributes
     assert uvf.telescope._antenna_names == uvd2.telescope._antenna_names
     assert uvf.telescope._antenna_numbers == uvd2.telescope._antenna_numbers
     assert uvf.telescope._antenna_positions == uvd2.telescope._antenna_positions
