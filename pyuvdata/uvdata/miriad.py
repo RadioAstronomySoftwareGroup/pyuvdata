@@ -16,9 +16,9 @@ from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import Telescope
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
+from ..telescopes import known_telescope_location
 from .uvdata import UVData, _future_array_shapes_warning, reporting_request
 
 __all__ = ["Miriad"]
@@ -301,37 +301,37 @@ class Miriad(UVData):
             # get info from known telescopes.
             # Check to make sure the lat/lon values match reasonably well
             try:
-                telescope_obj = Telescope.from_known_telescopes(self.telescope.name)
+                telescope_loc = known_telescope_location(self.telescope.name)
             except ValueError:
-                telescope_obj = None
-            if telescope_obj is not None:
+                telescope_loc = None
+            if telescope_loc is not None:
                 tol = 2 * np.pi * 1e-3 / (60.0 * 60.0 * 24.0)  # 1mas in radians
                 lat_close = np.isclose(
-                    telescope_obj.location.lat.rad, latitude, rtol=0, atol=tol
+                    telescope_loc.lat.rad, latitude, rtol=0, atol=tol
                 )
                 lon_close = np.isclose(
-                    telescope_obj.location.lon.rad, longitude, rtol=0, atol=tol
+                    telescope_loc.lon.rad, longitude, rtol=0, atol=tol
                 )
                 if correct_lat_lon:
-                    self.telescope.location = telescope_obj.location
+                    self.telescope.location = telescope_loc
                 else:
                     self.telescope.location = EarthLocation.from_geodetic(
                         lat=latitude * units.rad,
                         lon=longitude * units.rad,
-                        height=telescope_obj.location.height,
+                        height=telescope_loc.height,
                     )
                 if lat_close and lon_close:
                     if correct_lat_lon:
                         warnings.warn(
                             "Altitude is not present in Miriad file, "
                             "using known location values for "
-                            f"{telescope_obj.name}."
+                            f"{self.telescope.name}."
                         )
                     else:
                         warnings.warn(
                             "Altitude is not present in Miriad file, "
                             "using known location altitude value "
-                            f"for {telescope_obj.name} and lat/lon from "
+                            f"for {self.telescope.name} and lat/lon from "
                             "file."
                         )
                 else:
@@ -353,13 +353,13 @@ class Miriad(UVData):
                             )
                     if correct_lat_lon:
                         warn_string = (
-                            warn_string + f"for {telescope_obj.name} in known "
+                            warn_string + f"for {self.telescope.name} in known "
                             "telescopes. Using values from known telescopes."
                         )
                         warnings.warn(warn_string)
                     else:
                         warn_string = (
-                            warn_string + f"for {telescope_obj.name} in known "
+                            warn_string + f"for {self.telescope.name} in known "
                             "telescopes. Using altitude value from known "
                             "telescopes and lat/lon from file."
                         )
