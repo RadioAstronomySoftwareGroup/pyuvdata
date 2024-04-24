@@ -368,9 +368,6 @@ def new_uvcal(
     uvc.flex_spw_id_array = flex_spw_id_array
     uvc.spw_array = spw_array
 
-    if not wide_band:
-        uvc._set_flex_spw()
-
     for k, v in kwargs.items():
         if hasattr(uvc, k):
             setattr(uvc, k, v)

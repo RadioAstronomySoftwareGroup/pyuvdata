@@ -140,7 +140,6 @@ def fhd_cal_fit(fhd_cal_fit_main):
 @pytest.fixture
 def multi_spw_gain(gain_data):
     gain_obj = gain_data.copy()
-    gain_obj._set_flex_spw()
     gain_obj.channel_width = (
         np.zeros(gain_obj.Nfreqs, dtype=np.float64) + gain_obj.channel_width
     )
@@ -168,6 +167,7 @@ def multi_spw_gain(gain_data):
 @pytest.fixture
 def wideband_gain(gain_data):
     gain_obj = gain_data.copy()
+    gain_obj.flex_spw_id_array = None
     gain_obj._set_wide_band()
 
     gain_obj.spw_array = np.array([1, 2, 3])

@@ -356,34 +356,18 @@ class UVCal(UVBase):
         # --- flexible spectral window information ---
 
         desc = (
-            "Option to construct a 'flexible spectral window', which stores"
-            "all spectral channels across the frequency axis of data_array. "
-            "Allows for spectral windows of variable sizes, and channels of "
-            "varying widths."
-        )
-        self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=bool, value=False
-        )
-
-        desc = (
-            "Required if flex_spw = True and will always be required for non-wide-band "
-            "objects starting in version 3.0. Maps individual channels along the "
+            "Required for non-wide-band objects. Maps individual channels along the "
             "frequency axis to individual spectral windows, as listed in the "
             "spw_array. Shape (Nfreqs), type = int."
         )
         self._flex_spw_id_array = uvp.UVParameter(
-            "flex_spw_id_array",
-            description=desc,
-            form=("Nfreqs",),
-            expected_type=int,
-            required=False,
+            "flex_spw_id_array", description=desc, form=("Nfreqs",), expected_type=int
         )
 
         desc = (
-            "Optional, only used if flex_spw = True or wide_band = True. Allows for "
-            "labeling individual spectral windows with different polarizations. If "
-            "set, Njones must be set to 1 (i.e., only one Jones vector per spectral "
-            "window allowed). Shape (Nspws), type = int."
+            "Optional parameter that allows for labeling individual spectral windows "
+            "with different polarizations. If set, Njones must be set to 1 (i.e., only "
+            "one Jones vector per spectral window allowed). Shape (Nspws), type = int."
         )
         self._flex_jones_array = uvp.UVParameter(
             "flex_jones_array",
@@ -644,23 +628,6 @@ class UVCal(UVBase):
         """
         return initializers.new_uvcal(**kwargs)
 
-    def _set_flex_spw(self):
-        """
-        Set flex_spw to True, and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by the file-reading methods to indicate that an object has multiple spectral
-        windows concatenated together across the frequency axis.
-        """
-        assert not (
-            self.wide_band
-        ), "Cannot set objects wide_band objects to have flexible spectral windows."
-        # Mark once-optional arrays as now required
-        self.flex_spw = True
-        self._flex_spw_id_array.required = True
-        # Now make sure that chan_width is set to be an array
-        self._channel_width.form = ("Nfreqs",)
-
     def _set_wide_band(self, wide_band=True):
         """
         Set the wide_band parameter and adjust required parameters.
@@ -671,10 +638,9 @@ class UVCal(UVBase):
 
         """
         if wide_band:
-            # TODO think about what to test for in flex_spw_id_array
-            assert (
-                not self.flex_spw
-            ), "Cannot set objects with flexible spectral windows to wide_band."
+            assert self.flex_spw_id_array is None or np.array_equal(
+                self.flex_spw_id_array, self.spw_array
+            ), "flex_spw_id_array must be unset or equal to spw_array to set wide_band"
         else:
             assert self.cal_type != "delay", "delay objects cannot have wide_band=False"
         self.wide_band = wide_band
@@ -682,8 +648,9 @@ class UVCal(UVBase):
         if wide_band:
             self._freq_array.required = False
             self._channel_width.required = False
-            # in version 3.0, also set _flex_spw_id_array to not be required
+            self._flex_spw_id_array.required = False
             self._freq_range.required = True
+            self.flex_spw_id_array = None
 
             data_shape_params = [
                 "gain_array",
@@ -703,7 +670,7 @@ class UVCal(UVBase):
         else:
             self._freq_array.required = True
             self._channel_width.required = True
-            # in version 3.0, also set _flex_spw_id_array to be required
+            self._flex_spw_id_array.required = True
             self._freq_range.required = False
             self._flex_spw_id_array.required = True
 
@@ -724,9 +691,9 @@ class UVCal(UVBase):
         self.cal_type = "gain"
         self._gain_array.required = True
         self._delay_array.required = False
-        self._freq_range.required = False
-        self._freq_array.required = True
-        self._channel_width.required = True
+        self._freq_range.required = self.wide_band
+        self._freq_array.required = not self.wide_band
+        self._channel_width.required = not self.wide_band
         self._quality_array.form = self._gain_array.form
         self._total_quality_array.form = self._gain_array.form[1:]
 
@@ -874,19 +841,19 @@ class UVCal(UVBase):
         if combine_spws:
             # check to see if there are spectral windows that have matching freq_array
             # and channel_width (up to sorting). If so, they need to be combined.
-            if self.flex_spw:
+            if self.wide_band:
+                freq_array_check = self.freq_range
+                chan_width_check = np.zeros_like(freq_array_check)
+                index_check = self.spw_array
+                ftol = self._freq_range.tols
+                ctol = [0, 0]
+            else:
                 freq_array_check = self.freq_array
                 chan_width_check = self.channel_width
 
                 index_check = self.flex_spw_id_array
                 ftol = self._freq_array.tols
                 ctol = self._channel_width.tols
-            else:
-                freq_array_check = self.freq_range
-                chan_width_check = np.zeros_like(freq_array_check)
-                index_check = self.spw_array
-                ftol = self._freq_range.tols
-                ctol = [0, 0]
 
             # Build the main spw map, along with some dicts to save intermediate results
             # from frequencies and Jones vectors
@@ -931,7 +898,7 @@ class UVCal(UVBase):
 
         if not combine_spws:
             # If not combining spws, then map everything back to itself
-            index_check = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            index_check = self.spw_array if self.wide_band else self.flex_spw_id_array
             spw_map = dict(zip(self.spw_array, self.spw_array))
 
         # Reverse mapping map for various metadata values
@@ -976,7 +943,7 @@ class UVCal(UVBase):
 
         # Finally, update data attrs if they exist
         if not self.metadata_only:
-            freq_index = self.flex_spw_id_array if self.flex_spw else self.spw_array
+            freq_index = self.spw_array if self.wide_band else self.flex_spw_id_array
             for name, param in zip(self._data_params, self.data_like_parameters):
                 if param is None:
                     continue
@@ -1011,12 +978,6 @@ class UVCal(UVBase):
         is found to have unflagged data in a given spectral window, then an error is
         returned.
         """
-        if not (self.flex_spw or self.wide_band):
-            raise ValueError(
-                "Must use future array shapes to make a flex-Jones UVCal object, "
-                "with either wide_band=True or flex_spw=True."
-            )
-
         if self.metadata_only:
             raise ValueError(
                 "Cannot make a metadata_only UVCal object flex-Jones because flagging "
@@ -1032,7 +993,7 @@ class UVCal(UVBase):
             return
 
         jones_idx_arr = np.full(self.Nspws, -1)
-        spw_id_arr = self.flex_spw_id_array if self.flex_spw else self.spw_array
+        spw_id_arr = self.spw_array if self.wide_band else self.flex_spw_id_array
         for idx, spw in enumerate(self.spw_array):
             spw_screen = spw_id_arr == spw
 
@@ -1093,12 +1054,6 @@ class UVCal(UVBase):
         if self.flex_jones_array is not None:
             raise ValueError("This is already a flex-pol object")
 
-        if not (self.flex_spw or self.wide_band):
-            raise ValueError(
-                "Must use future array shapes to make a flex-Jones UVCal object, "
-                "with either wide_band=True or flex_spw=True."
-            )
-
         if self.Njones == 1:
             # This is basically a no-op, fix the relevant attributes and exit
             self.flex_jones_array = np.full(self.Nspws, self.jones_array[0])
@@ -1112,7 +1067,7 @@ class UVCal(UVBase):
         spw_array = np.concatenate((self.spw_array, new_spw_ids[:new_nspws]))
         flex_spw_id_arr = None
 
-        if self.flex_spw and self.flex_spw_id_array is not None:
+        if not self.wide_band:
             spw_reshape = spw_array.reshape((self.Njones, -1))
             flex_spw_id_arr = np.repeat(
                 self.flex_spw_id_array[np.newaxis], self.Njones, axis=0
@@ -1237,14 +1192,14 @@ class UVCal(UVBase):
 
     def _check_flex_spw_contiguous(self):
         """
-        Check if the spectral windows are contiguous for flex_spw datasets.
+        Check if the spectral windows are contiguous.
 
         This checks the flex_spw_id_array to make sure that all channels for each
         spectral window are together in one block, versus being interspersed (e.g.,
         channel #1 and #3 is in spw #1, channels #2 and #4 are in spw #2).
 
         """
-        if self.flex_spw:
+        if not self.wide_band:
             uvutils._check_flex_spw_contiguous(
                 spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
             )
@@ -1268,14 +1223,13 @@ class UVCal(UVBase):
             Flag that channel spacing does not match channel width.
 
         """
-        if self.freq_array is None and self.Nfreqs == 1:
+        if (self.freq_array is None) or (self.Nfreqs == 1):
             return False, False
         return uvutils._check_freq_spacing(
             freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
-            flex_spw=self.flex_spw,
             spw_array=self.spw_array,
             flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
@@ -1707,11 +1661,7 @@ class UVCal(UVBase):
         # if wide_band is True, Nfreqs must be 1.
         if self.wide_band:
             if self.Nfreqs != 1:
-                warnings.warn(
-                    "Nfreqs will be required to be 1 for wide_band cals (including "
-                    "all delay cals) starting in version 3.0",
-                    category=DeprecationWarning,
-                )
+                raise ValueError("Nfreqs is required to be 1 for wide_band cals.")
 
         # call metadata_only to make sure that parameter requirements are set properly
         self.metadata_only
@@ -1733,10 +1683,9 @@ class UVCal(UVBase):
                 getattr(self, pair[0]) is not None
                 and getattr(self, pair[1]) is not None
             ):
-                warnings.warn(
+                raise ValueError(
                     f"The {pair[0]} and {pair[1]} attributes are both set, but only "
-                    "one should be set. This will become an error in version 3.0.",
-                    DeprecationWarning,
+                    "one should be set."
                 )
             elif getattr(self, pair[0]) is None and getattr(self, pair[1]) is None:
                 raise ValueError(f"Either {pair[0]} or {pair[1]} must be set.")
@@ -1778,45 +1727,29 @@ class UVCal(UVBase):
                     "files".format(key=key)
                 )
 
-        if not self.wide_band and self.cal_type == "gain":
-            if self.flex_spw_id_array is None:
-                warnings.warn(
-                    "flex_spw_id_array is not set. It will be required starting in "
-                    "version 3.0 for non-wide-band objects",
-                    DeprecationWarning,
+        if not self.wide_band:
+            if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
+                raise ValueError(
+                    "All values in the flex_spw_id_array must exist in the spw_array."
                 )
-            else:
-                # Check that all values in flex_spw_id_array are entries in the
-                # spw_array
-                if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
-                    raise ValueError(
-                        "All values in the flex_spw_id_array must exist in the "
-                        "spw_array."
-                    )
-        # warn if freq_range or freq_array set when it shouldn't be
-        if (
-            self.cal_type == "gain"
-            and not self.wide_band
-            and self.freq_range is not None
-        ):
-            warnings.warn(
-                "The freq_range attribute should not be set if cal_type='gain' "
-                "and wide_band=False. This will become an error in version 3.0.",
-                DeprecationWarning,
-            )
+            # warn if freq_range or freq_array set when it shouldn't be
+            if self.freq_range is not None:
+                raise ValueError(
+                    "The freq_range attribute should not be set if wide_band=False."
+                )
         if self.wide_band:
             if self.freq_array is not None:
-                warnings.warn(
-                    "The freq_array attribute should not be set if wide_band=True. "
-                    "This will become an error in version 3.0.",
-                    DeprecationWarning,
+                raise ValueError(
+                    "The freq_array attribute should not be set if wide_band=True."
                 )
-
             if self.channel_width is not None:
-                warnings.warn(
-                    "The channel_width attribute should not be set if wide_band=True. "
-                    "This will become an error in version 3.0.",
-                    DeprecationWarning,
+                raise ValueError(
+                    "The channel_width attribute should not be set if wide_band=True."
+                )
+            if self.flex_spw_id_array is not None:
+                raise ValueError(
+                    "The flex_spw_id_array attribute should not be set if "
+                    "wide_band=True."
                 )
 
         if check_freq_spacing:
@@ -2320,7 +2253,6 @@ class UVCal(UVBase):
                 freq_array=self.freq_array,
                 Nspws=self.Nspws,
                 spw_array=self.spw_array,
-                flex_spw=self.flex_spw,
                 flex_spw_id_array=self.flex_spw_id_array,
                 spw_order=spw_order,
                 channel_order=channel_order,
@@ -2421,11 +2353,8 @@ class UVCal(UVBase):
                 )
 
             if self.time_array is not None and self.time_range is not None:
-                warnings.warn(
-                    "The time_array and time_range attributes are both set. "
-                    "Defaulting to using time_range to determine sorting. This will "
-                    "become an error in version 3.0.",
-                    DeprecationWarning,
+                raise ValueError(
+                    "The time_array and time_range attributes are both set."
                 )
 
             if self.time_range is not None:
@@ -2732,13 +2661,6 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
-        # Check to make sure that both objects are consistent w/ use of flex_spw
-        if this.flex_spw != other.flex_spw:
-            raise ValueError(
-                "To combine these data, flex_spw must be set to the same "
-                "value (True or False) for both objects."
-            )
-
         if (this.flex_jones_array is None) != (other.flex_jones_array is None):
             raise ValueError(
                 "To combine these data, both objects must be either set to regular "
@@ -2820,12 +2742,7 @@ class UVCal(UVBase):
         )
 
         if self.time_array is not None and self.time_range is not None:
-            warnings.warn(
-                "The time_array and time_range attributes are both set. "
-                "Defaulting to using time_range to determine time matching between "
-                "objects. This will become an error in version 3.0.",
-                DeprecationWarning,
-            )
+            raise ValueError("The time_array and time_range attributes are both set. ")
         if this.time_range is not None:
             if uvutils._check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
@@ -2839,45 +2756,32 @@ class UVCal(UVBase):
                 this.time_array, other.time_array, return_indices=True
             )
 
-        if this.cal_type != "delay" and not this.wide_band:
-            # With flexible spectral window, the handling here becomes a bit funky,
-            # because we are allowed to have channels with the same frequency *if* they
-            # belong to different spectral windows (one real-life example: might want
-            # to preserve guard bands in the correlator, which can have overlaping RF
-            # frequency channels)
-            if this.flex_spw:
-                this_freq_ind = np.array([], dtype=np.int64)
-                other_freq_ind = np.array([], dtype=np.int64)
-                both_freq = np.array([], dtype=float)
-                both_spw = np.intersect1d(this.spw_array, other.spw_array)
-                for idx in both_spw:
-                    this_mask = np.where(this.flex_spw_id_array == idx)[0]
-                    other_mask = np.where(other.flex_spw_id_array == idx)[0]
-                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
-                        this.freq_array[this_mask],
-                        other.freq_array[other_mask],
-                        return_indices=True,
-                    )
-                    this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
-                    other_freq_ind = np.append(
-                        other_freq_ind, other_mask[other_spw_ind]
-                    )
-                    both_freq = np.append(both_freq, both_spw_freq)
-            else:
-                both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                    this.freq_array, other.freq_array, return_indices=True
-                )
-
-        elif this.wide_band:
+        if this.wide_band:
             # this is really about spws, but that replaces the freq axis for wide_band
             both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
                 this.spw_array, other.spw_array, return_indices=True
             )
         else:
-            # delay type cal
-            # Make a non-empty array so we raise an error if other data is duplicated
-            both_freq = [0]
-            this_freq_ind = []
+            # With non-wideband objects, the handling here becomes a bit funky,
+            # because we are allowed to have channels with the same frequency *if* they
+            # belong to different spectral windows (one real-life example: might want
+            # to preserve guard bands in the correlator, which can have overlaping RF
+            # frequency channels)
+            this_freq_ind = np.array([], dtype=np.int64)
+            other_freq_ind = np.array([], dtype=np.int64)
+            both_freq = np.array([], dtype=float)
+            both_spw = np.intersect1d(this.spw_array, other.spw_array)
+            for idx in both_spw:
+                this_mask = np.where(this.flex_spw_id_array == idx)[0]
+                other_mask = np.where(other.flex_spw_id_array == idx)[0]
+                both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
+                    this.freq_array[this_mask],
+                    other.freq_array[other_mask],
+                    return_indices=True,
+                )
+                this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
+                other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
+                both_freq = np.append(both_freq, both_spw_freq)
 
         both_ants, this_ants_ind, other_ants_ind = np.intersect1d(
             this.ant_array, other.ant_array, return_indices=True
@@ -3005,29 +2909,7 @@ class UVCal(UVBase):
         else:
             tnew_inds = []
 
-        if this.cal_type == "gain" and not this.wide_band:
-            # find the freq indices in "other" but not in "this"
-            if self.flex_spw:
-                other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
-                for idx in np.intersect1d(this.spw_array, other.spw_array):
-                    other_mask[other.flex_spw_id_array == idx] = np.isin(
-                        other.freq_array[other.flex_spw_id_array == idx],
-                        this.freq_array[this.flex_spw_id_array == idx],
-                        invert=True,
-                    )
-                temp = np.where(other_mask)[0]
-            else:
-                temp = np.nonzero(~np.isin(other.freq_array, this.freq_array))[0]
-            if len(temp) > 0:
-                fnew_inds = temp
-                if n_axes > 0:
-                    history_update_string += ", frequency"
-                else:
-                    history_update_string += "frequency"
-                n_axes += 1
-            else:
-                fnew_inds = []
-        elif this.wide_band:
+        if this.wide_band:
             temp = np.nonzero(~np.isin(other.spw_array, this.spw_array))[0]
             if len(temp) > 0:
                 fnew_inds = temp
@@ -3039,9 +2921,24 @@ class UVCal(UVBase):
             else:
                 fnew_inds = []
         else:
-            # adding along frequency axis is not supported for old delay-type
-            # delay type, set fnew_inds to an empty list
-            fnew_inds = []
+            # find the freq indices in "other" but not in "this"
+            other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
+            for idx in np.intersect1d(this.spw_array, other.spw_array):
+                other_mask[other.flex_spw_id_array == idx] = np.isin(
+                    other.freq_array[other.flex_spw_id_array == idx],
+                    this.freq_array[this.flex_spw_id_array == idx],
+                    invert=True,
+                )
+            temp = np.where(other_mask)[0]
+            if len(temp) > 0:
+                fnew_inds = temp
+                if n_axes > 0:
+                    history_update_string += ", frequency"
+                else:
+                    history_update_string += "frequency"
+                n_axes += 1
+            else:
+                fnew_inds = []
 
         temp = np.nonzero(~np.isin(other.jones_array, this.jones_array))[0]
         if len(temp) > 0:
@@ -3128,51 +3025,42 @@ class UVCal(UVBase):
                         [this.flex_jones_array, other.flex_jones_array[fnew_inds]],
                         axis=0,
                     )
+                f_order = np.argsort(this.spw_array)
             else:
-                this.freq_array = np.concatenate(
-                    [this.freq_array, other.freq_array[fnew_inds]]
-                )
-
-            if this.flex_spw and not this.wide_band:
                 this.flex_spw_id_array = np.concatenate(
                     [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
                 )
-                concat_spw_array = np.concatenate([this.spw_array, other.spw_array])
+                this.freq_array = np.concatenate(
+                    [this.freq_array, other.freq_array[fnew_inds]]
+                )
+                this.channel_width = np.concatenate(
+                    [this.channel_width, other.channel_width[fnew_inds]]
+                )
+
                 # We want to preserve per-spw information based on first appearance
                 # in the concatenated array.
                 unique_index = np.sort(
                     np.unique(this.flex_spw_id_array, return_index=True)[1]
                 )
-                this.spw_array = this.flex_spw_id_array[unique_index]
-                spw_index = np.asarray(
-                    [
-                        np.nonzero(concat_spw_array == spw)[0][0]
-                        for spw in this.spw_array
-                    ]
-                )
+                this.spw_array = np.sort(this.flex_spw_id_array[unique_index])
                 if this.flex_jones_array is not None:
+                    concat_spw_array = np.concatenate([this.spw_array, other.spw_array])
+                    spw_index = np.asarray(
+                        [
+                            np.nonzero(concat_spw_array == spw)[0][0]
+                            for spw in this.spw_array
+                        ]
+                    )
                     this.flex_jones_array = np.concatenate(
                         [this.flex_jones_array, other.flex_jones_array]
                     )
                     this.flex_jones_array = this.flex_jones_array[spw_index]
-                if this.freq_range is not None and other.freq_range is not None:
-                    # this can be removed in v3.0
-                    this.freq_range = np.concatenate(
-                        [this.freq_range, other.freq_range], axis=0
-                    )
-                elif this.freq_range is not None or other.freq_range is not None:
-                    warnings.warn(
-                        "One object has the freq_range set and one does not. Combined "
-                        "object will not have it set."
-                    )
-                    this.freq_range = None
-
                 # If we have a multi-spw data set, need to sort out the order of
                 # the individual windows first.
                 f_order = np.concatenate(
                     [
                         np.where(this.flex_spw_id_array == idx)[0]
-                        for idx in sorted(this.spw_array)
+                        for idx in this.spw_array
                     ]
                 )
 
@@ -3187,42 +3075,6 @@ class UVCal(UVBase):
                     ):
                         subsort_order = f_order[select_mask]
                         f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
-
-                spw_sort_index = np.asarray(
-                    [
-                        np.nonzero(this.spw_array == spw)[0][0]
-                        for spw in sorted(this.spw_array)
-                    ]
-                )
-                this.spw_array = np.array(sorted(this.spw_array))
-                if this.freq_range is not None:
-                    # this can be removed in v3.0
-                    this.freq_range = this.freq_range[spw_sort_index, :]
-            else:
-                if this_has_spw_id or other_has_spw_id:
-                    this.flex_spw_id_array = np.full(
-                        this.freq_array.size, this.spw_array[0], dtype=int
-                    )
-                if this.wide_band:
-                    f_order = np.argsort(this.spw_array)
-                else:
-                    f_order = np.argsort(this.freq_array)
-
-                    if this.freq_range is not None and other.freq_range is not None:
-                        temp = np.concatenate((this.freq_range, other.freq_range))
-                        this.freq_range = [np.min(temp), np.max(temp)]
-                        this.freq_range = np.array(this.freq_range)[np.newaxis, :]
-                    elif this.freq_range is not None or other.freq_range is not None:
-                        warnings.warn(
-                            "One object has the freq_range set and one does not. "
-                            "Combined object will not have it set."
-                        )
-                        this.freq_range = None
-
-            if not this.wide_band:
-                this.channel_width = np.concatenate(
-                    [this.channel_width, other.channel_width[fnew_inds]]
-                )
 
             if not self.metadata_only:
                 data_array_shape = getattr(this, this._required_data_params[0]).shape
@@ -3488,8 +3340,7 @@ class UVCal(UVBase):
             else:
                 this.freq_array = this.freq_array[f_order]
                 this.channel_width = this.channel_width[f_order]
-                if this.flex_spw_id_array is not None:
-                    this.flex_spw_id_array = this.flex_spw_id_array[f_order]
+                this.flex_spw_id_array = this.flex_spw_id_array[f_order]
         if len(tnew_inds) > 0:
             if this.time_array is not None:
                 this.time_array = this.time_array[t_order]
@@ -3698,13 +3549,8 @@ class UVCal(UVBase):
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
 
-        # Check that all objects are consistent w/ use of flex_spw
+        # Check that all objects are consistent w/ use of flex-Jones
         for obj in other:
-            if this.flex_spw != obj.flex_spw:
-                raise ValueError(
-                    "To combine these data, flex_spw must be set to the same "
-                    "value (True or False) for all objects."
-                )
             if (this.flex_jones_array is None) != (obj.flex_jones_array is None):
                 raise ValueError(
                     "To combine these data, all objects must be either set to regular "
@@ -3730,16 +3576,6 @@ class UVCal(UVBase):
                     "To combine these data, wide_band must be set to the same "
                     "value (True or False) for all objects."
                 )
-
-        this_has_spw_id = this.flex_spw_id_array is not None
-        other_has_spw_id = np.array(
-            [obj.flex_spw_id_array is not None for obj in other]
-        )
-        if not np.all(other_has_spw_id == this_has_spw_id):
-            warnings.warn(
-                "Some objects have the flex_spw_id_array set and some do not. Combined "
-                "object will have it set."
-            )
 
         allowed_axes = ["antenna", "time", "jones"]
         if this.wide_band is True:
@@ -3880,10 +3716,6 @@ class UVCal(UVBase):
         ]
         this_qa_exp_shape = this._quality_array.expected_shape(this)
 
-        freq_range_exists = [this.freq_range is not None] + [
-            obj.freq_range is not None for obj in other
-        ]
-
         if axis == "antenna":
             this.Nants_data = sum([this.Nants_data] + [obj.Nants_data for obj in other])
             this.ant_array = np.concatenate(
@@ -3898,61 +3730,30 @@ class UVCal(UVBase):
             this.channel_width = np.concatenate(
                 [this.channel_width] + [obj.channel_width for obj in other]
             )
-            if this.flex_spw:
-                this.flex_spw_id_array = np.concatenate(
-                    [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
-                )
+            this.flex_spw_id_array = np.concatenate(
+                [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
+            )
+            # We want to preserve per-spw information based on first appearance
+            # in the concatenated array.
+            unique_index = np.sort(
+                np.unique(this.flex_spw_id_array, return_index=True)[1]
+            )
+            this.spw_array = this.flex_spw_id_array[unique_index]
+            this.Nspws = this.spw_array.size
+            if this.flex_jones_array is not None:
                 concat_spw_array = np.concatenate(
                     [this.spw_array] + [obj.spw_array for obj in other]
                 )
-                # We want to preserve per-spw information based on first appearance
-                # in the concatenated array.
-                unique_index = np.sort(
-                    np.unique(this.flex_spw_id_array, return_index=True)[1]
-                )
-                this.spw_array = this.flex_spw_id_array[unique_index]
-                this.Nspws = this.spw_array.size
                 spw_index = np.asarray(
                     [
                         np.nonzero(concat_spw_array == spw)[0][0]
                         for spw in this.spw_array
                     ]
                 )
-                if this.flex_jones_array is not None:
-                    this.flex_jones_array = np.concatenate(
-                        [this.flex_jones_array]
-                        + [obj.flex_jones_array for obj in other]
-                    )
-                    this.flex_jones_array = this.flex_jones_array[spw_index]
-                if np.all(freq_range_exists):
-                    this.freq_range = np.concatenate(
-                        [this.freq_range] + [obj.freq_range for obj in other], axis=0
-                    )
-                    this.freq_range = this.freq_range[spw_index, :]
-                elif np.any(freq_range_exists):
-                    warnings.warn(
-                        "Some objects have the freq_range set and some do not. "
-                        "Combined object will not have it set."
-                    )
-                    this.freq_range = None
-            else:
-                if this_has_spw_id or other_has_spw_id:
-                    this.flex_spw_id_array = np.full(
-                        this.Nfreqs, this.spw_array[0], dtype=int
-                    )
-                if np.all(freq_range_exists):
-                    temp = np.concatenate(
-                        ([this.freq_range] + [obj.freq_range for obj in other])
-                    )
-                    this.freq_range = [np.min(temp), np.max(temp)]
-                    this.freq_range = np.array(this.freq_range)
-                    this.freq_range = this.freq_range[np.newaxis, :]
-                elif np.any(freq_range_exists):
-                    warnings.warn(
-                        "Some objects have the freq_range set and and some do not. "
-                        "Combined object will not have it set."
-                    )
-                    this.freq_range = None
+                this.flex_jones_array = np.concatenate(
+                    [this.flex_jones_array] + [obj.flex_jones_array for obj in other]
+                )
+                this.flex_jones_array = this.flex_jones_array[spw_index]
 
             spacing_error, chanwidth_error = this._check_freq_spacing(
                 raise_errors=False
@@ -4267,12 +4068,7 @@ class UVCal(UVBase):
         if (times is not None or time_range is not None) and (
             self.time_array is not None and self.time_range is not None
         ):
-            warnings.warn(
-                "The time_array and time_range attributes are both set. "
-                "Defaulting to using time_range to determine time selection. "
-                "This will become an error in version 3.0.",
-                DeprecationWarning,
-            )
+            raise ValueError("The time_array and time_range attributes are both set.")
 
         time_inds = uvutils._select_times_helper(
             times=times,
@@ -4338,10 +4134,6 @@ class UVCal(UVBase):
                 spw_inds = None
             else:
                 if not self.wide_band:
-                    assert self.flex_spw is True, (
-                        "The `flex_spw` parameter must be True if there are multiple "
-                        "spectral windows and the `wide_band` parameter is not True."
-                    )
                     # Translate the spws into frequencies
                     freq_chans = uvutils._sorted_unique_union(
                         np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
@@ -4463,7 +4255,7 @@ class UVCal(UVBase):
                 # axis instead of the pol axis
                 jones_inds = None
 
-                if self.flex_spw:
+                if not self.wide_band:
                     jones_chans = np.where(
                         np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
                     )[0]
@@ -4474,7 +4266,7 @@ class UVCal(UVBase):
 
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
-                if (len(spw_inds) == 0) or (self.flex_spw and len(freq_inds) == 0):
+                if (len(spw_inds) == 0) or (not self.wide_band and len(freq_inds) == 0):
                     raise ValueError(
                         "No data matching this Jones selection in this flex-Jones "
                         " UVCal object."
@@ -4746,18 +4538,6 @@ class UVCal(UVBase):
             jones_inds=jones_inds,
             history_update_string=history_update_string,
         )
-
-        # handle freq_range if selecting on freqs (can go away in v3.0)
-        if (
-            cal_object.freq_range is not None
-            and cal_object.flex_spw is False
-            and freq_inds is not None
-        ):
-            cal_object.freq_range = [
-                np.min(cal_object.freq_array),
-                np.max(cal_object.freq_array),
-            ]
-            cal_object.freq_range = np.asarray(cal_object.freq_range)[np.newaxis, :]
 
         # check if object is self-consistent
         if run_check:
