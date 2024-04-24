@@ -679,7 +679,6 @@ class CALFITS(UVCal):
                 )
             if self.cal_type == "delay":
                 self._set_delay()
-                # True by fiat as of v3.0
                 self.Nfreqs = 1
 
                 sechdu = fname[hdunames["FLAGS"]]

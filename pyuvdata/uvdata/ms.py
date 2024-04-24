@@ -603,9 +603,8 @@ class MS(UVData):
         }
         spw_list = sorted(spw_dict.keys())
 
-        # Here we sort out where the various spectral windows are starting and stoping
-        # in our flex_spw spectrum, if applicable. By default, data are sorted in
-        # spw-number order.
+        # Here we sort out where the various spectral windows are starting and stopping.
+        # By default, data are sorted in spw-number order.
         nfreqs = 0
         spw_id_array = np.array([], dtype=int)
         for key in sorted(spw_dict.keys()):
@@ -923,11 +922,6 @@ class MS(UVData):
             sel_mask = self.flex_spw_id_array == data_desc_dict[key]["SPW_ID"]
             self.freq_array[sel_mask] = data_desc_dict[key]["CHAN_FREQ"]
             self.channel_width[sel_mask] = data_desc_dict[key]["CHAN_WIDTH"]
-
-        # This if/else can go away in version 3.0 when channel width will always be an
-        # array and the flex_spw_id_array will always be required.
-        if (np.unique(self.channel_width).size != 1) or (len(spw_list) != 1):
-            self._set_flex_spw()
 
         self.Ntimes = int(np.unique(self.time_array).size)
         self.Nblts = int(self.data_array.shape[0])

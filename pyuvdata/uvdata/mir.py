@@ -287,12 +287,6 @@ class Mir(UVData):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
         """
-        # By default, we will want to assume that MIR datasets are multi-spw.
-        # At present, there is no advantage to allowing this
-        # not to be true on read-in, particularly as in the long-term, this setting
-        # will hopefully become the default for all data sets.
-        self._set_flex_spw()
-
         # Create a simple list for broadcasting values stored on a
         # per-integration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])
