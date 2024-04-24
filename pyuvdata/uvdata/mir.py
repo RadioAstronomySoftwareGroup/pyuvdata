@@ -12,6 +12,7 @@ from astropy.time import Time
 from docstring_parser import DocstringStyle
 
 from pyuvdata import Telescope, UVData
+from pyuvdata.telescopes import known_telescope_location
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
@@ -60,8 +61,9 @@ def generate_sma_antpos_dict(filepath):
     # We need the antenna positions in ECEF, rather than the native rotECEF format that
     # they are stored in. Get the longitude info, and use the appropriate function in
     # utils to get these values the way that we want them.
-    _, lon, _ = Telescope.from_known_telescopes("SMA").location_lat_lon_alt
-    mir_antpos["xyz_pos"] = uvutils.ECEF_from_rotECEF(mir_antpos["xyz_pos"], lon)
+    mir_antpos["xyz_pos"] = uvutils.ECEF_from_rotECEF(
+        mir_antpos["xyz_pos"], known_telescope_location("SMA").lon.rad
+    )
 
     # Create a dictionary that can be used for updates.
     return {item["antenna"]: item["xyz_pos"] for item in mir_antpos}
@@ -525,13 +527,15 @@ class Mir(UVData):
                 np.concatenate((mir_data.bl_data["iant1"], mir_data.bl_data["iant2"]))
             )
         )
-        self.telescope.Nants = 8
         self.Nbls = int(self.Nants_data * (self.Nants_data - 1) / 2)
         self.Nblts = Nblts
         self.Npols = Npols
         self.Ntimes = len(mir_data.in_data)
-        self.telescope.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
 
+        self.telescope = Telescope()
+        self._set_telescope_requirements()
+        self.telescope.Nants = 8
+        self.telescope.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
         self.telescope.antenna_numbers = np.arange(1, 9)
 
         # Prepare the XYZ coordinates of the antenna positions.
@@ -543,7 +547,7 @@ class Mir(UVData):
                 ]
 
         # Get the coordinates from the entry in telescope.py
-        self.telescope.location = Telescope.from_known_telescopes("SMA").location
+        self.telescope.location = known_telescope_location("SMA")
 
         # Calculate antenna positions in ECEF frame. Note that since both
         # coordinate systems are in relative units, no subtraction from

@@ -8,8 +8,9 @@ import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 
+import pyuvdata.tests as uvtest
+from pyuvdata import Telescope, UVCal
 from pyuvdata.tests.test_utils import selenoids
-from pyuvdata.uvcal import UVCal
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
 
@@ -19,13 +20,16 @@ def uvd_kw():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
         "times": np.linspace(2459850, 2459851, 12),
-        "antenna_positions": {
-            0: [0.0, 0.0, 0.0],
-            1: [0.0, 0.0, 1.0],
-            2: [0.0, 0.0, 2.0],
-        },
-        "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
-        "telescope_name": "mock",
+        "telescope": Telescope.from_params(
+            location=EarthLocation.from_geodetic(0, 0, 0),
+            name="mock",
+            instrument="mock",
+            antenna_positions={
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 1.0],
+                2: [0.0, 0.0, 2.0],
+            },
+        ),
         "polarization_array": np.array([-5, -6, -7, -8]),
     }
 
@@ -42,15 +46,79 @@ def uvc_only_kw():
 
 
 @pytest.fixture(scope="function")
-def uvc_kw(uvd_kw, uvc_only_kw):
-    uvd_kw["time_array"] = uvd_kw["times"]
-    del uvd_kw["times"]
-    del uvd_kw["polarization_array"]
-    return {**uvc_only_kw, **uvd_kw}
+def uvc_simplest_no_telescope(uvc_only_kw):
+    return {
+        "freq_array": np.linspace(100e6, 200e6, 10),
+        "time_array": np.linspace(2459850, 2459851, 12),
+        "telescope_location": EarthLocation.from_geodetic(0, 0, 0),
+        "telescope_name": "mock",
+        "x_orientation": "n",
+        "antenna_positions": {
+            0: [0.0, 0.0, 0.0],
+            1: [0.0, 0.0, 1.0],
+            2: [0.0, 0.0, 2.0],
+        },
+        "cal_style": "redundant",
+        "gain_convention": "multiply",
+        "jones_array": "linear",
+        "cal_type": "gain",
+    }
 
 
-def test_new_uvcal_simplest(uvc_kw):
-    uvc = UVCal.new(**uvc_kw)
+@pytest.fixture(scope="function")
+def uvc_simplest():
+    return {
+        "freq_array": np.linspace(100e6, 200e6, 10),
+        "time_array": np.linspace(2459850, 2459851, 12),
+        "telescope": Telescope.from_params(
+            location=EarthLocation.from_geodetic(0, 0, 0),
+            name="mock",
+            x_orientation="n",
+            antenna_positions={
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 1.0],
+                2: [0.0, 0.0, 2.0],
+            },
+        ),
+        "cal_style": "redundant",
+        "gain_convention": "multiply",
+        "jones_array": "linear",
+        "cal_type": "gain",
+    }
+
+
+@pytest.fixture(scope="function")
+def uvc_simplest_moon():
+    pytest.importorskip("lunarsky")
+    from pyuvdata.utils import MoonLocation
+
+    return {
+        "freq_array": np.linspace(100e6, 200e6, 10),
+        "time_array": np.linspace(2459850, 2459851, 12),
+        "telescope": Telescope.from_params(
+            location=MoonLocation.from_selenodetic(0, 0, 0),
+            name="mock",
+            x_orientation="n",
+            antenna_positions={
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 1.0],
+                2: [0.0, 0.0, 2.0],
+            },
+        ),
+        "cal_style": "redundant",
+        "gain_convention": "multiply",
+        "jones_array": "linear",
+        "cal_type": "gain",
+    }
+
+
+def test_new_uvcal_simplest(uvc_simplest_no_telescope):
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Passing telescope_name, telescope_location, antenna_positions, "
+        "x_orientation is deprecated in favor of passing a Telescope object",
+    ):
+        uvc = UVCal.new(**uvc_simplest_no_telescope)
     assert uvc.Nants_data == 3
     assert uvc.telescope.Nants == 3
     assert uvc.Nfreqs == 10
@@ -58,47 +126,42 @@ def test_new_uvcal_simplest(uvc_kw):
 
 
 @pytest.mark.parametrize("selenoid", selenoids)
-def test_new_uvcal_simple_moon(uvc_kw, selenoid):
-    pytest.importorskip("lunarsky")
-    from pyuvdata.utils import MoonLocation
-
-    uvc_kw["telescope_location"] = MoonLocation.from_selenodetic(
-        0, 0, 0, ellipsoid=selenoid
-    )
-    uvc = UVCal.new(**uvc_kw)
+def test_new_uvcal_simple_moon(uvc_simplest_moon, selenoid):
+    uvc_simplest_moon["telescope"].location.ellipsoid = selenoid
+    uvc = UVCal.new(**uvc_simplest_moon)
     assert uvc.telescope._location.frame == "mcmf"
     assert uvc.telescope._location.ellipsoid == selenoid
-    assert uvc.telescope.location == uvc_kw["telescope_location"]
+    assert uvc.telescope.location == uvc_simplest_moon["telescope"].location
     assert uvc.telescope.location.ellipsoid == selenoid
 
 
-def test_new_uvcal_time_range(uvc_kw):
-    tdiff = np.mean(np.diff(uvc_kw["time_array"]))
-    tstarts = uvc_kw["time_array"] - tdiff / 2
-    tends = uvc_kw["time_array"] + tdiff / 2
-    uvc_kw["time_range"] = np.stack((tstarts, tends), axis=1)
-    del uvc_kw["time_array"]
+def test_new_uvcal_time_range(uvc_simplest):
+    tdiff = np.mean(np.diff(uvc_simplest["time_array"]))
+    tstarts = uvc_simplest["time_array"] - tdiff / 2
+    tends = uvc_simplest["time_array"] + tdiff / 2
+    uvc_simplest["time_range"] = np.stack((tstarts, tends), axis=1)
+    del uvc_simplest["time_array"]
 
-    UVCal.new(**uvc_kw)
+    UVCal.new(**uvc_simplest)
 
-    uvc_kw["integration_time"] = tdiff * 86400
-    uvc = UVCal.new(**uvc_kw)
+    uvc_simplest["integration_time"] = tdiff * 86400
+    uvc = UVCal.new(**uvc_simplest)
     assert uvc.Ntimes == 12
 
-    uvc_kw["integration_time"] = np.full((5,), tdiff * 86400)
+    uvc_simplest["integration_time"] = np.full((5,), tdiff * 86400)
     with pytest.raises(
         ValueError,
         match="integration_time must be the same length as the first axis of "
         "time_range.",
     ):
-        uvc = UVCal.new(**uvc_kw)
+        uvc = UVCal.new(**uvc_simplest)
 
 
-def test_new_uvcal_bad_inputs(uvc_kw):
+def test_new_uvcal_bad_inputs(uvc_simplest):
     with pytest.raises(
         ValueError, match="The following ants are not in antenna_numbers"
     ):
-        new_uvcal(ant_array=[0, 1, 2, 3], **uvc_kw)
+        new_uvcal(ant_array=[0, 1, 2, 3], **uvc_simplest)
 
     with pytest.raises(
         ValueError,
@@ -107,7 +170,8 @@ def test_new_uvcal_bad_inputs(uvc_kw):
         ),
     ):
         new_uvcal(
-            cal_style="sky", **{k: v for k, v in uvc_kw.items() if k != "cal_style"}
+            cal_style="sky",
+            **{k: v for k, v in uvc_simplest.items() if k != "cal_style"}
         )
 
     with pytest.raises(
@@ -117,30 +181,34 @@ def test_new_uvcal_bad_inputs(uvc_kw):
             cal_style="wrong",
             ref_antenna_name="mock",
             sky_catalog="mock",
-            **{k: v for k, v in uvc_kw.items() if k != "cal_style"}
+            **{k: v for k, v in uvc_simplest.items() if k != "cal_style"}
         )
 
     with pytest.raises(ValueError, match="Unrecognized keyword argument"):
-        new_uvcal(bad_kwarg=True, **uvc_kw)
+        new_uvcal(bad_kwarg=True, **uvc_simplest)
 
     with pytest.raises(
         ValueError, match=re.escape("Provide *either* freq_range *or* freq_array")
     ):
-        new_uvcal(freq_range=[100e6, 200e6], **uvc_kw)
+        new_uvcal(freq_range=[100e6, 200e6], **uvc_simplest)
 
     with pytest.raises(ValueError, match="You must provide either freq_array"):
-        new_uvcal(**{k: v for k, v in uvc_kw.items() if k != "freq_array"})
+        new_uvcal(**{k: v for k, v in uvc_simplest.items() if k != "freq_array"})
 
     with pytest.raises(ValueError, match="cal_type must be either 'gain' or 'delay'"):
         new_uvcal(
             cal_type="wrong",
             freq_range=[150e6, 180e6],
-            **{k: v for k, v in uvc_kw.items() if k not in ("freq_array", "cal_type")}
+            **{
+                k: v
+                for k, v in uvc_simplest.items()
+                if k not in ("freq_array", "cal_type")
+            }
         )
 
 
-def test_new_uvcal_jones_array(uvc_kw):
-    uvc = {k: v for k, v in uvc_kw.items() if k != "jones_array"}
+def test_new_uvcal_jones_array(uvc_simplest):
+    uvc = {k: v for k, v in uvc_simplest.items() if k != "jones_array"}
 
     lin = new_uvcal(jones_array="linear", **uvc)
     assert lin.Njones == 4
@@ -161,8 +229,8 @@ def test_new_uvcal_jones_array(uvc_kw):
     assert np.allclose(linear_physical.jones_array, np.array([-5, -6, -7, -8]))
 
 
-def test_new_uvcal_set_sky(uvc_kw):
-    uvc = {k: v for k, v in uvc_kw.items() if k != "cal_style"}
+def test_new_uvcal_set_sky(uvc_simplest):
+    uvc = {k: v for k, v in uvc_simplest.items() if k != "cal_style"}
 
     sk = new_uvcal(cal_style="sky", ref_antenna_name="mock", sky_catalog="mock", **uvc)
     assert sk.cal_style == "sky"
@@ -170,19 +238,19 @@ def test_new_uvcal_set_sky(uvc_kw):
     assert sk.sky_catalog == "mock"
 
 
-def test_new_uvcal_set_extra_keywords(uvc_kw):
-    uvc = new_uvcal(extra_keywords={"test": "test", "test2": "test2"}, **uvc_kw)
+def test_new_uvcal_set_extra_keywords(uvc_simplest):
+    uvc = new_uvcal(extra_keywords={"test": "test", "test2": "test2"}, **uvc_simplest)
     assert uvc.extra_keywords["test"] == "test"
     assert uvc.extra_keywords["test2"] == "test2"
 
 
-def test_new_uvcal_set_empty(uvc_kw):
-    uvc = new_uvcal(empty=True, **uvc_kw)
+def test_new_uvcal_set_empty(uvc_simplest):
+    uvc = new_uvcal(empty=True, **uvc_simplest)
     assert uvc.flag_array.dtype == bool
 
 
-def test_new_uvcal_set_delay(uvc_kw):
-    uvc = {k: v for k, v in uvc_kw.items() if k not in ("freq_array", "cal_type")}
+def test_new_uvcal_set_delay(uvc_simplest):
+    uvc = {k: v for k, v in uvc_simplest.items() if k not in ("freq_array", "cal_type")}
     new = new_uvcal(
         delay_array=np.linspace(1, 10, 10),
         freq_range=[150e6, 180e6],
@@ -202,7 +270,7 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
 
     assert np.all(uvc.time_array == uvd_kw["times"])
     assert np.all(uvc.freq_array == uvd_kw["freq_array"])
-    assert uvc.telescope.name == uvd_kw["telescope_name"]
+    assert uvc.telescope.name == uvd_kw["telescope"].name
 
     uvc = new_uvcal_from_uvdata(uvd, time_array=uvd_kw["times"][:-1], **uvc_only_kw)
     assert np.all(uvc.time_array == uvd_kw["times"][:-1])
@@ -215,14 +283,16 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
     uvc = new_uvcal_from_uvdata(
         uvd,
         antenna_positions={
-            0: uvd_kw["antenna_positions"][0],
-            1: uvd_kw["antenna_positions"][1],
+            0: uvd_kw["telescope"].antenna_positions[0],
+            1: uvd_kw["telescope"].antenna_positions[1],
         },
         antenna_diameters=[10.0, 10.0],
         **uvc_only_kw
     )
 
-    assert np.all(uvc.telescope.antenna_positions[0] == uvd_kw["antenna_positions"][0])
+    assert np.all(
+        uvc.telescope.antenna_positions[0] == uvd_kw["telescope"].antenna_positions[0]
+    )
     assert len(uvc.telescope.antenna_positions) == 2
 
     uvd.telescope.antenna_diameters = np.zeros(uvd.telescope.Nants, dtype=float) + 5.0
