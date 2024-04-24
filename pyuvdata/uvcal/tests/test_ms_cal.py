@@ -146,7 +146,6 @@ def test_ms_cal_wrong_ms_type():
 
 def test_ms_cal_time_ranges(gain_data, tmp_path):
     filepath = os.path.join(tmp_path, "mscal_time_range.ms")
-    gain_data._set_flex_spw()
     gain_data.flex_spw_id_array = np.full(gain_data.Nfreqs, gain_data.spw_array[0])
     gain_data.set_lsts_from_time_array()
 

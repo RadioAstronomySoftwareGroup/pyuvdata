@@ -3948,7 +3948,6 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
         uvutils.uvcalibrate(uvd, uvcDterm, Dterm_cal=True)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
 def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
@@ -4163,6 +4162,11 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
             np.array([np.min(uvd.time_array), np.max(uvd.time_array)]), (1, 2)
         )
         uvc.set_lsts_from_time_array()
+        with pytest.raises(
+            ValueError, match="The time_array and time_range attributes are both set"
+        ):
+            uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
+        uvc.time_array = uvc.lst_array = None
         uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
         key = (1, 13, "xx")
@@ -4190,27 +4194,18 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
     with pytest.raises(ValueError, match=err_msg):
         uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
-    # set time_check=False to test the user warning
-    warn = [UserWarning]
-    if time_range:
-        warn += [DeprecationWarning] * 2
-        warn_msg += [
-            "The time_array and time_range attributes are both set, but only one "
-            "should be set. This will become an error in version 3.0.",
-            "The lst_array and lst_range attributes are both set, but only one "
-            "should be set. This will become an error in version 3.0.",
-        ]
-    with uvtest.check_warnings(warn, match=warn_msg):
-        uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
+    if not time_range:
+        with uvtest.check_warnings(UserWarning, match=warn_msg):
+            uvdcal = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
 
-    key = (1, 13, "xx")
-    ant1 = (1, "Jxx")
-    ant2 = (13, "Jxx")
+        key = (1, 13, "xx")
+        ant1 = (1, "Jxx")
+        ant2 = (13, "Jxx")
 
-    np.testing.assert_array_almost_equal(
-        uvdcal.get_data(key),
-        uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
-    )
+        np.testing.assert_array_almost_equal(
+            uvdcal.get_data(key),
+            uvd.get_data(key) / (uvc.get_gains(ant1) * uvc.get_gains(ant2).conj()).T,
+        )
 
 
 @pytest.mark.filterwarnings("ignore:Combined frequencies are separated by more than")
@@ -4299,8 +4294,8 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
 def test_uvcalibrate_wideband_gain(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    uvc._set_wide_band()
     uvc.flex_spw_id_array = None
+    uvc._set_wide_band()
     uvc.spw_array = np.array([1, 2, 3])
     uvc.Nspws = 3
     uvc.gain_array = uvc.gain_array[:, 0:3, :, :]

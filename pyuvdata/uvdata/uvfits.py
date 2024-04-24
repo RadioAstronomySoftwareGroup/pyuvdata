@@ -332,7 +332,7 @@ class UVFITS(UVData):
         assert len(raw_data_array.shape) == 5
 
         # Reshape the data array to be the right size if we are working w/ multiple
-        # spectral windows to be 'flex_spw' compliant
+        # spectral windows
         raw_data_array = np.reshape(
             raw_data_array,
             (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
@@ -428,7 +428,6 @@ class UVFITS(UVData):
             self.Nblts = vis_hdr.pop("GCOUNT")
 
             if self.Nspws > 1:
-                self._set_flex_spw()
                 # If this is multi-spw, get details from the FQ table
                 uvfits_nchan = vis_hdr.pop("NAXIS4")
                 self.Nfreqs = uvfits_nchan * self.Nspws
@@ -904,64 +903,51 @@ class UVFITS(UVData):
                     "writing a uvfits file."
                 )
 
-        if self.flex_spw:
-            # If we have a 'flexible' spectral window, we will need to evaluate the
-            # frequency axis slightly differently.
-            freq_array_use = self.freq_array
-            nchan_list = []
-            start_freq_array = []
-            delta_freq_array = []
-            for idx in self.spw_array:
-                chan_mask = self.flex_spw_id_array == idx
-                nchan_list += [np.sum(chan_mask)]
-                start_freq_array += [freq_array_use[chan_mask][0]]
-                # Need the array direction here since channel_width is always supposed
-                # to be > 0, but channels can be in decending freq order
-                freq_dir = 1.0
-                if nchan_list[-1] > 1:
-                    freq_dir = np.sign(np.median(np.diff(freq_array_use[chan_mask])))
-                delta_freq_array += [
-                    np.median(self.channel_width[chan_mask]) * freq_dir
-                ]
+        nchan_list = []
+        start_freq_array = []
+        delta_freq_array = []
+        for idx in self.spw_array:
+            chan_mask = self.flex_spw_id_array == idx
+            nchan_list += [np.sum(chan_mask)]
+            start_freq_array += [self.freq_array[chan_mask][0]]
+            # Need the array direction here since channel_width is always supposed
+            # to be > 0, but channels can be in decending freq order
+            freq_dir = 1.0
+            if nchan_list[-1] > 1:
+                freq_dir = np.sign(np.median(np.diff(self.freq_array[chan_mask])))
+            delta_freq_array += [np.median(self.channel_width[chan_mask]) * freq_dir]
 
-            start_freq_array = np.reshape(np.array(start_freq_array), (1, -1)).astype(
-                np.float64
+        start_freq_array = np.reshape(np.array(start_freq_array), (1, -1)).astype(
+            np.float64
+        )
+
+        delta_freq_array = np.reshape(np.array(delta_freq_array), (1, -1)).astype(
+            np.float64
+        )
+
+        # We've constructed a couple of lists with relevant values, now time to
+        # check them to make sure that the data will write correctly
+
+        # Make sure that all the windows are of the same size
+        if len(np.unique(nchan_list)) != 1:
+            raise IndexError(
+                "UVFITS format cannot handle spectral windows of different sizes!"
             )
 
-            delta_freq_array = np.reshape(np.array(delta_freq_array), (1, -1)).astype(
-                np.float64
-            )
+        # Make sure freq values are greater zero. Note that I think _technically
+        # one could write negative frequencies into the dataset, but I am pretty
+        # sure that reduction packages may balk hard.
+        if np.any(start_freq_array <= 0):
+            raise ValueError("Frequency values must be > 0 for UVFITS!")
 
-            # We've constructed a couple of lists with relevant values, now time to
-            # check them to make sure that the data will write correctly
+        # Make sure the delta values are non-zero
+        if np.any(delta_freq_array == 0):
+            raise ValueError("Something is wrong, frequency values not unique!")
 
-            # Make sure that all the windows are of the same size
-            if len(np.unique(nchan_list)) != 1:
-                raise IndexError(
-                    "UVFITS format cannot handle spectral windows of different sizes!"
-                )
-
-            # Make sure freq values are greater zero. Note that I think _technically
-            # one could write negative frequencies into the dataset, but I am pretty
-            # sure that reduction packages may balk hard.
-            if np.any(start_freq_array <= 0):
-                raise ValueError("Frequency values must be > 0 for UVFITS!")
-
-            # Make sure the delta values are non-zero
-            if np.any(delta_freq_array == 0):
-                raise ValueError("Something is wrong, frequency values not unique!")
-
-            # If we passed all the above checks, then it's time to fill some extra
-            # array values. Note that 'ref_freq' is something of a placeholder for
-            # other exciting things...
-            ref_freq = start_freq_array[0, 0]
-        else:
-            ref_freq = self.freq_array[0]
-            # we've already run the check_freq_spacing, so channel widths are the
-            # same to our tolerances
-            delta_freq_array = np.array([[np.median(self.channel_width)]]).astype(
-                np.float64
-            )
+        # If we passed all the above checks, then it's time to fill some extra
+        # array values. Note that 'ref_freq' is something of a placeholder for
+        # other exciting things...
+        ref_freq = start_freq_array[0, 0]
 
         if self.Npols > 1:
             pol_indexing = np.argsort(np.abs(self.polarization_array))

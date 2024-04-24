@@ -76,7 +76,7 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
         }
     )
 
-    _defaults = {"x_orientation": None, "flex_spw": False}
+    _defaults = {"x_orientation": None}
 
     _int_attrs = frozenset(
         {
@@ -210,8 +210,7 @@ class CalH5(UVCal):
                     background=background_lsts, astrometry_library=astrometry_library
                 )
 
-        # Required parameters
-        for attr in [
+        required_parameters = [
             "history",
             "Nfreqs",
             "Njones",
@@ -226,22 +225,10 @@ class CalH5(UVCal):
             "cal_type",
             "gain_convention",
             "wide_band",
-        ]:
-            try:
-                setattr(self, attr, getattr(meta, attr))
-            except AttributeError as e:
-                raise KeyError(str(e)) from e
+        ]
 
-        if self.wide_band:
-            self._set_wide_band()
-        if self.Nspws > 1 and not self.wide_band:
-            self._set_flex_spw()
-
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
-            self.history += self.pyuvdata_version_str
-
-        # Optional parameters
-        for attr in [
+        optional_parameters = [
+            "antenna_diameters",
             "channel_width",
             "flex_spw_id_array",
             "flex_jones_array",
@@ -262,7 +249,25 @@ class CalH5(UVCal):
             "ref_antenna_array",
             "scan_number_array",
             "sky_catalog",
-        ]:
+        ]
+
+        for attr in required_parameters:
+            try:
+                setattr(self, attr, getattr(meta, attr))
+            except AttributeError as e:
+                raise KeyError(str(e)) from e
+
+        if self.wide_band:
+            self._set_wide_band()
+            # Skip the flex_spw_id_array if we have a wide_band object, since older
+            # versions allowed one to store this even if it wasn't actually being used
+            optional_parameters.remove("flex_spw_id_array")
+
+        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+            self.history += self.pyuvdata_version_str
+
+        # Optional parameters
+        for attr in optional_parameters:
             try:
                 setattr(self, attr, getattr(meta, attr))
             except AttributeError:

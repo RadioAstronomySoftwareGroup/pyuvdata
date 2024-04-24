@@ -504,7 +504,6 @@ def test_casa_nonascii_bytes_antenna_names():
     assert uv1.telescope.antenna_names == expected_ant_names
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
 def test_readwriteread(tmp_path, casa_uvfits, telescope_frame, selenoid):
@@ -1533,7 +1532,7 @@ def test_readwriteread_reorder_pols(tmp_path, casa_uvfits):
 @pytest.mark.parametrize(
     "freq_val,chan_val,msg",
     [
-        [-1, 1, "Frequency values must be > 0 for UVFITS!"],
+        [-1, 0, "Frequency values must be > 0 for UVFITS!"],
         [1, 0, "Something is wrong, frequency values not"],
     ],
 )
