@@ -619,7 +619,6 @@ def new_uvdata(
         phase_center_id_array=phase_center_id_array,
         time_array=time_array,
     )
-    obj._set_future_array_shapes()
     obj._set_flex_spw()  # Always True
     obj.set_uvws_from_antenna_positions(update_vis=False)
 

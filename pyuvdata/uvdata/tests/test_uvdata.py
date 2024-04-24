@@ -26,7 +26,6 @@ from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
-from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 try:
     import pyuvdata._miriad  # noqa F401
@@ -70,7 +69,6 @@ def uvdata_props():
         "Nphase",
         "phase_center_catalog",
         "phase_center_id_array",
-        "future_array_shapes",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 
@@ -181,7 +179,7 @@ def hera_uvh5_xx_main():
     with uvtest.check_warnings(
         UserWarning, match="The uvw_array does not match the expected values"
     ):
-        hera_uvh5_xx = UVData.from_file(filename, use_future_array_shapes=True)
+        hera_uvh5_xx = UVData.from_file(filename)
 
     yield hera_uvh5_xx
 
@@ -219,9 +217,7 @@ def carma_miriad_main():
     testfile = os.path.join(DATA_PATH, "carma_miriad")
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "Altitude is not present in Miriad file")
-        uv_object.read(
-            testfile, run_check=False, check_extra=False, use_future_array_shapes=True
-        )
+        uv_object.read(testfile, run_check=False, check_extra=False)
     uv_object.extra_keywords = {}
 
     yield uv_object
@@ -240,7 +236,7 @@ def paper_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     uvh5_file = os.path.join(DATA_PATH, "zen.2456865.60537.xy.uvcRREAA.uvh5")
-    uv_object.read_uvh5(uvh5_file, use_future_array_shapes=True)
+    uv_object.read_uvh5(uvh5_file)
 
     yield uv_object
 
@@ -271,7 +267,7 @@ def bda_test_file_main():
     with uvtest.check_warnings(
         UserWarning, match="Unknown phase type, assuming object is unprojected"
     ):
-        uv_object.read(testfile, use_future_array_shapes=True)
+        uv_object.read(testfile)
 
     yield uv_object
 
@@ -303,7 +299,7 @@ def pyuvsim_redundant_main():
         warnings.filterwarnings(
             "ignore", "antenna_diameters are not set or are being overwritten."
         )
-        uv_object.read(testfile, use_future_array_shapes=True)
+        uv_object.read(testfile)
 
     yield uv_object
 
@@ -639,83 +635,6 @@ def test_check_flag_array(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_future_array_shape(casa_uvfits):
-    """Convert to future shapes and check. Convert back and test for equality."""
-    # starts as future shapes
-    uvobj = casa_uvfits
-    uvobj2 = casa_uvfits.copy()
-
-    # test no-op:
-    uvobj.use_future_array_shapes()
-    assert uvobj == uvobj2
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=(
-            "This method will be removed in version 3.0 when the current array "
-            "shapes are no longer supported."
-        ),
-    ):
-        uvobj.use_current_array_shapes()
-    uvobj.check()
-    uvobj3 = uvobj.copy()
-
-    # test no-op:
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=(
-            "This method will be removed in version 3.0 when the current array "
-            "shapes are no longer supported."
-        ),
-    ):
-        uvobj.use_current_array_shapes()
-    assert uvobj == uvobj3
-
-    uvobj.use_future_array_shapes()
-    uvobj.check()
-
-    assert uvobj == uvobj2
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=(
-            "This method will be removed in version 3.0 when the current array "
-            "shapes are no longer supported."
-        ),
-    ):
-        uvobj2.use_current_array_shapes()
-    uvobj2.data_array = None
-    uvobj2.flag_array = None
-    uvobj2.nsample_array = None
-    assert uvobj2.metadata_only
-
-    uvobj2.use_future_array_shapes()
-    assert uvobj2._data_array.expected_shape(uvobj2) == (
-        uvobj2.Nblts,
-        uvobj2.Nfreqs,
-        uvobj2.Npols,
-    )
-
-    uvobj.channel_width[-1] = uvobj.channel_width[0] * 2.0
-    uvobj.check()
-
-    with pytest.raises(
-        ValueError, match="channel_width parameter contains multiple unique values"
-    ):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match=(
-                "This method will be removed in version 3.0 when the current array "
-                "shapes are no longer supported."
-            ),
-        ):
-            uvobj.use_current_array_shapes()
-
-    with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
-        uvobj._check_freq_spacing()
-
-
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_nants_data_telescope_larger(casa_uvfits):
     uvobj = casa_uvfits
     # make sure it's okay for Nants_telescope to be strictly greater than Nants_data
@@ -916,7 +835,7 @@ def test_hera_diameters(paper_uvh5):
 def test_generic_read():
     uv_in = UVData()
     uvfits_file = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uv_in.read(uvfits_file, read_data=False, use_future_array_shapes=True)
+    uv_in.read(uvfits_file, read_data=False)
     unique_times = np.unique(uv_in.time_array)
 
     with pytest.raises(
@@ -926,7 +845,6 @@ def test_generic_read():
             uvfits_file,
             times=unique_times[0:2],
             time_range=[unique_times[0], unique_times[1]],
-            use_future_array_shapes=True,
         )
 
     with pytest.raises(
@@ -936,16 +854,13 @@ def test_generic_read():
             uvfits_file,
             antenna_nums=uv_in.telescope.antenna_numbers[0],
             antenna_names=uv_in.telescope.antenna_names[1],
-            use_future_array_shapes=True,
         )
 
     with pytest.raises(ValueError, match="File type could not be determined"):
         uv_in.read("foo")
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     ["phase_kwargs", "partial"],
     [
@@ -971,16 +886,12 @@ def test_generic_read():
         ),
     ],
 )
-def test_phase_unphase_hera(hera_uvh5, future_shapes, phase_kwargs, partial):
+def test_phase_unphase_hera(hera_uvh5, phase_kwargs, partial):
     """
     Read in drift data, phase to an RA/DEC, unphase and check for object equality.
     """
     uv1 = hera_uvh5.copy()
     uv_raw = hera_uvh5
-
-    if not future_shapes:
-        uv1.use_current_array_shapes()
-        uv_raw.use_current_array_shapes()
 
     if partial:
         mask = np.full(uv1.Nblts, False)
@@ -1161,16 +1072,10 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_unphase_drift_data_error(hera_uvh5, sma_mir, future_shapes):
+def test_unphase_drift_data_error(hera_uvh5, sma_mir):
     uv_phase = hera_uvh5.copy()
     uv_drift = hera_uvh5
     # check error unphasing an unphased object
-
-    if not future_shapes:
-        uv_phase.use_current_array_shapes()
-        uv_drift.use_current_array_shapes()
-        sma_mir.use_current_array_shapes()
 
     uv_phase.phase(ra=0.0, dec=0.0, cat_name="foo")
 
@@ -1210,17 +1115,11 @@ def test_phase_errors(hera_uvh5):
         uv_phase.phase(ra=0.0, dec=0.0, epoch="J2000")
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos1", [True, False])
 @pytest.mark.parametrize("use_ant_pos2", [True, False])
-def test_unphasing(uv_phase_comp, future_shapes, use_ant_pos1, use_ant_pos2):
+def test_unphasing(uv_phase_comp, use_ant_pos1, use_ant_pos2):
     uvd1, uvd2 = uv_phase_comp
-
-    if not future_shapes:
-        uvd1.use_current_array_shapes()
-        uvd2.use_current_array_shapes()
 
     uvd1.unproject_phase(use_ant_pos=use_ant_pos1)
     uvd2.unproject_phase(use_ant_pos=use_ant_pos2)
@@ -1237,15 +1136,10 @@ def test_unphasing(uv_phase_comp, future_shapes, use_ant_pos1, use_ant_pos2):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("unphase_first", [True, False])
-def test_phasing(uv_phase_comp, future_shapes, unphase_first, use_ant_pos):
+def test_phasing(uv_phase_comp, unphase_first, use_ant_pos):
     uvd1, uvd2 = uv_phase_comp
-
-    if not future_shapes:
-        uvd1.use_current_array_shapes()
-        uvd2.use_current_array_shapes()
 
     if unphase_first:
         uvd2.unproject_phase(use_ant_pos=use_ant_pos)
@@ -1316,10 +1210,8 @@ def test_phasing_multi_phase_errs(sma_mir, arg_dict, err_type, msg):
 
 @pytest.mark.filterwarnings("ignore:The provided name UVCeti is already used")
 @pytest.mark.filterwarnings("ignore:The entry name UVCeti is not unique")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_cotter_phasing(future_shapes, uv_phase_comp):
+def test_cotter_phasing(uv_phase_comp):
     """Use MWA files phased to 2 different places to test phasing."""
     uvd1, uvd2 = uv_phase_comp
 
@@ -1397,8 +1289,7 @@ def test_cotter_phasing(future_shapes, uv_phase_comp):
     assert uvd1 == uvd1_drift
 
 
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_phasing_unprojected(future_shapes, sma_mir):
+def test_phasing_unprojected(sma_mir):
     # Make sure that unprojected via phasing and unproject_phase works the same.
     sma_copy = sma_mir.copy()
 
@@ -1430,13 +1321,9 @@ def test_set_uvws(hera_uvh5):
     assert uv1._data_array != uv2._data_array
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_blts(paper_uvh5, future_shapes):
+def test_select_blts(paper_uvh5):
     uv_object = paper_uvh5
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     # fmt: off
@@ -1529,14 +1416,10 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
 
     uv_obj.write_uvh5(testfile)
 
-    uv1_read = UVData.from_file(
-        testfile, phase_center_ids=0, use_future_array_shapes=True
-    )
+    uv1_read = UVData.from_file(testfile, phase_center_ids=0)
     assert uv1_read == uv1
 
-    uv2_read = UVData.from_file(
-        testfile, phase_center_ids=[1, 2], use_future_array_shapes=True
-    )
+    uv2_read = UVData.from_file(testfile, phase_center_ids=[1, 2])
     assert uv2_read == uv2
 
 
@@ -1899,14 +1782,9 @@ def test_select_bls(casa_uvfits):
         uv_object.select(bls=[100])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_times(casa_uvfits, future_shapes):
+def test_select_times(casa_uvfits):
     uv_object = casa_uvfits
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
@@ -1984,17 +1862,11 @@ def test_select_time_range(casa_uvfits):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
+def test_select_lsts(casa_uvfits, tmp_path):
     uv_object = casa_uvfits
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     unique_lsts = np.unique(uv_object.lst_array)
@@ -2034,12 +1906,7 @@ def test_select_lsts(casa_uvfits, tmp_path, future_shapes):
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
     uv_object.write_uvh5(testfile)
-
-    uv2_in = UVData.from_file(
-        testfile, lsts=lsts_to_keep, use_future_array_shapes=future_shapes
-    )
-    if not future_shapes:
-        uv2_in.use_current_array_shapes()
+    uv2_in = UVData.from_file(testfile, lsts=lsts_to_keep)
 
     assert uv2_in == uv_object2
 
@@ -2082,15 +1949,11 @@ def test_consolidate_phase_centers(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("select_type", ["range", "specified"])
-def test_select_lsts_casa(casa_uvfits, tmp_path, future_shapes, select_type):
+def test_select_lsts_casa(casa_uvfits, tmp_path, select_type):
     pytest.importorskip("casacore")
 
     uv_object = casa_uvfits
-
-    if future_shapes:
-        uv_object.use_future_array_shapes()
 
     unique_lsts = np.unique(uv_object.lst_array)
 
@@ -2119,11 +1982,7 @@ def test_select_lsts_casa(casa_uvfits, tmp_path, future_shapes, select_type):
             "The uvw_array does not match the expected values",
         ],
     ):
-        uv_in = UVData.from_file(
-            testfile, lsts=lsts_to_keep, use_future_array_shapes=True
-        )
-    if future_shapes:
-        uv_in.use_future_array_shapes()
+        uv_in = UVData.from_file(testfile, lsts=lsts_to_keep)
 
     uv_in.history = uv_object.history
     uv_in._consolidate_phase_center_catalogs(
@@ -2144,11 +2003,9 @@ def test_select_lsts_casa(casa_uvfits, tmp_path, future_shapes, select_type):
     assert uv_in == uv_object
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_lsts_multi_day(casa_uvfits, future_shapes):
+def test_select_lsts_multi_day(casa_uvfits):
     uv_object = casa_uvfits
     # check that times come from a single JD
     assert len(np.unique(np.asarray(uv_object.time_array, dtype=np.int_))) == 1
@@ -2161,9 +2018,6 @@ def test_select_lsts_multi_day(casa_uvfits, future_shapes):
     uv_object += uv_object2
     # check we have times from 2 days
     assert len(np.unique(np.asarray(uv_object.time_array, dtype=np.int_))) == 2
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     unique_lsts = np.unique(uv_object.lst_array)
@@ -2267,7 +2121,7 @@ def test_select_lsts_too_big(casa_uvfits, tmp_path):
             )
         ],
     ):
-        UVData.from_file(test_filename, use_future_array_shapes=True)
+        UVData.from_file(test_filename)
 
     return
 
@@ -2309,9 +2163,7 @@ def test_select_lst_range(casa_uvfits, tmp_path):
     with uvtest.check_warnings(
         UserWarning, "The uvw_array does not match the expected values"
     ):
-        uv2_in = UVData.from_file(
-            testfile, lst_range=lst_range, use_future_array_shapes=True
-        )
+        uv2_in = UVData.from_file(testfile, lst_range=lst_range)
 
     assert uv2_in == uv_object2
 
@@ -2453,19 +2305,10 @@ def test_select_lst_range_one_elem(casa_uvfits):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
+def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     uv_object = casa_uvfits
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
-
     old_history = uv_object.history
-
-    if future_shapes:
-        freqs_to_keep = uv_object.freq_array[np.arange(12, 22)]
-    else:
-        freqs_to_keep = uv_object.freq_array[0, np.arange(12, 22)]
+    freqs_to_keep = uv_object.freq_array[np.arange(12, 22)]
 
     uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep)
@@ -2530,10 +2373,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
             ),
         ],
     ):
-        if future_shapes:
-            uv_object2.select(frequencies=uv_object2.freq_array[[0, 5, 6]])
-        else:
-            uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 5, 6]])
+        uv_object2.select(frequencies=uv_object2.freq_array[[0, 5, 6]])
 
     with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
         uv_object2.write_uvfits(write_file_uvfits)
@@ -2553,10 +2393,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
             ),
         ],
     ):
-        if future_shapes:
-            uv_object2.select(frequencies=uv_object2.freq_array[[0, 2, 4]])
-        else:
-            uv_object2.select(frequencies=uv_object2.freq_array[0, [0, 2, 4]])
+        uv_object2.select(frequencies=uv_object2.freq_array[[0, 2, 4]])
 
     with pytest.raises(
         ValueError,
@@ -2576,15 +2413,10 @@ def test_select_frequencies_writeerrors(casa_uvfits, future_shapes, tmp_path):
         pass
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_freq_chans(casa_uvfits, future_shapes):
+def test_select_freq_chans(casa_uvfits):
     uv_object = casa_uvfits
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     chans_to_keep = np.arange(12, 22)
@@ -2594,15 +2426,9 @@ def test_select_freq_chans(casa_uvfits, future_shapes):
 
     assert len(chans_to_keep) == uv_object2.Nfreqs
     for chan in chans_to_keep:
-        if future_shapes:
-            assert uv_object.freq_array[chan] in uv_object2.freq_array
-        else:
-            assert uv_object.freq_array[0, chan] in uv_object2.freq_array
+        assert uv_object.freq_array[chan] in uv_object2.freq_array
     for f in np.unique(uv_object2.freq_array):
-        if future_shapes:
-            assert f in uv_object.freq_array[chans_to_keep]
-        else:
-            assert f in uv_object.freq_array[0, chans_to_keep]
+        assert f in uv_object.freq_array[chans_to_keep]
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
@@ -2615,15 +2441,9 @@ def test_select_freq_chans(casa_uvfits, future_shapes):
 
     assert len(chans_to_keep) == uv_object2.Nfreqs
     for chan in chans_to_keep:
-        if future_shapes:
-            assert uv_object.freq_array[chan] in uv_object2.freq_array
-        else:
-            assert uv_object.freq_array[0, chan] in uv_object2.freq_array
+        assert uv_object.freq_array[chan] in uv_object2.freq_array
     for f in np.unique(uv_object2.freq_array):
-        if future_shapes:
-            assert f in uv_object.freq_array[chans_to_keep]
-        else:
-            assert f in uv_object.freq_array[0, chans_to_keep]
+        assert f in uv_object.freq_array[chans_to_keep]
 
     assert uvutils._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
@@ -2631,12 +2451,7 @@ def test_select_freq_chans(casa_uvfits, future_shapes):
     )
 
     # Test selecting both channels and frequencies
-    if future_shapes:
-        freqs_to_keep = uv_object.freq_array[np.arange(20, 30)]  # Overlaps with chans
-    else:
-        freqs_to_keep = uv_object.freq_array[
-            0, np.arange(20, 30)
-        ]  # Overlaps with chans
+    freqs_to_keep = uv_object.freq_array[np.arange(20, 30)]  # Overlaps with chans
     all_chans_to_keep = np.arange(12, 30)
 
     uv_object2 = uv_object.copy()
@@ -2644,29 +2459,18 @@ def test_select_freq_chans(casa_uvfits, future_shapes):
 
     assert len(all_chans_to_keep) == uv_object2.Nfreqs
     for chan in all_chans_to_keep:
-        if future_shapes:
-            assert uv_object.freq_array[chan] in uv_object2.freq_array
-        else:
-            assert uv_object.freq_array[0, chan] in uv_object2.freq_array
+        assert uv_object.freq_array[chan] in uv_object2.freq_array
     for f in np.unique(uv_object2.freq_array):
-        if future_shapes:
-            assert f in uv_object.freq_array[all_chans_to_keep]
-        else:
-            assert f in uv_object.freq_array[0, all_chans_to_keep]
+        assert f in uv_object.freq_array[all_chans_to_keep]
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(hera_uvh5, future_shapes, pols_to_keep):
+def test_select_polarizations(hera_uvh5, pols_to_keep):
     uv_object = hera_uvh5
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
 
@@ -2731,19 +2535,14 @@ def test_select_polarizations_errors(casa_uvfits, tmp_path):
         uv_object.write_uvfits(write_file_uvfits)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select(casa_uvfits, future_shapes):
+def test_select(casa_uvfits):
     # now test selecting along all axes at once
     uv_object = casa_uvfits
 
     # Set the scan numbers so that we can check to make sure they are selected correctly
     uv_object._set_scan_numbers()
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     # fmt: off
@@ -2766,11 +2565,7 @@ def test_select(casa_uvfits, future_shapes):
     ant_pairs_to_keep = [(3, 12), (21, 27), (7, 8), (4, 28), (15, 7)]
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
-    if future_shapes:
-        freqs_to_keep = uv_object.freq_array[np.arange(31, 39)]
-    else:
-        freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
-
+    freqs_to_keep = uv_object.freq_array[np.arange(31, 39)]
     unique_times = np.unique(uv_object.time_array)
     times_to_keep = unique_times[[0, 2, 6, 8, 10, 13, 14]]
 
@@ -2842,16 +2637,11 @@ def test_select(casa_uvfits, future_shapes):
         uv_object.select(times=unique_times[0], antenna_nums=1)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_with_lst(casa_uvfits, future_shapes):
+def test_select_with_lst(casa_uvfits):
     # now test selecting along all axes at once, but with LST instead of times
     uv_object = casa_uvfits
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     old_history = uv_object.history
     # fmt: off
@@ -2870,18 +2660,11 @@ def test_select_with_lst(casa_uvfits, future_shapes):
                          280, 890, 774, 884])
     # fmt: on
     ants_to_keep = np.array([12, 7, 21, 27, 3, 28, 8, 15])
-
     ant_pairs_to_keep = [(3, 12), (21, 27), (7, 8), (4, 28), (15, 7)]
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
-
-    if future_shapes:
-        freqs_to_keep = uv_object.freq_array[np.arange(31, 39)]
-    else:
-        freqs_to_keep = uv_object.freq_array[0, np.arange(31, 39)]
-
+    freqs_to_keep = uv_object.freq_array[np.arange(31, 39)]
     unique_lsts = np.unique(uv_object.lst_array)
     lsts_to_keep = unique_lsts[[0, 2, 6, 8, 10, 13, 14]]
-
     pols_to_keep = [-1, -3]
 
     # Independently count blts that should be selected
@@ -2971,24 +2754,17 @@ def test_select_not_inplace(casa_uvfits):
     assert uv1 == uv_object
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("metadata_only", [True, False])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
+def test_conjugate_bls(casa_uvfits, metadata_only):
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
 
     if not metadata_only:
         uv1 = casa_uvfits
-        if not future_shapes:
-            uv1.use_current_array_shapes()
     else:
         uv1 = UVData()
-        uv1.read_uvfits(
-            testfile, read_data=False, use_future_array_shapes=future_shapes
-        )
+        uv1.read_uvfits(testfile, read_data=False)
     if metadata_only:
         assert uv1.metadata_only
 
@@ -3012,48 +2788,26 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
     if not metadata_only:
         # complicated because of the polarization swaps
         # polarization_array = [-1 -2 -3 -4]
-        if future_shapes:
-            assert np.allclose(
-                uv1.data_array[:, :, :2],
-                np.conj(uv2.data_array[:, :, :2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[:, :, :2],
+            np.conj(uv2.data_array[:, :, :2]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
-            assert np.allclose(
-                uv1.data_array[:, :, 2],
-                np.conj(uv2.data_array[:, :, 3]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[:, :, 2],
+            np.conj(uv2.data_array[:, :, 3]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
-            assert np.allclose(
-                uv1.data_array[:, :, 3],
-                np.conj(uv2.data_array[:, :, 2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-        else:
-            assert np.allclose(
-                uv1.data_array[:, :, :, :2],
-                np.conj(uv2.data_array[:, :, :, :2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-
-            assert np.allclose(
-                uv1.data_array[:, :, :, 2],
-                np.conj(uv2.data_array[:, :, :, 3]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-
-            assert np.allclose(
-                uv1.data_array[:, :, :, 3],
-                np.conj(uv2.data_array[:, :, :, 2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[:, :, 3],
+            np.conj(uv2.data_array[:, :, 2]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
     # check everything returned to original values with original convention
     uv2.conjugate_bls("ant1<ant2")
@@ -3092,84 +2846,44 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
     if not metadata_only:
         # complicated because of the polarization swaps
         # polarization_array = [-1 -2 -3 -4]
-        if future_shapes:
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, :2],
-                np.conj(uv2.data_array[blts_to_conjugate, :, :2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, :2],
-                uv2.data_array[blts_not_conjugated, :, :2],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[blts_to_conjugate, :, :2],
+            np.conj(uv2.data_array[blts_to_conjugate, :, :2]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
+        assert np.allclose(
+            uv1.data_array[blts_not_conjugated, :, :2],
+            uv2.data_array[blts_not_conjugated, :, :2],
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, 2],
-                np.conj(uv2.data_array[blts_to_conjugate, :, 3]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, 2],
-                uv2.data_array[blts_not_conjugated, :, 2],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[blts_to_conjugate, :, 2],
+            np.conj(uv2.data_array[blts_to_conjugate, :, 3]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
+        assert np.allclose(
+            uv1.data_array[blts_not_conjugated, :, 2],
+            uv2.data_array[blts_not_conjugated, :, 2],
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, 3],
-                np.conj(uv2.data_array[blts_to_conjugate, :, 2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, 3],
-                uv2.data_array[blts_not_conjugated, :, 3],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-        else:
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, :, :2],
-                np.conj(uv2.data_array[blts_to_conjugate, :, :, :2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, :, :2],
-                uv2.data_array[blts_not_conjugated, :, :, :2],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, :, 2],
-                np.conj(uv2.data_array[blts_to_conjugate, :, :, 3]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, :, 2],
-                uv2.data_array[blts_not_conjugated, :, :, 2],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-
-            assert np.allclose(
-                uv1.data_array[blts_to_conjugate, :, :, 3],
-                np.conj(uv2.data_array[blts_to_conjugate, :, :, 2]),
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
-            assert np.allclose(
-                uv1.data_array[blts_not_conjugated, :, :, 3],
-                uv2.data_array[blts_not_conjugated, :, :, 3],
-                rtol=uv1._data_array.tols[0],
-                atol=uv1._data_array.tols[1],
-            )
+        assert np.allclose(
+            uv1.data_array[blts_to_conjugate, :, 3],
+            np.conj(uv2.data_array[blts_to_conjugate, :, 2]),
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
+        assert np.allclose(
+            uv1.data_array[blts_not_conjugated, :, 3],
+            uv2.data_array[blts_not_conjugated, :, 3],
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
     # check uv half plane conventions
     uv2.conjugate_bls("u<0", use_enu=False)
@@ -3209,30 +2923,20 @@ def test_conjugate_bls(casa_uvfits, metadata_only, future_shapes):
         uv2.conjugate_bls([uv2.Nblts])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_reorder_pols(casa_uvfits, future_shapes):
+def test_reorder_pols(casa_uvfits):
     # Test function to fix polarization order
     uv1 = casa_uvfits
-
-    if not future_shapes:
-        uv1.use_current_array_shapes()
 
     uv2 = uv1.copy()
     uv3 = uv1.copy()
     # reorder uv2 manually
     order = [1, 3, 2, 0]
     uv2.polarization_array = uv2.polarization_array[order]
-    if future_shapes:
-        uv2.data_array = uv2.data_array[:, :, order]
-        uv2.nsample_array = uv2.nsample_array[:, :, order]
-        uv2.flag_array = uv2.flag_array[:, :, order]
-    else:
-        uv2.data_array = uv2.data_array[:, :, :, order]
-        uv2.nsample_array = uv2.nsample_array[:, :, :, order]
-        uv2.flag_array = uv2.flag_array[:, :, :, order]
+    uv2.data_array = uv2.data_array[:, :, order]
+    uv2.nsample_array = uv2.nsample_array[:, :, order]
+    uv2.flag_array = uv2.flag_array[:, :, order]
     uv1.reorder_pols(order)
     assert uv1 == uv2
 
@@ -3252,12 +2956,8 @@ def test_reorder_pols(casa_uvfits, future_shapes):
     casa_pols = np.array([-1, -3, -4, -2]).astype(int)
     assert np.all(uv2.polarization_array == casa_pols)
     order = np.array([0, 2, 3, 1])
-    if future_shapes:
-        assert np.all(uv2.data_array == uv1.data_array[:, :, order])
-        assert np.all(uv2.flag_array == uv1.flag_array[:, :, order])
-    else:
-        assert np.all(uv2.data_array == uv1.data_array[:, :, :, order])
-        assert np.all(uv2.flag_array == uv1.flag_array[:, :, :, order])
+    assert np.all(uv2.data_array == uv1.data_array[:, :, order])
+    assert np.all(uv2.flag_array == uv1.flag_array[:, :, order])
 
     uv2.reorder_pols("AIPS")
     # check that we have aips ordering again
@@ -3297,15 +2997,10 @@ def test_reorder_blts_errs(casa_uvfits, order, minor_order, msg):
         casa_uvfits.reorder_blts(order, minor_order=minor_order)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_reorder_blts(casa_uvfits, future_shapes):
+def test_reorder_blts(casa_uvfits):
     uv1 = casa_uvfits
-
-    if not future_shapes:
-        uv1.use_current_array_shapes()
 
     # test default reordering in detail
     uv2 = uv1.copy()
@@ -3331,10 +3026,8 @@ def test_reorder_blts(casa_uvfits, future_shapes):
         assert np.allclose(data_1[bl_inds], data_2)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "args1,args2",
     [
@@ -3346,13 +3039,11 @@ def test_reorder_blts(casa_uvfits, future_shapes):
         [{"autos_first": True}, {"autos_first": False}],  # No autos in this file
     ],
 )
-def test_reorder_blts_equiv(casa_uvfits, args1, args2, future_shapes):
+def test_reorder_blts_equiv(casa_uvfits, args1, args2):
     """
     Test that sorting orders that _should_ be equivalent actually are
     """
     uv1 = casa_uvfits
-    if not future_shapes:
-        uv1.use_current_array_shapes()
     uv2 = uv1.copy()
 
     uv1.reorder_blts(**args1)
@@ -3472,7 +3163,6 @@ def test_reorder_freqs_warnings(sma_mir, sma_mir_main, arg_dict, msg):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "sel_spw,spord,chord",
     [
@@ -3481,10 +3171,7 @@ def test_reorder_freqs_warnings(sma_mir, sma_mir_main, arg_dict, msg):
         [[None] * 2, ["-number", "-freq"], ["-freq"] * 2],
     ],
 )
-def test_reorder_freqs_equal(sma_mir, future_shapes, sel_spw, spord, chord):
-    if not future_shapes:
-        sma_mir.use_current_array_shapes()
-
+def test_reorder_freqs_equal(sma_mir, sel_spw, spord, chord):
     # Create a dummy copy that we can muck with at will
     sma_mir_copy = sma_mir.copy()
 
@@ -3498,16 +3185,11 @@ def test_reorder_freqs_equal(sma_mir, future_shapes, sel_spw, spord, chord):
     assert sma_mir == sma_mir_copy
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_reorder_freqs_flipped(sma_mir, future_shapes):
+def test_reorder_freqs_flipped(sma_mir):
     """
     Test that when sorting the data in ways that _should_ flip the frequency
     axis, that it actually does so.
     """
-    if not future_shapes:
-        sma_mir.use_current_array_shapes()
-
     # Make a copy
     sma_mir_copy = sma_mir.copy()
 
@@ -3549,16 +3231,11 @@ def test_reorder_freqs_eq_coeffs(casa_uvfits):
     assert np.all(np.diff(casa_uvfits.channel_width) == -1)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_sum_vis(casa_uvfits, future_shapes):
+def test_sum_vis(casa_uvfits):
     # check sum_vis
     uv_full = casa_uvfits
-
-    if not future_shapes:
-        uv_full.use_current_array_shapes()
 
     uv_half = uv_full.copy()
     uv_half.data_array = uv_full.data_array / 2
@@ -3657,7 +3334,6 @@ def test_sum_vis(casa_uvfits, future_shapes):
 @pytest.mark.parametrize(
     "attr_to_get,attr_to_set,arg_dict,msg",
     [
-        [["use_current_array_shapes"], {}, {}, "Both objects must have the same `futu"],
         [[], {}, {"override": ["fake"]}, "Provided parameter fake is not a recogniza"],
         [[], {"__class__": UVCal}, {}, "Only UVData (or subclass) objects can be"],
         [[], {"timesys": "foo"}, {"inplace": True}, "UVParameter timesys does"],
@@ -3679,15 +3355,10 @@ def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
+def test_add(casa_uvfits, hera_uvh5_xx):
     uv_full = casa_uvfits
-
-    if not future_shapes:
-        uv_full.use_current_array_shapes()
 
     # Add frequencies
     uv1 = uv_full.copy()
@@ -3864,20 +3535,12 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
         ]
     )
     # Zero out missing data in reference object
-    if future_shapes:
-        uv_ref.data_array[blt_ind1, :, 2:] = 0.0
-        uv_ref.nsample_array[blt_ind1, :, 2:] = 0.0
-        uv_ref.flag_array[blt_ind1, :, 2:] = True
-        uv_ref.data_array[blt_ind2, :, 0:2] = 0.0
-        uv_ref.nsample_array[blt_ind2, :, 0:2] = 0.0
-        uv_ref.flag_array[blt_ind2, :, 0:2] = True
-    else:
-        uv_ref.data_array[blt_ind1, :, :, 2:] = 0.0
-        uv_ref.nsample_array[blt_ind1, :, :, 2:] = 0.0
-        uv_ref.flag_array[blt_ind1, :, :, 2:] = True
-        uv_ref.data_array[blt_ind2, :, :, 0:2] = 0.0
-        uv_ref.nsample_array[blt_ind2, :, :, 0:2] = 0.0
-        uv_ref.flag_array[blt_ind2, :, :, 0:2] = True
+    uv_ref.data_array[blt_ind1, :, 2:] = 0.0
+    uv_ref.nsample_array[blt_ind1, :, 2:] = 0.0
+    uv_ref.flag_array[blt_ind1, :, 2:] = True
+    uv_ref.data_array[blt_ind2, :, 0:2] = 0.0
+    uv_ref.nsample_array[blt_ind2, :, 0:2] = 0.0
+    uv_ref.flag_array[blt_ind2, :, 0:2] = True
     uv1.history = uv_full.history
     assert uv1 == uv_ref
 
@@ -3912,20 +3575,12 @@ def test_add(casa_uvfits, hera_uvh5_xx, future_shapes):
         ]
     )
     # Zero out missing data in reference object
-    if future_shapes:
-        uv_ref.data_array[blt_ind1, 32:, :] = 0.0
-        uv_ref.nsample_array[blt_ind1, 32:, :] = 0.0
-        uv_ref.flag_array[blt_ind1, 32:, :] = True
-        uv_ref.data_array[blt_ind2, 0:32, :] = 0.0
-        uv_ref.nsample_array[blt_ind2, 0:32, :] = 0.0
-        uv_ref.flag_array[blt_ind2, 0:32, :] = True
-    else:
-        uv_ref.data_array[blt_ind1, :, 32:, :] = 0.0
-        uv_ref.nsample_array[blt_ind1, :, 32:, :] = 0.0
-        uv_ref.flag_array[blt_ind1, :, 32:, :] = True
-        uv_ref.data_array[blt_ind2, :, 0:32, :] = 0.0
-        uv_ref.nsample_array[blt_ind2, :, 0:32, :] = 0.0
-        uv_ref.flag_array[blt_ind2, :, 0:32, :] = True
+    uv_ref.data_array[blt_ind1, 32:, :] = 0.0
+    uv_ref.nsample_array[blt_ind1, 32:, :] = 0.0
+    uv_ref.flag_array[blt_ind1, 32:, :] = True
+    uv_ref.data_array[blt_ind2, 0:32, :] = 0.0
+    uv_ref.nsample_array[blt_ind2, 0:32, :] = 0.0
+    uv_ref.flag_array[blt_ind2, 0:32, :] = True
     uv1.history = uv_full.history
     assert uv1 == uv_ref
 
@@ -4370,9 +4025,7 @@ def test_check_freq_spacing_single_chan_spw(sma_mir):
     assert not chanwidth_error
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:LST values stored in this file are not ")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     "add_method,screen1,screen2",
     # All of these tests are passing bool arrays as selection screens for grabbing out
@@ -4415,26 +4068,19 @@ def test_check_freq_spacing_single_chan_spw(sma_mir):
         ],
     ],
 )
-def test_flex_spw_add_concat(sma_mir, future_shapes, add_method, screen1, screen2):
+def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
     """
     Test add & fast concat with flexible spws using Mir file.
 
     Read in Mir files using flexible spectral windows, all of the same nchan
     """
-    if not future_shapes:
-        sma_mir.use_current_array_shapes()
-
     uv1 = sma_mir.select(freq_chans=np.where(screen1), inplace=False)
     uv2 = sma_mir.select(freq_chans=np.where(screen2), inplace=False)
 
     if np.any(np.logical_and(screen1, screen2)):
         flag_screen = screen2[screen1]
-        if future_shapes:
-            uv1.data_array[:, flag_screen] = 0.0
-            uv1.flag_array[:, flag_screen] = True
-        else:
-            uv1.data_array[:, :, flag_screen] = 0.0
-            uv1.flag_array[:, :, flag_screen] = True
+        uv1.data_array[:, flag_screen] = 0.0
+        uv1.flag_array[:, flag_screen] = True
 
     uv_recomb = getattr(uv1, add_method[0])(uv2, **add_method[1])
 
@@ -4461,7 +4107,6 @@ def test_flex_spw_add_concat(sma_mir, future_shapes, add_method, screen1, screen
     [
         [[], [], "These objects have overlapping data and cannot be combined."],
         [[["__class__", UVCal]], [], "Only UVData"],
-        [[], [["use_current_array_shapes", {}]], "Both objects must have the same `fu"],
         [
             [],
             [["unproject_phase", {}], ["select", {"freq_chans": np.arange(32, 64)}]],
@@ -4503,15 +4148,10 @@ def test_break_add(casa_uvfits, attr_to_set, attr_to_get, msg):
         uv1 += uv2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
+def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv_full = casa_uvfits
-
-    if not future_shapes:
-        uv_full.use_current_array_shapes()
 
     # Add frequencies
     uv1 = uv_full.copy()
@@ -4565,18 +4205,11 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx, future_shapes):
     assert uv2._data_array != uv_full._data_array
 
     # reorder frequencies and test that they are equal
-    if future_shapes:
-        index_array = np.argsort(uv2.freq_array)
-        uv2.freq_array = uv2.freq_array[index_array]
-        uv2.data_array = uv2.data_array[:, index_array, :]
-        uv2.nsample_array = uv2.nsample_array[:, index_array, :]
-        uv2.flag_array = uv2.flag_array[:, index_array, :]
-    else:
-        index_array = np.argsort(uv2.freq_array[0, :])
-        uv2.freq_array = uv2.freq_array[:, index_array]
-        uv2.data_array = uv2.data_array[:, :, index_array, :]
-        uv2.nsample_array = uv2.nsample_array[:, :, index_array, :]
-        uv2.flag_array = uv2.flag_array[:, :, index_array, :]
+    index_array = np.argsort(uv2.freq_array)
+    uv2.freq_array = uv2.freq_array[index_array]
+    uv2.data_array = uv2.data_array[:, index_array, :]
+    uv2.nsample_array = uv2.nsample_array[:, index_array, :]
+    uv2.flag_array = uv2.flag_array[:, index_array, :]
     uv2.history = uv_full.history
     assert uv2._freq_array == uv_full._freq_array
     assert uv2 == uv_full
@@ -4917,14 +4550,6 @@ def test_fast_concat_errors(casa_uvfits):
     with pytest.raises(ValueError, match="Axis must be one of"):
         uv1.fast_concat(uv2, "foo", inplace=True)
 
-    uv2.use_current_array_shapes()
-    with pytest.raises(
-        ValueError,
-        match="All objects must have the same `future_array_shapes` parameter.",
-    ):
-        uv1.fast_concat(uv2, "freq", inplace=True)
-
-    uv1.use_future_array_shapes()
     uv1._set_flex_spw()
     uv1.flex_spw_id_array = np.full(uv1.Nfreqs, uv1.spw_array[0], dtype=int)
 
@@ -5200,8 +4825,6 @@ def test_smart_slicing(casa_uvfits, ind1, ind2, indp, squeeze, force_copy):
     # Test function to slice data
     uv = casa_uvfits
 
-    uv.use_future_array_shapes()
-
     if ind1 is None:
         polind = (None, indp)
         ind = ind2
@@ -5455,7 +5078,7 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
     uv.write_uvh5(fname, run_check=False, check_extra=False, clobber=True)
 
     # try to read file without checks, should be no warnings
-    uv.read(fname, run_check=False, use_future_array_shapes=True)
+    uv.read(fname, run_check=False)
 
     # try to read without checks: should be warnings
     with uvtest.check_warnings(
@@ -5467,7 +5090,7 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
         ]
         * 5,
     ):
-        uv.read(fname, use_future_array_shapes=True)
+        uv.read(fname)
 
 
 def test_get_pols(casa_uvfits):
@@ -6271,18 +5894,13 @@ def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("reconjugate", (True, False))
 @pytest.mark.parametrize("flagging_level", ("none", "some", "all"))
-@pytest.mark.parametrize("future_shapes", [True, False])
 def test_redundancy_contract_expand(
-    method, reconjugate, flagging_level, future_shapes, pyuvsim_redundant, grid_alg
+    method, reconjugate, flagging_level, pyuvsim_redundant, grid_alg
 ):
     # Test that a UVData object can be reduced to one baseline from each redundant group
     # and restored to its original form.
 
     uv0 = pyuvsim_redundant
-
-    if not future_shapes:
-        uv0.use_current_array_shapes()
-        # Need to test with multi phase center, but don't need a separate parameterize
 
     # Fails at lower precision because some baselines fall into multiple
     # redundant groups
@@ -6430,7 +6048,6 @@ def test_redundancy_contract_expand(
                     uv3.uvw_array[blts, :] = uv0.uvw_array[orig_blts, :]
                     if method == "select":
                         # use the data values from the original for this baseline
-                        # TODO: Spw axis to be collapsed in future release
                         uv2_blts = np.nonzero(uv2.baseline_array == bl)[0]
                         assert np.allclose(
                             uv2.data_array[uv2_blts], uv0.data_array[orig_blts]
@@ -6685,8 +6302,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
 def test_compress_redundancy_variable_inttime(grid_alg):
     uv0 = UVData()
     uv0.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"),
-        use_future_array_shapes=True,
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     )
 
     tol = 0.05
@@ -6786,7 +6402,7 @@ def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path
     uv0.select(bls=[uv0.baseline_to_antnums(bl) for bl in bls])
     uv0.write_uvfits(fname)
     uv1 = UVData()
-    uv1.read_uvfits(fname, use_future_array_shapes=True)
+    uv1.read_uvfits(fname)
 
     # check that filenames are what we expect
     assert uv0.filename == ["fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"]
@@ -6895,17 +6511,11 @@ def test_redundancy_finder_when_nblts_not_nbls_times_ntimes(grid_alg, casa_uvfit
     assert groups == redundant_groups
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_overlapping_data_add(casa_uvfits, tmp_path, future_shapes):
+def test_overlapping_data_add(casa_uvfits, tmp_path):
     # read in test data
     uv = casa_uvfits
-
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     # slice into four objects
     blts1 = np.arange(500)
@@ -6978,10 +6588,7 @@ def test_overlapping_data_add(casa_uvfits, tmp_path, future_shapes):
     uv4.write_uvfits(uv4_out)
 
     uvfull = UVData()
-    uvfull.read(
-        np.array([uv1_out, uv2_out, uv3_out, uv4_out]),
-        use_future_array_shapes=future_shapes,
-    )
+    uvfull.read(np.array([uv1_out, uv2_out, uv3_out, uv4_out]))
     uvfull.reorder_blts()
     uv.reorder_blts()
     assert uvutils._check_histories(uvfull.history, uv.history + extra_history2)
@@ -7057,17 +6664,12 @@ def test_copy(casa_uvfits):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_upsample_in_time(hera_uvh5, future_shapes):
+def test_upsample_in_time(hera_uvh5):
     """Test the upsample_in_time method"""
     uv_object = hera_uvh5
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     init_phase_dict = uv_object.phase_center_catalog[0]
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
@@ -7461,13 +7063,9 @@ def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_downsample_in_time(hera_uvh5, future_shapes):
+def test_downsample_in_time(hera_uvh5):
     """Test the downsample_in_time method"""
     uv_object = hera_uvh5
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
@@ -7566,13 +7164,9 @@ def test_downsample_in_time_partial_flags(hera_uvh5):
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_downsample_in_time_totally_flagged(hera_uvh5, future_shapes):
+def test_downsample_in_time_totally_flagged(hera_uvh5):
     """Test the downsample_in_time method with totally flagged integrations"""
     uv_object = hera_uvh5
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
     # reorder to make sure we get the right value later
@@ -7593,10 +7187,7 @@ def test_downsample_in_time_totally_flagged(hera_uvh5, future_shapes):
     # data and nsample should have the same results as no flags but the output
     # should be flagged
     inds01 = uv_object.antpair2ind(0, 1)
-    if future_shapes:
-        uv_object.flag_array[inds01, 0, 0][:2] = True
-    else:
-        uv_object.flag_array[inds01, 0, 0, 0][:2] = True
+    uv_object.flag_array[inds01, 0, 0][:2] = True
     uv_object2 = uv_object.copy()
 
     uv_object.downsample_in_time(
@@ -8571,20 +8162,14 @@ def test_upsample_downsample_in_time(hera_uvh5):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:Data will be unphased and rephased")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_upsample_downsample_in_time_odd_resample(hera_uvh5, future_shapes):
+def test_upsample_downsample_in_time_odd_resample(hera_uvh5):
     """Test round trip works with odd resampling"""
     uv_object = hera_uvh5
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
-
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # reorder to make sure we get the right value later
@@ -8666,21 +8251,16 @@ def test_upsample_downsample_in_time_metadata_only(hera_uvh5):
     assert uv_object == uv_object2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Unknown phase types are no longer supported,")
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("driftscan", [True, False])
 @pytest.mark.parametrize("partial_phase", [True, False])
-def test_resample_in_time(bda_test_file, future_shapes, driftscan, partial_phase):
+def test_resample_in_time(bda_test_file, driftscan, partial_phase):
     """Test the resample_in_time method"""
     # Note this file has slight variations in the delta t between integrations
     # that causes our gap test to issue a warning, but the variations are small
     # We aren't worried about them, so we filter those warnings
     uv_object = bda_test_file
-
-    if not future_shapes:
-        uv_object.use_current_array_shapes()
 
     if driftscan:
         uv_object.phase(
@@ -8871,7 +8451,7 @@ def test_downsample_in_time_mwa():
     """
     filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
     uv = UVData()
-    uv.read(filename, use_future_array_shapes=True)
+    uv.read(filename)
     uv.phase_to_time(np.mean(uv.time_array))
     uv_object2 = uv.copy()
 
@@ -8897,7 +8477,7 @@ def test_downsample_in_time_mwa():
 def test_resample_in_time_warning():
     filename = os.path.join(DATA_PATH, "mwa_integration_time.uvh5")
     uv = UVData()
-    uv.read(filename, use_future_array_shapes=True)
+    uv.read(filename)
 
     uv2 = uv.copy()
 
@@ -8909,17 +8489,12 @@ def test_resample_in_time_warning():
     assert uv2 == uv
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("flex_spw", [True, False])
 @pytest.mark.parametrize("sum_corr", [True, False])
-def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
+def test_frequency_average(casa_uvfits, flex_spw, sum_corr):
     """Test averaging in frequency."""
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
 
     if flex_spw:
         # Make multiple spws
@@ -8935,8 +8510,6 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
         )
         uvobj.spw_array = np.arange(4)
         uvobj.Nspws = 4
-        if not future_shapes:
-            uvobj.channel_width = np.full(uvobj.Nfreqs, uvobj.channel_width)
 
     uvobj2 = uvobj.copy()
 
@@ -8965,16 +8538,11 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
 
     input_chan_width = uvobj2.channel_width
 
-    if future_shapes or flex_spw:
-        expected_chan_widths = np.full(
-            int(uvobj2.Nfreqs // n_chan_to_avg),
-            input_chan_width[0] * n_chan_to_avg,
-            dtype=float,
-        )
-    else:
-        expected_chan_widths = input_chan_width * n_chan_to_avg
-
-        expected_freqs = expected_freqs[np.newaxis, :]
+    expected_chan_widths = np.full(
+        int(uvobj2.Nfreqs // n_chan_to_avg),
+        input_chan_width[0] * n_chan_to_avg,
+        dtype=float,
+    )
 
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
     assert np.max(np.abs(uvobj.channel_width - expected_chan_widths)) == 0
@@ -8992,9 +8560,6 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
     else:
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
 
-    if not future_shapes:
-        expected_data = expected_data[:, np.newaxis]
-
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
@@ -9003,21 +8568,17 @@ def test_frequency_average(casa_uvfits, future_shapes, flex_spw, sum_corr):
     assert not isinstance(uvobj.nsample_array, np.ma.MaskedArray)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize(["future_shapes", "sum_corr"], [[True, True], [False, False]])
+@pytest.mark.parametrize("sum_corr", [True, True])
 @pytest.mark.parametrize(
     ["flex_spw", "respect_spws"], [[True, True], [True, False], [False, False]]
 )
 @pytest.mark.parametrize("keep_ragged", [True, False])
 def test_frequency_average_uneven(
-    casa_uvfits, future_shapes, keep_ragged, sum_corr, flex_spw, respect_spws
+    casa_uvfits, keep_ragged, sum_corr, flex_spw, respect_spws
 ):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
 
     eq_coeffs = np.tile(
         np.arange(uvobj.Nfreqs, dtype=np.float64), (uvobj.telescope.Nants, 1)
@@ -9038,8 +8599,6 @@ def test_frequency_average_uneven(
         )
         uvobj.spw_array = np.arange(4)
         uvobj.Nspws = 4
-        if not future_shapes:
-            uvobj.channel_width = np.full(uvobj.Nfreqs, uvobj.channel_width)
 
     uvobj2 = uvobj.copy()
 
@@ -9114,22 +8673,12 @@ def test_frequency_average_uneven(
             int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
         ).mean(axis=1)
 
-        if not future_shapes and not uvobj.flex_spw:
-            if not keep_ragged:
-                expected_chan_widths = input_chan_width * n_chan_to_avg
-            else:
-                expected_chan_widths = np.full(
-                    (uvobj2.Nfreqs // n_chan_to_avg),
-                    input_chan_width * n_chan_to_avg,
-                    dtype=float,
-                )
-        else:
-            expected_chan_widths = input_chan_width[
-                np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
-            ]
-            expected_chan_widths = expected_chan_widths.reshape(
-                int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
-            ).sum(axis=1)
+        expected_chan_widths = input_chan_width[
+            np.arange((uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg)
+        ]
+        expected_chan_widths = expected_chan_widths.reshape(
+            int(uvobj2.Nfreqs // n_chan_to_avg), n_chan_to_avg
+        ).sum(axis=1)
 
         if keep_ragged:
             assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg + 1)
@@ -9139,27 +8688,14 @@ def test_frequency_average_uneven(
                     input_freqs[(uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :]
                 ),
             )
-            if not future_shapes and not uvobj.flex_spw:
-                nch_ragged = (
-                    uvobj2.Nfreqs - (uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg
-                )
-                expected_chan_widths = np.append(
-                    expected_chan_widths, input_chan_width * nch_ragged
-                )
-            else:
-                expected_chan_widths = np.append(
-                    expected_chan_widths,
-                    np.sum(
-                        input_chan_width[
-                            (uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :
-                        ]
-                    ),
-                )
+            expected_chan_widths = np.append(
+                expected_chan_widths,
+                np.sum(
+                    input_chan_width[(uvobj2.Nfreqs // n_chan_to_avg) * n_chan_to_avg :]
+                ),
+            )
         else:
             assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
-
-    if not future_shapes and not keep_ragged:
-        expected_freqs = expected_freqs[np.newaxis, :]
 
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
     assert np.max(np.abs(uvobj.channel_width - expected_chan_widths)) == 0
@@ -9237,27 +8773,17 @@ def test_frequency_average_uneven(
                     axis=1,
                 )
 
-    if not future_shapes and not keep_ragged:
-        expected_data = expected_data[:, np.newaxis]
-
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("keep_ragged", [True, False])
 @pytest.mark.parametrize("fully_flagged", [True, False])
-def test_frequency_average_flagging(
-    casa_uvfits, future_shapes, keep_ragged, fully_flagged
-):
+def test_frequency_average_flagging(casa_uvfits, keep_ragged, fully_flagged):
     """Test averaging in frequency with flagging all samples averaged."""
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
     uvobj2 = uvobj.copy()
 
     # check that there's no flagging
@@ -9268,16 +8794,10 @@ def test_frequency_average_flagging(
     # apply some flagging for testing
     inds01 = uvobj.antpair2ind(1, 2)
     if fully_flagged:
-        if future_shapes:
-            uvobj.flag_array[inds01[0], 0:n_chan_to_avg, :] = True
-        else:
-            uvobj.flag_array[inds01[0], :, 0:n_chan_to_avg, :] = True
+        uvobj.flag_array[inds01[0], 0:n_chan_to_avg, :] = True
         assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * n_chan_to_avg
     else:
-        if future_shapes:
-            uvobj.flag_array[inds01[0], 1:n_chan_to_avg, :] = True
-        else:
-            uvobj.flag_array[inds01[0], 0, 1:n_chan_to_avg, :] = True
+        uvobj.flag_array[inds01[0], 1:n_chan_to_avg, :] = True
         assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg - 1)
 
     with uvtest.check_warnings(None):
@@ -9300,9 +8820,6 @@ def test_frequency_average_flagging(
         )
     else:
         assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
-
-    if not future_shapes and not keep_ragged:
-        expected_freqs = expected_freqs[np.newaxis, :]
 
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
@@ -9327,26 +8844,14 @@ def test_frequency_average_flagging(
             axis=1,
         )
     if not fully_flagged:
-        if future_shapes:
-            expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, :]
-        else:
-            expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, 0, :]
-
-    if not future_shapes and not keep_ragged:
-        expected_data = expected_data[:, np.newaxis]
+        expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, :]
 
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
 
     if fully_flagged:
-        if future_shapes or keep_ragged:
-            assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
-        else:
-            assert np.sum(uvobj.flag_array[inds01[0], :, 0, :]) == 4
+        assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
         assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
-        if future_shapes or keep_ragged:
-            assert np.nonzero(uvobj.flag_array[inds01[1:], 0, :])[0].size == 0
-        else:
-            assert np.nonzero(uvobj.flag_array[inds01[1:], :, 0, :])[0].size == 0
+        assert np.nonzero(uvobj.flag_array[inds01[1:], 0, :])[0].size == 0
     else:
         assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -9371,14 +8876,10 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
-    # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-        axis=2
-    )
+    expected_freqs = uvobj2.freq_array.reshape((-1, 2)).mean(axis=1)
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_data = uvobj2.get_data(1, 2, squeeze="none")
-    # TODO: Spw axis to be collapsed in future release
     reshape_tuple = (expected_data.shape[0], int(uvobj2.Nfreqs / 2), 2, uvobj2.Npols)
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
 
@@ -9412,11 +8913,9 @@ def test_frequency_average_flagging_partial_twostage(casa_uvfits):
     assert uvobj == uv_object3
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("keep_ragged", [True, False])
-def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragged):
+def test_frequency_average_propagate_flags(casa_uvfits, keep_ragged):
     """
     Test averaging in frequency with flagging all of one and only one of
     another sample averaged, and propagating flags. Data should be identical,
@@ -9424,9 +8923,6 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
     name.
     """
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
     uvobj2 = uvobj.copy()
 
     # check that there's no flagging
@@ -9436,10 +8932,7 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
 
     # apply some flagging for testing
     inds01 = uvobj.antpair2ind(1, 2)
-    if future_shapes:
-        uvobj.flag_array[inds01[0], 0 : (n_chan_to_avg * 2 - 1), :] = True
-    else:
-        uvobj.flag_array[inds01[0], :, 0 : (n_chan_to_avg * 2 - 1), :] = True
+    uvobj.flag_array[inds01[0], 0 : (n_chan_to_avg * 2 - 1), :] = True
 
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols * (n_chan_to_avg * 2 - 1)
 
@@ -9466,9 +8959,6 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
     else:
         assert uvobj.Nfreqs == (uvobj2.Nfreqs // n_chan_to_avg)
 
-    if not future_shapes and not keep_ragged:
-        expected_freqs = expected_freqs[np.newaxis, :]
-
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     initial_data = uvobj2.get_data(1, 2)
@@ -9482,13 +8972,8 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
         uvobj2.Npols,
     )
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
-
-    if future_shapes:
-        freq_axis = 0
-    else:
-        freq_axis = 1
     expected_data[0, 1, :] = np.take(
-        uvobj2.data_array[inds01[0]], n_chan_to_avg * 2 - 1, axis=freq_axis
+        uvobj2.data_array[inds01[0]], n_chan_to_avg * 2 - 1, axis=0
     )
 
     if keep_ragged:
@@ -9499,9 +8984,6 @@ def test_frequency_average_propagate_flags(casa_uvfits, future_shapes, keep_ragg
             ),
             axis=1,
         )
-
-    if not future_shapes and not keep_ragged:
-        expected_data = expected_data[:, np.newaxis]
 
     assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
     # Twice as many flags should exist compared to test of previous name.
@@ -9530,10 +9012,7 @@ def test_frequency_average_nsample_precision(casa_uvfits):
 
     assert uvobj.Nfreqs == (uvobj2.Nfreqs / 2)
 
-    # TODO: Spw axis to be collapsed in future release
-    expected_freqs = uvobj2.freq_array.reshape(1, int(uvobj2.Nfreqs / 2), 2).mean(
-        axis=2
-    )
+    expected_freqs = uvobj2.freq_array.reshape(-1, 2).mean(axis=1)
     assert np.max(np.abs(uvobj.freq_array - expected_freqs)) == 0
 
     expected_coeffs = eq_coeffs.reshape(
@@ -9559,7 +9038,6 @@ def test_frequency_average_nsample_precision(casa_uvfits):
 def test_frequency_average_warnings(casa_uvfits):
     # test errors with varying freq spacing but with one spw
     uvd = casa_uvfits.copy()
-    uvd.use_future_array_shapes()
     uvd.freq_array[-1] += uvd.channel_width[0]
     with uvtest.check_warnings(
         UserWarning,
@@ -9574,7 +9052,6 @@ def test_frequency_average_warnings(casa_uvfits):
 
     # also test errors with varying channel widths but with one spw
     uvd = casa_uvfits.copy()
-    uvd.use_future_array_shapes()
     uvd.channel_width[-1] *= 2
     with uvtest.check_warnings(
         UserWarning,
@@ -9603,16 +9080,11 @@ def test_frequency_average_warnings(casa_uvfits):
     assert chanwidth_error
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_remove_eq_coeffs_divide(casa_uvfits, future_shapes):
+def test_remove_eq_coeffs_divide(casa_uvfits):
     """Test using the remove_eq_coeffs method with divide convention."""
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
     uvobj2 = uvobj.copy()
 
     # give eq_coeffs to the object
@@ -9635,15 +9107,10 @@ def test_remove_eq_coeffs_divide(casa_uvfits, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_remove_eq_coeffs_multiply(casa_uvfits, future_shapes):
+def test_remove_eq_coeffs_multiply(casa_uvfits):
     """Test using the remove_eq_coeffs method with multiply convention."""
     uvobj = casa_uvfits
-
-    if not future_shapes:
-        uvobj.use_current_array_shapes()
     uvobj2 = uvobj.copy()
 
     # give eq_coeffs to the object
@@ -9753,13 +9220,13 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     # Test when the corrupted file is at the beggining, skip_bad_files=True
     fileList = [testfile, uvh5_file]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
-        uv.read(fileList, skip_bad_files=True, use_future_array_shapes=True)
+        uv.read(fileList, skip_bad_files=True)
     assert uv == uv_true
 
     # Test when the corrupted file is at the end of a list
     fileList = [uvh5_file, testfile]
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
-        uv.read(fileList, skip_bad_files=True, use_future_array_shapes=True)
+        uv.read(fileList, skip_bad_files=True)
     # Check that the uncorrupted file was still read in
     assert uv == uv_true
 
@@ -9768,10 +9235,7 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
     uv_true2.select(freq_chans=np.arange(uv_true.Nfreqs // 2))
     with uvtest.check_warnings(UserWarning, match=["Failed to read"]):
         uv.read(
-            fileList,
-            skip_bad_files=True,
-            freq_chans=np.arange(uv_true.Nfreqs // 2),
-            use_future_array_shapes=True,
+            fileList, skip_bad_files=True, freq_chans=np.arange(uv_true.Nfreqs // 2)
         )
     # Check that the uncorrupted file was still read in and selection is applied
     assert uv == uv_true2
@@ -9815,9 +9279,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     # Test with corrupted file as last file in list, skip_bad_files=True
     uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uv_test.read(fileList[0:4], skip_bad_files=True, use_future_array_shapes=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
     uv_true = UVData()
-    uv_true.read(fileList[0:3], skip_bad_files=True, use_future_array_shapes=True)
+    uv_true.read(fileList[0:3], skip_bad_files=True)
     assert uv_test == uv_true
 
     # Repeat above test, but with corrupted file as first file in list
@@ -9834,9 +9298,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/ant_1_array"][2] = 1024
     uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uv_test.read(fileList[0:4], skip_bad_files=True, use_future_array_shapes=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
     uv_true = UVData()
-    uv_true.read(fileList[1:4], skip_bad_files=True, use_future_array_shapes=True)
+    uv_true.read(fileList[1:4], skip_bad_files=True)
 
     assert uv_test == uv_true
 
@@ -9847,21 +9311,13 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     if err_type == "KeyError":
         with pytest.raises(KeyError, match=err_msg):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(
-                    fileList[0:4], skip_bad_files=False, use_future_array_shapes=True
-                )
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(
-                    fileList[0:4], skip_bad_files=False, use_future_array_shapes=True
-                )
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     uv_true = UVData()
-    uv_true.read(
-        [fileList[1], fileList[2], fileList[3]],
-        skip_bad_files=False,
-        use_future_array_shapes=True,
-    )
+    uv_true.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
 
     assert uv_test != uv_true
 
@@ -9879,13 +9335,9 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             h5f["Header/ant_1_array"][2] = 1024
     uv_test = UVData()
     with uvtest.check_warnings(UserWarning, "Failed to read"):
-        uv_test.read(fileList[0:4], skip_bad_files=True, use_future_array_shapes=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
     uv_true = UVData()
-    uv_true.read(
-        [fileList[0], fileList[2], fileList[3]],
-        skip_bad_files=True,
-        use_future_array_shapes=True,
-    )
+    uv_true.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=True)
 
     assert uv_test == uv_true
 
@@ -9894,21 +9346,13 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     if err_type == "KeyError":
         with pytest.raises(KeyError, match=err_msg):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(
-                    fileList[0:4], skip_bad_files=False, use_future_array_shapes=True
-                )
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
         with pytest.raises(ValueError, match="Nants_data must be equal to"):
             with uvtest.check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(
-                    fileList[0:4], skip_bad_files=False, use_future_array_shapes=True
-                )
+                uv_test.read(fileList[0:4], skip_bad_files=False)
     uv_true = UVData()
-    uv_true.read(
-        [fileList[0], fileList[2], fileList[3]],
-        skip_bad_files=False,
-        use_future_array_shapes=True,
-    )
+    uv_true.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
 
     assert uv_test != uv_true
 
@@ -9934,7 +9378,7 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
             "########################################################"
         ),
     ):
-        uv_test.read(fileList[0:4], skip_bad_files=True, use_future_array_shapes=True)
+        uv_test.read(fileList[0:4], skip_bad_files=True)
     uv_true = UVData()
 
     assert uv_test == uv_true
@@ -9953,8 +9397,8 @@ def test_read_background_lsts():
     uvd = UVData()
     uvd2 = UVData()
     testfile = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-    uvd.read(testfile, background_lsts=False, use_future_array_shapes=True)
-    uvd2.read(testfile, background_lsts=True, use_future_array_shapes=True)
+    uvd.read(testfile, background_lsts=False)
+    uvd2.read(testfile, background_lsts=True)
     assert uvd == uvd2
 
 
@@ -9971,7 +9415,7 @@ def test_rephase_to_time():
     uvfits_file = os.path.join(DATA_PATH, "1061316296.uvfits")
     uvd = UVData()
 
-    uvd.read(uvfits_file, use_future_array_shapes=True)
+    uvd.read(uvfits_file)
     phase_time = np.unique(uvd.time_array)[1]
     time = Time(phase_time, format="jd")
     # Generate ra/dec of zenith at time in the phase_frame coordinate
@@ -10778,15 +10222,10 @@ def test_apply_w_arg_errs(
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_apply_w_no_ops(hera_uvh5, future_shapes):
+def test_apply_w_no_ops(hera_uvh5):
     """
     Test to make sure that the _apply_w method throws  expected errors
     """
-    if not future_shapes:
-        hera_uvh5.use_current_array_shapes()
-
     hera_copy = hera_uvh5.copy()
 
     # Test to make sure that the following gives us back the same results,
@@ -11063,18 +10502,12 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
         assert len(phase_dict[key]) == 13
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("phase_frame", ["icrs", "gcrs"])
-def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame):
+def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame):
     """
     Test the phase fixing method fix_phase
     """
-    if not future_shapes:
-        hera_uvh5.use_current_array_shapes()
-
     # Make some copies of the data
     uv_in = hera_uvh5.copy()
 
@@ -11101,24 +10534,14 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
 
     read_warn_msg = copy.deepcopy(warn_msg)
     read_warn_type = [UserWarning]
-    if not future_shapes:
-        read_warn_msg.append(_future_array_shapes_warning)
-        read_warn_type.append(DeprecationWarning)
 
     # need to test uvfits & miriad read options, but only in one run so set the
     # file_type here (rather than in a parametrize)
     file_type = "uvh5"
     if phase_frame == "icrs" and use_ant_pos:
-        if future_shapes:
-            file_type = "uvfits"
-        else:
-            # test miriad if it's installed
-            if hasmiriad:
-                file_type = "miriad"
+        file_type = "uvfits"
 
-    uv_in_bad = UVData.from_file(
-        bad_data_path, fix_old_proj=False, use_future_array_shapes=future_shapes
-    )
+    uv_in_bad = UVData.from_file(bad_data_path, fix_old_proj=False)
     uv_in_bad_copy = uv_in_bad.copy()
     if file_type == "uvh5":
         outfile = bad_data_path
@@ -11144,10 +10567,7 @@ def test_fix_phase(hera_uvh5, tmp_path, future_shapes, use_ant_pos, phase_frame)
                 "ignore", "antenna_diameters are not set or are being overwritten."
             )
             uv_in_bad2 = UVData.from_file(
-                outfile,
-                fix_old_proj=True,
-                fix_use_ant_pos=use_ant_pos,
-                use_future_array_shapes=future_shapes,
+                outfile, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
             )
 
     with uvtest.check_warnings(UserWarning, match=warn_msg):
@@ -11204,19 +10624,13 @@ def test_fix_phase_error(hera_uvh5):
         uv_in.fix_phase()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_multi_file_ignore_name(hera_uvh5_split, future_shapes):
+def test_multi_file_ignore_name(hera_uvh5_split):
     """
     Verify that if phased two objects to the same position with different names, we
     can successfully use the "ignore_name" switch in the add operation to allow
     the two objects to be combined.
     """
     uv1, uv2, uvfull = hera_uvh5_split
-    if not future_shapes:
-        uv1.use_current_array_shapes()
-        uv2.use_current_array_shapes()
-        uvfull.use_current_array_shapes()
 
     # Phase both targets to the same position with different names
     uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
@@ -11289,15 +10703,9 @@ def test_multi_phase_split_merge_rename(hera_uvh5_split, test_op):
     assert uvfull == uv3
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("catid", [0, 1])
-def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
+def test_multi_phase_add(hera_uvh5_split, catid):
     uv1, uv2, uvfull = hera_uvh5_split
-    if not future_shapes:
-        uv1.use_current_array_shapes()
-        uv2.use_current_array_shapes()
-        uvfull.use_current_array_shapes()
 
     # Give it a new name, and then rephase half of the "full" object
     uv1.phase(lon=3.6, lat=-0.5, cat_name="target1")
@@ -11346,10 +10754,8 @@ def test_multi_phase_add(hera_uvh5_split, catid, future_shapes):
     assert uv3 == uvfull
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("cat_type", ["sidereal", "ephem", "driftscan"])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
+def test_multi_phase_downselect(hera_uvh5_split, cat_type):
     """
     Verify that we can create the same UVData object if we phase then downselect
     vs downselect and phase when working with a multi-phase-ctr object.
@@ -11358,10 +10764,6 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type, future_shapes):
         pytest.importorskip("astroquery")
 
     uv1, uv2, uvfull = hera_uvh5_split
-    if not future_shapes:
-        uv1.use_current_array_shapes()
-        uv2.use_current_array_shapes()
-        uvfull.use_current_array_shapes()
 
     # get the halves of the full data set
     half_mask = np.arange(uvfull.Nblts) < (uvfull.Nblts * 0.5)
@@ -11505,18 +10907,15 @@ def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_data(hera_uvh5, future_shapes):
+def test_set_data(hera_uvh5):
     """
     Test setting data for a given baseline.
     """
     uv = hera_uvh5
 
-    if not future_shapes:
-        uv.use_current_array_shapes()
-
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
+
     data = 2 * uv.get_data(ant1, ant2, squeeze="none", force_copy=True)
     uv.set_data(data, ant1, ant2)
     data2 = uv.get_data(ant1, ant2, squeeze="none")
@@ -11527,17 +10926,13 @@ def test_set_data(hera_uvh5, future_shapes):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_data_evla(future_shapes):
+def test_set_data_evla():
     """
     Test setting data for a given baseline on a different test file.
     """
     filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
     uv = UVData()
-    uv.read(filename, use_future_array_shapes=True)
-
-    if not future_shapes:
-        uv.use_current_array_shapes()
+    uv.read(filename)
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
@@ -11550,17 +10945,12 @@ def test_set_data_evla(future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_data_polkey(hera_uvh5, future_shapes):
+def test_set_data_polkey(hera_uvh5):
     """
     Test setting data for a given baseline with a specific polarization.
     """
     uv = hera_uvh5
-
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
@@ -11574,53 +10964,38 @@ def test_set_data_polkey(hera_uvh5, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_flags(hera_uvh5, future_shapes):
+def test_set_flags(hera_uvh5):
     """
     Test setting flags for a given baseline.
     """
     uv = hera_uvh5
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     flags = uv.get_flags(ant1, ant2, squeeze="none", force_copy=True)
-    if future_shapes:
-        flags[:, :, :] = True
-    else:
-        flags[:, :, :, :] = True
-    inds1, inds2, indp = uv._key2inds((ant1, ant2))
+    flags[:] = True
+    _ = uv._key2inds((ant1, ant2))
     uv.set_flags(flags, ant1, ant2)
     flags2 = uv.get_flags(ant1, ant2, squeeze="none")
 
     assert np.allclose(flags, flags2)
     assert not np.allclose(uv.flag_array, True)
-    return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_flags_polkey(hera_uvh5, future_shapes):
+def test_set_flags_polkey(hera_uvh5):
     """
     Test setting flags for a given baseline with a specific polarization.
     """
     uv = hera_uvh5
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     pol = "xx"
     flags = uv.get_flags(ant1, ant2, pol, squeeze="none", force_copy=True)
-    if future_shapes:
-        flags[:, :, :] = True
-    else:
-        flags[:, :, :, :] = True
-    inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
+    flags[:] = True
+    _ = uv._key2inds((ant1, ant2, pol))
     uv.set_flags(flags, ant1, ant2, pol)
     flags2 = uv.get_flags(ant1, ant2, pol, squeeze="none")
 
@@ -11629,59 +11004,43 @@ def test_set_flags_polkey(hera_uvh5, future_shapes):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_nsamples(hera_uvh5, future_shapes):
+def test_set_nsamples(hera_uvh5):
     """
     Test setting nsamples for a given baseline.
     """
     uv = hera_uvh5
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     nsamples = uv.get_nsamples(ant1, ant2, squeeze="none", force_copy=True)
-    if future_shapes:
-        nsamples[:, :, :] = np.pi
-    else:
-        nsamples[:, :, :, :] = np.pi
-    inds1, inds2, indp = uv._key2inds((ant1, ant2))
+    nsamples[:] = np.pi
+    _ = uv._key2inds((ant1, ant2))
     uv.set_nsamples(nsamples, ant1, ant2)
     nsamples2 = uv.get_nsamples(ant1, ant2, squeeze="none")
 
     assert np.allclose(nsamples, nsamples2)
     assert not np.allclose(uv.nsample_array, np.pi)
-    return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_set_nsamples_polkey(hera_uvh5, future_shapes):
+def test_set_nsamples_polkey(hera_uvh5):
     """
     Test setting nsamples for a given baseline with a specific polarization.
     """
     uv = hera_uvh5
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     ant1 = np.unique(uv.telescope.antenna_numbers)[0]
     ant2 = np.unique(uv.telescope.antenna_numbers)[1]
     pol = "xx"
     nsamples = uv.get_nsamples(ant1, ant2, pol, squeeze="none", force_copy=True)
-    if future_shapes:
-        nsamples[:, :, :] = np.pi
-    else:
-        nsamples[:, :, :, :] = np.pi
-    inds1, inds2, indp = uv._key2inds((ant1, ant2, pol))
+    nsamples[:] = np.pi
+    _ = uv._key2inds((ant1, ant2, pol))
     uv.set_nsamples(nsamples, ant1, ant2, pol)
     nsamples2 = uv.get_nsamples(ant1, ant2, pol, squeeze="none")
 
     assert np.allclose(nsamples, nsamples2)
     assert not np.allclose(uv.nsample_array, np.pi)
-    return
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -11919,21 +11278,16 @@ def test_from_file(filename, msg, fhd_data_files):
         warn = UserWarning
 
     with uvtest.check_warnings(warn, match=msg):
-        uvd.read(testfile, use_future_array_shapes=True, **kwargs)
+        uvd.read(testfile, **kwargs)
     with uvtest.check_warnings(warn, match=msg):
-        uvd2 = UVData.from_file(testfile, use_future_array_shapes=True, **kwargs)
+        uvd2 = UVData.from_file(testfile, **kwargs)
     assert uvd == uvd2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("add_type", ["blt", "freq", "pol"])
 @pytest.mark.parametrize("sort_type", ["blt", "freq", "pol"])
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type, future_shapes):
-    if not future_shapes:
-        casa_uvfits.use_current_array_shapes()
-
+def test_add_pol_sorting_bl(casa_uvfits, add_type, sort_type):
     if add_type == "pol":
         uv1 = casa_uvfits.select(polarizations=["ll", "lr"], inplace=False)
         uv2 = casa_uvfits.select(polarizations=["rr", "rl"], inplace=False)
@@ -12107,20 +11461,18 @@ def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
     assert uvd2 == uvd3
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize(
-    "future_shapes,multispw,sorting",
+    "multispw,sorting",
     [
-        [True, False, None],
-        [False, True, None],
-        [False, False, "channel"],
-        [True, True, "channel"],
-        [False, True, "spw1"],
-        [True, True, "spw2"],
+        [False, None],
+        [True, None],
+        [False, "channel"],
+        [True, "channel"],
+        [True, "spw1"],
+        [True, "spw2"],
     ],
 )
-def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path):
+def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
     """
     Check that we can write out uvh5 files with flex pol data sets.
 
@@ -12132,14 +11484,9 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
 
     assert uvd.Npols > 1
 
-    if not future_shapes:
-        uvd.use_current_array_shapes()
-
     if multispw:
         # split data into multiple spws
         uvd._set_flex_spw()
-        if not future_shapes:
-            uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
         uvd.spw_array = np.array([1, 4, 5])
         uvd.Nspws = 3
         uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
@@ -12158,22 +11505,9 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
     uvd2 = uvd.copy(metadata_only=True)
     uvd2.convert_to_flex_pol()
     uvd2.check(check_autos=True)
-    if future_shapes:
-        uvd2.data_array = uvd.data_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
-        uvd2.flag_array = uvd.flag_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
-        uvd2.nsample_array = uvd.nsample_array.reshape(
-            uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1
-        )
-    else:
-        uvd2.data_array = uvd.data_array.reshape(
-            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
-        )
-        uvd2.flag_array = uvd.flag_array.reshape(
-            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
-        )
-        uvd2.nsample_array = uvd.nsample_array.reshape(
-            uvd.Nblts, 1, uvd.Nfreqs * uvd.Npols, 1
-        )
+    uvd2.data_array = uvd.data_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
+    uvd2.flag_array = uvd.flag_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
+    uvd2.nsample_array = uvd.nsample_array.reshape(uvd.Nblts, uvd.Nfreqs * uvd.Npols, 1)
     with pytest.raises(ValueError, match="Some auto-correlations have non-real values"):
         uvd2.check(check_autos=True)
 
@@ -12196,13 +11530,11 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
 
     outfile = os.path.join(tmp_path, "test.uvh5")
     uvd.write_uvh5(outfile)
-    uvd2 = UVData.from_file(
-        outfile, remove_flex_pol=False, use_future_array_shapes=future_shapes
-    )
+    uvd2 = UVData.from_file(outfile, remove_flex_pol=False)
 
     assert uvd2 == uvd
 
-    uvd3 = UVData.from_file(outfile, use_future_array_shapes=future_shapes)
+    uvd3 = UVData.from_file(outfile)
     uvd2.remove_flex_pol()
 
     assert uvd3 == uvd2
@@ -12210,9 +11542,6 @@ def test_flex_pol_uvh5(future_shapes, multispw, sorting, uv_phase_comp, tmp_path
     if not multispw:
         uvd2.flex_spw = False
         uvd2._flex_spw_id_array.required = False
-        if not future_shapes:
-            uvd2.channel_width = uvd2.channel_width[0]
-            uvd2._channel_width.form = ()
 
     uvd2.check()
 
@@ -12259,12 +11588,9 @@ def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
     assert sma_copy == sma_mir
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("dataset", ["hera", "mwa"])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
+def test_auto_check(hera_uvh5, uv_phase_comp, dataset, tmp_path):
     """
     Checks that checking/fixing the autos works correctly, both with dual-pol data
     (supplied by hera_uvh5) and full-pol data (supplied by casa_uvfits).
@@ -12273,9 +11599,6 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
         uv = hera_uvh5
     elif dataset == "mwa":
         uv, _ = uv_phase_comp
-
-    if not future_shapes:
-        uv.use_current_array_shapes()
 
     out_file = os.path.join(tmp_path, "auto_check.uvh5")
 
@@ -12293,23 +11616,18 @@ def test_auto_check(hera_uvh5, uv_phase_comp, future_shapes, dataset, tmp_path):
     with pytest.raises(
         ValueError, match="Some auto-correlations have non-real values in data_array."
     ):
-        uv1 = uv.from_file(
-            out_file, fix_autos=False, use_future_array_shapes=future_shapes
-        )
+        uv1 = uv.from_file(out_file, fix_autos=False)
     warn_types = [UserWarning]
     msg = ["Fixing auto-correlations to be be real"]
-    if not future_shapes:
-        warn_types.append(DeprecationWarning)
-        msg.append(_future_array_shapes_warning)
     with uvtest.check_warnings(warn_types, match=msg):
-        uv1 = UVData.from_file(out_file, use_future_array_shapes=future_shapes)
+        uv1 = UVData.from_file(out_file)
 
     with uvtest.check_warnings(
         UserWarning, match="Fixing auto-correlations to be be real"
     ):
         uv.write_uvh5(out_file, fix_autos=True, clobber=True)
 
-    uv2 = uv.from_file(out_file, use_future_array_shapes=future_shapes)
+    uv2 = uv.from_file(out_file)
 
     assert uv1 == uv2
 
@@ -12330,17 +11648,12 @@ def test_normalize_by_autos_errs(uv_phase_comp, select_kwargs, err_type, err_msg
         uv.normalize_by_autos()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("muck_data", ["pol", "time", None])
-def test_normalize_by_autos_roundtrip(hera_uvh5, muck_data, future_shapes):
+def test_normalize_by_autos_roundtrip(hera_uvh5, muck_data):
     """
     Check that we can roundtrip autocorrelation normalization under various
     different circumstances.
     """
-    if not future_shapes:
-        hera_uvh5.use_current_array_shapes()
-
     if muck_data == "pol":
         # Stick in pseudo-Stokes pols and verify that these roundtrip correctly
         hera_uvh5.polarization_array[:] = [1, 2]
@@ -12388,7 +11701,7 @@ def test_split_write_comb_read(tmp_path, multi_phase):
     uvd = UVData()
     filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
 
-    uvd.read(filename, use_future_array_shapes=True)
+    uvd.read(filename)
 
     if multi_phase:
         mask = np.full(uvd.Nblts, False)
@@ -12408,7 +11721,7 @@ def test_split_write_comb_read(tmp_path, multi_phase):
     ]
     uvd2 = UVData()
 
-    uvd2.read(filenames, use_future_array_shapes=True)
+    uvd2.read(filenames)
 
     uvd2._consolidate_phase_center_catalogs(other=uvd)
 
@@ -12416,9 +11729,7 @@ def test_split_write_comb_read(tmp_path, multi_phase):
     assert uvd2 == uvd
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
 @pytest.mark.parametrize("projected", [True, False])
 @pytest.mark.parametrize("check_before_write", [True, False])
 def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
@@ -12484,15 +11795,12 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         warn_type = None
         msg = None
 
-    hera_uvh5._set_future_array_shapes()
-
     uvd = UVData()
     param_dict = {}
     for par in params:
         param_dict[par] = getattr(hera_uvh5, par)
 
     uvd = UVData()
-    uvd._set_future_array_shapes()
 
     # set parameters in uvd
     for par in params:
@@ -12521,7 +11829,7 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
     testfile = os.path.join(tmp_path, "outtest.uvh5")
     uvd.write_uvh5(testfile)
 
-    uvd2 = UVData.from_file(testfile, use_future_array_shapes=True)
+    uvd2 = UVData.from_file(testfile)
 
     if not check_before_write:
         if projected:

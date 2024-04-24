@@ -293,9 +293,6 @@ class Mir(UVData):
         # will hopefully become the default for all data sets.
         self._set_flex_spw()
 
-        # Also set future array shapes here
-        self._set_future_array_shapes()
-
         # Create a simple list for broadcasting values stored on a
         # per-integration basis in MIR into the (tasty) per-blt records in UVDATA.
         bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])

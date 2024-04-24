@@ -10,25 +10,18 @@ import numpy as np
 import pytest
 from astropy.units import Quantity
 
-import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
 from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.uvcal import FastCalH5Meta
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
-from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 from pyuvdata.uvdata import FastUVH5Meta
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_calh5_write_read_loop_gain(gain_data, tmp_path, time_range, future_shapes):
+def test_calh5_write_read_loop_gain(gain_data, tmp_path, time_range):
     calobj = gain_data
-    if not future_shapes:
-        calobj.use_current_array_shapes()
     if time_range:
         calobj = time_array_to_time_range(calobj)
 
@@ -41,13 +34,13 @@ def test_calh5_write_read_loop_gain(gain_data, tmp_path, time_range, future_shap
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=future_shapes)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
     cal_meta = FastCalH5Meta(write_file)
     calobj3 = UVCal()
-    calobj3.read_calh5(cal_meta, use_future_array_shapes=future_shapes)
+    calobj3.read_calh5(cal_meta)
 
     assert calobj == calobj3
 
@@ -57,7 +50,7 @@ def test_calh5_write_read_loop_multi_spw_gain(multi_spw_gain, tmp_path):
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
@@ -67,26 +60,20 @@ def test_calh5_write_read_loop_wideband_gain(wideband_gain, tmp_path):
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
 
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_calh5_write_read_loop_delay(delay_data, tmp_path, time_range, future_shapes):
+def test_calh5_write_read_loop_delay(delay_data, tmp_path, time_range):
     calobj = delay_data
-    if not future_shapes:
-        calobj.use_current_array_shapes()
     if time_range:
         calobj = time_array_to_time_range(calobj)
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=future_shapes)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
@@ -96,7 +83,7 @@ def test_calh5_write_read_loop_multi_spw_delay(multi_spw_delay, tmp_path):
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
@@ -107,7 +94,7 @@ def test_calh5_loop_bitshuffle(gain_data, tmp_path):
     calobj = gain_data
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True, data_compression="bitshuffle")
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
@@ -142,7 +129,7 @@ def test_calh5_loop_moon(tmp_path, gain_data, selenoid):
     write_file = str(tmp_path / "outtest.calh5")
     cal_in.write_calh5(write_file, clobber=True)
 
-    cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file)
 
     assert cal_out.telescope._location.frame == "mcmf"
     assert cal_out.telescope._location.ellipsoid == selenoid
@@ -210,7 +197,7 @@ def test_calh5_no_lsts(gain_data, tmp_path, time_range):
         else:
             del h5f["/Header/lst_array"]
 
-    calobj2 = UVCal.from_file(write_file, use_future_array_shapes=True)
+    calobj2 = UVCal.from_file(write_file)
 
     assert calobj == calobj2
 
@@ -224,7 +211,7 @@ def test_none_extra_keywords(gain_data, tmp_path):
     cal_obj.extra_keywords["foo"] = None
 
     cal_obj.write_calh5(testfile)
-    test_calh5.read(testfile, use_future_array_shapes=True)
+    test_calh5.read(testfile)
 
     assert test_calh5 == cal_obj
 
@@ -235,13 +222,11 @@ def test_none_extra_keywords(gain_data, tmp_path):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 def test_read_write_calh5_errors(gain_data, tmp_path):
     """
     Test raising errors in write_calh5 function.
     """
     cal_obj = gain_data
-    cal_obj.use_current_array_shapes()
 
     cal_out = UVCal()
     testfile = str(tmp_path / "outtest.calh5")
@@ -254,8 +239,7 @@ def test_read_write_calh5_errors(gain_data, tmp_path):
 
     # use clobber=True to write out anyway
     cal_obj.write_calh5(testfile, clobber=True)
-    with uvtest.check_warnings(DeprecationWarning, match=_future_array_shapes_warning):
-        cal_out.read(testfile)
+    cal_out.read(testfile)
 
     # make sure filenames are what we expect
     assert cal_obj.filename == ["zen.2457698.40355.xx.gain.calfits"]
@@ -384,7 +368,7 @@ def test_calh5_partial_read(
 
     calobj2.select(**param_dict)
 
-    calobj3 = UVCal.from_file(write_file, use_future_array_shapes=True, **param_dict)
+    calobj3 = UVCal.from_file(write_file, **param_dict)
 
     assert calobj2 == calobj3
 
