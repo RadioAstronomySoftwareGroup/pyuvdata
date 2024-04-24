@@ -183,6 +183,7 @@ def test_required_parameter_iter(uvcal_data):
         )
 
     uv_cal_object.flag_array = 1
+    assert uv_cal_object.metadata_only is False
     required = []
     for prop in uv_cal_object.required():
         required.append(prop)

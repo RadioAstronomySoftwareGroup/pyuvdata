@@ -74,8 +74,6 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path, future_shapes):
         sma_mir.use_current_array_shapes()
     sma_mir.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile, use_future_array_shapes=future_shapes)
-    print("sma_mir instrument", sma_mir.telescope.instrument)
-    print("uvfits_uv instrument", uvfits_uv.telescope.instrument)
     assert sma_mir.telescope.instrument == uvfits_uv.telescope.instrument
     for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
         # Check to make sure that the UVFITS-specific paramters are set on the

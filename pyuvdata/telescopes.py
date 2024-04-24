@@ -77,45 +77,6 @@ KNOWN_TELESCOPES = {
 }
 
 
-def _parse_antpos_file(antenna_positions_file):
-    """
-    Interpret the antenna positions file.
-
-    Parameters
-    ----------
-    antenna_positions_file : str
-        Name of the antenna_positions_file, which is assumed to be in DATA_PATH.
-        Should contain antenna names, numbers and ECEF positions relative to the
-        telescope location.
-
-    Returns
-    -------
-    antenna_names : array of str
-        Antenna names.
-    antenna_names : array of int
-        Antenna numbers.
-    antenna_positions : array of float
-        Antenna positions in ECEF relative to the telescope location.
-
-    """
-    columns = ["name", "number", "x", "y", "z"]
-    formats = ["U10", "i8", np.longdouble, np.longdouble, np.longdouble]
-
-    dt = np.format_parser(formats, columns, [])
-    ant_array = np.genfromtxt(
-        antenna_positions_file,
-        delimiter=",",
-        autostrip=True,
-        skip_header=1,
-        dtype=dt.dtype,
-    )
-    antenna_names = ant_array["name"]
-    antenna_numbers = ant_array["number"]
-    antenna_positions = np.stack((ant_array["x"], ant_array["y"], ant_array["z"])).T
-
-    return antenna_names, antenna_numbers, antenna_positions.astype("float")
-
-
 def known_telescopes():
     """
     Get list of known telescopes.
@@ -194,7 +155,7 @@ def known_telescope_location(
     else:
         # no telescope matching this name
         raise ValueError(
-            f"Telescope {name} is not in astropy_sites or " "known_telescopes_dict."
+            f"Telescope {name} is not in astropy_sites or known_telescopes_dict."
         )
 
     if not return_citation:
@@ -480,8 +441,8 @@ class Telescope(uvbase.UVBase):
                 antpos_file = os.path.join(
                     DATA_PATH, telescope_dict["antenna_positions_file"]
                 )
-                antenna_names, antenna_numbers, antenna_positions = _parse_antpos_file(
-                    antpos_file
+                antenna_names, antenna_numbers, antenna_positions = (
+                    uvutils.parse_antpos_file(antpos_file)
                 )
                 ant_info = {
                     "Nants": antenna_names.size,

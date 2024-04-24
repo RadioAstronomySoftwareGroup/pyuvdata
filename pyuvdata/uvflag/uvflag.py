@@ -1156,7 +1156,9 @@ class UVFlag(UVBase):
         Raises
         ------
         ValueError
-            if the telescope_name is not in known telescopes
+            if self.telescope.location is None or overwrite is True and the
+            self.telescope.name is not in known telescopes.
+
         """
         self.telescope.update_params_from_known_telescopes(
             overwrite=overwrite,
