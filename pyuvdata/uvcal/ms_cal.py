@@ -92,15 +92,15 @@ class MSCal(UVCal):
 
         if main_info_dict["subType"] == "G Jones":
             # This is a so-called "wideband" gains calibration table, i.e. not bandpass
-            self._set_wide_band()
-            self._set_gain
+            self._set_wide_band(True)
+            self._set_gain()
         elif main_info_dict["subType"] == "B Jones":
             # This is a bandpass solution
-            self._set_flex_spw()
+            self._set_wide_band(False)
             self._set_gain()
         elif main_info_dict["subType"] == "K Jones":
             # This is a delay solution? Need to understand the units...
-            self._set_wide_band()
+            self._set_wide_band(True)
             self._set_delay()
         else:
             # I don't know what this is, so don't proceed any further.

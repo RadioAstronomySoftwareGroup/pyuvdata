@@ -1634,12 +1634,10 @@ class MWACorrFITS(UVData):
         if np.any(np.diff(spw_inds) > 1):
             warnings.warn("coarse channels are not contiguous for this observation")
             # add spectral windows
-            self._set_flex_spw()
             self.Nspws = len(spw_inds)
             self.spw_array = meta_dict["coarse_chans"][spw_inds]
             self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
         else:
-            # future proof: always set the fles_spw_id_array
             self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         # warn user if not all coarse channels are included

@@ -557,7 +557,6 @@ def test_ms_multi_spw_data_variation(sma_mir, tmp_path):
     assert np.all(ms_uv.integration_time == np.array([1.0]))
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_ms_phasing(sma_mir, tmp_path):
@@ -608,10 +607,6 @@ def test_ms_single_chan(sma_mir, tmp_path):
     )
     ms_uv.phase_center_catalog[cat_id]["cat_name"] = cat_name
     ms_uv.phase_center_catalog[cat_id]["info_source"] = "file"
-
-    # Next, turn on flex-spw
-    ms_uv._set_flex_spw()
-    ms_uv.flex_spw_id_array = ms_uv.spw_array.copy()
 
     # Finally, take care of the odds and ends
     ms_uv.extra_keywords = {}

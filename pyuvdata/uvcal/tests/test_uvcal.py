@@ -22,7 +22,10 @@ from pyuvdata.data import DATA_PATH
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 
 pytestmark = pytest.mark.filterwarnings(
-    "ignore:key CASA_Version in extra_keywords is longer than 8 characters"
+    "ignore:key CASA_Version in extra_keywords is longer than 8 characters",
+    "ignore:telescope_location, antenna_positions, antenna_diameters are not set or "
+    "are being overwritten. telescope_location, antenna_positions, antenna_diameters "
+    "are set using values from known telescopes for HERA.",
 )
 
 
@@ -78,7 +81,6 @@ def uvcal_data():
         "freq_array",
         "channel_width",
         "spw_array",
-        "flex_spw",
         "jones_array",
         "integration_time",
         "gain_convention",
@@ -317,9 +319,8 @@ def test_array_shape_errors(caltype, gain_data, delay_data_inputflag, wideband_g
     calobj.integration_time[-1] = calobj.integration_time[0] * 2.0
     if caltype == "delay":
         calobj.Nfreqs = 2
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="Nfreqs will be required to be 1 for wide_band cals",
+        with pytest.raises(
+            ValueError, match="Nfreqs is required to be 1 for wide_band cals"
         ):
             calobj.check()
         calobj.Nfreqs = 1
@@ -329,11 +330,7 @@ def test_array_shape_errors(caltype, gain_data, delay_data_inputflag, wideband_g
     with pytest.raises(
         ValueError, match="The integration times are variable. The calfits format"
     ):
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match="Nfreqs will be required to be 1 for wide_band cals",
-        ):
-            calobj.write_calfits("foo")
+        calobj.write_calfits("foo")
 
     if caltype == "gain":
         calobj2.channel_width[-1] = calobj2.channel_width[0] * 2.0
@@ -451,7 +448,8 @@ def test_ant_array_not_in_antnums(gain_data):
     )
 
 
-def test_set_gain(gain_data, delay_data):
+def test_set_gain():
+    delay_data = UVCal()
     delay_data._set_gain()
     assert delay_data._gain_array.required
     assert not delay_data._delay_array.required
@@ -459,7 +457,8 @@ def test_set_gain(gain_data, delay_data):
     assert delay_data._gain_array.form == delay_data._quality_array.form
 
 
-def test_set_delay(gain_data):
+def test_set_delay():
+    gain_data = UVCal()
     gain_data._set_delay()
     assert gain_data._delay_array.required
     assert not gain_data._gain_array.required
@@ -467,19 +466,22 @@ def test_set_delay(gain_data):
     assert gain_data._delay_array.form == gain_data._quality_array.form
 
 
-def test_set_sky(gain_data):
+def test_set_sky():
+    gain_data = UVCal()
     gain_data._set_sky()
     assert gain_data._sky_catalog.required
     assert gain_data._ref_antenna_name.required
 
 
-def test_set_redundant(gain_data):
+def test_set_redundant():
+    gain_data = UVCal()
     gain_data._set_redundant()
     assert not gain_data._sky_catalog.required
     assert not gain_data._ref_antenna_name.required
 
 
-def test_convert_filetype(gain_data):
+def test_convert_filetype():
+    gain_data = UVCal()
     # error testing
     with pytest.raises(ValueError, match="filetype must be calh5, calfits, or ms."):
         gain_data._convert_to_filetype("uvfits")
@@ -496,20 +498,15 @@ def test_error_metadata_only_write(gain_data, tmp_path):
 def test_flexible_spw(gain_data):
     calobj = gain_data
 
-    # check that this check passes on non-flex_spw objects
+    # check that this check passes on single-window objects
     calobj._check_flex_spw_contiguous()
 
     # check warning if flex_spw_id_array is not set
     calobj.flex_spw_id_array = None
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="flex_spw_id_array is not set. It will be required starting in version "
-        "3.0 for non-wide-band objects",
-    ):
+    with pytest.raises(ValueError, match="Required UVParameter _flex_spw_id_array"):
         calobj.check()
 
     # first just make one spw and check that object still passes check
-    calobj._set_flex_spw()
     calobj.channel_width = (
         np.zeros(calobj.Nfreqs, dtype=np.float64) + calobj.channel_width
     )
@@ -636,7 +633,6 @@ def test_convert_to_gain(convention, same_freqs, delay_data_inputflag):
         assert new_gain_obj == new_gain_obj2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay):
     delay_obj = delay_data_inputflag
     gain_obj = gain_data
@@ -745,7 +741,6 @@ def test_select_antennas(caltype, gain_data, delay_data_inputflag, tmp_path):
     assert calobj.total_quality_array is not None
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
 def test_select_times(caltype, time_range, gain_data, delay_data_inputflag, tmp_path):
@@ -851,19 +846,8 @@ def test_select_times(caltype, time_range, gain_data, delay_data_inputflag, tmp_
         calobj2.write_calfits(write_file_calfits)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
-@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_frequencies(caltype, gain_data, delay_data_inputflag, tmp_path):
-    if caltype == "gain":
-        calobj = gain_data
-    else:
-        calobj = delay_data_inputflag
-        calobj.freq_array = gain_data.freq_array
-        calobj.channel_width = gain_data.channel_width
-        calobj.Nfreqs = gain_data.Nfreqs
+def test_select_frequencies(gain_data, tmp_path):
+    calobj = gain_data
 
     calobj2 = calobj.copy()
 
@@ -902,18 +886,9 @@ def test_select_frequencies(caltype, gain_data, delay_data_inputflag, tmp_path):
     # test writing calfits with frequencies spaced by more than the channel width
     calobj2 = calobj.copy()
     freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
-    warn_type = [UserWarning]
-    msg = ["Selected frequencies are not contiguous."]
-    extra_warn_type = []
-    extra_msg = []
-    if caltype == "delay":
-        extra_warn_type += [DeprecationWarning] * 3
-        extra_msg += [
-            "Nfreqs will be required to be 1 for wide_band cals",
-            "The freq_array attribute should not be set if wide_band=True",
-            "The channel_width attribute should not be set if wide_band=True",
-        ]
-    with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
+    with uvtest.check_warnings(
+        UserWarning, match="Selected frequencies are not contiguous."
+    ):
         calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
@@ -927,16 +902,16 @@ def test_select_frequencies(caltype, gain_data, delay_data_inputflag, tmp_path):
     # check for warnings and errors associated with unevenly spaced frequencies
     calobj2 = calobj.copy()
     freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
-    warn_type = [UserWarning]
-    msg = ["Selected frequencies are not evenly spaced."]
-    with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
+    with uvtest.check_warnings(
+        UserWarning, match="Selected frequencies are not evenly spaced."
+    ):
         calobj2.select(frequencies=freqs_to_keep)
 
     with pytest.raises(
         ValueError,
         match="Frequencies are not evenly spaced or have differing values of channel",
     ):
-        calobj2.write_calfits(write_file_calfits)
+        calobj2.write_calfits(write_file_calfits, clobber=True)
 
 
 @pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
@@ -954,20 +929,6 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     calobj2.total_quality_array = np.zeros(
         calobj2._total_quality_array.expected_shape(calobj2)
     )
-
-    calobj2.freq_range = np.zeros((calobj2.Nspws, 2), dtype=calobj2.freq_array.dtype)
-    for index, spw in enumerate(calobj2.spw_array):
-        spw_inds = np.nonzero(calobj2.flex_spw_id_array == spw)[0]
-        calobj2.freq_range[index, 0] = np.min(np.squeeze(calobj2.freq_array)[spw_inds])
-        calobj2.freq_range[index, 1] = np.max(np.squeeze(calobj2.freq_array)[spw_inds])
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=(
-            "The freq_range attribute should not be set if cal_type='gain' and "
-            "wide_band=False. This will become an error in version 3.0."
-        ),
-    ):
-        calobj2.check()
 
     calobj2.select(frequencies=freqs_to_keep)
 
@@ -1014,8 +975,6 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
 
     calobj3 = UVCal.from_file(write_file_calfits)
 
-    calobj2.flex_spw = False
-    calobj2._flex_spw_id_array.required = False
     calobj2.flex_spw_id_array = np.zeros(calobj2.Nfreqs, dtype=int)
     calobj2.spw_array = np.array([0])
     calobj2.check()
@@ -1023,31 +982,17 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     assert calobj3 == calobj2
 
 
-@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_freq_chans(caltype, gain_data, delay_data_inputflag):
-    if caltype == "gain":
-        calobj = gain_data.copy()
-    else:
-        calobj = delay_data_inputflag.copy()
+def test_select_freq_chans_delay_err(delay_data_inputflag):
+    with pytest.raises(
+        ValueError, match="Cannot select on frequencies because this is a wide_band"
+    ):
+        delay_data_inputflag.select(freq_chans=[0])
 
+
+def test_select_freq_chans(gain_data):
+    calobj = gain_data
     old_history = calobj.history
     chans_to_keep = np.arange(4, 8)
-
-    if caltype == "delay":
-        with pytest.raises(
-            ValueError,
-            match="Cannot select on frequencies because this is a wide_band object "
-            "with no freq_array.",
-        ):
-            calobj.select(freq_chans=chans_to_keep)
-
-    if caltype == "delay":
-        calobj.freq_array = gain_data.freq_array
-        calobj.channel_width = gain_data.channel_width
-        calobj.Nfreqs = gain_data.Nfreqs
 
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
@@ -1125,7 +1070,6 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
         calobj.select(spws=[5])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize(
     "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
@@ -1222,27 +1166,21 @@ def test_select_phase_centers(uvcal_phase_center):
     assert uvcopy2 == uvcopy1
 
 
-@pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 def test_select(caltype, gain_data, delay_data_inputflag):
     # now test selecting along all axes at once
     if caltype == "gain":
         calobj = gain_data
+        freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
     else:
         calobj = delay_data_inputflag
-        calobj.freq_array = gain_data.freq_array
-        calobj.channel_width = gain_data.channel_width
-        calobj.Nfreqs = gain_data.Nfreqs
+        freqs_to_keep = None
 
     calobj2 = calobj.copy()
 
     old_history = calobj.history
 
     ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-    freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
     times_to_keep = calobj.time_array[[1, 2]]
     jones_to_keep = [-5]
 
@@ -1265,25 +1203,28 @@ def test_select(caltype, gain_data, delay_data_inputflag):
     for t in np.unique(calobj2.time_array):
         assert t in times_to_keep
 
-    assert len(freqs_to_keep) == calobj2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in calobj2.freq_array
-    for f in np.unique(calobj2.freq_array):
-        assert f in freqs_to_keep
+    if caltype == "gain":
+        assert len(freqs_to_keep) == calobj2.Nfreqs
+        for f in freqs_to_keep:
+            assert f in calobj2.freq_array
+        for f in np.unique(calobj2.freq_array):
+            assert f in freqs_to_keep
+        expected_history = old_history + (
+            "  Downselected to specific antennas, times, frequencies, "
+            "jones polarization terms using pyuvdata."
+        )
+    else:
+        expected_history = old_history + (
+            "  Downselected to specific antennas, times, "
+            "jones polarization terms using pyuvdata."
+        )
 
     assert len(jones_to_keep) == calobj2.Njones
     for j in jones_to_keep:
         assert j in calobj2.jones_array
     for j in np.unique(calobj2.jones_array):
         assert j in jones_to_keep
-
-    assert uvutils._check_histories(
-        old_history + "  Downselected to "
-        "specific antennas, times, "
-        "frequencies, jones polarization terms "
-        "using pyuvdata.",
-        calobj2.history,
-    )
+    assert uvutils._check_histories(expected_history, calobj2.history)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1342,7 +1283,6 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 def test_add_antennas(caltype, gain_data, method, delay_data_inputflag):
@@ -1423,7 +1363,6 @@ def test_add_antennas(caltype, gain_data, method, delay_data_inputflag):
     assert calobj == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_reorder_ants(caltype, metadata_only, gain_data, delay_data_inputflag):
@@ -1488,7 +1427,6 @@ def test_reorder_ants_errors(gain_data):
         gain_data.reorder_antennas(gain_data.telescope.antenna_numbers[:8])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_reorder_freqs(caltype, metadata_only, gain_data, delay_data_inputflag):
@@ -1615,7 +1553,6 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
         gain_data.reorder_freqs(channel_order=np.arange(3))
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
@@ -1682,16 +1619,12 @@ def test_reorder_times_errors(gain_data):
         gain_data.reorder_times(np.arange(7))
 
     gain_data = time_array_to_time_range(gain_data, keep_time_array=True)
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The time_array and time_range attributes are both set. "
-        "Defaulting to using time_range to determine sorting. This will "
-        "become an error in version 3.0.",
+    with pytest.raises(
+        ValueError, match="The time_array and time_range attributes are both set."
     ):
         gain_data.reorder_times()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_reorder_jones(caltype, metadata_only, gain_data, delay_data_inputflag):
@@ -1891,7 +1824,6 @@ def test_add_different_sorting(
     assert cal4 == calobj
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
 def test_add_antennas_multispw(multi_spw_gain, quality, method):
@@ -1956,45 +1888,13 @@ def test_add_frequencies(gain_data, method):
     assert calobj == calobj_full
 
     # test for when total_quality_array is present in first file but not second
-    # also check for missing flex_spw_id_array and freq_range in one object
     calobj.select(frequencies=freqs1)
-    calobj.flex_spw_id_array = None
-    calobj.freq_range = np.array(
-        [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-    )[np.newaxis, :]
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
     tot_tqa = np.concatenate([tqa, tqa2], axis=0)
     calobj.total_quality_array = tqa
-    msg = [
-        "flex_spw_id_array is not set. It will be required starting in version 3.0 "
-        "for non-wide-band objects",
-        "The freq_range attribute should not be set if cal_type='gain' and "
-        "wide_band=False. This will become an error in version 3.0.",
-    ]
-    warn_type = [DeprecationWarning, DeprecationWarning]
-    if method == "fast_concat":
-        msg.extend(
-            [
-                "Some objects have the flex_spw_id_array set and some do not. Combined "
-                "object will have it set.",
-                "Some objects have the freq_range set and and some do not. "
-                "Combined object will not have it set.",
-            ]
-        )
-        warn_type.extend([UserWarning, UserWarning])
-    else:
-        msg.extend(
-            [
-                "One object has the flex_spw_id_array set and one does not. Combined "
-                "object will have it set.",
-                "One object has the freq_range set and one does not. Combined "
-                "object will not have it set.",
-            ]
-        )
-        warn_type.extend([UserWarning, UserWarning])
 
-    with uvtest.check_warnings(warn_type, match=msg):
+    with uvtest.check_warnings(None):
         getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
         calobj.total_quality_array,
@@ -2011,12 +1911,6 @@ def test_add_frequencies(gain_data, method):
     tot_tqa = np.concatenate([tqa, tqa2], axis=0)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
-    calobj.freq_range = np.array([np.min(calobj.freq_array), np.max(calobj.freq_array)])
-    calobj2.freq_range = np.array(
-        [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-    )
-    calobj.freq_range = calobj.freq_range[np.newaxis, :]
-    calobj2.freq_range = calobj2.freq_range[np.newaxis, :]
 
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
@@ -2088,18 +1982,9 @@ def test_add_frequencies(gain_data, method):
     assert calobj == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:One object has the freq_range set and one does not")
-@pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:Some objects have the freq_range set")
-@pytest.mark.parametrize(
-    ["split_f_ind", "freq_range1", "freq_range2"],
-    [[5, True, True], [3, False, False], [5, True, False]],
-)
+@pytest.mark.parametrize("split_f_ind", [3, 5])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-def test_add_frequencies_multispw(
-    split_f_ind, method, freq_range1, freq_range2, multi_spw_gain
-):
+def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
 
@@ -2118,55 +2003,6 @@ def test_add_frequencies_multispw(
 
     warn_type = []
     msg = []
-    if freq_range1:
-        warn_type.append(DeprecationWarning)
-        msg.append(
-            "The freq_range attribute should not be set if cal_type='gain' and "
-            "wide_band=False. This will become an error in version 3.0."
-        )
-        calobj.freq_range = np.array(
-            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-        )[np.newaxis, :]
-    else:
-        calobj.freq_range = None
-
-    if freq_range2:
-        warn_type.append(DeprecationWarning)
-        msg.append(
-            "The freq_range attribute should not be set if cal_type='gain' and "
-            "wide_band=False. This will become an error in version 3.0."
-        )
-        calobj2.freq_range = np.array(
-            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-        )[np.newaxis, :]
-    else:
-        calobj2.freq_range = None
-
-    if freq_range1 != freq_range2:
-        warn_type.append(UserWarning)
-        if method == "fast_concat":
-            msg.append(
-                "Some objects have the freq_range set and some do not. "
-                "Combined object will not have it set."
-            )
-        else:
-            msg.append(
-                "One object has the freq_range set and one does not. Combined "
-                "object will not have it set."
-            )
-    elif freq_range1:
-        warn_type.append(DeprecationWarning)
-        msg.append(
-            "The freq_range attribute should not be set if cal_type='gain' and "
-            "wide_band=False. This will become an error in version 3.0."
-        )
-
-    if freq_range1 and freq_range2:
-        calobj_full.freq_range = np.concatenate(
-            [calobj.freq_range, calobj2.freq_range], axis=0
-        )
-    else:
-        calobj_full.freq_range = None
 
     if len(warn_type) == 0:
         warn_type = None
@@ -2352,35 +2188,11 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data_inputflag)
     if time_range:
         keep_time_array = caltype == "gain"
         calobj = time_array_to_time_range(calobj, keep_time_array=keep_time_array)
+        calobj.time_array = calobj.lst_array = None
 
     calobj2 = calobj.copy()
-
     calobj_full = calobj.copy()
-    if time_range and caltype == "gain":
-        check_warn = [DeprecationWarning] * 2
-        check_msg = [
-            "The time_array and time_range attributes are both set, but only one "
-            "should be set. This will become an error in version 3.0.",
-            "The lst_array and lst_range attributes are both set, but only one should "
-            "be set. This will become an error in version 3.0.",
-        ]
-        select_warn = check_warn + [DeprecationWarning]
-        select_msg = check_msg + [
-            "The time_array and time_range attributes are both set. "
-            "Defaulting to using time_range to determine time selection. "
-            "This will become an error in version 3.0."
-        ]
-
-        add_warn = check_warn * 3
-        add_msg = check_msg * 3
-        if method != "fast_concat":
-            add_warn += [DeprecationWarning]
-            add_msg += [
-                "The time_array and time_range attributes are both set. Defaulting to "
-                "using time_range to determine time matching between objects. "
-                "This will become an error in version 3.0."
-            ]
-    elif caltype == "delay":
+    if caltype == "delay":
         check_warn = None
         check_msg = ""
         select_warn = None
@@ -2508,19 +2320,11 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data_inputflag)
         # need to sort object first
         warn = check_warn
         warn_msg = check_msg
-        if time_range and caltype == "gain":
-            warn += [DeprecationWarning]
-            warn_msg += [
-                "The time_array and time_range attributes are both set. Defaulting to "
-                "using time_range to determine sorting. This will become an error in "
-                "version 3.0."
-            ]
         with uvtest.check_warnings(warn, match=warn_msg):
             calobj.reorder_times()
     assert calobj == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
 def test_add_times_multispw(method, multi_spw_gain, quality):
@@ -2664,7 +2468,6 @@ def test_add_jones(caltype, method, gain_data, delay_data_inputflag):
     assert calobj2 == calobj_original
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
 def test_add_jones_multispw(method, quality, multi_spw_gain):
@@ -2765,7 +2568,7 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
     calobj_full = gain_data
     calobj_full.select(
         antenna_nums=calobj_full.ant_array[:4],
-        frequencies=calobj_full.freq_array[:2],
+        frequencies=calobj_full.freq_array[:4],
         times=calobj_full.time_array[:2],
     )
 
@@ -2881,13 +2684,10 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
     assert calobj3 == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-def test_add_errors(
-    caltype, time_range, method, gain_data, delay_data, multi_spw_gain, wideband_gain
-):
+def test_add_errors(caltype, time_range, method, gain_data, delay_data, wideband_gain):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data.copy()
@@ -2932,13 +2732,6 @@ def test_add_errors(
     calobj2.telescope.name = "PAPER"
     with pytest.raises(ValueError, match="Parameter telescope does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
-
-    # test flex_spw mismatch
-    with pytest.raises(
-        ValueError,
-        match="To combine these data, flex_spw must be set to the same value",
-    ):
-        getattr(gain_data, method)(multi_spw_gain, **kwargs)
 
     # test wide_band mismatch
     with pytest.raises(
@@ -3084,7 +2877,6 @@ def test_jones_warning(gain_data):
     assert sorted(calobj.jones_array) == [-8, -6, -5]
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 def test_frequency_warnings(gain_data, method):
     """Test having uneven or non-contiguous frequencies"""
@@ -3236,7 +3028,6 @@ def test_multi_files(
     assert calobj == calobj_full_metadata_only
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 def test_uvcal_get_methods(gain_data):
     # load data
     uvc = gain_data
@@ -3291,7 +3082,6 @@ def test_uvcal_get_methods(gain_data):
         uvc.get_gains(10)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("file_type", ["calfits", "calh5"])
 def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     # read a test file
@@ -3481,29 +3271,22 @@ def test_read_errors():
         UVCal.from_file(gainfile, file_type="foo")
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("flex_spw", [True, False])
-def test_init_from_uvdata(flex_spw, uvcalibrate_data):
+@pytest.mark.parametrize("multi_spw", [True, False])
+def test_init_from_uvdata(multi_spw, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
-    if flex_spw:
-        uvd._set_flex_spw()
+    if multi_spw:
         uvd.flex_spw_id_array = [1] * (uvd.Nfreqs // 2) + [2] * (uvd.Nfreqs // 2)
         uvd.spw_array = np.array([1, 2])
         uvd.Nspws = 2
         uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
         uvd.check()
 
-        uvc._set_flex_spw()
         uvc.flex_spw_id_array = [1] * (uvc.Nfreqs // 2) + [2] * (uvc.Nfreqs // 2)
         uvc.spw_array = np.array([1, 2])
         uvc.Nspws = 2
         uvc.channel_width = np.full(uvc.Nfreqs, uvc.channel_width)
         uvc.check()
-    else:
-        # Always compare to a flex_spw uvcal, because the function always returns
-        # a flex_spw uvcal
-        uvc._set_flex_spw()
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -3546,10 +3329,9 @@ def test_init_from_uvdata(flex_spw, uvcalibrate_data):
     assert uvc_new == uvc2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Selected frequencies are not contiguous.")
-@pytest.mark.parametrize("flex_spw", [True, False])
-def test_init_from_uvdata_setfreqs(flex_spw, uvcalibrate_data):
+@pytest.mark.parametrize("multi_spw", [True, False])
+def test_init_from_uvdata_setfreqs(multi_spw, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     channel_width = uvd.channel_width[0]
     freqs_use = uvd.freq_array[0:5]
@@ -3558,9 +3340,8 @@ def test_init_from_uvdata_setfreqs(flex_spw, uvcalibrate_data):
 
     uvc2.select(frequencies=freqs_use)
 
-    if flex_spw:
+    if multi_spw:
         flex_spw_id_array = np.array([1, 1, 2, 2, 2])
-        uvc2._set_flex_spw()
         uvc2.flex_spw_id_array = flex_spw_id_array
         uvc2.spw_array = np.array([1, 2])
         uvc2.Nspws = 2
@@ -3569,7 +3350,6 @@ def test_init_from_uvdata_setfreqs(flex_spw, uvcalibrate_data):
         channel_width = np.full(freqs_use.size, channel_width).tolist()
     else:
         flex_spw_id_array = np.zeros(5, dtype=int)
-        uvc2._set_flex_spw()
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
@@ -3617,11 +3397,9 @@ def test_init_from_uvdata_setfreqs(flex_spw, uvcalibrate_data):
     assert uvc_new == uvc2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("metadata_only", [True, False])
 def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-    uvc._set_flex_spw()
     integration_time = np.mean(uvd.integration_time)
     times_use = uvc.time_array[0:3]
 
@@ -3689,7 +3467,6 @@ def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
 
 def test_init_from_uvdata_setjones(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-    uvc._set_flex_spw()
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -3740,7 +3517,6 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
 @pytest.mark.parametrize("pol", ["nn", "ee", "rr", "ll"])
 def test_init_single_pol(uvcalibrate_data, pol):
     uvd, uvc = uvcalibrate_data
-    uvc._set_flex_spw()
 
     if pol in ["ll", "rr"]:
         # convert to circular pol
@@ -3796,7 +3572,6 @@ def test_init_single_pol(uvcalibrate_data, pol):
 
 def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-    uvc._set_flex_spw()
 
     # convert to circular pol
     uvd.polarization_array = np.array([-1, -2, -3, -4])
@@ -3845,11 +3620,9 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     assert uvc_new == uvc2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     uvd, uvc = uvcalibrate_data
     uvc_sky = fhd_cal_raw
-    uvc._set_flex_spw()
 
     # make cal object be a sky cal type
     uvc._set_sky()
@@ -3926,40 +3699,33 @@ def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     assert uvc_new == uvc2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("flex_spw", [True, False])
+@pytest.mark.parametrize("multi_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
-def test_init_from_uvdata_delay(flex_spw, set_frange, uvcalibrate_data):
+def test_init_from_uvdata_delay(multi_spw, set_frange, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # make cal object be a delay cal type
     uvc2 = uvc.copy(metadata_only=True)
-    uvc2._set_delay()
     uvc2.Nfreqs = 1
-    uvc2.flex_spw_id_array = None
-    uvc2.freq_array = None
-    uvc2.channel_width = None
+    uvc2.flex_spw_id_array = uvc2.freq_array = uvc2.channel_width = None
     uvc2.freq_range = np.array([[np.min(uvc.freq_array), np.max(uvc.freq_array)]])
+    uvc2._set_delay()
 
-    if flex_spw:
+    if multi_spw:
         spw_cut = uvd.Nfreqs // 2
-        uvd._set_flex_spw()
         uvd.flex_spw_id_array = [1] * spw_cut + [2] * spw_cut
         uvd.spw_array = np.array([1, 2])
         uvd.Nspws = 2
         uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
         uvd.check()
 
-        uvc._set_flex_spw()
         uvc.flex_spw_id_array = np.asarray([1] * spw_cut + [2] * spw_cut)
         uvc.spw_array = np.array([1, 2])
         uvc.Nspws = 2
         uvc.channel_width = np.full(uvc.Nfreqs, uvc.channel_width)
         uvc.check()
-    else:
-        uvc._set_flex_spw()
 
-    if flex_spw:
+    if multi_spw:
         uvc2.spw_array = np.array([1, 2])
         uvc2.Nspws = 2
         uvc2.freq_range = np.asarray(
@@ -3972,7 +3738,7 @@ def test_init_from_uvdata_delay(flex_spw, set_frange, uvcalibrate_data):
 
     if set_frange:
         freq_range = uvc2.freq_range
-        if flex_spw:
+        if multi_spw:
             spw_array = uvc2.spw_array
         else:
             # check that it works with 1d array for one spw
@@ -4028,31 +3794,26 @@ def test_init_from_uvdata_delay(flex_spw, set_frange, uvcalibrate_data):
     assert uvc_new == uvc2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("flex_spw", [True, False])
+@pytest.mark.parametrize("multi_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
-def test_init_from_uvdata_wideband(flex_spw, set_frange, uvcalibrate_data):
+def test_init_from_uvdata_wideband(multi_spw, set_frange, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # make cal object be a wide-band cal
     uvc2 = uvc.copy(metadata_only=True)
+    uvc2.flex_spw_id_array = uvc2.freq_array = uvc2.channel_width = None
+    uvc2.Nfreqs = 1
     uvc2._set_wide_band()
     uvc2.freq_range = np.asarray([[np.min(uvc.freq_array), np.max(uvc.freq_array)]])
-    uvc2.Nfreqs = 1
-    uvc2.flex_spw_id_array = None
-    uvc2.freq_array = None
-    uvc2.channel_width = None
 
-    if flex_spw:
+    if multi_spw:
         spw_cut = uvd.Nfreqs // 2
-        uvd._set_flex_spw()
         uvd.flex_spw_id_array = [1] * spw_cut + [2] * spw_cut
         uvd.spw_array = np.array([1, 2])
         uvd.Nspws = 2
         uvd.channel_width = np.full(uvd.Nfreqs, uvd.channel_width)
         uvd.check()
 
-        uvc._set_flex_spw()
         uvc.flex_spw_id_array = np.asarray([1] * spw_cut + [2] * spw_cut)
         uvc.spw_array = np.array([1, 2])
         uvc.Nspws = 2
@@ -4072,7 +3833,7 @@ def test_init_from_uvdata_wideband(flex_spw, set_frange, uvcalibrate_data):
 
     if set_frange:
         freq_range = uvc2.freq_range
-        if flex_spw:
+        if multi_spw:
             spw_array = uvc2.spw_array
         else:
             spw_array = None
@@ -4128,7 +3889,6 @@ def test_init_from_uvdata_wideband(flex_spw, set_frange, uvcalibrate_data):
 
 def test_init_from_uvdata_basic_errors(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-    uvc._set_flex_spw()
 
     with pytest.raises(ValueError, match="uvdata must be a UVData object."):
         UVCal.initialize_from_uvdata(
@@ -4617,11 +4377,6 @@ def test_phase_center_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
         # Handle some extra bits here for MS-type
         uvc.extra_keywords = uvcal_phase_center.extra_keywords
         uvc.scan_number_array = uvcal_phase_center.scan_number_array
-        # MS defaults to flex-spw
-        uvcal_phase_center._set_flex_spw()
-        uvcal_phase_center.flex_spw_id_array = np.zeros(
-            uvcal_phase_center.Nfreqs, dtype=int
-        )
 
     assert uvc == uvcal_phase_center
 
@@ -4652,11 +4407,6 @@ def test_refant_array_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
         # Handle some extra bits here for MS-type
         uvc.extra_keywords = uvcal_phase_center.extra_keywords
         uvc.scan_number_array = uvcal_phase_center.scan_number_array
-        # MS defaults to flex-spw
-        uvcal_phase_center._set_flex_spw()
-        uvcal_phase_center.flex_spw_id_array = np.zeros(
-            uvcal_phase_center.Nfreqs, dtype=int
-        )
 
     assert uvc == uvcal_phase_center
 
@@ -4684,11 +4434,6 @@ def test_antdiam_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
         # Handle some extra bits here for MS-type
         uvc.extra_keywords = uvcal_phase_center.extra_keywords
         uvc.scan_number_array = uvcal_phase_center.scan_number_array
-        # MS defaults to flex-spw
-        uvcal_phase_center._set_flex_spw()
-        uvcal_phase_center.flex_spw_id_array = np.zeros(
-            uvcal_phase_center.Nfreqs, dtype=int
-        )
     elif suffix == "fits":
         # Drop phase center info
         uvc.Nphase = uvcal_phase_center.Nphase
