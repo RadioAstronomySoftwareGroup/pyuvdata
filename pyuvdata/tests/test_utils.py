@@ -192,10 +192,7 @@ def calc_uvw_args():
 @pytest.fixture(scope="session")
 def utils_uvdata_main():
     uvd = UVData()
-    uvd.read(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"),
-        use_future_array_shapes=True,
-    )
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
 
     yield uvd
 
@@ -3023,8 +3020,7 @@ def test_redundancy_finder(grid_alg):
     """
     uvd = UVData()
     uvd.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"),
-        use_future_array_shapes=True,
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     )
 
     uvd.select(times=uvd.time_array[0])
@@ -3192,8 +3188,7 @@ def test_high_tolerance_redundancy_error():
     """
     uvd = UVData()
     uvd.read_uvfits(
-        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"),
-        use_future_array_shapes=True,
+        os.path.join(DATA_PATH, "fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits")
     )
 
     uvd.select(times=uvd.time_array[0])
@@ -3253,10 +3248,7 @@ def test_redundancy_conjugates(grid_alg):
 def test_redundancy_finder_fully_redundant_array(grid_alg):
     """Test the redundancy finder for a fully redundant array."""
     uvd = UVData()
-    uvd.read_uvfits(
-        os.path.join(DATA_PATH, "test_redundant_array.uvfits"),
-        use_future_array_shapes=True,
-    )
+    uvd.read_uvfits(os.path.join(DATA_PATH, "test_redundant_array.uvfits"))
     uvd.select(times=uvd.time_array[0])
 
     tol = 1  # meters
@@ -3771,10 +3763,7 @@ def test_uvcalibrate_apply_gains_oldfiles(utils_uvdata):
     # give it an x_orientation
     uvd.telescope.x_orientation = "east"
     uvc = UVCal()
-    uvc.read_calfits(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"),
-        use_future_array_shapes=True,
-    )
+    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"))
     # downselect to match each other in shape (but not in actual values!)
     uvd.select(frequencies=uvd.freq_array[:10])
     uvc.select(times=uvc.time_array[:3])
@@ -3821,37 +3810,20 @@ def test_uvcalibrate_apply_gains_oldfiles(utils_uvdata):
             )
 
 
-@pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
-@pytest.mark.parametrize("uvd_future_shapes", [True, False])
-@pytest.mark.parametrize("uvc_future_shapes", [True, False])
-def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes, utils_uvdata):
+def test_uvcalibrate_delay_oldfiles(utils_uvdata):
     uvd = utils_uvdata
 
     uvc = UVCal()
-    uvc.read_calfits(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"),
-        use_future_array_shapes=uvc_future_shapes,
-    )
+    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
     # downselect to match
-    if not uvc_future_shapes:
-        uvc.select(times=uvc.time_array[3], frequencies=np.squeeze(uvd.freq_array))
-    else:
-        uvc.select(times=uvc.time_array[3])
+    uvc.select(times=uvc.time_array[3])
     uvc.gain_convention = "multiply"
 
-    if uvc_future_shapes:
-        freq_array_use = np.squeeze(uvd.freq_array)
-        if uvd_future_shapes:
-            chan_with_use = uvd.channel_width
-        else:
-            chan_with_use = np.full(uvd.Nfreqs, uvd.channel_width)
-    else:
-        freq_array_use = uvc.freq_array[0, :]
-        chan_with_use = uvc.channel_width
+    freq_array_use = np.squeeze(uvd.freq_array)
+    chan_with_use = uvd.channel_width
 
     ant_expected = [
         "The uvw_array does not match the expected values",
@@ -3876,27 +3848,12 @@ def test_uvcalibrate_delay_oldfiles(uvd_future_shapes, uvc_future_shapes, utils_
     assert uvdcal == uvdcal2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
-@pytest.mark.parametrize("uvc_future_shapes", [True, False])
-@pytest.mark.parametrize("uvd_future_shapes", [True, False])
 @pytest.mark.parametrize("flip_gain_conj", [False, True])
 @pytest.mark.parametrize("gain_convention", ["divide", "multiply"])
 @pytest.mark.parametrize("time_range", [None, "Ntimes", 3])
-def test_uvcalibrate(
-    uvcalibrate_data,
-    uvc_future_shapes,
-    uvd_future_shapes,
-    flip_gain_conj,
-    gain_convention,
-    time_range,
-):
+def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_range):
     uvd, uvc = uvcalibrate_data
-
-    if not uvd_future_shapes:
-        uvd.use_current_array_shapes()
-    if not uvc_future_shapes:
-        uvc.use_current_array_shapes()
 
     if time_range is not None:
         tstarts = uvc.time_array - uvc.integration_time / (86400 * 2)
@@ -3993,17 +3950,8 @@ def test_uvcalibrate_dterm_handling(uvcalibrate_data):
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Changing number of antennas, but preserving")
-@pytest.mark.parametrize("uvc_future_shapes", [True, False])
-@pytest.mark.parametrize("uvd_future_shapes", [True, False])
-def test_uvcalibrate_flag_propagation(
-    uvcalibrate_data, uvc_future_shapes, uvd_future_shapes
-):
+def test_uvcalibrate_flag_propagation(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-
-    if not uvd_future_shapes:
-        uvd.use_current_array_shapes()
-    if not uvc_future_shapes:
-        uvc.use_current_array_shapes()
 
     # test flag propagation
     uvc.flag_array[0] = True
@@ -4120,14 +4068,8 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data, future_shapes):
+def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
-
-    if not future_shapes:
-        uvd.use_current_array_shapes()
-        uvc.use_current_array_shapes()
 
     with pytest.raises(
         ValueError,
@@ -4385,17 +4327,13 @@ def test_uvcalibrate_wideband_gain(uvcalibrate_data):
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_uvcalibrate_delay_multispw(utils_uvdata):
     uvd = utils_uvdata
 
     uvc = UVCal()
-    uvc.read_calfits(
-        os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"),
-        use_future_array_shapes=True,
-    )
+    uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits"))
     # downselect to match
     uvc.select(times=uvc.time_array[3])
     uvc.gain_convention = "multiply"

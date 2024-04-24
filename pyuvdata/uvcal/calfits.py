@@ -20,7 +20,7 @@ except ImportError:
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvcal import UVCal, _future_array_shapes_warning
+from .uvcal import UVCal
 
 __all__ = ["CALFITS"]
 
@@ -86,49 +86,35 @@ class CALFITS(UVCal):
 
         # calfits allows for frequency spacing to not equal channel widths as long as
         # the frequencies are evenly spaced, so only raise spacing error
-        spacing_error, chanwidth_error = self._check_freq_spacing(raise_errors=False)
-        if spacing_error:
-            raise ValueError(
-                "Frequencies are not evenly spaced or have differing "
-                "values of channel widths. The calfits format does not support "
-                "unevenly spaced frequencies or varying channel widths."
-            )
-
-        # we've already run the check_freq_spacing, so spacings and channel widths are
-        # the same to our tolerances
-        if self.freq_array is not None:
-            if self.future_array_shapes:
-                ref_freq = self.freq_array[0]
-            else:
-                ref_freq = self.freq_array[0, 0]
-        else:
-            # can only get here if future_shapes is True
+        if self.freq_array is None:
             ref_freq = self.freq_range[0, 0]
+        else:
+            ref_freq = self.freq_array[0]
+            spacing_error, chanwidth_error = self._check_freq_spacing(
+                raise_errors=False
+            )
+            if spacing_error:
+                raise ValueError(
+                    "Frequencies are not evenly spaced or have differing "
+                    "values of channel widths. The calfits format does not support "
+                    "unevenly spaced frequencies or varying channel widths."
+                )
 
-        if self.Nfreqs > 1:
+        if self.cal_type == "gain" and self.Nfreqs > 1:
             if chanwidth_error:
                 # this means that the frequencies are evenly spaced but do not
                 # match our channel widths. Use some rounding to get a good delta.
-                if self.future_array_shapes:
-                    freq_arr_use = self.freq_array
-                else:
-                    freq_arr_use = self.freq_array[0, :]
+                freq_arr_use = self.freq_array
                 rounded_spacing = np.around(
                     np.diff(freq_arr_use),
                     int(np.ceil(np.log10(self._freq_array.tols[1]) * -1)),
                 )
                 delta_freq_array = rounded_spacing[0]
             else:
-                if self.future_array_shapes or self.flex_spw:
-                    delta_freq_array = np.median(self.channel_width)
-                else:
-                    delta_freq_array = self.channel_width
+                delta_freq_array = np.median(self.channel_width)
         else:
             if self.channel_width is not None:
-                if self.future_array_shapes or self.flex_spw:
-                    delta_freq_array = self.channel_width[0]
-                else:
-                    delta_freq_array = self.channel_width
+                delta_freq_array = self.channel_width[0]
             else:
                 # default to 1 Hz for wide-band cals with Nfreqs=1 and no channel
                 # width info
@@ -147,47 +133,25 @@ class CALFITS(UVCal):
                     "does not support unevenly spaced times."
                 )
             time_spacing = np.diff(self.time_array)
-            if self.future_array_shapes:
-                if not uvutils._test_array_constant(self._integration_time):
-                    raise ValueError(
-                        "The integration times are variable. The calfits format "
-                        "does not support variable integration times."
-                    )
-                median_int_time = np.median(self.integration_time)
-                if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0**2)):
-                    time_spacing = median_int_time / (24.0 * 60.0**2)
-                else:
-                    rounded_spacing = np.around(
-                        time_spacing,
-                        int(
-                            np.ceil(
-                                np.log10(self._time_array.tols[1] / self.Ntimes) * -1
-                            )
-                            + 1
-                        ),
-                    )
-                    time_spacing = rounded_spacing[0]
+            if not uvutils._test_array_constant(self._integration_time):
+                raise ValueError(
+                    "The integration times are variable. The calfits format "
+                    "does not support variable integration times."
+                )
+            median_int_time = np.median(self.integration_time)
+            if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0**2)):
+                time_spacing = median_int_time / (24.0 * 60.0**2)
             else:
-                if np.isclose(
-                    time_spacing[0], self.integration_time / (24.0 * 60.0**2)
-                ):
-                    time_spacing = self.integration_time / (24.0 * 60.0**2)
-                else:
-                    rounded_spacing = np.around(
-                        time_spacing,
-                        int(
-                            np.ceil(
-                                np.log10(self._time_array.tols[1] / self.Ntimes) * -1
-                            )
-                            + 1
-                        ),
-                    )
-                    time_spacing = rounded_spacing[0]
+                rounded_spacing = np.around(
+                    time_spacing,
+                    int(
+                        np.ceil(np.log10(self._time_array.tols[1] / self.Ntimes) * -1)
+                        + 1
+                    ),
+                )
+                time_spacing = rounded_spacing[0]
         else:
-            if self.future_array_shapes:
-                time_spacing = self.integration_time[0] / (24.0 * 60.0**2)
-            else:
-                time_spacing = self.integration_time / (24.0 * 60.0**2)
+            time_spacing = self.integration_time[0] / (24.0 * 60.0**2)
         if self.time_array is None:
             time_zero = np.mean(self.time_range)
         else:
@@ -242,24 +206,18 @@ class CALFITS(UVCal):
             prihdr["DIFFUSE"] = self.diffuse_model
         if self.gain_scale is not None:
             prihdr["GNSCALE"] = self.gain_scale
-        if self.future_array_shapes:
-            if self.Ntimes > 1:
-                prihdr["INTTIME"] = median_int_time
-            else:
-                prihdr["INTTIME"] = self.integration_time[0]
+        if self.Ntimes > 1:
+            prihdr["INTTIME"] = median_int_time
         else:
-            prihdr["INTTIME"] = self.integration_time
+            prihdr["INTTIME"] = self.integration_time[0]
 
-        if self.future_array_shapes or self.flex_spw:
-            if self.Nfreqs > 1:
-                prihdr["CHWIDTH"] = np.median(self.channel_width)
-            else:
-                prihdr["CHWIDTH"] = delta_freq_array
+        if self.cal_type == "gain" and self.Nfreqs > 1:
+            prihdr["CHWIDTH"] = np.median(self.channel_width)
         else:
-            prihdr["CHWIDTH"] = self.channel_width
+            prihdr["CHWIDTH"] = delta_freq_array
 
         prihdr["XORIENT"] = self.telescope.x_orientation
-        if self.future_array_shapes and self.freq_range is not None:
+        if self.freq_range is not None:
             freq_range_use = self.freq_range[0, :]
         else:
             freq_range_use = self.freq_range
@@ -448,11 +406,7 @@ class CALFITS(UVCal):
                 self.Njones,
                 1,
             )
-            if self.future_array_shapes:
-                # need to broadcast the flags back to the expected shape
-                flag_array_use = np.repeat(self.flag_array, self.Nfreqs, axis=2)
-            else:
-                flag_array_use = self.flag_array
+            flag_array_use = np.repeat(self.flag_array, self.Nfreqs, axis=2)
 
             secdata = np.reshape(flag_array_use.astype(np.int64), calfits_data_shape)
 
@@ -550,10 +504,13 @@ class CALFITS(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read data from a calfits file."""
+        # Check for deprecated option
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]
@@ -583,10 +540,7 @@ class CALFITS(UVCal):
             if "ANTDIAM" in antdata.names:
                 self.telescope.antenna_diameters = antdata["ANTDIAM"]
 
-            self.channel_width = hdr.pop("CHWIDTH")
-            self.integration_time = hdr.pop("INTTIME")
             self.telescope.name = hdr.pop("TELESCOP")
-
             self.telescope.x_orientation = hdr.pop("XORIENT")
 
             x_telescope = hdr.pop("ARRAYX", None)
@@ -655,7 +609,9 @@ class CALFITS(UVCal):
 
             # old files might have a freq range for gain types but we don't want them
             if self.cal_type == "delay":
-                self.freq_range = list(map(float, hdr.pop("FRQRANGE").split(",")))
+                self.freq_range = np.array(
+                    [list(map(float, hdr.pop("FRQRANGE").split(",")))]
+                )
 
             self.cal_style = hdr.pop("CALSTYLE")
             if self.cal_style == "sky":
@@ -684,6 +640,7 @@ class CALFITS(UVCal):
             self.jones_array = uvutils._fits_gethduaxis(fname[0], 2)
             self.Ntimes = hdr.pop("NAXIS3")
             main_hdr_time_array = uvutils._fits_gethduaxis(fname[0], 3)
+            self.integration_time = np.full(self.Ntimes, hdr.pop("INTTIME"))
 
             # needs to come after Ntimes is defined.
             time_range = hdr.pop("TMERANGE", None)
@@ -715,25 +672,21 @@ class CALFITS(UVCal):
                 self._set_gain()
                 self.Nfreqs = hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
-                self.freq_array.shape = (1,) + self.freq_array.shape
+                self.channel_width = np.full(self.Nfreqs, hdr.pop("CHWIDTH"))
 
                 self.flex_spw_id_array = np.full(
                     self.Nfreqs, self.spw_array[0], dtype=int
                 )
             if self.cal_type == "delay":
                 self._set_delay()
+                # True by fiat as of v3.0
+                self.Nfreqs = 1
 
                 sechdu = fname[hdunames["FLAGS"]]
-                # generate frequency array from flag data unit
-                # (no freq axis in primary).
-                self.Nfreqs = sechdu.header["NAXIS4"]
                 assert self.Nspws == 1, (
                     "This file appears to have multiple spectral windows, which is not "
                     "supported by the calfits format."
                 )
-                self.freq_array = uvutils._fits_gethduaxis(sechdu, 4)
-                self.freq_array.shape = (1,) + self.freq_array.shape
-
                 spw_array = uvutils._fits_gethduaxis(sechdu, 5) - 1
 
                 if not np.allclose(spw_array, self.spw_array):
@@ -770,41 +723,42 @@ class CALFITS(UVCal):
                 data = fname[0].data
                 if self.cal_type == "gain":
                     self.gain_array = (
-                        data[:, :, :, :, :, 0] + 1j * data[:, :, :, :, :, 1]
+                        data[:, 0, :, :, :, 0] + 1j * data[:, 0, :, :, :, 1]
                     )
-                    self.flag_array = data[:, :, :, :, :, 2].astype("bool")
+                    self.flag_array = data[:, 0, :, :, :, 2].astype("bool")
                     n_arrays = hdr.pop("NAXIS1")
                     if n_arrays == 5:
                         # The 3rd element in the array belongs to the old input flags,
                         # which were dropped in v3, and is now merged into the
                         # "normal" flags.
-                        self.flag_array |= data[:, :, :, :, :, 3].astype("bool")
-                        self.quality_array = data[:, :, :, :, :, 4]
+                        self.flag_array |= data[:, 0, :, :, :, 3].astype("bool")
+                        self.quality_array = data[:, 0, :, :, :, 4]
                     elif n_arrays == 4:
                         if has_quality:
-                            self.quality_array = data[:, :, :, :, :, 3]
+                            self.quality_array = data[:, 0, :, :, :, 3]
                         else:
                             # The 3rd element in the array belongs to the old input
                             # flags, which were dropped in v3, and is now merged into
                             # the "normal" flags.
-                            self.flag_array |= data[:, :, :, :, :, 3].astype("bool")
-
+                            self.flag_array |= data[:, 0, :, :, :, 3].astype("bool")
                 if self.cal_type == "delay":
-                    self.delay_array = data[:, :, :, :, :, 0]
+                    self.delay_array = data[:, 0, :, :, :, 0]
                     if has_quality:
-                        self.quality_array = data[:, :, :, :, :, 1]
+                        self.quality_array = data[:, 0, :, :, :, 1]
 
                     flag_data = sechdu.data
                     if sechdu.header["NAXIS1"] == 2:
-                        self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
-                        self.flag_array |= flag_data[:, :, :, :, :, 1].astype("bool")
+                        self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
+                        self.flag_array |= flag_data[:, 0, :, :, :, 1].astype("bool")
                     else:
-                        self.flag_array = flag_data[:, :, :, :, :, 0].astype("bool")
+                        self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
+                    # Combine the flags down to one windows worth
+                    self.flag_array = np.all(self.flag_array, axis=1, keepdims=True)
 
                 # get total quality array if present
                 if "TOTQLTY" in hdunames:
                     totqualhdu = fname[hdunames["TOTQLTY"]]
-                    self.total_quality_array = totqualhdu.data
+                    self.total_quality_array = totqualhdu.data[0]
                     spw_array = uvutils._fits_gethduaxis(totqualhdu, 4) - 1
                     if not np.allclose(spw_array, self.spw_array):
                         raise ValueError(
@@ -818,7 +772,6 @@ class CALFITS(UVCal):
                     if self.cal_type != "delay":
                         # delay-type files won't have a freq_array
                         freq_array = uvutils._fits_gethduaxis(totqualhdu, 3)
-                        freq_array.shape = (1,) + freq_array.shape
                         if not np.allclose(
                             freq_array,
                             self.freq_array,
@@ -862,12 +815,6 @@ class CALFITS(UVCal):
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

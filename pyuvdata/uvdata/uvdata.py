@@ -40,15 +40,6 @@ reporting_request = (
     "this feature, we would like to investigate this more."
 )
 
-_future_array_shapes_warning = (
-    "The shapes of several attributes will be changing in the future to remove the "
-    "deprecated spectral window axis. You can call the `use_future_array_shapes` "
-    "method to convert to the future array shapes now or set the parameter of the same "
-    "name on this method to both convert to the future array shapes and silence this "
-    "warning. See the UVData tutorial on ReadTheDocs for more details about these "
-    "shape changes."
-)
-
 
 class UVData(UVBase):
     """
@@ -87,15 +78,13 @@ class UVData(UVBase):
         )
 
         desc = (
-            "Array of the visibility data, shape: (Nblts, 1, Nfreqs, "
-            "Npols) or (Nblts, Nfreqs, Npols) if future_array_shapes=True, "
+            "Array of the visibility data, shape: (Nblts, Nfreqs, Npols), "
             "type = complex float, in units of self.vis_units."
         )
-        # TODO: Spw axis to be collapsed in future release
         self._data_array = uvp.UVParameter(
             "data_array",
             description=desc,
-            form=("Nblts", 1, "Nfreqs", "Npols"),
+            form=("Nblts", "Nfreqs", "Npols"),
             expected_type=complex,
         )
 
@@ -126,7 +115,7 @@ class UVData(UVBase):
         self._nsample_array = uvp.UVParameter(
             "nsample_array",
             description=desc,
-            form=("Nblts", 1, "Nfreqs", "Npols"),
+            form=("Nblts", "Nfreqs", "Npols"),
             expected_type=float,
         )
 
@@ -134,7 +123,7 @@ class UVData(UVBase):
         self._flag_array = uvp.UVParameter(
             "flag_array",
             description=desc,
-            form=("Nblts", 1, "Nfreqs", "Npols"),
+            form=("Nblts", "Nfreqs", "Npols"),
             expected_type=bool,
         )
 
@@ -236,15 +225,11 @@ class UVData(UVBase):
 
         # this dimensionality of freq_array does not allow for different spws
         # to have different dimensions
-        desc = (
-            "Array of frequencies, center of the channel, "
-            "shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True, units Hz."
-        )
-        # TODO: Spw axis to be collapsed in future release
+        desc = "Array of frequencies, center of the channel, shape (Nfreqs,), units Hz."
         self._freq_array = uvp.UVParameter(
             "freq_array",
             description=desc,
-            form=(1, "Nfreqs"),
+            form=("Nfreqs",),
             expected_type=float,
             tols=1e-3,
         )  # mHz
@@ -292,13 +277,14 @@ class UVData(UVBase):
         )  # 1 ms
 
         desc = (
-            "Width of frequency channels (Hz). If flex_spw = False and "
-            "future_array_shapes=False, then it is a "
-            "single value of type = float, otherwise it is an array of shape "
-            "(Nfreqs), type = float."
+            "Width of frequency channels (Hz). Array of shape (Nfreqs), type = float."
         )
         self._channel_width = uvp.UVParameter(
-            "channel_width", description=desc, expected_type=float, tols=1e-3
+            "channel_width",
+            description=desc,
+            form=("Nfreqs",),
+            expected_type=float,
+            tols=1e-3,
         )  # 1 mHz
 
         self._history = uvp.UVParameter(
@@ -347,11 +333,6 @@ class UVData(UVBase):
             expected_type=int,
             acceptable_vals=list(np.arange(-8, 0)) + list(np.arange(1, 5)),
             required=False,
-        )
-
-        desc = "Flag indicating that this object is using the future array shapes."
-        self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes", description=desc, expected_type=bool, value=False
         )
 
         # --- phasing information ---
@@ -1495,85 +1476,39 @@ class UVData(UVBase):
         else:
             return True, None
 
-    def _set_future_array_shapes(self):
+    def _set_future_array_shapes(self, use_future_array_shapes=None):
         """
         Set future_array_shapes to True and adjust required parameters.
 
         This method should not be called directly by users; instead it is called
         by file-reading methods and `use_future_array_shapes` to indicate the
         `future_array_shapes` is True and define expected parameter shapes.
-
+        This function has been deprecated, and will result in an error in version 3.2.
         """
-        self.future_array_shapes = True
-        self._freq_array.form = ("Nfreqs",)
-        self._channel_width.form = ("Nfreqs",)
-        for param_name in self._data_params:
-            getattr(self, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
+        if use_future_array_shapes is None:
+            # This basically wraps no-ops when no argument is passed.
+            return
+
+        if not use_future_array_shapes:
+            raise ValueError(
+                'The future is now! So-called "current" array shapes no longer '
+                'supported, must use "future" array shapes (spw-axis dropped).'
+            )
+        warnings.warn(
+            (
+                "Future array shapes are now always used, setting/calling "
+                "use_future_array_shapes will result in an error in version 3.2."
+            ),
+            DeprecationWarning,
+        )
 
     def use_future_array_shapes(self):
         """
         Change the array shapes of this object to match the planned future shapes.
 
-        This method sets allows users to convert to the planned array shapes changes
-        before the changes go into effect. This method sets the `future_array_shapes`
-        parameter on this object to True.
-
+        This function has been deprecated, and will result in an error in version 3.2.
         """
-        if self.future_array_shapes:
-            return
-
-        self._set_future_array_shapes()
-        if not self.metadata_only:
-            # remove the length-1 spw axis for all data-like parameters
-            for param_name in self._data_params:
-                setattr(self, param_name, (getattr(self, param_name))[:, 0, :, :])
-
-        # remove the length-1 spw axis for the freq_array
-        self.freq_array = self.freq_array[0, :]
-
-        if not self.flex_spw:
-            # make channel_width be an array of length Nfreqs rather than a single value
-            # (not needed with flexible spws because this is already done in that case)
-            self.channel_width = (
-                np.zeros(self.Nfreqs, dtype=np.float64) + self.channel_width
-            )
-
-    def use_current_array_shapes(self):
-        """
-        Change the array shapes of this object to match the current future shapes.
-
-        This method sets allows users to convert back to the current array shapes.
-        This method sets the `future_array_shapes` parameter on this object to False.
-        """
-        warnings.warn(
-            "This method will be removed in version 3.0 when the current array shapes "
-            "are no longer supported.",
-            DeprecationWarning,
-        )
-        if not self.future_array_shapes:
-            return
-        if not self.flex_spw:
-            unique_channel_widths = np.unique(self.channel_width)
-            if unique_channel_widths.size > 1:
-                raise ValueError(
-                    "channel_width parameter contains multiple unique values, but "
-                    "only one spectral window is present. Cannot collapse "
-                    "channel_width to a single value."
-                )
-            self._channel_width.form = ()
-            self.channel_width = unique_channel_widths[0]
-
-        self.future_array_shapes = False
-        for param_name in self._data_params:
-            getattr(self, "_" + param_name).form = ("Nblts", 1, "Nfreqs", "Npols")
-        if not self.metadata_only:
-            for param_name in self._data_params:
-                setattr(
-                    self, param_name, (getattr(self, param_name))[:, np.newaxis, :, :]
-                )
-
-        self._freq_array.form = (1, "Nfreqs")
-        self.freq_array = self.freq_array[np.newaxis, :]
+        self._set_future_array_shapes(True)
 
     def known_telescopes(self):
         """
@@ -1799,7 +1734,6 @@ class UVData(UVBase):
             channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
             flex_spw=self.flex_spw,
-            future_array_shapes=self.future_array_shapes,
             spw_array=self.spw_array,
             flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
@@ -1842,10 +1776,7 @@ class UVData(UVBase):
         if combine_spws:
             # check to see if there are spectral windows that have matching freq_array
             # and channel_width (up to sorting). If so, they need to be combined.
-            if self.future_array_shapes:
-                freq_array_use = self.freq_array
-            else:
-                freq_array_use = self.freq_array[0, :]
+            freq_array_use = self.freq_array
 
             # Now find matching sets of spws
             # order spws by order of appearance in flex_spw_id_array
@@ -1975,10 +1906,7 @@ class UVData(UVBase):
                 self.reorder_freqs(channel_order=channel_order, spw_order=spw_order)
 
                 # recalculate arrays used below
-                if self.future_array_shapes:
-                    freq_array_use = self.freq_array
-                else:
-                    freq_array_use = self.freq_array[0, :]
+                freq_array_use = self.freq_array
                 first_spw_array = np.zeros_like(self.flex_spw_id_array)
                 for spw_ind, spw in enumerate(self.spw_array):
                     these_freq_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
@@ -1991,10 +1919,7 @@ class UVData(UVBase):
             self.Nfreqs = n_freqs
 
             # now things are in the correct order to do a simple reshape
-            if self.future_array_shapes:
-                self.freq_array = freq_array_use[: self.Nfreqs]
-            else:
-                self.freq_array = freq_array_use[np.newaxis, : self.Nfreqs]
+            self.freq_array = freq_array_use[: self.Nfreqs]
             self.channel_width = self.channel_width[: self.Nfreqs]
 
             self.polarization_array = pol_array_check[
@@ -2010,26 +1935,15 @@ class UVData(UVBase):
                 # we use the order="F" parameter here to undo the reshape done in
                 # `convert_to_flexp_pol` (which uses it to ensure that polarization is
                 # the slowest changing axis)
-                if self.future_array_shapes:
-                    self.data_array = self.data_array.reshape(
-                        self.Nblts, self.Nfreqs, self.Npols, order="F"
-                    )
-                    self.flag_array = self.flag_array.reshape(
-                        self.Nblts, self.Nfreqs, self.Npols, order="F"
-                    )
-                    self.nsample_array = self.nsample_array.reshape(
-                        self.Nblts, self.Nfreqs, self.Npols, order="F"
-                    )
-                else:
-                    self.data_array = self.data_array.reshape(
-                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
-                    )
-                    self.flag_array = self.flag_array.reshape(
-                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
-                    )
-                    self.nsample_array = self.nsample_array.reshape(
-                        self.Nblts, 1, self.Nfreqs, self.Npols, order="F"
-                    )
+                self.data_array = self.data_array.reshape(
+                    self.Nblts, self.Nfreqs, self.Npols, order="F"
+                )
+                self.flag_array = self.flag_array.reshape(
+                    self.Nblts, self.Nfreqs, self.Npols, order="F"
+                )
+                self.nsample_array = self.nsample_array.reshape(
+                    self.Nblts, self.Nfreqs, self.Npols, order="F"
+                )
             return
 
         self.Npols = n_pols
@@ -2045,11 +1959,7 @@ class UVData(UVBase):
         self.polarization_array = unique_pols
         for name, param in zip(self._data_params, self.data_like_parameters):
             # We need to construct arrays with the appropriate shape
-            new_shape = [self.Nblts, 1, self.Nfreqs, self.Npols]
-
-            # Pop the spw-axis if using future array shapes
-            if self.future_array_shapes:
-                del new_shape[1]
+            new_shape = [self.Nblts, self.Nfreqs, self.Npols]
 
             # Use full here, since we want zeros if we are working with nsample_array
             # or data_array, otherwise we want True if working w/ flag_array.
@@ -2065,10 +1975,7 @@ class UVData(UVBase):
                 # Note that this works because pol_idx is an integer, ergo a simple
                 # slice (wherease spw_screen is a complex slice, which we can only have
                 # one of for an array).
-                if self.future_array_shapes:
-                    new_param[:, spw_screen, pol_idx] = param[:, spw_screen, 0]
-                else:
-                    new_param[:, :, spw_screen, pol_idx] = param[:, :, spw_screen, 0]
+                new_param[:, spw_screen, pol_idx] = param[:, spw_screen, 0]
 
             # With the new array defined and filled, set the attribute equal to it
             setattr(self, name, new_param)
@@ -2135,10 +2042,7 @@ class UVData(UVBase):
             # For each window, we want to check that there is only one polarization with
             # any unflagged data, which we can do by seeing if not all of the flags
             # are set across the non-polarization axes (hence the ~np.all()).
-            if self.future_array_shapes:
-                pol_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1))
-            else:
-                pol_check = ~np.all(self.flag_array[:, 0, spw_screen], axis=(0, 1))
+            pol_check = ~np.all(self.flag_array[:, spw_screen], axis=(0, 1))
 
             if sum(pol_check) > 1:
                 msg = (
@@ -2166,12 +2070,8 @@ class UVData(UVBase):
         self.Npols = 1
 
         # Finally, prep for working w/ data-like attibutes. Start by determining the
-        # right shape for the new values, modulo future_array_shapes
-        new_shape = [self.Nblts, 1, self.Nfreqs, 1]
-
-        # Pop the spw-axis if using future array shapes
-        if self.future_array_shapes:
-            del new_shape[1]
+        # right shape for the new values
+        new_shape = [self.Nblts, self.Nfreqs, 1]
 
         # Now go through one-by-one with data-like parameters and update
         for name, param in zip(self._data_params, self.data_like_parameters):
@@ -2187,10 +2087,7 @@ class UVData(UVBase):
                 # Note that this works because pol_idx is an integer, ergo a simple
                 # slice (wherease spw_screen is a complex slice, which we can only have
                 # one of for an array).
-                if self.future_array_shapes:
-                    new_param[:, spw_screen, 0] = param[:, spw_screen, pol_idx]
-                else:
-                    new_param[:, :, spw_screen, 0] = param[:, :, spw_screen, pol_idx]
+                new_param[:, spw_screen, 0] = param[:, spw_screen, pol_idx]
 
             # With the new array defined and filled, set the attribute equal to it
             setattr(self, name, new_param)
@@ -2209,8 +2106,6 @@ class UVData(UVBase):
 
         if not self.flex_spw:
             self._set_flex_spw()
-            if not self.future_array_shapes:
-                self.channel_width = np.full(self.Nfreqs, self.channel_width)
             self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
         new_spw_array = self.spw_array
@@ -2243,37 +2138,21 @@ class UVData(UVBase):
         )
         self.Nspws = self.spw_array.size
         self.polarization_array = np.array([0])
-        if self.future_array_shapes:
-            freq_array_use = self.freq_array
-        else:
-            freq_array_use = self.freq_array[0, :]
+        freq_array_use = self.freq_array
         self.freq_array = np.tile(freq_array_use, self.Npols)
-        if not self.future_array_shapes:
-            self.freq_array = self.freq_array[np.newaxis, :]
         self.channel_width = np.tile(self.channel_width, self.Npols)
         if not self.metadata_only:
             # we use the order="F" parameter here to ensure that polarization is the
             # slowest changing axis
-            if self.future_array_shapes:
-                self.data_array = self.data_array.reshape(
-                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
-                )
-                self.flag_array = self.flag_array.reshape(
-                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
-                )
-                self.nsample_array = self.nsample_array.reshape(
-                    self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
-                )
-            else:
-                self.data_array = self.data_array.reshape(
-                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
-                )
-                self.flag_array = self.flag_array.reshape(
-                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
-                )
-                self.nsample_array = self.nsample_array.reshape(
-                    self.Nblts, 1, self.Nfreqs * self.Npols, 1, order="F"
-                )
+            self.data_array = self.data_array.reshape(
+                self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+            )
+            self.flag_array = self.flag_array.reshape(
+                self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+            )
+            self.nsample_array = self.nsample_array.reshape(
+                self.Nblts, self.Nfreqs * self.Npols, 1, order="F"
+            )
 
         self.Nfreqs = self.Nfreqs * self.Npols
         self.Npols = 1
@@ -2317,10 +2196,7 @@ class UVData(UVBase):
             auto_data = self.data_array[auto_screen]
 
             # Set the autos to be real-only by taking the absolute value
-            if self.future_array_shapes:
-                auto_data[:, :, pol_screen] = np.abs(auto_data[:, :, pol_screen])
-            else:
-                auto_data[:, :, :, pol_screen] = np.abs(auto_data[:, :, :, pol_screen])
+            auto_data[:, :, pol_screen] = np.abs(auto_data[:, :, pol_screen])
 
             # Finally, plug the modified values back into data_array
             self.data_array[auto_screen] = auto_data
@@ -2621,31 +2497,19 @@ class UVData(UVBase):
                     auto_imag = np.iscomplex(self.data_array[autos])
                     if np.all(pol_screen):
                         auto_imag = np.any(auto_imag)
-                    elif self.future_array_shapes:
-                        if self.flex_spw_polarization_array is not None:
-                            auto_imag = np.any(auto_imag[:, freq_screen])
-                        else:
-                            auto_imag = np.any(auto_imag[:, :, pol_screen])
+                    elif self.flex_spw_polarization_array is not None:
+                        auto_imag = np.any(auto_imag[:, freq_screen])
                     else:
-                        if self.flex_spw_polarization_array is not None:
-                            auto_imag = np.any(auto_imag[:, :, freq_screen])
-                        else:
-                            auto_imag = np.any(auto_imag[:, :, :, pol_screen])
+                        auto_imag = np.any(auto_imag[:, :, pol_screen])
                 if auto_imag:
                     if np.all(pol_screen):
                         temp_data = self.data_array[autos]
                     else:
                         auto_data = self.data_array[autos]
-                        if self.future_array_shapes:
-                            if self.flex_spw_polarization_array is not None:
-                                temp_data = auto_data[:, freq_screen]
-                            else:
-                                temp_data = auto_data[:, :, pol_screen]
+                        if self.flex_spw_polarization_array is not None:
+                            temp_data = auto_data[:, freq_screen]
                         else:
-                            if self.flex_spw_polarization_array is not None:
-                                temp_data = auto_data[:, :, freq_screen]
-                            else:
-                                temp_data = auto_data[:, :, :, pol_screen]
+                            temp_data = auto_data[:, :, pol_screen]
                     temp_data = temp_data[temp_data.imag != 0]
                     max_imag = np.max(np.abs(temp_data.imag))
                     max_imag_ratio = np.max(np.abs(temp_data.imag / temp_data.real))
@@ -2715,10 +2579,6 @@ class UVData(UVBase):
                 if attr.lstrip("_") in self._data_params:
                     continue
                 setattr(uv, attr, copy.deepcopy(getattr(self, attr)))
-
-        if uv.future_array_shapes:
-            for param_name in uv._data_params:
-                getattr(uv, "_" + param_name).form = ("Nblts", "Nfreqs", "Npols")
 
         return uv
 
@@ -3089,17 +2949,9 @@ class UVData(UVBase):
         if squeeze == "full":
             out = np.squeeze(out)
         elif squeeze == "default":
-            if self.future_array_shapes:
-                if out.shape[2] == 1:
-                    # one polarization dimension
-                    out = np.squeeze(out, axis=2)
-            else:
-                if out.shape[3] == 1:
-                    # one polarization dimension
-                    out = np.squeeze(out, axis=3)
-                if out.shape[1] == 1:
-                    # one spw dimension
-                    out = np.squeeze(out, axis=1)
+            if out.shape[2] == 1:
+                # one polarization dimension
+                out = np.squeeze(out, axis=2)
 
         if force_copy:
             out = np.array(out)
@@ -3567,10 +3419,7 @@ class UVData(UVBase):
 
         nbltinds = len(np.arange(self.Nblts)[ind1])
         npolinds = len(np.arange(self.Npols)[indp[0]])
-        if self.future_array_shapes:
-            expected_shape = (nbltinds, self.Nfreqs, npolinds)
-        else:
-            expected_shape = (nbltinds, 1, self.Nfreqs, npolinds)
+        expected_shape = (nbltinds, self.Nfreqs, npolinds)
         if dshape != expected_shape:
             raise ValueError(
                 "the input array is not compatible with the shape of the destination. "
@@ -3584,10 +3433,7 @@ class UVData(UVBase):
             indp[0], max_nslice_frac=0.5
         )
 
-        if self.future_array_shapes:
-            inds = [ind1, np.s_[:], indp[0]]
-        else:
-            inds = [ind1, np.s_[:], np.s_[:], indp[0]]
+        inds = [ind1, np.s_[:], indp[0]]
         if blt_sliceable:
             inds[0] = blt_slices
         if pol_sliceable:
@@ -3870,14 +3716,9 @@ class UVData(UVBase):
             if not self.metadata_only:
                 orig_data_array = copy.copy(self.data_array)
                 for pol_ind in np.arange(self.Npols):
-                    if self.future_array_shapes:
-                        self.data_array[index_array, :, new_pol_inds[pol_ind]] = (
-                            np.conj(orig_data_array[index_array, :, pol_ind])
-                        )
-                    else:
-                        self.data_array[index_array, :, :, new_pol_inds[pol_ind]] = (
-                            np.conj(orig_data_array[index_array, :, :, pol_ind])
-                        )
+                    self.data_array[index_array, :, new_pol_inds[pol_ind]] = np.conj(
+                        orig_data_array[index_array, :, pol_ind]
+                    )
 
             ant_1_vals = self.ant_1_array[index_array]
             ant_2_vals = self.ant_2_array[index_array]
@@ -3954,14 +3795,9 @@ class UVData(UVBase):
         self.polarization_array = self.polarization_array[index_array]
         if not self.metadata_only:
             # data array is special and large, take is faster here
-            if self.future_array_shapes:
-                self.data_array = np.take(self.data_array, index_array, axis=2)
-                self.nsample_array = self.nsample_array[:, :, index_array]
-                self.flag_array = self.flag_array[:, :, index_array]
-            else:
-                self.data_array = np.take(self.data_array, index_array, axis=3)
-                self.nsample_array = self.nsample_array[:, :, :, index_array]
-                self.flag_array = self.flag_array[:, :, :, index_array]
+            self.data_array = np.take(self.data_array, index_array, axis=2)
+            self.nsample_array = self.nsample_array[:, :, index_array]
+            self.flag_array = self.flag_array[:, :, index_array]
 
         # check if object is self-consistent
         if run_check:
@@ -4322,7 +4158,6 @@ class UVData(UVBase):
             spw_array=self.spw_array,
             flex_spw=self.flex_spw,
             flex_spw_id_array=self.flex_spw_id_array,
-            future_array_shapes=self.future_array_shapes,
             spw_order=spw_order,
             channel_order=channel_order,
             select_spw=select_spw,
@@ -4333,18 +4168,11 @@ class UVData(UVBase):
             return
 
         # Now update all of the arrays.
-        if self.future_array_shapes:
-            self.freq_array = self.freq_array[index_array]
-            if not self.metadata_only:
-                self.data_array = self.data_array[:, index_array, :]
-                self.flag_array = self.flag_array[:, index_array, :]
-                self.nsample_array = self.nsample_array[:, index_array, :]
-        else:
-            self.freq_array = self.freq_array[:, index_array]
-            if not self.metadata_only:
-                self.data_array = self.data_array[:, :, index_array, :]
-                self.flag_array = self.flag_array[:, :, index_array, :]
-                self.nsample_array = self.nsample_array[:, :, index_array, :]
+        self.freq_array = self.freq_array[index_array]
+        if not self.metadata_only:
+            self.data_array = self.data_array[:, index_array, :]
+            self.flag_array = self.flag_array[:, index_array, :]
+            self.nsample_array = self.nsample_array[:, index_array, :]
         if self.flex_spw_id_array is not None:
             self.flex_spw_id_array = self.flex_spw_id_array[index_array]
 
@@ -4362,8 +4190,7 @@ class UVData(UVBase):
                 ]
             self.spw_array = new_spw_array
 
-        if self.flex_spw or self.future_array_shapes:
-            self.channel_width = self.channel_width[index_array]
+        self.channel_width = self.channel_width[index_array]
 
         if self.eq_coeffs is not None:
             self.eq_coeffs = self.eq_coeffs[:, index_array]
@@ -4515,14 +4342,9 @@ class UVData(UVBase):
             * self.freq_array.reshape(1, self.Nfreqs)
         )
 
-        if self.future_array_shapes:
-            self.data_array[select_mask] *= np.exp(
-                (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
-            )
-        else:
-            self.data_array[select_mask] *= np.exp(
-                (-1j * 2 * np.pi) * delta_w_lambda[:, None, :, None]
-            )
+        self.data_array[select_mask] *= np.exp(
+            (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
+        )
 
     def unproject_phase(
         self, *, use_ant_pos=True, select_mask=None, cat_name="unprojected"
@@ -5354,10 +5176,7 @@ class UVData(UVBase):
                     / const.c.to("m/s").value
                     * self.freq_array.reshape(1, self.Nfreqs)
                 )
-                if self.future_array_shapes:
-                    phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, :, None])
-                else:
-                    phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, None, :, None])
+                phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, :, None])
                 self.data_array *= phs
 
             unique_times, _ = np.unique(self.time_array, return_index=True)
@@ -5532,18 +5351,8 @@ class UVData(UVBase):
                 "object will have it set."
             )
 
-        # check that both objects have the same array shapes
-        if this.future_array_shapes != other.future_array_shapes:
-            raise ValueError(
-                "Both objects must have the same `future_array_shapes` parameter. "
-                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
-                "methods to convert them."
-            )
-
         # Define parameters that must be the same to add objects
         compatibility_params = ["_vis_units", "_telescope"]
-        if not this.future_array_shapes and not this.flex_spw:
-            compatibility_params.append("_channel_width")
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -5586,30 +5395,18 @@ class UVData(UVBase):
             for idx in both_spw:
                 this_mask = np.where(this.flex_spw_id_array == idx)[0]
                 other_mask = np.where(other.flex_spw_id_array == idx)[0]
-                if this.future_array_shapes:
-                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
-                        this.freq_array[this_mask],
-                        other.freq_array[other_mask],
-                        return_indices=True,
-                    )
-                else:
-                    both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
-                        this.freq_array[0, this_mask],
-                        other.freq_array[0, other_mask],
-                        return_indices=True,
-                    )
+                both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
+                    this.freq_array[this_mask],
+                    other.freq_array[other_mask],
+                    return_indices=True,
+                )
                 this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
                 other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
                 both_freq = np.append(both_freq, both_spw_freq)
         else:
-            if this.future_array_shapes:
-                both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                    this.freq_array, other.freq_array, return_indices=True
-                )
-            else:
-                both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                    this.freq_array[0, :], other.freq_array[0, :], return_indices=True
-                )
+            both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
+                this.freq_array, other.freq_array, return_indices=True
+            )
 
         both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
             this_blts, other_blts, return_indices=True
@@ -5618,42 +5415,22 @@ class UVData(UVBase):
             len(both_pol) > 0 and len(both_freq) > 0 and len(both_blts) > 0
         ):
             # check that overlapping data is not valid
-            if this.future_array_shapes:
-                this_inds = np.ravel_multi_index(
-                    (
-                        this_blts_ind[:, np.newaxis, np.newaxis],
-                        this_freq_ind[np.newaxis, :, np.newaxis],
-                        this_pol_ind[np.newaxis, np.newaxis, :],
-                    ),
-                    this.data_array.shape,
-                ).flatten()
-                other_inds = np.ravel_multi_index(
-                    (
-                        other_blts_ind[:, np.newaxis, np.newaxis],
-                        other_freq_ind[np.newaxis, :, np.newaxis],
-                        other_pol_ind[np.newaxis, np.newaxis, :],
-                    ),
-                    other.data_array.shape,
-                ).flatten()
-            else:
-                this_inds = np.ravel_multi_index(
-                    (
-                        this_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                        np.zeros((1, 1, 1, 1), dtype=np.int64),
-                        this_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
-                        this_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
-                    ),
-                    this.data_array.shape,
-                ).flatten()
-                other_inds = np.ravel_multi_index(
-                    (
-                        other_blts_ind[:, np.newaxis, np.newaxis, np.newaxis],
-                        np.zeros((1, 1, 1, 1), dtype=np.int64),
-                        other_freq_ind[np.newaxis, np.newaxis, :, np.newaxis],
-                        other_pol_ind[np.newaxis, np.newaxis, np.newaxis, :],
-                    ),
-                    other.data_array.shape,
-                ).flatten()
+            this_inds = np.ravel_multi_index(
+                (
+                    this_blts_ind[:, np.newaxis, np.newaxis],
+                    this_freq_ind[np.newaxis, :, np.newaxis],
+                    this_pol_ind[np.newaxis, np.newaxis, :],
+                ),
+                this.data_array.shape,
+            ).flatten()
+            other_inds = np.ravel_multi_index(
+                (
+                    other_blts_ind[:, np.newaxis, np.newaxis],
+                    other_freq_ind[np.newaxis, :, np.newaxis],
+                    other_pol_ind[np.newaxis, np.newaxis, :],
+                ),
+                other.data_array.shape,
+            ).flatten()
             this_all_zero = np.all(this.data_array.flatten()[this_inds] == 0)
             this_all_flag = np.all(this.flag_array.flatten()[this_inds])
             other_all_zero = np.all(other.data_array.flatten()[other_inds] == 0)
@@ -5732,26 +5509,14 @@ class UVData(UVBase):
 
             other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
             for idx in np.intersect1d(this.spw_array, other.spw_array):
-                if this.future_array_shapes:
-                    other_mask[other.flex_spw_id_array == idx] = np.isin(
-                        other.freq_array[other.flex_spw_id_array == idx],
-                        this.freq_array[this.flex_spw_id_array == idx],
-                        invert=True,
-                    )
-                else:
-                    other_mask[other.flex_spw_id_array == idx] = np.isin(
-                        other.freq_array[0, other.flex_spw_id_array == idx],
-                        this.freq_array[0, this.flex_spw_id_array == idx],
-                        invert=True,
-                    )
+                other_mask[other.flex_spw_id_array == idx] = np.isin(
+                    other.freq_array[other.flex_spw_id_array == idx],
+                    this.freq_array[this.flex_spw_id_array == idx],
+                    invert=True,
+                )
             temp = np.where(other_mask)[0]
         else:
-            if this.future_array_shapes:
-                temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
-            else:
-                temp = np.nonzero(
-                    ~np.in1d(other.freq_array[0, :], this.freq_array[0, :])
-                )[0]
+            temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
         if len(temp) > 0:
             fnew_inds = temp
             if n_axes > 0:
@@ -5764,17 +5529,11 @@ class UVData(UVBase):
 
         # if channel width is an array and there's any overlap in freqs,
         # check extra params
-        if this.future_array_shapes or this.flex_spw:
-            if this.future_array_shapes:
-                temp = np.nonzero(np.in1d(other.freq_array, this.freq_array))[0]
-            else:
-                temp = np.nonzero(
-                    np.in1d(other.freq_array[0, :], this.freq_array[0, :])
-                )[0]
-            if len(temp) > 0:
-                # add metadata to be checked to compatibility params
-                extra_params = ["_channel_width"]
-                compatibility_params.extend(extra_params)
+        temp = np.nonzero(np.in1d(other.freq_array, this.freq_array))[0]
+        if len(temp) > 0:
+            # add metadata to be checked to compatibility params
+            extra_params = ["_channel_width"]
+            compatibility_params.extend(extra_params)
 
         # find the pol indices in "other" but not in "this"
         temp = np.nonzero(~np.in1d(other.polarization_array, this.polarization_array))[
@@ -5818,7 +5577,7 @@ class UVData(UVBase):
                     rtol=this._uvw_array.tols[0],
                     atol=this._uvw_array.tols[1],
                 )
-            elif cp == "_channel_width" and this.future_array_shapes or this.flex_spw:
+            elif cp == "_channel_width":
                 # only check that overlapping freq indices match
                 params_match = np.allclose(
                     this.channel_width[this_freq_ind],
@@ -5882,10 +5641,7 @@ class UVData(UVBase):
             this_blts = np.concatenate((this_blts, new_blts))
             blt_order = np.argsort(this_blts)
             if not self.metadata_only:
-                if this.future_array_shapes:
-                    zero_pad = np.zeros((len(bnew_inds), this.Nfreqs, this.Npols))
-                else:
-                    zero_pad = np.zeros((len(bnew_inds), 1, this.Nfreqs, this.Npols))
+                zero_pad = np.zeros((len(bnew_inds), this.Nfreqs, this.Npols))
                 this.data_array = np.concatenate([this.data_array, zero_pad], axis=0)
                 this.nsample_array = np.concatenate(
                     [this.nsample_array, zero_pad], axis=0
@@ -5929,19 +5685,12 @@ class UVData(UVBase):
 
         f_order = None
         if len(fnew_inds) > 0:
-            if this.future_array_shapes:
-                this.freq_array = np.concatenate(
-                    [this.freq_array, other.freq_array[fnew_inds]]
-                )
-            else:
-                this.freq_array = np.concatenate(
-                    [this.freq_array, other.freq_array[:, fnew_inds]], axis=1
-                )
-
-            if this.flex_spw or this.future_array_shapes:
-                this.channel_width = np.concatenate(
-                    [this.channel_width, other.channel_width[fnew_inds]]
-                )
+            this.freq_array = np.concatenate(
+                [this.freq_array, other.freq_array[fnew_inds]]
+            )
+            this.channel_width = np.concatenate(
+                [this.channel_width, other.channel_width[fnew_inds]]
+            )
 
             if this.flex_spw:
                 this.flex_spw_id_array = np.concatenate(
@@ -5973,11 +5722,7 @@ class UVData(UVBase):
                 # fashion, leave them be. If not, sort in ascending order
                 for idx in this.spw_array:
                     select_mask = this.flex_spw_id_array[f_order] == idx
-                    check_freqs = (
-                        this.freq_array[f_order[select_mask]]
-                        if this.future_array_shapes
-                        else this.freq_array[0, f_order[select_mask]]
-                    )
+                    check_freqs = this.freq_array[f_order[select_mask]]
                     if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
                         not np.all(check_freqs[1:] < check_freqs[:-1])
                     ):
@@ -5989,38 +5734,19 @@ class UVData(UVBase):
                         this.freq_array.size, this.spw_array[0], dtype=int
                     )
 
-                if this.future_array_shapes:
-                    f_order = np.argsort(this.freq_array)
-                else:
-                    f_order = np.argsort(this.freq_array[0, :])
+                f_order = np.argsort(this.freq_array)
 
             if not self.metadata_only:
-                if this.future_array_shapes:
-                    zero_pad = np.zeros(
-                        (this.data_array.shape[0], len(fnew_inds), this.Npols)
-                    )
-                    this.data_array = np.concatenate(
-                        [this.data_array, zero_pad], axis=1
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array, zero_pad], axis=1
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array, 1 - zero_pad], axis=1
-                    ).astype(np.bool_)
-                else:
-                    zero_pad = np.zeros(
-                        (this.data_array.shape[0], 1, len(fnew_inds), this.Npols)
-                    )
-                    this.data_array = np.concatenate(
-                        [this.data_array, zero_pad], axis=2
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array, zero_pad], axis=2
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array, 1 - zero_pad], axis=2
-                    ).astype(np.bool_)
+                zero_pad = np.zeros(
+                    (this.data_array.shape[0], len(fnew_inds), this.Npols)
+                )
+                this.data_array = np.concatenate([this.data_array, zero_pad], axis=1)
+                this.nsample_array = np.concatenate(
+                    [this.nsample_array, zero_pad], axis=1
+                )
+                this.flag_array = np.concatenate(
+                    [this.flag_array, 1 - zero_pad], axis=1
+                ).astype(np.bool_)
 
         p_order = None
         if len(pnew_inds) > 0:
@@ -6029,41 +5755,16 @@ class UVData(UVBase):
             )
             p_order = np.argsort(np.abs(this.polarization_array))
             if not self.metadata_only:
-                if this.future_array_shapes:
-                    zero_pad = np.zeros(
-                        (
-                            this.data_array.shape[0],
-                            this.data_array.shape[1],
-                            len(pnew_inds),
-                        )
-                    )
-                    this.data_array = np.concatenate(
-                        [this.data_array, zero_pad], axis=2
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array, zero_pad], axis=2
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array, 1 - zero_pad], axis=2
-                    ).astype(np.bool_)
-                else:
-                    zero_pad = np.zeros(
-                        (
-                            this.data_array.shape[0],
-                            1,
-                            this.data_array.shape[2],
-                            len(pnew_inds),
-                        )
-                    )
-                    this.data_array = np.concatenate(
-                        [this.data_array, zero_pad], axis=3
-                    )
-                    this.nsample_array = np.concatenate(
-                        [this.nsample_array, zero_pad], axis=3
-                    )
-                    this.flag_array = np.concatenate(
-                        [this.flag_array, 1 - zero_pad], axis=3
-                    ).astype(np.bool_)
+                zero_pad = np.zeros(
+                    (this.data_array.shape[0], this.data_array.shape[1], len(pnew_inds))
+                )
+                this.data_array = np.concatenate([this.data_array, zero_pad], axis=2)
+                this.nsample_array = np.concatenate(
+                    [this.nsample_array, zero_pad], axis=2
+                )
+                this.flag_array = np.concatenate(
+                    [this.flag_array, 1 - zero_pad], axis=2
+                ).astype(np.bool_)
 
         # Now populate the data
         pol_t2o = np.nonzero(
@@ -6072,9 +5773,6 @@ class UVData(UVBase):
         # Special handling here needed for flex_spw data
         this_freqs = this.freq_array
         other_freqs = other.freq_array
-        if not this.future_array_shapes:
-            this_freqs = this_freqs[0]
-            other_freqs = other_freqs[0]
 
         if this.flex_spw:
             freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
@@ -6089,36 +5787,15 @@ class UVData(UVBase):
         blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
 
         if not self.metadata_only:
-            if this.future_array_shapes:
-                this.data_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.data_array
-                this.nsample_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = (
-                    other.nsample_array
-                )
-                this.flag_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.flag_array
-            else:
-                this.data_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.data_array
-                )
-                this.nsample_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.nsample_array
-                )
-                this.flag_array[np.ix_(blt_t2o, [0], freq_t2o, pol_t2o)] = (
-                    other.flag_array
-                )
+            this.data_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.data_array
+            this.nsample_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.nsample_array
+            this.flag_array[np.ix_(blt_t2o, freq_t2o, pol_t2o)] = other.flag_array
 
             # Fix ordering
-            baxis_num = 0
-            if this.future_array_shapes:
-                faxis_num = 1
-                paxis_num = 2
-            else:
-                faxis_num = 2
-                paxis_num = 3
-
             axis_dict = {
-                baxis_num: {"inds": bnew_inds, "order": blt_order},
-                faxis_num: {"inds": fnew_inds, "order": f_order},
-                paxis_num: {"inds": pnew_inds, "order": p_order},
+                0: {"inds": bnew_inds, "order": blt_order},
+                1: {"inds": fnew_inds, "order": f_order},
+                2: {"inds": pnew_inds, "order": p_order},
             }
             for axis, subdict in axis_dict.items():
                 for name, param in zip(this._data_params, this.data_like_parameters):
@@ -6130,12 +5807,8 @@ class UVData(UVBase):
                         setattr(this, name, np.take(param, subdict["order"], axis=axis))
 
         if len(fnew_inds) > 0:
-            if this.future_array_shapes:
-                this.freq_array = this.freq_array[f_order]
-            else:
-                this.freq_array = this.freq_array[:, f_order]
-            if this.flex_spw or this.future_array_shapes:
-                this.channel_width = this.channel_width[f_order]
+            this.freq_array = this.freq_array[f_order]
+            this.channel_width = this.channel_width[f_order]
             if this.flex_spw:
                 this.flex_spw_id_array = this.flex_spw_id_array[f_order]
 
@@ -6393,15 +6066,6 @@ class UVData(UVBase):
                 "object will have it set."
             )
 
-        # check that all objects have the same array shapes
-        for obj in other:
-            if this.future_array_shapes != obj.future_array_shapes:
-                raise ValueError(
-                    "All objects must have the same `future_array_shapes` parameter. "
-                    "Use the `use_future_array_shapes` or `use_current_array_shapes` "
-                    "methods to convert them."
-                )
-
         # update the phase_center_catalog to make them consistent across objects
         # Doing this as a binary tree merge
         # The left object in each loop will have its phase center IDs updated.
@@ -6416,8 +6080,6 @@ class UVData(UVBase):
         # all the phase centers are merged into it at the end of this loop
 
         compatibility_params = ["_vis_units", "_telescope"]
-        if not this.future_array_shapes and not this.flex_spw:
-            compatibility_params.append("_channel_width")
 
         history_update_string = " Combined data along "
 
@@ -6483,18 +6145,12 @@ class UVData(UVBase):
 
         if axis == "freq":
             this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
-            if this.future_array_shapes:
-                this.freq_array = np.concatenate(
-                    [this.freq_array] + [obj.freq_array for obj in other]
-                )
-            else:
-                this.freq_array = np.concatenate(
-                    [this.freq_array] + [obj.freq_array for obj in other], axis=1
-                )
-            if this.flex_spw or this.future_array_shapes:
-                this.channel_width = np.concatenate(
-                    [this.channel_width] + [obj.channel_width for obj in other]
-                )
+            this.freq_array = np.concatenate(
+                [this.freq_array] + [obj.freq_array for obj in other]
+            )
+            this.channel_width = np.concatenate(
+                [this.channel_width] + [obj.channel_width for obj in other]
+            )
             if this.flex_spw:
                 this.flex_spw_id_array = np.concatenate(
                     [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
@@ -6532,19 +6188,14 @@ class UVData(UVBase):
                 )
 
             if not self.metadata_only:
-                if this.future_array_shapes:
-                    axis_num = 1
-                else:
-                    axis_num = 2
                 this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=axis_num
+                    [this.data_array] + [obj.data_array for obj in other], axis=1
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other],
-                    axis=axis_num,
+                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=1
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=axis_num
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=1
                 )
         elif axis == "polarization":
             this.polarization_array = np.concatenate(
@@ -6559,19 +6210,14 @@ class UVData(UVBase):
                 )
 
             if not self.metadata_only:
-                if this.future_array_shapes:
-                    axis_num = 2
-                else:
-                    axis_num = 3
                 this.data_array = np.concatenate(
-                    [this.data_array] + [obj.data_array for obj in other], axis=axis_num
+                    [this.data_array] + [obj.data_array for obj in other], axis=2
                 )
                 this.nsample_array = np.concatenate(
-                    [this.nsample_array] + [obj.nsample_array for obj in other],
-                    axis=axis_num,
+                    [this.nsample_array] + [obj.nsample_array for obj in other], axis=2
                 )
                 this.flag_array = np.concatenate(
-                    [this.flag_array] + [obj.flag_array for obj in other], axis=axis_num
+                    [this.flag_array] + [obj.flag_array for obj in other], axis=2
                 )
         elif axis == "blt":
             this.Nblts = sum([this.Nblts] + [obj.Nblts for obj in other])
@@ -6733,14 +6379,6 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-
-        # check that both objects have the same array shapes
-        if this.future_array_shapes != other.future_array_shapes:
-            raise ValueError(
-                "Both objects must have the same `future_array_shapes` parameter. "
-                "Use the `use_future_array_shapes` or `use_current_array_shapes` "
-                "methods to convert them."
-            )
 
         compatibility_params = list(this.__iter__())
         remove_params = ["_history", "_data_array", "_extra_keywords"]
@@ -7319,20 +6957,12 @@ class UVData(UVBase):
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
-                if self.future_array_shapes:
-                    frequencies = self.freq_array[freq_chans]
-                else:
-                    frequencies = self.freq_array[0, freq_chans]
+                frequencies = self.freq_array[freq_chans]
             else:
                 frequencies = uvutils._get_iterable(frequencies)
-                if self.future_array_shapes:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[freq_chans]))
-                    )
-                else:
-                    frequencies = np.sort(
-                        list(set(frequencies) | set(self.freq_array[0, freq_chans]))
-                    )
+                frequencies = np.sort(
+                    list(set(frequencies) | set(self.freq_array[freq_chans]))
+                )
 
         if frequencies is not None:
             frequencies = uvutils._get_iterable(frequencies)
@@ -7344,10 +6974,7 @@ class UVData(UVBase):
                 history_update_string += "frequencies"
             n_selects += 1
 
-            if self.future_array_shapes:
-                freq_arr_use = self.freq_array
-            else:
-                freq_arr_use = self.freq_array[0, :]
+            freq_arr_use = self.freq_array
             # Check and see that all requested freqs are available
             freq_check = np.isin(frequencies, freq_arr_use)
             if not np.all(freq_check):
@@ -7976,30 +7603,10 @@ class UVData(UVBase):
             temp_flag = None
             temp_nsample = None
         else:
-            if self.future_array_shapes:
-                temp_data = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.data_array.dtype
-                )
-                temp_flag = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype
-                )
-                temp_nsample = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols),
-                    dtype=self.nsample_array.dtype,
-                )
-            else:
-                temp_data = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.data_array.dtype,
-                )
-                temp_flag = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.flag_array.dtype,
-                )
-                temp_nsample = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.nsample_array.dtype,
-                )
+            new_data_shape = (temp_Nblts, self.Nfreqs, self.Npols)
+            temp_data = np.zeros(new_data_shape, dtype=self.data_array.dtype)
+            temp_flag = np.zeros(new_data_shape, dtype=self.flag_array.dtype)
+            temp_nsample = np.zeros(new_data_shape, dtype=self.nsample_array.dtype)
 
         i0 = 0
         for i, ind in enumerate(inds_to_upsample[0]):
@@ -8364,30 +7971,10 @@ class UVData(UVBase):
             temp_flag = None
             temp_nsample = None
         else:
-            if self.future_array_shapes:
-                temp_data = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.data_array.dtype
-                )
-                temp_flag = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols), dtype=self.flag_array.dtype
-                )
-                temp_nsample = np.zeros(
-                    (temp_Nblts, self.Nfreqs, self.Npols),
-                    dtype=self.nsample_array.dtype,
-                )
-            else:
-                temp_data = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.data_array.dtype,
-                )
-                temp_flag = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.flag_array.dtype,
-                )
-                temp_nsample = np.zeros(
-                    (temp_Nblts, 1, self.Nfreqs, self.Npols),
-                    dtype=self.nsample_array.dtype,
-                )
+            new_data_shape = (temp_Nblts, self.Nfreqs, self.Npols)
+            temp_data = np.zeros(new_data_shape, dtype=self.data_array.dtype)
+            temp_flag = np.zeros(new_data_shape, dtype=self.flag_array.dtype)
+            temp_nsample = np.zeros(new_data_shape, dtype=self.nsample_array.dtype)
 
         temp_idx = 0
         for bl in bls_to_downsample:
@@ -8464,14 +8051,8 @@ class UVData(UVBase):
                         # need to update mask if a downsampled visibility will
                         # be flagged so that we don't set it to zero
                         if (temp_flag[temp_idx]).any():
-                            if self.future_array_shapes:
-                                ax1_inds, ax2_inds = np.nonzero(temp_flag[temp_idx])
-                                mask[:, ax1_inds, ax2_inds] = False
-                            else:
-                                ax1_inds, ax2_inds, ax3_inds = np.nonzero(
-                                    temp_flag[temp_idx]
-                                )
-                                mask[:, ax1_inds, ax2_inds, ax3_inds] = False
+                            ax1_inds, ax2_inds = np.nonzero(temp_flag[temp_idx])
+                            mask[:, ax1_inds, ax2_inds] = False
 
                         masked_data = np.ma.masked_array(
                             self.data_array[averaging_idx], mask=mask
@@ -8491,14 +8072,9 @@ class UVData(UVBase):
                             dtype=masked_nsample_dtype,
                         )
 
-                        if self.future_array_shapes:
-                            int_time_arr = self.integration_time[
-                                averaging_idx, np.newaxis, np.newaxis
-                            ]
-                        else:
-                            int_time_arr = self.integration_time[
-                                averaging_idx, np.newaxis, np.newaxis, np.newaxis
-                            ]
+                        int_time_arr = self.integration_time[
+                            averaging_idx, np.newaxis, np.newaxis
+                        ]
                         masked_int_time = np.ma.masked_array(
                             np.ones_like(
                                 self.data_array[averaging_idx],
@@ -8759,13 +8335,6 @@ class UVData(UVBase):
             combined into a smaller frequency bin (keep_ragged=True). Default is True.
 
         """
-        # All the logic with future array shapes.
-        # Test to see if we need to restore it to current shapes at the end.
-        reset_cs = False
-        if not self.future_array_shapes:
-            self.use_future_array_shapes()
-            reset_cs = True
-
         if self.Nspws > 1 and not respect_spws:
             # Put everything in one spectral window.
             self.Nspws = 1
@@ -8804,13 +8373,10 @@ class UVData(UVBase):
         spw_chans = {}
         # final_spw_chans will hold the final channel indices for each spw
         final_spw_chans = {}
-        some_uneven = False
         for spw_ind, spw in enumerate(self.spw_array):
             these_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
             spw_chans[spw] = these_inds
             nchans_spw[spw_ind] = these_inds.size
-            if nchans_spw[spw_ind] % n_chan_to_avg:
-                some_uneven = True
             if keep_ragged:
                 this_final_nchan = int(np.ceil(nchans_spw[spw_ind] / n_chan_to_avg))
             else:
@@ -9035,12 +8601,6 @@ class UVData(UVBase):
         # update Nfreqs
         self.Nfreqs = final_nchan
 
-        # return to current shapes if needed and possible
-        if reset_cs and not (some_uneven and keep_ragged):
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", "This method will be removed")
-                self.use_current_array_shapes()
-
     def get_redundancies(
         self,
         *,
@@ -9230,32 +8790,12 @@ class UVData(UVBase):
                 fix_conj = np.isin(new_obj.baseline_array, conjugates)
 
                 # initalize the data like arrays
-                if new_obj.future_array_shapes:
-                    temp_data_array = np.zeros(
-                        (new_obj.Nblts, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.data_array.dtype,
-                    )
-                    temp_nsample_array = np.zeros(
-                        (new_obj.Nblts, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.nsample_array.dtype,
-                    )
-                    temp_flag_array = np.zeros(
-                        (new_obj.Nblts, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.flag_array.dtype,
-                    )
-                else:
-                    temp_data_array = np.zeros(
-                        (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.data_array.dtype,
-                    )
-                    temp_nsample_array = np.zeros(
-                        (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.nsample_array.dtype,
-                    )
-                    temp_flag_array = np.zeros(
-                        (new_obj.Nblts, 1, new_obj.Nfreqs, new_obj.Npols),
-                        dtype=self.flag_array.dtype,
-                    )
+                new_data_shape = (new_obj.Nblts, new_obj.Nfreqs, new_obj.Npols)
+                temp_data_array = np.zeros(new_data_shape, dtype=self.data_array.dtype)
+                temp_nsample_array = np.zeros(
+                    new_data_shape, dtype=self.nsample_array.dtype
+                )
+                temp_flag_array = np.zeros(new_data_shape, dtype=self.flag_array.dtype)
             for grp_ind, group in enumerate(red_gps):
                 if len(conjugates) > 0:
                     conj_group = set(group).intersection(conjugates)
@@ -9625,8 +9165,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9859,8 +9398,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -9958,8 +9496,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -10097,8 +9634,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -10248,8 +9784,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         astrometry_library : str
             Library used for calculating LSTs. Allowed options are 'erfa' (which uses
             the pyERFA), 'novas' (which uses the python-novas library), and 'astropy'
@@ -10416,8 +9951,7 @@ class UVData(UVBase):
             If auto-correlations with imaginary values are found, fix those values so
             that they are real-only in data_array. Default is True.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
+            Defunct option, will result in an error in version 3.2.
         blt_order : tuple of str or "determine", optional
             The order of the baseline-time axis *in the file*. This can be determined,
             or read directly from file, however since it has been optional in the past,
@@ -10491,10 +10025,7 @@ class UVData(UVBase):
         background_lsts=True,
         astrometry_library=None,
         ignore_name=False,
-        use_future_array_shapes=False,
-        # phasing parameters
-        allow_rephase=None,
-        make_multi_phase=False,
+        use_future_array_shapes=None,
         # selecting parameters
         antenna_nums=None,
         antenna_names=None,
@@ -10632,15 +10163,7 @@ class UVData(UVBase):
             raised because of attributes not matching. Doing so effectively adopts the
             name found in the first file read in. Default is False.
         use_future_array_shapes : bool
-            Option to convert to the future planned array shapes before the changes go
-            into effect by removing the spectral window axis.
-
-        Phasing
-        -------
-        allow_rephase :  bool
-            Deprecated, and has no effect. Will be removed in version 2.6.
-        make_multi_phase : bool
-            Deprecated, and has no effect. Will be removed in version 2.6.
+            Defunct option, will result in an error in version 3.2.
 
         Selecting
         ---------
@@ -11005,19 +10528,8 @@ class UVData(UVBase):
             If phase_center_radec is not None and is not length 2.
 
         """
-        if allow_rephase is not None:
-            warnings.warn(
-                "The `allow_rephase` option is deprecated and has no effect. It will "
-                "be removed in pyuvdata v2.6.",
-                DeprecationWarning,
-            )
-
-        if make_multi_phase:
-            warnings.warn(
-                "The `make_multi_phase` option is deprecated and has no effect. It "
-                "will be removed in pyuvdata v2.6.",
-                DeprecationWarning,
-            )
+        # Check for defunct option
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
         if isinstance(filename, (list, tuple, np.ndarray)):
             # this is either a list of separate files to read or a list of
@@ -11185,7 +10697,6 @@ class UVData(UVBase):
                         skip_bad_files=skip_bad_files,
                         background_lsts=background_lsts,
                         astrometry_library=astrometry_library,
-                        use_future_array_shapes=use_future_array_shapes,
                         # phasing parameters
                         fix_old_proj=fix_old_proj,
                         fix_use_ant_pos=fix_use_ant_pos,
@@ -11320,11 +10831,9 @@ class UVData(UVBase):
                             skip_bad_files=skip_bad_files,
                             background_lsts=background_lsts,
                             astrometry_library=astrometry_library,
-                            use_future_array_shapes=use_future_array_shapes,
                             # phasing parameters
                             fix_old_proj=fix_old_proj,
                             fix_use_ant_pos=fix_use_ant_pos,
-                            make_multi_phase=make_multi_phase,
                             # selecting parameters
                             antenna_nums=antenna_nums,
                             antenna_names=antenna_names,
@@ -11630,7 +11139,6 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     astrometry_library=astrometry_library,
                 )
 
@@ -11685,7 +11193,6 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     astrometry_library=astrometry_library,
                 )
 
@@ -11717,7 +11224,6 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     astrometry_library=astrometry_library,
                 )
 
@@ -11737,7 +11243,6 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     astrometry_library=astrometry_library,
                 )
 
@@ -11757,7 +11262,6 @@ class UVData(UVBase):
                     strict_uvw_antpos_check=strict_uvw_antpos_check,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     astrometry_library=astrometry_library,
                 )
 
@@ -11792,7 +11296,6 @@ class UVData(UVBase):
                     fix_use_ant_pos=fix_use_ant_pos,
                     check_autos=check_autos,
                     fix_autos=fix_autos,
-                    use_future_array_shapes=use_future_array_shapes,
                     time_axis_faster_than_bls=time_axis_faster_than_bls,
                     blts_are_rectangular=blts_are_rectangular,
                     recompute_nbls=recompute_nbls,
@@ -12520,9 +12023,6 @@ class UVData(UVBase):
         # Grab references to data and flags, to manipulate later
         data_arr = self.data_array
         flag_arr = self.flag_array
-        if not self.future_array_shapes:
-            data_arr = np.squeeze(data_arr, 1)
-            flag_arr = np.squeeze(flag_arr, 1)
 
         # We need to match baselines in a single integration, so figure out how to
         # group the data by time.

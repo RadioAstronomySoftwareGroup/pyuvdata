@@ -24,7 +24,7 @@ except ImportError:
 
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["UVFITS"]
 
@@ -333,19 +333,16 @@ class UVFITS(UVData):
 
         # Reshape the data array to be the right size if we are working w/ multiple
         # spectral windows to be 'flex_spw' compliant
-        if self.Nspws > 1:
-            raw_data_array = np.reshape(
-                raw_data_array,
-                (self.Nblts, 1, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
-            )
+        raw_data_array = np.reshape(
+            raw_data_array,
+            (self.Nblts, self.Nfreqs, self.Npols, raw_data_array.shape[4]),
+        )
 
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
-        self.data_array = (
-            raw_data_array[:, :, :, :, 0] - 1j * raw_data_array[:, :, :, :, 1]
-        )
-        self.flag_array = raw_data_array[:, :, :, :, 2] <= 0
-        self.nsample_array = np.abs(raw_data_array[:, :, :, :, 2])
+        self.data_array = raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
+        self.flag_array = raw_data_array[:, :, :, 2] <= 0
+        self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
 
         if fix_old_proj:
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
@@ -380,10 +377,13 @@ class UVFITS(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in header, metadata and data from a uvfits file."""
+        # Check for defunct keyword
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         # update filename attribute
         basename = os.path.basename(filename)
         self.filename = [basename]
@@ -428,8 +428,8 @@ class UVFITS(UVData):
             self.Nblts = vis_hdr.pop("GCOUNT")
 
             if self.Nspws > 1:
-                # If this is multi-spw, use the 'flexible' spectral window setup
                 self._set_flex_spw()
+                # If this is multi-spw, get details from the FQ table
                 uvfits_nchan = vis_hdr.pop("NAXIS4")
                 self.Nfreqs = uvfits_nchan * self.Nspws
                 self.flex_spw_id_array = np.transpose(
@@ -447,24 +447,19 @@ class UVFITS(UVData):
                 self.channel_width = np.transpose(
                     np.tile(abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
                 ).flatten()
-                self.freq_array = np.reshape(
-                    np.transpose(
-                        (
-                            ref_freq
-                            + fq_hdu.data["IF FREQ"]
-                            + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
-                        )
-                    ),
-                    (1, -1),
-                )
+                self.freq_array = np.transpose(
+                    (
+                        ref_freq
+                        + fq_hdu.data["IF FREQ"]
+                        + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
+                    )
+                ).flatten()
             else:
+                # If there's only one window, then the UVFITS file may not have an
+                # FQ table, in which case pull the info from the main table
                 self.Nfreqs = vis_hdr.pop("NAXIS4")
                 self.freq_array = uvutils._fits_gethduaxis(vis_hdu, 4)
-                # TODO: Spw axis to be collapsed in future release
-                self.freq_array.shape = (1,) + self.freq_array.shape
-                self.channel_width = vis_hdr.pop("CDELT4")
-
-                # future proof: always set the flex_spw_id_array
+                self.channel_width = np.full(self.Nfreqs, vis_hdr.pop("CDELT4"))
                 self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
             self.polarization_array = np.int32(uvutils._fits_gethduaxis(vis_hdu, 3))
@@ -801,10 +796,6 @@ class UVFITS(UVData):
                     fix_old_proj=fix_old_proj,
                     fix_use_ant_pos=fix_use_ant_pos,
                 )
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         # check if object has all required UVParameters set
         if run_check:
@@ -916,10 +907,7 @@ class UVFITS(UVData):
         if self.flex_spw:
             # If we have a 'flexible' spectral window, we will need to evaluate the
             # frequency axis slightly differently.
-            if self.future_array_shapes:
-                freq_array_use = self.freq_array
-            else:
-                freq_array_use = self.freq_array[0, :]
+            freq_array_use = self.freq_array
             nchan_list = []
             start_freq_array = []
             delta_freq_array = []
@@ -968,16 +956,12 @@ class UVFITS(UVData):
             # other exciting things...
             ref_freq = start_freq_array[0, 0]
         else:
-            if self.future_array_shapes:
-                ref_freq = self.freq_array[0]
-                # we've already run the check_freq_spacing, so channel widths are the
-                # same to our tolerances
-                delta_freq_array = np.array([[np.median(self.channel_width)]]).astype(
-                    np.float64
-                )
-            else:
-                ref_freq = self.freq_array[0, 0]
-                delta_freq_array = np.array([[self.channel_width]]).astype(np.float64)
+            ref_freq = self.freq_array[0]
+            # we've already run the check_freq_spacing, so channel widths are the
+            # same to our tolerances
+            delta_freq_array = np.array([[np.median(self.channel_width)]]).astype(
+                np.float64
+            )
 
         if self.Npols > 1:
             pol_indexing = np.argsort(np.abs(self.polarization_array))
@@ -1368,10 +1352,7 @@ class UVFITS(UVData):
             ant_hdu.header["ELLIPSOI"] = self.telescope._location.ellipsoid
 
         # TODO Karto: Do this more intelligently in the future
-        if self.future_array_shapes:
-            ant_hdu.header["FREQ"] = self.freq_array[0]
-        else:
-            ant_hdu.header["FREQ"] = self.freq_array[0, 0]
+        ant_hdu.header["FREQ"] = self.freq_array[0]
 
         if (self.rdate is None) or (self.rdate == ""):
             rdate_obj = Time(np.floor(self.time_array[0]), format="jd", scale="utc")

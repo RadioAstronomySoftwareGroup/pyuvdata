@@ -469,18 +469,6 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "Flag indicating that this object is using the future array shapes. "
-            "Defunct, will be removed in version 3.2."
-        )
-        self._future_array_shapes = uvp.UVParameter(
-            "future_array_shapes",
-            description=desc,
-            expected_type=bool,
-            value=True,
-            acceptable_vals=[True],
-        )
-
-        desc = (
             "Number of antennas with data present. "
             "Only available for 'baseline' or 'antenna' type objects."
             "May be smaller than the number of antennas in the array"

@@ -49,7 +49,6 @@ def make_cst_beam(beam_type):
             "\nOnly 2 files included to keep test data volume low."
         ),
         extra_keywords=extra_keywords,
-        use_future_array_shapes=True,
     )
 
     # add optional parameters for testing purposes
