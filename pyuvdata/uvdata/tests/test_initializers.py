@@ -12,12 +12,12 @@ import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
 
-from pyuvdata import UVData
+import pyuvdata.tests as uvtest
+from pyuvdata import Telescope, UVData
 from pyuvdata.tests.test_utils import selenoids
 from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
-    get_antenna_params,
     get_freq_params,
     get_spw_params,
     get_time_params,
@@ -25,7 +25,7 @@ from pyuvdata.uvdata.initializers import (
 
 
 @pytest.fixture(scope="function")
-def simplest_working_params() -> dict[str, Any]:
+def simplest_working_params_no_telescope() -> dict[str, Any]:
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
         "polarization_array": ["xx", "yy"],
@@ -40,6 +40,25 @@ def simplest_working_params() -> dict[str, Any]:
     }
 
 
+@pytest.fixture(scope="function")
+def simplest_working_params() -> dict[str, Any]:
+    return {
+        "freq_array": np.linspace(1e8, 2e8, 100),
+        "polarization_array": ["xx", "yy"],
+        "telescope": Telescope.from_params(
+            location=EarthLocation.from_geodetic(0, 0, 0),
+            name="test",
+            instrument="test",
+            antenna_positions={
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 1.0],
+                2: [0.0, 0.0, 2.0],
+            },
+        ),
+        "times": np.linspace(2459855, 2459856, 20),
+    }
+
+
 @pytest.fixture
 def lunar_simple_params() -> dict[str, Any]:
     pytest.importorskip("lunarsky")
@@ -48,19 +67,27 @@ def lunar_simple_params() -> dict[str, Any]:
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
         "polarization_array": ["xx", "yy"],
-        "antenna_positions": {
-            0: [0.0, 0.0, 0.0],
-            1: [0.0, 0.0, 1.0],
-            2: [0.0, 0.0, 2.0],
-        },
-        "telescope_location": MoonLocation.from_selenodetic(0, 0, 0),
-        "telescope_name": "test",
+        "telescope": Telescope.from_params(
+            location=MoonLocation.from_selenodetic(0, 0, 0),
+            name="test",
+            instrument="test",
+            antenna_positions={
+                0: [0.0, 0.0, 0.0],
+                1: [0.0, 0.0, 1.0],
+                2: [0.0, 0.0, 2.0],
+            },
+        ),
         "times": np.linspace(2459855, 2459856, 20),
     }
 
 
-def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
-    uvd = UVData.new(**simplest_working_params)
+def test_simplest_new_uvdata(simplest_working_params_no_telescope: dict[str, Any]):
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="Passing telescope_name, telescope_location, antenna_positions is "
+        "deprecated in favor of passing a Telescope object",
+    ):
+        uvd = UVData.new(**simplest_working_params_no_telescope)
 
     assert uvd.Nfreqs == 100
     assert uvd.Npols == 2
@@ -73,7 +100,7 @@ def test_simplest_new_uvdata(simplest_working_params: dict[str, Any]):
 
 @pytest.mark.parametrize("selenoid", selenoids)
 def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: str):
-    lunar_simple_params["telescope_location"].ellipsoid = selenoid
+    lunar_simple_params["telescope"].location.ellipsoid = selenoid
     uvd = UVData.new(**lunar_simple_params)
 
     assert uvd.telescope._location.frame == "mcmf"
@@ -90,86 +117,10 @@ def test_bad_inputs(simplest_working_params: dict[str, Any]):
         UVData.new(**simplest_working_params, derp="foo")
 
 
-def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(
-        ValueError, match="Either antenna_numbers or antenna_names must be provided"
-    ):
-        UVData.new(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=None,
-            antenna_names=None,
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(
-        ValueError,
-        match=(
-            "antenna_positions must be a dictionary with keys that are all type int "
-            "or all type str"
-        ),
-    ):
-        UVData.new(antenna_positions={1: [0, 1, 2], "2": [3, 4, 5]}, **badp)
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="Antenna names must be integers"):
-        UVData.new(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=None,
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="antenna_positions must be a numpy array"):
-        UVData.new(
-            antenna_positions="foo",
-            antenna_numbers=[0, 1, 2],
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="antenna_positions must be a 2D array"):
-        UVData.new(
-            antenna_positions=np.array([0, 0, 0]), antenna_numbers=np.array([0]), **badp
-        )
-
-    with pytest.raises(ValueError, match="Duplicate antenna names found"):
-        UVData.new(antenna_names=["foo", "bar", "foo"], **simplest_working_params)
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="Duplicate antenna numbers found"):
-        UVData.new(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=[0, 1, 0],
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    with pytest.raises(
-        ValueError, match="antenna_numbers and antenna_names must have the same length"
-    ):
-        UVData.new(antenna_names=["foo", "bar"], **simplest_working_params)
-
-
 def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
     with pytest.raises(ValueError, match="time_array must be a numpy array"):
         get_time_params(
-            telescope_location=simplest_working_params["telescope_location"],
+            telescope_location=simplest_working_params["telescope"].location,
             time_array="hello this is a string",
         )
 
@@ -177,7 +128,7 @@ def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
         TypeError, match="integration_time must be array_like of floats"
     ):
         get_time_params(
-            telescope_location=simplest_working_params["telescope_location"],
+            telescope_location=simplest_working_params["telescope"].location,
             integration_time={"a": "dict"},
             time_array=simplest_working_params["times"],
         )
@@ -187,7 +138,7 @@ def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
     ):
         get_time_params(
             integration_time=np.ones(len(simplest_working_params["times"]) + 1),
-            telescope_location=simplest_working_params["telescope_location"],
+            telescope_location=simplest_working_params["telescope"].location,
             time_array=simplest_working_params["times"],
         )
 
@@ -263,37 +214,6 @@ def test_bad_rectangularity_inputs():
             blts_are_rectangular=True,
             do_blt_outer=False,
         )
-
-
-def test_alternate_antenna_inputs():
-    antpos_dict = {
-        0: np.array([0.0, 0.0, 0.0]),
-        1: np.array([0.0, 0.0, 1.0]),
-        2: np.array([0.0, 0.0, 2.0]),
-    }
-
-    antpos_array = np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]], dtype=float)
-    antnum = np.array([0, 1, 2])
-    antname = np.array(["000", "001", "002"])
-
-    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
-    pos2, names2, nums2 = get_antenna_params(
-        antenna_positions=antpos_array, antenna_numbers=antnum, antenna_names=antname
-    )
-
-    assert np.allclose(pos, pos2)
-    assert np.all(names == names2)
-    assert np.all(nums == nums2)
-
-    antpos_dict = {
-        "000": np.array([0, 0, 0]),
-        "001": np.array([0, 0, 1]),
-        "002": np.array([0, 0, 2]),
-    }
-    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
-    assert np.allclose(pos, pos2)
-    assert np.all(names == names2)
-    assert np.all(nums == nums2)
 
 
 def test_alternate_time_inputs():
@@ -563,15 +483,6 @@ def test_get_spw_params():
         _id, spw = get_spw_params(
             spw_array=np.array([0, 1]), flex_spw_id_array=np.zeros(10, dtype=int)
         )
-
-
-@pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
-def test_passing_xorient(simplest_working_params, xorient):
-    uvd = UVData.new(x_orientation=xorient, **simplest_working_params)
-    if xorient.lower().startswith("e"):
-        assert uvd.telescope.x_orientation == "east"
-    else:
-        assert uvd.telescope.x_orientation == "north"
 
 
 def test_passing_directional_pols(simplest_working_params):

@@ -39,6 +39,7 @@ __all__ = [
     "CONJ_POL_DICT",
     "JONES_STR2NUM_DICT",
     "JONES_NUM2STR_DICT",
+    "XORIENTMAP",
     "LatLonAlt_from_XYZ",
     "XYZ_from_LatLonAlt",
     "rotECEF_from_ECEF",
@@ -124,6 +125,15 @@ POL_TO_FEED_DICT = {"xx": ["x", "x"], "yy": ["y", "y"],
                     "pU": ["U", "U"], "pV": ["V", "V"]}
 
 # fmt: on
+
+XORIENTMAP = {
+    "east": "east",
+    "north": "north",
+    "e": "east",
+    "n": "north",
+    "ew": "east",
+    "ns": "north",
+}
 
 _range_dict = {
     "itrs": (6.35e6, 6.39e6, "Earth"),
@@ -1206,12 +1216,13 @@ def baseline_index_flip(baseline, *, Nants_telescope):
 
 def _x_orientation_rep_dict(x_orientation):
     """Create replacement dict based on x_orientation."""
-    if x_orientation.lower() == "east" or x_orientation.lower() == "e":
-        return {"x": "e", "y": "n"}
-    elif x_orientation.lower() == "north" or x_orientation.lower() == "n":
-        return {"x": "n", "y": "e"}
-    else:
-        raise ValueError("x_orientation not recognized.")
+    try:
+        if XORIENTMAP[x_orientation.lower()] == "east":
+            return {"x": "e", "y": "n"}
+        elif XORIENTMAP[x_orientation.lower()] == "north":
+            return {"x": "n", "y": "e"}
+    except KeyError as e:
+        raise ValueError("x_orientation not recognized.") from e
 
 
 def np_cache(function):

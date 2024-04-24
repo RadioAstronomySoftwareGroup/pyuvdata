@@ -692,15 +692,8 @@ class UVData(UVBase):
 
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVData."""
-        self.telescope._name.required = True
-        self.telescope._location.required = True
         self.telescope._instrument.required = True
-        self.telescope._Nants.required = True
-        self.telescope._antenna_names.required = True
-        self.telescope._antenna_numbers.required = True
-        self.telescope._antenna_positions.required = True
         self.telescope._x_orientation.required = False
-        self.telescope._antenna_diameters.required = False
 
     @staticmethod
     def _clear_antpair2ind_cache(obj):
@@ -2579,6 +2572,7 @@ class UVData(UVBase):
         # first check for any old phase attributes set on the object and move the info
         # into the phase_center_catalog.
         self._convert_old_phase_attributes()
+        self._set_telescope_requirements()
 
         if self.flex_spw_id_array is None:
             warnings.warn(
