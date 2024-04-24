@@ -668,14 +668,7 @@ class UVCal(UVBase):
 
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""
-        self.telescope._name.required = True
-        self.telescope._location.required = True
         self.telescope._instrument.required = False
-        self.telescope._Nants.required = True
-        self.telescope._antenna_names.required = True
-        self.telescope._antenna_numbers.required = True
-        self.telescope._antenna_positions.required = True
-        self.telescope._antenna_diameters.required = False
         self.telescope._x_orientation.required = True
 
     @staticmethod
@@ -1997,6 +1990,8 @@ class UVCal(UVBase):
             self._set_sky()
         elif self.cal_style == "redundant":
             self._set_redundant()
+
+        self._set_telescope_requirements()
 
         # if wide_band is True, Nfreqs must be 1.
         if self.wide_band:
