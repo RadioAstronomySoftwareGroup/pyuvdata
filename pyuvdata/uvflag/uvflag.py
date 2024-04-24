@@ -645,14 +645,7 @@ class UVFlag(UVBase):
 
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""
-        self.telescope._name.required = True
-        self.telescope._location.required = True
         self.telescope._instrument.required = False
-        self.telescope._Nants.required = True
-        self.telescope._antenna_names.required = True
-        self.telescope._antenna_numbers.required = True
-        self.telescope._antenna_positions.required = True
-        self.telescope._antenna_diameters.required = False
         self.telescope._x_orientation.required = False
 
     @property
@@ -942,6 +935,8 @@ class UVFlag(UVBase):
             self._flex_spw_id_array.required = True
         else:
             self._flex_spw_id_array.required = False
+
+        self._set_telescope_requirements()
 
         # first run the basic check from UVBase
         super().check(

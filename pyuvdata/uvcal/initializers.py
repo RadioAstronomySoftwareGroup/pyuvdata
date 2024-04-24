@@ -5,6 +5,7 @@
 """From-memory initializers for UVCal objects."""
 from __future__ import annotations
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -12,14 +13,8 @@ from astropy.time import Time
 
 from .. import Telescope, __version__, utils
 from ..docstrings import combine_docstrings
-from ..uvdata.initializers import (
-    XORIENTMAP,
-    Locations,
-    get_antenna_params,
-    get_freq_params,
-    get_spw_params,
-    get_time_params,
-)
+from ..telescopes import Locations, get_antenna_params
+from ..uvdata.initializers import get_freq_params, get_spw_params, get_time_params
 
 
 def new_uvcal(
@@ -103,34 +98,36 @@ def new_uvcal(
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
     telescope_location : EarthLocation or MoonLocation object
-        Telescope location as an astropy EarthLocation object or MoonLocation
-        object. Not required or used if a Telescope object is passed to `telescope`.
+        Deprecated. Telescope location as an astropy EarthLocation object or
+        MoonLocation object. Not required or used if a Telescope object is
+        passed to `telescope`.
     telescope_name : str
-        Telescope name. Not required or used if a Telescope object is passed to
-        `telescope`.
+        Deprecated. Telescope name. Not required or used if a Telescope object
+        is passed to `telescope`.
     x_orientation : str
-        Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
-        Not required or used if a Telescope object is passed to `telescope`.
+        Deprecated. Orientation of the x-axis. Options are 'east', 'north',
+        'e', 'n', 'ew', 'ns'. Not required or used if a Telescope object is
+        passed to `telescope`.
     antenna_positions : ndarray of float or dict of ndarray of float
-        Array of antenna positions in ECEF coordinates in meters.
+        Deprecated. Array of antenna positions in ECEF coordinates in meters.
         If a dict, keys can either be antenna numbers or antenna names, and values are
         position arrays. Keys are interpreted as antenna numbers if they are integers,
         otherwise they are interpreted as antenna names if strings. You cannot
         provide a mix of different types of keys.
         Not required or used if a Telescope object is passed to `telescope`.
     antenna_names : list of str, optional
-        List of antenna names. If not provided, antenna numbers will be used to form
-        the antenna_names, according to the antname_format. Not required or used
-        if a Telescope object is passed to `telescope` or if antenna_positions
-        is a dict with string keys.
+        Deprecated. List of antenna names. Not required or used if a Telescope
+        object is passed to `telescope` or if antenna_positions is a dict with
+        string keys. Otherwise, if not provided, antenna numbers will be used
+        to form the antenna_names, according to the antname_format
     antenna_numbers : list of int, optional
-        List of antenna numbers. If not provided, antenna names will be used to form
-        the antenna_numbers, but in this case the antenna_names must be strings that
-        can be converted to integers. Not required or used
-        if a Telescope object is passed to `telescope` or if antenna_positions
-        is a dict with integer keys.
+        Deprecated. List of antenna numbers. Not required or used if a Telescope
+        object is passed to `telescope` or if antenna_positions is a dict with
+        integer keys. Otherwise, if not provided, antenna names will be used to
+        form the antenna_numbers, but in this case the antenna_names must be
+        strings that can be converted to integers.
     antname_format : str, optional
-        Format string for antenna names. Default is '{0:03d}'.
+        Deprecated. Format string for antenna names. Default is '{0:03d}'.
     ant_array : ndarray of int, optional
         Array of antenna numbers actually found in data (in the order of the data
         in gain_array etc.)
@@ -186,32 +183,61 @@ def new_uvcal(
         for key, value in required_without_tel.items():
             if value is None:
                 raise ValueError(f"{key} is required if telescope is not provided.")
-    else:
-        required_on_tel = {
-            "antenna_positions": antenna_positions,
-            "x_orientation": x_orientation,
-        }
-        for key, value in required_on_tel.items():
-            if value is None and getattr(telescope, key) is None:
-                raise ValueError(f"{key} is required if it is not set on telescope.")
 
-    if telescope is not None:
-        antenna_numbers = telescope.antenna_numbers
-        telescope_location = telescope.location
+        instrument = kwargs.pop("instrument", None)
+        antenna_diameters = kwargs.pop("antenna_diameters", None)
+        old_params = {
+            "telescope_name": telescope_name,
+            "telescope_location": telescope_location,
+            "antenna_positions": antenna_positions,
+            "antenna_names": antenna_names,
+            "antenna_numbers": antenna_numbers,
+            "instrument": instrument,
+            "x_orientation": x_orientation,
+            "antenna_diameters": antenna_diameters,
+        }
+        warn_params = []
+        for param, val in old_params.items():
+            if val is not None:
+                warn_params.append(param)
+        warnings.warn(
+            f"Passing {', '.join(warn_params)} is deprecated in favor of passing "
+            "a Telescope object via the `telescope` parameter. This will become "
+            "an error in version 3.2",
+            DeprecationWarning,
+        )
     else:
-        antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
+        required_on_tel = [
+            "antenna_positions",
+            "antenna_names",
+            "antenna_numbers",
+            "Nants",
+            "x_orientation",
+        ]
+        for key in required_on_tel:
+            if getattr(telescope, key) is None:
+                raise ValueError(
+                    f"{key} must be set on the Telescope object passed to `telescope`."
+                )
+
+    if telescope is None:
+        telescope = Telescope.from_params(
+            name=telescope_name,
+            location=telescope_location,
             antenna_positions=antenna_positions,
             antenna_names=antenna_names,
             antenna_numbers=antenna_numbers,
             antname_format=antname_format,
+            instrument=instrument,
+            x_orientation=x_orientation,
+            antenna_diameters=antenna_diameters,
         )
-        x_orientation = XORIENTMAP[x_orientation.lower()]
 
     if ant_array is None:
-        ant_array = antenna_numbers
+        ant_array = telescope.antenna_numbers
     else:
         # Ensure they all exist
-        missing = [ant for ant in ant_array if ant not in antenna_numbers]
+        missing = [ant for ant in ant_array if ant not in telescope.antenna_numbers]
         if missing:
             raise ValueError(
                 f"The following ants are not in antenna_numbers: {missing}"
@@ -219,14 +245,14 @@ def new_uvcal(
 
     if time_array is not None:
         lst_array, integration_time = get_time_params(
-            telescope_location=telescope_location,
+            telescope_location=telescope.location,
             time_array=time_array,
             integration_time=integration_time,
             astrometry_library=astrometry_library,
         )
     if time_range is not None:
         lst_range, integration_time = get_time_params(
-            telescope_location=telescope_location,
+            telescope_location=telescope.location,
             time_array=time_range,
             integration_time=integration_time,
             astrometry_library=astrometry_library,
@@ -276,7 +302,9 @@ def new_uvcal(
     else:
         jones_array = np.array(jones_array)
         if jones_array.dtype.kind != "i":
-            jones_array = utils.jstr2num(jones_array, x_orientation=x_orientation)
+            jones_array = utils.jstr2num(
+                jones_array, x_orientation=telescope.x_orientation
+            )
 
     history += (
         f"Object created by new_uvcal() at {Time.now().iso} using "
@@ -292,20 +320,7 @@ def new_uvcal(
         )
 
     # Now set all the metadata
-    if telescope is not None:
-        uvc.telescope = telescope
-    else:
-        new_telescope = Telescope()
-
-        new_telescope.name = telescope_name
-        new_telescope.location = telescope_location
-        new_telescope.antenna_names = antenna_names
-        new_telescope.antenna_numbers = antenna_numbers
-        new_telescope.Nants = len(antenna_numbers)
-        new_telescope.antenna_positions = antenna_positions
-        new_telescope.x_orientation = x_orientation
-
-        uvc.telescope = new_telescope
+    uvc.telescope = telescope
 
     # set the appropriate telescope attributes as required
     uvc._set_telescope_requirements()
@@ -585,7 +600,13 @@ def new_uvcal_from_uvdata(
             setattr(new_telescope, tele_name, kwargs.pop(param))
 
     if "x_orientation" in kwargs:
-        new_telescope.x_orientation = XORIENTMAP[kwargs.pop("x_orientation").lower()]
+        new_telescope.x_orientation = utils.XORIENTMAP[
+            kwargs.pop("x_orientation").lower()
+        ]
+    if new_telescope.x_orientation is None:
+        raise ValueError(
+            "x_orientation must be provided if it is not set on the UVData object."
+        )
 
     ant_array = kwargs.pop(
         "ant_array", np.union1d(uvdata.ant_1_array, uvdata.ant_2_array)
