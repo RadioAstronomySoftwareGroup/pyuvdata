@@ -181,7 +181,6 @@ class Miriad(UVData):
 
         # Deal with the spectral axis now
         if self.Nspws > 1:
-            self._set_flex_spw()
             # Channel widths are described per spw, just need to expand it out to be
             # for each frequency channel.
             self.channel_width = np.concatenate(
@@ -1719,7 +1718,7 @@ class Miriad(UVData):
         uv["nspect"] = self.Nspws
 
         freq_array_use = self.freq_array
-        if self.flex_spw:
+        if self.Nspws > 1:
             win_start_pos = np.insert(
                 np.where(self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1])[0]
                 + 1,

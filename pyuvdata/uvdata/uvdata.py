@@ -50,8 +50,7 @@ class UVData(UVBase):
     UVParameter objects :
         For full list see the documentation on ReadTheDocs:
         http://pyuvdata.readthedocs.io/en/latest/.
-        Some are always required, some are required only for flex_spw data
-        and others are always optional.
+        Some are always required, and others are always optional.
 
     """
 
@@ -297,34 +296,17 @@ class UVData(UVBase):
         # --- flexible spectral window information ---
 
         desc = (
-            'Option to construct a "flexible spectral window", which stores'
-            "all spectral channels across the frequency axis of data_array. "
-            "Allows for spectral windows of variable sizes, and channels of "
-            "varying widths."
-        )
-        self._flex_spw = uvp.UVParameter(
-            "flex_spw", description=desc, expected_type=bool, value=False
-        )
-
-        desc = (
-            "Required if flex_spw = True and will always be required starting in "
-            "version 3.0. Maps individual channels along the frequency axis to "
-            "individual spectral windows, as listed in the spw_array. Shape (Nfreqs), "
-            "type = int."
+            "Maps individual channels along the frequency axis to individual spectral "
+            "windows, as listed in the spw_array. Shape (Nfreqs), type = int."
         )
         self._flex_spw_id_array = uvp.UVParameter(
-            "flex_spw_id_array",
-            description=desc,
-            form=("Nfreqs",),
-            expected_type=int,
-            required=False,
+            "flex_spw_id_array", description=desc, form=("Nfreqs",), expected_type=int
         )
 
         desc = (
-            "Optional, only used if flex_spw = True. Allows for labeling individual "
-            "spectral windows with different polarizations. If set, Npols must be set "
-            "to 1 (i.e., only one polarization per spectral window allowed). Shape "
-            "(Nspws), type = int."
+            "Optional parameter, allows for labeling individual spectral windows with "
+            "different polarizations. If set, Npols must be set to 1 (i.e., only one "
+            "polarization per spectral window allowed). Shape (Nspws), type = int."
         )
         self._flex_spw_polarization_array = uvp.UVParameter(
             "flex_spw_polarization_array",
@@ -646,21 +628,6 @@ class UVData(UVBase):
     @combine_docstrings(new_uvdata, style=DocstringStyle.NUMPYDOC)
     def new(**kwargs):  # noqa: D102
         return new_uvdata(**kwargs)
-
-    def _set_flex_spw(self):
-        """
-        Set flex_spw to True, and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by the file-reading methods to indicate that an object has multiple spectral
-        windows concatenated together across the frequency axis.
-        """
-        # Mark once-optional arrays as now required
-        self.flex_spw = True
-        self._flex_spw_id_array.required = True
-
-        # Now make sure that chan_width is set to be an array
-        self._channel_width.form = ("Nfreqs",)
 
     def _set_scan_numbers(self, override=False):
         """
@@ -1696,7 +1663,7 @@ class UVData(UVBase):
 
     def _check_flex_spw_contiguous(self):
         """
-        Check if the spectral windows are contiguous for flex_spw datasets.
+        Check if the spectral windows are contiguous.
 
         This checks the flex_spw_id_array to make sure that all channels for each
         spectral window are together in one block, versus being interspersed (e.g.,
@@ -1704,10 +1671,9 @@ class UVData(UVBase):
         UVH5 and UVData objects can handle this, but MIRIAD, MIR, UVFITS, and MS file
         formats cannot, so we just consider it forbidden.
         """
-        if self.flex_spw:
-            uvutils._check_flex_spw_contiguous(
-                spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
-            )
+        uvutils._check_flex_spw_contiguous(
+            spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
+        )
 
     def _check_freq_spacing(self, *, raise_errors=True):
         """
@@ -1733,7 +1699,6 @@ class UVData(UVBase):
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
-            flex_spw=self.flex_spw,
             spw_array=self.spw_array,
             flex_spw_id_array=self.flex_spw_id_array,
             raise_errors=raise_errors,
@@ -2006,14 +1971,6 @@ class UVData(UVBase):
             If an object cannot be converted to flex-pol, and `raise_error=False`, then
             raise a warning that the conversion failed. Default is True.
         """
-        if not self.flex_spw:
-            msg = "Cannot make a flex-pol UVData object if flex_spw=False."
-            if raise_error:
-                raise ValueError(msg)
-            if raise_warning:
-                warnings.warn(msg)
-            return
-
         if self.metadata_only:
             msg = (
                 "Cannot make a metadata_only UVData object flex-pol because flagging "
@@ -2103,10 +2060,6 @@ class UVData(UVBase):
         """
         if self.flex_spw_polarization_array is not None:
             raise ValueError("This is already a flex-pol object")
-
-        if not self.flex_spw:
-            self._set_flex_spw()
-            self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
         new_spw_array = self.spw_array
         new_flex_pol_array = np.full(self.Nspws, self.polarization_array[0])
@@ -4154,7 +4107,6 @@ class UVData(UVBase):
             freq_array=self.freq_array,
             Nspws=self.Nspws,
             spw_array=self.spw_array,
-            flex_spw=self.flex_spw,
             flex_spw_id_array=self.flex_spw_id_array,
             spw_order=spw_order,
             channel_order=channel_order,
@@ -4618,6 +4570,7 @@ class UVData(UVBase):
     def phase(
         self,
         *,
+        cat_name,
         lon=None,
         lat=None,
         epoch="J2000",
@@ -4630,7 +4583,6 @@ class UVData(UVBase):
         pm_dec=None,
         dist=None,
         vrad=None,
-        cat_name=None,
         lookup_name=False,
         use_ant_pos=True,
         select_mask=None,
@@ -4713,11 +4665,6 @@ class UVData(UVBase):
             If the `cat_name` is None.
 
         """
-        # TODO: move this up to a required (non-defaulted) parameter in function
-        # signature when we require keywords to be passed by name in version 3.0
-        if cat_name is None:
-            raise ValueError("The cat_name must be provided.")
-
         if cat_type != "unprojected":
             if lon is None:
                 if ra is None:
@@ -5334,13 +5281,6 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
 
-        # Check to make sure that both objects are consistent w/ use of flex_spw
-        if this.flex_spw != other.flex_spw:
-            raise ValueError(
-                "To combine these data, flex_spw must be set to the same "
-                "value (True or False) for both objects."
-            )
-
         this_has_spw_id = this.flex_spw_id_array is not None
         other_has_spw_id = other.flex_spw_id_array is not None
         if this_has_spw_id != other_has_spw_id:
@@ -5385,26 +5325,21 @@ class UVData(UVBase):
         # belong to different spectral windows (one real-life example: you might want
         # to preserve guard bands in the correlator, which can have overlaping RF
         # frequency channels)
-        if this.flex_spw:
-            this_freq_ind = np.array([], dtype=np.int64)
-            other_freq_ind = np.array([], dtype=np.int64)
-            both_freq = np.array([], dtype=float)
-            both_spw = np.intersect1d(this.spw_array, other.spw_array)
-            for idx in both_spw:
-                this_mask = np.where(this.flex_spw_id_array == idx)[0]
-                other_mask = np.where(other.flex_spw_id_array == idx)[0]
-                both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
-                    this.freq_array[this_mask],
-                    other.freq_array[other_mask],
-                    return_indices=True,
-                )
-                this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
-                other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
-                both_freq = np.append(both_freq, both_spw_freq)
-        else:
-            both_freq, this_freq_ind, other_freq_ind = np.intersect1d(
-                this.freq_array, other.freq_array, return_indices=True
+        this_freq_ind = np.array([], dtype=np.int64)
+        other_freq_ind = np.array([], dtype=np.int64)
+        both_freq = np.array([], dtype=float)
+        both_spw = np.intersect1d(this.spw_array, other.spw_array)
+        for idx in both_spw:
+            this_mask = np.where(this.flex_spw_id_array == idx)[0]
+            other_mask = np.where(other.flex_spw_id_array == idx)[0]
+            both_spw_freq, this_spw_ind, other_spw_ind = np.intersect1d(
+                this.freq_array[this_mask],
+                other.freq_array[other_mask],
+                return_indices=True,
             )
+            this_freq_ind = np.append(this_freq_ind, this_mask[this_spw_ind])
+            other_freq_ind = np.append(other_freq_ind, other_mask[other_spw_ind])
+            both_freq = np.append(both_freq, both_spw_freq)
 
         both_blts, this_blts_ind, other_blts_ind = np.intersect1d(
             this_blts, other_blts, return_indices=True
@@ -5477,44 +5412,41 @@ class UVData(UVBase):
             compatibility_params.extend(extra_params)
 
         # find the freq indices in "other" but not in "this"
-        if this.flex_spw:
-            if (this.flex_spw_polarization_array is None) != (
-                other.flex_spw_polarization_array is None
-            ):
-                raise ValueError(
-                    "Cannot add a flex-pol and non-flex-pol UVData objects. Use "
-                    "the `remove_flex_pol` method to convert the objects to "
-                    "have a regular polarization axis."
-                )
-            elif this.flex_spw_polarization_array is not None:
-                this_flexpol_dict = dict(
-                    zip(this.spw_array, this.flex_spw_polarization_array)
-                )
-                other_flexpol_dict = dict(
-                    zip(other.spw_array, other.flex_spw_polarization_array)
-                )
-                for key in other_flexpol_dict.keys():
-                    try:
-                        if this_flexpol_dict[key] != other_flexpol_dict[key]:
-                            raise ValueError(
-                                "Cannot add a flex-pol UVData objects where the same "
-                                "spectral window contains different polarizations. Use "
-                                "the `remove_flex_pol` method to convert the objects "
-                                "to have a regular polarization axis."
-                            )
-                    except KeyError:
-                        this_flexpol_dict[key] = other_flexpol_dict[key]
+        if (this.flex_spw_polarization_array is None) != (
+            other.flex_spw_polarization_array is None
+        ):
+            raise ValueError(
+                "Cannot add a flex-pol and non-flex-pol UVData objects. Use "
+                "the `remove_flex_pol` method to convert the objects to "
+                "have a regular polarization axis."
+            )
+        elif this.flex_spw_polarization_array is not None:
+            this_flexpol_dict = dict(
+                zip(this.spw_array, this.flex_spw_polarization_array)
+            )
+            other_flexpol_dict = dict(
+                zip(other.spw_array, other.flex_spw_polarization_array)
+            )
+            for key in other_flexpol_dict.keys():
+                try:
+                    if this_flexpol_dict[key] != other_flexpol_dict[key]:
+                        raise ValueError(
+                            "Cannot add a flex-pol UVData objects where the same "
+                            "spectral window contains different polarizations. Use "
+                            "the `remove_flex_pol` method to convert the objects "
+                            "to have a regular polarization axis."
+                        )
+                except KeyError:
+                    this_flexpol_dict[key] = other_flexpol_dict[key]
 
-            other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
-            for idx in np.intersect1d(this.spw_array, other.spw_array):
-                other_mask[other.flex_spw_id_array == idx] = np.isin(
-                    other.freq_array[other.flex_spw_id_array == idx],
-                    this.freq_array[this.flex_spw_id_array == idx],
-                    invert=True,
-                )
-            temp = np.where(other_mask)[0]
-        else:
-            temp = np.nonzero(~np.isin(other.freq_array, this.freq_array))[0]
+        other_mask = np.ones_like(other.flex_spw_id_array, dtype=bool)
+        for idx in np.intersect1d(this.spw_array, other.spw_array):
+            other_mask[other.flex_spw_id_array == idx] = np.isin(
+                other.freq_array[other.flex_spw_id_array == idx],
+                this.freq_array[this.flex_spw_id_array == idx],
+                invert=True,
+            )
+        temp = np.where(other_mask)[0]
         if len(temp) > 0:
             fnew_inds = temp
             if n_axes > 0:
@@ -5690,49 +5622,41 @@ class UVData(UVBase):
                 [this.channel_width, other.channel_width[fnew_inds]]
             )
 
-            if this.flex_spw:
-                this.flex_spw_id_array = np.concatenate(
-                    [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
-                )
-                this.spw_array = np.concatenate([this.spw_array, other.spw_array])
-                # We want to preserve per-spw information based on first appearance
-                # in the concatenated array.
-                unique_index = np.sort(
-                    np.unique(this.flex_spw_id_array, return_index=True)[1]
-                )
-                this.spw_array = this.flex_spw_id_array[unique_index]
-                this.Nspws = len(this.spw_array)
+            this.flex_spw_id_array = np.concatenate(
+                [this.flex_spw_id_array, other.flex_spw_id_array[fnew_inds]]
+            )
+            this.spw_array = np.concatenate([this.spw_array, other.spw_array])
+            # We want to preserve per-spw information based on first appearance
+            # in the concatenated array.
+            unique_index = np.sort(
+                np.unique(this.flex_spw_id_array, return_index=True)[1]
+            )
+            this.spw_array = this.flex_spw_id_array[unique_index]
+            this.Nspws = len(this.spw_array)
 
-                if this.flex_spw_polarization_array is not None:
-                    this.flex_spw_polarization_array = np.array(
-                        [this_flexpol_dict[key] for key in this.spw_array]
-                    )
-                # Need to sort out the order of the individual windows first.
-                f_order = np.concatenate(
-                    [
-                        np.where(this.flex_spw_id_array == idx)[0]
-                        for idx in sorted(this.spw_array)
-                    ]
+            if this.flex_spw_polarization_array is not None:
+                this.flex_spw_polarization_array = np.array(
+                    [this_flexpol_dict[key] for key in this.spw_array]
                 )
+            # Need to sort out the order of the individual windows first.
+            f_order = np.concatenate(
+                [
+                    np.where(this.flex_spw_id_array == idx)[0]
+                    for idx in sorted(this.spw_array)
+                ]
+            )
 
-                # With spectral windows sorted, check and see if channels within
-                # windows need sorting. If they are ordered in ascending or descending
-                # fashion, leave them be. If not, sort in ascending order
-                for idx in this.spw_array:
-                    select_mask = this.flex_spw_id_array[f_order] == idx
-                    check_freqs = this.freq_array[f_order[select_mask]]
-                    if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
-                        not np.all(check_freqs[1:] < check_freqs[:-1])
-                    ):
-                        subsort_order = f_order[select_mask]
-                        f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
-            else:
-                if this_has_spw_id or other_has_spw_id:
-                    this.flex_spw_id_array = np.full(
-                        this.freq_array.size, this.spw_array[0], dtype=int
-                    )
-
-                f_order = np.argsort(this.freq_array)
+            # With spectral windows sorted, check and see if channels within
+            # windows need sorting. If they are ordered in ascending or descending
+            # fashion, leave them be. If not, sort in ascending order
+            for idx in this.spw_array:
+                select_mask = this.flex_spw_id_array[f_order] == idx
+                check_freqs = this.freq_array[f_order[select_mask]]
+                if (not np.all(check_freqs[1:] > check_freqs[:-1])) and (
+                    not np.all(check_freqs[1:] < check_freqs[:-1])
+                ):
+                    subsort_order = f_order[select_mask]
+                    f_order[select_mask] = subsort_order[np.argsort(check_freqs)]
 
             if not self.metadata_only:
                 zero_pad = np.zeros(
@@ -5768,20 +5692,16 @@ class UVData(UVBase):
         pol_t2o = np.nonzero(
             np.isin(this.polarization_array, other.polarization_array)
         )[0]
-        # Special handling here needed for flex_spw data
         this_freqs = this.freq_array
         other_freqs = other.freq_array
 
-        if this.flex_spw:
-            freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
-            for spw_id in set(this.spw_array).intersection(other.spw_array):
-                mask = this.flex_spw_id_array == spw_id
-                freq_t2o[mask] |= np.isin(
-                    this_freqs[mask], other_freqs[other.flex_spw_id_array == spw_id]
-                )
-            freq_t2o = np.nonzero(freq_t2o)[0]
-        else:
-            freq_t2o = np.nonzero(np.isin(this_freqs, other_freqs))[0]
+        freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
+        for spw_id in set(this.spw_array).intersection(other.spw_array):
+            mask = this.flex_spw_id_array == spw_id
+            freq_t2o[mask] |= np.isin(
+                this_freqs[mask], other_freqs[other.flex_spw_id_array == spw_id]
+            )
+        freq_t2o = np.nonzero(freq_t2o)[0]
         blt_t2o = np.nonzero(np.isin(this_blts, other_blts))[0]
 
         if not self.metadata_only:
@@ -5807,8 +5727,7 @@ class UVData(UVBase):
         if len(fnew_inds) > 0:
             this.freq_array = this.freq_array[f_order]
             this.channel_width = this.channel_width[f_order]
-            if this.flex_spw:
-                this.flex_spw_id_array = this.flex_spw_id_array[f_order]
+            this.flex_spw_id_array = this.flex_spw_id_array[f_order]
 
         if len(pnew_inds) > 0:
             this.polarization_array = this.polarization_array[p_order]
@@ -6046,24 +5965,6 @@ class UVData(UVBase):
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
             )
 
-        # Check to make sure that both objects are consistent w/ use of flex_spw
-        for obj in other:
-            if this.flex_spw != obj.flex_spw:
-                raise ValueError(
-                    "All objects must have the same `flex_spw` value (True or False)."
-                )
-
-        this_has_spw_id = this.flex_spw_id_array is not None
-        other_has_spw_id = np.array(
-            [obj.flex_spw_id_array is not None for obj in other]
-        )
-
-        if not np.all(other_has_spw_id == this_has_spw_id):
-            warnings.warn(
-                "Some objects have the flex_spw_id_array set and some do not. Combined "
-                "object will have it set."
-            )
-
         # update the phase_center_catalog to make them consistent across objects
         # Doing this as a binary tree merge
         # The left object in each loop will have its phase center IDs updated.
@@ -6097,6 +5998,7 @@ class UVData(UVBase):
             compatibility_params += [
                 "_freq_array",
                 "_channel_width",
+                "_flex_spw_id_array",
                 "_ant_1_array",
                 "_ant_2_array",
                 "_integration_time",
@@ -6106,7 +6008,11 @@ class UVData(UVBase):
             ]
         elif axis == "blt":
             history_update_string += "baseline-time"
-            compatibility_params += ["_freq_array", "_polarization_array"]
+            compatibility_params += [
+                "_freq_array",
+                "_polarization_array",
+                "_flex_spw_id_array",
+            ]
 
         history_update_string += " axis using pyuvdata."
 
@@ -6149,25 +6055,20 @@ class UVData(UVBase):
             this.channel_width = np.concatenate(
                 [this.channel_width] + [obj.channel_width for obj in other]
             )
-            if this.flex_spw:
-                this.flex_spw_id_array = np.concatenate(
-                    [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
-                )
-                this.spw_array = np.concatenate(
-                    [this.spw_array] + [obj.spw_array for obj in other]
-                )
-                # We want to preserve per-spw information based on first appearance
-                # in the concatenated array.
-                unique_index = np.sort(
-                    np.unique(this.flex_spw_id_array, return_index=True)[1]
-                )
-                this.spw_array = this.flex_spw_id_array[unique_index]
+            this.flex_spw_id_array = np.concatenate(
+                [this.flex_spw_id_array] + [obj.flex_spw_id_array for obj in other]
+            )
+            this.spw_array = np.concatenate(
+                [this.spw_array] + [obj.spw_array for obj in other]
+            )
+            # We want to preserve per-spw information based on first appearance
+            # in the concatenated array.
+            unique_index = np.sort(
+                np.unique(this.flex_spw_id_array, return_index=True)[1]
+            )
+            this.spw_array = this.flex_spw_id_array[unique_index]
 
-                this.Nspws = len(this.spw_array)
-            elif this_has_spw_id or np.any(other_has_spw_id):
-                this.flex_spw_id_array = np.full(
-                    this.Nfreqs, this.spw_array[0], dtype=int
-                )
+            this.Nspws = len(this.spw_array)
 
             spacing_error, chanwidth_error = this._check_freq_spacing(
                 raise_errors=False
@@ -6984,10 +6885,9 @@ class UVData(UVBase):
 
             if len(frequencies) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                if self.flex_spw_id_array is not None:
-                    freq_ind_separation = freq_ind_separation[
-                        np.diff(self.flex_spw_id_array[freq_inds]) == 0
-                    ]
+                freq_ind_separation = freq_ind_separation[
+                    np.diff(self.flex_spw_id_array[freq_inds]) == 0
+                ]
                 if not uvutils._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "

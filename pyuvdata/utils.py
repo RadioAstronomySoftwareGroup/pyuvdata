@@ -422,7 +422,7 @@ def _test_array_constant_spacing(array, *, tols=None):
 
 def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
     """
-    Check if the spectral windows are contiguous for flex_spw datasets.
+    Check if the spectral windows are contiguous for multi-spw datasets.
 
     This checks the flex_spw_id_array to make sure that all channels for each
     spectral window are together in one block, versus being interspersed (e.g.,
@@ -463,7 +463,6 @@ def _check_freq_spacing(
     freq_tols,
     channel_width,
     channel_width_tols,
-    flex_spw,
     spw_array,
     flex_spw_id_array,
     raise_errors=True,
@@ -479,17 +478,14 @@ def _check_freq_spacing(
         Array of frequencies, shape (Nfreqs,).
     freq_tols : tuple of float
         freq_array tolerances (from uvobj._freq_array.tols).
-    channel_width : float or array of float
+    channel_width : array of float
         Channel widths, either a scalar or an array of shape (Nfreqs,).
     channel_width_tols : tuple of float
         channel_width tolerances (from uvobj._channel_width.tols).
-    flex_spw :  bool
-        Indicates there are flexible spectral windows.
     spw_array : array of integers or None
-        Array of spectral window numbers, shape (Nspws,). Required if flex_spw is True.
+        Array of spectral window numbers, shape (Nspws,).
     flex_spw_id_array : array of integers or None
         Array of spectral window numbers per frequency channel, shape (Nfreqs,).
-        Required if flex_spw is True.
     raise_errors : bool
         Option to raise errors if the various checks do not pass.
 
@@ -503,68 +499,28 @@ def _check_freq_spacing(
     """
     spacing_error = False
     chanwidth_error = False
-    Nfreqs = freq_array.size
-    freq_spacing = np.diff(freq_array)
-    freq_array_use = freq_array
 
-    if Nfreqs == 1:
-        # Skip all of this if there is only 1 channel
-        pass
-    elif flex_spw:
-        # Check to make sure that the flexible spectral window has indicies set up
-        # correctly (grouped together) for this check
-        _check_flex_spw_contiguous(
-            spw_array=spw_array, flex_spw_id_array=flex_spw_id_array
-        )
-        diff_chanwidth = np.diff(channel_width)
-        freq_dir = []
-        # We want to grab unique spw IDs, in the order that they appear in the data
-        select_mask = np.append((np.diff(flex_spw_id_array) != 0), True)
-        for idx in flex_spw_id_array[select_mask]:
-            chan_mask = flex_spw_id_array == idx
-            diffs = np.diff(freq_array_use[chan_mask])
-            if diffs.size > 0:
-                freq_dir += [np.sign(np.mean(diffs))] * np.sum(chan_mask)
-            else:
-                freq_dir += [1.0]
+    # Check to make sure that the flexible spectral window has indicies set up
+    # correctly (grouped together) for this check
+    _check_flex_spw_contiguous(spw_array=spw_array, flex_spw_id_array=flex_spw_id_array)
 
-        # Pop off the first entry, since the above arrays are diff'd
-        # (and thus one element shorter)
-        freq_dir = np.array(freq_dir[1:])
-        # Ignore cases where looking at the boundaries of spectral windows
-        bypass_check = flex_spw_id_array[1:] != flex_spw_id_array[:-1]
-        if not np.all(
-            np.logical_or(
-                bypass_check,
-                np.isclose(diff_chanwidth, 0.0, rtol=freq_tols[0], atol=freq_tols[1]),
-            )
-        ):
-            spacing_error = True
-        if not np.all(
-            np.logical_or(
-                bypass_check,
-                np.isclose(
-                    freq_spacing,
-                    channel_width[1:] * freq_dir,
-                    rtol=freq_tols[0],
-                    atol=freq_tols[1],
-                ),
-            )
-        ):
-            chanwidth_error = True
-    else:
-        freq_dir = np.sign(np.mean(freq_spacing))
-        if not _test_array_constant(freq_spacing, tols=freq_tols):
-            spacing_error = True
-        if not _test_array_constant(channel_width, tols=freq_tols):
-            spacing_error = True
-        elif not np.isclose(
-            np.mean(freq_spacing),
-            np.mean(channel_width) * freq_dir,
-            rtol=channel_width_tols[0],
-            atol=channel_width_tols[1],
-        ):
-            chanwidth_error = True
+    for spw_id in spw_array:
+        mask = flex_spw_id_array == spw_id
+        if sum(mask) > 1:
+            freq_spacing = np.diff(freq_array[mask])
+            freq_dir = -1.0 if all(freq_spacing < 0) else 1.0
+            if not _test_array_constant(freq_spacing, tols=freq_tols):
+                spacing_error = True
+            if not _test_array_constant(channel_width[mask], tols=channel_width_tols):
+                spacing_error = True
+            elif not np.allclose(
+                freq_spacing,
+                np.mean(channel_width[mask]) * freq_dir,
+                rtol=channel_width_tols[0],
+                atol=channel_width_tols[1],
+            ):
+                chanwidth_error = True
+
     if raise_errors and spacing_error:
         raise ValueError(
             "The frequencies are not evenly spaced (probably because of a select "
@@ -588,7 +544,6 @@ def _sort_freq_helper(
     freq_array,
     Nspws,
     spw_array,
-    flex_spw,
     flex_spw_id_array,
     spw_order,
     channel_order,
@@ -607,14 +562,11 @@ def _sort_freq_helper(
         Number of spectral windows, taken directly from the object parameter.
     spw_array :  array_like of int
         Spectral window array, taken directly from the object parameter.
-    flex_spw :  bool
-        Flag indicating whether the object has flexible spectral windows, taken
-        directly from the object parameter.
     flex_spw_id_array : array_like of int
         Array of SPW IDs for each channel, taken directly from the object parameter.
     spw_order : str or array_like of int
         A string describing the desired order of spectral windows along the
-        frequecy axis. Allowed strings include `number` (sort on spectral window
+        frequency axis. Allowed strings include `number` (sort on spectral window
         number) and `freq` (sort on median frequency). A '-' can be prepended
         to signify descending order instead of the default ascending order,
         e.g., if you have SPW #1 and 2, and wanted them ordered as [2, 1],
@@ -684,9 +636,7 @@ def _sort_freq_helper(
         # Multipy by 1.0 here to make a cheap copy of the array to manipulate
         temp_freqs = 1.0 * freq_array
         # Same trick for ints -- add 0 to make a cheap copy
-        temp_spws = 0 + (
-            flex_spw_id_array if flex_spw else (np.zeros(Nfreqs) + spw_array)
-        )
+        temp_spws = 0 + flex_spw_id_array
 
         # Check whether or not we need to sort the channels in individual windows
         sort_spw = {idx: channel_order is not None for idx in spw_array}

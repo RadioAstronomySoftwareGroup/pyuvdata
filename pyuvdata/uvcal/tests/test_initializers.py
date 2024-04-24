@@ -250,11 +250,7 @@ def test_new_uvcal_set_empty(uvc_simplest):
 def test_new_uvcal_set_delay(uvc_simplest):
     uvc = {k: v for k, v in uvc_simplest.items() if k not in ("freq_array", "cal_type")}
     new = new_uvcal(
-        delay_array=np.linspace(1, 10, 10),
-        freq_range=[150e6, 180e6],
-        wide_band=False,
-        empty=True,
-        **uvc
+        delay_array=np.linspace(1, 10, 10), freq_range=[150e6, 180e6], empty=True, **uvc
     )
     assert new.cal_type == "delay"
     assert new.delay_array.shape[1] == new.Nspws
