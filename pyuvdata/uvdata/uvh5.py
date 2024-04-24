@@ -112,7 +112,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         }
     )
 
-    _defaults = {"x_orientation": None, "flex_spw": False}
+    _defaults = {"x_orientation": None}
 
     _int_attrs = frozenset(
         {
@@ -137,7 +137,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             "phase_center_epoch",
         }
     )
-    _bool_attrs = frozenset(("flex_spw",))
 
     def __init__(
         self,
@@ -320,7 +319,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         # Pull in the channel_width parameter as either an array or as a single float,
         # depending on whether or not the data is stored with a flexible spw.
         h = self.header
-        if self.flex_spw or np.asarray(h["channel_width"]).ndim == 1:
+        if np.asarray(h["channel_width"]).ndim == 1:
             return h["channel_width"][:]
         else:
             return float(h["channel_width"][()])
@@ -614,13 +613,7 @@ class UVH5(UVData):
         if self.blt_order is not None:
             self._blt_order.form = (len(self.blt_order),)
 
-        # We've added a few new keywords that did not exist before, so check to see if
-        # any of them are in the header, and if not, mark the data set as being
-        # "regular" (e.g., not a flexible spectral window setup, single source only).
-        if obj.flex_spw:
-            self._set_flex_spw()
-
-        if self.flex_spw_id_array is None and not self.flex_spw:
+        if self.flex_spw_id_array is None:
             self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         # Here is where we start handling phase center information.  If we have a
@@ -1168,7 +1161,6 @@ class UVH5(UVData):
         header["spw_array"] = self.spw_array
         header["ant_1_array"] = self.ant_1_array
         header["ant_2_array"] = self.ant_2_array
-        header["flex_spw"] = self.flex_spw
         # handle antenna_names; works for lists or arrays
 
         # write out phasing information

@@ -62,7 +62,7 @@ def uvdata_props():
         "history",
         "vis_units",
         "Nants_data",
-        "flex_spw",
+        "flex_spw_id_array",
         "phase_center_app_ra",
         "phase_center_app_dec",
         "phase_center_frame_pa",
@@ -84,7 +84,6 @@ def uvdata_props():
         "scan_number_array",
         "eq_coeffs",
         "eq_coeffs_convention",
-        "flex_spw_id_array",
         "flex_spw_polarization_array",
         "filename",
         "blts_are_rectangular",
@@ -98,7 +97,7 @@ def uvdata_props():
         "instrument",
         "Nants_telescope",
         "antenna_names",
-        "antenna_nubers",
+        "antenna_numbers",
         "antenna_positions",
         "x_orientation",
         "antenna_diameters",
@@ -1098,8 +1097,8 @@ def test_unphase_drift_data_error(hera_uvh5, sma_mir):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_errors(hera_uvh5):
-    uv_phase = hera_uvh5
+def test_phase_errors():
+    uv_phase = UVData()
 
     with pytest.raises(
         ValueError, match="lon parameter must be set if cat_type is not 'unprojected'"
@@ -1110,9 +1109,6 @@ def test_phase_errors(hera_uvh5):
         ValueError, match="lat parameter must be set if cat_type is not 'unprojected'"
     ):
         uv_phase.phase(ra=0.0, epoch="J2000", cat_name="foo")
-
-    with pytest.raises(ValueError, match="The cat_name must be provided."):
-        uv_phase.phase(ra=0.0, dec=0.0, epoch="J2000")
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
@@ -1135,7 +1131,6 @@ def test_unphasing(uv_phase_comp, use_ant_pos1, use_ant_pos2):
     assert np.allclose(uvd1.uvw_array, uvd2.uvw_array, atol=atol)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("unphase_first", [True, False])
 def test_phasing(uv_phase_comp, unphase_first, use_ant_pos):
@@ -2303,7 +2298,6 @@ def test_select_lst_range_one_elem(casa_uvfits):
         uv_object.select(lst_range=lst_range[0])
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     uv_object = casa_uvfits
@@ -3162,7 +3156,6 @@ def test_reorder_freqs_warnings(sma_mir, sma_mir_main, arg_dict, msg):
     assert sma_mir == sma_mir_main
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize(
     "sel_spw,spord,chord",
     [
@@ -3328,7 +3321,6 @@ def test_sum_vis(casa_uvfits):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
@@ -3379,22 +3371,12 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     assert uv1 == uv_full
 
     # Add frequencies - out of order
-    # also remove flex_spw_id_array from one to check handling
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(32, 64))
-    uv1.flex_spw_id_array = None
     with uvtest.check_warnings(
-        [DeprecationWarning] + [UserWarning] * 4,
-        match=[
-            "flex_spw_id_array is not set. It will be required starting in version 3.0",
-            (
-                "One object has the flex_spw_id_array set and one does not. Combined "
-                "object will have it set."
-            ),
-        ]
-        + ["The uvw_array does not match the expected values"] * 3,
+        UserWarning, match=["The uvw_array does not match the expected values"] * 3
     ):
         uv2 += uv1
     uv2.history = uv_full.history
@@ -4007,7 +3989,7 @@ def test_check_flex_spw_contiguous_no_flex_spw(hera_uvh5):
 )
 def test_check_freq_spacing_flex_spw(sma_mir, chan_width, msg):
     """
-    Verify that _check_freq_spacing works as expected with flex_spw data sets (throws
+    Verify that _check_freq_spacing works as expected with data sets (throws
     an error if windows are not contiguous, otherwise no error raised).
     """
     sma_mir.channel_width = chan_width
@@ -4099,7 +4081,6 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
     assert uv_recomb == sma_mir
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
@@ -4121,11 +4102,6 @@ def test_flex_spw_add_concat(sma_mir, add_method, screen1, screen2):
             [["integration_time", np.zeros(1360)]],
             [["select", {"freq_chans": np.arange(32, 64)}]],
             "UVParameter integration_time does not match.",
-        ],
-        [
-            [["channel_width", np.ones(64)], ["flex_spw_id_array", np.array([0] * 64)]],
-            [["_set_flex_spw", {}], ["select", {"freq_chans": np.arange(32, 64)}]],
-            "To combine these data, flex_spw must be set",
         ],
     ],
 )
@@ -4174,29 +4150,20 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv1 == uv_full
 
     # Add frequencies - out of order
-    # also remove flex_spw_id_array from one to check handling
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv3 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 20))
     uv2.select(freq_chans=np.arange(20, 40))
     uv3.select(freq_chans=np.arange(40, 64))
-    uv1.flex_spw_id_array = None
     with uvtest.check_warnings(
-        [UserWarning] * 6 + [DeprecationWarning],
+        UserWarning,
         [
             "The uvw_array does not match the expected values given the antenna "
             "positions."
         ]
         * 4
-        + [
-            "Combined frequencies are not evenly spaced",
-            (
-                "Some objects have the flex_spw_id_array set and some do not. Combined "
-                "object will have it set."
-            ),
-            "flex_spw_id_array is not set. It will be required starting in version 3.0",
-        ],
+        + ["Combined frequencies are not evenly spaced"],
     ):
         uv2.fast_concat([uv1, uv3], "freq", inplace=True)
 
@@ -4538,7 +4505,6 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv2.Nbls == uv_auto.Nbls + uv_cross.Nbls
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_fast_concat_errors(casa_uvfits):
     uv_full = casa_uvfits
@@ -4549,17 +4515,6 @@ def test_fast_concat_errors(casa_uvfits):
     uv2.select(freq_chans=np.arange(32, 64))
     with pytest.raises(ValueError, match="Axis must be one of"):
         uv1.fast_concat(uv2, "foo", inplace=True)
-
-    uv1._set_flex_spw()
-    uv1.flex_spw_id_array = np.full(uv1.Nfreqs, uv1.spw_array[0], dtype=int)
-
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "All objects must have the same `flex_spw` value (True or False)."
-        ),
-    ):
-        uv1.fast_concat(uv2, "freq", inplace=True)
 
     cal = UVCal()
     with pytest.raises(
@@ -5889,7 +5844,6 @@ def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
     assert np.allclose(lengths, new_lengths)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.parametrize("grid_alg", [True, False])
 @pytest.mark.parametrize("method", ("select", "average"))
 @pytest.mark.parametrize("reconjugate", (True, False))
@@ -7059,7 +7013,6 @@ def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -7160,7 +7113,6 @@ def test_downsample_in_time_partial_flags(hera_uvh5):
     assert uv_object == uv_object2
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The xyz array in ENU_from_ECEF")
 @pytest.mark.filterwarnings("ignore:The enu array in ECEF_from_ENU")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -8490,15 +8442,14 @@ def test_resample_in_time_warning():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.parametrize("flex_spw", [True, False])
+@pytest.mark.parametrize("multi_spw", [True, False])
 @pytest.mark.parametrize("sum_corr", [True, False])
-def test_frequency_average(casa_uvfits, flex_spw, sum_corr):
+def test_frequency_average(casa_uvfits, multi_spw, sum_corr):
     """Test averaging in frequency."""
     uvobj = casa_uvfits
 
-    if flex_spw:
+    if multi_spw:
         # Make multiple spws
-        uvobj._set_flex_spw()
         spw_nchan = int(uvobj.Nfreqs / 4)
         uvobj.flex_spw_id_array = np.concatenate(
             (
@@ -8571,11 +8522,11 @@ def test_frequency_average(casa_uvfits, flex_spw, sum_corr):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("sum_corr", [True, True])
 @pytest.mark.parametrize(
-    ["flex_spw", "respect_spws"], [[True, True], [True, False], [False, False]]
+    ["multi_spw", "respect_spws"], [[True, True], [True, False], [False, False]]
 )
 @pytest.mark.parametrize("keep_ragged", [True, False])
 def test_frequency_average_uneven(
-    casa_uvfits, keep_ragged, sum_corr, flex_spw, respect_spws
+    casa_uvfits, keep_ragged, sum_corr, multi_spw, respect_spws
 ):
     """Test averaging in frequency with a number that is not a factor of Nfreqs."""
     uvobj = casa_uvfits
@@ -8585,9 +8536,8 @@ def test_frequency_average_uneven(
     )
     uvobj.eq_coeffs = eq_coeffs
 
-    if flex_spw:
+    if multi_spw:
         # Make multiple spws
-        uvobj._set_flex_spw()
         spw_nchan = int(uvobj.Nfreqs / 4)
         uvobj.flex_spw_id_array = np.concatenate(
             (
@@ -8628,7 +8578,7 @@ def test_frequency_average_uneven(
 
     input_chan_width = uvobj2.channel_width
 
-    if flex_spw and respect_spws:
+    if multi_spw and respect_spws:
         expected_freqs = np.array([])
         expected_chan_widths = np.array([])
         for spw_ind in range(uvobj2.Nspws):
@@ -8702,7 +8652,7 @@ def test_frequency_average_uneven(
 
     # no flagging, so the following is true
     initial_data = uvobj2.get_data(1, 2)
-    if flex_spw and respect_spws:
+    if multi_spw and respect_spws:
         reshape_tuple = (
             initial_data.shape[0],
             int(spw_nchan // n_chan_to_avg),
@@ -10905,7 +10855,6 @@ def test_eq_allowed_failures_filename_string(bda_test_file, capsys):
     )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_data(hera_uvh5):
     """
@@ -10924,7 +10873,6 @@ def test_set_data(hera_uvh5):
     return
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_set_data_evla():
     """
@@ -11412,28 +11360,6 @@ def test_sma_make_remove_flex_pol_no_op(sma_mir):
     assert uvd == sma_copy
 
 
-def test_remove_flex_pol_no_op(uv_phase_comp):
-    """
-    Test shortcircuits of remove_flex_pol method
-    """
-    # remove_flex_pol with one spw
-    uvd, _ = uv_phase_comp
-
-    uvd2 = uvd.copy()
-    uvd2.convert_to_flex_pol()
-    uvd2.select(polarizations=["xx"])
-    uvd2.remove_flex_pol()
-
-    # also remove flex_spw
-    uvd2.flex_spw = False
-    uvd2._flex_spw_id_array.required = False
-
-    uvd2.check()
-    uvd3 = uvd.copy()
-    uvd3.select(polarizations=["xx"])
-    assert uvd2 == uvd3
-
-
 def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
     """
     Test shortcircuits of flex_pol method
@@ -11442,7 +11368,6 @@ def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
     uvd, _ = uv_phase_comp
 
     uvd2 = uvd.copy()
-    uvd2._set_flex_spw()
     uvd2.channel_width = np.full(uvd2.Nfreqs, uvd2.channel_width)
     uvd2.spw_array = np.array([1, 4, 5])
     uvd2.Nspws = 3
@@ -11462,7 +11387,7 @@ def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
 
 
 @pytest.mark.parametrize(
-    "multispw,sorting",
+    "multi_spw,sorting",
     [
         [False, None],
         [True, None],
@@ -11472,7 +11397,7 @@ def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
         [True, "spw2"],
     ],
 )
-def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
+def test_flex_pol_uvh5(multi_spw, sorting, uv_phase_comp, tmp_path):
     """
     Check that we can write out uvh5 files with flex pol data sets.
 
@@ -11484,9 +11409,8 @@ def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
 
     assert uvd.Npols > 1
 
-    if multispw:
+    if multi_spw:
         # split data into multiple spws
-        uvd._set_flex_spw()
         uvd.spw_array = np.array([1, 4, 5])
         uvd.Nspws = 3
         uvd.flex_spw_id_array = np.zeros(uvd.Nfreqs, dtype=int)
@@ -11519,7 +11443,7 @@ def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
     elif sorting == "spw1":
         uvd.reorder_freqs(spw_order="number")
     elif sorting == "spw2":
-        if multispw:
+        if multi_spw:
             spw_final_order = [1, 4, 5, 0, 3, 2, 6, 7, 8, 9, 10, 11]
             spw_order = np.zeros_like(uvd.spw_array)
             for idx, spw in enumerate(spw_final_order):
@@ -11539,13 +11463,9 @@ def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
 
     assert uvd3 == uvd2
 
-    if not multispw:
-        uvd2.flex_spw = False
-        uvd2._flex_spw_id_array.required = False
-
     uvd2.check()
 
-    if multispw and sorting == "spw1":
+    if multi_spw and sorting == "spw1":
         # This changes which spw numbers are kept, so need to renumber for equality
         spw_renumber_dict = {0: 1, 2: 4, 3: 5}
         new_spw_array = np.zeros_like(uvd2.spw_array)
@@ -11563,10 +11483,7 @@ def test_flex_pol_uvh5(multispw, sorting, uv_phase_comp, tmp_path):
 
 @pytest.mark.parametrize(
     "err_msg,param,param_val",
-    [
-        ["Cannot make a flex-pol UVData object if flex_spw=False.", "flex_spw", False],
-        ["Cannot make a flex-pol UVData object, as some windows have", None, None],
-    ],
+    [["Cannot make a flex-pol UVData object, as some windows have", None, None]],
 )
 def test_make_flex_pol_errs(sma_mir, err_msg, param, param_val):
     """Check to make sure that _make_flex_pol throws correct errors"""
