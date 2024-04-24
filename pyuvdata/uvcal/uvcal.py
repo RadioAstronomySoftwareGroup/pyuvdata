@@ -658,13 +658,15 @@ class UVCal(UVBase):
             required=False,
         )
 
+        super(UVCal, self).__init__()
+
+        # Assign attributes to UVParameters after initialization, since UVBase.__init__
+        # will link the properties to the underlying UVParameter.value attributes
         # initialize the telescope object
         self.telescope = Telescope()
 
         # set the appropriate telescope attributes as required
         self._set_telescope_requirements()
-
-        super(UVCal, self).__init__()
 
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""

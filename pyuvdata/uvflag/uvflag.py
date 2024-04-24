@@ -541,14 +541,16 @@ class UVFlag(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
+        # initialize the underlying UVBase properties
+        super(UVFlag, self).__init__()
+
+        # Assign attributes to UVParameters after initialization, since UVBase.__init__
+        # will link the properties to the underlying UVParameter.value attributes
         # initialize the telescope object
         self.telescope = Telescope()
 
         # set the appropriate telescope attributes as required
         self._set_telescope_requirements()
-
-        # initialize the underlying UVBase properties
-        super(UVFlag, self).__init__()
 
         self.history = ""  # Added to at the end
 
