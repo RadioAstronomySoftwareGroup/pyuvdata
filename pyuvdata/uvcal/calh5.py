@@ -16,6 +16,7 @@ from docstring_parser import DocstringStyle
 from .. import hdf5_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
+from ..telescopes import Telescope
 from .uvcal import UVCal, _future_array_shapes_warning
 
 hdf5plugin_present = True
@@ -93,11 +94,6 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
     )
 
     _bool_attrs = frozenset(("wide_band",))
-
-    @cached_property
-    def antenna_names(self) -> list[str]:
-        """The antenna names in the file."""
-        return [bytes(name).decode("utf8") for name in self.header["antenna_names"][:]]
 
     def has_key(self, antnum: int | None = None, jpol: str | int | None = None) -> bool:
         """Check if the file has a given antenna number or antenna number-pol key."""
@@ -180,8 +176,20 @@ class CalH5(UVCal):
         """
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
-
-        self.telescope.location = meta.telescope_location_obj
+        required_telescope_keys = [
+            "telescope_name",
+            "latitude",
+            "longitude",
+            "altitude",
+            "x_orientation",
+            "Nants_telescope",
+            "antenna_names",
+            "antenna_numbers",
+            "antenna_positions",
+        ]
+        self.telescope = Telescope.from_hdf5(
+            meta, required_keys=required_telescope_keys
+        )
 
         if "time_array" in meta.header:
             self.time_array = meta.time_array
@@ -224,21 +232,6 @@ class CalH5(UVCal):
             except AttributeError as e:
                 raise KeyError(str(e)) from e
 
-        # Required telescope parameters
-        telescope_attrs = {
-            "x_orientation": "x_orientation",
-            "telescope_name": "name",
-            "Nants_telescope": "Nants",
-            "antenna_names": "antenna_names",
-            "antenna_numbers": "antenna_numbers",
-            "antenna_positions": "antenna_positions",
-        }
-        for attr, tel_attr in telescope_attrs.items():
-            try:
-                setattr(self.telescope, tel_attr, getattr(meta, attr))
-            except AttributeError as e:
-                raise KeyError(str(e)) from e
-
         self._set_future_array_shapes()
         if self.wide_band:
             self._set_wide_band()
@@ -274,17 +267,6 @@ class CalH5(UVCal):
         ]:
             try:
                 setattr(self, attr, getattr(meta, attr))
-            except AttributeError:
-                pass
-
-        # Optional telescope parameters
-        telescope_attrs = {
-            "instrument": "instrument",
-            "antenna_diameters": "antenna_diameters",
-        }
-        for attr, tel_attr in telescope_attrs.items():
-            try:
-                setattr(self.telescope, tel_attr, getattr(meta, attr))
             except AttributeError:
                 pass
 
@@ -731,33 +713,18 @@ class CalH5(UVCal):
         header["version"] = np.string_("0.1")
 
         # write out telescope and source information
-        header["telescope_frame"] = np.string_(self.telescope._location.frame)
-        if self.telescope._location.frame == "mcmf":
-            header["ellipsoid"] = self.telescope._location.ellipsoid
-        lat, lon, alt = self.telescope.location_lat_lon_alt_degrees
-        header["latitude"] = lat
-        header["longitude"] = lon
-        header["altitude"] = alt
-        header["telescope_name"] = np.string_(self.telescope.name)
+        self.telescope.write_hdf5_header(header)
 
         # write out required UVParameters
         header["Nants_data"] = self.Nants_data
-        header["Nants_telescope"] = self.telescope.Nants
         header["Nfreqs"] = self.Nfreqs
         header["Njones"] = self.Njones
         header["Nspws"] = self.Nspws
         header["Ntimes"] = self.Ntimes
-        header["antenna_numbers"] = self.telescope.antenna_numbers
         header["integration_time"] = self.integration_time
         header["jones_array"] = self.jones_array
         header["spw_array"] = self.spw_array
         header["ant_array"] = self.ant_array
-        header["antenna_positions"] = self.telescope.antenna_positions
-        # handle antenna_names; works for lists or arrays
-        header["antenna_names"] = np.asarray(
-            self.telescope.antenna_names, dtype="bytes"
-        )
-        header["x_orientation"] = np.string_(self.telescope.x_orientation)
         header["cal_type"] = np.string_(self.cal_type)
         header["cal_style"] = np.string_(self.cal_style)
         header["gain_convention"] = np.string_(self.gain_convention)
@@ -782,8 +749,6 @@ class CalH5(UVCal):
         if self.scan_number_array is not None:
             header["scan_number_array"] = self.scan_number_array
 
-        if self.telescope.antenna_diameters is not None:
-            header["antenna_diameters"] = self.telescope.antenna_diameters
         if self.ref_antenna_array is not None:
             header["ref_antenna_array"] = self.ref_antenna_array
 
@@ -826,10 +791,6 @@ class CalH5(UVCal):
                         this_group[key] = h5py.Empty("f")
                     else:
                         this_group[key] = value
-
-        # extra telescope-related parameters
-        if self.telescope.instrument is not None:
-            header["instrument"] = np.string_(self.telescope.instrument)
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:

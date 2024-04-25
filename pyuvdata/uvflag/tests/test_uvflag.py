@@ -938,7 +938,7 @@ def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile, future_shapes)
         ),
         (
             "baseline",
-            ["telescope_location"],
+            ["latitude", "longitude", "altitude"],
             UserWarning,
             [
                 "telescope_location are not set or are being overwritten. "
