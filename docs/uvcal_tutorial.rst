@@ -13,18 +13,24 @@ polarization) type solutions. The ``cal_style`` attribute indicates whether the 
 came from a "sky" or "redundant" style of calibration solution. Some metadata items only
 apply to one ``cal_type`` or ``cal_style``.
 
+Starting in version 3.0, metadata that is associated with the telescope (as
+opposed to the data set) is stored in a :class:`pyuvdata.Telescope` object as
+the ``telescope`` attribute on a UVCal object. This includes metadata related
+to the telescope location, antenna names, numbers and positions as well as other
+telescope metadata.
 The antennas are described in two ways: with antenna numbers and antenna names. The
 antenna numbers should **not** be confused with indices -- they are not required to start
 at zero or to be contiguous, although it is not uncommon for some telescopes to number
 them like indices. On UVCal objects, the names and numbers are held in the
-``antenna_names`` and ``antenna_numbers`` attributes respectively. These are arranged
-in the same order so that an antenna number can be used to identify an antenna name and
-vice versa.
-Note that not all the antennas listed in ``antenna_numbers`` and ``antenna_names`` are
-guaranteed to have calibration solutions associated with them in the ``gain_array``
-(or ``delay_array`` for delay type solutions). The antenna numbers associated with each
-calibration solution is held in the ``ant_array`` attribute (which has the same length
-as the ``gain_array`` or ``delay_array`` along the antenna axis).
+``telescope.antenna_names`` and ``telescope.antenna_numbers`` attributes
+respectively. These are arranged in the same order so that an antenna number
+can be used to identify an antenna name and vice versa.
+Note that not all the antennas listed in ``telescope.antenna_numbers`` and
+``telescope.antenna_names`` are guaranteed to have calibration solutions
+associated with them in the ``gain_array`` (or ``delay_array`` for delay type
+solutions). The antenna numbers associated with each calibration solution is
+held in the ``ant_array`` attribute (which has the same length as the
+``gain_array`` or ``delay_array`` along the antenna axis).
 
 Calibration solutions can be described as either applying at a particular time (when
 calibrations were calculated for each integration), in which case the ``time_array``
@@ -38,7 +44,7 @@ set.
 
 For most users, the convenience methods for quick data access (see
 `UVCal: Quick data access`_) are the easiest way to get data for particular antennas.
-Those methods take the antenna numbers (i.e. numbers listed in ``antenna_numbers``)
+Those methods take the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``)
 as inputs.
 
 
@@ -241,27 +247,31 @@ of creating a consistent object from a minimal set of inputs
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVCal
+  >>> from pyuvdata import Telescope, UVCal
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
   >>> uvc = UVCal.new(
   ...     gain_convention = "multiply",
-  ...     x_orientation = "east",
   ...     cal_style = "redundant",
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     jones_array = ["ee", "nn"],
-  ...     antenna_positions = {
-  ...         0: [0.0, 0.0, 0.0],
-  ...         1: [0.0, 0.0, 1.0],
-  ...         2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     telescope_name = "test",
+  ...     telescope = Telescope.from_params(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         x_orientation = "east",
+  ...     ),
   ...     time_array = np.linspace(2459855, 2459856, 20),
   ... )
 
 Notice that you need only provide the required parameters, and the rest will be
-filled in with sensible defaults.
+filled in with sensible defaults. The telescope related metadata is passed
+directly to a simple Telescope constructor which also only requires the minimal
+set of inputs but can accept any other parameters supported by the class.
 
 See the full documentation for the method
 :func:`pyuvdata.uvcal.UVCal.new` for more information.
@@ -323,7 +333,7 @@ a) Calibration of UVData by UVCal
   ... )
   >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
   >>> # fix the antenna names in the uvcal object to match the uvdata object
-  >>> uvc.antenna_names = np.array(
+  >>> uvc.telescope.antenna_names = np.array(
   ...     [name.replace("ant", "HH") for name in uvc.antenna_names]
   ... )
   >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
@@ -371,7 +381,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # print all the antenna names with data in the original file
-  >>> print([str(cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
+  >>> print([str(cal.telescope.antenna_names[np.where(cal.telescope.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
   ['ant0', 'ant1', 'ant11', 'ant12', 'ant13', 'ant23', 'ant24', 'ant25']
 
   >>> # print the first 10 frequencies in the original file
@@ -381,7 +391,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> cal.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
 
   >>> # print all the antenna names with data after the select
-  >>> print([str(cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
+  >>> print([str(cal.telescope.antenna_names[np.where(cal.telescope.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
   ['ant11', 'ant13', 'ant25']
 
   >>> # print all the frequencies after the select
@@ -421,7 +431,7 @@ d) Select Jones components
 **************************
 Selecting on Jones component can be done either using the component numbers or
 the component strings (e.g. "Jxx" or "Jyy" for linear polarizations or "Jrr" or
-"Jll" for circular polarizations). If ``x_orientation`` is set on the object, strings
+"Jll" for circular polarizations). If ``telescope.x_orientation`` is set, strings
 represting the physical orientation of the dipole can also be used (e.g. "Jnn" or "ee).
 
 .. code-block:: python
@@ -463,7 +473,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   ['Jxx']
 
   >>> # print x_orientation
-  >>> print(cal.x_orientation)
+  >>> print(cal.telescope.x_orientation)
   east
 
   >>> # make a copy of the object and select Jones components using the physical orientation strings
