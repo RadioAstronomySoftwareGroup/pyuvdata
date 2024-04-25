@@ -2,11 +2,11 @@
  requires = [
   "setuptools>=61",
   "wheel",
-  "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
+  "setuptools_scm>=7.0.3",
   "numpy",
   "cython>=3.0",
  ]
- build-backend = "setuptools.build_meta"
+build-backend = "setuptools.build_meta"
 
 [tool.isort]
  profile = "black"
