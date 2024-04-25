@@ -25,7 +25,14 @@ from . import uvbase
 
 __all__ = ["Telescope", "known_telescopes"]
 
-Locations = Union[uvutils.allowed_location_types]
+try:
+    from lunarsky import MoonLocation
+
+    # This can be built from uvutils.allowed_location_types in python >= 3.11
+    # but in 3.10 Union has to be declare with types
+    Locations = Union[EarthLocation, MoonLocation]
+except ImportError:
+    Locations = EarthLocation
 
 # We use astropy sites for telescope locations. The dict below is for
 # telescopes not in astropy sites, or to include extra information for a telescope.
