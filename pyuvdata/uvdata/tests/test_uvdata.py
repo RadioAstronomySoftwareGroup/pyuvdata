@@ -11666,6 +11666,7 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         "baseline_array",
         "channel_width",
         "data_array",
+        "extra_keywords",
         "flag_array",
         "flex_spw_id_array",
         "freq_array",
@@ -11694,8 +11695,10 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         "antenna_names",
         "antenna_numbers",
         "antenna_positions",
+        "antenna_diameters",
     ]
 
+    uvd = UVData()
     for par in tel_params:
         setattr(uvd.telescope, par, getattr(hera_uvh5.telescope, par))
 
@@ -11712,21 +11715,15 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         warn_type = None
         msg = None
 
-    uvd = UVData()
     param_dict = {}
     for par in params:
         param_dict[par] = getattr(hera_uvh5, par)
-
-    uvd = UVData()
 
     # set parameters in uvd
     for par in params:
         if par not in param_dict.keys():
             continue
         uvd.__setattr__(par, param_dict[par])
-
-    uvd.telescope.antenna_diameters = hera_uvh5.telescope.antenna_diameters
-    uvd.extra_keywords = hera_uvh5.extra_keywords
 
     if check_before_write:
         with uvtest.check_warnings(warn_type, match=msg):
@@ -11740,7 +11737,6 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
                 "cat_name"
             ]
 
-        uvd.flex_spw_id_array = hera_uvh5.flex_spw_id_array
         assert uvd == hera_uvh5
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
