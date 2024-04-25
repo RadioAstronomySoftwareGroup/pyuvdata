@@ -146,8 +146,10 @@ class CalH5(UVCal):
         meta: FastCalH5Meta,
         *,
         background_lsts: bool = True,
-        run_check_acceptability: bool = True,
         astrometry_library: str | None = None,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability=True,
     ):
         """
         Read header information from a UVH5 file.
@@ -188,7 +190,11 @@ class CalH5(UVCal):
             "antenna_positions",
         ]
         self.telescope = Telescope.from_hdf5(
-            meta, required_keys=required_telescope_keys
+            meta,
+            required_keys=required_telescope_keys,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
         )
 
         if "time_array" in meta.header:
@@ -645,6 +651,8 @@ class CalH5(UVCal):
         # open hdf5 file for reading
         self._read_header(
             meta,
+            run_check=run_check,
+            check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             background_lsts=background_lsts,
             astrometry_library=astrometry_library,
