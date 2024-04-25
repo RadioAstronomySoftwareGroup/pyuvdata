@@ -16,7 +16,7 @@ from pyuvdata.telescopes import KNOWN_TELESCOPES
 
 def write_telescope_rst(write_file=None):
     tel = Telescope()
-    out = "Telescope\n=========\n\n"
+    out = ".. _Telescope:\n\nTelescope\n=========\n\n"
     out += (
         "Telescope is a helper class for telescope-related metadata.\n"
         "Several of the primary user classes need telescope metdata, so they "
@@ -26,7 +26,17 @@ def write_telescope_rst(write_file=None):
         "describe interferometric telescopes. Under the hood, the attributes are\n"
         "implemented as properties based on :class:`pyuvdata.parameter.UVParameter`\n"
         "objects but this is fairly transparent to users.\n\n"
-        "When a new Telescope object is initialized, it has all of these \n"
+        "Most commonly, Telescope objects are found as the ``telescope`` attribute\n"
+        "on UVData, UVCal and UVFlag objects and they are typically initialized\n"
+        "when those objects are initialized.\n\n"
+        "Stand-alone Telescope objects can be initialized in many ways: from\n"
+        "arrays in memory using the :meth:`pyuvdata.Telescope.from_params`\n"
+        "class method, from our known telescope information using the\n"
+        ":meth:`pyuvdata.Telescope.from_known_telescopes` class method,\n"
+        "from uvh5, calh5 or uvflag HDF5 files using the "
+        ":meth:`pyuvdata.Telescope.from_hdf5` class method,\n"
+        "or as an empty object (as ``tel = Telescope()``).\n"
+        "When an empty Telescope object is initialized, it has all of these \n"
         "attributes defined but set to ``None``. The attributes\n"
         "can be set directly on the object. Some of these attributes\n"
         "are `required`_ to be set to have a fully defined object while others are\n"
