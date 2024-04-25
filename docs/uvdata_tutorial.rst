@@ -979,19 +979,34 @@ UVData: Location conversions
 A number of conversion methods exist to map between different coordinate systems
 for locations on the earth.
 
-a) Getting antenna positions in topocentric frame in units of meters
+Note that the ``UVData.telescope.location`` attribute is an
+:class:`astropy.EarthLocation` object, so it can be used directly to get to any
+astropy supported coordinate system.
 
-********************************************************************
+a) Getting antenna positions in East, North, Up (ENU) frame in units of meters
+******************************************************************************
+
+Note that the ENU frame is sometimes referred to as the topocentric frame but
+in many references the topocentric frame has the pole on the axis of rotation
+for the Earth rather than at the local zenith. We just call it the ENU frame for
+clarity.
+
+Use the :meth:`pyuvdata.Telescope.get_enu_antpos` to get the antenna
+positions in the ENU frame. Or use the ``telescope.location`` and
+``telescope.antenna_positions`` attributes (which are ECEF positions relative
+to the ``telescope.location``) with the :meth:`pyuvdata.utils.ENU_from_ECEF`
+utility method.
+
 .. code-block:: python
 
-  >>> # directly from UVData object
+  >>> # directly from Telescope object
   >>> import os
   >>> from astropy.units import Quantity
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> data_file = os.path.join(DATA_PATH, 'new.uvA')
   >>> uvd = UVData.from_file(data_file, use_future_array_shapes=True)
-  >>> antpos, ants = uvd.get_ENU_antpos()
+  >>> antpos = uvd.telescope.get_enu_antpos()
 
   >>> # using utils
   >>> from pyuvdata import utils
@@ -1000,7 +1015,7 @@ a) Getting antenna positions in topocentric frame in units of meters
   >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to("m").value
   >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
-  >>> # convert to topocentric (East, North, Up or ENU) coords.
+  >>> # convert to East, North, Up (ENU) coords.
   >>> antpos = utils.ENU_from_ECEF(
   ...   antpos,
   ...   latitude=uvd.telescope.location.lat.rad,
@@ -2036,7 +2051,6 @@ the baseline array.
   19
 
   >>> # Using antenna positions instead
-  >>> antpos, antnums = uvd.get_ENU_antpos()
   >>> baseline_groups, vec_bin_centers, lengths = uvd.get_redundancies(tol=tol, use_antpos=True)
   >>> print(len(baseline_groups))
   20
