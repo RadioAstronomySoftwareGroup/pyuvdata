@@ -3646,10 +3646,15 @@ class UVData(UVBase):
         """
         Get antenna positions in East, North, Up coordinates in units of meters.
 
+        Deprecated in favor of `self.telescope.get_enu_antpos()`.
+
         Parameters
         ----------
         center : bool
-            If True, subtract median of array position from antpos
+            If True, subtract median of antenna positions before returning the
+            positions. Note that this will make it so that the antenna positions
+            cannot be reliably converted back to ECEF positions because they will
+            not be only referenced to the telescope location.
         pick_data_ants : bool
             If True, return only antennas found in data
 
@@ -3662,10 +3667,13 @@ class UVData(UVBase):
             Antenna numbers matching ordering of antpos, shape=(Nants,)
 
         """
-        antenna_xyz = self.telescope.antenna_positions + self.telescope._location.xyz()
-        antpos = uvutils.ENU_from_ECEF(antenna_xyz, center_loc=self.telescope.location)
+        warnings.warn(
+            "This method is deprecated in favor of `self.telescope.get_enu_antpos`. "
+            "This will become an error in version 3.2",
+            DeprecationWarning,
+        )
+        antpos = self.telescope.get_enu_antpos()
         ants = self.telescope.antenna_numbers
-
         if pick_data_ants:
             data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
             telescope_ants = self.telescope.antenna_numbers
@@ -3978,8 +3986,8 @@ class UVData(UVBase):
         if isinstance(convention, str):
             if convention in ["u<0", "u>0", "v<0", "v>0"]:
                 if use_enu is True:
-                    enu, anum = self.get_ENU_antpos()
-                    anum = anum.tolist()
+                    enu = self.telescope.get_enu_antpos()
+                    anum = self.telescope.antenna_numbers.tolist()
                     uvw_array_use = np.zeros_like(self.uvw_array)
                     for i in range(self.baseline_array.size):
                         a1, a2 = self.ant_1_array[i], self.ant_2_array[i]
@@ -9307,9 +9315,9 @@ class UVData(UVBase):
             use_grid_alg = True
 
         if use_antpos:
-            antpos, numbers = self.get_ENU_antpos(center=False)
+            antpos = self.telescope.get_enu_antpos()
             result = uvutils.get_antenna_redundancies(
-                numbers,
+                self.telescope.antenna_numbers,
                 antpos,
                 tol=tol,
                 include_autos=include_autos,
@@ -9335,10 +9343,14 @@ class UVData(UVBase):
             # that we aren't comparing uvws at different times
             ant1 = np.take(self.ant_1_array, unique_inds)
             ant2 = np.take(self.ant_2_array, unique_inds)
-            antpos, numbers = self.get_ENU_antpos(center=False)
+            antpos = self.telescope.get_enu_antpos()
 
-            ant1_inds = np.array([np.nonzero(numbers == ai)[0][0] for ai in ant1])
-            ant2_inds = np.array([np.nonzero(numbers == ai)[0][0] for ai in ant2])
+            ant1_inds = np.array(
+                [np.nonzero(self.telescope.antenna_numbers == ai)[0][0] for ai in ant1]
+            )
+            ant2_inds = np.array(
+                [np.nonzero(self.telescope.antenna_numbers == ai)[0][0] for ai in ant2]
+            )
 
             baseline_vecs = np.take(antpos, ant2_inds, axis=0) - np.take(
                 antpos, ant1_inds, axis=0
