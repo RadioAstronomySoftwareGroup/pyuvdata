@@ -683,6 +683,10 @@ class UVBase(object):
                                 param=p, pshape=np.shape(param.value), eshape=eshape
                             )
                         )
+                    # Handle UVBase objects (e.g. Telescope) separately
+                    if isinstance(param.value, UVBase):
+                        param.value.check()
+
                     # Handle SkyCoord objects separately
                     if isinstance(param, uvp.SkyCoordParameter):
                         if not issubclass(param.value.__class__, SkyCoord):
