@@ -5400,7 +5400,7 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
             "itrs position vector magnitudes must be on the order "
             "of the radius of Earth -- they appear to lie well below this."
         ]
-        * 3,
+        * 4,
     ):
         uv.read(fname, use_future_array_shapes=True)
 
