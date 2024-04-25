@@ -151,7 +151,7 @@ setup_args = {
         "pyyaml>=5.4.1",
         "scipy>=1.7.3",
         "setuptools>=61",
-        "setuptools_scm!=7.0.0,!=7.0.1,!=7.0.2",
+        "setuptools_scm>=7.0.3",
     ],
     "extras_require": {
         "astroquery": astroquery_reqs,
