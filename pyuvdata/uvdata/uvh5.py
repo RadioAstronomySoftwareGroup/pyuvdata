@@ -534,7 +534,11 @@ class UVH5(UVData):
             "antenna_positions",
         ]
         self.telescope = Telescope.from_hdf5(
-            filename, required_keys=required_telescope_keys
+            filename,
+            required_keys=required_telescope_keys,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
         )
         self._set_telescope_requirements()
 
