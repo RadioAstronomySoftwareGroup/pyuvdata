@@ -33,7 +33,7 @@ jobs:
           - env_name: pyuvdata_tests_mac_arm
             os: macos-latest
           - env_name: pyuvdata_tests
-            os: macos-12
+            os: macos-13
             python-version: "3.12"
     steps:
       - uses: actions/checkout@main
