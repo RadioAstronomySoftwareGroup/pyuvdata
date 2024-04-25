@@ -61,40 +61,6 @@ parameters for common beam pixel and E-field coordinate systems include:
     - ``basis_vector_array[1, 0, :] = 0``
     - ``basis_vector_array[1, 1, :] = 1``
 
-UVBeam: parameter shape changes
--------------------------------
-As detailed in :ref:`uvdata_future_shapes`, UVData objects now support flexible spectral
-windows and will have several parameter shapes change in version 3.0. UVData objects
-also have a method to convert to the planned future array shapes now to support an
-orderly conversion of code and packages that use UVData objects to the future shapes.
-
-UVBeam objects will also see parameter shape changes in version 3.0, but will not add
-support for flexible spectral windows as there does not currently seem to be a need for
-spectral window support currently in UVBeam.
-
-In version 3.0, several parameters will change shape. The length 1 axis that was
-originally intended for the spectral windows axis will be removed from the
-``data_array`` , ``freq_array``, ``bandpass_array``, ``receiver_temperature_array``,
-``loss_array``, ``mismatch_array``, ``s_parameters`` and ``coupling_matrix``.
-In addition, the ``spw_array`` and ``Nspws`` parameters will become optional.
-
-In order to support an orderly conversion of code and packages that use the UVBeam
-object to these new parameter shapes, we have created the
-:meth:`pyuvdata.UVBeam.use_future_array_shapes` method which will change the parameters
-listed above to have their future shapes. We have also added ``use_future_array_shapes``
-parameters to the :meth:`pyuvdata.UVBeam.read` and :meth:`pyuvdata.UVBeam.from_file` methods
-(as well as the underlying :meth:`pyuvdata.UVBeam.read_beamfits`,
-:meth:`pyuvdata.UVBeam.read_cst_beam`, :meth:`pyuvdata.UVBeam.read_mwa_beam` methods),
-which can be set to ``True`` to yield an object with the future shapes. Users writing
-new code that uses UVBeam objects are encouraged to call the ``use_future_array_shapes``
-method immediately after creating a UVBeam object or use the corresponding parameter
-when reading in data from a file to ensure that the code will be compatible with the
-forthcoming changes. Developers and maintainers of existing code that uses UVBeam
-objects are encouraged to similarly update their code to use the new shapes at their
-earliest convenience to ensure future compatibility. The method and parameters will be
-deprecated but not removed in version 3.0 (it will just become a no-op) so that code
-that calls it will continue to function.
-
 UVBeam: Reading/writing
 -----------------------
 Reading and writing beam files using UVBeam.
@@ -137,7 +103,6 @@ a) Reading a CST power beam file
   ...   feed_name='PAPER_dipole', feed_version='0.1',
   ...   model_name='E-field pattern - Rigging height 4.9m',
   ...   model_version='1.0',
-  ...   use_future_array_shapes=True,
   ... )
   >>> print(beam.beam_type)
   power
@@ -149,7 +114,7 @@ a) Reading a CST power beam file
   >>> # You can also use a yaml settings file.
   >>> # Note that using a yaml file requires that pyyaml is installed.
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
   >>> print(beam.beam_type)
   power
   >>> print(beam.pixel_coordinate_system)
@@ -183,12 +148,12 @@ b) Reading a CST E-field beam file
 
   >>> # the same interface as for power beams, just specify beam_type = 'efield'
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
   >>> print(beam.beam_type)
   efield
 
   >>> # UVBeam also has a `from_file` class method we can call directly.
-  >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield", use_future_array_shapes=True)
+  >>> beam3 = UVBeam.from_file(settings_file, beam_type="efield")
   >>> beam == beam3
   True
 
@@ -214,15 +179,13 @@ c) Reading in the MWA full embedded element beam
   >>> from pyuvdata.data import DATA_PATH
 
   >>> mwa_beam_file = os.path.join(DATA_PATH, 'mwa_full_EE_test.h5')
-  >>> beam = UVBeam.from_file(mwa_beam_file, use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(mwa_beam_file)
   >>> print(beam.beam_type)
   efield
 
   >>> delays = np.zeros((2, 16), dtype='int')
   >>> delays[:, 0] = 32
-  >>> beam = UVBeam.from_file(
-  ...    mwa_beam_file, pixels_per_deg=1, delays=delays, use_future_array_shapes=True
-  ... )
+  >>> beam = UVBeam.from_file(mwa_beam_file, pixels_per_deg=1, delays=delays)
 
 
 d) Writing a regularly gridded beam FITS file
@@ -245,7 +208,6 @@ files and az/za grid.
   ...    beam_type='power',
   ...    freq_range=(1e8, 1.5e8),
   ...    za_range=(0, 90.0),
-  ...    use_future_array_shapes=True,
   ... )
   >>> write_file = os.path.join('.', 'tutorial.fits')
   >>> beam.write_beamfits(write_file, clobber=True)
@@ -261,7 +223,7 @@ See :ref:`uvbeam_to_healpix` for more details on the :meth:`pyuvdata.UVBeam.to_h
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
@@ -321,7 +283,7 @@ a) Selecting a range of Zenith Angles
   >>> from pyuvdata.data import DATA_PATH
   >>> import matplotlib.pyplot as plt
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
   >>> # Make a new object with a reduced zenith angle range with the select method
   >>> new_beam = beam.select(axis2_inds=np.arange(0, 20), inplace=False)
 
@@ -361,7 +323,7 @@ or "ee).
   >>> from pyuvdata.data import DATA_PATH
   >>> import pyuvdata.utils as uvutils
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> uvb = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
+  >>> uvb = UVBeam.from_file(settings_file, beam_type='efield')
 
   >>> # The feeds names can be found in the feed_array
   >>> print(uvb.feed_array)
@@ -444,7 +406,7 @@ extra interpolation errors.
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='power', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='power')
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
@@ -471,7 +433,7 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   >>> # plot zenith angle cut through the beams
@@ -495,7 +457,7 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from pyuvdata.data import DATA_PATH
   >>> from pyuvdata import utils as uvutils
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(settings_file, beam_type='efield', use_future_array_shapes=True)
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
   >>> za_max = np.deg2rad(10.0)
@@ -530,9 +492,7 @@ a) Calculating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beam area and beam squared
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
-  >>> beam = UVBeam.from_file(
-  ...    settings_file, beam_type='efield', use_future_array_shapes=True
-  ... )
+  >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
 
   >>> # note that the `to_healpix` method requires astropy_healpix to be installed
   >>> # this beam file is very large. Let's cut down the size to ease the computation
