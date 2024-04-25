@@ -14,18 +14,24 @@ baseline-dependent averaging). Note that UVData can also support combining the f
 and polarization axis, which can be useful in certain circumstances, objects represented
 this way are called ``flex_pol`` objects and are more fully described in :ref:`flex_pol`.
 
+Starting in version 3.0, metadata that is associated with the telescope (as
+opposed to the data set) is stored in a :class:`pyuvdata.Telescope` object as
+the ``telescope`` attribute on a UVData object. This includes metadata related
+to the telescope location, antenna names, numbers and positions as well as other
+telescope metadata.
 The antennas are described in two ways: with antenna numbers and antenna names. The
 antenna numbers should **not** be confused with indices -- they are not required to start
 at zero or to be contiguous, although it is not uncommon for some telescopes to number
 them like indices. On UVData objects, the names and numbers are held in the
-``antenna_names`` and ``antenna_numbers`` attributes respectively. These are arranged
-in the same order so that an antenna number can be used to identify an antenna name and
-vice versa.
-Note that not all the antennas listed in ``antenna_numbers`` and ``antenna_names`` are
-guaranteed to have visibilities associated with them in the ``data_array``. The antenna
-numbers associated with each visibility is held in the ``ant_1_array`` and ``ant_2_array``
-attributes. These arrays hold the antenna numbers for each visibility (they have the
-same length as the ``data_array`` along the baseline-time axis) and which array they appear
+``telescope.antenna_names`` and ``telescope.antenna_numbers`` attributes
+respectively. These are arranged in the same order so that an antenna number
+can be used to identify an antenna name and vice versa.
+Note that not all the antennas listed in ``telescope.antenna_numbers`` and
+``telescope.antenna_names`` are guaranteed to have visibilities associated with
+them in the ``data_array``. The antenna numbers associated with each visibility
+is held in the ``ant_1_array`` and ``ant_2_array`` attributes. These arrays hold
+the antenna numbers for each visibility (they have the same length as the
+``data_array`` along the baseline-time axis) and which array they appear
 in (``ant_1_array`` vs ``ant_2_array``) indicates the direction of the baseline. On
 UVData objects, the baseline vector is defined to point from antenna 1 to antenna 2, so
 it is given by the position of antenna 2 minus the position of antenna 1. Since the
@@ -45,7 +51,7 @@ to the antenna arrays before calculating the baseline numbers. Reference issues 
 
 For most users, the convenience methods for quick data access (see :ref:`quick_access`)
 are the easiest way to get data for particular sets of baselines. Those methods take
-the antenna numbers (i.e. numbers listed in ``antenna_numbers``) as inputs.
+the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``) as inputs.
 
 
 .. _uvdata_future_shapes:
@@ -417,25 +423,31 @@ of creating a consistent object from a minimal set of inputs
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVData
+  >>> from pyuvdata import Telescope, UVData
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     antenna_positions = {
-  ...         0: [0.0, 0.0, 0.0],
-  ...         1: [0.0, 0.0, 1.0],
-  ...         2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     telescope_name = "test",
+  ...     telescope = Telescope.from_params(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
   ...     times = np.linspace(2459855, 2459856, 20),
   ... )
 
 Notice that you need only provide the required parameters, and the rest will be
-filled in with sensible defaults. Importantly, the times and baselines can be provided
-either as unique values, with the intention that their cartesian outer product should be
+filled in with sensible defaults. The telescope related metadata is passed
+directly to a simple Telescope constructor which also only requires the minimal
+set of inputs but can accept any other parameters supported by the class.
+Importantly, the times and baselines can be provided either as unique values,
+with the intention that their cartesian outer product should be
 used (i.e. the combination of each provided time with each baseline), or as full
 length-Nblt arrays (if you don't require all combinations). While this behaviour can
 be inferred, it is best to set the ``do_blt_outer`` keyword to ``True`` or ``False``
@@ -445,7 +457,7 @@ where each baseline observed one time each. This case is ambiguous without the
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVData
+  >>> from pyuvdata import Telescope, UVData
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
   >>> times = np.array([2459855.0, 2459855.1, 2459855.2, 2459855.3])
@@ -453,13 +465,16 @@ where each baseline observed one time each. This case is ambiguous without the
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     antenna_positions = {
-  ...         0: [0.0, 0.0, 0.0],
-  ...         1: [0.0, 0.0, 1.0],
-  ...         2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     telescope_name = "test",
+  ...     telescope = Telescope.from_params(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
   ...     times = times,
   ...     antpairs=antpairs,
   ...     do_blt_outer=False,
@@ -473,19 +488,22 @@ provided times and baselines, which would have resulted in 16 times:
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVData
+  >>> from pyuvdata import Telescope, UVData
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
   >>> uvd_rect = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     antenna_positions = {
-  ...         0: [0.0, 0.0, 0.0],
-  ...         1: [0.0, 0.0, 1.0],
-  ...         2: [0.0, 0.0, 2.0],
-  ...     },
-  ...     telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-  ...     telescope_name = "test",
+  ...     telescope = Telescope.from_params(
+  ...         antenna_positions = {
+  ...             0: [0.0, 0.0, 0.0],
+  ...             1: [0.0, 0.0, 1.0],
+  ...             2: [0.0, 0.0, 2.0],
+  ...         },
+  ...         location = EarthLocation.from_geodetic(0, 0, 0),
+  ...         name = "test",
+  ...         instrument = "test",
+  ...     ),
   ...     times = times,
   ...     antpairs=antpairs,
   ...     do_blt_outer=True,
@@ -499,28 +517,31 @@ To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keywo
 
 .. code-block:: python
 
-  >>> from pyuvdata import UVData
+  >>> from pyuvdata import Telescope, UVData
   >>> from astropy.coordinates import EarthLocation
   >>> import numpy as np
-    >>> uvd_rect = UVData.new(
-    ...   freq_array = np.linspace(1e8, 2e8, 100),
-    ...   polarization_array = ["xx", "yy"],
-    ...   antenna_positions = {
-    ...       0: [0.0, 0.0, 0.0],
-    ...       1: [0.0, 0.0, 1.0],
-    ...       2: [0.0, 0.0, 2.0],
-    ...   },
-    ...   telescope_location = EarthLocation.from_geodetic(0, 0, 0),
-    ...   telescope_name = "test",
-    ...   times = times,
-    ...   antpairs=antpairs,
-    ...   do_blt_outer=True,
-    ...   time_axis_faster_than_bls=True,
-    ... )
-    >>> uvd_rect.time_array
-    array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
-           2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
-           2459855. , 2459855.1, 2459855.2, 2459855.3])
+  >>> uvd_rect = UVData.new(
+  ...   freq_array = np.linspace(1e8, 2e8, 100),
+  ...   polarization_array = ["xx", "yy"],
+  ...   telescope = Telescope.from_params(
+  ...     antenna_positions = {
+  ...       0: [0.0, 0.0, 0.0],
+  ...       1: [0.0, 0.0, 1.0],
+  ...       2: [0.0, 0.0, 2.0],
+  ...     },
+  ...     location = EarthLocation.from_geodetic(0, 0, 0),
+  ...     name = "test",
+  ...     instrument = "test",
+  ...   ),
+  ...   times = times,
+  ...   antpairs=antpairs,
+  ...   do_blt_outer=True,
+  ...   time_axis_faster_than_bls=True,
+  ... )
+  >>> uvd_rect.time_array
+  array([2459855. , 2459855.1, 2459855.2, 2459855.3, 2459855. , 2459855.1,
+         2459855.2, 2459855.3, 2459855. , 2459855.1, 2459855.2, 2459855.3,
+         2459855. , 2459855.1, 2459855.2, 2459855.3])
 
 See the full documentation for the method
 :func:`pyuvdata.uvdata.UVData.new` for more information.
@@ -959,11 +980,13 @@ A number of conversion methods exist to map between different coordinate systems
 for locations on the earth.
 
 a) Getting antenna positions in topocentric frame in units of meters
+
 ********************************************************************
 .. code-block:: python
 
   >>> # directly from UVData object
   >>> import os
+  >>> from astropy.units import Quantity
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> data_file = os.path.join(DATA_PATH, 'new.uvA')
@@ -974,11 +997,16 @@ a) Getting antenna positions in topocentric frame in units of meters
   >>> from pyuvdata import utils
 
   >>> # get antennas positions in ECEF
-  >>> antpos = uvd.antenna_positions + uvd.telescope_location
+  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to("m").value
+  >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
   >>> # convert to topocentric (East, North, Up or ENU) coords.
-  >>> lat, lon, alt = uvd.telescope_location_lat_lon_alt
-  >>> antpos = utils.ENU_from_ECEF(antpos, latitude=lat, longitude=lon, altitude=alt)
+  >>> antpos = utils.ENU_from_ECEF(
+  ...   antpos,
+  ...   latitude=uvd.telescope.location.lat.rad,
+  ...   longitude=uvd.telescope.location.lon.rad,
+  ...   altitude=uvd.telescope.location.height.to('m').value
+  ... )
 
 UVData: Selecting data
 ----------------------
@@ -1023,7 +1051,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   >>> # print all the antenna names with data in the original file
   >>> unique_ants = np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist())
-  >>> print([uvd.antenna_names[np.where(uvd.antenna_numbers==a)[0][0]] for a in unique_ants])
+  >>> print([uvd.telescope.antenna_names[np.where(uvd.telescope.antenna_numbers==a)[0][0]] for a in unique_ants])
   ['W09', 'E02', 'E09', 'W01', 'N06', 'N01', 'E06', 'E08', 'W06', 'W04', 'N05', 'E01', 'N04', 'E07', 'W05', 'N02', 'E03', 'N08']
 
   >>> # print how many frequencies in the original file
@@ -1033,7 +1061,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
 
   >>> # print all the antenna names with data after the select
   >>> unique_ants = np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist())
-  >>> print([uvd.antenna_names[np.where(uvd.antenna_numbers==a)[0][0]] for a in unique_ants])
+  >>> print([uvd.telescope.antenna_names[np.where(uvd.telescope.antenna_numbers==a)[0][0]] for a in unique_ants])
   ['E09', 'W06', 'N02']
 
   >>> # print all the frequencies after the select
@@ -1088,7 +1116,7 @@ e) Select polarizations
 ***********************
 Selecting on polarizations can be done either using the polarization numbers or the
 polarization strings (e.g. "xx" or "yy" for linear polarizations or "rr" or "ll" for
-circular polarizations). If ``x_orientation`` is set on the object, strings representing
+circular polarizations). If ``telescope.x_orientation`` is set, strings representing
 the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
 
 .. code-block:: python
@@ -1138,7 +1166,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   ['xx', 'yy']
 
   >>> # print x_orientation
-  >>> print(uvd.x_orientation)
+  >>> print(uvd.telescope.x_orientation)
   NORTH
 
   >>> # select polarizations using the physical orientation strings
