@@ -337,3 +337,13 @@ def test_passing_xorient(simplest_working_params, xorient):
         assert tel.x_orientation == "east"
     else:
         assert tel.x_orientation == "north"
+
+
+def test_get_enu_antpos():
+    filename = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcA.uvh5")
+
+    tel = Telescope.from_hdf5(filename)
+    # no center, no pick data ants
+    antpos = tel.get_enu_antpos()
+    assert antpos.shape == (tel.Nants, 3)
+    assert np.isclose(antpos[0, 0], 19.340211050751535)
