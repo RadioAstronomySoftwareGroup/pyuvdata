@@ -23,7 +23,7 @@ dependencies:
   - python-casacore>=3.5.2
   - pyyaml>=5.4.1
   - scipy>=1.7.3
-  - setuptools_scm<7.0|>=7.0.3
+  - setuptools_scm>=7.0.3
   - sphinx
   - pip:
       - lunarsky>=0.2.2
