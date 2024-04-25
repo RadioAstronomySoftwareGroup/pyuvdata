@@ -12,14 +12,6 @@ import warnings
 
 import h5py
 import numpy as np
-from astropy.coordinates import EarthLocation
-
-try:
-    from lunarsky import MoonLocation
-
-    hasmoon = True
-except ImportError:
-    hasmoon = False
 
 from .. import Telescope
 from .. import parameter as uvp
@@ -3448,13 +3440,6 @@ class UVFlag(UVBase):
                         )
                     )
 
-                if "x_orientation" in header.keys():
-                    self.telescope.x_orientation = header["x_orientation"][()].decode(
-                        "utf8"
-                    )
-                if "instrument" in header.keys():
-                    self.telescope.instrument = header["instrument"][()].decode("utf8")
-
                 self.time_array = header["time_array"][()]
                 if "Ntimes" in header.keys():
                     self.Ntimes = int(header["Ntimes"][()])
@@ -3562,6 +3547,15 @@ class UVFlag(UVBase):
                     for param in params_to_check:
                         if param in header.keys():
                             override_params.append(param)
+                    # older files wrote the 'telescope_location' keys, newer
+                    # files write latitude in degrees, longitude in degrees and
+                    # altitude
+                    if (
+                        "latitude" in header.keys()
+                        and "longitude" in header.keys()
+                        and "altitude" in header.keys()
+                    ):
+                        override_params.append("telescope_location")
 
                     if len(override_params) > 0:
                         warnings.warn(
@@ -3570,65 +3564,24 @@ class UVFlag(UVBase):
                             f"the UVFlag file: {override_params}"
                         )
                 else:
+                    # get as much telescope info as we can from the file.
+                    # Turn off checking to avoid errors because we will later
+                    # try to fill in any missing info from known telescopes
+                    self.telescope = Telescope.from_hdf5(
+                        f, required_keys=[], run_check=False
+                    )
+
                     if telescope_name is not None:
+                        if (
+                            self.telescope.name is not None
+                            and telescope_name.lower() != self.telescope.name.lower()
+                        ):
+                            warnings.warn(
+                                f"Telescope_name parameter is set to "
+                                f"{telescope_name}, which overrides the telescope "
+                                f"name in the file ({self.telescope.name})."
+                            )
                         self.telescope.name = telescope_name
-
-                    if "telescope_name" in header.keys():
-                        file_telescope_name = header["telescope_name"][()].decode(
-                            "utf8"
-                        )
-                        if telescope_name is not None:
-                            if telescope_name.lower() != file_telescope_name.lower():
-                                warnings.warn(
-                                    f"Telescope_name parameter is set to "
-                                    f"{telescope_name}, which overrides the telescope "
-                                    f"name in the file ({file_telescope_name})."
-                                )
-                        else:
-                            self.telescope.name = file_telescope_name
-
-                    if "telescope_location" in header.keys():
-                        if "telescope_frame" in header.keys():
-                            telescope_frame = header["telescope_frame"][()].decode(
-                                "utf8"
-                            )
-                        else:
-                            telescope_frame = "itrs"
-                        if telescope_frame == "itrs":
-                            self.telescope.location = EarthLocation.from_geocentric(
-                                *header["telescope_location"][()], unit="m"
-                            )
-                        else:
-                            if not hasmoon:
-                                raise ValueError(
-                                    "Need to install `lunarsky` package to work with "
-                                    "MCMF frames."
-                                )
-                            ellipsoid = header["ellipsoid"][()].decode("utf8")
-                            self.telescope.location = MoonLocation.from_selenocentric(
-                                *header["telescope_location"][()], unit="m"
-                            )
-                            self.telescope.location.ellipsoid = ellipsoid
-
-                    if "antenna_numbers" in header.keys():
-                        self.telescope.antenna_numbers = header["antenna_numbers"][()]
-
-                    if "antenna_names" in header.keys():
-                        self.telescope.antenna_names = np.array(
-                            [
-                                bytes(n).decode("utf8")
-                                for n in header["antenna_names"][:]
-                            ]
-                        )
-
-                    if "antenna_positions" in header.keys():
-                        self.telescope.antenna_positions = header["antenna_positions"][
-                            ()
-                        ]
-                    if "antenna_diameters" in header.keys():
-                        self.telescope.antenna_diameters = header["antenna_diameters"][
-                            ()
-                        ]
 
                 self.history = header["history"][()].decode("utf8")
 
@@ -3707,9 +3660,6 @@ class UVFlag(UVBase):
                         self.Nants_data = int(header["Nants_data"][()])
                     else:
                         self.Nants_data = len(self.ant_array)
-
-                if "Nants_telescope" in header.keys():
-                    self.telescope.Nants = int(header["Nants_telescope"][()])
 
                 if self.telescope.name is None:
                     warnings.warn(
@@ -3856,13 +3806,8 @@ class UVFlag(UVBase):
             header["type"] = np.bytes_(self.type)
             header["mode"] = np.bytes_(self.mode)
 
-            if self.telescope.name is not None:
-                header["telescope_name"] = np.bytes_(self.telescope.name)
-            if self.telescope.location is not None:
-                header["telescope_location"] = self.telescope._location.xyz()
-                header["telescope_frame"] = np.string_(self.telescope._location.frame)
-                if self.telescope._location.frame == "mcmf":
-                    header["ellipsoid"] = np.string_(self.telescope._location.ellipsoid)
+            # write out telescope and source information
+            self.telescope.write_hdf5_header(header)
 
             header["Ntimes"] = self.Ntimes
             header["time_array"] = self.time_array
@@ -3878,13 +3823,6 @@ class UVFlag(UVBase):
                 header["flex_spw_id_array"] = self.flex_spw_id_array
 
             header["Npols"] = self.Npols
-
-            if self.telescope.x_orientation is not None:
-                header["x_orientation"] = np.bytes_(self.telescope.x_orientation)
-            if self.telescope.instrument is not None:
-                header["instrument"] = np.bytes_(self.telescope.instrument)
-            if self.telescope.antenna_diameters is not None:
-                header["antenna_diameters"] = self.telescope.antenna_diameters
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(
@@ -3923,16 +3861,6 @@ class UVFlag(UVBase):
             elif self.type == "antenna":
                 header["ant_array"] = self.ant_array
                 header["Nants_data"] = self.Nants_data
-
-            header["Nants_telescope"] = self.telescope.Nants
-            if self.telescope.antenna_names is not None:
-                header["antenna_names"] = np.asarray(
-                    self.telescope.antenna_names, dtype="bytes"
-                )
-            if self.telescope.antenna_numbers is not None:
-                header["antenna_numbers"] = self.telescope.antenna_numbers
-            if self.telescope.antenna_positions is not None:
-                header["antenna_positions"] = self.telescope.antenna_positions
 
             dgrp = f.create_group("Data")
             if self.mode == "metric":

@@ -3,17 +3,20 @@
 # Licensed under the 2-clause BSD License
 
 """Telescope information and known telescope list."""
-
+import copy
 import os
 import warnings
+from pathlib import Path
 from typing import Literal, Union
 
+import h5py
 import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
 from pyuvdata.data import DATA_PATH
 
+from . import hdf5_utils
 from . import parameter as uvp
 from . import utils as uvutils
 from . import uvbase
@@ -692,3 +695,100 @@ class Telescope(uvbase.UVBase):
         tel_obj.check()
 
         return tel_obj
+
+    @classmethod
+    def from_hdf5(
+        cls,
+        filename: str | Path | hdf5_utils.HDF5Meta,
+        required_keys: list | None = None,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
+    ):
+        """
+        Initialize a new Telescope object from an HDF5 file.
+
+        The file must have a Header dataset that has the appropriate header
+        items. UVH5, CalH5 and UVFlag HDF5 files have these.
+
+        Parameters
+        ----------
+        path : str or Path or subclass of hdf5_utils.HDF5Meta
+            The filename to read from.
+
+        """
+        if required_keys is None:
+            required_keys = ["telescope_name", "latitude", "longitude", "altitude"]
+        tel_obj = cls()
+
+        if not isinstance(filename, hdf5_utils.HDF5Meta):
+            if isinstance(filename, h5py.File):
+                path = Path(filename.filename).resolve()
+            elif isinstance(filename, h5py.Group):
+                path = Path(filename.file.filename).resolve()
+            else:
+                path = Path(filename).resolve()
+            meta = hdf5_utils.HDF5Meta(path)
+
+        else:
+            meta = copy.deepcopy(filename)
+
+        tel_obj.location = meta.telescope_location_obj
+
+        telescope_attrs = {
+            "telescope_name": "name",
+            "Nants_telescope": "Nants",
+            "antenna_names": "antenna_names",
+            "antenna_numbers": "antenna_numbers",
+            "antenna_positions": "antenna_positions",
+            "instrument": "instrument",
+            "x_orientation": "x_orientation",
+            "antenna_diameters": "antenna_diameters",
+        }
+        for attr, tel_attr in telescope_attrs.items():
+            try:
+                setattr(tel_obj, tel_attr, getattr(meta, attr))
+            except (AttributeError, KeyError) as e:
+                if attr in required_keys:
+                    raise KeyError(str(e)) from e
+                else:
+                    pass
+
+        if run_check:
+            tel_obj.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        return tel_obj
+
+    def write_hdf5_header(self, header):
+        """Write the telescope metadata to an hdf5 dataset.
+
+        This is assumed to be writing to a general header (e.g. for uvh5),
+        so the header names include 'telescope'.
+
+        Parameters
+        ----------
+        header : HDF5 dataset
+            Dataset to write the telescope metadata to.
+
+        """
+        header["telescope_frame"] = np.string_(self._location.frame)
+        if self._location.frame == "mcmf":
+            header["ellipsoid"] = self._location.ellipsoid
+        lat, lon, alt = self.location_lat_lon_alt_degrees
+        header["latitude"] = lat
+        header["longitude"] = lon
+        header["altitude"] = alt
+        header["telescope_name"] = np.string_(self.name)
+        header["Nants_telescope"] = self.Nants
+        header["antenna_numbers"] = self.antenna_numbers
+        header["antenna_positions"] = self.antenna_positions
+        header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
+
+        if self.instrument is not None:
+            header["instrument"] = np.string_(self.instrument)
+        if self.x_orientation is not None:
+            header["x_orientation"] = np.string_(self.x_orientation)
+        if self.antenna_diameters is not None:
+            header["antenna_diameters"] = self.antenna_diameters
