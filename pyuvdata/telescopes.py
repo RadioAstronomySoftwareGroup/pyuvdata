@@ -801,3 +801,19 @@ class Telescope(uvbase.UVBase):
             header["x_orientation"] = np.string_(self.x_orientation)
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
+
+    def get_enu_antpos(self):
+        """
+        Get antenna positions in East, North, Up coordinates in units of meters.
+
+        Returns
+        -------
+        antpos : ndarray
+            Antenna positions in East, North, Up coordinates in units of
+            meters, shape=(Nants, 3)
+
+        """
+        antenna_xyz = self.antenna_positions + self._location.xyz()
+        antpos = uvutils.ENU_from_ECEF(antenna_xyz, center_loc=self.location)
+
+        return antpos
