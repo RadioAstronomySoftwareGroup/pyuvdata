@@ -20,7 +20,7 @@ dependencies:
   - pytest-cov
   - pytest-xdist
   - cython>=3.0
-  - setuptools_scm<7.0|>=7.0.3
+  - setuptools_scm>=7.0.3
   - pip
   - pip:
       - lunarsky>=0.2.2
