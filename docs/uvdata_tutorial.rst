@@ -54,42 +54,6 @@ are the easiest way to get data for particular sets of baselines. Those methods 
 the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``) as inputs.
 
 
-.. _uvdata_future_shapes:
-
-UVData: parameter shape changes
--------------------------------
-Initially, UVData objects were designed to support spectral windows as a separate axis,
-although support for more than one spectral window was never implemented
-(so the spectral window axis was always constrained to be length 1). This structure
-would have required that all spectral windows had the same number of channels. In
-version 2.1.2 we introduced flexible spectral windows, which implemented spectral
-windows as sets of frequency channels with some extra parameters to track which
-channels were in each spectral window. This structure allows for spectral windows to
-have arbitrary numbers of frequency channels. This structure made the ``channel_width``
-parameter be an array of length ``Nfreqs`` rather than a scalar, but only when the
-UVData object contained flexible spectral windows. Supporting multiple spectral windows
-in this way removes the need for the spectral window axis on several UVData parameters,
-but the axis was left as a length 1 axis for backwards compatibility.
-
-In version 3.0, we will remove the length 1 axis that was originally intended
-for the spectral windows axis from the ``data_array``, ``flag_array``, ``nsample_array``
-and ``freq_array`` parameters and the ``channel_width`` parameter will always be an
-array of length ``Nfreqs``.
-
-In order to support an orderly conversion of code and packages that use the ``UVData``
-object to these new parameter shapes, we have created the
-:meth:`pyuvdata.UVData.use_future_array_shapes` method and option on the read method,
-which will change the parameters listed above to have their future shapes. Users writing
-new code that uses ``UVData`` objects are encouraged to use the option in the read
-methods or call that method immediately after creating a UVData object to ensure that
-the code will be compatible with the forthcoming changes. Developers and maintainers of
-existing code that uses ``UVData`` objects are encouraged to similarly add that option
-or method call and convert their code to use the new shapes at their earliest
-convenience to ensure future compatibility. The method and option will be deprecated
-but not removed in version 3.0 (it will just become a no-op) so that code that calls it
-will continue to function.
-
-
 UVData: File conversion
 -----------------------
 Converting between tested data formats.
@@ -107,10 +71,8 @@ a) miriad -> uvfits
   >>> # This miriad file is known to be a drift scan.
   >>> # Use the `read` or `from_file` method, optionally specify the file type.
   >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file, use_future_array_shapes=True)
-  >>> uvd = UVData.from_file(
-  ...    miriad_file, file_type='miriad', use_future_array_shapes=True,
-  ... )
+  >>> uvd = UVData.from_file(miriad_file)
+  >>> uvd = UVData.from_file(miriad_file, file_type='miriad')
 
   >>> # Write out the uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
@@ -128,10 +90,10 @@ b) uvfits -> miriad
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
 
   >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd.read(uvfits_file, use_future_array_shapes=True)
-  >>> uvd.read(uvfits_file, file_type='uvfits', use_future_array_shapes=True)
+  >>> uvd.read(uvfits_file)
+  >>> uvd.read(uvfits_file, file_type='uvfits')
   >>> # Here we use the ``from_file`` class method without needing to initialize a new object.
-  >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvfits_file)
 
   >>> # Write out the miriad file
   >>> write_file = os.path.join('.', 'tutorial.uv')
@@ -165,7 +127,6 @@ When reading FHD format, we need to point to several files for each observation.
   ...    layout_file=layout_file,
   ...    params_file=params_file,
   ...    settings_file=settings_file,
-  ...    use_future_array_shapes=True
   ... )
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
   >>> uvd.write_uvfits(write_file)
@@ -196,7 +157,6 @@ d) FHD -> miriad
   ...    layout_file=layout_file,
   ...    params_file=params_file,
   ...    settings_file=settings_file,
-  ...    use_future_array_shapes=True
   ... )
   >>> write_file = os.path.join('.','tutorial.uv')
   >>> if os.path.exists(write_file):
@@ -215,8 +175,8 @@ e) CASA -> uvfits
   >>> # Use the `read` method, optionally specify the file type. Can also use the
   >>> # file type specific `read_ms` method, but only if reading a single file.
   >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file, use_future_array_shapes=True)
-  >>> uvd = UVData.from_file(ms_file, file_type='ms', use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(ms_file)
+  >>> uvd = UVData.from_file(ms_file, file_type='ms')
 
   >>> # Write out uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
@@ -234,7 +194,7 @@ f) CASA -> miriad
   >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
 
   >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(ms_file)
 
   >>> # Write out Miriad file
   >>> write_file = os.path.join('.', 'tutorial.uv')
@@ -252,7 +212,7 @@ g) miriad -> uvh5
 
   >>> # This miriad file is known to be a drift scan.
   >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(miriad_file)
 
   >>> # Write out the uvh5 file
   >>> uvd.write_uvh5(os.path.join('.', 'tutorial.uvh5'))
@@ -266,7 +226,7 @@ h) uvfits -> uvh5
   >>> from pyuvdata.data import DATA_PATH
   >>> import os
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvfits_file)
 
   >>> # Write out the uvh5 file
   >>> write_file = os.path.join('.', 'tutorial.uvh5')
@@ -276,8 +236,8 @@ h) uvfits -> uvh5
 
   >>> # Read the uvh5 file back in.
   >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(write_file, use_future_array_shapes=True)
-  >>> uvd = UVData.from_file(write_file, file_type='uvh5', use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(write_file)
+  >>> uvd = UVData.from_file(write_file, file_type='uvh5')
 
 i) MWA correlator -> uvfits
 ***************************
@@ -307,8 +267,8 @@ approximation, and there is an option to instead use a slower integral implement
   >>> # Use the `read` or `from_file` method, optionally specify the file type.
   >>> # Apply cable corrections and phase data before writing to uvfits
   >>> # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
-  >>> uvd.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False, use_future_array_shapes=True)
-  >>> uvd = UVData.from_file(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False, use_future_array_shapes=True)
+  >>> uvd.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
+  >>> uvd = UVData.from_file(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
 
   >>> # Write out uvfits file
   >>> write_file = os.path.join('.', 'tutorial.uvfits')
@@ -571,7 +531,7 @@ a) Data for single antenna pair / polarization combination.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
   >>> data = uvd.get_data(1, 2, 'rr')  # data for ant1=1, ant2=2, pol='rr'
   >>> times = uvd.get_times(1, 2)  # times corresponding to 0th axis in data
   >>> print(data.shape)
@@ -592,7 +552,7 @@ b) Flags and nsamples for above data.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> flags = uvd.get_flags(1, 2, 'rr')
   >>> nsamples = uvd.get_nsamples(1, 2, 'rr')
@@ -610,7 +570,7 @@ c) Data for single antenna pair, all polarizations.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> data = uvd.get_data(1, 2)
   >>> print(data.shape)
@@ -630,7 +590,7 @@ d) Data for single polarization, all baselines.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> data = uvd.get_data('rr')
   >>> print(data.shape)
@@ -648,7 +608,7 @@ and :meth:`pyuvdata.UVData.set_nsamples` methods.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits")
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> data = uvd.get_data(1, 2, "rr", force_copy=True, squeeze="none")
   >>> data *= 2
@@ -663,7 +623,7 @@ f) Iterate over all antenna pair / polarizations.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> for key, data in uvd.antpairpol_iter():
   ...  flags = uvd.get_flags(key)
@@ -680,7 +640,7 @@ g) Convenience functions to ask what antennas, baselines, and pols are in the da
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Get all unique antennas in data
   >>> print(uvd.get_ants())
@@ -724,7 +684,7 @@ Phasing/unphasing data
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uvh5_file = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(uvh5_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvh5_file)
 
   >>> # We can get information on the sources in the data set by using the
   >>> # `print_phase_center_info` command. This object is initially unprojected (unphased)
@@ -831,7 +791,7 @@ the data have had baseline-dependent averaging applied.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(datafile)
   >>> uvd2 = uvd.copy()
   >>> print("Range of integration times: ", np.amin(uvd.integration_time),
   ...       "-", np.amax(uvd.integration_time))
@@ -866,7 +826,7 @@ b) Upsampling in time
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(datafile)
   >>> print("Range of integration times: ", np.amin(uvd.integration_time),
   ...       "-", np.amax(uvd.integration_time))
   Range of integration times:  1.879048192 - 1.879048192
@@ -889,7 +849,7 @@ c) Resampling a BDA dataset in time
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> testfile = os.path.join(DATA_PATH, "simulated_bda_file.uvh5")
-  >>> uvd = UVData.from_file(testfile, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(testfile)
   >>> print(
   ...    "Range of integration times: ", np.amin(uvd.integration_time), "-", np.amax(uvd.integration_time)
   ... )
@@ -919,7 +879,7 @@ averaging will be done over spectral window boundaries.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> datafile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(datafile, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(datafile)
   >>> print("Channel width: ", uvd.channel_width)
   Channel width:  [122070.3125 122070.3125 122070.3125 122070.3125]
 
@@ -944,7 +904,7 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> print(uvd.data_array.shape)
   (1360, 64, 4)
@@ -1005,7 +965,7 @@ utility method.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> data_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(data_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(data_file)
   >>> antpos = uvd.telescope.get_enu_antpos()
 
   >>> # using utils
@@ -1042,7 +1002,7 @@ a) Select 3 antennas to keep using the antenna number.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # print all the antennas numbers with data in the original file
   >>> print(np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist()))
@@ -1062,7 +1022,7 @@ b) Select 3 antennas to keep using the antenna names, also select 5 frequencies 
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # print all the antenna names with data in the original file
   >>> unique_ants = np.unique(uvd.ant_1_array.tolist() + uvd.ant_2_array.tolist())
@@ -1091,7 +1051,7 @@ c) Select a few antenna pairs to keep
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # print how many antenna pairs with data in the original file
   >>> print(len(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
@@ -1112,7 +1072,7 @@ d) Select antenna pairs using baseline numbers
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # baseline numbers can be found in the baseline_array
   >>> print(len(uvd.baseline_array))
@@ -1142,7 +1102,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> from pyuvdata.data import DATA_PATH
   >>> import pyuvdata.utils as uvutils
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # polarization numbers can be found in the polarization_array
   >>> print(uvd.polarization_array)
@@ -1172,7 +1132,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
 
   >>> # read in a file with linear polarizations and an x_orientation
   >>> filename = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # print polarization numbers and strings
   >>> print(uvd.polarization_array)
@@ -1213,7 +1173,7 @@ ________________________________
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Print the number of antenna pairs in the original file
   >>> print(len(uvd.get_antpairs()))
@@ -1240,7 +1200,7 @@ ___________________________
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Print the number of antenna pairs in the original file
   >>> print(len(uvd.get_antpairs()))
@@ -1274,7 +1234,7 @@ all antenna pairs kept in the object will retain data for each specified polariz
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Print the number of antennas and polarizations with data in the original file
   >>> print((len(uvd.get_antpairs()), uvd.get_pols()))
@@ -1310,7 +1270,7 @@ If a minus sign is present in front of an antenna number, it will not be kept in
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Print the number of antenna pairs in the original file
   >>> print(len(uvd.get_antpairs()))
@@ -1338,7 +1298,7 @@ second, the range is assumed to wrap around LST = 0 = 2*pi.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
 
   >>> # Times can be found in the time_array, which is length Nblts.
   >>> # Use unique to find the unique times
@@ -1387,7 +1347,7 @@ h) Select data and return new object (leaving original intact).
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
   >>> uvd2 = uvd.select(antenna_nums=[1, 12, 21], inplace=False)
 
   >>> # print all the antennas numbers with data in the original file
@@ -1412,7 +1372,7 @@ a) Combine frequencies.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd1 = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd1 = UVData.from_file(filename)
   >>> uvd2 = uvd1.copy()
 
   >>> # Downselect frequencies to recombine
@@ -1431,7 +1391,7 @@ b) Combine times.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd1 = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd1 = UVData.from_file(filename)
   >>> uvd2 = uvd1.copy()
 
   >>> # Downselect times to recombine
@@ -1455,13 +1415,13 @@ directly without creating a third uvdata object.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd1 = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd1 = UVData.from_file(filename)
   >>> uvd2 = uvd1.copy()
   >>> uvd1.select(times=times[0:len(times) // 2])
   >>> uvd2.select(times=times[len(times) // 2:])
   >>> uvd1.__add__(uvd2, inplace=True)
 
-  >>> uvd1 = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd1 = UVData.from_file(filename)
   >>> uvd2 = uvd1.copy()
   >>> uvd1.select(times=times[0:len(times) // 2])
   >>> uvd2.select(times=times[len(times) // 2:])
@@ -1480,7 +1440,7 @@ and combined with the previous file(s).
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
   >>> uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
@@ -1489,7 +1449,7 @@ and combined with the previous file(s).
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd = UVData.from_file(filenames, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filenames)
 
 e) Fast concatenation
 *********************
@@ -1523,7 +1483,7 @@ stored in the uvh5 format.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename)
   >>> uvd1 = uvd.select(freq_chans=np.arange(0, 20), inplace=False)
   >>> uvd2 = uvd.select(freq_chans=np.arange(20, 40), inplace=False)
   >>> uvd3 = uvd.select(freq_chans=np.arange(40, 64), inplace=False)
@@ -1532,7 +1492,7 @@ stored in the uvh5 format.
   >>> uvd3.write_uvfits(os.path.join('.', 'tutorial3.uvfits'))
   >>> filenames = [os.path.join('.', f) for f
   ...             in ['tutorial1.uvfits', 'tutorial2.uvfits', 'tutorial3.uvfits']]
-  >>> uvd = UVData.from_file(filenames, axis='freq', use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filenames, axis='freq')
 
 
 UVData: Summing and differencing visibilities
@@ -1547,7 +1507,7 @@ and :meth:`pyuvdata.UVData.diff_vis` methods.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd1 = UVData.from_file(filename, use_future_array_shapes=True)
+  >>> uvd1 = UVData.from_file(filename)
   >>> uvd2 = uvd1.copy()
 
   >>> # sum visibilities
@@ -1591,7 +1551,7 @@ Measurement set (ms) files do not support reading only the metadata
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
 
   >>> # read the metadata but not the data
-  >>> uvd = UVData.from_file(filename, read_data=False, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, read_data=False)
 
   >>> print(uvd.metadata_only)
   True
@@ -1624,30 +1584,30 @@ done after the read, which does not save memory.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(32), use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(32))
   >>> print(uvd.data_array.shape)
   (1360, 32, 4)
 
   >>> # Reading in the metadata can help with specifying what data to read in
-  >>> uvd = UVData.from_file(filename, read_data=False, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, read_data=False)
   >>> unique_times = np.unique(uvd.time_array)
   >>> print(unique_times.shape)
   (15,)
 
   >>> times_to_keep = unique_times[[0, 2, 4]]
-  >>> uvd = UVData.from_file(filename, times=times_to_keep, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, times=times_to_keep)
   >>> print(uvd.data_array.shape)
   (179, 64, 4)
 
   >>> # Select a few baselines from a miriad file
   >>> filename = os.path.join(DATA_PATH, 'zen.2457698.40355.xx.HH.uvcA')
-  >>> uvd = UVData.from_file(filename, bls=[(9, 10), (9, 20)], use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, bls=[(9, 10), (9, 20)])
   >>> print(uvd.get_antpairs())
   [(9, 10), (9, 20)]
 
   >>> # Select certain frequencies from a uvh5 file
   >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(2), use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, freq_chans=np.arange(2))
   >>> print(uvd.data_array.shape)
   (200, 2, 2)
 
@@ -1675,7 +1635,7 @@ are written to the appropriate parts of the file on disk.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> filename = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-  >>> uvd = UVData.from_file(filename, read_data=False, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(filename, read_data=False)
   >>> partfile = os.path.join('.', 'tutorial_partial_io.uvh5')
   >>> uvd.initialize_uvh5_file(partfile, clobber=True)
 
@@ -1685,7 +1645,7 @@ are written to the appropriate parts of the file on disk.
   >>> freq_inds1 = np.arange(Hfreqs)
   >>> freq_inds2 = np.arange(Hfreqs, Nfreqs)
   >>> uvd2 = UVData()
-  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds1, use_future_array_shapes=True)
+  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds1)
   >>> data_array = 0.5 * uvd2.data_array
   >>> flag_array = uvd2.flag_array
   >>> nsample_array = uvd2.nsample_array
@@ -1697,7 +1657,7 @@ are written to the appropriate parts of the file on disk.
   ...   freq_chans=freq_inds1
   ... )
 
-  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds2, use_future_array_shapes=True)
+  >>> uvd2 = UVData.from_file(filename, freq_chans=freq_inds2)
   >>> data_array = 2.0 * uvd2.data_array
   >>> flag_array = uvd2.flag_array
   >>> nsample_array = uvd2.nsample_array
@@ -1731,7 +1691,7 @@ various conventions (``'ant1<ant2'``, ``'ant2<ant1'``, ``'u<0'``, ``'u>0'``, ``'
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvfits_file)
   >>> uvd.conjugate_bls('ant1<ant2')
   >>> print(np.min(uvd.ant_2_array - uvd.ant_1_array) >= 0)
   True
@@ -1756,7 +1716,7 @@ an option to sort the auto visibilities before the cross visibilities (``autos_f
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvfits_file)
 
   >>> # The default is to sort first by time, then by baseline
   >>> uvd.reorder_blts()
@@ -1795,7 +1755,7 @@ channels.
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
   >>> testfile = os.path.join(DATA_PATH, "sma_test.mir")
-  >>> uvd = UVData.from_file(testfile, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(testfile)
 
   >>> # Sort by spectral window number and by frequency within the spectral window
   >>> # Now the spectral windows are in ascending order and the frequencies in each window
@@ -1841,7 +1801,7 @@ ordering set by the user.
   >>> from pyuvdata.data import DATA_PATH
   >>> import pyuvdata.utils as uvutils
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file, use_future_array_shapes=True)
+  >>> uvd = UVData.from_file(uvfits_file)
   >>> print(uvutils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl', 'lr']
 
@@ -1953,7 +1913,6 @@ object.
 
   >>> uvd = UVData.from_file(
   ...    os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5"),
-  ...    use_future_array_shapes=True,
   ... )
   >>> # make a copy to enable comparisons after converting to and from flex_pol
   >>> uvd_orig = uvd.copy()
@@ -2034,7 +1993,6 @@ the baseline array.
   >>> # This file contains a HERA19 layout.
   >>> uvd = UVData.from_file(
   ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
-  ...   use_future_array_shapes=True
   ... )
   >>> uvd.unproject_phase(use_ant_pos=True)
   >>> tol = 0.05  # Tolerance in meters
@@ -2085,7 +2043,6 @@ in the full data array based on redundancy.
   >>> from pyuvdata.data import DATA_PATH
   >>> uv0 = UVData.from_file(
   ...   os.path.join(DATA_PATH, 'fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits'),
-  ...   use_future_array_shapes=True
   ... )
   >>> tol = 0.02   # In meters
 
@@ -2135,9 +2092,7 @@ contains antenna 1 will also be flagged).
   >>> from pyuvdata.data import DATA_PATH
   >>> import numpy as np
 
-  >>> uvd = UVData.from_file(
-  ...    os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5'), use_future_array_shapes=True
-  ... )
+  >>> uvd = UVData.from_file(os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5'))
   >>> # Build a binary mask where the cross-correlations are stored.
   >>> cross_mask = uvd.ant_1_array != uvd.ant_2_array
   >>> # Check to see that all the crosses have amplitudes greater than 1
