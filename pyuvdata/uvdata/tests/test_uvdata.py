@@ -5357,10 +5357,16 @@ def test_get_ants(casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.filterwarnings("ignore:This method is deprecated in favor of")
 def test_get_enu_antpos(hera_uvh5_xx):
     uvd = hera_uvh5_xx
     # no center, no pick data ants
-    antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="This method is deprecated in favor of `self.telescope.get_enu_antpos`. "
+        "This will become an error in version 3.2",
+    ):
+        antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
     assert len(ants) == 113
     assert np.isclose(antpos[0, 0], 19.340211050751535)
     assert ants[0] == 0
