@@ -1560,13 +1560,16 @@ def test_init_list(uvdata_obj):
     uv = uvdata_obj
     uv.time_array -= 1
     uv.set_lsts_from_time_array()
-    uvf = UVFlag([uv, test_f_file], use_future_array_shapes=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "UVParameter instrument does not match. Combining anyway.",
+            "UVParameter antenna_diameters does not match. Combining anyway.",
+        ],
+    ):
+        uvf = UVFlag([uv, test_f_file], use_future_array_shapes=True)
     uvf1 = UVFlag(uv, use_future_array_shapes=True)
     uvf2 = UVFlag(test_f_file, use_future_array_shapes=True)
-
-    uv.telescope.location = uvf2.telescope.location
-    uv.telescope.antenna_names = uvf2.telescope.antenna_names
-    uvf = UVFlag([uv, test_f_file], use_future_array_shapes=True)
 
     assert np.array_equal(
         np.concatenate((uvf1.metric_array, uvf2.metric_array), axis=0), uvf.metric_array
@@ -1605,8 +1608,11 @@ def test_read_multiple_files(
     uvf = UVFlag(uv, use_future_array_shapes=write_future_shapes)
     uvf.write(test_outfile, clobber=True)
 
-    warn_msg = []
-    warn_type = []
+    warn_msg = [
+        "UVParameter instrument does not match. Combining anyway.",
+        "UVParameter antenna_diameters does not match. Combining anyway.",
+    ]
+    warn_type = [UserWarning] * 2
     if not read_future_shapes:
         warn_msg += [_future_array_shapes_warning] * 2
         warn_type += [DeprecationWarning] * 2
@@ -2590,7 +2596,12 @@ def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
         NotImplementedError,
         match="Cannot currently convert from antenna type, metric mode",
     ):
-        uvf.to_baseline(uv, force_pol=True)
+        with uvtest.check_warnings(
+            UserWarning,
+            match="x_orientation is not the same this object and on uv. Keeping "
+            "the value on this object.",
+        ):
+            uvf.to_baseline(uv, force_pol=True)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -2644,8 +2655,18 @@ def test_to_baseline_from_antenna(
     uv2.time_array[: uvf2.time_array.size] = uvf.time_array
     uv2.set_lsts_from_time_array()
 
-    uvf.to_baseline(uv, force_pol=True)
-    uvf2.to_baseline(uv2, force_pol=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match="x_orientation is not the same this object and on uv. Keeping "
+        "the value on this object.",
+    ):
+        uvf.to_baseline(uv, force_pol=True)
+    with uvtest.check_warnings(
+        UserWarning,
+        match="x_orientation is not the same this object and on uv. Keeping "
+        "the value on this object.",
+    ):
+        uvf2.to_baseline(uv2, force_pol=True)
     uvf.check()
 
     uvf2.select(bls=old_baseline, times=old_times)
@@ -2893,7 +2914,15 @@ def test_to_antenna_add_version_str(uvcal_obj, uvc_future_shapes, uvf_future_sha
     uvf.history = uvf.history.replace(pyuvdata_version_str, "")
     assert pyuvdata_version_str not in uvf.history
 
-    uvf.to_antenna(uvc)
+    # also change the instrument name to check warning
+    uvf.telescope.instrument = uvf.telescope.name
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="instrument is not the same this object and on uv. Keeping the "
+        "value on this object.",
+    ):
+        uvf.to_antenna(uvc)
     assert pyuvdata_version_str in uvf.history
 
 
