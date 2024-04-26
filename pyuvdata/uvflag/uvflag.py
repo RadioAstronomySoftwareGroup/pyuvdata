@@ -1623,7 +1623,7 @@ class UVFlag(UVBase):
                 f"on uv is {uv.freq_array}"
             )
 
-        warn_compatibility_params = [
+        compatibility_params = [
             "telescope_name",
             "telescope_location",
             "antenna_names",
@@ -1632,15 +1632,16 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
         ]
+        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
         if self.Nspws is not None and self.Nspws > 1:
             # TODO: make this always be in the compatibility list in version 3.0
-            warn_compatibility_params.append("flex_spw_id_array")
+            compatibility_params.append("flex_spw_id_array")
 
         # sometimes the antenna sorting for the antenna names/numbers/positions
         # is different. If the sets are the same, re-sort self to match uv
         self.sort_ant_metadata_like(uv)
 
-        for param in warn_compatibility_params:
+        for param in compatibility_params + warning_params:
             if (
                 issubclass(uv.__class__, UVData)
                 and param == "channel_width"
@@ -1666,11 +1667,17 @@ class UVFlag(UVBase):
                     this_param = getattr(self, "_" + param)
                     uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    raise ValueError(
-                        f"{param} is not the same this object and on uv. The value on "
-                        f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}."
-                    )
+                    if param in warning_params:
+                        warnings.warn(
+                            f"{param} is not the same this object and on uv. "
+                            "Keeping the value on this object."
+                        )
+                    else:
+                        raise ValueError(
+                            f"{param} is not the same this object and on uv. "
+                            f"The value on this object is {this_param.value}; "
+                            f"the value on uv is {uv_param.value}."
+                        )
 
         # Deal with polarization
         if force_pol and self.polarization_array.size == 1:
@@ -1918,7 +1925,7 @@ class UVFlag(UVBase):
                 f"on uv is {uv.freq_array}"
             )
 
-        warn_compatibility_params = [
+        compatibility_params = [
             "telescope_name",
             "telescope_location",
             "antenna_names",
@@ -1927,15 +1934,16 @@ class UVFlag(UVBase):
             "channel_width",
             "spw_array",
         ]
+        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
         if self.Nspws is not None and self.Nspws > 1:
             # TODO: make this always be in the compatibility list in version 3.0
-            warn_compatibility_params.append("flex_spw_id_array")
+            compatibility_params.append("flex_spw_id_array")
 
         # sometimes the antenna sorting for the antenna names/numbers/positions
         # is different. If the sets are the same, re-sort self to match uv
         self.sort_ant_metadata_like(uv)
 
-        for param in warn_compatibility_params:
+        for param in compatibility_params + warning_params:
             if (
                 issubclass(uv.__class__, UVCal)
                 and param == "channel_width"
@@ -1961,11 +1969,17 @@ class UVFlag(UVBase):
                     this_param = getattr(self, "_" + param)
                     uv_param = getattr(uv, "_" + param)
                 if this_param.value is not None and this_param != uv_param:
-                    raise ValueError(
-                        f"{param} is not the same this object and on uv. The value on "
-                        f"this object is {this_param.value}; the value on uv is "
-                        f"{uv_param.value}."
-                    )
+                    if param in warning_params:
+                        warnings.warn(
+                            f"{param} is not the same this object and on uv. "
+                            "Keeping the value on this object."
+                        )
+                    else:
+                        raise ValueError(
+                            f"{param} is not the same this object and on uv. "
+                            f"The value on this object is {this_param.value}; "
+                            f"the value on uv is {uv_param.value}."
+                        )
 
         # Deal with polarization
         if issubclass(uv.__class__, UVCal):
@@ -2292,25 +2306,24 @@ class UVFlag(UVBase):
 
         ax = axis_nums[axis][type_nums[self.type]]
 
-        warn_compatibility_params = ["telescope_name", "telescope_location"]
+        compatibility_params = ["telescope_name", "telescope_location"]
+        warning_params = ["instrument", "x_orientation", "antenna_diameters"]
 
         if axis != "frequency":
-            warn_compatibility_params.extend(
-                ["freq_array", "channel_width", "spw_array"]
-            )
+            compatibility_params.extend(["freq_array", "channel_width", "spw_array"])
             if self.flex_spw_id_array is not None:
                 # TODO: make this always be in the compatibility list in version 3.0
-                warn_compatibility_params.append("flex_spw_id_array")
+                compatibility_params.append("flex_spw_id_array")
         if axis not in ["polarization", "pol", "jones"]:
-            warn_compatibility_params.extend(["polarization_array"])
+            compatibility_params.extend(["polarization_array"])
         if axis != "time":
-            warn_compatibility_params.extend(["time_array", "lst_array"])
+            compatibility_params.extend(["time_array", "lst_array"])
         if axis != "antenna" and self.type == "antenna":
-            warn_compatibility_params.extend(
+            compatibility_params.extend(
                 ["ant_array", "antenna_names", "antenna_numbers", "antenna_positions"]
             )
         if axis != "baseline" and self.type == "baseline":
-            warn_compatibility_params.extend(
+            compatibility_params.extend(
                 [
                     "baseline_array",
                     "ant_1_array",
@@ -2321,7 +2334,7 @@ class UVFlag(UVBase):
                 ]
             )
 
-        for param in warn_compatibility_params:
+        for param in compatibility_params + warning_params:
             # compare the UVParameter objects to properly handle tolerances
             if param in telescope_params:
                 this_param = getattr(self.telescope, "_" + telescope_params[param])
@@ -2330,11 +2343,16 @@ class UVFlag(UVBase):
                 this_param = getattr(self, "_" + param)
                 other_param = getattr(other, "_" + param)
             if this_param.value is not None and this_param != other_param:
-                raise ValueError(
-                    f"{param} is not the same the two objects. The value on this "
-                    f"object is {this_param.value}; the value on the other object is "
-                    f"{other_param.value}."
-                )
+                if param in warning_params:
+                    warnings.warn(
+                        "UVParameter " + param + " does not match. Combining anyway."
+                    )
+                else:
+                    raise ValueError(
+                        f"{param} is not the same the two objects. The value on "
+                        f"this object is {this_param.value}; the value on the "
+                        f"other object is {other_param.value}."
+                    )
 
         if axis == "time":
             this.time_array = np.concatenate([this.time_array, other.time_array])
@@ -2393,7 +2411,22 @@ class UVFlag(UVBase):
             )
             this.telescope.antenna_names = temp_ant_names[unique_inds]
             this.telescope.antenna_positions = temp_ant_pos[unique_inds]
-            this.Nants_telescope = len(this.telescope.antenna_numbers)
+            this.telescope.Nants = len(this.telescope.antenna_numbers)
+
+            if (
+                this.telescope.antenna_diameters is not None
+                and other.telescope.antenna_diameters is not None
+            ):
+                temp_ant_diameters = np.concatenate(
+                    [
+                        this.telescope.antenna_diameters,
+                        other.telescope.antenna_diameters,
+                    ],
+                    axis=0,
+                )
+                this.telescope.antenna_diameters = temp_ant_diameters[unique_inds]
+            else:
+                this.telescope.antenna_diameters = None
 
         elif axis == "frequency":
             this.freq_array = np.concatenate(
