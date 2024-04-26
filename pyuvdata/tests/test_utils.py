@@ -196,7 +196,7 @@ def test_XYZ_from_LatLonAlt():
     )
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
-    assert np.allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(ref_xyz, out_xyz, rtol=0, atol=1e-3)
 
     # test error checking
     with pytest.raises(
@@ -225,28 +225,28 @@ def test_LatLonAlt_from_XYZ():
     out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz)
     # Got reference by forcing http://www.oc.nps.edu/oc2902w/coord/llhxyz.htm
     # to give additional precision.
-    assert np.allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(ref_latlonalt, out_latlonalt, rtol=0, atol=1e-3)
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_latlonalt)
 
     # test passing multiple values
     xyz_mult = np.stack((np.array(ref_xyz), np.array(ref_xyz)))
     lat_vec, lon_vec, alt_vec = uvutils.LatLonAlt_from_XYZ(xyz_mult)
-    assert np.allclose(
+    np.testing.assert_allclose(
         ref_latlonalt, (lat_vec[1], lon_vec[1], alt_vec[1]), rtol=0, atol=1e-3
     )
     # check error if array transposed
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=re.escape("The expected shape of ECEF xyz array is (Npts, 3)."),
+    ):
         uvutils.LatLonAlt_from_XYZ(xyz_mult.T)
-    assert str(cm.value).startswith(
-        "The expected shape of ECEF xyz array is (Npts, 3)."
-    )
 
     # check error if only 2 coordinates
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=re.escape("The expected shape of ECEF xyz array is (Npts, 3)."),
+    ):
         uvutils.LatLonAlt_from_XYZ(xyz_mult[:, 0:2])
-    assert str(cm.value).startswith(
-        "The expected shape of ECEF xyz array is (Npts, 3)."
-    )
 
     # test error checking
     pytest.raises(ValueError, uvutils.LatLonAlt_from_XYZ, ref_xyz[0:1])
@@ -260,7 +260,7 @@ def test_XYZ_from_LatLonAlt_mcmf(selenoid):
     out_xyz = uvutils.XYZ_from_LatLonAlt(
         lat, lon, alt, frame="mcmf", ellipsoid=selenoid
     )
-    assert np.allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
 
     # Test errors with invalid frame
     with pytest.raises(
@@ -276,7 +276,7 @@ def test_LatLonAlt_from_XYZ_mcmf(selenoid):
     out_latlonalt = uvutils.LatLonAlt_from_XYZ(
         ref_xyz_moon[selenoid], frame="mcmf", ellipsoid=selenoid
     )
-    assert np.allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
 
     # Test errors with invalid frame
     with pytest.raises(
@@ -344,9 +344,9 @@ def test_lla_xyz_lla_roundtrip():
     lons *= np.pi / 180.0
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     lats_new, lons_new, alts_new = uvutils.LatLonAlt_from_XYZ(xyz)
-    assert np.allclose(lats_new, lats)
-    assert np.allclose(lons_new, lons)
-    assert np.allclose(alts_new, alts)
+    np.testing.assert_allclose(lats_new, lats)
+    np.testing.assert_allclose(lons_new, lons)
+    np.testing.assert_allclose(alts_new, alts)
 
 
 @pytest.fixture(scope="module")
@@ -586,7 +586,7 @@ def test_xyz_from_latlonalt(enu_ecef_info):
         enu_ecef_info
     )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
-    assert np.allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3)
+    np.testing.assert_allclose(np.stack((x, y, z), axis=1), xyz, atol=1e-3)
 
 
 def test_enu_from_ecef(enu_ecef_info):
@@ -599,7 +599,17 @@ def test_enu_from_ecef(enu_ecef_info):
     enu = uvutils.ENU_from_ECEF(
         xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
-    assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+    np.testing.assert_allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+
+    enu2 = uvutils.ENU_from_ECEF(
+        xyz,
+        center_loc=EarthLocation.from_geodetic(
+            lat=center_lat * units.rad,
+            lon=center_lon * units.rad,
+            height=center_alt * units.m,
+        ),
+    )
+    np.testing.assert_allclose(enu, enu2)
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
@@ -620,7 +630,18 @@ def test_enu_from_mcmf(enu_mcmf_info, selenoid):
         ellipsoid=selenoid,
     )
 
-    assert np.allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+    np.testing.assert_allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+
+    enu2 = uvutils.ENU_from_ECEF(
+        xyz,
+        center_loc=MoonLocation.from_selenodetic(
+            lat=center_lat * units.rad,
+            lon=center_lon * units.rad,
+            height=center_alt * units.m,
+            ellipsoid=selenoid,
+        ),
+    )
+    np.testing.assert_allclose(enu, enu2, atol=1e-3)
 
 
 def test_invalid_frame():
@@ -636,6 +657,20 @@ def test_invalid_frame():
     ):
         uvutils.ECEF_from_ENU(
             np.zeros((2, 3)), latitude=0.0, longitude=0.0, altitude=0.0, frame="undef"
+        )
+
+    with pytest.raises(
+        ValueError, match="center_loc is not a supported type. It must be one of "
+    ):
+        uvutils.ENU_from_ECEF(
+            np.zeros((2, 3)), center_loc=units.Quantity(np.array([0, 0, 0]) * units.m)
+        )
+
+    with pytest.raises(
+        ValueError, match="center_loc is not a supported type. It must be one of "
+    ):
+        uvutils.ECEF_from_ENU(
+            np.zeros((2, 3)), center_loc=units.Quantity(np.array([0, 0, 0]) * units.m)
         )
 
 
@@ -654,13 +689,13 @@ def test_enu_from_ecef_shape_errors(enu_ecef_info, shape_type):
         xyz = xyz.copy()[:, 0:1]
 
     # check error if array transposed
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=re.escape("The expected shape of ECEF xyz array is (Npts, 3)."),
+    ):
         uvutils.ENU_from_ECEF(
             xyz, longitude=center_lat, latitude=center_lon, altitude=center_alt
         )
-    assert str(cm.value).startswith(
-        "The expected shape of ECEF xyz array is (Npts, 3)."
-    )
 
 
 def test_enu_from_ecef_magnitude_error(enu_ecef_info):
@@ -670,13 +705,30 @@ def test_enu_from_ecef_magnitude_error(enu_ecef_info):
     )
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts)
     # error checking
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match="ITRS vector magnitudes must be on the order of the radius of the earth",
+    ):
         uvutils.ENU_from_ECEF(
             xyz / 2.0, latitude=center_lat, longitude=center_lon, altitude=center_alt
         )
-    assert str(cm.value).startswith(
-        "ITRS vector magnitudes must be on the order of the radius of the earth"
-    )
+
+
+def test_enu_from_ecef_error():
+    # check error no center location info passed
+    with pytest.raises(
+        ValueError,
+        match="Either center_loc or all of latitude, longitude and altitude "
+        "must be passed.",
+    ):
+        uvutils.ENU_from_ECEF(np.array([0, 0, 0]))
+
+    with pytest.raises(
+        ValueError,
+        match="Either center_loc or all of latitude, longitude and altitude "
+        "must be passed.",
+    ):
+        uvutils.ECEF_from_ENU(np.array([0, 0, 0]))
 
 
 @pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
@@ -689,6 +741,18 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
         lats = lats[selenoid]
         lons = lons[selenoid]
         alts = alts[selenoid]
+        loc_obj = MoonLocation.from_selenodetic(
+            lat=center_lat * units.rad,
+            lon=center_lon * units.rad,
+            height=center_alt * units.m,
+            ellipsoid=selenoid,
+        )
+    else:
+        loc_obj = EarthLocation.from_geodetic(
+            lat=center_lat * units.rad,
+            lon=center_lon * units.rad,
+            height=center_alt * units.m,
+        )
 
     xyz = uvutils.XYZ_from_LatLonAlt(lats, lons, alts, frame=frame, ellipsoid=selenoid)
     enu = uvutils.ENU_from_ECEF(
@@ -708,7 +772,10 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
         frame=frame,
         ellipsoid=selenoid,
     )
-    assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
+    np.testing.assert_allclose(xyz, xyz_from_enu, atol=1e-3)
+
+    xyz_from_enu2 = uvutils.ECEF_from_ENU(enu, center_loc=loc_obj)
+    np.testing.assert_allclose(xyz_from_enu, xyz_from_enu2, atol=1e-3)
 
     if selenoid == "SPHERE":
         enu = uvutils.ENU_from_ECEF(
@@ -726,7 +793,7 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
             altitude=center_alt,
             frame=frame,
         )
-        assert np.allclose(xyz, xyz_from_enu, atol=1e-3)
+        np.testing.assert_allclose(xyz, xyz_from_enu, atol=1e-3)
 
 
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
@@ -746,11 +813,12 @@ def test_ecef_from_enu_shape_errors(enu_ecef_info, shape_type):
         enu = enu.copy()[:, 0:1]
 
     # check error if array transposed
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match=re.escape("The expected shape of the ENU array is (Npts, 3).")
+    ):
         uvutils.ECEF_from_ENU(
             enu, latitude=center_lat, longitude=center_lon, altitude=center_alt
         )
-    assert str(cm.value).startswith("The expected shape of the ENU array is (Npts, 3).")
 
 
 def test_ecef_from_enu_single(enu_ecef_info):
@@ -764,7 +832,9 @@ def test_ecef_from_enu_single(enu_ecef_info):
         xyz[0, :], latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
 
-    assert np.allclose(np.array((east[0], north[0], up[0])), enu_single, atol=1e-3)
+    np.testing.assert_allclose(
+        np.array((east[0], north[0], up[0])), enu_single, atol=1e-3
+    )
 
 
 def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
@@ -781,12 +851,14 @@ def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
     enu_single = uvutils.ENU_from_ECEF(
         xyz[0, :], latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
-    assert np.allclose(np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3)
+    np.testing.assert_allclose(
+        np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3
+    )
 
     xyz_from_enu = uvutils.ECEF_from_ENU(
         enu_single, latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
-    assert np.allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
+    np.testing.assert_allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
 
 
 def test_mwa_ecef_conversion():
@@ -831,11 +903,11 @@ def test_mwa_ecef_conversion():
 
     enu = uvutils.ENU_from_ECEF(ecef_xyz, latitude=lat, longitude=lon, altitude=alt)
 
-    assert np.allclose(enu, enh)
+    np.testing.assert_allclose(enu, enh)
 
     # test other direction of ECEF rotation
     rot_xyz = uvutils.rotECEF_from_ECEF(new_xyz, lon)
-    assert np.allclose(rot_xyz.T, xyz)
+    np.testing.assert_allclose(rot_xyz.T, xyz)
 
 
 @pytest.mark.parametrize(
@@ -849,9 +921,8 @@ def test_polar2_to_cart3_arg_errs(lon_array, lat_array, msg):
     """
     Test that bad arguments to polar2_to_cart3 throw appropriate errors.
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils.polar2_to_cart3(lon_array=lon_array, lat_array=lat_array)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -866,9 +937,8 @@ def test_cart3_to_polar2_arg_errs(input1, msg):
     """
     Test that bad arguments to cart3_to_polar2 throw appropriate errors.
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils.cart3_to_polar2(input1)
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -884,11 +954,10 @@ def test_rotate_matmul_wrapper_arg_errs(input1, input2, input3, msg):
     """
     Test that bad arguments to _rotate_matmul_wrapper throw appropriate errors.
     """
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils._rotate_matmul_wrapper(
             xyz_array=input1, rot_matrix=input2, n_rot=input3
         )
-    assert str(cm.value).startswith(msg)
 
 
 def test_cart_to_polar_roundtrip():
@@ -1138,7 +1207,10 @@ def test_compare_one_to_two_axis(vector_list, rot1, axis1, rot2, rot3, axis2, ax
         ],
         [
             {"lst_array": None, "use_ant_pos": False, "from_enu": True},
-            (ValueError, "Must include lst_array if moving between ENU (i.e.,"),
+            (
+                ValueError,
+                re.escape("Must include lst_array if moving between ENU (i.e.,"),
+            ),
         ],
         [
             {"use_ant_pos": False, "old_app_ra": None},
@@ -1161,7 +1233,7 @@ def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
     for key in arg_dict.keys():
         calc_uvw_args[key] = arg_dict[key]
 
-    with pytest.raises(err[0]) as cm:
+    with pytest.raises(err[0], match=err[1]):
         uvutils.calc_uvw(
             app_ra=calc_uvw_args["app_ra"],
             app_dec=calc_uvw_args["app_dec"],
@@ -1181,7 +1253,6 @@ def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
             from_enu=calc_uvw_args["from_enu"],
             to_enu=calc_uvw_args["to_enu"],
         )
-    assert str(cm.value).startswith(err[1])
 
 
 def test_calc_uvw_no_op(calc_uvw_args):
@@ -1234,8 +1305,8 @@ def test_calc_uvw_same_place(calc_uvw_args):
         old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
-    assert np.allclose(uvw_ant_check, calc_uvw_args["uvw_array"])
-    assert np.allclose(uvw_base_check, calc_uvw_args["uvw_array"])
+    np.testing.assert_allclose(uvw_ant_check, calc_uvw_args["uvw_array"])
+    np.testing.assert_allclose(uvw_base_check, calc_uvw_args["uvw_array"])
 
 
 @pytest.mark.parametrize("to_enu", [False, True])
@@ -1277,7 +1348,7 @@ def test_calc_uvw_base_vs_ants(calc_uvw_args, to_enu):
         to_enu=to_enu,
     )
 
-    assert np.allclose(uvw_ant_check, uvw_base_check)
+    np.testing.assert_allclose(uvw_ant_check, uvw_base_check)
 
 
 def test_calc_uvw_enu_roundtrip(calc_uvw_args):
@@ -1311,7 +1382,9 @@ def test_calc_uvw_enu_roundtrip(calc_uvw_args):
         from_enu=True,
     )
 
-    assert np.allclose(calc_uvw_args["uvw_array"], uvw_base_enu_check)
+    np.testing.assert_allclose(
+        calc_uvw_args["uvw_array"], uvw_base_enu_check, atol=1e-16, rtol=0
+    )
 
 
 def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
@@ -1353,7 +1426,7 @@ def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
         old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
-    assert np.allclose(uvw_base_check, uvw_base_late_pa_check)
+    np.testing.assert_allclose(uvw_base_check, uvw_base_late_pa_check)
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded')
@@ -1394,7 +1467,7 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
         default_args[key] = arg_dict[key]
 
     # Start w/ the transform_icrs_to_app block
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils.transform_icrs_to_app(
             time_array=default_args["time_array"],
             ra=default_args["icrs_ra"],
@@ -1408,7 +1481,6 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
             epoch=default_args["epoch"],
             astrometry_library=default_args["library"],
         )
-    assert str(cm.value).startswith(msg)
 
 
 @pytest.mark.parametrize(
@@ -1428,7 +1500,7 @@ def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
     for key in arg_dict.keys():
         default_args[key] = arg_dict[key]
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils.transform_app_to_icrs(
             time_array=default_args["time_array"],
             app_ra=default_args["app_ra"],
@@ -1437,7 +1509,6 @@ def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
             telescope_frame=default_args["telescope_frame"],
             astrometry_library=default_args["library"],
         )
-    assert str(cm.value).startswith(msg)
 
 
 def test_transform_sidereal_coords_arg_errs():
@@ -1445,7 +1516,7 @@ def test_transform_sidereal_coords_arg_errs():
     Check for argument errors with transform_sidereal_coords
     """
     # Next on to sidereal to sidereal
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="lon and lat must be the same shape."):
         uvutils.transform_sidereal_coords(
             longitude=[0.0],
             latitude=[0.0, 1.0],
@@ -1454,9 +1525,8 @@ def test_transform_sidereal_coords_arg_errs():
             in_coord_epoch="J2000.0",
             time_array=[0.0, 1.0, 2.0],
         )
-    assert str(cm.value).startswith("lon and lat must be the same shape.")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Shape of time_array must be either that of "):
         uvutils.transform_sidereal_coords(
             longitude=[0.0, 1.0],
             latitude=[0.0, 1.0],
@@ -1466,7 +1536,6 @@ def test_transform_sidereal_coords_arg_errs():
             out_coord_epoch=1984.0,
             time_array=[0.0, 1.0, 2.0],
         )
-    assert str(cm.value).startswith("Shape of time_array must be either that of ")
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "d2dtf" yielded')
@@ -1577,7 +1646,7 @@ def test_interpolate_ephem_arg_errs(bad_arg, msg):
     Check for argument errors with interpolate_ephem
     """
     # Now moving on to the interpolation scheme
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match=msg):
         uvutils.interpolate_ephem(
             time_array=0.0,
             ephem_times=0.0 if ("etimes" == bad_arg) else [0.0, 1.0],
@@ -1586,7 +1655,6 @@ def test_interpolate_ephem_arg_errs(bad_arg, msg):
             ephem_dist=0.0 if ("dist" == bad_arg) else [0.0, 1.0],
             ephem_vel=0.0 if ("vel" == bad_arg) else [0.0, 1.0],
         )
-    assert str(cm.value).startswith(msg)
 
 
 def test_calc_app_coords_arg_errs():
@@ -1594,11 +1662,10 @@ def test_calc_app_coords_arg_errs():
     Check for argument errors with calc_app_coords
     """
     # Now on to app_coords
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Object type whoknows is not recognized."):
         uvutils.calc_app_coords(
             lon_coord=0.0, lat_coord=0.0, telescope_loc=(0, 1, 2), coord_type="whoknows"
         )
-    assert str(cm.value).startswith("Object type whoknows is not recognized.")
 
 
 def test_transform_multi_sidereal_coords(astrometry_args):
@@ -1802,7 +1869,7 @@ def test_calc_parallactic_angle():
         telescope_lat=1.0,
     )
     # Make sure things agree to better than ~0.1 uas (as it definitely should)
-    assert np.allclose(expected_vals, meas_vals, 0.0, 1e-12)
+    np.testing.assert_allclose(expected_vals, meas_vals, 0.0, 1e-12)
 
 
 def test_calc_frame_pos_angle():
@@ -1874,10 +1941,10 @@ def test_jphl_lookup():
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     assert np.all(np.equal(ephem_times, 2456789.0))
-    assert np.allclose(ephem_ra, 0.8393066751804976)
-    assert np.allclose(ephem_dec, 0.3120687480116649)
-    assert np.allclose(ephem_dist, 1.00996185750717)
-    assert np.allclose(ephem_vel, 0.386914)
+    np.testing.assert_allclose(ephem_ra, 0.8393066751804976)
+    np.testing.assert_allclose(ephem_dec, 0.3120687480116649)
+    np.testing.assert_allclose(ephem_dist, 1.00996185750717)
+    np.testing.assert_allclose(ephem_vel, 0.386914)
 
 
 def test_ephem_interp_one_point():
@@ -1951,14 +2018,14 @@ def test_ephem_interp_multi_point():
     )
 
     # Make sure that everything is consistent to floating point precision
-    assert np.allclose(ra_vals1, ra_vals2, 1e-15, 0.0)
-    assert np.allclose(dec_vals1, dec_vals2, 1e-15, 0.0)
-    assert np.allclose(dist_vals1, dist_vals2, 1e-15, 0.0)
-    assert np.allclose(vel_vals1, vel_vals2, 1e-15, 0.0)
-    assert np.allclose(time_array + 1.0, ra_vals2, 1e-15, 0.0)
-    assert np.allclose(time_array + 2.0, dec_vals2, 1e-15, 0.0)
-    assert np.allclose(time_array + 3.0, dist_vals2, 1e-15, 0.0)
-    assert np.allclose(time_array + 4.0, vel_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(ra_vals1, ra_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(dec_vals1, dec_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(dist_vals1, dist_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(vel_vals1, vel_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(time_array + 1.0, ra_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(time_array + 2.0, dec_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(time_array + 3.0, dist_vals2, 1e-15, 0.0)
+    np.testing.assert_allclose(time_array + 4.0, vel_vals2, 1e-15, 0.0)
 
 
 @pytest.mark.parametrize("frame", ["icrs", "fk5"])
@@ -2591,7 +2658,8 @@ def test_get_lst_for_time_errors(astrometry_args):
 
 @pytest.mark.filterwarnings("ignore:The get_frame_attr_names")
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
-def test_lst_for_time_moon(astrometry_args):
+@pytest.mark.parametrize("selenoid", selenoids)
+def test_lst_for_time_moon(astrometry_args, selenoid):
     """Test the get_lst_for_time function with MCMF frame"""
     from lunarsky import SkyCoord as LSkyCoord
 
@@ -2608,6 +2676,7 @@ def test_lst_for_time_moon(astrometry_args):
             longitude=lon,
             altitude=alt,
             frame="mcmf",
+            ellipsoid=selenoid,
             astrometry_library="novas",
         )
 
@@ -2617,15 +2686,18 @@ def test_lst_for_time_moon(astrometry_args):
         longitude=lon,
         altitude=alt,
         frame="mcmf",
+        ellipsoid=selenoid,
     )
 
     # Verify that lsts are close to local zenith RA
-    loc = MoonLocation.from_selenodetic(lon, lat, alt)
+    loc = MoonLocation.from_selenodetic(lon, lat, alt, ellipsoid=selenoid)
     for ii, tt in enumerate(
         LTime(astrometry_args["time_array"], format="jd", scale="utc", location=loc)
     ):
         src = LSkyCoord(alt="90d", az="0d", frame="lunartopo", obstime=tt, location=loc)
-        assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-4)
+        # TODO: would be nice to get this down to uvutils.RADIAN_TOL
+        # seems like maybe the ellipsoid isn't being used properly?
+        assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-5)
 
 
 def test_phasing_funcs():
@@ -2686,15 +2758,15 @@ def test_phasing_funcs():
     mwa_tools_calcuvw_v = 50.388281
     mwa_tools_calcuvw_w = -151.27976
 
-    assert np.allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3)
-    assert np.allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3)
-    assert np.allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
 
     # also test unphasing
     temp2 = uvutils.undo_old_uvw_calc(
         gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
     )
-    assert np.allclose(gcrs_rel.value, temp2)
+    np.testing.assert_allclose(gcrs_rel.value, np.squeeze(temp2))
 
 
 def test_pol_funcs():
@@ -2872,11 +2944,10 @@ def test_conj_pol():
     assert pytest.raises(KeyError, uvutils.conj_pol, cjstr)
 
     # Test invalid pol
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Polarization not recognized, cannot be conjugated."
+    ):
         uvutils.conj_pol(2.3)
-    assert str(cm.value).startswith(
-        "Polarization not recognized, cannot be conjugated."
-    )
 
 
 @pytest.mark.parametrize("grid_alg", [True, False, None])
@@ -2931,7 +3002,7 @@ def test_redundancy_finder(grid_alg):
         for bl in gp:
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
-            assert np.allclose(
+            np.testing.assert_allclose(
                 np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol
             )
 
@@ -2974,7 +3045,7 @@ def test_redundancy_finder(grid_alg):
                 for bl in gp:
                     bl_ind = np.where(uvd.baseline_array == bl)
                     bl_vec = bl_positions[bl_ind]
-                    assert np.allclose(
+                    np.testing.assert_allclose(
                         np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))),
                         lens[gi],
                         atol=tol_use,
@@ -3471,15 +3542,19 @@ def test_mean_weights_and_weights_square():
     out, wo, wso = uvutils.mean_collapse(
         data, weights=w, axis=0, return_weights=True, return_weights_square=True
     )
-    assert np.allclose(out * wo, data.shape[0])
-    assert np.allclose(wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1))
-    assert np.allclose(wso, float(data.shape[0]) / (np.arange(data.shape[1]) + 1) ** 2)
+    np.testing.assert_allclose(out * wo, data.shape[0])
+    np.testing.assert_allclose(
+        wo, float(data.shape[0]) / (np.arange(data.shape[1]) + 1)
+    )
+    np.testing.assert_allclose(
+        wso, float(data.shape[0]) / (np.arange(data.shape[1]) + 1) ** 2
+    )
     out, wo, wso = uvutils.mean_collapse(
         data, weights=w, axis=1, return_weights=True, return_weights_square=True
     )
-    assert np.allclose(out * wo, data.shape[1])
-    assert np.allclose(wo, np.sum(1.0 / (np.arange(data.shape[1]) + 1)))
-    assert np.allclose(wso, np.sum(1.0 / (np.arange(data.shape[1]) + 1) ** 2))
+    np.testing.assert_allclose(out * wo, data.shape[1])
+    np.testing.assert_allclose(wo, np.sum(1.0 / (np.arange(data.shape[1]) + 1)))
+    np.testing.assert_allclose(wso, np.sum(1.0 / (np.arange(data.shape[1]) + 1) ** 2))
 
     # Zero weights
     w = np.ones_like(data)
@@ -4339,9 +4414,10 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     uvdf += uvdf2
     uvdf = uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=True)
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Input uvf and uvd polarizations do not match"
+    ):
         uvutils.apply_uvflag(uvdf, uvf, inplace=False, force_pol=False)
-    assert "Input uvf and uvd polarizations do not match" in str(cm.value)
 
     # test unflag first
     uvdf = uvutils.apply_uvflag(uvd, uvf, inplace=False, unflag_first=True)
@@ -4359,9 +4435,8 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     # test mode exception
     uvfm = uvf.copy()
     uvfm.mode = "metric"
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="UVFlag must be flag mode"):
         uvutils.apply_uvflag(uvd, uvfm)
-    assert "UVFlag must be flag mode" in str(cm.value)
 
     # test polarization exception
     uvd2 = uvd.copy()
@@ -4369,35 +4444,40 @@ def test_apply_uvflag(uvdata_future_shapes, uvflag_future_shapes):
     uvf2 = UVFlag(uvd)
     uvf2.to_flag()
     uvd2.polarization_array[0] = -8
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Input uvf and uvd polarizations do not match"
+    ):
         uvutils.apply_uvflag(uvd2, uvf2, force_pol=False)
-    assert "Input uvf and uvd polarizations do not match" in str(cm.value)
 
     # test time and frequency mismatch exceptions
     if uvflag_future_shapes:
         uvf2 = uvf.select(frequencies=uvf.freq_array[:2], inplace=False)
     else:
         uvf2 = uvf.select(frequencies=uvf.freq_array[:, :2], inplace=False)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="UVFlag and UVData have mismatched frequency arrays"
+    ):
         uvutils.apply_uvflag(uvd, uvf2)
-    assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
 
     uvf2 = uvf.copy()
     uvf2.freq_array += 1.0
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="UVFlag and UVData have mismatched frequency arrays"
+    ):
         uvutils.apply_uvflag(uvd, uvf2)
-    assert "UVFlag and UVData have mismatched frequency arrays" in str(cm.value)
 
     uvf2 = uvf.select(times=np.unique(uvf.time_array)[:2], inplace=False)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="UVFlag and UVData have mismatched time arrays"
+    ):
         uvutils.apply_uvflag(uvd, uvf2)
-    assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
 
     uvf2 = uvf.copy()
     uvf2.time_array += 1.0
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="UVFlag and UVData have mismatched time arrays"
+    ):
         uvutils.apply_uvflag(uvd, uvf2)
-    assert "UVFlag and UVData have mismatched time arrays" in str(cm.value)
 
     # assert implicit broadcasting works
     if uvflag_future_shapes:
@@ -4651,7 +4731,7 @@ def test_antnums_to_baseline_miriad_convention():
     bl = uvutils.antnums_to_baseline(
         ant1, ant2, Nants_telescope=n_ant, use_miriad_convention=True
     )
-    assert np.allclose(bl, bl_gold)
+    np.testing.assert_allclose(bl, bl_gold)
 
 
 def test_determine_rect_time_first():
@@ -4723,8 +4803,8 @@ def test_calc_app_coords_time_obj():
         telescope_loc=telescope_location,
     )
 
-    assert np.allclose(app_ra_to, app_ra_nto)
-    assert np.allclose(app_dec_to, app_dec_nto)
+    np.testing.assert_allclose(app_ra_to, app_ra_nto)
+    np.testing.assert_allclose(app_dec_to, app_dec_nto)
 
 
 @pytest.mark.skipif(hasmoon, reason="lunarsky installed")
@@ -4813,7 +4893,7 @@ def test_uvw_track_generator_moon(selenoid):
         pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     # Check that the total lengths all match 1
-    assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
+    np.testing.assert_allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
 
     if selenoid == "SPHERE":
         # check defaults
@@ -4828,7 +4908,7 @@ def test_uvw_track_generator_moon(selenoid):
         )
 
         # Check that the total lengths all match 1
-        assert np.allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
+        np.testing.assert_allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
 
 
 @pytest.mark.parametrize("err_state", ["err", "warn", "none"])
