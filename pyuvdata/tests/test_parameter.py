@@ -418,6 +418,18 @@ def test_location_set_lat_lon_alt_degrees_none():
     assert param1.value is None
 
 
+def test_location_set_xyz():
+    param1 = uvp.LocationParameter(name="p2", value=1)
+    param1.set_xyz(None)
+
+    assert param1.value is None
+
+    assert param1.xyz() is None
+
+    with pytest.raises(ValueError, match="frame must be one of"):
+        param1.set_xyz(ref_xyz, frame="foo")
+
+
 @pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
 def test_location_xyz_latlonalt_match(frame, selenoid):
     if frame == "itrs":
@@ -495,6 +507,77 @@ def test_location_acceptability():
     acceptable, reason = param1.check_acceptability()
     assert not acceptable
     assert reason == f"Location must be an object of type: {allowed_location_types}"
+
+
+@pytest.mark.parametrize(["frame", "selenoid"], frame_selenoid)
+def test_location_equality(frame, selenoid):
+    if frame == "itrs":
+        loc_obj1 = EarthLocation.from_geocentric(*ref_xyz, unit="m")
+        xyz_adj = np.array(ref_xyz) + 8e-4
+        loc_obj2 = EarthLocation.from_geocentric(*xyz_adj, unit="m")
+    else:
+        loc_obj1 = MoonLocation.from_selenocentric(*ref_xyz_moon[selenoid], unit="m")
+        loc_obj1.ellipsoid = selenoid
+        xyz_adj = np.array(ref_xyz_moon[selenoid]) + 8e-4
+        loc_obj2 = MoonLocation.from_selenocentric(*xyz_adj, unit="m")
+        loc_obj2.ellipsoid = selenoid
+    param1 = uvp.LocationParameter("p1", value=loc_obj1)
+    param2 = uvp.LocationParameter("p1", value=loc_obj2)
+    assert param1 == param2
+
+
+@pytest.mark.parametrize(
+    ["change", "msg"],
+    [
+        ["non_loc", "p1 parameter value is a Location, but other is not"],
+        ["class", "p1 parameter classes do not match"],
+        ["ellipsoid", "p1 parameter ellipsoid is not the same. "],
+        ["value", "p1 parameter is not close. "],
+    ],
+)
+def test_location_inequality(capsys, change, msg):
+    param1 = uvp.LocationParameter(
+        "p1", value=EarthLocation.from_geocentric(*ref_xyz, unit="m")
+    )
+    if change == "non_loc":
+        param2 = uvp.LocationParameter(
+            "p1", value=units.Quantity(np.array(ref_xyz), unit="m")
+        )
+    elif change == "class":
+        pytest.importorskip("lunarsky")
+        param2 = uvp.LocationParameter(
+            "p1",
+            value=MoonLocation.from_selenocentric(*ref_xyz_moon["SPHERE"], unit="m"),
+        )
+    elif change == "ellipsoid":
+        pytest.importorskip("lunarsky")
+        param1 = uvp.LocationParameter(
+            "p1",
+            value=MoonLocation.from_selenodetic(
+                lat=ref_latlonalt_moon[0] * units.rad,
+                lon=ref_latlonalt_moon[1] * units.rad,
+                height=ref_latlonalt_moon[2] * units.m,
+                ellipsoid="SPHERE",
+            ),
+        )
+        param2 = uvp.LocationParameter(
+            "p1",
+            value=MoonLocation.from_selenodetic(
+                lat=ref_latlonalt_moon[0] * units.rad,
+                lon=ref_latlonalt_moon[1] * units.rad,
+                height=ref_latlonalt_moon[2] * units.m,
+                ellipsoid="GSFC",
+            ),
+        )
+    elif change == "value":
+        xyz_adj = np.array(ref_xyz) + 2e-3
+        param2 = uvp.LocationParameter(
+            "p1", value=EarthLocation.from_geocentric(*xyz_adj, unit="m")
+        )
+
+    assert param1.__ne__(param2, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith(msg)
 
 
 @pytest.mark.parametrize(
