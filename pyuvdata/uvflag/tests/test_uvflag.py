@@ -873,7 +873,7 @@ def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
 
-        enu_antpos, _ = uv.get_ENU_antpos()
+        enu_antpos = uv.telescope.get_enu_antpos()
         uv.telescope.location = MoonLocation.from_selenodetic(
             lat=uv.telescope.location.lat,
             lon=uv.telescope.location.lon,
