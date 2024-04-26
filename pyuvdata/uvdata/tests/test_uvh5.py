@@ -203,7 +203,7 @@ def test_read_uvfits_write_uvh5_read_uvh5(
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
 
-        enu_antpos, _ = uv_in.get_ENU_antpos()
+        enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
             lat=uv_in.telescope.location.lat,
             lon=uv_in.telescope.location.lon,
@@ -3791,7 +3791,7 @@ class TestFastUVH5Meta:
     def test_antpos_enu(self):
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
-        assert np.allclose(meta.antpos_enu, uvd.get_ENU_antpos()[0])
+        assert np.allclose(meta.antpos_enu, uvd.telescope.get_enu_antpos())
 
     def test_phased_phase_type(self, sma_mir, tmp_path_factory):
         testdir = tmp_path_factory.mktemp("test_phased_phase_type")

@@ -9640,7 +9640,7 @@ class UVData(UVBase):
 
         """
         self.conjugate_bls("u>0")
-        red_gps, centers, lengths = self.get_redundancies(
+        red_gps, _, _ = self.get_redundancies(
             tol=tol, use_antpos=True, conjugate_bls=True, use_grid_alg=use_grid_alg
         )
 
