@@ -5,16 +5,19 @@
 """Tests for telescope objects and functions.
 
 """
+import copy
 import os
 
 import numpy as np
 import pytest
 from astropy.coordinates import EarthLocation
+from astropy.units import Quantity
 
 import pyuvdata
+import pyuvdata.tests as uvtest
 from pyuvdata import Telescope, UVData
 from pyuvdata.data import DATA_PATH
-from pyuvdata.telescopes import get_antenna_params
+from pyuvdata.telescopes import KNOWN_TELESCOPES, get_antenna_params
 
 required_parameters = [
     "_name",
@@ -140,6 +143,52 @@ def test_known_telescopes():
     assert sorted(pyuvdata.known_telescopes()) == sorted(expected_known_telescopes)
 
 
+def test_update_params_from_known():
+    """Cover some edge cases not covered by UVData/UVCal/UVFlag tests."""
+    tel = Telescope()
+    with pytest.raises(
+        ValueError,
+        match="The telescope name attribute must be set to update from "
+        "known_telescopes.",
+    ):
+        tel.update_params_from_known_telescopes()
+
+    hera_tel = Telescope.from_known_telescopes("hera")
+    known_dict = copy.deepcopy(KNOWN_TELESCOPES)
+    known_dict["HERA"]["antenna_diameters"] = hera_tel.antenna_diameters
+
+    hera_tel_test = Telescope.from_known_telescopes(
+        "hera", known_telescope_dict=known_dict
+    )
+    assert hera_tel == hera_tel_test
+
+    known_dict["HERA"]["antenna_diameters"] = hera_tel.antenna_diameters[0:10]
+    known_dict["HERA"]["x_orientation"] = "east"
+    hera_tel_test.antenna_diameters = None
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "antenna_diameters are not set because the number of antenna_diameters "
+            "on known_telescopes_dict is more than one and does not match Nants "
+            "for telescope hera.",
+            "x_orientation are not set or are being overwritten. x_orientation "
+            "are set using values from known telescopes for hera.",
+        ],
+    ):
+        hera_tel_test.update_params_from_known_telescopes(
+            known_telescope_dict=known_dict
+        )
+    assert hera_tel_test.antenna_diameters is None
+    assert hera_tel_test.x_orientation == "east"
+
+    mwa_tel = Telescope.from_known_telescopes("mwa")
+    mwa_tel2 = Telescope()
+    mwa_tel2.name = "mwa"
+    mwa_tel2.update_params_from_known_telescopes(warn=False)
+
+    assert mwa_tel == mwa_tel2
+
+
 def test_from_known():
     for inst in pyuvdata.known_telescopes():
         # don't run check b/c some telescopes won't have antenna info defined
@@ -252,82 +301,104 @@ def test_alternate_antenna_inputs():
     assert np.all(nums == nums2)
 
 
-def test_bad_antenna_inputs(simplest_working_params):
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(
-        ValueError, match="Either antenna_numbers or antenna_names must be provided"
-    ):
-        Telescope.from_params(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=None,
-            antenna_names=None,
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
+def test_from_params_errors(simplest_working_params):
+    simplest_working_params["location"] = Quantity([0, 0, 0], unit="m")
     with pytest.raises(
         ValueError,
-        match=(
+        match="telescope_location has an unsupported type, it must be one of ",
+    ):
+        Telescope.from_params(**simplest_working_params)
+
+
+@pytest.mark.parametrize(
+    ["kwargs", "err_msg"],
+    [
+        [
+            {
+                "antenna_positions": np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "Either antenna_numbers or antenna_names must be provided",
+        ],
+        [
+            {
+                "antenna_positions": {1: [0, 1, 2], "2": [3, 4, 5]},
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
             "antenna_positions must be a dictionary with keys that are all type int "
-            "or all type str"
-        ),
-    ):
-        Telescope.from_params(antenna_positions={1: [0, 1, 2], "2": [3, 4, 5]}, **badp)
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="Antenna names must be integers"):
-        Telescope.from_params(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=None,
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="antenna_positions must be a numpy array"):
-        Telescope.from_params(
-            antenna_positions="foo",
-            antenna_numbers=[0, 1, 2],
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="antenna_positions must be a 2D array"):
-        Telescope.from_params(
-            antenna_positions=np.array([0, 0, 0]), antenna_numbers=np.array([0]), **badp
-        )
-
-    with pytest.raises(ValueError, match="Duplicate antenna names found"):
-        Telescope.from_params(
-            antenna_names=["foo", "bar", "foo"], **simplest_working_params
-        )
-
-    badp = {
-        k: v for k, v in simplest_working_params.items() if k != "antenna_positions"
-    }
-    with pytest.raises(ValueError, match="Duplicate antenna numbers found"):
-        Telescope.from_params(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_numbers=[0, 1, 0],
-            antenna_names=["foo", "bar", "baz"],
-            **badp,
-        )
-
-    with pytest.raises(
-        ValueError, match="antenna_numbers and antenna_names must have the same length"
-    ):
-        Telescope.from_params(antenna_names=["foo", "bar"], **simplest_working_params)
+            "or all type str",
+        ],
+        [
+            {
+                "antenna_positions": np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+                "antenna_names": ["foo", "bar", "baz"],
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "Antenna names must be integers",
+        ],
+        [
+            {
+                "antenna_positions": "foo",
+                "antenna_numbers": [0, 1, 2],
+                "antenna_names": ["foo", "bar", "baz"],
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "antenna_positions must be a numpy array",
+        ],
+        [
+            {
+                "antenna_positions": np.array([0, 0, 0]),
+                "antenna_numbers": np.array([0]),
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "antenna_positions must be a 2D array",
+        ],
+        [
+            {
+                "antenna_positions": {
+                    0: [0.0, 0.0, 0.0],
+                    1: [0.0, 0.0, 1.0],
+                    2: [0.0, 0.0, 2.0],
+                },
+                "antenna_names": ["foo", "bar", "foo"],
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "Duplicate antenna names found",
+        ],
+        [
+            {
+                "antenna_positions": np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+                "antenna_numbers": [0, 1, 0],
+                "antenna_names": ["foo", "bar", "baz"],
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "Duplicate antenna numbers found",
+        ],
+        [
+            {
+                "antenna_positions": {
+                    0: [0.0, 0.0, 0.0],
+                    1: [0.0, 0.0, 1.0],
+                    2: [0.0, 0.0, 2.0],
+                },
+                "antenna_names": ["foo", "bar"],
+                "location": EarthLocation.from_geodetic(0, 0, 0),
+                "name": "test",
+            },
+            "antenna_numbers and antenna_names must have the same length",
+        ],
+    ],
+)
+def test_bad_antenna_inputs(kwargs, err_msg):
+    with pytest.raises(ValueError, match=err_msg):
+        Telescope.from_params(**kwargs)
 
 
 @pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
@@ -337,6 +408,13 @@ def test_passing_xorient(simplest_working_params, xorient):
         assert tel.x_orientation == "east"
     else:
         assert tel.x_orientation == "north"
+
+
+def test_passing_diameters(simplest_working_params):
+    tel = Telescope.from_params(
+        antenna_diameters=np.array([14.0, 15.0, 16.0]), **simplest_working_params
+    )
+    np.testing.assert_allclose(tel.antenna_diameters, np.array([14.0, 15.0, 16.0]))
 
 
 def test_get_enu_antpos():
