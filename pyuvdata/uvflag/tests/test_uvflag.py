@@ -6,6 +6,7 @@ import copy
 import os
 import pathlib
 import re
+import shutil
 import warnings
 
 import h5py
@@ -14,10 +15,10 @@ import pytest
 from _pytest.outcomes import Skipped
 
 import pyuvdata.tests as uvtest
-from pyuvdata import UVCal, UVData, UVFlag, __version__
+from pyuvdata import UVCal, UVData, UVFlag, __version__, hdf5_utils
 from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
-from pyuvdata.tests.test_utils import frame_selenoid
+from pyuvdata.tests.test_utils import frame_selenoid, hasmoon
 from pyuvdata.uvflag.uvflag import _future_array_shapes_warning
 
 from ...uvbase import old_telescope_metadata_attrs
@@ -346,15 +347,13 @@ def test_check_flex_spw_id_array(uvf_from_data):
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_init_bad_mode(uvdata_obj):
     uv = uvdata_obj
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Input mode must be within acceptable"):
         UVFlag(uv, mode="bad_mode", history="I made a UVFlag object", label="test")
-    assert str(cm.value).startswith("Input mode must be within acceptable")
 
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Input mode must be within acceptable"):
         UVFlag(uv, mode="bad_mode", history="I made a UVFlag object", label="test")
-    assert str(cm.value).startswith("Input mode must be within acceptable")
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -727,21 +726,22 @@ def test_init_waterfall_flag_uvdata(uvdata_obj):
 def test_init_waterfall_copy_flags(uvdata_obj):
     uv = UVCal()
     uv.read_calfits(test_c_file, use_future_array_shapes=True)
-    with pytest.raises(NotImplementedError) as cm:
+    with pytest.raises(
+        NotImplementedError, match="Cannot copy flags when initializing"
+    ):
         UVFlag(uv, copy_flags=True, mode="flag", waterfall=True)
-    assert str(cm.value).startswith("Cannot copy flags when initializing")
 
     uv = uvdata_obj
-    with pytest.raises(NotImplementedError) as cm:
+    with pytest.raises(
+        NotImplementedError, match="Cannot copy flags when initializing"
+    ):
         UVFlag(uv, copy_flags=True, mode="flag", waterfall=True)
-    assert str(cm.value).startswith("Cannot copy flags when initializing")
 
 
 def test_init_invalid_input():
     # input is not UVData, UVCal, path, or list/tuple
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="input to UVFlag.__init__ must be one of:"):
         UVFlag(14)
-    assert str(cm.value).startswith("input to UVFlag.__init__ must be one of:")
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -826,11 +826,58 @@ def test_init_list_files_weights(read_future_shapes, write_future_shapes, tmpdir
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 def test_init_posix():
-    # Test that weights are preserved when reading list of files
     testfile_posix = pathlib.Path(test_f_file)
     uvf1 = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf2 = UVFlag(testfile_posix, use_future_array_shapes=True)
     assert uvf1 == uvf2
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+def test_hdf5_meta_telescope_location(test_outfile):
+    meta = hdf5_utils.HDF5Meta(test_f_file)
+    lat, lon, alt = meta.telescope_location_lat_lon_alt
+
+    assert np.isclose(lat, meta.telescope_location_obj.lat.rad)
+    assert np.isclose(lon, meta.telescope_location_obj.lon.rad)
+    assert np.isclose(alt, meta.telescope_location_obj.height.to("m").value)
+
+    lat_deg, lon_deg, alt = meta.telescope_location_lat_lon_alt_degrees
+    assert np.isclose(lat_deg, meta.telescope_location_obj.lat.deg)
+    assert np.isclose(lon_deg, meta.telescope_location_obj.lon.deg)
+    assert np.isclose(alt, meta.telescope_location_obj.height.to("m").value)
+
+    if hasmoon:
+        from lunarsky import MoonLocation
+
+        shutil.copyfile(test_f_file, test_outfile)
+        with h5py.File(test_outfile, "r+") as h5f:
+            h5f["Header/telescope_frame"] = "mcmf"
+        meta = hdf5_utils.HDF5Meta(test_outfile)
+        assert meta.telescope_frame == "mcmf"
+        assert isinstance(meta.telescope_location_obj, MoonLocation)
+
+
+@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
+    """Check errors when calling HDF5Meta with MCMF without lunarsky."""
+    shutil.copyfile(test_f_file, test_outfile)
+    with h5py.File(test_outfile, "r+") as h5f:
+        h5f["Header/telescope_frame"] = "mcmf"
+
+    meta = hdf5_utils.HDF5Meta(test_outfile)
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ValueError, match=msg):
+        meta.telescope_location_obj
+    del meta
+
+    uvf_from_data.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/telescope_frame"]
+        h5f["Header/telescope_frame"] = "mcmf"
+
+    meta = hdf5_utils.HDF5Meta(test_outfile)
+    with pytest.raises(ValueError, match=msg):
+        meta.telescope_location_obj
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -838,9 +885,8 @@ def test_data_like_property_mode_tamper(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test", use_future_array_shapes=True)
     uvf.mode = "test"
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Invalid mode. Mode must be one of"):
         list(uvf.data_like_parameters)
-    assert str(cm.value).startswith("Invalid mode. Mode must be one of")
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
@@ -899,6 +945,13 @@ def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid
     uvf2 = UVFlag(test_outfile, use_future_array_shapes=True)
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
+
+    meta = hdf5_utils.HDF5Meta(test_outfile)
+    loc_obj = meta.telescope_location_obj
+
+    assert np.isclose(loc_obj.x, uvf.telescope.location.x)
+    assert np.isclose(loc_obj.y, uvf.telescope.location.y)
+    assert np.isclose(loc_obj.z, uvf.telescope.location.z)
 
 
 @pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
@@ -2294,9 +2347,8 @@ def test_collapse_pol_add_pol_axis():
     uvf.__add__(uvf2, inplace=True, axis="pol")  # Concatenate to form multi-pol object
     uvf2 = uvf.copy()
     uvf2.collapse_pol()
-    with pytest.raises(NotImplementedError) as cm:
+    with pytest.raises(NotImplementedError, match="Two UVFlag objects with their"):
         uvf2.__add__(uvf2, axis="pol")
-    assert str(cm.value).startswith("Two UVFlag objects with their")
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3071,9 +3123,8 @@ def test_or_error():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf2 = uvf.copy()
     uvf.to_flag()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match='UVFlag object must be in "flag" mode'):
         uvf.__or__(uvf2)
-    assert str(cm.value).startswith('UVFlag object must be in "flag" mode')
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3152,9 +3203,8 @@ def test_flag_to_flag():
 def test_to_flag_unknown_mode():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.mode = "foo"
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Unknown UVFlag mode: foo"):
         uvf.to_flag()
-    assert str(cm.value).startswith("Unknown UVFlag mode: foo")
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3248,9 +3298,8 @@ def test_metric_to_metric():
 def test_to_metric_unknown_mode():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.mode = "foo"
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Unknown UVFlag mode: foo"):
         uvf.to_metric()
-    assert str(cm.value).startswith("Unknown UVFlag mode: foo")
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3265,14 +3314,12 @@ def test_antpair2ind():
 def test_antpair2ind_nonbaseline():
     uvf = UVFlag(test_f_file, use_future_array_shapes=True)
     uvf.to_waterfall()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=f"UVFlag object of type {uvf.type} does not contain antenna pairs "
+        "to index.",
+    ):
         uvf.antpair2ind(0, 3)
-    assert str(cm.value).startswith(
-        "UVFlag object of type "
-        + uvf.type
-        + " does not contain antenna "
-        + "pairs to index."
-    )
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3332,9 +3379,10 @@ def test_combine_metrics_not_inplace(uvcal_obj):
 def test_combine_metrics_not_uvflag(uvcal_obj):
     uvc = uvcal_obj
     uvf = UVFlag(uvc, use_future_array_shapes=True)
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match='"others" must be UVFlag or list of UVFlag objects'
+    ):
         uvf.combine_metrics("bubblegum")
-    assert str(cm.value).startswith('"others" must be UVFlag or list of UVFlag objects')
 
 
 def test_combine_metrics_not_metric(uvcal_obj):
@@ -3344,9 +3392,10 @@ def test_combine_metrics_not_metric(uvcal_obj):
     uvf.metric_array = np.random.normal(size=uvf.metric_array.shape)
     uvf2 = uvf.copy()
     uvf2.to_flag()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match='UVFlag object and "others" must be in "metric"'
+    ):
         uvf.combine_metrics(uvf2)
-    assert str(cm.value).startswith('UVFlag object and "others" must be in "metric"')
 
 
 def test_combine_metrics_wrong_shape(uvcal_obj):
@@ -3356,9 +3405,8 @@ def test_combine_metrics_wrong_shape(uvcal_obj):
     uvf.metric_array = np.random.normal(size=uvf.metric_array.shape)
     uvf2 = uvf.copy()
     uvf2.to_waterfall()
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="UVFlag metric array shapes do not match."):
         uvf.combine_metrics(uvf2)
-    assert str(cm.value).startswith("UVFlag metric array shapes do not match.")
 
 
 def test_combine_metrics_add_version_str(uvcal_obj):
@@ -3458,17 +3506,18 @@ def test_flags2waterfall_uvcal(uvcal_obj, future_shapes):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_flags2waterfall_errors(uvdata_obj):
     # First argument must be UVData or UVCal object
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "flags2waterfall() requires a UVData or UVCal object as the first argument."
+        ),
+    ):
         flags2waterfall(5)
-    assert str(cm.value).startswith(
-        "flags2waterfall() requires a UVData or " + "UVCal object"
-    )
 
     uv = uvdata_obj
     # Flag array must have same shape as uv.flag_array
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Flag array must align with UVData or UVCal"):
         flags2waterfall(uv, flag_array=np.array([4, 5]))
-    assert str(cm.value).startswith("Flag array must align with UVData or UVCal")
 
 
 def test_and_rows_cols():
@@ -3487,13 +3536,13 @@ def test_and_rows_cols():
 
 def test_select_waterfall_errors(uvf_from_waterfall):
     uvf = uvf_from_waterfall
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Cannot select on antenna_nums with waterfall"
+    ):
         uvf.select(antenna_nums=[0, 1, 2])
-    assert str(cm.value).startswith("Cannot select on antenna_nums with waterfall")
 
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Cannot select on bls with waterfall"):
         uvf.select(bls=[(0, 1), (0, 2)])
-    assert str(cm.value).startswith("Cannot select on bls with waterfall")
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -3649,9 +3698,8 @@ def test_select_antenna_nums_error(input_uvf, uvf_mode):
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     # also test for error if antenna numbers not present in data
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(ValueError, match="Antenna number 708 is not present"):
         uvf.select(antenna_nums=[708, 709, 710])
-    assert str(cm.value).startswith("Antenna number 708 is not present")
 
 
 def sort_bl(p):
@@ -3671,13 +3719,12 @@ def test_select_bls(input_uvf, uvf_mode):
     np.random.seed(0)
 
     if uvf.type != "baseline":
-        with pytest.raises(ValueError) as cm:
+        with pytest.raises(
+            ValueError,
+            match='Only "baseline" mode UVFlag objects may select along the '
+            "baseline axis",
+        ):
             uvf.select(bls=[(0, 1)])
-        assert str(cm.value).startswith(
-            'Only "baseline" mode UVFlag '
-            "objects may select along the "
-            "baseline axis"
-        )
     else:
         old_history = copy.deepcopy(uvf.history)
         bls_select = np.random.choice(
@@ -3805,13 +3852,12 @@ def test_select_bls_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
     if uvf.type != "baseline":
-        with pytest.raises(ValueError) as cm:
+        with pytest.raises(
+            ValueError,
+            match='Only "baseline" mode UVFlag objects may select along the '
+            "baseline axis",
+        ):
             uvf.select(bls=[(0, 1)])
-        assert str(cm.value).startswith(
-            'Only "baseline" mode UVFlag '
-            "objects may select along the "
-            "baseline axis"
-        )
     else:
         if select_kwargs["bls"] == (97, 97):
             uvf.select(bls=[(97, 104), (97, 105), (88, 97)])
@@ -3875,11 +3921,10 @@ def test_select_times(input_uvf, uvf_mode, future_shapes):
     )
     # check for errors associated with times not included in data
     bad_time = [np.min(unique_times) - 0.005]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match=f"Time {bad_time[0]} is not present in the time_array"
+    ):
         uvf.select(times=bad_time)
-    assert str(cm.value).startswith(
-        "Time {t} is not present in" " the time_array".format(t=bad_time[0])
-    )
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
@@ -3945,11 +3990,10 @@ def test_select_frequencies(input_uvf, uvf_mode, future_shapes):
 
     # check for errors associated with frequencies not included in data
     bad_freq = [np.max(uvf.freq_array) + 100]
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match=f"Frequency {bad_freq[0]} is not present in the freq_array"
+    ):
         uvf.select(frequencies=bad_freq)
-    assert str(cm.value).startswith(
-        "Frequency {f} is not present in the freq_array".format(f=bad_freq[0])
-    )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -4063,11 +4107,10 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf, future_shapes):
     )
 
     # check for errors associated with polarizations not included in data
-    with pytest.raises(ValueError) as cm:
+    with pytest.raises(
+        ValueError, match="Polarization -3 is not present in the polarization_array"
+    ):
         uvf2.select(polarizations=[-3])
-    assert str(cm.value).startswith(
-        "Polarization {p} is not present in the polarization_array".format(p=-3)
-    )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
