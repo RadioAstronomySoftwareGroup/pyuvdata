@@ -908,7 +908,7 @@ def test_miriad_only_itrs(tmp_path, paper_miriad):
     uv_in = paper_miriad
     testfile = os.path.join(tmp_path, "outtest_miriad.uv")
 
-    enu_antpos, _ = uv_in.get_ENU_antpos()
+    enu_antpos = uv_in.telescope.get_enu_antpos()
     latitude, longitude, altitude = uv_in.telescope.location_lat_lon_alt
     uv_in.telescope.location = MoonLocation.from_selenodetic(
         lat=latitude * units.rad, lon=longitude * units.rad, height=altitude * units.m

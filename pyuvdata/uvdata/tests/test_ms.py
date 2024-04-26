@@ -133,7 +133,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
 
-        enu_antpos, _ = uvobj.get_ENU_antpos()
+        enu_antpos = uvobj.telescope.get_enu_antpos()
         uvobj.telescope.location = MoonLocation.from_selenodetic(
             lat=uvobj.telescope.location.lat,
             lon=uvobj.telescope.location.lon,

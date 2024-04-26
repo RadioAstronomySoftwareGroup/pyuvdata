@@ -5406,7 +5406,7 @@ def test_telescope_loc_xyz_check(paper_uvh5, tmp_path):
             "itrs position vector magnitudes must be on the order "
             "of the radius of Earth -- they appear to lie well below this."
         ]
-        * 4,
+        * 5,
     ):
         uv.read(fname, use_future_array_shapes=True)
 
@@ -6192,10 +6192,13 @@ def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
 
     assert conjs is None
 
-    apos, anums = uv0.get_ENU_antpos()
+    apos = uv0.telescope.get_enu_antpos()
     with uvtest.check_warnings(warn_type, match=warn_str):
         new_red_gps, new_centers, new_lengths = uvutils.get_antenna_redundancies(
-            anums, apos, include_autos=False, use_grid_alg=grid_alg
+            uv0.telescope.antenna_numbers,
+            apos,
+            include_autos=False,
+            use_grid_alg=grid_alg,
         )
 
     # all redundancy info is the same
