@@ -529,7 +529,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
 
-        enu_antpos, _ = uv_in.get_ENU_antpos()
+        enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
             lat=uv_in.telescope.location.lat,
             lon=uv_in.telescope.location.lon,
