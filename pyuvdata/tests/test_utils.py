@@ -2987,11 +2987,15 @@ def test_redundancy_finder(grid_alg):
 
     tol = 0.05
 
-    antpos, antnums = uvd.get_ENU_antpos()
+    antpos = uvd.telescope.get_enu_antpos()
 
     with uvtest.check_warnings(warn_type, match=warn_str):
         baseline_groups_ants, vec_bin_centers, lens = uvutils.get_antenna_redundancies(
-            antnums, antpos, tol=tol, include_autos=False, use_grid_alg=grid_alg
+            uvd.telescope.antenna_numbers,
+            antpos,
+            tol=tol,
+            include_autos=False,
+            use_grid_alg=grid_alg,
         )
     # Under these conditions, should see 19 redundant groups in the file.
     assert len(baseline_groups_ants) == 19
@@ -3029,7 +3033,7 @@ def test_redundancy_finder(grid_alg):
         for bi, bl in enumerate(gp):
             if bl in conjugates:
                 bl_gps_unconj[gi][bi] = uvutils.baseline_index_flip(
-                    bl, Nants_telescope=len(antnums)
+                    bl, Nants_telescope=uvd.telescope.Nants
                 )
     bl_gps_unconj = [sorted(bgp) for bgp in bl_gps_unconj]
     bl_gps_ants = [sorted(bgp) for bgp in baseline_groups_ants]
