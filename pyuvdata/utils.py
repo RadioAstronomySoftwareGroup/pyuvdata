@@ -4720,9 +4720,6 @@ def check_lsts_against_times(
     If the `lst_array` does not match the calculated LSTs to the lst_tols.
 
     """
-    if frame == "mcmf" and ellipsoid is None:
-        ellipsoid = "SPHERE"
-
     # Don't worry about passing the astrometry library because we test that they agree
     # to better than our standard lst tolerances.
     lsts = get_lst_for_time(
