@@ -347,6 +347,22 @@ class UVParameter:
                     print(f"{self.name} is None on right, but not left")
                 return False
 
+        if isinstance(self.value, tuple(allowed_location_types)):
+            if not isinstance(other.value, tuple(allowed_location_types)):
+                if not silent:
+                    print(
+                        f"{self.name} parameter value is a Location, but other is not"
+                    )
+                return False
+
+        if isinstance(self.value, SkyCoord):
+            if not isinstance(other.value, SkyCoord):
+                if not silent:
+                    print(
+                        f"{self.name} parameter value is a SkyCoord, but other is not"
+                    )
+                return False
+
         if isinstance(self.value, np.recarray):
             # check both recarrays and field names match (order doesn't have to)
             # then iterate through field names and check that each matches
@@ -409,6 +425,14 @@ class UVParameter:
                 return False
 
             if isinstance(self.value, units.Quantity):
+                if not isinstance(other.value, units.Quantity):
+                    if not silent:
+                        print(
+                            f"{self.name} parameter value is a Quantity, but "
+                            "other is not."
+                        )
+                    return False
+
                 if not self.value.unit.is_equivalent(other.value.unit):
                     if not silent:
                         print(
@@ -956,12 +980,13 @@ class LocationParameter(UVParameter):
                 centric_coords = self.value.geocentric
             return units.Quantity(centric_coords).to("m").value
 
-    def set_xyz(self, xyz, frame=None, ellipsoid=None):
+    def set_xyz(self, xyz, *, frame=None, ellipsoid=None):
         """Set the body centric coordinates in meters."""
-        if frame is None and hasmoon and isinstance(self.value, MoonLocation):
-            frame = "mcmf"
-        else:
-            frame = "itrs"
+        if frame is None:
+            if hasmoon and isinstance(self.value, MoonLocation):
+                frame = "mcmf"
+            else:
+                frame = "itrs"
 
         allowed_frames = ["itrs"]
         if hasmoon:
@@ -1072,16 +1097,12 @@ class LocationParameter(UVParameter):
         if not isinstance(self.value, tuple(allowed_location_types)) or not isinstance(
             other.value, tuple(allowed_location_types)
         ):
+            # one of these is not a proper location type.
             return super(LocationParameter, self).__eq__(other, silent=silent)
-
-        if self.value.shape != other.value.shape:
-            if not silent:
-                print(f"{self.name} parameter shapes are different")
-            return False
 
         if not isinstance(other.value, self.value.__class__):
             if not silent:
-                print("Classes do not match")
+                print(f"{self.name} parameter classes do not match")
             return False
 
         if hasmoon and isinstance(self.value, MoonLocation):
