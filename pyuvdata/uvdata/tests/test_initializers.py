@@ -107,14 +107,35 @@ def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: 
     assert uvd.telescope._location.ellipsoid == selenoid
 
 
-def test_bad_inputs(simplest_working_params: dict[str, Any]):
-    with pytest.raises(ValueError, match="vis_units must be one of"):
-        UVData.new(**simplest_working_params, vis_units="foo")
-
-    with pytest.raises(
-        ValueError, match="Keyword argument derp is not a valid UVData attribute"
-    ):
-        UVData.new(**simplest_working_params, derp="foo")
+@pytest.mark.parametrize(
+    ["update_dict", "err_msg"],
+    [
+        [{"vis_units": "foo"}, "vis_units must be one of"],
+        [{"derp": "foo"}, "Keyword argument derp is not a valid UVData attribute"],
+        [
+            {"telescope": None},
+            "antenna_positions is required if telescope is not provided.",
+        ],
+        [
+            {
+                "telescope": Telescope.from_params(
+                    location=EarthLocation.from_geodetic(0, 0, 0),
+                    name="test",
+                    antenna_positions={
+                        0: [0.0, 0.0, 0.0],
+                        1: [0.0, 0.0, 1.0],
+                        2: [0.0, 0.0, 2.0],
+                    },
+                )
+            },
+            "instrument must be set on the Telescope object passed to `telescope`.",
+        ],
+    ],
+)
+def test_bad_inputs(simplest_working_params: dict[str, Any], update_dict, err_msg):
+    simplest_working_params.update(update_dict)
+    with pytest.raises(ValueError, match=err_msg):
+        UVData.new(**simplest_working_params)
 
 
 def test_bad_time_inputs(simplest_working_params: dict[str, Any]):

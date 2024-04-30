@@ -600,6 +600,16 @@ class Miriad(UVData):
             warnings.warn("Antenna positions are not present in the file.")
             self.telescope.antenna_positions = None
 
+            if self.telescope.location is None:
+                self.telescope.location = EarthLocation.from_geodetic(
+                    lat=latitude * units.rad, lon=longitude * units.rad
+                )
+                warnings.warn(
+                    "Telescope location is set at sealevel at the file lat/lon "
+                    "coordinates because neither altitude nor antenna positions "
+                    "are present in the file."
+                )
+
         if self.telescope.antenna_numbers is None:
             # there are no antenna_numbers or antenna_positions, so just use
             # the antennas present in the visibilities
@@ -618,9 +628,10 @@ class Miriad(UVData):
             ant_name_list = ant_name_str[1:-1].split(", ")
             self.telescope.antenna_names = ant_name_list
         except KeyError:
-            self.telescope.antenna_names = self.telescope.antenna_numbers.astype(
-                str
-            ).tolist()
+            if self.telescope.antenna_numbers is not None:
+                self.telescope.antenna_names = self.telescope.antenna_numbers.astype(
+                    str
+                ).tolist()
 
         # check for antenna diameters
         try:
@@ -1581,14 +1592,13 @@ class Miriad(UVData):
             # that obspa is not a standard keyword), then we can _just_ fill those
             # in.
             self._set_app_coords_helper(pa_only=record_app)
-        try:
-            self.set_telescope_params(
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-            )
-        except ValueError as ve:
-            warnings.warn(str(ve))
+
+        # set any extra info
+        self.set_telescope_params(
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
 
         # if blt_order is defined, reorder data to match that order
         # this is required because the data are ordered by (time, baseline) on the read
