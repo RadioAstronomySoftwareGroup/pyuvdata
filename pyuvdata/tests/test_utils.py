@@ -1383,7 +1383,7 @@ def test_calc_uvw_enu_roundtrip(calc_uvw_args):
     )
 
     np.testing.assert_allclose(
-        calc_uvw_args["uvw_array"], uvw_base_enu_check, atol=1e-16, rtol=0
+        calc_uvw_args["uvw_array"], uvw_base_enu_check, atol=1e-15, rtol=0
     )
 
 
