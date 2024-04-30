@@ -46,7 +46,7 @@ def uvc_only_kw():
 
 
 @pytest.fixture(scope="function")
-def uvc_simplest_no_telescope(uvc_only_kw):
+def uvc_simplest_no_telescope():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
         "time_array": np.linspace(2459850, 2459851, 12),
@@ -157,54 +157,52 @@ def test_new_uvcal_time_range(uvc_simplest):
         uvc = UVCal.new(**uvc_simplest)
 
 
-def test_new_uvcal_bad_inputs(uvc_simplest):
-    with pytest.raises(
-        ValueError, match="The following ants are not in antenna_numbers"
-    ):
-        new_uvcal(ant_array=[0, 1, 2, 3], **uvc_simplest)
-
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "If cal_style is 'sky', ref_antenna_name and sky_catalog must be provided."
-        ),
-    ):
-        new_uvcal(
-            cal_style="sky",
-            **{k: v for k, v in uvc_simplest.items() if k != "cal_style"}
-        )
-
-    with pytest.raises(
-        ValueError, match="cal_style must be 'redundant' or 'sky'\\, got"
-    ):
-        UVCal.new(
-            cal_style="wrong",
-            ref_antenna_name="mock",
-            sky_catalog="mock",
-            **{k: v for k, v in uvc_simplest.items() if k != "cal_style"}
-        )
-
-    with pytest.raises(ValueError, match="Unrecognized keyword argument"):
-        new_uvcal(bad_kwarg=True, **uvc_simplest)
-
-    with pytest.raises(
-        ValueError, match=re.escape("Provide *either* freq_range *or* freq_array")
-    ):
-        new_uvcal(freq_range=[100e6, 200e6], **uvc_simplest)
-
-    with pytest.raises(ValueError, match="You must provide either freq_array"):
-        new_uvcal(**{k: v for k, v in uvc_simplest.items() if k != "freq_array"})
-
-    with pytest.raises(ValueError, match="cal_type must be either 'gain' or 'delay'"):
-        new_uvcal(
-            cal_type="wrong",
-            freq_range=[150e6, 180e6],
-            **{
-                k: v
-                for k, v in uvc_simplest.items()
-                if k not in ("freq_array", "cal_type")
-            }
-        )
+@pytest.mark.parametrize(
+    ["update_dict", "err_msg"],
+    [
+        [{"ant_array": [0, 1, 2, 3]}, "The following ants are not in antenna_numbers"],
+        [
+            {"cal_style": "sky"},
+            "If cal_style is 'sky', ref_antenna_name and sky_catalog must be provided.",
+        ],
+        [
+            {"cal_style": "wrong", "ref_antenna_name": "mock", "sky_catalog": "mock"},
+            "cal_style must be 'redundant' or 'sky', got",
+        ],
+        [{"bad_kwarg": True}, "Unrecognized keyword argument"],
+        [
+            {"freq_range": [100e6, 200e6]},
+            re.escape("Provide *either* freq_range *or* freq_array"),
+        ],
+        [{"freq_array": None}, "You must provide either freq_array"],
+        [
+            {"cal_type": "wrong", "freq_range": [150e6, 180e6], "freq_array": None},
+            "cal_type must be either 'gain' or 'delay'",
+        ],
+        [
+            {"telescope": None},
+            "antenna_positions is required if telescope is not provided.",
+        ],
+        [
+            {
+                "telescope": Telescope.from_params(
+                    location=EarthLocation.from_geodetic(0, 0, 0),
+                    name="mock",
+                    antenna_positions={
+                        0: [0.0, 0.0, 0.0],
+                        1: [0.0, 0.0, 1.0],
+                        2: [0.0, 0.0, 2.0],
+                    },
+                )
+            },
+            "x_orientation must be set on the Telescope object passed to `telescope`.",
+        ],
+    ],
+)
+def test_new_uvcal_bad_inputs(uvc_simplest, update_dict, err_msg):
+    uvc_simplest.update(update_dict)
+    with pytest.raises(ValueError, match=err_msg):
+        new_uvcal(**uvc_simplest)
 
 
 def test_new_uvcal_jones_array(uvc_simplest):
@@ -298,6 +296,17 @@ def test_new_uvcal_from_uvdata(uvd_kw, uvc_only_kw):
     uvd.telescope.antenna_diameters = np.zeros(uvd.telescope.Nants, dtype=float) + 5.0
     uvc = new_uvcal_from_uvdata(uvd, **uvc_only_kw)
     assert np.all(uvc.telescope.antenna_diameters == uvd.telescope.antenna_diameters)
+
+
+def test_new_uvcal_from_uvdata_errors(uvd_kw, uvc_only_kw):
+    uvd = new_uvdata(**uvd_kw)
+
+    uvc_only_kw.pop("x_orientation")
+    with pytest.raises(
+        ValueError,
+        match=("x_orientation must be provided if it is not set on the UVData object."),
+    ):
+        new_uvcal_from_uvdata(uvd, **uvc_only_kw)
 
 
 def test_new_uvcal_set_freq_range_for_gain_type(uvd_kw, uvc_only_kw):
