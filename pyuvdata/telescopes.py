@@ -415,6 +415,13 @@ class Telescope(uvbase.UVBase):
             This should only be used for testing. This allows passing in a
             different dict to use in place of the KNOWN_TELESCOPES dict.
 
+        Raises
+        ------
+        ValueError
+            If self.name is not set or if ((location is missing or overwrite is
+            set) and self.name is not found either astropy sites our our
+            known_telescopes dict)
+
         """
         if self.name is None:
             raise ValueError(

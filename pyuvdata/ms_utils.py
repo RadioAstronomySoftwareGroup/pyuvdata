@@ -2137,19 +2137,15 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
         )
         return telescope_loc
     else:
-        if xyz_telescope_frame not in ["itrs", "mcmf"]:
-            raise ValueError(
-                f"Telescope frame in file is {xyz_telescope_frame}. "
-                "Only 'itrs' and 'mcmf' are currently supported."
-            )
         if xyz_telescope_frame == "mcmf":
             if not hasmoon:
-                raise ValueError(
-                    "Need to install `lunarsky` package to work with " "MCMF frames."
+                # There is a test for this, but it is always skipped with our
+                # current CI setup because it requires that python-casacore is
+                # installed but lunarsky isn't. Doesn't seem worth setting up a
+                # whole separate CI for this.
+                raise ValueError(  # pragma: no cover
+                    "Need to install `lunarsky` package to work with MCMF frames."
                 )
-
-            if xyz_telescope_ellipsoid is None:
-                xyz_telescope_ellipsoid = "SPHERE"
 
         if "telescope_location" in obs_dict:
             if xyz_telescope_frame == "itrs":

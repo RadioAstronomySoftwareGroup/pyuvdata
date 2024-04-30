@@ -108,7 +108,7 @@ def test_quantity_equality_error():
 
 
 @pytest.mark.parametrize(
-    "vals,p2_atol",
+    ["vals", "p2_atol"],
     (
         (np.array([0, 2, 4]) * units.m, 1 * units.mm),
         (np.array([0, 1, 3]) * units.mm, 1 * units.mm),
@@ -130,6 +130,19 @@ def test_quantity_inequality(vals, p2_atol):
     )
     param2 = uvp.UVParameter(name="p2", value=vals, tols=p2_atol)
     assert param1.__ne__(param2, silent=False)
+
+
+def test_quantity_array_inequality(capsys):
+    param1 = uvp.UVParameter(
+        name="p1", value=np.array([0.0, 1.0, 3.0]) * units.m, tols=1 * units.mm
+    )
+    param2 = uvp.UVParameter(name="p2", value=np.array([0.0, 1.0, 3.0]), tols=1.0)
+    assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is a Quantity, but other is not."
+    )
 
 
 def test_quantity_equality_nans():
