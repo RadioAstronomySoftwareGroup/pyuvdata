@@ -276,11 +276,8 @@ class CalH5(UVCal):
             except AttributeError:
                 pass
 
-        # set telescope params
-        try:
-            self.set_telescope_params()
-        except ValueError as ve:
-            warnings.warn(str(ve))
+        # set any extra telescope params
+        self.set_telescope_params()
 
         # ensure LSTs are set before checking them.
         if proc is not None:

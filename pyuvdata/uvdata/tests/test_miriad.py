@@ -628,6 +628,32 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     ):
         uv_out.read(testfile, use_future_array_shapes=True)
 
+    # test for handling no altitude, unknown telescope, no antenna positions
+    if os.path.exists(testfile):
+        shutil.rmtree(testfile)
+    aipy_uv = aipy_extracts.UV(paper_miriad_file)
+    aipy_uv2 = aipy_extracts.UV(testfile, status="new")
+    # initialize headers from old file
+    # change telescope name (so the position isn't set from known_telescopes)
+    # and use absolute antenna positions
+    aipy_uv2.init_from_uv(aipy_uv, override={"telescop": "foo"}, exclude=["antpos"])
+    # copy data from old file
+    aipy_uv2.pipe(aipy_uv)
+    aipy_uv2.close()
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            warn_dict["altitude_missing_foo"],
+            warn_dict["altitude_missing_foo"],  # raised twice
+            "Antenna positions are not present in the file.",
+            "Antenna positions are not present in the file.",  # raised twice
+            "Telescope location is set at sealevel at the file lat/lon "
+            "coordinates because neither altitude nor antenna positions are "
+            "present in the file",
+        ],
+    ):
+        uv_out.read(testfile, use_future_array_shapes=True, run_check=False)
+
     # Test for handling when antenna positions have a different mean latitude
     # than the file latitude
     # make new file

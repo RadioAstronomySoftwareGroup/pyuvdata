@@ -4822,9 +4822,6 @@ class UVData(UVBase):
                     "Set lookup_name=False in order to continue."
                 )
 
-        # TODO I don't understand this comment:
-        # We only want to use the JPL-Horizons service if using a non-multi-phase-ctr
-        # instance of a UVData object.
         if lookup_name and (cat_name not in name_dict):
             if (cat_type is None) or (cat_type == "ephem"):
                 [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
