@@ -15,7 +15,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-from pyuvdata.tests.test_utils import selenoids
+from pyuvdata.tests.test_utils import hasmoon, selenoids
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
 from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
@@ -135,6 +135,55 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
     cal_out = UVCal.from_file(write_file, use_future_array_shapes=True)
 
     assert cal_in == cal_out
+
+    # check in case xyz is missing
+    write_file2 = str(tmp_path / "outtest_noxyz.fits")
+    with fits.open(write_file) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames["ANTENNAS"]]
+
+        primary_hdr.pop("ARRAYX")
+        primary_hdr.pop("ARRAYY")
+        primary_hdr.pop("ARRAYZ")
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
+
+        hdulist.writeto(write_file2, overwrite=True)
+
+    cal_out = UVCal.from_file(write_file2, use_future_array_shapes=True)
+    assert cal_out == cal_in
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+def test_calfits_no_moon(gain_data, tmp_path):
+    """Check errors when reading uvfits with MCMF without lunarsky."""
+    write_file = str(tmp_path / "outtest.calfits")
+    write_file2 = str(tmp_path / "outtest2.calfits")
+
+    gain_data.write_calfits(write_file)
+
+    with fits.open(write_file, memmap=True) as fname:
+        data = fname[0].data
+        primary_hdr = fname[0].header
+        hdunames = uvutils._fits_indexhdus(fname)
+        ant_hdu = fname[hdunames["ANTENNAS"]]
+
+        primary_hdr["FRAME"] = "mcmf"
+        primary_hdr.pop("ARRAYY")
+        primary_hdr.pop("ARRAYZ")
+
+        prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
+        hdulist = fits.HDUList([prihdu, ant_hdu])
+
+        hdulist.writeto(write_file2, overwrite=True)
+
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ValueError, match=msg):
+        UVCal.from_file(write_file2)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
