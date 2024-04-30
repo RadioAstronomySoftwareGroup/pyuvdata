@@ -26,7 +26,7 @@ pytestmark = pytest.mark.filterwarnings(
 
 
 sma_warnings = [
-    "Unknown polarization basis for solutions, jones_array values may " "be spurious.",
+    "Unknown polarization basis for solutions, jones_array values may be spurious.",
     "Unknown x_orientation basis for solutions, assuming",
     "key CASA_Version in extra_keywords is longer than 8 characters. "
     "It will be truncated to 8 if written to a calfits file format.",
