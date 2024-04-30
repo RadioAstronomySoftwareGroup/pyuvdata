@@ -238,7 +238,7 @@ def test_none_extra_keywords(gain_data, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-def test_write_calh5_errors(gain_data, tmp_path):
+def test_read_write_calh5_errors(gain_data, tmp_path):
     """
     Test raising errors in write_calh5 function.
     """
@@ -266,6 +266,13 @@ def test_write_calh5_errors(gain_data, tmp_path):
     assert cal_obj == cal_out
 
     # check error if missing required params
+    with h5py.File(testfile, "r+") as h5f:
+        del h5f["/Header/cal_type"]
+
+    with pytest.raises(KeyError, match="cal_type not found in"):
+        cal_out.read(testfile)
+
+    # check error if missing required telescope params
     with h5py.File(testfile, "r+") as h5f:
         del h5f["/Header/telescope_name"]
 
