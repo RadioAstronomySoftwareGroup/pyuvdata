@@ -262,6 +262,11 @@ def test_XYZ_from_LatLonAlt_mcmf(selenoid):
     )
     np.testing.assert_allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
 
+    # test default ellipsoid
+    if selenoid == "SPHERE":
+        out_xyz = uvutils.XYZ_from_LatLonAlt(lat, lon, alt, frame="mcmf")
+        np.testing.assert_allclose(ref_xyz_moon[selenoid], out_xyz, rtol=0, atol=1e-3)
+
     # Test errors with invalid frame
     with pytest.raises(
         ValueError, match="No cartesian to spherical transform defined for frame"
@@ -277,6 +282,11 @@ def test_LatLonAlt_from_XYZ_mcmf(selenoid):
         ref_xyz_moon[selenoid], frame="mcmf", ellipsoid=selenoid
     )
     np.testing.assert_allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
+
+    # test default ellipsoid
+    if selenoid == "SPHERE":
+        out_latlonalt = uvutils.LatLonAlt_from_XYZ(ref_xyz_moon[selenoid], frame="mcmf")
+        np.testing.assert_allclose(ref_latlonalt_moon, out_latlonalt, rtol=0, atol=1e-3)
 
     # Test errors with invalid frame
     with pytest.raises(
@@ -1920,7 +1930,7 @@ def test_calc_frame_pos_angle():
     assert np.isclose(frame_pa[-25], -0.0019098101664715339)
 
 
-def test_jphl_lookup():
+def test_jphl_lookup(astrometry_args):
     """
     A very simple lookup query to verify that the astroquery tools for accessing
     JPL-Horizons are working. This test is very limited, on account of not wanting to
@@ -1945,6 +1955,26 @@ def test_jphl_lookup():
     np.testing.assert_allclose(ephem_dec, 0.3120687480116649)
     np.testing.assert_allclose(ephem_dist, 1.00996185750717)
     np.testing.assert_allclose(ephem_vel, 0.386914)
+
+    # check calling lookup_jplhorizons with EarthLocation vs lat/lon/alt passed
+    try:
+        ephem_info_latlon = uvutils.lookup_jplhorizons(
+            "Sun", 2456789.0, telescope_loc=astrometry_args["telescope_loc"]
+        )
+        ephem_info_el = uvutils.lookup_jplhorizons(
+            "Sun",
+            2456789.0,
+            telescope_loc=EarthLocation.from_geodetic(
+                lat=astrometry_args["telescope_loc"][0] * units.rad,
+                lon=astrometry_args["telescope_loc"][1] * units.rad,
+                height=astrometry_args["telescope_loc"][2] * units.m,
+            ),
+        )
+    except (SSLError, RequestException) as err:
+        pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
+
+    for ind, item in enumerate(ephem_info_latlon):
+        assert item == ephem_info_el[ind]
 
 
 def test_ephem_interp_one_point():
@@ -2698,6 +2728,17 @@ def test_lst_for_time_moon(astrometry_args, selenoid):
         # TODO: would be nice to get this down to uvutils.RADIAN_TOL
         # seems like maybe the ellipsoid isn't being used properly?
         assert np.isclose(lst_array[ii], src.transform_to("icrs").ra.rad, atol=1e-5)
+
+    # test default ellipsoid
+    if selenoid == "SPHERE":
+        lst_array_default = uvutils.get_lst_for_time(
+            jd_array=astrometry_args["time_array"],
+            latitude=lat,
+            longitude=lon,
+            altitude=alt,
+            frame="mcmf",
+        )
+        np.testing.assert_allclose(lst_array, lst_array_default)
 
 
 def test_phasing_funcs():
