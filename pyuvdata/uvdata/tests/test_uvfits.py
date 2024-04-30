@@ -16,7 +16,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
-from pyuvdata.tests.test_utils import frame_selenoid
+from pyuvdata.tests.test_utils import frame_selenoid, hasmoon
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
 casa_tutorial_uvfits = os.path.join(
@@ -551,6 +551,24 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     uv_in.write_uvfits(write_file)
+
+    # check handling of default ellipsoid: remove the ellipsoid and check that
+    # it is properly defaulted to SPHERE
+    if telescope_frame == "mcmf" and selenoid == "SPHERE":
+        with fits.open(write_file, memmap=True) as hdu_list:
+            hdunames = uvutils._fits_indexhdus(hdu_list)
+            ant_hdu = hdu_list[hdunames["AIPS AN"]]
+            ant_hdr = ant_hdu.header.copy()
+
+            del ant_hdr["ELLIPSOI"]
+            ant_hdu.header = ant_hdr
+
+            vis_hdu = hdu_list[0]
+            source_hdu = hdu_list[hdunames["AIPS SU"]]
+            hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
+            hdulist.writeto(write_file, overwrite=True)
+            hdulist.close()
+
     uv_out.read(write_file, use_future_array_shapes=future_shapes)
 
     # make sure filenames are what we expect
@@ -912,6 +930,35 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
             uv_out.read(write_file2, use_future_array_shapes=True)
 
     return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+def test_uvfits_no_moon(casa_uvfits, tmp_path):
+    """Check errors when reading uvfits with MCMF without lunarsky."""
+    uv_in = casa_uvfits
+    write_file = str(tmp_path / "outtest_casa.uvfits")
+
+    uv_in.write_uvfits(write_file)
+
+    uv_out = UVData()
+    with fits.open(write_file, memmap=True) as hdu_list:
+        hdunames = uvutils._fits_indexhdus(hdu_list)
+        ant_hdu = hdu_list[hdunames["AIPS AN"]]
+        ant_hdr = ant_hdu.header.copy()
+
+        ant_hdr["FRAME"] = "mcmf"
+        ant_hdu.header = ant_hdr
+
+        vis_hdu = hdu_list[0]
+        source_hdu = hdu_list[hdunames["AIPS SU"]]
+        hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
+        hdulist.writeto(write_file, overwrite=True)
+        hdulist.close()
+
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ValueError, match=msg):
+        uv_out.read(write_file)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
