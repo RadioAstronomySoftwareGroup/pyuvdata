@@ -16,7 +16,7 @@ from ... import UVData
 from ... import tests as uvtest
 from ... import utils as uvutils
 from ...data import DATA_PATH
-from ...tests.test_utils import frame_selenoid
+from ...tests.test_utils import frame_selenoid, hasmoon
 from ..uvdata import _future_array_shapes_warning
 
 pytest.importorskip("casacore")
@@ -117,7 +117,8 @@ def test_cotter_ms():
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected,")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
-def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
+@pytest.mark.parametrize("del_tel_loc", [True, False])
+def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_tel_loc):
     """Test reading in a CASA tutorial ms file and looping it through write_ms."""
     uvobj = nrao_uv
 
@@ -157,6 +158,30 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid):
         ],
     ):
         uvobj.write_ms(testfile)
+
+    # check handling of default ellipsoid: remove the ellipsoid and check that
+    # it is properly defaulted to SPHERE
+    if telescope_frame == "mcmf" and selenoid == "SPHERE":
+        from casacore import tables
+
+        tb_ant = tables.table(
+            os.path.join(testfile, "ANTENNA"), ack=False, readonly=False
+        )
+        meas_info_dict = tb_ant.getcolkeyword("POSITION", "MEASINFO")
+        del meas_info_dict["RefEllipsoid"]
+        tb_ant.putcolkeyword("POSITION", "MEASINFO", meas_info_dict)
+        tb_ant.close()
+
+    if del_tel_loc:
+        # This doesn't lead to test errors because the original data set didn't
+        # have a location, so we were already using the center of the antenna positions
+        from casacore import tables
+
+        tb_obs = tables.table(
+            os.path.join(testfile, "OBSERVATION"), ack=False, readonly=False
+        )
+        tb_obs.removecols("TELESCOPE_LOCATION")
+        tb_obs.close()
 
     uvobj2 = UVData()
     uvobj2.read_ms(testfile, use_future_array_shapes=True)
@@ -898,6 +923,30 @@ def test_ms_reader_errs(sma_mir, tmp_path, badcol, badval, errtype, msg):
                 use_future_array_shapes=True,
             )
         assert ms_uv._time_array == sma_mir._time_array
+
+
+@pytest.mark.skipif(hasmoon, reason="Test only when lunarsky not installed.")
+def test_ms_no_moon(sma_mir, tmp_path):
+    """Check errors when calling read_ms with MCMF without lunarsky."""
+    from casacore import tables
+
+    ms_uv = UVData()
+    testfile = os.path.join(tmp_path, "out_ms_reader_errs.ms")
+    sma_mir.write_ms(testfile)
+
+    tb_obs = tables.table(
+        os.path.join(testfile, "OBSERVATION"), ack=False, readonly=False
+    )
+    tb_obs.removecols("TELESCOPE_LOCATION")
+    tb_obs.putcol("TELESCOPE_NAME", "ABC")
+    tb_obs.close()
+    tb_ant = tables.table(os.path.join(testfile, "ANTENNA"), ack=False, readonly=False)
+    tb_ant.putcolkeyword("POSITION", "MEASINFO", {"type": "position", "Ref": "MCMF"})
+    tb_ant.close()
+
+    msg = "Need to install `lunarsky` package to work with MCMF frame."
+    with pytest.raises(ValueError, match=msg):
+        ms_uv.read(testfile, data_column="DATA", file_type="ms")
 
 
 def test_antenna_diameter_handling(hera_uvh5, tmp_path):

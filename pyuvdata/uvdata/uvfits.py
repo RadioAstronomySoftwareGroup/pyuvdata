@@ -647,19 +647,12 @@ class UVFITS(UVData):
                 and longitude_degrees is not None
                 and altitude is not None
             ):
-                if telescope_frame == "itrs":
-                    self.telescope.location = EarthLocation.from_geodetic(
-                        lat=latitude_degrees * units.deg,
-                        lon=longitude_degrees * units.deg,
-                        height=altitude * units.m,
-                    )
-                else:
-                    self.telescope.location = MoonLocation.from_selenodetic(
-                        lat=latitude_degrees * units.deg,
-                        lon=longitude_degrees * units.deg,
-                        height=altitude * units.m,
-                        ellipsoid=self.ellipsoid,
-                    )
+                # only get here if the frame is set to "????", default to ITRS
+                self.telescope.location = EarthLocation.from_geodetic(
+                    lat=latitude_degrees * units.deg,
+                    lon=longitude_degrees * units.deg,
+                    height=altitude * units.m,
+                )
             else:
                 if telescope_frame == "itrs":
                     self.telescope.location = EarthLocation.from_geocentric(
@@ -706,14 +699,13 @@ class UVFITS(UVData):
             if "DIAMETER" in ant_hdu.columns.names:
                 self.telescope.antenna_diameters = ant_hdu.data.field("DIAMETER")
 
-            try:
-                self.set_telescope_params(
-                    run_check=run_check,
-                    check_extra=check_extra,
-                    run_check_acceptability=run_check_acceptability,
-                )
-            except ValueError as ve:
-                warnings.warn(str(ve))
+            # This will not error because uvfits required keywords ensure we
+            # have everything that is required for this method.
+            self.set_telescope_params(
+                run_check=run_check,
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+            )
 
             # Now read in the random parameter info
             self._get_parameter_data(
