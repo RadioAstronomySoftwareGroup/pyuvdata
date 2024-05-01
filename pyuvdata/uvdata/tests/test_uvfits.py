@@ -549,9 +549,10 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
 
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
 
     uv_in.write_uvfits(write_file)
-
+    file_read = write_file
     # check handling of default ellipsoid: remove the ellipsoid and check that
     # it is properly defaulted to SPHERE
     if telescope_frame == "mcmf" and selenoid == "SPHERE":
@@ -566,15 +567,11 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
             vis_hdu = hdu_list[0]
             source_hdu = hdu_list[hdunames["AIPS SU"]]
             hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
-            hdulist.writeto(write_file, overwrite=True)
+            hdulist.writeto(write_file2, overwrite=True)
             hdulist.close()
+            file_read = write_file2
 
-    uv_out.read(write_file, use_future_array_shapes=future_shapes)
-
-    # make sure filenames are what we expect
-    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
-    assert uv_out.filename == ["outtest_casa.uvfits"]
-    uv_in.filename = uv_out.filename
+    uv_out.read(file_read, use_future_array_shapes=future_shapes)
 
     assert uv_in.telescope._location.frame == uv_out.telescope._location.frame
     assert uv_in.telescope._location.ellipsoid == uv_out.telescope._location.ellipsoid
@@ -938,6 +935,7 @@ def test_uvfits_no_moon(casa_uvfits, tmp_path):
     """Check errors when reading uvfits with MCMF without lunarsky."""
     uv_in = casa_uvfits
     write_file = str(tmp_path / "outtest_casa.uvfits")
+    write_file2 = str(tmp_path / "outtest_casa2.uvfits")
 
     uv_in.write_uvfits(write_file)
 
@@ -953,12 +951,12 @@ def test_uvfits_no_moon(casa_uvfits, tmp_path):
         vis_hdu = hdu_list[0]
         source_hdu = hdu_list[hdunames["AIPS SU"]]
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu, source_hdu])
-        hdulist.writeto(write_file, overwrite=True)
+        hdulist.writeto(write_file2, overwrite=True)
         hdulist.close()
 
     msg = "Need to install `lunarsky` package to work with MCMF frame."
     with pytest.raises(ValueError, match=msg):
-        uv_out.read(write_file)
+        uv_out.read(write_file2)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
