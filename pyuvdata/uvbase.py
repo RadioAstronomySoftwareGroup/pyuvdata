@@ -392,7 +392,9 @@ class UVBase(object):
         """
         if uvparams_only:
             attribute_list = [
-                a for a in dir(self) if isinstance(getattr(self, a), uvp.UVParameter)
+                a
+                for a in dir(self)
+                if a.startswith("_") and isinstance(getattr(self, a), uvp.UVParameter)
             ]
         else:
             attribute_list = [
