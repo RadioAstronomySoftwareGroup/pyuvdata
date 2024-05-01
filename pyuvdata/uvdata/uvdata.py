@@ -697,6 +697,23 @@ class UVData(UVBase):
         self.telescope._instrument.required = True
         self.telescope._x_orientation.required = False
 
+    # This is required for eq_coeffs, which has Nants_telescope as one of its
+    # shapes. That's to allow us to line up the antenna_numbers/names with
+    # eq_coeffs so that we know which antenna each eq_coeff goes with.
+    @property
+    def Nants_telescope(self):
+        """
+        The number of antennas in the telescope.
+
+        This property is stored on the Telescope object internally.
+        """
+        return self._telescope.value.Nants
+
+    # TODO: do we want a setter on UVData for this?
+    @Nants_telescope.setter
+    def Nants_telescope(self, val):
+        self._telescope.value.Nants = val
+
     @staticmethod
     def _clear_antpair2ind_cache(obj):
         """Clear the antpair2ind cache."""
@@ -2588,6 +2605,9 @@ class UVData(UVBase):
                 raise ValueError(
                     "All values in the flex_spw_id_array must exist in the spw_array."
                 )
+
+        # call metadata_only to make sure that parameter requirements are set properly
+        self.metadata_only
 
         # first run the basic check from UVBase
 
