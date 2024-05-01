@@ -2019,6 +2019,10 @@ class UVCal(UVBase):
                 "2.5",
                 DeprecationWarning,
             )
+
+        # call metadata_only to make sure that parameter requirements are set properly
+        self.metadata_only
+
         # first run the basic check from UVBase
         super(UVCal, self).check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
