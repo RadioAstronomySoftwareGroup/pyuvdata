@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Changed
+- better handling of `antenna_diameters` in initializers.
 - updated minimum cython dependency to 3.0.
 - Updated minimum optional dependency versions: astropy-healpix>=1.0.2
 
