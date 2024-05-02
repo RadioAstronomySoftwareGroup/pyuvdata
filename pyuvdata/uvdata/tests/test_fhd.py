@@ -15,7 +15,7 @@ import pytest
 
 import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
-from pyuvdata import UVData
+from pyuvdata import Telescope, UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning
 
@@ -312,6 +312,35 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
     assert fhd_uv == uvfits_uv
 
 
+def test_read_fhd_latlonalt_match_xyz(fhd_data_files):
+
+    fhd_data_files["layout_file"] = os.path.join(
+        DATA_PATH, "fhd_vis_data/", "1061316296_known_match_xyz_layout.sav"
+    )
+
+    fhd_data_files["obs_file"] = os.path.join(
+        DATA_PATH, "fhd_vis_data/", "1061316296_known_match_latlonalt_obs.sav"
+    )
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match=[
+            "The FHD input files do not all have matching prefixes, so they "
+            "may not be for the same data.",
+            "Some FHD input files do not have the expected subfolder so FHD "
+            "folder matching could not be done. The affected file types are: "
+            "['layout', 'obs']",
+        ],
+    ):
+        fhd_uv = UVData.from_file(**fhd_data_files, use_future_array_shapes=True)
+
+    mwa_tel = Telescope.from_known_telescopes("mwa")
+
+    np.testing.assert_allclose(
+        mwa_tel._location.xyz(), fhd_uv.telescope._location.xyz()
+    )
+
+
 def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_data_files):
     """
     FHD to uvfits loopback test with fixed array center layout file.
@@ -334,8 +363,6 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_data_files):
             "matching could not be done. The affected file types are: ['layout']",
             "The FHD input files do not all have matching prefixes, so they may not be "
             "for the same data.",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
@@ -358,8 +385,6 @@ def test_read_fhd_write_read_uvfits_fix_layout(tmp_path, fhd_data_files):
             "not be for the same FHD run.",
             "The FHD input files do not all have matching prefixes, so they may not be "
             "for the same data.",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
@@ -756,7 +781,6 @@ def test_single_time():
         UserWarning,
         [
             "tile_names from obs structure does not match",
-            "Telescope location derived from obs lat/lon/alt",
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['vis', 'vis', "
             "'flags', 'layout', 'params', 'settings']",
@@ -784,7 +808,6 @@ def test_conjugation():
         UserWarning,
         [
             "tile_names from obs structure does not match",
-            "Telescope location derived from obs lat/lon/alt",
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['vis', 'vis', "
             "'flags', 'layout', 'params', 'settings']",

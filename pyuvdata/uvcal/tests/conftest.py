@@ -105,17 +105,14 @@ def delay_data_inputflag(delay_data_inputflag_main):
 @pytest.fixture(scope="session")
 def fhd_cal_raw_main():
     """Read in raw FHD cal."""
-    with uvtest.check_warnings(
-        UserWarning, "Telescope location derived from obs lat/lon/alt"
-    ):
-        fhd_cal = UVCal.from_file(
-            test_fhd_cal.cal_testfile,
-            obs_file=test_fhd_cal.obs_testfile,
-            layout_file=test_fhd_cal.layout_testfile,
-            settings_file=test_fhd_cal.settings_testfile,
-            raw=True,
-            use_future_array_shapes=True,
-        )
+    fhd_cal = UVCal.from_file(
+        test_fhd_cal.cal_testfile,
+        obs_file=test_fhd_cal.obs_testfile,
+        layout_file=test_fhd_cal.layout_testfile,
+        settings_file=test_fhd_cal.settings_testfile,
+        raw=True,
+        use_future_array_shapes=True,
+    )
 
     yield fhd_cal
 
@@ -135,17 +132,14 @@ def fhd_cal_raw(fhd_cal_raw_main):
 @pytest.fixture(scope="session")
 def fhd_cal_fit_main():
     """Read in fit FHD cal."""
-    with uvtest.check_warnings(
-        UserWarning, "Telescope location derived from obs lat/lon/alt"
-    ):
-        fhd_cal = UVCal.from_file(
-            test_fhd_cal.cal_testfile,
-            obs_file=test_fhd_cal.obs_testfile,
-            layout_file=test_fhd_cal.layout_testfile,
-            settings_file=test_fhd_cal.settings_testfile,
-            raw=False,
-            use_future_array_shapes=True,
-        )
+    fhd_cal = UVCal.from_file(
+        test_fhd_cal.cal_testfile,
+        obs_file=test_fhd_cal.obs_testfile,
+        layout_file=test_fhd_cal.layout_testfile,
+        settings_file=test_fhd_cal.settings_testfile,
+        raw=False,
+        use_future_array_shapes=True,
+    )
 
     yield fhd_cal
 
