@@ -4382,9 +4382,10 @@ def test_determine_blt_order_size_1():
 
 
 def test_antnums_to_baseline_miriad_convention():
-    ant1 = np.array([0, 1, 2, 3, 0, 0]) + 1  # Ant1 array should be 1-based
-    ant2 = np.array([0, 1, 2, 3, 255, 256]) + 1  # Ant2 array should be 1-based
-    bl_gold = np.array([257, 514, 771, 1028, 67840, 67841], dtype="uint64")
+    ant1 = np.array([1, 2, 3, 1, 1, 1, 255, 256])  # Ant1 array should be 1-based
+    ant2 = np.array([0, 1, 2, 254, 255, 256, 0, 1])  # Ant2 array should be 1-based
+    bl_gold = np.array([256, 513, 770, 510, 511, 67840, 65280, 65537], dtype="uint64")
+
     n_ant = 256
     bl = uvutils.antnums_to_baseline(ant1, ant2, n_ant, use_miriad_convention=True)
     assert np.allclose(bl, bl_gold)
