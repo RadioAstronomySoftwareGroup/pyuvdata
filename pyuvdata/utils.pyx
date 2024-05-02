@@ -207,7 +207,7 @@ cdef inline void _antnum_to_bl_2048_miriad(
   cdef Py_ssize_t i
 
   for i in range(nbls):
-    if ant2[i] >= 255:
+    if ant2[i] > 255:      # MIRIAD uses 1-index antenna IDs 
       baselines[i] = 2048 * (ant1[i]) + (ant2[i]) + 2 ** 16
     else:
       baselines[i] = 256 * (ant1[i]) + (ant2[i])
