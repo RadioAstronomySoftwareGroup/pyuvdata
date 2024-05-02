@@ -206,8 +206,6 @@ def get_fhd_layout_info(
     latitude,
     longitude,
     altitude,
-    radian_tol,
-    loc_tols,
     obs_tile_names,
     run_check_acceptability=True,
 ):
@@ -226,10 +224,6 @@ def get_fhd_layout_info(
         telescope longitude in radians
     altitude : float
         telescope altitude in meters
-    loc_tols : float
-        telescope_location tolerance in meters.
-    radian_tols : float
-        lat/lon tolerance in radians.
     obs_tile_names : array-like of str
         Tile names from the bl_info structure inside the obs structure.
         Only used if telescope_name is "mwa".
@@ -274,13 +268,18 @@ def get_fhd_layout_info(
         latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(
             arr_center, check_acceptability=run_check_acceptability
         )
-
+        # tolerances are limited by the fact that lat/lon/alt are only saved
+        # as floats in the obs structure
+        loc_tols = (0, 0.1)  # in meters
+        radian_tol = 10.0 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0)  # 10mas
         # check both lat/lon/alt and xyz because of subtle differences
         # in tolerances
         if _xyz_close(location_latlonalt, arr_center, loc_tols) or _latlonalt_close(
             (latitude, longitude, altitude), latlonalt_arr_center, radian_tol, loc_tols
         ):
-            telescope_location = EarthLocation.from_geocentric(arr_center, unit="m")
+            telescope_location = EarthLocation.from_geocentric(
+                *location_latlonalt, unit="m"
+            )
         else:
             # values do not agree with each other to within the tolerances.
             # this is a known issue with FHD runs on cotter uvfits
@@ -658,8 +657,6 @@ class FHD(UVData):
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
-                radian_tol=uvutils.RADIAN_TOL,
-                loc_tols=self.telescope._location.tols,
                 obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )
