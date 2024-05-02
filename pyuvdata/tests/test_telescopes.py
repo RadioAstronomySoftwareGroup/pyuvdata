@@ -188,6 +188,19 @@ def test_update_params_from_known():
 
     assert mwa_tel == mwa_tel2
 
+    vla_tel = Telescope.from_known_telescopes("vla", run_check=False)
+    vla_tel2 = Telescope()
+    vla_tel2.name = "vla"
+
+    with uvtest.check_warnings(
+        UserWarning,
+        match="telescope_location are not set or are being overwritten. "
+        "telescope_location are set using values from astropy sites for vla.",
+    ):
+        vla_tel2.update_params_from_known_telescopes(warn=True, run_check=False)
+
+    assert vla_tel == vla_tel2
+
 
 def test_from_known():
     for inst in pyuvdata.known_telescopes():
