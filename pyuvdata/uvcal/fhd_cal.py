@@ -165,8 +165,6 @@ class FHDCal(UVCal):
                 latitude=latitude,
                 longitude=longitude,
                 altitude=altitude,
-                radian_tol=uvutils.RADIAN_TOL,
-                loc_tols=self.telescope._location.tols,
                 obs_tile_names=obs_tile_names,
                 run_check_acceptability=True,
             )
