@@ -144,9 +144,20 @@ class UVBase(object):
     def __getattr__(self, __name):
         """Handle old names for telescope metadata."""
         if __name in old_telescope_metadata_attrs:
-            # _warn_old_phase_attr(__name)
-
             if hasattr(self, "telescope"):
+                if old_telescope_metadata_attrs[__name] is not None:
+                    tel_param = old_telescope_metadata_attrs[__name]
+                else:
+                    tel_param = "location"
+                warnings.warn(
+                    f"The UVData.{__name} attribute now just points to the "
+                    f"{tel_param} attribute on the telescope object (at "
+                    "UVData.telescope). Accessing it this way is deprecated, "
+                    "please access it via the telescope object. This will "
+                    "become an error in version 3.2.",
+                    DeprecationWarning,
+                )
+
                 tel_name = old_telescope_metadata_attrs[__name]
                 if tel_name is not None:
                     # if it's a simple remapping, just return the value
@@ -166,9 +177,20 @@ class UVBase(object):
     def __setattr__(self, __name, __value):
         """Handle old names for telescope metadata."""
         if __name in old_telescope_metadata_attrs:
-            # _warn_old_phase_attr(__name)
-
             if hasattr(self, "telescope"):
+                if old_telescope_metadata_attrs[__name] is not None:
+                    tel_param = old_telescope_metadata_attrs[__name]
+                else:
+                    tel_param = "location"
+                warnings.warn(
+                    f"The UVData.{__name} attribute now just points to the "
+                    f"{tel_param} attribute on the telescope object (at "
+                    "UVData.telescope). Accessing it this way is deprecated, "
+                    "please access it via the telescope object. This will "
+                    "become an error in version 3.2.",
+                    DeprecationWarning,
+                )
+
                 tel_name = old_telescope_metadata_attrs[__name]
                 if tel_name is not None:
                     # if it's a simple remapping, just set the value
