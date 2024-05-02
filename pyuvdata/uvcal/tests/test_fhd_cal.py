@@ -80,13 +80,7 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
     else:
         fhd_cal_full = fhd_cal_fit
 
-    with uvtest.check_warnings(
-        [DeprecationWarning, UserWarning],
-        match=[
-            _future_array_shapes_warning,
-            "Telescope location derived from obs lat/lon/alt",
-        ],
-    ):
+    with uvtest.check_warnings(DeprecationWarning, match=_future_array_shapes_warning):
         fhd_cal = UVCal.from_file(
             cal_testfile,
             obs_file=obs_testfile,
@@ -127,8 +121,6 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
             "matching could not be done. The affected file types are: ['settings']",
             "The FHD input files do not all have matching prefixes, so they may not be "
             "for the same data.",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_cal = UVCal.from_file(
@@ -158,8 +150,6 @@ def test_read_fhdcal_multimode():
             "['cal', 'settings']",
             "The FHD input files do not all have matching prefixes, so they may not be "
             "for the same data.",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_cal = UVCal.from_file(
@@ -185,8 +175,6 @@ def test_read_fhdcal_multimode():
             "['cal', 'settings']",
             "The FHD input files do not all have matching prefixes, so they may not be "
             "for the same data.",
-            "Telescope location derived from obs lat/lon/alt values does not match the "
-            "location in the layout file. Using the value from known_telescopes.",
         ],
     ):
         fhd_cal = UVCal.from_file(
@@ -268,7 +256,6 @@ def test_flags_galaxy(tmp_path):
         UserWarning,
         match=[
             "tile_names from obs structure does not match",
-            "Telescope location derived from obs lat/lon/alt",
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['cal', "
             "'layout', 'obs', 'settings']",
@@ -297,7 +284,6 @@ def test_unknown_telescope():
     with uvtest.check_warnings(
         UserWarning,
         match=[
-            "Telescope location derived from obs lat/lon/alt",
             "Some FHD input files do not have the expected subfolder so FHD folder "
             "matching could not be done. The affected file types are: ['obs']",
             "The FHD input files do not all have matching prefixes, so they may not be "
@@ -335,10 +321,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
             use_future_array_shapes=True,
         )
 
-    message_list = [
-        "No settings file",
-        "Telescope location derived from obs lat/lon/alt",
-    ]
+    message_list = ["No settings file"]
     if nfiles > 1:
         message_list *= 2
         message_list.append("UVParameter diffuse_model does not match")
@@ -415,13 +398,9 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
 )
 def test_read_multi(tmp_path, concat_method, read_method):
     """Test reading in multiple files."""
-    warn_type = [UserWarning] * 4
+    warn_type = [UserWarning] * 2
     msg = [
         "UVParameter diffuse_model does not match",
-        "Telescope location derived from obs lat/lon/alt values does not match the "
-        "location in the layout file.",
-        "Telescope location derived from obs lat/lon/alt values does not match the "
-        "location in the layout file.",
         "Some FHD input files do not have the expected subfolder so FHD folder "
         "matching could not be done. The affected file types are: "
         "['cal', 'obs', 'settings']",
