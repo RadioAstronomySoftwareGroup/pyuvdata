@@ -165,6 +165,17 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
     ):
         UVData.new(antenna_names=["foo", "bar"], **simplest_working_params)
 
+    # Test passing incorrect shape of antenna diameters
+    with pytest.raises(
+        ValueError,
+        match="antenna_diameters must be a scalar or an array of length Nants",
+    ):
+        UVData.new(
+            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
+            antenna_diameters=np.ones((32, 32)),
+            **simplest_working_params,
+        )
+
 
 def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
     with pytest.raises(ValueError, match="time_array must be a numpy array"):
@@ -276,7 +287,7 @@ def test_alternate_antenna_inputs():
     antnum = np.array([0, 1, 2])
     antname = np.array(["000", "001", "002"])
 
-    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
+    pos, names, nums, diams = get_antenna_params(antenna_positions=antpos_dict)
     pos2, names2, nums2 = get_antenna_params(
         antenna_positions=antpos_array, antenna_numbers=antnum, antenna_names=antname
     )
@@ -290,10 +301,17 @@ def test_alternate_antenna_inputs():
         "001": np.array([0, 0, 1]),
         "002": np.array([0, 0, 2]),
     }
-    pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
+    pos, names, nums, diams = get_antenna_params(antenna_positions=antpos_dict)
     assert np.allclose(pos, pos2)
     assert np.all(names == names2)
     assert np.all(nums == nums2)
+    assert diams is None
+
+    pos, names, nums, diams = get_antenna_params(
+        antenna_positions=antpos_dict, antenna_diameters=np.pi
+    )
+    assert np.allclose(diams, np.pi)
+    assert diams.shape == nums.shape
 
 
 def test_alternate_time_inputs():

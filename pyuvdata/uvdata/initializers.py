@@ -97,8 +97,7 @@ def get_antenna_params(
             antenna_diameters = np.full(len(antenna_numbers), antenna_diameters)
         elif len(antenna_diameters) != len(antenna_numbers):
             raise ValueError(
-                "antenna_diameters must be a scalar or an array of the same length as "
-                "antenna_numbers."
+                "antenna_diameters must be a scalar or an array of length Nants"
             )
 
     return antenna_positions, antenna_names, antenna_numbers, antenna_diameters
@@ -438,6 +437,9 @@ def new_uvdata(
         the antenna_numbers, but in this case the antenna_names must be strings that
         can be converted to integers. antenna_numbers need not be provided if
         antenna_positions is a dict with integer keys.
+    antenna_diameters : float or ndarray of float, optional
+        Antenna diameters in meters. If not provided, the resulting object will not have
+        antenna diameters. If a float is provided, it will be used for all antennas.
     blts_are_rectangular : bool, optional
         Set to True if the time_array and antpair_array are rectangular, i.e. if
         they are formed from the outer product of a unique set of times/antenna pairs.

@@ -110,6 +110,9 @@ def new_uvcal(
         the antenna_numbers, but in this case the antenna_names must be strings that
         can be converted to integers. antenna_numbers need not be provided if
         antenna_positions is a dict with integer keys.
+    antenna_diameters : float or ndarray of float, optional
+        Antenna diameters in meters. If not provided, the resulting object will not have
+        antenna diameters. If a float is provided, it will be used for all antennas.
     antname_format : str, optional
         Format string for antenna names. Default is '{0:03d}'.
     ant_array : ndarray of int, optional
