@@ -43,31 +43,56 @@ def sky_in():
     )
 
 
-def test_class_inequality():
+def test_class_inequality(capsys):
     """Test equality error for different uvparameter classes."""
     param1 = uvp.UVParameter(name="p1", value=1)
     param2 = uvp.AngleParameter(name="p2", value=1)
     # use `__ne__` rather than `!=` throughout so we can cover print lines
     assert param1.__ne__(param2, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter classes are different")
 
-def test_value_class_inequality():
+
+def test_value_class_inequality(capsys):
     """Test equality error for different uvparameter classes."""
     param1 = uvp.UVParameter(name="p1", value=3)
     param2 = uvp.UVParameter(name="p2", value=np.array([3, 4, 5]))
     assert param1.__ne__(param2, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is not an array, but other is an array"
+    )
+
     assert param2.__ne__(param1, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p2 parameter value is an array, but other is not")
+
     param3 = uvp.UVParameter(name="p2", value="Alice")
     assert param1.__ne__(param3, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is not a string or a dict and cannot be cast as a "
+        "numpy array. The values are not equal."
+    )
 
 
-def test_array_inequality():
+def test_array_inequality(capsys):
     """Test equality error for different array values."""
     param1 = uvp.UVParameter(name="p1", value=np.array([0, 1, 3]))
     param2 = uvp.UVParameter(name="p2", value=np.array([0, 2, 4]))
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter value is array, values are not close")
+
     param3 = uvp.UVParameter(name="p3", value=np.array([0, 1]))
     assert param1.__ne__(param3, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is an array, shapes are different"
+    )
 
 
 def test_array_equality_nans():
@@ -108,28 +133,49 @@ def test_quantity_equality_error():
 
 
 @pytest.mark.parametrize(
-    ["vals", "p2_atol"],
+    ["vals", "p2_atol", "msg"],
     (
-        (np.array([0, 2, 4]) * units.m, 1 * units.mm),
-        (np.array([0, 1, 3]) * units.mm, 1 * units.mm),
-        (np.array([0, 1, 3]) * units.Jy, 1 * units.mJy),
+        (
+            np.array([0, 2, 4]) * units.m,
+            1 * units.mm,
+            "p1 parameter value is an astropy Quantity, values are not close",
+        ),
+        (
+            np.array([0, 1, 3]) * units.mm,
+            1 * units.mm,
+            "p1 parameter value is an astropy Quantity, values are not close",
+        ),
+        (
+            np.array([0, 1, 3]) * units.Jy,
+            1 * units.mJy,
+            "p1 parameter value is an astropy Quantity, units are not equivalent",
+        ),
         (
             units.Quantity([0.101 * units.cm, 100.09 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
+            "p1 parameter value is an astropy Quantity, values are not close",
         ),
         (
             units.Quantity([0.09 * units.cm, 100.11 * units.cm, 2999.1 * units.mm]),
             1 * units.mm,
+            "p1 parameter value is an astropy Quantity, values are not close",
         ),
-        (np.array([0, 1000, 2998.9]) * units.mm, 1 * units.mm),
+        (
+            np.array([0, 1000, 2998.9]) * units.mm,
+            1 * units.mm,
+            "p1 parameter value is an astropy Quantity, values are not close",
+        ),
     ),
 )
-def test_quantity_inequality(vals, p2_atol):
+def test_quantity_inequality(capsys, vals, p2_atol, msg):
     param1 = uvp.UVParameter(
         name="p1", value=np.array([0, 1, 3]) * units.m, tols=1 * units.mm
     )
     param2 = uvp.UVParameter(name="p2", value=vals, tols=p2_atol)
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(msg)
 
 
 def test_quantity_array_inequality(capsys):
@@ -152,18 +198,28 @@ def test_quantity_equality_nans():
     assert param1 == param2
 
 
-def test_string_inequality():
+def test_string_inequality(capsys):
     """Test equality error for different string values."""
     param1 = uvp.UVParameter(name="p1", value="Alice")
     param2 = uvp.UVParameter(name="p2", value="Bob")
     assert param1.__ne__(param2, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is a string, values are different"
+    )
 
-def test_string_list_inequality():
+
+def test_string_list_inequality(capsys):
     """Test equality error for different string values."""
     param1 = uvp.UVParameter(name="p1", value=["Alice", "Eve"])
     param2 = uvp.UVParameter(name="p2", value=["Bob", "Eve"])
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is a list of strings, values are different"
+    )
 
 
 def test_string_equality():
@@ -173,11 +229,17 @@ def test_string_equality():
     assert param1 == param2
 
 
-def test_integer_inequality():
+def test_integer_inequality(capsys):
     """Test equality error for different non-array, non-string values."""
     param1 = uvp.UVParameter(name="p1", value=1)
     param2 = uvp.UVParameter(name="p2", value=2)
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value can be cast to an array and tested with np.allclose. "
+        "The values are not close"
+    )
 
 
 def test_dict_equality():
@@ -191,42 +253,60 @@ def test_dict_equality():
     assert param1 == param2
 
 
-def test_dict_inequality_int():
+def test_dict_inequality_int(capsys):
     """Test equality error for integer dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param2 = uvp.UVParameter(name="p2", value={"v1": 2, "s1": "test", "n1": None})
     assert param1.__ne__(param2, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, key v1 is not equal")
 
-def test_dict_inequality_str():
+
+def test_dict_inequality_str(capsys):
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "s1": "foo", "n1": None})
     assert param1.__ne__(param4, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, key s1 is not equal")
 
-def test_dict_inequality_none():
+
+def test_dict_inequality_none(capsys):
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "s1": "test", "n1": 2})
     assert param1.__ne__(param4, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, key n1 is not equal")
 
-def test_dict_inequality_arr():
+
+def test_dict_inequality_arr(capsys):
     """Test equality error for string dict values."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "arr1": [3, 4, 5]})
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4]})
     assert param1.__ne__(param4, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, key arr1 is not equal")
+
     param4 = uvp.UVParameter(name="p3", value={"v1": 1, "arr1": [3, 4, 6]})
     assert param1.__ne__(param4, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, key arr1 is not equal")
 
-def test_dict_inequality_keys():
+
+def test_dict_inequality_keys(capsys):
     """Test equality error for different keys."""
     param1 = uvp.UVParameter(name="p1", value={"v1": 1, "s1": "test", "n1": None})
     param3 = uvp.UVParameter(name="p3", value={"v3": 1, "s1": "test", "n1": None})
     assert param1.__ne__(param3, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("p1 parameter is a dict, keys are not the same.")
 
 
 def test_nested_dict_equality():
@@ -240,7 +320,7 @@ def test_nested_dict_equality():
     assert param1 == param3
 
 
-def test_nested_dict_inequality():
+def test_nested_dict_inequality(capsys):
     """Test equality error for nested dicts."""
     param1 = uvp.UVParameter(
         name="p1", value={"d1": {"v1": 1, "s1": "test"}, "d2": {"v1": 1, "s1": "test"}}
@@ -249,6 +329,11 @@ def test_nested_dict_inequality():
         name="p3", value={"d1": {"v1": 2, "s1": "test"}, "d2": {"v1": 1, "s1": "test"}}
     )
     assert param1.__ne__(param3, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter is a dict, key d1 is a dict, key v1 is not equal"
+    )
 
 
 def test_recarray_equality():
@@ -340,18 +425,30 @@ def test_recarray_inequality(capsys, names2, values2, msg):
     assert captured.out.startswith(msg)
 
 
-def test_equality_check_fail():
+def test_equality_check_fail(capsys):
     """Test equality error for non string, dict or array values."""
     param1 = uvp.UVParameter(name="p1", value=uvp.UVParameter(name="p1", value="Alice"))
     param2 = uvp.UVParameter(name="p2", value=uvp.UVParameter(name="p1", value="Bob"))
     assert param1.__ne__(param2, silent=False)
 
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value is not a string or a dict and cannot be cast as a "
+        "numpy array. The values are not equal."
+    )
 
-def test_notclose():
+
+def test_notclose(capsys):
     """Test equality error for values not with tols."""
     param1 = uvp.UVParameter(name="p1", value=1.0)
     param2 = uvp.UVParameter(name="p2", value=1.001)
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "p1 parameter value can be cast to an array and tested with np.allclose. "
+        "The values are not close"
+    )
 
 
 def test_close():
@@ -415,6 +512,7 @@ def test_angle_set_degree_none():
     param1.set_degrees(None)
 
     assert param1.value is None
+    assert param1.degrees() is None
 
 
 def test_location_set_lat_lon_alt_none():
@@ -422,6 +520,7 @@ def test_location_set_lat_lon_alt_none():
     param1.set_lat_lon_alt(None)
 
     assert param1.value is None
+    assert param1.lat_lon_alt() is None
 
 
 def test_location_set_lat_lon_alt_degrees_none():
@@ -429,6 +528,7 @@ def test_location_set_lat_lon_alt_degrees_none():
     param1.set_lat_lon_alt_degrees(None)
 
     assert param1.value is None
+    assert param1.lat_lon_alt_degrees() is None
 
 
 def test_location_set_xyz():
@@ -620,15 +720,17 @@ def test_skycoord_param_equality(sky_in, sky2):
 @pytest.mark.parametrize(
     "change", ["frame", "representation", "separation", "shape", "type"]
 )
-def test_skycoord_param_inequality(sky_in, change):
+def test_skycoord_param_inequality(sky_in, change, capsys):
     param1 = uvp.SkyCoordParameter(name="sky1", value=sky_in)
 
     if change == "frame":
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky_in.transform_to("icrs"))
+        msg = "sky1 parameter has different frames, fk5 vs icrs."
     elif change == "representation":
         sky2 = sky_in.copy()
         sky2.representation_type = CartesianRepresentation
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+        msg = "sky1 parameter has different representation_types"
     elif change == "separation":
         sky2 = SkyCoord(
             ra=Longitude(5.0, unit="hourangle"),
@@ -637,6 +739,7 @@ def test_skycoord_param_inequality(sky_in, change):
             equinox="J2000",
         )
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+        msg = "sky1 parameter is not close."
     elif change == "shape":
         sky2 = SkyCoord(
             ra=Longitude([5.0, 5.0], unit="hourangle"),
@@ -645,11 +748,16 @@ def test_skycoord_param_inequality(sky_in, change):
             equinox="J2000",
         )
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+        msg = "sky1 parameter shapes are different"
     elif change == "type":
         sky2 = Longitude(5.0, unit="hourangle")
         param2 = uvp.SkyCoordParameter(name="sky2", value=sky2)
+        msg = "sky1 parameter value is a SkyCoord, but other is not"
 
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(msg)
 
 
 def test_non_builtin_expected_type():
@@ -686,7 +794,7 @@ def test_generic_type_conversion(in_type, out_type):
     assert param1.expected_type == out_type
 
 
-def test_strict_expected_type_equality():
+def test_strict_expected_type_equality(capsys):
     # make sure equality passes if one is strict and one is generic
     param1 = uvp.UVParameter(
         "_test1",
@@ -705,6 +813,10 @@ def test_strict_expected_type_equality():
         "_test3", value=3.0, expected_type=float, strict_type_check=True
     )
     assert param1.__ne__(param3, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 parameter has incompatible types.")
+
     assert param3 != param1
     assert param2 == param3
 
@@ -716,6 +828,9 @@ def test_strict_expected_type_equality():
         strict_type_check=True,
     )
     assert param1.__ne__(param4, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 parameter has incompatible types")
 
     # make sure it passes when both are strict and equivalent
     param5 = uvp.UVParameter(
@@ -736,7 +851,7 @@ def test_strict_expected_type_equality():
     return
 
 
-def test_strict_expected_type_equality_arrays():
+def test_strict_expected_type_equality_arrays(capsys):
     # make sure it also works with numpy arrays when the dtype matches the strict type
     param1 = uvp.UVParameter(
         "_test1",
@@ -760,6 +875,10 @@ def test_strict_expected_type_equality_arrays():
         strict_type_check=True,
     )
     assert param1.__ne__(param3, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 parameter has incompatible types")
+
     assert param3 != param1
     assert param2 == param3
 
@@ -771,6 +890,9 @@ def test_strict_expected_type_equality_arrays():
         strict_type_check=True,
     )
     assert param1.__ne__(param4, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 parameter has incompatible types")
 
     # make sure it passes when both are strict and equivalent
     param5 = uvp.UVParameter(
@@ -789,23 +911,47 @@ def test_strict_expected_type_equality_arrays():
         strict_type_check=False,
     )
     assert param1.__ne__(param6, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 parameter has incompatible dtypes.")
+
     assert param6.__ne__(param1, silent=False)
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test6 parameter has incompatible dtypes.")
 
 
-def test_scalar_array_parameter_mismatch():
+def test_scalar_array_parameter_mismatch(capsys):
     param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
     param2 = uvp.UVParameter("_test2", value=np.asarray([3.0]), expected_type=float)
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "_test1 parameter value is not an array, but other is an array"
+    )
+
     assert param2.__ne__(param1, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "_test2 parameter value is an array, but other is not"
+    )
 
     return
 
 
-def test_value_none_parameter_mismatch():
+def test_value_none_parameter_mismatch(capsys):
     param1 = uvp.UVParameter("_test1", value=3.0, expected_type=float)
     param2 = uvp.UVParameter("_test2", value=None)
     assert param1.__ne__(param2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test1 is None on right, but not left")
+
     assert param2.__ne__(param1, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("_test2 is None on left, but not right")
 
     return
 

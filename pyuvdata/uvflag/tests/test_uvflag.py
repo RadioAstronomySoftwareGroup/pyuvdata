@@ -1332,12 +1332,23 @@ def test_missing_telescope_info_mwa(test_outfile):
     ):
         read_metafits(metafits)
 
+    uvf.write(test_outfile, clobber=True)
+    param_list = [
+        "telescope_name",
+        "antenna_numbers",
+        "antenna_positions",
+        "Nants_telescope",
+    ]
+    with h5py.File(test_outfile, "r+") as h5f:
+        for param in param_list:
+            del h5f["/Header/" + param]
+
     with uvtest.check_warnings(
         UserWarning,
         match=[
             "An mwa_metafits_file was passed. The metadata from the metafits file are "
             "overriding the following parameters in the UVFlag file: "
-            "['telescope_location']",
+            "['antenna_names', 'telescope_location']",
             "The lst_array is not self-consistent with the time_array and telescope "
             "location. Consider recomputing with the `set_lsts_from_time_array` method",
         ],
@@ -1920,7 +1931,8 @@ def test_add_baseline():
     assert "Data combined along baseline axis. " in uv3.history
 
 
-def test_add_antenna(uvcal_obj):
+@pytest.mark.parametrize("diameters", ["both", "left", "right"])
+def test_add_antenna(uvcal_obj, diameters):
     uvc = uvcal_obj
     uv1 = UVFlag(uvc, use_future_array_shapes=True)
     uv2 = uv1.copy()
@@ -1929,7 +1941,24 @@ def test_add_antenna(uvcal_obj):
     uv2.telescope.antenna_names = np.array(
         [name + "_new" for name in uv2.telescope.antenna_names]
     )
-    uv3 = uv1.__add__(uv2, axis="antenna")
+    if diameters == "left":
+        uv2.antenna_diameters = None
+    elif diameters == "right":
+        uv2.antenna_diameters = None
+
+    if diameters == "both":
+        warn_type = None
+        warn_msg = ""
+    else:
+        warn_type = UserWarning
+        warn_msg = "UVParameter antenna_diameters does not match. Combining anyway."
+
+    with uvtest.check_warnings(warn_type, match=warn_msg):
+        uv3 = uv1.__add__(uv2, axis="antenna")
+
+    if diameters != "both":
+        assert uv3.antenna_diameters is None
+
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
         np.concatenate((uv1.metric_array, uv2.metric_array), axis=0), uv3.metric_array

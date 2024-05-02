@@ -671,9 +671,7 @@ class UVFlag(UVBase):
     @property
     def pol_collapsed(self):
         """Determine if this object has had pols collapsed."""
-        if not hasattr(self, "polarization_array") or self.polarization_array is None:
-            return False
-        elif isinstance(self.polarization_array.item(0), str):
+        if isinstance(self.polarization_array.item(0), str):
             return True
         else:
             return False
@@ -930,6 +928,7 @@ class UVFlag(UVBase):
             self._flex_spw_id_array.required = False
 
         self._set_telescope_requirements()
+        self._check_pol_state()
 
         # first run the basic check from UVBase
         super().check(
