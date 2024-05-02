@@ -520,8 +520,16 @@ def test_getattr_old_telescope():
     test_obj = UVTest()
 
     for param, tel_param in old_telescope_metadata_attrs.items():
-        param_val = getattr(test_obj, param)
         if tel_param is not None:
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match=f"The UVData.{param} attribute now just points to the "
+                f"{tel_param} attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                param_val = getattr(test_obj, param)
             tel_param_val = getattr(test_obj.telescope, tel_param)
             if not isinstance(param_val, np.ndarray):
                 assert param_val == tel_param_val
@@ -531,12 +539,39 @@ def test_getattr_old_telescope():
                 else:
                     assert param_val.tolist() == tel_param_val.tolist()
         elif param == "telescope_location":
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location attribute now just points "
+                "to the location attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                param_val = getattr(test_obj, param)
             np.testing.assert_allclose(param_val, test_obj.telescope._location.xyz())
         elif param == "telescope_location_lat_lon_alt":
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location_lat_lon_alt attribute now "
+                "just points to the location attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                param_val = getattr(test_obj, param)
             np.testing.assert_allclose(
                 param_val, test_obj.telescope._location.lat_lon_alt()
             )
         elif param == "telescope_location_lat_lon_alt_degrees":
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location_lat_lon_alt_degrees attribute "
+                "now just points to the location attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                param_val = getattr(test_obj, param)
             np.testing.assert_allclose(
                 param_val, test_obj.telescope._location.lat_lon_alt_degrees()
             )
@@ -550,8 +585,24 @@ def test_setattr_old_telescope():
     for param, tel_param in old_telescope_metadata_attrs.items():
         if tel_param is not None:
             tel_val = getattr(new_telescope, tel_param)
-            setattr(test_obj, param, tel_val)
-            param_val = getattr(test_obj, param)
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match=f"The UVData.{param} attribute now just points to the "
+                f"{tel_param} attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                setattr(test_obj, param, tel_val)
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match=f"The UVData.{param} attribute now just points to the "
+                f"{tel_param} attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                param_val = getattr(test_obj, param)
             if not isinstance(param_val, np.ndarray):
                 assert param_val == tel_val
             else:
@@ -561,17 +612,41 @@ def test_setattr_old_telescope():
                     assert param_val.tolist() == tel_val.tolist()
         elif param == "telescope_location":
             tel_val = new_telescope._location.xyz()
-            test_obj.telescope_location = tel_val
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location attribute now just points "
+                "to the location attribute on the telescope object "
+                "(at UVData.telescope). Accessing it this way is deprecated, "
+                "please access it via the telescope object. This will "
+                "become an error in version 3.2.",
+            ):
+                test_obj.telescope_location = tel_val
             assert new_telescope.location == test_obj.telescope.location
         elif param == "telescope_location_lat_lon_alt":
             tel_val = new_telescope._location.lat_lon_alt()
-            test_obj.telescope_location_lat_lon_alt = tel_val
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location_lat_lon_alt attribute now "
+                "just points to the location attribute on the telescope object "
+                "(at UVData.telescope). Accessing it this way is deprecated, "
+                "please access it via the telescope object. This will "
+                "become an error in version 3.2.",
+            ):
+                test_obj.telescope_location_lat_lon_alt = tel_val
             np.testing.assert_allclose(
                 new_telescope._location.xyz(), test_obj.telescope._location.xyz()
             )
         elif param == "telescope_location_lat_lon_alt_degrees":
             tel_val = new_telescope._location.lat_lon_alt_degrees()
-            test_obj.telescope_location_lat_lon_alt_degrees = tel_val
+            with uvtest.check_warnings(
+                DeprecationWarning,
+                match="The UVData.telescope_location_lat_lon_alt_degrees "
+                "attribute now just points to the location attribute on the "
+                "telescope object (at UVData.telescope). Accessing it this "
+                "way is deprecated, please access it via the telescope "
+                "object. This will become an error in version 3.2.",
+            ):
+                test_obj.telescope_location_lat_lon_alt_degrees = tel_val
             np.testing.assert_allclose(
                 new_telescope._location.xyz(), test_obj.telescope._location.xyz()
             )
