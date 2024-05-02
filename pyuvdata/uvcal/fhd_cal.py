@@ -226,16 +226,12 @@ class FHDCal(UVCal):
 
         self.telescope.x_orientation = "east"
 
-        try:
-            self.set_telescope_params()
-        except ValueError as ve:
-            warnings.warn(str(ve))
+        self.set_telescope_params()
 
         # need to make sure telescope location is defined properly before this call
-        if self.telescope.location is not None:
-            proc = self.set_lsts_from_time_array(
-                background=background_lsts, astrometry_library=astrometry_library
-            )
+        proc = self.set_lsts_from_time_array(
+            background=background_lsts, astrometry_library=astrometry_library
+        )
 
         self._set_sky()
         self.gain_convention = "divide"

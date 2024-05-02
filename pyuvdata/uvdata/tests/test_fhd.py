@@ -193,20 +193,16 @@ def test_read_fhd_write_read_uvfits_no_layout(fhd_data_files, multi):
             else:
                 fhd_data_files[ftype] = [fnames] * 2
 
-    if not multi:
-        # check warning raised
-        with uvtest.check_warnings(
-            UserWarning,
-            match="The layout_file parameter was not passed, so antenna_postions will "
-            "not be defined and antenna names and numbers might be incorrect.",
-        ):
-            fhd_uv.read(**fhd_data_files, run_check=False, use_future_array_shapes=True)
-
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set"
-    ):
-        with uvtest.check_warnings(UserWarning, "No layout file"):
-            fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
+    warn_msg = [
+        "The layout_file parameter was not passed, so antenna_postions will "
+        "not be defined and antenna names and numbers might be incorrect.",
+        "antenna_positions are not set or are being overwritten. "
+        "antenna_positions are set using values from known telescopes for mwa.",
+    ]
+    if multi:
+        warn_msg = warn_msg * 2
+    with uvtest.check_warnings(UserWarning, match=warn_msg):
+        fhd_uv.read(**fhd_data_files, use_future_array_shapes=True)
 
 
 @pytest.mark.filterwarnings("ignore:Telescope location derived from obs")
