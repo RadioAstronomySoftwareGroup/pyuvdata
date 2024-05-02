@@ -700,6 +700,7 @@ class UVData(UVBase):
     # This is required for eq_coeffs, which has Nants_telescope as one of its
     # shapes. That's to allow us to line up the antenna_numbers/names with
     # eq_coeffs so that we know which antenna each eq_coeff goes with.
+    # TODO: do we want a setter on UVData for this?
     @property
     def Nants_telescope(self):
         """
@@ -708,11 +709,6 @@ class UVData(UVBase):
         This property is stored on the Telescope object internally.
         """
         return self._telescope.value.Nants
-
-    # TODO: do we want a setter on UVData for this?
-    @Nants_telescope.setter
-    def Nants_telescope(self, val):
-        self._telescope.value.Nants = val
 
     @staticmethod
     def _clear_antpair2ind_cache(obj):
