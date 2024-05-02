@@ -115,7 +115,7 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
 
         hdulist.writeto(write_file2, overwrite=True)
 
-    cal_out = UVCal.from_file(write_file2, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(write_file2)
     assert cal_out == cal_in
 
 

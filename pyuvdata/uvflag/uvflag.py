@@ -1732,7 +1732,7 @@ class UVFlag(UVBase):
                         f"{param} is not the same on this object and on uv. "
                         f"The value on this object is {this_param.value}; "
                         f"the value on uv is {uv_param.value}."
-                        )
+                    )
 
         # Deal with polarization
         if issubclass(uv.__class__, UVCal):
