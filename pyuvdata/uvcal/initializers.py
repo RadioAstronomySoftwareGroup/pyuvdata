@@ -40,6 +40,7 @@ def new_uvcal(
     channel_width: float | np.ndarray | None = None,
     antenna_names: list[str] | None = None,
     antenna_numbers: list[int] | None = None,
+    antenna_diameters: np.ndarray | float | None = None,
     antname_format: str = "{0:03d}",
     ant_array: np.ndarray | None = None,
     flex_spw_id_array: np.ndarray | None = None,
@@ -156,8 +157,14 @@ def new_uvcal(
 
     uvc = UVCal()
 
-    antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
-        antenna_positions, antenna_names, antenna_numbers, antname_format
+    antenna_positions, antenna_names, antenna_numbers, antenna_diameters = (
+        get_antenna_params(
+            antenna_positions,
+            antenna_names,
+            antenna_numbers,
+            antenna_diameters,
+            antname_format,
+        )
     )
     if ant_array is None:
         ant_array = antenna_numbers
@@ -252,6 +259,7 @@ def new_uvcal(
     uvc.channel_width = channel_width
     uvc.antenna_names = antenna_names
     uvc.antenna_numbers = antenna_numbers
+    uvc.antenna_diameters = antenna_diameters
     uvc.history = history
     uvc.ant_array = ant_array
     uvc.telescope_name = telescope_name

@@ -39,8 +39,9 @@ def get_antenna_params(
     antenna_positions: np.ndarray | dict[str | int, np.ndarray],
     antenna_names: list[str] | None = None,
     antenna_numbers: list[int] | None = None,
+    antenna_diameters: float | np.ndarray | None = None,
     antname_format: str = "{0:03d}",
-) -> tuple[np.ndarray, list[str], list[int]]:
+) -> tuple[np.ndarray, list[str], list[int], np.ndarray | None]:
     """Configure antenna parameters for new UVData object."""
     # Get Antenna Parameters
 
@@ -91,7 +92,16 @@ def get_antenna_params(
     if len(antenna_numbers) != len(antenna_names):
         raise ValueError("antenna_numbers and antenna_names must have the same length.")
 
-    return antenna_positions, antenna_names, antenna_numbers
+    if antenna_diameters is not None:
+        if np.isscalar(antenna_diameters):
+            antenna_diameters = np.full(len(antenna_numbers), antenna_diameters)
+        elif len(antenna_diameters) != len(antenna_numbers):
+            raise ValueError(
+                "antenna_diameters must be a scalar or an array of the same length as "
+                "antenna_numbers."
+            )
+
+    return antenna_positions, antenna_names, antenna_numbers, antenna_diameters
 
 
 def get_time_params(
@@ -364,6 +374,7 @@ def new_uvdata(
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     astrometry_library: str | None = None,
     ellipsoid: Literal["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"] | None = None,
+    antenna_diameters: float | np.ndarray | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -498,8 +509,14 @@ def new_uvdata(
 
     obj = UVData()
 
-    antenna_positions, antenna_names, antenna_numbers = get_antenna_params(
-        antenna_positions, antenna_names, antenna_numbers, antname_format
+    antenna_positions, antenna_names, antenna_numbers, antenna_diameters = (
+        get_antenna_params(
+            antenna_positions,
+            antenna_names,
+            antenna_numbers,
+            antenna_diameters,
+            antname_format,
+        )
     )
 
     if hasmoon and isinstance(telescope_location, MoonLocation):
@@ -584,6 +601,7 @@ def new_uvdata(
     obj.channel_width = channel_width
     obj.antenna_names = antenna_names
     obj.antenna_numbers = antenna_numbers
+    obj.antenna_diameters = antenna_diameters
     obj.history = history
     obj.instrument = instrument
     obj.vis_units = vis_units
