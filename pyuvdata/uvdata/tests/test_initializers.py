@@ -170,11 +170,7 @@ def test_bad_antenna_inputs(simplest_working_params: dict[str, Any]):
         ValueError,
         match="antenna_diameters must be a scalar or an array of length Nants",
     ):
-        UVData.new(
-            antenna_positions=np.array([[0, 0, 0], [0, 0, 1], [0, 0, 2]]),
-            antenna_diameters=np.ones((32, 32)),
-            **simplest_working_params,
-        )
+        UVData.new(antenna_diameters=np.ones((32, 32)), **simplest_working_params)
 
 
 def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
@@ -288,7 +284,7 @@ def test_alternate_antenna_inputs():
     antname = np.array(["000", "001", "002"])
 
     pos, names, nums, diams = get_antenna_params(antenna_positions=antpos_dict)
-    pos2, names2, nums2 = get_antenna_params(
+    pos2, names2, nums2, diams = get_antenna_params(
         antenna_positions=antpos_array, antenna_numbers=antnum, antenna_names=antname
     )
 
