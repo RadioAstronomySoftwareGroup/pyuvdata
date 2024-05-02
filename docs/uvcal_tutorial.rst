@@ -334,7 +334,7 @@ a) Calibration of UVData by UVCal
   >>> # this is an old calfits file which has the wrong antenna names, so we need to fix them first.
   >>> # fix the antenna names in the uvcal object to match the uvdata object
   >>> uvc.telescope.antenna_names = np.array(
-  ...     [name.replace("ant", "HH") for name in uvc.antenna_names]
+  ...     [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
   ... )
   >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
 
