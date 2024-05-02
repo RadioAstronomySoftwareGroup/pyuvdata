@@ -665,15 +665,12 @@ class UVH5(UVData):
                     cat_epoch=obj.phase_center_epoch,
                 )
             self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
-        # set telescope params
-        try:
-            self.set_telescope_params(
-                run_check=run_check,
-                check_extra=check_extra,
-                run_check_acceptability=run_check_acceptability,
-            )
-        except ValueError as ve:
-            warnings.warn(str(ve))
+        # set any extra telescope params
+        self.set_telescope_params(
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
 
         # wait for the LST computation if needed
         if proc is not None:

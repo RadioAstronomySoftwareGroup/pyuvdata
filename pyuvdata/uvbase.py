@@ -538,15 +538,22 @@ class UVBase(object):
             for param in p_check:
                 self_param = getattr(self, param)
                 other_param = getattr(other, param)
-                if self_param.__ne__(other_param, silent=silent):
-                    if isinstance(self_param.value, UVBase):
-                        if self_param.value.__ne__(
-                            other_param.value, check_extra=check_extra, silent=silent
-                        ):
-                            if not silent:
-                                print(f"parameter {param} does not match.")
-                            p_equal = False
-                    else:
+                if isinstance(self_param.value, UVBase):
+                    if self_param.value.__ne__(
+                        other_param.value, check_extra=check_extra, silent=True
+                    ):
+                        if not silent:
+                            print(f"parameter {param} does not match.")
+                            # call again with silent passed to get the details
+                            # about what is different on the UVBase object
+                            self_param.value.__ne__(
+                                other_param.value,
+                                check_extra=check_extra,
+                                silent=silent,
+                            )
+                        p_equal = False
+                else:
+                    if self_param.__ne__(other_param, silent=silent):
                         if not silent:
                             print(
                                 f"parameter {param} does not match. Left is "

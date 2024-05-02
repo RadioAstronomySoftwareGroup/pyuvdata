@@ -701,6 +701,8 @@ class FHD(UVData):
                 ]
             self.telescope.Nants = len(self.telescope.antenna_names)
 
+        self.set_telescope_params()
+
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(
             background=background_lsts, astrometry_library=astrometry_library

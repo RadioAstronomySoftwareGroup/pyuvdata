@@ -177,9 +177,24 @@ class UVTest(UVBase):
             form=(),
         )
 
-        self.telescope = Telescope.from_known_telescopes("mwa")
+        self._telescope = uvp.UVParameter(
+            "telescope",
+            description="A telescope.",
+            value=Telescope.from_params(
+                location=EarthLocation.from_geodetic(0, 0, 0),
+                name="mock",
+                antenna_positions={
+                    0: [0.0, 0.0, 0.0],
+                    1: [0.0, 0.0, 1.0],
+                    2: [0.0, 0.0, 2.0],
+                },
+            ),
+            expected_type=Telescope,
+        )
 
         super(UVTest, self).__init__()
+
+        self.telescope = Telescope.from_known_telescopes("mwa")
 
 
 def test_equality():
@@ -196,15 +211,23 @@ def test_equality_nocheckextra():
     assert test_obj.__eq__(test_obj2, check_extra=False)
 
 
-def test_inequality_extra():
+def test_inequality_extra(capsys):
     """Basic equality test."""
     test_obj = UVTest()
     test_obj2 = test_obj.copy()
     test_obj2.optional_int1 = 4
-    assert test_obj != test_obj2
+    # use `__ne__` rather than `!=` throughout so we can cover print lines
+    assert test_obj.__ne__(test_obj2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "optional_int1 parameter value can be cast to an array and tested with "
+        "np.allclose. The values are not close\nparameter _optional_int1 does "
+        "not match. Left is 3, right is 4."
+    )
 
 
-def test_inequality_different_extras():
+def test_inequality_different_extras(capsys):
     """Basic equality test."""
     test_obj = UVTest()
     test_obj2 = test_obj.copy()
@@ -215,22 +238,40 @@ def test_inequality_different_extras():
         value=7,
         required=False,
     )
-    assert test_obj != test_obj2
+    assert test_obj.__ne__(test_obj2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "Sets of extra parameters do not match. Left is ['_optional_int1', "
+        "'_optional_int2', '_unset_int1'], right is ['_optional_int1', "
+        "'_optional_int2', '_optional_int3', '_unset_int1']."
+    )
+
     assert not (test_obj == test_obj2)
 
 
-def test_inequality():
+def test_inequality(capsys):
     """Check that inequality is handled correctly."""
     test_obj = UVTest()
     test_obj2 = test_obj.copy()
     test_obj2.float1 = 13
-    assert test_obj != test_obj2
+    assert test_obj.__ne__(test_obj2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith(
+        "float1 parameter value can be cast to an array and tested with "
+        "np.allclose. The values are not close\nparameter _float1 does not "
+        "match. Left is 18.2, right is 13."
+    )
 
 
-def test_class_inequality():
+def test_class_inequality(capsys):
     """Test equality error for different classes."""
     test_obj = UVTest()
-    assert test_obj != test_obj._floatarr
+    assert test_obj.__ne__(test_obj._floatarr, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("Classes do not match")
 
 
 def test_check():
@@ -462,6 +503,17 @@ def test_name_error():
     test_obj._location.name = "place"
     with pytest.raises(ValueError, match="UVParameter _location does not follow the"):
         test_obj.check()
+
+
+def test_telescope_inequality(capsys):
+    test_obj = UVTest()
+    test_obj2 = test_obj.copy()
+    test_obj2.telescope = Telescope.from_known_telescopes("hera")
+
+    assert test_obj.__ne__(test_obj2, silent=False)
+
+    captured = capsys.readouterr()
+    assert captured.out.startswith("parameter _telescope does not match.")
 
 
 def test_getattr_old_telescope():
