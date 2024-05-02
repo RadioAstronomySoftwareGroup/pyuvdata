@@ -1942,9 +1942,9 @@ def test_add_antenna(uvcal_obj, diameters):
         [name + "_new" for name in uv2.telescope.antenna_names]
     )
     if diameters == "left":
-        uv2.antenna_diameters = None
+        uv2.telescope.antenna_diameters = None
     elif diameters == "right":
-        uv2.antenna_diameters = None
+        uv2.telescope.antenna_diameters = None
 
     if diameters == "both":
         warn_type = None
@@ -1957,7 +1957,7 @@ def test_add_antenna(uvcal_obj, diameters):
         uv3 = uv1.__add__(uv2, axis="antenna")
 
     if diameters != "both":
-        assert uv3.antenna_diameters is None
+        assert uv3.telescope.antenna_diameters is None
 
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
