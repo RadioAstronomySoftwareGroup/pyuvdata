@@ -619,7 +619,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
             "present in the file",
         ],
     ):
-        uv_out.read(testfile, use_future_array_shapes=True, run_check=False)
+        uv_out.read(testfile, run_check=False)
 
     # Test for handling when antenna positions have a different mean latitude
     # than the file latitude
