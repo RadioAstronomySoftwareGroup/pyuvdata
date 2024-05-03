@@ -642,40 +642,6 @@ class UVFlag(UVBase):
                 np.arange(1, 5)
             )
 
-    def _set_future_array_shapes(self, use_future_array_shapes=None):
-        """
-        Set future_array_shapes to True and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by file-reading methods and `use_future_array_shapes` to indicate the
-        `future_array_shapes` is True and define expected parameter shapes.
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        if use_future_array_shapes is None:
-            # This basically wraps no-ops when no argument is passed.
-            return
-
-        if not use_future_array_shapes:
-            raise ValueError(
-                'The future is now! So-called "current" array shapes no longer '
-                'supported, must use "future" array shapes (spw-axis dropped).'
-            )
-        warnings.warn(
-            (
-                "Future array shapes are now always used, setting/calling "
-                "use_future_array_shapes will result in an error in version 3.2."
-            ),
-            DeprecationWarning,
-        )
-
-    def use_future_array_shapes(self):
-        """
-        Change the array shapes of this object to match the planned future shapes.
-
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        self._set_future_array_shapes(True)
-
     def _set_mode_flag(self):
         """Set the mode and required parameters consistent with a flag object."""
         self.mode = "flag"

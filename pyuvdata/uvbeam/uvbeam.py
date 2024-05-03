@@ -578,50 +578,6 @@ class UVBeam(UVBase):
         """
         return initializers.new_uvbeam(**kwargs)
 
-    def _freq_params(self):
-        """List of strings giving the parameters shaped like the freq_array."""
-        form = self._freq_array.form
-        param_list = []
-        for uvpar in self:
-            this_par = getattr(self, uvpar)
-            if this_par.form == form:
-                param_list.append(this_par.name)
-        return param_list
-
-    def _set_future_array_shapes(self, use_future_array_shapes=None):
-        """
-        Set future_array_shapes to True and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by file-reading methods and `use_future_array_shapes` to indicate the
-        `future_array_shapes` is True and define expected parameter shapes.
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        if use_future_array_shapes is None:
-            # This basically wraps no-ops when no argument is passed.
-            return
-
-        if not use_future_array_shapes:
-            raise ValueError(
-                'The future is now! So-called "current" array shapes no longer '
-                'supported, must use "future" array shapes (spw-axis dropped).'
-            )
-        warnings.warn(
-            (
-                "Future array shapes are now always used, setting/calling "
-                "use_future_array_shapes will result in an error in version 3.2."
-            ),
-            DeprecationWarning,
-        )
-
-    def use_future_array_shapes(self):
-        """
-        Change the array shapes of this object to match the planned future shapes.
-
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        self._set_future_array_shapes(True)
-
     def _set_cs_params(self):
         """Set parameters depending on pixel_coordinate_system."""
         if self.pixel_coordinate_system == "healpix":
@@ -864,20 +820,6 @@ class UVBeam(UVBase):
         if self.basis_vector_array is not None:
             if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
                 raise ValueError("basis vectors must have lengths of 1 or less.")
-
-        # issue warning for deprecated values in feed_array
-        if self.beam_type == "efield":
-            warn_feed = []
-            for feed in self.feed_array:
-                if feed in ["N", "E", "R", "L"]:
-                    warn_feed.append(str(feed))
-            if len(warn_feed) > 0:
-                warnings.warn(
-                    f"Feed array has values {warn_feed} that are deprecated. "
-                    "Values in feed_array should be lower case. This will become "
-                    "an error in version 2.6",
-                    DeprecationWarning,
-                )
 
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in list(self.extra_keywords.keys()):

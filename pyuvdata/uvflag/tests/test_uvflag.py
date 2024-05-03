@@ -2325,6 +2325,23 @@ def test_to_baseline_flags(uvdata_obj, resort):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_to_baseline_fill_spws(uvdata_obj):
+    uv = uvdata_obj
+    uvf = UVFlag(uv)
+    uvf2 = uvf.copy()
+
+    uvf.to_waterfall()
+    uvf.Nspws = uvf.spw_array = uvf.flex_spw_id_array = None
+    uvf.to_baseline(uv)
+    # Assign the weights, since they're mucked by the collapse in the waterfall call
+    uvf.weights_array = uvf2.weights_array
+    # Also scrub the history, since the two objects are different histories
+    uvf.history = uvf2.history
+
+    assert uvf == uvf2
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_to_baseline_metric(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag(uv)
