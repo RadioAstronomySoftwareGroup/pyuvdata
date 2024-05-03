@@ -650,3 +650,27 @@ def test_setattr_old_telescope():
             np.testing.assert_allclose(
                 new_telescope._location.xyz(), test_obj.telescope._location.xyz()
             )
+
+
+def test_future_array_shapes():
+    """Check warnings and errors on deprecated future array shape calls."""
+    uvobj = UVBase()
+
+    with uvtest.check_warnings(None):
+        # Verify that providing no args raises no warnings
+        uvobj._set_future_array_shapes()
+
+    with uvtest.check_warnings(
+        DeprecationWarning, match="Future array shapes are now always used"
+    ):
+        uvobj._set_future_array_shapes(use_future_array_shapes=True)
+
+    with pytest.raises(
+        ValueError, match='The future is now! So-called "current" array shapes no'
+    ):
+        uvobj._set_future_array_shapes(use_future_array_shapes=False)
+
+    with uvtest.check_warnings(
+        DeprecationWarning, match="Future array shapes are now always used"
+    ):
+        uvobj.use_future_array_shapes()

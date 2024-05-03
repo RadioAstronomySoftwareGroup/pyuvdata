@@ -770,40 +770,6 @@ class UVCal(UVBase):
 
         return metadata_only
 
-    def _set_future_array_shapes(self, use_future_array_shapes=None):
-        """
-        Set future_array_shapes to True and adjust required parameters.
-
-        This method should not be called directly by users; instead it is called
-        by file-reading methods and `use_future_array_shapes` to indicate the
-        `future_array_shapes` is True and define expected parameter shapes.
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        if use_future_array_shapes is None:
-            # This basically wraps no-ops when no argument is passed.
-            return
-
-        if not use_future_array_shapes:
-            raise ValueError(
-                'The future is now! So-called "current" array shapes no longer '
-                'supported, must use "future" array shapes (spw-axis dropped).'
-            )
-        warnings.warn(
-            (
-                "Future array shapes are now always used, setting/calling "
-                "use_future_array_shapes will result in an error in version 3.2."
-            ),
-            DeprecationWarning,
-        )
-
-    def use_future_array_shapes(self):
-        """
-        Change the array shapes of this object to match the planned future shapes.
-
-        This function has been deprecated, and will result in an error in version 3.2.
-        """
-        self._set_future_array_shapes(True)
-
     def remove_flex_jones(self, *, combine_spws=True):
         """
         Convert a flex-Jones UVCal object into one with a standard Jones axis.
@@ -2481,8 +2447,8 @@ class UVCal(UVBase):
     def convert_to_gain(
         self,
         *,
-        freq_array=None,
-        channel_width=None,
+        freq_array,
+        channel_width,
         delay_convention="minus",
         run_check=True,
         check_extra=True,
@@ -2527,9 +2493,6 @@ class UVCal(UVBase):
             conv = 1
         else:
             raise ValueError("delay_convention can only be 'minus' or 'plus'")
-
-        if freq_array is None or channel_width is None:
-            raise ValueError("freq_array and channel_width must be provided.")
 
         if freq_array.ndim > 1:
             raise ValueError("freq_array parameter must be a one dimensional array")
@@ -2692,14 +2655,6 @@ class UVCal(UVBase):
                 "value (True or False) for both objects."
             )
 
-        this_has_spw_id = this.flex_spw_id_array is not None
-        other_has_spw_id = other.flex_spw_id_array is not None
-        if this_has_spw_id != other_has_spw_id:
-            warnings.warn(
-                "One object has the flex_spw_id_array set and one does not. Combined "
-                "object will have it set."
-            )
-
         # check that both either have or don't have time_array and time_range
         _time_param_check(this, other)
 
@@ -2741,8 +2696,6 @@ class UVCal(UVBase):
             this.jones_array, other.jones_array, return_indices=True
         )
 
-        if self.time_array is not None and self.time_range is not None:
-            raise ValueError("The time_array and time_range attributes are both set. ")
         if this.time_range is not None:
             if uvutils._check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
@@ -4062,11 +4015,6 @@ class UVCal(UVBase):
             phase_center_ids = uvutils.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
-
-        if (times is not None or time_range is not None) and (
-            self.time_array is not None and self.time_range is not None
-        ):
-            raise ValueError("The time_array and time_range attributes are both set.")
 
         time_inds = uvutils._select_times_helper(
             times=times,
