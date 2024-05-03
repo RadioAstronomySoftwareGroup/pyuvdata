@@ -328,9 +328,7 @@ def test_read_fhd_latlonalt_match_xyz(fhd_data_files):
             "['layout', 'obs']",
         ],
     ):
-        fhd_uv = UVData.from_file(
-            **fhd_data_files, use_future_array_shapes=True, read_data=False
-        )
+        fhd_uv = UVData.from_file(**fhd_data_files, read_data=False)
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
 
