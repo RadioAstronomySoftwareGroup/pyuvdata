@@ -1948,14 +1948,6 @@ class UVFlag(UVBase):
                 "added to object of mode " + this.type + "."
             )
 
-        this_has_spw_id = this.flex_spw_id_array is not None
-        other_has_spw_id = other.flex_spw_id_array is not None
-        if this_has_spw_id != other_has_spw_id:
-            warnings.warn(
-                "One object has the flex_spw_id_array set and one does not. Combined "
-                "object will have it set."
-            )
-
         # Update filename parameter
         this.filename = uvutils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
@@ -2109,15 +2101,6 @@ class UVFlag(UVBase):
 
             # handle multiple spws
             if this.Nspws > 1 or other.Nspws > 1 or this._spw_array != other._spw_array:
-                if this.flex_spw_id_array is None:
-                    this.flex_spw_id_array = np.full(
-                        this.Nfreqs, this.spw_array[0], dtype=int
-                    )
-                if other.flex_spw_id_array is None:
-                    other.flex_spw_id_array = np.full(
-                        other.Nfreqs, other.spw_array[0], dtype=int
-                    )
-
                 this.flex_spw_id_array = np.concatenate(
                     [this.flex_spw_id_array, other.flex_spw_id_array]
                 )
@@ -2130,10 +2113,9 @@ class UVFlag(UVBase):
                 this.spw_array = this.flex_spw_id_array[unique_index]
                 this.Nspws = len(this.spw_array)
             else:
-                if this_has_spw_id or other_has_spw_id:
-                    this.flex_spw_id_array = np.full(
-                        this.freq_array.size, this.spw_array[0], dtype=int
-                    )
+                this.flex_spw_id_array = np.full(
+                    this.freq_array.size, this.spw_array[0], dtype=int
+                )
 
             this.Nfreqs = np.unique(this.freq_array.flatten()).size
 
