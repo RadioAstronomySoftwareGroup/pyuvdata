@@ -645,10 +645,14 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
         ValueError,
         match="convert_to_gain currently does not support multiple spectral windows",
     ):
-        multi_spw_delay.convert_to_gain()
+        multi_spw_delay.convert_to_gain(
+            freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width
+        )
 
     with pytest.raises(ValueError, match="The data is already a gain cal_type."):
-        gain_obj.convert_to_gain()
+        gain_obj.convert_to_gain(
+            freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width
+        )
 
     with pytest.raises(
         ValueError,
@@ -656,6 +660,30 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
     ):
         delay_obj.convert_to_gain(
             freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width[0]
+        )
+
+    with pytest.raises(
+        ValueError, match="delay_convention can only be 'minus' or 'plus'"
+    ):
+        delay_obj.convert_to_gain(
+            delay_convention="foo",
+            freq_array=delay_obj.freq_array,
+            channel_width=delay_obj.channel_width,
+        )
+
+    with pytest.raises(
+        ValueError, match="freq_array parameter must be a one dimensional array"
+    ):
+        delay_obj.convert_to_gain(
+            freq_array=delay_obj.freq_array.reshape(-1, 1),
+            channel_width=delay_obj.channel_width,
+        )
+
+    with pytest.raises(
+        ValueError, match="freq_array contains values outside the freq_range."
+    ):
+        delay_obj.convert_to_gain(
+            freq_array=delay_obj.freq_array * 1e6, channel_width=delay_obj.channel_width
         )
 
 
@@ -2959,6 +2987,18 @@ def test_parameter_warnings(gain_data):
         rtol=calobj._freq_array.tols[0],
         atol=calobj._freq_array.tols[1],
     )
+
+
+@pytest.mark.parametrize(
+    "method", ["read_ms_cal", "read_fhd_cal", "read_calh5", "read_calfits"]
+)
+def test_multi_files_errors(method):
+    uvc = UVCal()
+    kwargs = {"obs_file": "dummy"} if method == "read_fhd_cal" else {}
+    with pytest.raises(
+        ValueError, match="Use the generic `UVCal.read` method to read multiple files."
+    ):
+        getattr(uvc, method)(["foo", "bar"], **kwargs)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
