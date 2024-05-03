@@ -3185,6 +3185,10 @@ def test_old_phase_attributes_header(casa_uvfits, tmp_path):
     uvd2.history = casa_uvfits.history
     assert uvd2 == casa_uvfits
 
+    casa_uvfits.phase_center_catalog = None
+    old_phase_compatible, _ = casa_uvfits._old_phase_attributes_compatible()
+    assert old_phase_compatible
+
 
 def test_none_extra_keywords(uv_uvh5, tmp_path):
     """Test that we can round-trip None values in extra_keywords"""
