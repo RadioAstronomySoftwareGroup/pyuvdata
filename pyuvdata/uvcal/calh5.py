@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import os
-import warnings
 from functools import cached_property
 from pathlib import Path
 
@@ -183,6 +182,12 @@ class CalH5(UVCal):
             "antenna_numbers",
             "antenna_positions",
         ]
+
+        # Antenna diameters is an optional parameter _inside_ of the telescope attr,
+        # so let's just check if it's there now and add it to the required keys if it is
+        if "antenna_diameters" in meta.header:
+            required_telescope_keys.append("antenna_diameters")
+
         self.telescope = Telescope.from_hdf5(
             meta,
             required_keys=required_telescope_keys,
@@ -228,7 +233,6 @@ class CalH5(UVCal):
         ]
 
         optional_parameters = [
-            "antenna_diameters",
             "channel_width",
             "flex_spw_id_array",
             "flex_jones_array",
