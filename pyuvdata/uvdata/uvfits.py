@@ -60,9 +60,11 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                (latitude, longitude, altitude) = (
-                    self.telescope_location_lat_lon_alt_degrees
-                )
+                (
+                    latitude,
+                    longitude,
+                    altitude,
+                ) = self.telescope_location_lat_lon_alt_degrees
             uvutils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
@@ -1161,11 +1163,12 @@ class UVFITS(UVData):
 
         # Create an  astropy.time.Time object from first timestamp.
         # This is used to generate DATE-OBS and RDATE keywords
-        eloc = EarthLocation(self.telescope_location[0],
-                             self.telescope_location[1],
-                             self.telescope_location[2],
-                             unit='m'
-                             )
+        eloc = EarthLocation(
+            self.telescope_location[0],
+            self.telescope_location[1],
+            self.telescope_location[2],
+            unit="m",
+        )
         obs_date0 = Time(self.time_array[0], format="jd", scale="utc", location=eloc)
 
         # Per AIPS memo 117, DATE-OBS is the YYYY-MM-DD string
