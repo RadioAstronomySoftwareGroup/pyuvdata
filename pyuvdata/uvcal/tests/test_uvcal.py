@@ -245,9 +245,27 @@ def test_equality(gain_data):
     assert gain_data == gain_data
 
 
-def test_check(gain_data):
+def test_check(gain_data, delay_data_inputflag):
     """Test that parameter checks run properly"""
     assert gain_data.check()
+
+    gain_data.freq_range = np.array([[1.0, 2.0]])
+    with pytest.raises(ValueError, match="The freq_range attribute should not be set"):
+        gain_data.check()
+
+    assert delay_data_inputflag.check()
+
+    delay_data_inputflag.flex_spw_id_array = np.array([0])
+    with pytest.raises(ValueError, match="The flex_spw_id_array attribute should not"):
+        delay_data_inputflag.check()
+
+    delay_data_inputflag.channel_width = np.array([1.0])
+    with pytest.raises(ValueError, match="The channel_width attribute should not be"):
+        delay_data_inputflag.check()
+
+    delay_data_inputflag.freq_array = np.array([1.0])
+    with pytest.raises(ValueError, match="The freq_array attribute should not be set"):
+        delay_data_inputflag.check()
 
 
 def test_check_flag_array(gain_data):
