@@ -500,6 +500,7 @@ class CALFITS(UVCal):
         filename,
         *,
         read_data=True,
+        combine_input_flags=True,
         background_lsts=True,
         run_check=True,
         check_extra=True,
@@ -726,33 +727,27 @@ class CALFITS(UVCal):
                     )
                     self.flag_array = data[:, 0, :, :, :, 2].astype("bool")
                     n_arrays = hdr.pop("NAXIS1")
-                    if n_arrays == 5:
-                        # The 3rd element in the array belongs to the old input flags,
-                        # which were dropped in v3, and is now merged into the
-                        # "normal" flags.
-                        self.flag_array |= data[:, 0, :, :, :, 3].astype("bool")
-                        self.quality_array = data[:, 0, :, :, :, 4]
-                    elif n_arrays == 4:
-                        if has_quality:
-                            self.quality_array = data[:, 0, :, :, :, 3]
-                        else:
-                            # The 3rd element in the array belongs to the old input
-                            # flags, which were dropped in v3, and is now merged into
-                            # the "normal" flags.
-                            self.flag_array |= data[:, 0, :, :, :, 3].astype("bool")
+                    input_flag_idx = 3 if (n_arrays in [4, 5]) else None
+                    if has_quality:
+                        self.quality_array = data[:, 0, :, :, :, -1]
+                        if n_arrays == 4:
+                            input_flag_idx = None
                 if self.cal_type == "delay":
                     self.delay_array = data[:, 0, :, :, :, 0]
                     if has_quality:
                         self.quality_array = data[:, 0, :, :, :, 1]
 
                     flag_data = sechdu.data
-                    if sechdu.header["NAXIS1"] == 2:
-                        self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
-                        self.flag_array |= flag_data[:, 0, :, :, :, 1].astype("bool")
-                    else:
-                        self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
+                    self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
+                    input_flag_idx = 1 if (sechdu.header["NAXIS1"] == 2) else None
+
                     # Combine the flags down to one windows worth
                     self.flag_array = np.all(self.flag_array, axis=1, keepdims=True)
+
+                if combine_input_flags and input_flag_idx is not None:
+                    self.flag_array |= data[:, 0, :, :, :, input_flag_idx].astype(
+                        "bool"
+                    )
 
                 # get total quality array if present
                 if "TOTQLTY" in hdunames:
