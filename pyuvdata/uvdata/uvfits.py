@@ -11,6 +11,7 @@ import numpy as np
 from astropy import constants as const
 from astropy.io import fits
 from astropy.time import Time
+from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 
 from .. import utils as uvutils
@@ -1160,7 +1161,12 @@ class UVFITS(UVData):
 
         # Create an  astropy.time.Time object from first timestamp.
         # This is used to generate DATE-OBS and RDATE keywords
-        obs_date0 = Time(self.time_array[0], format="jd", scale="utc", location=self.location)
+        eloc = EarthLocation(self.telescope_location[0],
+                             self.telescope_location[1],
+                             self.telescope_location[2],
+                             unit='m'
+                             )
+        obs_date0 = Time(self.time_array[0], format="jd", scale="utc", location=eloc)
 
         # Per AIPS memo 117, DATE-OBS is the YYYY-MM-DD string
         hdu.header["DATE-OBS"] = obs_date0.strftime("%Y-%m-%d")
