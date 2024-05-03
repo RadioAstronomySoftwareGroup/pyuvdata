@@ -2187,19 +2187,6 @@ class UVData(UVBase):
         """
         self._set_telescope_requirements()
 
-        if self.flex_spw_id_array is None:
-            warnings.warn(
-                "flex_spw_id_array is not set. It will be required starting in version "
-                "3.0",
-                DeprecationWarning,
-            )
-        else:
-            # Check that all values in flex_spw_id_array are entries in the spw_array
-            if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
-                raise ValueError(
-                    "All values in the flex_spw_id_array must exist in the spw_array."
-                )
-
         # call metadata_only to make sure that parameter requirements are set properly
         self.metadata_only
 
@@ -2215,6 +2202,12 @@ class UVData(UVBase):
         self.telescope.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
+
+        # Check that all values in flex_spw_id_array are entries in the spw_array
+        if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
+            raise ValueError(
+                "All values in the flex_spw_id_array must exist in the spw_array."
+            )
 
         # Check blt axis rectangularity arguments
         if self.time_axis_faster_than_bls and not self.blts_are_rectangular:
@@ -5247,14 +5240,6 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-
-        this_has_spw_id = this.flex_spw_id_array is not None
-        other_has_spw_id = other.flex_spw_id_array is not None
-        if this_has_spw_id != other_has_spw_id:
-            warnings.warn(
-                "One object has the flex_spw_id_array set and one does not. Combined "
-                "object will have it set."
-            )
 
         # Define parameters that must be the same to add objects
         compatibility_params = ["_vis_units", "_telescope"]

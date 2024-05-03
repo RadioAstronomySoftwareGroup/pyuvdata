@@ -2257,9 +2257,6 @@ class UVCal(UVBase):
                 spw_index = np.asarray(
                     [np.nonzero(orig_spw_array == spw)[0][0] for spw in self.spw_array]
                 )
-                if self.freq_range is not None:
-                    # this can go away in v3 becuse freq_range will always be None
-                    self.freq_range = self.freq_range[spw_index, :]
                 if self.flex_jones_array is not None:
                     self.flex_jones_array = self.flex_jones_array[spw_index]
 

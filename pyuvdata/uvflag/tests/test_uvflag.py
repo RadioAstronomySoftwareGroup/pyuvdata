@@ -1779,16 +1779,7 @@ def test_add_frequency():
     uv2 = uv1.copy()
     uv2.freq_array += 1e4  # Arbitrary
 
-    uv1.flex_spw_id_array = None
-
-    with uvtest.check_warnings(
-        UserWarning,
-        match=(
-            "One object has the flex_spw_id_array set and one does not. Combined "
-            "object will have it set."
-        ),
-    ):
-        uv3 = uv1.__add__(uv2, axis="frequency")
+    uv3 = uv1.__add__(uv2, axis="frequency")
     assert np.array_equal(
         np.concatenate((uv1.freq_array, uv2.freq_array), axis=-1), uv3.freq_array
     )
@@ -4010,6 +4001,21 @@ def test_to_antenna_collapsed_pols(uvf_from_uvcal, uvcal_obj):
     uvf.to_antenna(uvc, force_pol=True)
     assert not uvf.pol_collapsed
     uvf.check()
+
+
+def test_to_antenna_spw_fill(uvf_from_uvcal, uvcal_obj):
+    uvf = uvf_from_uvcal
+    uvc = uvcal_obj
+
+    uvf.to_waterfall()
+    # Muck spw-related attributes to see if it gets pulled from main object
+    uvf.Nspws = uvf.spw_array = uvf.flex_spw_id_array = None
+    uvf.to_antenna(uvc)
+
+    uvf.check()
+    assert np.array_equal(uvf.spw_array, uvc.spw_array)
+    assert np.array_equal(uvf.flex_spw_id_array, uvc.flex_spw_id_array)
+    assert uvf.Nspws == uvc.Nspws
 
 
 def test_get_ants_error(uvf_from_waterfall):
