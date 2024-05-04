@@ -223,8 +223,6 @@ class CALFITS(UVCal):
             freq_range_use = self.freq_range
         if self.cal_type == "delay":
             prihdr["FRQRANGE"] = ",".join(map(str, freq_range_use))
-        elif self.freq_range is not None:
-            prihdr["FRQRANGE"] = ",".join(map(str, freq_range_use))
 
         if self.time_range is not None:
             prihdr["TMERANGE"] = ",".join(map(str, self.time_range[0, :]))
@@ -244,11 +242,6 @@ class CALFITS(UVCal):
             prihdr["HASQLTY"] = True
         else:
             prihdr["HASQLTY"] = False
-
-        if self.cal_type == "unknown":
-            raise ValueError(
-                "unknown calibration type. Do not know how to store parameters"
-            )
 
         # Define primary header values
         # Arrays have (column-major) dimensions of
