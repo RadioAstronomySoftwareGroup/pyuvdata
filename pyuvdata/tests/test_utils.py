@@ -4134,6 +4134,14 @@ def test_uvcalibrate_time_mismatch(uvcalibrate_data, time_range):
         with pytest.raises(ValueError, match=expected_err):
             uvutils.uvcalibrate(uvd, uvc, inplace=False)
 
+        uvc.phase_center_id_array = np.arange(uvc.Ntimes)
+        uvc.phase_center_catalog = {0: None}
+        uvc.select(phase_center_ids=0)
+        with uvtest.check_warnings(
+            UserWarning, match="Time_range on UVCal does not cover all UVData times"
+        ):
+            _ = uvutils.uvcalibrate(uvd, uvc, inplace=False, time_check=False)
+
 
 def test_uvcalibrate_time_wrong_size(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
