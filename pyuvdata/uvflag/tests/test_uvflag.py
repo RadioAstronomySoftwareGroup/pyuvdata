@@ -1205,7 +1205,7 @@ def test_read_write_loop_wrong_nants_data(uvdata_obj, test_outfile):
     assert uvf2.filename == [os.path.basename(test_outfile)]
 
 
-def test_read_write_loop_missing_channel_width(uvdata_obj, test_outfile):
+def test_read_write_loop_mucked_channel_width(uvdata_obj, test_outfile):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
     uvf.write(test_outfile, clobber=True)
@@ -1219,6 +1219,14 @@ def test_read_write_loop_missing_channel_width(uvdata_obj, test_outfile):
         uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
     assert uvf2.filename == [os.path.basename(test_outfile)]
+
+    uvf.write(test_outfile, clobber=True)
+    with h5py.File(test_outfile, "r+") as h5f:
+        del h5f["/Header/channel_width"]
+        h5f["/Header/channel_width"] = uvf.channel_width[0]
+
+    uvf2 = UVFlag(test_outfile)
+    assert uvf == uvf2
 
     uvf.freq_array[0] -= uvf.channel_width[0]
     uvf.channel_width[0] *= 2
@@ -1380,7 +1388,6 @@ def test_read_missing_nants_data(test_outfile, uvcal_obj):
     assert uvf.__eq__(uvf2, check_history=True)
 
 
-@pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 def test_read_missing_nspws(test_outfile, uvcal_obj):
     uv = uvcal_obj
