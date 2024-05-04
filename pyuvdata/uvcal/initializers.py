@@ -149,8 +149,7 @@ def new_uvcal(
         and 'total_quality_array'. If any entry is provided, the output will contain
         all necessary data-like arrays. Any key *not* provided in this case will be
         set to default "empty" values (e.g. all ones for gains, all False for flags) if
-        they are required or `None` if they are not required (i.e. quality_array,
-        total_quality_array).
+        they are required or `None` if they are not required (i.e. total_quality_array).
     history : str, optional
         History string to be added to the object. Default is a simple string
         containing the date and time and pyuvdata version.

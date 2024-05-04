@@ -18,7 +18,7 @@ def time_array_to_time_range(calobj_in, keep_time_array=False):
     return calobj
 
 
-def extend_jones_axis(calobj, input_flag=True, total_quality=True):
+def extend_jones_axis(calobj, total_quality=True):
     while calobj.Njones < 4:
         new_jones = np.min(calobj.jones_array) - 1
         calobj.jones_array = np.append(calobj.jones_array, new_jones)
