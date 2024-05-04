@@ -359,7 +359,7 @@ def test_calh5_partial_read(
         if par.startswith("antenna"):
             total_quality = False
 
-    extend_jones_axis(calobj, input_flag=False, total_quality=total_quality)
+    extend_jones_axis(calobj, total_quality=total_quality)
 
     write_file = str(tmp_path / "outtest.calh5")
     calobj.write_calh5(write_file, clobber=True)

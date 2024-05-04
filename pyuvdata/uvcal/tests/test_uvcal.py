@@ -245,7 +245,7 @@ def test_equality(gain_data):
     assert gain_data == gain_data
 
 
-def test_check(gain_data, delay_data_inputflag):
+def test_check(gain_data, delay_data):
     """Test that parameter checks run properly"""
     assert gain_data.check()
 
@@ -253,19 +253,19 @@ def test_check(gain_data, delay_data_inputflag):
     with pytest.raises(ValueError, match="The freq_range attribute should not be set"):
         gain_data.check()
 
-    assert delay_data_inputflag.check()
+    assert delay_data.check()
 
-    delay_data_inputflag.flex_spw_id_array = np.array([0])
+    delay_data.flex_spw_id_array = np.array([0])
     with pytest.raises(ValueError, match="The flex_spw_id_array attribute should not"):
-        delay_data_inputflag.check()
+        delay_data.check()
 
-    delay_data_inputflag.channel_width = np.array([1.0])
+    delay_data.channel_width = np.array([1.0])
     with pytest.raises(ValueError, match="The channel_width attribute should not be"):
-        delay_data_inputflag.check()
+        delay_data.check()
 
-    delay_data_inputflag.freq_array = np.array([1.0])
+    delay_data.freq_array = np.array([1.0])
     with pytest.raises(ValueError, match="The freq_array attribute should not be set"):
-        delay_data_inputflag.check()
+        delay_data.check()
 
 
 def test_check_flag_array(gain_data):
@@ -325,14 +325,14 @@ def test_check_lst(gain_data, time_range):
 
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_array_shape_errors(caltype, gain_data, delay_data_inputflag, wideband_gain):
+def test_array_shape_errors(caltype, gain_data, delay_data, wideband_gain):
     if caltype == "gain":
         calobj = gain_data
         calobj2 = calobj.copy()
         calobj_wideband = wideband_gain
         calobj_wideband.select(spws=1)
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj.integration_time[-1] = calobj.integration_time[0] * 2.0
     if caltype == "delay":
@@ -580,8 +580,8 @@ def test_flexible_spw(gain_data):
 @pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("convention", ["minus", "plus"])
 @pytest.mark.parametrize("same_freqs", [True, False])
-def test_convert_to_gain(convention, same_freqs, delay_data_inputflag):
-    delay_obj = delay_data_inputflag
+def test_convert_to_gain(convention, same_freqs, delay_data):
+    delay_obj = delay_data
 
     freq_array = np.arange(30) * 1e6 + 1e8
     channel_width = np.full(30, 1e6)
@@ -651,8 +651,8 @@ def test_convert_to_gain(convention, same_freqs, delay_data_inputflag):
         assert new_gain_obj == new_gain_obj2
 
 
-def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay):
-    delay_obj = delay_data_inputflag
+def test_convert_to_gain_errors(gain_data, delay_data, multi_spw_delay):
+    delay_obj = delay_data
     gain_obj = gain_data
 
     delay_obj.Nfreqs = 1
@@ -706,13 +706,13 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_antennas(caltype, gain_data, delay_data_inputflag, tmp_path):
+def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     if caltype == "gain":
         calobj = gain_data
         # test list handling
         calobj.ant_array = calobj.ant_array.tolist()
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -789,11 +789,11 @@ def test_select_antennas(caltype, gain_data, delay_data_inputflag, tmp_path):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_select_times(caltype, time_range, gain_data, delay_data_inputflag, tmp_path):
+def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     orig_time_array = calobj.time_array
     times_to_keep = orig_time_array[2:5]
@@ -1028,11 +1028,11 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     assert calobj3 == calobj2
 
 
-def test_select_freq_chans_delay_err(delay_data_inputflag):
+def test_select_freq_chans_delay_err(delay_data):
     with pytest.raises(
         ValueError, match="Cannot select on frequencies because this is a wide_band"
     ):
-        delay_data_inputflag.select(freq_chans=[0])
+        delay_data.select(freq_chans=[0])
 
 
 def test_select_freq_chans(gain_data):
@@ -1120,13 +1120,11 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
 @pytest.mark.parametrize(
     "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(
-    caltype, jones_to_keep, gain_data, delay_data_inputflag, tmp_path
-):
+def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data, tmp_path):
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -1213,13 +1211,13 @@ def test_select_phase_centers(uvcal_phase_center):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select(caltype, gain_data, delay_data_inputflag):
+def test_select(caltype, gain_data, delay_data):
     # now test selecting along all axes at once
     if caltype == "gain":
         calobj = gain_data
         freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
         freqs_to_keep = None
 
     calobj2 = calobj.copy()
@@ -1331,12 +1329,12 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_antennas(caltype, gain_data, method, delay_data_inputflag):
+def test_add_antennas(caltype, gain_data, method, delay_data):
     """Test adding antennas between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -1411,11 +1409,11 @@ def test_add_antennas(caltype, gain_data, method, delay_data_inputflag):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_ants(caltype, metadata_only, gain_data, delay_data_inputflag):
+def test_reorder_ants(caltype, metadata_only, gain_data, delay_data):
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy(metadata_only=metadata_only)
     if metadata_only:
@@ -1475,7 +1473,7 @@ def test_reorder_ants_errors(gain_data):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_freqs(caltype, metadata_only, gain_data, delay_data_inputflag):
+def test_reorder_freqs(caltype, metadata_only, gain_data, delay_data):
     if caltype == "gain":
         calobj = gain_data
         # add total_quality_array
@@ -1484,7 +1482,7 @@ def test_reorder_freqs(caltype, metadata_only, gain_data, delay_data_inputflag):
             (1, calobj.Ntimes, calobj.Njones),
         )
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy(metadata_only=metadata_only)
     if metadata_only:
@@ -1602,9 +1600,7 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_reorder_times(
-    caltype, metadata_only, time_range, gain_data, delay_data_inputflag
-):
+def test_reorder_times(caltype, metadata_only, time_range, gain_data, delay_data):
     if caltype == "gain":
         calobj = gain_data
         # add total_quality_array
@@ -1614,7 +1610,7 @@ def test_reorder_times(
         )
         calobj.check()
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     if time_range:
         calobj = time_array_to_time_range(calobj)
@@ -1673,11 +1669,11 @@ def test_reorder_times_errors(gain_data):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_jones(caltype, metadata_only, gain_data, delay_data_inputflag):
+def test_reorder_jones(caltype, metadata_only, gain_data, delay_data):
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     # all the input objects have a Njones=1, extend to get to 4
     calobj2 = calobj.copy(metadata_only=metadata_only)
@@ -2220,12 +2216,12 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_times(caltype, time_range, method, gain_data, delay_data_inputflag):
+def test_add_times(caltype, time_range, method, gain_data, delay_data):
     """Test adding times between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     n_times2 = calobj.Ntimes // 2
     times1 = calobj.time_array[:n_times2]
@@ -2406,12 +2402,12 @@ def test_add_times_multispw(method, multi_spw_gain, quality):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_jones(caltype, method, gain_data, delay_data_inputflag):
+def test_add_jones(caltype, method, gain_data, delay_data):
     """Test adding Jones axes between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -2541,12 +2537,12 @@ def test_add_jones_multispw(method, quality, multi_spw_gain):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-def test_add(caltype, method, gain_data, delay_data_inputflag):
+def test_add(caltype, method, gain_data, delay_data):
     """Test miscellaneous aspects of add method"""
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -3022,14 +3018,12 @@ def test_multi_files_errors(method):
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
 @pytest.mark.parametrize("file_type", ["calfits", "calh5"])
-def test_multi_files(
-    caltype, method, gain_data, delay_data_inputflag, tmp_path, file_type
-):
+def test_multi_files(caltype, method, gain_data, delay_data, tmp_path, file_type):
     """Test read function when multiple files are included"""
     if caltype == "gain":
         calobj = gain_data
     else:
-        calobj = delay_data_inputflag
+        calobj = delay_data
 
     calobj2 = calobj.copy()
 
@@ -3162,12 +3156,12 @@ def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay", None])
-def test_copy(gain_data, delay_data_inputflag, caltype):
+def test_copy(gain_data, delay_data, caltype):
     """Test the copy method"""
     if caltype == "gain":
         uv_object = gain_data
     elif caltype == "delay":
-        uv_object = delay_data_inputflag
+        uv_object = delay_data
     else:
         uv_object = gain_data
         uv_object.cal_type = caltype
