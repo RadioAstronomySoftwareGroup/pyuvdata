@@ -3095,26 +3095,21 @@ class UVFlag(UVBase):
                 self.lst_array = header["lst_array"][()]
 
                 # read data arrays to figure out if the file has old shapes or not
-                current_shapes_ndim = {"antenna": 4, "baseline": 3}
+                current_shapes_ndim = {"antenna": 4, "baseline": 3, "waterfall": 3}
                 dgrp = f["/Data"]
                 if self.mode == "metric":
                     self.metric_array = dgrp["metric_array"][()]
                     self.weights_array = dgrp["weights_array"][()]
-
-                    if self.type != "waterfall":
-                        if self.metric_array.ndim != current_shapes_ndim[self.type]:
-                            self.metric_array = self.metric_array[:, 0]
-                        if self.weights_array.ndim != current_shapes_ndim[self.type]:
-                            self.weights_array = self.weights_array[:, 0]
-
                     if "weights_square_array" in dgrp:
                         self.weights_square_array = dgrp["weights_square_array"][()]
 
                 elif self.mode == "flag":
                     self.flag_array = dgrp["flag_array"][()]
-                    if self.type != "waterfall":
-                        if self.flag_array.ndim != current_shapes_ndim[self.type]:
-                            self.flag_array = self.flag_array[:, 0]
+
+                for param in self._data_params:
+                    param_value = getattr(self, param)
+                    if param_value.ndim != current_shapes_ndim[self.type]:
+                        setattr(self, param, np.squeeze(param_value, axis=1))
 
                 self.freq_array = header["freq_array"][()]
                 # older save files may have the old spw-axis, squeeze that now

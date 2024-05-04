@@ -3360,7 +3360,7 @@ def transform_app_to_icrs(
     app_dec,
     telescope_loc,
     telescope_frame="itrs",
-    ellipsoid=None,
+    ellipsoid="SPHERE",
     astrometry_library=None,
 ):
     """
@@ -3417,8 +3417,6 @@ def transform_app_to_icrs(
             raise ValueError(
                 "Need to install `lunarsky` package to work with MCMF frame."
             )
-        if ellipsoid is None:
-            ellipsoid = "SPHERE"
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
@@ -3590,7 +3588,7 @@ def calc_frame_pos_angle(
     ref_frame,
     ref_epoch=None,
     telescope_frame="itrs",
-    ellipsoid=None,
+    ellipsoid="SPHERE",
     offset_pos=(np.pi / 360.0),
 ):
     """
@@ -3646,9 +3644,6 @@ def calc_frame_pos_angle(
         return np.zeros_like(time_array)
 
     assert offset_pos > 0, "offset_pos must be greater than 0."
-
-    if telescope_frame == "mcmf" and ellipsoid is None:
-        ellipsoid = "SPHERE"
 
     # This creates an array of unique entries of ra + dec + time, since the processing
     # time for each element can be non-negligible, and entries along the Nblt axis can
