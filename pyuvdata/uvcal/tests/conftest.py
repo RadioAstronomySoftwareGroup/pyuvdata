@@ -44,7 +44,7 @@ def gain_data(gain_data_main):
 
 @pytest.fixture(scope="session")
 def delay_data_main():
-    """Read in delay calfits file, add input flag array."""
+    """Read in delay calfits file."""
     delayfile = os.path.join(DATA_PATH, "zen.2457698.40355.xx.delay.calfits")
     with uvtest.check_warnings(
         UserWarning,
@@ -64,23 +64,6 @@ def delay_data_main():
 def delay_data(delay_data_main):
     """Make function level delay uvcal object."""
     delay_object = delay_data_main.copy()
-
-    yield delay_object
-
-
-@pytest.fixture(scope="session")
-def delay_data_inputflag_main(delay_data_main):
-    """Add an input flag array to delay object."""
-    delay_object = delay_data_main.copy()
-
-    # yield the data for testing, then del after tests finish
-    yield delay_object
-
-
-@pytest.fixture(scope="function")
-def delay_data_inputflag(delay_data_inputflag_main):
-    """Make function level delay uvcal object."""
-    delay_object = delay_data_inputflag_main.copy()
 
     yield delay_object
 
@@ -193,8 +176,8 @@ def wideband_gain(gain_data):
 
 
 @pytest.fixture
-def multi_spw_delay(delay_data_inputflag):
-    delay_obj = delay_data_inputflag.copy()
+def multi_spw_delay(delay_data):
+    delay_obj = delay_data.copy()
     delay_obj.Nspws = 3
     delay_obj.spw_array = np.array([1, 2, 3])
 

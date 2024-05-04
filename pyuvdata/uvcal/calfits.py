@@ -493,7 +493,6 @@ class CALFITS(UVCal):
         filename,
         *,
         read_data=True,
-        combine_input_flags=True,
         background_lsts=True,
         run_check=True,
         check_extra=True,
@@ -719,12 +718,8 @@ class CALFITS(UVCal):
                         data[:, 0, :, :, :, 0] + 1j * data[:, 0, :, :, :, 1]
                     )
                     self.flag_array = data[:, 0, :, :, :, 2].astype("bool")
-                    n_arrays = hdr.pop("NAXIS1")
-                    input_flag_idx = 3 if (n_arrays in [4, 5]) else None
                     if has_quality:
                         self.quality_array = data[:, 0, :, :, :, -1]
-                        if n_arrays == 4:
-                            input_flag_idx = None
                 if self.cal_type == "delay":
                     self.delay_array = data[:, 0, :, :, :, 0]
                     if has_quality:
@@ -732,15 +727,9 @@ class CALFITS(UVCal):
 
                     flag_data = sechdu.data
                     self.flag_array = flag_data[:, 0, :, :, :, 0].astype("bool")
-                    input_flag_idx = 1 if (sechdu.header["NAXIS1"] == 2) else None
 
                     # Combine the flags down to one windows worth
                     self.flag_array = np.all(self.flag_array, axis=1, keepdims=True)
-
-                if combine_input_flags and input_flag_idx is not None:
-                    self.flag_array |= data[:, 0, :, :, :, input_flag_idx].astype(
-                        "bool"
-                    )
 
                 # get total quality array if present
                 if "TOTQLTY" in hdunames:

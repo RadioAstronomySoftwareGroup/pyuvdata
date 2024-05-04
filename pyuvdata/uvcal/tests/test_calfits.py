@@ -636,7 +636,7 @@ def test_calfits_partial_read(gain_data, delay_data, tmp_path, caltype, param_di
         if par == "times":
             param_dict[par] = orig_time_array[val]
 
-    extend_jones_axis(calobj, input_flag=False, total_quality=False)
+    extend_jones_axis(calobj, total_quality=False)
 
     write_file = str(tmp_path / "outtest.calfits")
     calobj.write_calfits(write_file, clobber=True)
