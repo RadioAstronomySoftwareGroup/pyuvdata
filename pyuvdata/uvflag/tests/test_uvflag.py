@@ -9,6 +9,7 @@ import re
 import shutil
 import warnings
 
+import astropy.units as units
 import h5py
 import numpy as np
 import pytest
@@ -849,9 +850,23 @@ def test_hdf5_meta_telescope_location(test_outfile):
     if hasmoon:
         from lunarsky import MoonLocation
 
+        moon_loc = MoonLocation.from_selenodetic(
+            lat * units.rad, lon * units.rad, alt * units.m
+        )
+        moon_xyz = np.array(
+            [
+                moon_loc.x.to("m").value,
+                moon_loc.y.to("m").value,
+                moon_loc.z.to("m").value,
+            ]
+        )
+
         shutil.copyfile(test_f_file, test_outfile)
         with h5py.File(test_outfile, "r+") as h5f:
             h5f["Header/telescope_frame"] = "mcmf"
+            del h5f["Header/telescope_location"]
+            h5f["Header/telescope_location"] = moon_xyz
+
         meta = hdf5_utils.HDF5Meta(test_outfile)
         assert meta.telescope_frame == "mcmf"
         assert isinstance(meta.telescope_location_obj, MoonLocation)
