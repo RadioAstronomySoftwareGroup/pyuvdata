@@ -44,20 +44,20 @@ except ImportError:
 # relative to the telescope location.
 KNOWN_TELESCOPES = {
     "PAPER": {
-        "center_xyz": None,
-        "latitude": Angle("-30d43m17.5s").radian,
-        "longitude": Angle("21d25m41.9s").radian,
-        "altitude": 1073.0,
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("-30d43m17.5s"), lon=Angle("21d25m41.9s"), height=1073.0 * units.m
+        ),
         "citation": (
             "value taken from capo/cals/hsa7458_v000.py, "
             "comment reads KAT/SA  (GPS), altitude from elevationmap.net"
         ),
     },
     "HERA": {
-        "center_xyz": None,
-        "latitude": Angle("-30.72152612068925d").radian,
-        "longitude": Angle("21.42830382686301d").radian,
-        "altitude": 1051.69,
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("-30.72152612068925d"),
+            lon=Angle("21.42830382686301d"),
+            height=1051.69 * units.m,
+        ),
         "antenna_diameters": 14.0,
         "antenna_positions_file": "hera_ant_pos.csv",
         "citation": (
@@ -66,24 +66,27 @@ KNOWN_TELESCOPES = {
         ),
     },
     "SMA": {
-        "center_xyz": None,
-        "latitude": Angle("19d49m27.13895s").radian,
-        "longitude": Angle("-155d28m39.08279s").radian,
-        "altitude": 4083.948144,
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("19d49m27.13895s"),
+            lon=Angle("-155d28m39.08279s"),
+            height=4083.948144 * units.m,
+        ),
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
     "SZA": {
-        "center_xyz": None,
-        "latitude": Angle("37d16m49.3698s").radian,
-        "longitude": Angle("-118d08m29.9126s").radian,
-        "altitude": 2400.0,
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("37d16m49.3698s"),
+            lon=Angle("-118d08m29.9126s"),
+            height=2400.0 * units.m,
+        ),
         "citation": "Unknown",
     },
     "OVRO-LWA": {
-        "center_xyz": None,
-        "latitude": Angle("37.239777271d").radian,
-        "longitude": Angle("-118.281666695d").radian,
-        "altitude": 1183.48,
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("37.239777271d"),
+            lon=Angle("-118.281666695d"),
+            height=1183.48 * units.m,
+        ),
         "citation": "OVRO Sharepoint Documentation",
     },
     "MWA": {"antenna_positions_file": "mwa_ant_pos.csv"},
@@ -131,40 +134,24 @@ def known_telescope_location(
 
     """
     astropy_sites = EarthLocation.get_site_names()
-    telescope_keys = list(known_telescope_dict.keys())
-    telescope_list = [tel.lower() for tel in telescope_keys]
+    known_telescopes = {k.lower(): v for k, v in known_telescope_dict.items()}
 
     # first deal with location.
     if name in astropy_sites:
         location = EarthLocation.of_site(name)
 
         citation = "astropy sites"
-    elif name.lower() in telescope_list:
-        telescope_index = telescope_list.index(name.lower())
-        telescope_dict = known_telescope_dict[telescope_keys[telescope_index]]
+    elif name.lower() in known_telescopes:
+        telescope_dict = known_telescopes[name.lower()]
         citation = telescope_dict["citation"]
 
-        if telescope_dict["center_xyz"] is not None:
-            location = EarthLocation.from_geocentric(
-                *telescope_dict["center_xyz"], unit="m"
-            )
-        else:
-            if (
-                telescope_dict["latitude"] is None
-                or telescope_dict["longitude"] is None
-                or telescope_dict["altitude"] is None
-            ):
-                raise ValueError(
-                    "Bad location information in known_telescopes_dict "
-                    f"for telescope {name}. Either the center_xyz "
-                    "or the latitude, longitude and altitude of the "
-                    "telescope must be specified."
-                )
-            location = EarthLocation.from_geodetic(
-                lat=telescope_dict["latitude"] * units.rad,
-                lon=telescope_dict["longitude"] * units.rad,
-                height=telescope_dict["altitude"] * units.m,
-            )
+        try:
+            location = telescope_dict["location"]
+        except KeyError as ke:
+            raise KeyError(
+                "Missing location information in known_telescopes_dict "
+                f"for telescope {name}."
+            ) from ke
     else:
         # no telescope matching this name
         raise ValueError(
@@ -428,8 +415,7 @@ class Telescope(uvbase.UVBase):
                 "The telescope name attribute must be set to update from "
                 "known_telescopes."
             )
-        telescope_keys = list(known_telescope_dict.keys())
-        telescope_list = [tel.lower() for tel in telescope_keys]
+        known_telescopes = {k.lower(): v for k, v in known_telescope_dict.items()}
 
         astropy_sites_list = []
         known_telescope_list = []
@@ -447,9 +433,8 @@ class Telescope(uvbase.UVBase):
                 known_telescope_list.append("telescope_location")
 
         # check for extra info
-        if self.name.lower() in telescope_list:
-            telescope_index = telescope_list.index(self.name.lower())
-            telescope_dict = known_telescope_dict[telescope_keys[telescope_index]]
+        if self.name.lower() in known_telescopes:
+            telescope_dict = known_telescopes[self.name.lower()]
 
             if "antenna_positions_file" in telescope_dict.keys() and (
                 overwrite
