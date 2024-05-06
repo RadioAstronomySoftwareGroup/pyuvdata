@@ -4,6 +4,7 @@
 Format the Telescope object parameters into a sphinx rst file.
 
 """
+import copy
 import inspect
 import json
 import os
@@ -79,18 +80,27 @@ def write_telescope_rst(write_file=None):
     out += "Methods\n-------\n.. autoclass:: pyuvdata.Telescope\n  :members:\n\n"
 
     out += (
-        "Known Telescopes\n================\n\n"
-        "Known Telescope Data\n--------------------\n"
+        "Known Telescopes\n----------------\n\n"
         "pyuvdata uses `Astropy sites\n"
         "<https://docs.astropy.org/en/stable/api/astropy.coordinates."
         "EarthLocation.html#astropy.coordinates.EarthLocation.get_site_names>`_\n"
         "for telescope location information, in addition to the following\n"
-        "telescope information that is tracked within pyuvdata. Note that for\n"
+        "telescope information that is tracked within pyuvdata. Note that the\n"
+        "location entry is actually stored as an\n"
+        ":class:`astropy.coordinates.EarthLocation` object, which\n"
+        "is shown here using the Geodetic representation. Also note that for\n"
         "some telescopes we store csv files giving antenna layout information\n"
         "which can be used if data files are missing that information.\n\n"
     )
 
-    json_obj = json.dumps(KNOWN_TELESCOPES, sort_keys=True, indent=4)
+    known_tel_use = copy.deepcopy(KNOWN_TELESCOPES)
+    for tel, tel_dict in KNOWN_TELESCOPES.items():
+        if "location" in tel_dict:
+            known_tel_use[tel]["location"] = (
+                tel_dict["location"].to_geodetic().__repr__()
+            )
+
+    json_obj = json.dumps(known_tel_use, sort_keys=True, indent=4)
     json_obj = json_obj[:-1] + " }"
     out += ".. code-block:: JavaScript\n\n {json_str}\n\n".format(json_str=json_obj)
 
