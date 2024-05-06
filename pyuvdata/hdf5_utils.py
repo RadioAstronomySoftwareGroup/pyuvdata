@@ -396,12 +396,9 @@ class HDF5Meta:
         elif "telescope_location" in h:
             # this branch is for old UVFlag files, which were written with an
             # ECEF 'telescope_location' key rather than the more standard
+
             # latitude in degrees, longitude in degrees, altitude
-            lat, lon, alt = uvutils.LatLonAlt_from_XYZ(
-                self.telescope_location,
-                frame=self.telescope_frame,
-                ellipsoid=self.ellipsoid,
-            )
+            lat, lon, alt = self.telescope_location_lat_lon_alt
             return lat * 180.0 / np.pi, lon * 180.0 / np.pi, alt
 
     @cached_property
@@ -448,48 +445,25 @@ class HDF5Meta:
     @cached_property
     def telescope_location_obj(self):
         """The telescope location object."""
-        h = self.header
-        if "latitude" in h and "longitude" in h and "altitude" in h:
-            if self.telescope_frame == "itrs":
-                return EarthLocation.from_geodetic(
-                    lat=self.telescope_location_lat_lon_alt_degrees[0] * units.deg,
-                    lon=self.telescope_location_lat_lon_alt_degrees[1] * units.deg,
-                    height=self.telescope_location_lat_lon_alt_degrees[2] * units.m,
+        lla_deg = self.telescope_location_lat_lon_alt_degrees
+        if lla_deg is None:
+            return None
+        lat_deg, lon_deg, alt = lla_deg
+        if self.telescope_frame == "itrs":
+            return EarthLocation.from_geodetic(
+                lat=lat_deg * units.deg, lon=lon_deg * units.deg, height=alt * units.m
+            )
+        else:
+            if not hasmoon:
+                raise ValueError(
+                    "Need to install `lunarsky` package to work with MCMF frames."
                 )
-            else:
-                if not hasmoon:
-                    raise ValueError(
-                        "Need to install `lunarsky` package to work with MCMF frames."
-                    )
-                return MoonLocation.from_selenodetic(
-                    lat=self.telescope_location_lat_lon_alt_degrees[0] * units.deg,
-                    lon=self.telescope_location_lat_lon_alt_degrees[1] * units.deg,
-                    height=self.telescope_location_lat_lon_alt_degrees[2] * units.m,
-                    ellipsoid=self.ellipsoid,
-                )
-        elif "telescope_location" in h:
-            # this branch is for old UVFlag files, which were written with an
-            # ECEF 'telescope_location' key rather than the more standard
-            # latitude in degrees, longitude in degrees, altitude
-            loc_xyz = self.telescope_location
-            if self.telescope_frame == "itrs":
-                return EarthLocation.from_geocentric(
-                    x=loc_xyz[0] * units.m,
-                    y=loc_xyz[1] * units.m,
-                    z=loc_xyz[2] * units.m,
-                )
-            else:
-                if not hasmoon:
-                    raise ValueError(
-                        "Need to install `lunarsky` package to work with MCMF frames."
-                    )
-                moon_loc = MoonLocation.from_selenocentric(
-                    x=loc_xyz[0] * units.m,
-                    y=loc_xyz[1] * units.m,
-                    z=loc_xyz[2] * units.m,
-                )
-                moon_loc.ellipsoid = self.ellipsoid
-                return moon_loc
+            return MoonLocation.from_selenodetic(
+                lat=lat_deg * units.deg,
+                lon=lon_deg * units.deg,
+                height=alt * units.m,
+                ellipsoid=self.ellipsoid,
+            )
 
     @cached_property
     def telescope_location(self):
@@ -501,18 +475,19 @@ class HDF5Meta:
             # latitude in degrees, longitude in degrees, altitude
             return h.telescope_location
         elif "latitude" in h and "longitude" in h and "altitude" in h:
-            return uvutils.XYZ_from_LatLonAlt(
-                *self.telescope_location_lat_lon_alt,
-                frame=self.telescope_frame,
-                ellipsoid=self.ellipsoid,
+            loc_obj = self.telescope_location_obj
+            return np.array(
+                [
+                    loc_obj.x.to("m").value,
+                    loc_obj.y.to("m").value,
+                    loc_obj.z.to("m").value,
+                ]
             )
 
     @cached_property
     def antenna_names(self) -> list[str]:
         """The antenna names in the file."""
-        return np.array(
-            [bytes(name).decode("utf8") for name in self.header["antenna_names"][:]]
-        )
+        return np.char.decode(self.header["antenna_names"][:], encoding="utf8")
 
     @cached_property
     def extra_keywords(self) -> dict:

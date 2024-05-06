@@ -211,20 +211,14 @@ def test_from_known():
 
 def test_get_telescope_center_xyz():
     ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-    ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
+    # ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
     test_telescope_dict = {
         "test": {
-            "center_xyz": ref_xyz,
-            "latitude": None,
-            "longitude": None,
-            "altitude": None,
+            "location": EarthLocation.from_geocentric(*ref_xyz, unit="m"),
             "citation": "",
         },
         "test2": {
-            "center_xyz": ref_xyz,
-            "latitude": ref_latlonalt[0],
-            "longitude": ref_latlonalt[1],
-            "altitude": ref_latlonalt[2],
+            "location": EarthLocation.from_geocentric(*ref_xyz, unit="m"),
             "citation": "",
         },
     }
@@ -256,10 +250,9 @@ def test_get_telescope_no_loc():
         }
     }
     with pytest.raises(
-        ValueError,
-        match="Bad location information in known_telescopes_dict for telescope "
-        "test. Either the center_xyz or the latitude, longitude and altitude of "
-        "the telescope must be specified.",
+        KeyError,
+        match="Missing location information in known_telescopes_dict "
+        "for telescope test.",
     ):
         Telescope.from_known_telescopes(
             "test", known_telescope_dict=test_telescope_dict
