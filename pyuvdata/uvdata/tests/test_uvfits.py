@@ -528,6 +528,7 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
     if telescope_frame == "mcmf":
         pytest.importorskip("lunarsky")
         from lunarsky import MoonLocation
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
 
         enu_antpos = uv_in.telescope.get_enu_antpos()
         uv_in.telescope.location = MoonLocation.from_selenodetic(
@@ -544,7 +545,10 @@ def test_readwriteread(tmp_path, casa_uvfits, future_shapes, telescope_frame, se
         )
         uv_in.set_lsts_from_time_array()
         uv_in.set_uvws_from_antenna_positions()
-        uv_in._set_app_coords_helper()
+        try:
+            uv_in._set_app_coords_helper()
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
         uv_in.check()
 
     uv_out = UVData()
