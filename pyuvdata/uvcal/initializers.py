@@ -221,7 +221,7 @@ def new_uvcal(
                 )
 
     if telescope is None:
-        telescope = Telescope.from_params(
+        telescope = Telescope.new(
             name=telescope_name,
             location=telescope_location,
             antenna_positions=antenna_positions,
