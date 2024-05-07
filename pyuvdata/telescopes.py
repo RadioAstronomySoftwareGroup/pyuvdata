@@ -607,7 +607,7 @@ class Telescope(uvbase.UVBase):
         return tel_obj
 
     @classmethod
-    def from_params(
+    def new(
         cls,
         name: str,
         location: Locations,

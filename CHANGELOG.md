@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - Several new methods on `Telescope` objects, including the classmethods
-`from_known_telescopes` and `from_params` to instantiate new objects and the
+`from_known_telescopes` and `new` to instantiate new objects and the
 `get_enu_antpos` method to get antenna positions in East, North, Up coordinates.
 - Support for writing "MODEL_DATA" and "CORRECTED_DATA" columns has been added to the
 `UVData.write_ms` method.

@@ -180,7 +180,7 @@ class UVTest(UVBase):
         self._telescope = uvp.UVParameter(
             "telescope",
             description="A telescope.",
-            value=Telescope.from_params(
+            value=Telescope.new(
                 location=EarthLocation.from_geodetic(0, 0, 0),
                 name="mock",
                 antenna_positions={
