@@ -502,7 +502,7 @@ def new_uvdata(
     if telescope is None:
         if instrument is None:
             instrument = telescope_name
-        telescope = Telescope.from_params(
+        telescope = Telescope.new(
             name=telescope_name,
             location=telescope_location,
             antenna_positions=antenna_positions,
