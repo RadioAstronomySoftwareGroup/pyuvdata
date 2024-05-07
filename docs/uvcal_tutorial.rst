@@ -255,7 +255,7 @@ of creating a consistent object from a minimal set of inputs
   ...     cal_style = "redundant",
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     jones_array = ["ee", "nn"],
-  ...     telescope = Telescope.from_params(
+  ...     telescope = Telescope.new(
   ...         antenna_positions = {
   ...             0: [0.0, 0.0, 0.0],
   ...             1: [0.0, 0.0, 1.0],
