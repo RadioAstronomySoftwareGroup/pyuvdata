@@ -45,7 +45,7 @@ def simplest_working_params() -> dict[str, Any]:
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
         "polarization_array": ["xx", "yy"],
-        "telescope": Telescope.from_params(
+        "telescope": Telescope.new(
             location=EarthLocation.from_geodetic(0, 0, 0),
             name="test",
             instrument="test",
@@ -67,7 +67,7 @@ def lunar_simple_params() -> dict[str, Any]:
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
         "polarization_array": ["xx", "yy"],
-        "telescope": Telescope.from_params(
+        "telescope": Telescope.new(
             location=MoonLocation.from_selenodetic(0, 0, 0),
             name="test",
             instrument="test",
@@ -118,7 +118,7 @@ def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: 
         ],
         [
             {
-                "telescope": Telescope.from_params(
+                "telescope": Telescope.new(
                     location=EarthLocation.from_geodetic(0, 0, 0),
                     name="test",
                     antenna_positions={
