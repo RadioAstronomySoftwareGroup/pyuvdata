@@ -429,7 +429,7 @@ of creating a consistent object from a minimal set of inputs
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.from_params(
+  ...     telescope = Telescope.new(
   ...         antenna_positions = {
   ...             0: [0.0, 0.0, 0.0],
   ...             1: [0.0, 0.0, 1.0],
@@ -465,7 +465,7 @@ where each baseline observed one time each. This case is ambiguous without the
   >>> uvd = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.from_params(
+  ...     telescope = Telescope.new(
   ...         antenna_positions = {
   ...             0: [0.0, 0.0, 0.0],
   ...             1: [0.0, 0.0, 1.0],
@@ -494,7 +494,7 @@ provided times and baselines, which would have resulted in 16 times:
   >>> uvd_rect = UVData.new(
   ...     freq_array = np.linspace(1e8, 2e8, 100),
   ...     polarization_array = ["xx", "yy"],
-  ...     telescope = Telescope.from_params(
+  ...     telescope = Telescope.new(
   ...         antenna_positions = {
   ...             0: [0.0, 0.0, 0.0],
   ...             1: [0.0, 0.0, 1.0],
@@ -523,7 +523,7 @@ To change the order of the blt-axis, set the ``time_axis_faster_than_bls`` keywo
   >>> uvd_rect = UVData.new(
   ...   freq_array = np.linspace(1e8, 2e8, 100),
   ...   polarization_array = ["xx", "yy"],
-  ...   telescope = Telescope.from_params(
+  ...   telescope = Telescope.new(
   ...     antenna_positions = {
   ...       0: [0.0, 0.0, 0.0],
   ...       1: [0.0, 0.0, 1.0],

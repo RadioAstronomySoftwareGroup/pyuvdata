@@ -20,7 +20,7 @@ def uvd_kw():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
         "times": np.linspace(2459850, 2459851, 12),
-        "telescope": Telescope.from_params(
+        "telescope": Telescope.new(
             location=EarthLocation.from_geodetic(0, 0, 0),
             name="mock",
             instrument="mock",
@@ -70,7 +70,7 @@ def uvc_simplest():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
         "time_array": np.linspace(2459850, 2459851, 12),
-        "telescope": Telescope.from_params(
+        "telescope": Telescope.new(
             location=EarthLocation.from_geodetic(0, 0, 0),
             name="mock",
             x_orientation="n",
@@ -95,7 +95,7 @@ def uvc_simplest_moon():
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),
         "time_array": np.linspace(2459850, 2459851, 12),
-        "telescope": Telescope.from_params(
+        "telescope": Telescope.new(
             location=MoonLocation.from_selenodetic(0, 0, 0),
             name="mock",
             x_orientation="n",
@@ -185,7 +185,7 @@ def test_new_uvcal_time_range(uvc_simplest):
         ],
         [
             {
-                "telescope": Telescope.from_params(
+                "telescope": Telescope.new(
                     location=EarthLocation.from_geodetic(0, 0, 0),
                     name="mock",
                     antenna_positions={
