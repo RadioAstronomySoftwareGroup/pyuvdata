@@ -24,6 +24,7 @@ import pyuvdata.tests as uvtest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.tests.test_utils import frame_selenoid
 from pyuvdata.uvdata.tests.test_mwa_corr_fits import filelist as mwa_corr_files
 from pyuvdata.uvdata.uvdata import _future_array_shapes_warning, old_phase_attrs
 
@@ -1097,6 +1098,66 @@ def test_phase_to_time_error(hera_uvh5):
     # check error if not passing a Time object to phase_to_time
     with pytest.raises(TypeError, match="time must be an astropy.time.Time object"):
         uv_phase.phase_to_time("foo")
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(["telescope_frame", "selenoid"], frame_selenoid)
+def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
+    uv_in = casa_uvfits
+    phase_time = Time(uv_in.time_array[0], format="jd")
+
+    if telescope_frame == "mcmf":
+        pytest.importorskip("lunarsky")
+        from lunarsky import MoonLocation
+
+        enu_antpos = uv_in.telescope.get_enu_antpos()
+        uv_in.telescope.location = MoonLocation.from_selenodetic(
+            lat=uv_in.telescope.location.lat,
+            lon=uv_in.telescope.location.lon,
+            height=uv_in.telescope.location.height,
+            ellipsoid=selenoid,
+        )
+        new_full_antpos = uvutils.ECEF_from_ENU(
+            enu=enu_antpos, center_loc=uv_in.telescope.location
+        )
+        uv_in.telescope.antenna_positions = (
+            new_full_antpos - uv_in.telescope._location.xyz()
+        )
+        uv_in.set_lsts_from_time_array()
+        uv_in.check()
+
+        zenith_coord = uvutils.LunarSkyCoord(
+            alt=Angle(90 * units.deg),
+            az=Angle(0 * units.deg),
+            obstime=phase_time,
+            frame="lunartopo",
+            location=uv_in.telescope.location,
+        )
+    else:
+        zenith_coord = SkyCoord(
+            alt=Angle(90 * units.deg),
+            az=Angle(0 * units.deg),
+            obstime=phase_time,
+            frame="altaz",
+            location=uv_in.telescope.location,
+        )
+    zen_icrs = zenith_coord.transform_to("icrs")
+
+    uv_in.phase_to_time(uv_in.time_array[0])
+
+    assert np.isclose(uv_in.phase_center_catalog[1]["cat_lat"], zen_icrs.dec.rad)
+    assert np.isclose(uv_in.phase_center_catalog[1]["cat_lon"], zen_icrs.ra.rad)
+
+    assert np.isclose(
+        uv_in.phase_center_catalog[1]["cat_lon"], uv_in.lst_array[0], 1e-3
+    )
+
+    if telescope_frame == "itrs":
+        assert np.isclose(
+            uv_in.phase_center_catalog[1]["cat_lat"],
+            uv_in.telescope.location.lat.rad,
+            1e-2,
+        )
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")

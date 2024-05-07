@@ -5305,13 +5305,24 @@ class UVData(UVBase):
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate
         # system to use for phasing
-        zenith_coord = SkyCoord(
-            alt=Angle(90 * units.deg),
-            az=Angle(0 * units.deg),
-            obstime=time,
-            frame="altaz",
-            location=self.telescope.location,
-        )
+        if uvutils.hasmoon and isinstance(
+            self.telescope.location, uvutils.MoonLocation
+        ):
+            zenith_coord = uvutils.LunarSkyCoord(
+                alt=Angle(90 * units.deg),
+                az=Angle(0 * units.deg),
+                obstime=time,
+                frame="lunartopo",
+                location=self.telescope.location,
+            )
+        else:
+            zenith_coord = SkyCoord(
+                alt=Angle(90 * units.deg),
+                az=Angle(0 * units.deg),
+                obstime=time,
+                frame="altaz",
+                location=self.telescope.location,
+            )
 
         obs_zenith_coord = zenith_coord.transform_to(phase_frame)
         zenith_ra = obs_zenith_coord.ra.rad
