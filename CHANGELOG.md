@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Several new methods on `Telescope` objects, including the classmethods
+`from_known_telescopes` and `from_params` to instantiate new objects and the
+`get_enu_antpos` method to get antenna positions in East, North, Up coordinates.
 - Support for writing "MODEL_DATA" and "CORRECTED_DATA" columns has been added to the
 `UVData.write_ms` method.
 - Support for "flexible-Jones" `UVCal` objects -- where different spectral windows can
@@ -27,6 +30,18 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Telescope-related metadata (including antenna metadata) on `UVData`, `UVCal`
+and `UVFlag` have been refactored into a `Telescope` object (attached to these
+objects as the `telescope` attribute) and most of the code related to these
+attributes from the three objects has been consolidated on the `Telescope` object.
+These attributes are still accessible via their old names on the objects, although
+accessing them that way is now deprecated. Note that the telescope locations are
+now stored under the hood as astropy EarthLocation objects (e.g. `UVData.telescope.location`)
+(or as MoonLocation objects for simulated arrays on the moon if `lunarsky` is
+installed).
+- The `UVData.new` and `UVCal.new` methods now accept a telescope object for
+setting the telescope-related metadata (the older parameters are still accepted
+but deprecated.)
 - When FHD calibration solutions are read in, the `time_range` is now set to be
 one quarter of an integration time before and after the earliest and latest times
 respectively. This is a change from extending it by half an integration time to
@@ -46,6 +61,15 @@ can be set on a UVCal object.
 - If `time_range` is set it must be 2D with a shape of (Ntimes, 2) where the first axis
 gives the number of different time solutions and the second axis gives the start/stop
 times for those solutions.
+
+### Deprecated
+- Accessing the telescope-related metadata through their old attribute names on
+`UVData`, `UVCal` and `UVFlag` rather than via their attributes on the attached
+`Telescope` object (e.g. `UVData.telescope_name` -> `UVData.telescope.name` and
+`UVData.antenna_positions` -> `UVData.telescope.antenna_positions`).
+- Passing telescope-related metadata as separate parameters to `UVData.new` and
+`UVCal.new` rather than `Telescope` objects.
+- The `UVData.get_ENU_antpos` method in favor of `UVData.telescope.get_enu_antpos`.
 
 ### Fixed
 - Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
