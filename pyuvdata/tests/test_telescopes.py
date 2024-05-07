@@ -307,13 +307,13 @@ def test_alternate_antenna_inputs():
     assert np.all(nums == nums2)
 
 
-def test_from_params_errors(simplest_working_params):
+def test_new_errors(simplest_working_params):
     simplest_working_params["location"] = Quantity([0, 0, 0], unit="m")
     with pytest.raises(
         ValueError,
         match="telescope_location has an unsupported type, it must be one of ",
     ):
-        Telescope.from_params(**simplest_working_params)
+        Telescope.new(**simplest_working_params)
 
 
 @pytest.mark.parametrize(
@@ -404,12 +404,12 @@ def test_from_params_errors(simplest_working_params):
 )
 def test_bad_antenna_inputs(kwargs, err_msg):
     with pytest.raises(ValueError, match=err_msg):
-        Telescope.from_params(**kwargs)
+        Telescope.new(**kwargs)
 
 
 @pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
 def test_passing_xorient(simplest_working_params, xorient):
-    tel = Telescope.from_params(x_orientation=xorient, **simplest_working_params)
+    tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
     if xorient.lower().startswith("e"):
         assert tel.x_orientation == "east"
     else:
@@ -417,7 +417,7 @@ def test_passing_xorient(simplest_working_params, xorient):
 
 
 def test_passing_diameters(simplest_working_params):
-    tel = Telescope.from_params(
+    tel = Telescope.new(
         antenna_diameters=np.array([14.0, 15.0, 16.0]), **simplest_working_params
     )
     np.testing.assert_allclose(tel.antenna_diameters, np.array([14.0, 15.0, 16.0]))
