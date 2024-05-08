@@ -930,7 +930,9 @@ class UVFITS(UVData):
                 start_freq_array += [freq_array_use[chan_mask][0]]
                 # Need the array direction here since channel_width is always supposed
                 # to be > 0, but channels can be in decending freq order
-                freq_dir = np.sign(np.median(np.diff(freq_array_use[chan_mask])))
+                freq_dir = 1.0
+                if nchan_list[-1] > 1:
+                    freq_dir = np.sign(np.median(np.diff(freq_array_use[chan_mask])))
                 delta_freq_array += [
                     np.median(self.channel_width[chan_mask]) * freq_dir
                 ]
