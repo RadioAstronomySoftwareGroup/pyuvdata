@@ -130,12 +130,41 @@ def test_lunar_simple_new_uvdata(lunar_simple_params: dict[str, Any], selenoid: 
             },
             "instrument must be set on the Telescope object passed to `telescope`.",
         ],
+        [
+            {
+                "antpairs": np.array([(0, 1), (0, 2), (1, 2), (0, 3)]),
+                "do_blt_outer": False,
+            },
+            "Length of time array must match the number of antpairs.",
+        ],
     ],
 )
 def test_bad_inputs(simplest_working_params: dict[str, Any], update_dict, err_msg):
     simplest_working_params.update(update_dict)
     with pytest.raises(ValueError, match=err_msg):
         UVData.new(**simplest_working_params)
+
+
+@pytest.mark.parametrize(
+    ["update_dict", "blt_order"],
+    [
+        [{}, ("ant1", "ant2")],
+        [{"time_axis_faster_than_bls": True}, ("time", "ant1")],
+        [
+            {
+                "antpairs": np.array([(0, 1), (0, 2), (1, 2), (0, 1)]),
+                "times": np.array([2459855, 2459855, 2459855.5, 2459855.5]),
+                "integration_time": np.full((4,), 12.0, dtype=float),
+                "do_blt_outer": False,
+            },
+            None,
+        ],
+    ],
+)
+def test_blt_order(simplest_working_params, update_dict, blt_order):
+    simplest_working_params.update(update_dict)
+    uvd = UVData.new(**simplest_working_params)
+    assert uvd.blt_order == blt_order
 
 
 def test_bad_time_inputs(simplest_working_params: dict[str, Any]):
