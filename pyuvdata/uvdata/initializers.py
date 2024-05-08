@@ -329,7 +329,7 @@ def new_uvdata(
         telescope name and location, x_orientation and antenna names, numbers
         and positions.
     antpairs : sequence of 2-tuples of int or 2D array of int, optional
-        Antenna pairs in the data. If an ndarray, must have shape (Nants, 2).
+        Antenna pairs in the data. If an ndarray, must have shape (N antpairs, 2).
         These may be the *unique* antpairs of the data if
         each antpair observes the same set of times, otherwise they should be an
         Nblts-length array of each antpair at each time. It is recommended
@@ -522,8 +522,11 @@ def new_uvdata(
     )
 
     if antpairs is None:
+        bl_order = ("ant1", "ant2")
         antpairs = list(combinations_with_replacement(telescope.antenna_numbers, 2))
         do_blt_outer = True
+    else:
+        bl_order = None
 
     (
         nbls,
@@ -541,6 +544,19 @@ def new_uvdata(
         time_axis_faster_than_bls=time_axis_faster_than_bls,
         time_sized_arrays=(lst_array, integration_time),
     )
+
+    if not do_blt_outer:
+        if time_array.size != antpairs.shape[0]:
+            raise ValueError("Length of time array must match the number of antpairs.")
+
+    if bl_order is not None and blts_are_rectangular:
+        if time_axis_faster_than_bls:
+            blt_order = ("time", "ant1")
+        else:
+            blt_order = ("ant1", "ant2")
+    else:
+        blt_order = None
+
     baseline_array = get_baseline_params(
         antenna_numbers=telescope.antenna_numbers, antpairs=antpairs
     )
@@ -595,6 +611,7 @@ def new_uvdata(
     obj.spw_array = spw_array
     obj.flex_spw_id_array = flex_spw_id_array
     obj.integration_time = integration_time
+    obj.blt_order = blt_order
 
     set_phase_params(
         obj,
