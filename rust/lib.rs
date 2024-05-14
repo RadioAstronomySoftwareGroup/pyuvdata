@@ -180,41 +180,6 @@ fn get_selenoid<'a>(py: Python<'_>, selenoid: &'a str) -> &'a Ellipsoid {
 
 lazy_static! {
     static ref EARTH: Ellipsoid = Ellipsoid::new(6378137_f64, 6356752.31424518_f64);
-
-    // #[allow(clippy::blocks_in_conditions)]
-    // static ref LUNAR_SELENOIDS: HashMap<String, Ellipsoid> = match Python::with_gil(|py| {
-    //     let lunar_module = PyModule::import(py, "lunarsky")?;
-    //     let lunar_moon = lunar_module.getattr("moon")?.downcast::<PyModule>()?;
-
-    //     let selenoids: &PyDict = lunar_moon.getattr("SELENOIDS")?.downcast::<PyDict>()?;
-
-    //     Ok::<_, pyo3::PyErr>(
-    //         selenoids
-    //             .iter()
-    //             .map_while(|(key, selenoid)| {
-    //                 Some((key.extract::<String>().ok()?, {
-    //                     let radius = selenoid
-    //                         .getattr("_equatorial_radius")
-    //                         .ok()?
-    //                         .call_method1("to_value", ("m",))
-    //                         .ok()?
-    //                         .extract::<f64>()
-    //                         .ok()?;
-    //                     let flattening = selenoid
-    //                         .getattr("_flattening")
-    //                         .ok()?
-    //                         .extract::<f64>()
-    //                         .ok()?;
-    //                     Ellipsoid::new(radius, radius * (1.0 - flattening))
-    //                 }))
-    //             })
-    //             .collect(),
-    //     )
-    // }) {
-    //     Ok(dict) => dict,
-    //     Err(_) => HashMap::new(),
-    // };
-
 }
 
 #[pyclass]
@@ -236,21 +201,9 @@ impl Body {
         match self {
             Body::Earth => &EARTH,
             Body::Moon_sphere => Python::with_gil(|py| get_selenoid(py, "SPHERE")),
-            // LUNAR_SELENOIDS
-            // .get("SPHERE")
-            // .expect("No Lunarysky information for this Ellipsoid."),
             Body::Moon_gsfc => Python::with_gil(|py| get_selenoid(py, "GSFC")),
-            // LUNAR_SELENOIDS
-            // .get("GSFC")
-            // .expect("No Lunarysky information for this Ellipsoid."),
             Body::Moon_grail23 => Python::with_gil(|py| get_selenoid(py, "GRAIL23")),
-            // LUNAR_SELENOIDS
-            // .get("GRAIL23")
-            // .expect("No Lunarysky information for this Ellipsoid."),
             Body::Moon_ce1lamgeo => Python::with_gil(|py| get_selenoid(py, "CE-1-LAM-GEO")),
-            // LUNAR_SELENOIDS
-            // .get("CE-1-LAM-GEO")
-            // .expect("No Lunarysky information for this Ellipsoid."),
         }
     }
 }
