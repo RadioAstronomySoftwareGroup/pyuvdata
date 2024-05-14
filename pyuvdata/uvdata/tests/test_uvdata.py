@@ -1068,8 +1068,6 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:The original `phase` method is deprecated")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_unphase_drift_data_error(hera_uvh5, sma_mir):
     uv_phase = hera_uvh5.copy()
