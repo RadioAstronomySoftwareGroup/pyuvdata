@@ -70,6 +70,12 @@ times for those solutions.
 - Passing telescope-related metadata as separate parameters to `UVData.new` and
 `UVCal.new` rather than `Telescope` objects.
 - The `UVData.get_ENU_antpos` method in favor of `UVData.telescope.get_enu_antpos`.
+- The `Telescope.telescope_location` and `Telescope.telescope_name` attributes
+in favor of `Telescope.location` and `Telescope.name`.
+- The `get_telescope` function in favor of the `known_telescope_location` function
+and the `Telescope.from_known_telescopes` classmethod.
+- The KNOWN_TELESCOPE dict in favor of the `known_telescope_location` function
+and the `Telescope.from_known_telescopes` classmethod.
 
 ### Fixed
 - Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
