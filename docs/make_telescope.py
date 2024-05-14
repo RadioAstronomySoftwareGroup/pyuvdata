@@ -12,7 +12,7 @@ import os
 from astropy.time import Time
 
 from pyuvdata import Telescope
-from pyuvdata.telescopes import KNOWN_TELESCOPES
+from pyuvdata.telescopes import _KNOWN_TELESCOPES
 
 
 def write_telescope_rst(write_file=None):
@@ -93,8 +93,8 @@ def write_telescope_rst(write_file=None):
         "which can be used if data files are missing that information.\n\n"
     )
 
-    known_tel_use = copy.deepcopy(KNOWN_TELESCOPES)
-    for tel, tel_dict in KNOWN_TELESCOPES.items():
+    known_tel_use = copy.deepcopy(_KNOWN_TELESCOPES)
+    for tel, tel_dict in _KNOWN_TELESCOPES.items():
         if "location" in tel_dict:
             known_tel_use[tel]["location"] = (
                 tel_dict["location"].to_geodetic().__repr__()

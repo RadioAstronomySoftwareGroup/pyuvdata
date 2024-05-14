@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 import os
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Literal, Union
 
@@ -23,7 +24,7 @@ from . import parameter as uvp
 from . import utils as uvutils
 from . import uvbase
 
-__all__ = ["Telescope", "known_telescopes"]
+__all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
 
 try:
     from lunarsky import MoonLocation
@@ -42,7 +43,7 @@ except ImportError:
 # Antenna positions can be specified via a csv file with the following columns:
 # "name" -- antenna name, "number" -- antenna number, "x", "y", "z" -- ECEF coordinates
 # relative to the telescope location.
-KNOWN_TELESCOPES = {
+_KNOWN_TELESCOPES = {
     "PAPER": {
         "location": EarthLocation.from_geodetic(
             lat=Angle("-30d43m17.5s"), lon=Angle("21d25m41.9s"), height=1073.0 * units.m
@@ -93,6 +94,45 @@ KNOWN_TELESCOPES = {
 }
 
 
+# Deprecation to handle accessing old keys of KNOWN_TELESCOPES
+class TelMapping(Mapping):
+    def __init__(self, mapping=()):
+        self._mapping = dict(mapping)
+
+    def __getitem__(self, key):
+        warnings.warn(
+            "Directly accessing the KNOWN_TELESCOPES dict is deprecated. If you "
+            "need a telescope location, use the known_telescope_location function. "
+            "For a full Telescope object use the classmethod "
+            "Telescope.from_known_telescopes.",
+            DeprecationWarning,
+        )
+        if key in ["latitude", "longitude", "altitude", "center_xyz"]:
+            if key == "latitude":
+                return self._mapping["location"].lat.rad
+            if key == "longitude":
+                return self._mapping["location"].lon.rad
+            if key == "altitude":
+                return self._mapping["location"].height.to("m").value
+            if key == "center_xyz":
+                return (
+                    units.Quantity(self._mapping["location"].geocentric).to("m").value
+                )
+
+        return self._mapping[key]
+
+    def __len__(self):
+        return len(self._mapping)
+
+    def __iter__(self):
+        return iter(self._mapping)
+
+
+KNOWN_TELESCOPES = TelMapping(
+    (name, TelMapping(tel_dict)) for name, tel_dict in _KNOWN_TELESCOPES.items()
+)
+
+
 def known_telescopes():
     """
     Get list of known telescopes.
@@ -103,14 +143,43 @@ def known_telescopes():
         List of known telescope names.
     """
     astropy_sites = [site for site in EarthLocation.get_site_names() if site != ""]
-    known_telescopes = list(set(astropy_sites + list(KNOWN_TELESCOPES.keys())))
+    known_telescopes = list(set(astropy_sites + list(_KNOWN_TELESCOPES.keys())))
     return known_telescopes
+
+
+def get_telescope(telescope_name, telescope_dict_in=_KNOWN_TELESCOPES):
+    """
+    Get Telescope object for a telescope in telescope_dict. Deprecated.
+
+    Parameters
+    ----------
+    telescope_name : str
+        Name of a telescope
+    telescope_dict_in: dict
+        telescope info dict. Default is None, meaning use KNOWN_TELESCOPES
+        (other values are only used for testing)
+
+    Returns
+    -------
+    Telescope object
+        The Telescope object associated with telescope_name.
+    """
+    warnings.warn(
+        "This method is deprecated and will be removed in version 3.2. If you "
+        "just need a telescope location, use the known_telescope_location function. "
+        "For a full Telescope object use the classmethod "
+        "Telescope.from_known_telescopes.",
+        DeprecationWarning,
+    )
+    return Telescope.from_known_telescopes(
+        telescope_name, known_telescope_dict=telescope_dict_in, run_check=False
+    )
 
 
 def known_telescope_location(
     name: str,
     return_citation: bool = False,
-    known_telescope_dict: dict = KNOWN_TELESCOPES,
+    known_telescope_dict: dict = _KNOWN_TELESCOPES,
 ):
     """
     Get the location for a known telescope.
@@ -321,6 +390,48 @@ class Telescope(uvbase.UVBase):
 
         super(Telescope, self).__init__()
 
+    def __getattr__(self, __name):
+        """Handle old names attributes."""
+        if __name == "telescope_location":
+            warnings.warn(
+                "The Telescope.telescope_location attribute is deprecated, use "
+                "Telescope.location instead (which contains an astropy "
+                "EarthLocation object). This will become an error in version 3.2.",
+                DeprecationWarning,
+            )
+            return self._location.xyz()
+        elif __name == "telescope_name":
+            warnings.warn(
+                "The Telescope.telescope_name attribute is deprecated, use "
+                "Telescope.name instead. This will become an error in version 3.2.",
+                DeprecationWarning,
+            )
+            return self.name
+
+        return super().__getattribute__(__name)
+
+    def __setattr__(self, __name, __value):
+        """Handle old names for telescope metadata."""
+        if __name == "telescope_location":
+            warnings.warn(
+                "The Telescope.telescope_location attribute is deprecated, use "
+                "Telescope.location instead (which should be set to an astropy "
+                "EarthLocation object). This will become an error in version 3.2.",
+                DeprecationWarning,
+            )
+            self._location.set_xyz(__value)
+            return
+        elif __name == "telescope_name":
+            warnings.warn(
+                "The Telescope.telescope_name attribute is deprecated, use "
+                "Telescope.name instead. This will become an error in version 3.2.",
+                DeprecationWarning,
+            )
+            self.name = __value
+            return
+
+        return super().__setattr__(__name, __value)
+
     def check(self, *, check_extra=True, run_check_acceptability=True):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -371,7 +482,7 @@ class Telescope(uvbase.UVBase):
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
-        known_telescope_dict: dict = KNOWN_TELESCOPES,
+        known_telescope_dict: dict = _KNOWN_TELESCOPES,
     ):
         """
         Update the parameters based on telescope in known_telescopes.
@@ -427,6 +538,7 @@ class Telescope(uvbase.UVBase):
                 known_telescope_dict=known_telescope_dict,
             )
             self.location = location
+            self.citation = citation
             if "astropy sites" in citation:
                 astropy_sites_list.append("telescope_location")
             else:
@@ -569,7 +681,7 @@ class Telescope(uvbase.UVBase):
         run_check: bool = True,
         check_extra: bool = True,
         run_check_acceptability: bool = True,
-        known_telescope_dict: dict = KNOWN_TELESCOPES,
+        known_telescope_dict: dict = _KNOWN_TELESCOPES,
     ):
         """
         Create a new Telescope object using information from known_telescopes.

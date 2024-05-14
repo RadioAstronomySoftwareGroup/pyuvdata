@@ -613,7 +613,7 @@ class UVCal(UVBase):
             "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
             "Az/El, NOT the same as the old `phase_type`='drift') or 'unprojected' "
             "(baseline coordinates in ENU, but data are not phased, similar to "
-            "the old `phase_type`='drift')"
+            "the old `phase_type`='drift') "
             "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
             "for ephem type phase centers), "
@@ -638,6 +638,7 @@ class UVCal(UVBase):
             "'info_source' (describes where catalog info came from). "
             "Most typically used with MS calibration tables."
         )
+
         self._phase_center_catalog = uvp.UVParameter(
             "phase_center_catalog", description=desc, expected_type=dict, required=False
         )
