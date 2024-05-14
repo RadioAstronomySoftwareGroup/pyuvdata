@@ -103,7 +103,7 @@ fn _antnums_to_baseline(
         .zip(ant2)
         .enumerate()
         .for_each(|(ind, (a1, a2))| {
-            if use_miriad_convention && a2 < &255 {
+            if use_miriad_convention && a2 <= &255 {
                 bls_out[ind] = MaybeUninit::new(256 * a1 + a2);
             } else {
                 bls_out[ind] = MaybeUninit::new(modulus * a1 + a2 + offset);
