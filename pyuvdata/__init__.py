@@ -30,7 +30,12 @@ except (LookupError, ImportError):  # pragma: no cover
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
-from .telescopes import Telescope, known_telescopes  # noqa
+from .telescopes import (  # noqa
+    Telescope,
+    get_telescope,
+    known_telescope_location,
+    known_telescopes,
+)
 from .uvbeam import UVBeam  # noqa
 from .uvcal import UVCal  # noqa
 from .uvdata import FastUVH5Meta  # noqa
@@ -39,11 +44,13 @@ from .uvflag import UVFlag  # noqa
 
 __all__ = [
     "UVData",
+    "FastUVH5Meta",
     "UVCal",
     "UVFlag",
     "UVBeam",
     "Telescope",
     "known_telescopes",
+    "known_telescope_location",
     "get_telescope",
 ]
 
