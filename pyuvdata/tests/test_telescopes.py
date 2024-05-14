@@ -15,9 +15,9 @@ from astropy.units import Quantity
 
 import pyuvdata
 import pyuvdata.tests as uvtest
-from pyuvdata import Telescope, UVData
+from pyuvdata import Telescope, UVData, get_telescope
 from pyuvdata.data import DATA_PATH
-from pyuvdata.telescopes import KNOWN_TELESCOPES, get_antenna_params
+from pyuvdata.telescopes import _KNOWN_TELESCOPES, get_antenna_params
 
 required_parameters = [
     "_name",
@@ -154,7 +154,7 @@ def test_update_params_from_known():
         tel.update_params_from_known_telescopes()
 
     hera_tel = Telescope.from_known_telescopes("hera")
-    known_dict = copy.deepcopy(KNOWN_TELESCOPES)
+    known_dict = copy.deepcopy(_KNOWN_TELESCOPES)
     known_dict["HERA"]["antenna_diameters"] = hera_tel.antenna_diameters
 
     hera_tel_test = Telescope.from_known_telescopes(
@@ -207,6 +207,91 @@ def test_from_known():
         # don't run check b/c some telescopes won't have antenna info defined
         telescope_obj = Telescope.from_known_telescopes(inst, run_check=False)
         assert telescope_obj.name == inst
+
+        with uvtest.check_warnings(
+            DeprecationWarning,
+            match="This method is deprecated and will be removed in version 3.2. "
+            "If you just need a telescope location, use the "
+            "known_telescope_location function. For a full Telescope object use "
+            "the classmethod Telescope.from_known_telescopes.",
+        ):
+            tel_obj2 = get_telescope(inst)
+
+        assert tel_obj2 == telescope_obj
+
+
+def test_old_attr_names():
+    mwa_tel = Telescope.from_known_telescopes("mwa")
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The Telescope.telescope_name attribute is deprecated, use "
+        "Telescope.name instead. This will become an error in version 3.2.",
+    ):
+        assert mwa_tel.telescope_name == mwa_tel.name
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The Telescope.telescope_location attribute is deprecated, use "
+        "Telescope.location instead (which contains an astropy "
+        "EarthLocation object). This will become an error in version 3.2.",
+    ):
+        np.testing.assert_allclose(mwa_tel.telescope_location, mwa_tel._location.xyz())
+
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The Telescope.telescope_name attribute is deprecated, use "
+        "Telescope.name instead. This will become an error in version 3.2.",
+    ):
+        mwa_tel.telescope_name = "foo"
+    assert mwa_tel.name == "foo"
+
+    hera_tel = Telescope.from_known_telescopes("hera")
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match="The Telescope.telescope_location attribute is deprecated, use "
+        "Telescope.location instead (which should be set to an astropy "
+        "EarthLocation object). This will become an error in version 3.2.",
+    ):
+        mwa_tel.telescope_location = hera_tel._location.xyz()
+    assert mwa_tel._location == hera_tel._location
+
+
+@pytest.mark.filterwarnings("ignore:Directly accessing the KNOWN_TELESCOPES")
+def test_old_known_tel_dict_keys():
+    from pyuvdata.telescopes import KNOWN_TELESCOPES
+
+    hera_tel = Telescope.from_known_telescopes("hera")
+
+    warn_msg = [
+        "Directly accessing the KNOWN_TELESCOPES dict is deprecated. If you "
+        "need a telescope location, use the known_telescope_location function. "
+        "For a full Telescope object use the classmethod "
+        "Telescope.from_known_telescopes."
+    ] * 2
+
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        assert KNOWN_TELESCOPES["HERA"]["latitude"] == hera_tel.location.lat.rad
+
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        assert KNOWN_TELESCOPES["HERA"]["longitude"] == hera_tel.location.lon.rad
+
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        assert (
+            KNOWN_TELESCOPES["HERA"]["altitude"]
+            == hera_tel.location.height.to("m").value
+        )
+
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        np.testing.assert_allclose(
+            KNOWN_TELESCOPES["HERA"]["center_xyz"],
+            Quantity(hera_tel.location.geocentric).to("m").value,
+        )
+    with uvtest.check_warnings(DeprecationWarning, match=warn_msg):
+        assert KNOWN_TELESCOPES["HERA"]["citation"] == hera_tel.citation
+
+    assert len(KNOWN_TELESCOPES["MWA"]) == 1
+    for key, val in KNOWN_TELESCOPES.items():
+        assert val == _KNOWN_TELESCOPES[key]
 
 
 def test_get_telescope_center_xyz():
