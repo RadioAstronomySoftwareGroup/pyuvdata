@@ -2198,7 +2198,7 @@ def test_add_errors(uvdata_obj, uvcal_obj):
     uv3.telescope.name = "foo"
     with pytest.raises(
         ValueError,
-        match="telescope_name is not the same the two objects. The value on this "
+        match="telescope_name is not the same on the two objects. The value on this "
         "object is HERA; the value on the other object is foo.",
     ):
         uv1.__add__(uv3)
@@ -2694,7 +2694,7 @@ def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
     ):
         with uvtest.check_warnings(
             UserWarning,
-            match="x_orientation is not the same this object and on uv. Keeping "
+            match="x_orientation is not the same on this object and on uv. Keeping "
             "the value on this object.",
         ):
             uvf.to_baseline(uv, force_pol=True)
@@ -2753,13 +2753,13 @@ def test_to_baseline_from_antenna(
 
     with uvtest.check_warnings(
         UserWarning,
-        match="x_orientation is not the same this object and on uv. Keeping "
+        match="x_orientation is not the same on this object and on uv. Keeping "
         "the value on this object.",
     ):
         uvf.to_baseline(uv, force_pol=True)
     with uvtest.check_warnings(
         UserWarning,
-        match="x_orientation is not the same this object and on uv. Keeping "
+        match="x_orientation is not the same on this object and on uv. Keeping "
         "the value on this object.",
     ):
         uvf2.to_baseline(uv2, force_pol=True)
@@ -2830,7 +2830,7 @@ def test_to_baseline_antenna_errors(uvdata_obj, uvcal_obj, method, uv_future_sha
     uvf2 = uvf.copy()
     uvf2.channel_width = uvf2.channel_width / 2.0
     with pytest.raises(
-        ValueError, match="channel_width is not the same this object and on uv"
+        ValueError, match="channel_width is not the same on this object and on uv"
     ):
         getattr(uvf2, method)(uv)
 
@@ -2839,7 +2839,7 @@ def test_to_baseline_antenna_errors(uvdata_obj, uvcal_obj, method, uv_future_sha
     uvf2.spw_array = np.array([0, 1])
     uvf2.check()
     with pytest.raises(
-        ValueError, match="spw_array is not the same this object and on uv"
+        ValueError, match="spw_array is not the same on this object and on uv"
     ):
         getattr(uvf2, method)(uv)
     uv2 = uv.copy()
@@ -2850,7 +2850,7 @@ def test_to_baseline_antenna_errors(uvdata_obj, uvcal_obj, method, uv_future_sha
     uvf2.flex_spw_id_array[: uv.Nfreqs // 2] = 1
     uvf2.check()
     with pytest.raises(
-        ValueError, match="flex_spw_id_array is not the same this object and on uv"
+        ValueError, match="flex_spw_id_array is not the same on this object and on uv"
     ):
         getattr(uvf2, method)(uv2)
 
@@ -3015,7 +3015,7 @@ def test_to_antenna_add_version_str(uvcal_obj, uvc_future_shapes, uvf_future_sha
 
     with uvtest.check_warnings(
         UserWarning,
-        match="instrument is not the same this object and on uv. Keeping the "
+        match="instrument is not the same on this object and on uv. Keeping the "
         "value on this object.",
     ):
         uvf.to_antenna(uvc)
