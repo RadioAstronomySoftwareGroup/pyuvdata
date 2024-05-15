@@ -551,9 +551,9 @@ def new_uvdata(
 
     if bl_order is not None and blts_are_rectangular:
         if time_axis_faster_than_bls:
-            blt_order = ("time", "ant1")
-        else:
             blt_order = ("ant1", "ant2")
+        else:
+            blt_order = ("time", "ant1")
     else:
         blt_order = None
 
