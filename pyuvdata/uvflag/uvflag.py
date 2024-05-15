@@ -1653,7 +1653,7 @@ class UVFlag(UVBase):
                     atol=self._channel_width.tols[1],
                 ):
                     raise ValueError(
-                        "channel_width is not the same this object and on uv. The "
+                        "channel_width is not the same on this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
                         f"uv is {uv.channel_width}."
                     )
@@ -1668,12 +1668,12 @@ class UVFlag(UVBase):
                 if this_param.value is not None and this_param != uv_param:
                     if param in warning_params:
                         warnings.warn(
-                            f"{param} is not the same this object and on uv. "
+                            f"{param} is not the same on this object and on uv. "
                             "Keeping the value on this object."
                         )
                     else:
                         raise ValueError(
-                            f"{param} is not the same this object and on uv. "
+                            f"{param} is not the same on this object and on uv. "
                             f"The value on this object is {this_param.value}; "
                             f"the value on uv is {uv_param.value}."
                         )
@@ -1955,7 +1955,7 @@ class UVFlag(UVBase):
                     atol=self._channel_width.tols[1],
                 ):
                     raise ValueError(
-                        "channel_width is not the same this object and on uv. The "
+                        "channel_width is not the same on this object and on uv. The "
                         f"value on this object is {self.channel_width}; the value on "
                         f"uv is {uv.channel_width}."
                     )
@@ -1970,12 +1970,12 @@ class UVFlag(UVBase):
                 if this_param.value is not None and this_param != uv_param:
                     if param in warning_params:
                         warnings.warn(
-                            f"{param} is not the same this object and on uv. "
+                            f"{param} is not the same on this object and on uv. "
                             "Keeping the value on this object."
                         )
                     else:
                         raise ValueError(
-                            f"{param} is not the same this object and on uv. "
+                            f"{param} is not the same on this object and on uv. "
                             f"The value on this object is {this_param.value}; "
                             f"the value on uv is {uv_param.value}."
                         )
@@ -2348,7 +2348,7 @@ class UVFlag(UVBase):
                     )
                 else:
                     raise ValueError(
-                        f"{param} is not the same the two objects. The value on "
+                        f"{param} is not the same on the two objects. The value on "
                         f"this object is {this_param.value}; the value on the "
                         f"other object is {other_param.value}."
                     )
