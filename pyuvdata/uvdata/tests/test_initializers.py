@@ -148,8 +148,8 @@ def test_bad_inputs(simplest_working_params: dict[str, Any], update_dict, err_ms
 @pytest.mark.parametrize(
     ["update_dict", "blt_order"],
     [
-        [{}, ("ant1", "ant2")],
-        [{"time_axis_faster_than_bls": True}, ("time", "ant1")],
+        [{}, ("time", "ant1")],
+        [{"time_axis_faster_than_bls": True}, ("ant1", "ant2")],
         [
             {
                 "antpairs": np.array([(0, 1), (0, 2), (1, 2), (0, 1)]),
