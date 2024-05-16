@@ -168,11 +168,7 @@ class Miriad(UVData):
             ):
                 extra_miriad_variables.append(variable)
 
-        miriad_header_data = {
-            "Nfreqs": "nchan",
-            "Nspws": "nspect",
-            "Npols": "npol",
-        }
+        miriad_header_data = {"Nfreqs": "nchan", "Nspws": "nspect", "Npols": "npol"}
         for item in miriad_header_data:
             header_value = uv[miriad_header_data[item]]
             setattr(self, item, header_value)
