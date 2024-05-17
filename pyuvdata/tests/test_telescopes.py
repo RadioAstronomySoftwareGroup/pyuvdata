@@ -294,46 +294,8 @@ def test_old_known_tel_dict_keys():
         assert val == _KNOWN_TELESCOPES[key]
 
 
-def test_get_telescope_center_xyz():
-    ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)
-    # ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
-    test_telescope_dict = {
-        "test": {
-            "location": EarthLocation.from_geocentric(*ref_xyz, unit="m"),
-            "citation": "",
-        },
-        "test2": {
-            "location": EarthLocation.from_geocentric(*ref_xyz, unit="m"),
-            "citation": "",
-        },
-    }
-    telescope_obj = Telescope.from_known_telescopes(
-        "test", known_telescope_dict=test_telescope_dict, run_check=False
-    )
-    telescope_obj_ext = Telescope()
-    telescope_obj_ext.citation = ""
-    telescope_obj_ext.name = "test"
-    telescope_obj_ext.location = EarthLocation(*ref_xyz, unit="m")
-
-    assert telescope_obj == telescope_obj_ext
-
-    telescope_obj_ext.name = "test2"
-    telescope_obj2 = Telescope.from_known_telescopes(
-        "test2", known_telescope_dict=test_telescope_dict, run_check=False
-    )
-    assert telescope_obj2 == telescope_obj_ext
-
-
 def test_get_telescope_no_loc():
-    test_telescope_dict = {
-        "test": {
-            "center_xyz": None,
-            "latitude": None,
-            "longitude": None,
-            "altitude": None,
-            "citation": "",
-        }
-    }
+    test_telescope_dict = {"test": {"citation": ""}}
     with pytest.raises(
         KeyError,
         match="Missing location information in known_telescopes_dict "
