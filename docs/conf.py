@@ -61,7 +61,6 @@ napoleon_use_rtype = False
 # use this to create custom sections
 # currently used for the UVData.read method
 napoleon_custom_sections = [
-    ("Phasing", "params_style"),
     ("Selecting", "params_style"),
     ("Checking", "params_style"),
     ("Miriad", "params_style"),
