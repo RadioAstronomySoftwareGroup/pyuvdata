@@ -1812,7 +1812,7 @@ class UVBeam(UVBase):
             objects with the "healpix" pixel_coordinate_system.
         freq_interp_kind : str
             Interpolation method to use frequency. See scipy.interpolate.interp1d
-            for details. Deefaults to "cubic" (Note that this is a change. It used to
+            for details. Defaults to "cubic" (Note that this is a change. It used to
             default to "linear" when it was assigned to the object. However, multiple
             groups have found that a linear interpolation leads to nasty artifacts in
             visibility simulations for EoR applications.)
