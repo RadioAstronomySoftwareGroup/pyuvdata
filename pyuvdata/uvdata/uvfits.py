@@ -427,7 +427,7 @@ class UVFITS(UVData):
             self.Npols = vis_hdr.pop("NAXIS3")
             self.Nblts = vis_hdr.pop("GCOUNT")
 
-            if self.Nspws > 1:
+            if "AIPS FQ" in hdunames:
                 # If this is multi-spw, get details from the FQ table
                 uvfits_nchan = vis_hdr.pop("NAXIS4")
                 self.Nfreqs = uvfits_nchan * self.Nspws
