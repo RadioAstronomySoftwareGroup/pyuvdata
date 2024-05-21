@@ -171,6 +171,15 @@ class UVBase(object):
                     elif __name == "telescope_location_lat_lon_alt_degrees":
                         ret_val = self.telescope._location.lat_lon_alt_degrees()
                 return ret_val
+        elif __name == "future_array_shapes":
+            warnings.warn(
+                f"The UVData.{__name} attribute is now deprecated, as all UVBase "
+                "objects use future array shapes. This will become an error in "
+                "version 3.2.",
+                DeprecationWarning,
+            )
+            # Always true as of v3.0
+            return True
 
         return super().__getattribute__(__name)
 
