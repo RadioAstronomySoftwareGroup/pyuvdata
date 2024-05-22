@@ -173,7 +173,7 @@ class UVBase(object):
                 return ret_val
         elif __name == "future_array_shapes":
             warnings.warn(
-                f"The UVData.{__name} attribute is now deprecated, as all UVBase "
+                f"The {__name} attribute is now deprecated, as all UVBase "
                 "objects use future array shapes. This will become an error in "
                 "version 3.2.",
                 DeprecationWarning,
