@@ -60,7 +60,7 @@ These axes, in order, represent
 	\item Gain-type: this axis stores the concatenation of the UVCal arrays [real(gain\_array), imaginary(gain\_array), flag\_array, input\_flag\_array, quality\_array], in that order.
 	If there is no input\_flag\_array or no quality\_array for this calibration, they are \emph{not} appended to the axis.
 	Correspondingly, in a ``gain''-type calibration, this axis may be of length 3 to 5, depending on the inclusion of the input\_flag\_array and quality\_array.
-	In older files, the quality\_array is always present while the input\_flag\_array was optional. In newer files, the input\_flag\_array has been deprecated (as of \texttt{pyuvdata} version 3.0)
+    In older files, the quality\_array is always present while the input\_flag\_array was optional. In newer files, the input\_flag\_array is not present (support for it in UVCal was deprecated as of \texttt{pyuvdata} version 3.0)
     while the quality\_array can be present or absent and a boolean header item \textbf{HASQLTY} will be present to indicate its presence
 	(to make it clear which array is present if the axis is length 4). So if the axis is length 4 and there is no \textbf{HASQLTY} header keyword,
 	the fourth array is the quality\_array and there is no input\_flag\_array. If the axis is length 4 and the \textbf{HASQLTY} header keyword is present, then
