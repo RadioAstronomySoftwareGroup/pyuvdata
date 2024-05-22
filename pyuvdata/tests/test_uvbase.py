@@ -676,7 +676,6 @@ def test_future_array_shapes():
         uvobj.use_future_array_shapes()
 
     with uvtest.check_warnings(
-        DeprecationWarning,
-        match="The UVData.future_array_shapes attribute is now deprecated",
+        DeprecationWarning, match="The future_array_shapes attribute is now deprecated"
     ):
         assert uvobj.future_array_shapes
