@@ -165,7 +165,7 @@ class UVData(UVBase):
             description=desc,
             form="str",
             expected_type=str,
-            acceptable_vals=["uncalib", "Jy", "K str"],
+            acceptable_vals=["uncalib", "Jy", "K str", "Watts / Hz", "Counts ^ 2 / Hz"],
         )
 
         desc = (
