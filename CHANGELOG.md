@@ -30,6 +30,17 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Future array shapes are now the only supported standard for `UVData`, `UVCal`,
+`UVFlag`, `UVBeam` classes.
+- `UVCal` objects where the cal type is delay must now have `wide_band=True`.
+- The `flex_spw_id_array` is now required for `UVCal` objects were `wide_band=False`.
+- `UVCal` objects with `wide_band=True` may only have the `freq_range` parameter set and
+the `freq_array`and `channel_width` parameters. If `wide_band=False`, then the
+`freq_array`and `channel_width` parameters must be set, while the `freq_range` parameter
+must be left unset.
+- For `UVCal` objects, only one of the time-based parameters (`time_array` and
+`time_range`) may be set on a given object.
+
 - Telescope-related metadata (including antenna metadata) on `UVData`, `UVCal`
 and `UVFlag` have been refactored into a `Telescope` object (attached to these
 objects as the `telescope` attribute) and most of the code related to these
@@ -65,6 +76,10 @@ times for those solutions.
 - Updated minimum optional dependency versions: astropy-healpix>=1.0.2
 
 ### Deprecated
+- The `future_array_shapes` attribute on `UVBase` objects has been deprecated, as
+pyuvdata now exclusively uses future array shapes.
+- The `use_future_array_shapes` keyword in several different class methods, as well as
+the `use_future_array_shapes` method on `UVBase` objects.
 - Accessing the telescope-related metadata through their old attribute names on
 `UVData`, `UVCal` and `UVFlag` rather than via their attributes on the attached
 `Telescope` object (e.g. `UVData.telescope_name` -> `UVData.telescope.name` and
@@ -80,6 +95,8 @@ and the `Telescope.from_known_telescopes` classmethod.
 and the `Telescope.from_known_telescopes` classmethod.
 
 ### Fixed
+- Fixed a minor bug in `utils._check_freq_spacing` that raised issues which raised an
+error when evaluating a "flex-spw" dataset where Nspws was 1.
 - Fixed a bug in `UVBase` where `allowed_failures` was being ignored if a parameter had
 `required=True` set.
 - Fixed a bug where selection and addition/concat methods did not operate correctly on
@@ -90,6 +107,16 @@ entries resulted in an error on read.
 catalog entries resulted in an error.
 - Bug in which `correct_cable_len` defaulted to `None` instead of `True`
 for `read_mwa_corr_fits`.
+
+### Removed
+- Support for current array shapes has been removed on `UVData`, `UVCal`, `UVFlag`, and
+`UVBeam` objects, as well as the `use_current_array_shapes` method for these classes.
+- The `flex_spw` attribute has been removed on `UVData` and `UVCal` objects.
+- Support for using the old phasing attributes (`phase_center_ra`, `phase_center_dec`,
+`phase_center_frame`, `phase_center_epoch`, `phase_type`, and `object_name`) in `UVData`.
+- Support for handling of the `input_flag_array` parameter for `UVCal` objects.
+- Support for providing capitalized variants of `UVBeam.feed_array`.
+- Support for 'unknown' cal type in `UVCal` objects.
 
 ## [2.4.3] - 2024-3-25
 
