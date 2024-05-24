@@ -415,7 +415,7 @@ class UVCal(UVBase):
             form="str",
             expected_type=str,
             description=desc,
-            acceptable_vals=["sky", "redundant", "in-situ"],
+            acceptable_vals=["sky", "redundant", "direct"],
         )
 
         desc = (
@@ -721,9 +721,9 @@ class UVCal(UVBase):
         self._sky_catalog.required = False
         self._ref_antenna_name.required = False
 
-    def _set_in_situ(self):
+    def _set_direct(self):
         """Set cal_style to 'simulation' and adjust required parameters."""
-        self.cal_style = "in-situ"
+        self.cal_style = "direct"
         self._sky_catalog.required = False
         self._ref_antenna_name_required = True
 
@@ -1245,8 +1245,8 @@ class UVCal(UVBase):
             self._set_sky()
         elif self.cal_style == "redundant":
             self._set_redundant()
-        elif self.cal_style == "in-situ":
-            self._set_redundant()
+        elif self.cal_style == "direct":
+            self._set_direct()
 
         # if wide_band is True, Nfreqs must be 1.
         if self.wide_band:
