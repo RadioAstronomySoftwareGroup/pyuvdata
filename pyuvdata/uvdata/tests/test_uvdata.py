@@ -10457,10 +10457,15 @@ def test_phase_dict_helper_jpl_lookup_append(sma_mir):
 
 @pytest.mark.parametrize("use_ant_pos", [True, False])
 @pytest.mark.parametrize("phase_frame", ["icrs", "gcrs"])
-def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame):
+@pytest.mark.parametrize("file_type", ["uvh5", "uvfits", "miriad"])
+def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     """
     Test the phase fixing method fix_phase
     """
+    if file_type == "miriad":
+        if not hasmiriad:
+            pytest.skip("MIRIAD not installed.")
+
     # Make some copies of the data
     uv_in = hera_uvh5.copy()
 
@@ -10487,12 +10492,6 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame):
 
     read_warn_msg = copy.deepcopy(warn_msg)
     read_warn_type = [UserWarning]
-
-    # need to test uvfits & miriad read options, but only in one run so set the
-    # file_type here (rather than in a parametrize)
-    file_type = "uvh5"
-    if phase_frame == "icrs" and use_ant_pos:
-        file_type = "uvfits"
 
     uv_in_bad = UVData.from_file(bad_data_path, fix_old_proj=False)
     uv_in_bad_copy = uv_in_bad.copy()
@@ -10542,19 +10541,21 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame):
         uv_in_bad_copy.phase_center_catalog[1]["info_source"]
     )
     uv_in_bad2.extra_keywords = uv_in_bad_copy.extra_keywords
-    assert uv_in_bad2 == uv_in_bad_copy
 
     # We have to handle this case a little carefully, because since the old
     # unproject_phase was _mostly_ accurate, although it does seem to intoduce errors
     # on the order of a part in 1e5, which translates to about a tenth of a degree phase
     # error in the test data set used here. Check that first, make sure it's good
     assert np.allclose(uv_in.data_array, uv_in_bad.data_array, rtol=3e-4)
+    assert np.allclose(uv_in_bad2.data_array, uv_in_bad_copy.data_array, rtol=3e-4)
 
     # Once we know the data are okay, copy over data array and check for equality btw
     # the other attributes of the two objects.
     uv_in_bad.data_array = uv_in.data_array
+    uv_in_bad2.data_array = uv_in_bad_copy.data_array
     uv_in_bad.history = uv_in.history
     assert uv_in == uv_in_bad
+    assert uv_in_bad2 == uv_in_bad_copy
 
 
 def test_fix_phase_error(hera_uvh5):
