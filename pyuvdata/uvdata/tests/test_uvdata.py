@@ -6941,6 +6941,11 @@ def test_redundancy_missing_groups(method, grid_alg, pyuvsim_redundant, tmp_path
     uv1 = UVData()
     uv1.read_uvfits(fname, use_future_array_shapes=True)
 
+    # The UVFITS writer fills in the rdate parameter automatically if not present on
+    # the main object, so check it and set the two equal to one another.
+    assert uv1.rdate == "2017-12-22"
+    uv0.rdate = uv1.rdate
+
     # check that filenames are what we expect
     assert uv0.filename == ["fewant_randsrc_airybeam_Nsrc100_10MHz.uvfits"]
     assert uv1.filename == ["temp_hera19_missingreds.uvfits"]
