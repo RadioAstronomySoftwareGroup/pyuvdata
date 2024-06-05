@@ -1641,9 +1641,9 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
 
     # Finally, move on to the uvfits extra parameters
     exp_dict = {
-        "dut1": -0.2137079,
+        "dut1": -0.2139843,
         "earth_omega": 360.9856438593,
-        "gst0": 122.6673828188983,
+        "gst0": 302.1745672595617,
         "rdate": "2020-07-24",
         "timesys": "UTC",
     }
