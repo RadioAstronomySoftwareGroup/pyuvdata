@@ -9,7 +9,6 @@ import warnings
 
 import numpy as np
 from astropy import constants as const
-from astropy.coordinates import EarthLocation
 from astropy.io import fits
 from astropy.time import Time
 from docstring_parser import DocstringStyle
@@ -1161,13 +1160,7 @@ class UVFITS(UVData):
 
         # Create an  astropy.time.Time object from first timestamp.
         # This is used to generate DATE-OBS and RDATE keywords
-        eloc = EarthLocation(
-            self.telescope_location[0],
-            self.telescope_location[1],
-            self.telescope_location[2],
-            unit="m",
-        )
-        obs_date0 = Time(self.time_array[0], format="jd", scale="utc", location=eloc)
+        obs_date0 = Time(self.time_array[0], format="jd", scale="utc")
 
         # Per AIPS memo 117, DATE-OBS is the YYYY-MM-DD string
         hdu.header["DATE-OBS"] = obs_date0.strftime("%Y-%m-%d")
@@ -1355,9 +1348,11 @@ class UVFITS(UVData):
         else:
             ant_hdu.header["RDATE"] = self.rdate
 
-        # GSTIA0: Greenwich sidereal time in degrees at zero hours on RDATE
+        # AIPS Memo 117: The value of the GSTIA0 keyword shall be the
+        # Greenwich sidereal time in degrees at zero hours on RDATE
         if self.gst0 is None:
-            ant_hdu.header["GSTIA0"] = obs_date0.sidereal_time("apparent", "tio").deg
+            obs_date0_zerohrs = Time(obs_date0.strftime("%Y-%m-%d"), format="iso", scale="utc")
+            ant_hdu.header["GSTIA0"] = obs_date0_zerohrs.sidereal_time("apparent", "greenwich").deg
         else:
             ant_hdu.header["GSTIA0"] = self.gst0
 
