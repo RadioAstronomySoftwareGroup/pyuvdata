@@ -32,6 +32,7 @@ jobs:
         uses: pypa/cibuildwheel@v2.18.1
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
+          CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: "-r ci/test_requirements.txt"
           CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
 
