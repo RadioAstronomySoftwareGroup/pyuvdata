@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [2.4.4] - 2024-6-7
+
 ### Changed
 - updated minimum cython dependency to 3.0.
 - Updated minimum optional dependency versions: astropy-healpix>=1.0.2
