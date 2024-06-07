@@ -1158,13 +1158,18 @@ class UVFITS(UVData):
             hdu.header["PSCAL" + str(i + 1) + "  "] = pscal_dict[key]
             hdu.header["PZERO" + str(i + 1) + "  "] = pzero_dict[key]
 
-        # Create an  astropy.time.Time object from first timestamp.
-        # This is used to generate DATE-OBS and RDATE keywords
+        # Create an astropy.time.Time object from first timestamp
+        # obs_date0:           Time object in JD from first timestamp
+        # obs_date0_rdate_str: YYYY-MM-DD string for reference date (at 00:00 hours)
+        #                      This is used to generate DATE-OBS and RDATE keywords
+        # obs_date0_zerohrs:   Time object for reference date at 00:00 hours
+        #                      Used for GSTIA0 and UT1UTC calculations
         obs_date0 = Time(self.time_array[0], format="jd", scale="utc")
+        obs_date0_rdate_str = obs_date0.strftime("%Y-%m-%d")
+        obs_date0_zerohrs = Time(obs_date0_rdate_str, format="iso", scale="utc")
 
         # Per AIPS memo 117, DATE-OBS is the YYYY-MM-DD string
-        hdu.header["DATE-OBS"] = obs_date0.strftime("%Y-%m-%d")
-
+        hdu.header["DATE-OBS"] = obs_date0_rdate_str
         hdu.header["CTYPE2  "] = "COMPLEX "
         hdu.header["CRVAL2  "] = 1.0
         hdu.header["CRPIX2  "] = 1.0
@@ -1344,21 +1349,20 @@ class UVFITS(UVData):
 
         # RDATE: Reference date when obs started, YYYY-MM-DD
         if (self.rdate is None) or (self.rdate == ""):
-            ant_hdu.header["RDATE"] = obs_date0.strftime("%Y-%m-%d")
+            ant_hdu.header["RDATE"] = obs_date0_rdate_str
         else:
             ant_hdu.header["RDATE"] = self.rdate
 
         # AIPS Memo 117: The value of the GSTIA0 keyword shall be the
         # Greenwich sidereal time in degrees at zero hours on RDATE
         if self.gst0 is None:
-            obs_date0_zerohrs = Time(obs_date0.strftime("%Y-%m-%d"), format="iso", scale="utc")
             ant_hdu.header["GSTIA0"] = obs_date0_zerohrs.sidereal_time("apparent", "greenwich").deg
         else:
             ant_hdu.header["GSTIA0"] = self.gst0
 
         # UT1UTC: the difference between UT1 and UTC in seconds on RDATE
         if self.dut1 is None:
-            ant_hdu.header["UT1UTC"] = float(obs_date0.delta_ut1_utc)
+            ant_hdu.header["UT1UTC"] = float(obs_date0_zerohrs.delta_ut1_utc)
         else:
             ant_hdu.header["UT1UTC"] = self.dut1
 
