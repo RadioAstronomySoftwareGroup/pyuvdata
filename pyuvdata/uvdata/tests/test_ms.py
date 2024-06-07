@@ -42,10 +42,17 @@ def check_members(tar, path):
     return tar.getmembers()
 
 
-def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
+def safe_extract(
+    tar, path=".", members=None, *, numeric_owner=False, use_filter="data"
+):
     # this is factored this way (splitting out the `check_members` function)
     # to appease bandit.
-    tar.extractall(path, members=check_members(tar, path), numeric_owner=numeric_owner)
+    tar.extractall(
+        path,
+        members=check_members(tar, path),
+        numeric_owner=numeric_owner,
+        filter=use_filter,
+    )
 
 
 @pytest.fixture(scope="session")

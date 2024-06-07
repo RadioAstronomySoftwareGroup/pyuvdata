@@ -2770,6 +2770,8 @@ def transform_icrs_to_app(
                 v_coord = v_coord.repeat(ra_coord.size)
 
         if isinstance(site_loc, EarthLocation):
+            time_obj_array = Time(time_obj_array, location=site_loc)
+
             sky_coord = SkyCoord(
                 ra=ra_coord,
                 dec=dec_coord,
@@ -2805,9 +2807,8 @@ def transform_icrs_to_app(
                     frame="lunartopo",
                 )
             )
-            time_obj_array = LTime(time_obj_array)
+            time_obj_array = LTime(time_obj_array, location=site_loc)
 
-        time_obj_array.location = site_loc
         app_ha, app_dec = erfa.ae2hd(
             azel_data.az.rad, azel_data.alt.rad, site_loc.lat.rad
         )
@@ -3098,9 +3099,9 @@ def transform_app_to_icrs(
 
     if astrometry_library == "astropy":
         if hasmoon and isinstance(site_loc, MoonLocation):
-            time_obj_array = LTime(time_obj_array)
-
-        time_obj_array.location = site_loc
+            time_obj_array = LTime(time_obj_array, location=site_loc)
+        else:
+            time_obj_array = Time(time_obj_array, location=site_loc)
 
         az_coord, el_coord = erfa.hd2ae(
             np.mod(
