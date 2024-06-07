@@ -32,13 +32,12 @@ jobs:
         uses: pypa/cibuildwheel@v2.18.1
         env:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
-          CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: "-r ci/test_requirements.txt"
           CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.python }}-${{ startsWith(matrix.buildplat[1], 'macosx') && 'macosx' || matrix.buildplat[1] }}
+          name: cibw-wheels-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: ./wheelhouse/*.whl
 
   make_sdist:
@@ -52,36 +51,31 @@ jobs:
       - name: Build SDist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
-          name: sdist
+          name: cibw-sdist
           path: dist/*.tar.gz
 
   upload_all:
     needs: [build_wheels, make_sdist]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
+          # unpacks all CIBW artifacts into dist/
+          pattern: cibw-*
           path: dist
-      - name: Move folders around
-        working-directory: dist
-        run: |
-          for dir in `ls .`; do
-            cd $dir
-            mv * ..
-            cd ..
-            rmdir $dir
-          done
+          merge-multiple: true
+
       - name: Upload to test PyPI
         if: startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.5.0
+        uses: pypa/gh-action-pypi-publish@v1.8
         with:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
 
       - name: Upload to PyPI
         if: startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.5.0
+        uses: pypa/gh-action-pypi-publish@v1.8
         with:
           password: ${{ secrets.pypi_password }}
