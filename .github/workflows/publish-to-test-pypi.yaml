@@ -34,7 +34,7 @@ jobs:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: "-r ci/test_requirements.txt"
-          CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata"
+          CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata -n auto"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -70,13 +70,13 @@ jobs:
 
       - name: Upload to test PyPI
         if: startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.8
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.test_pypi_password }}
           repository_url: https://test.pypi.org/legacy/
 
       - name: Upload to PyPI
         if: startsWith(github.ref, 'refs/tags')
-        uses: pypa/gh-action-pypi-publish@v1.8
+        uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.pypi_password }}
