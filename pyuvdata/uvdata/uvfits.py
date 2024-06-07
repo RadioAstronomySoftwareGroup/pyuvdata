@@ -1356,7 +1356,9 @@ class UVFITS(UVData):
         # AIPS Memo 117: The value of the GSTIA0 keyword shall be the
         # Greenwich sidereal time in degrees at zero hours on RDATE
         if self.gst0 is None:
-            ant_hdu.header["GSTIA0"] = obs_date0_zerohrs.sidereal_time("apparent", "greenwich").deg
+            ant_hdu.header["GSTIA0"] = obs_date0_zerohrs.sidereal_time(
+                "apparent", "greenwich"
+            ).deg
         else:
             ant_hdu.header["GSTIA0"] = self.gst0
 
