@@ -22,7 +22,7 @@ from pyuvdata.data import DATA_PATH
 from .. import Telescope, _corr_fits
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 
@@ -1326,10 +1326,13 @@ class MWACorrFITS(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in MWA correlator gpu box files."""
+        # Check for defunct keyword here
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         metafits_file = None
         ppds_file = None
         obs_id = None
@@ -1353,9 +1356,6 @@ class MWACorrFITS(UVData):
         if not isinstance(start_flag, (int, float)):
             if start_flag != "goodtime":
                 raise ValueError("start_flag must be int or float or 'goodtime'")
-
-        # set future array shapes
-        self._set_future_array_shapes()
 
         # iterate through files and organize
         # create a list of included file numbers
@@ -1857,17 +1857,6 @@ class MWACorrFITS(UVData):
                 phase_frame="fk5",
                 cat_name=meta_dict["object_name"],
             )
-
-        # switch to current_array_shape
-        if not use_future_array_shapes:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
 
         # check if object is self-consistent
         # uvws are calcuated using pyuvdata, so turn off the check for speed.

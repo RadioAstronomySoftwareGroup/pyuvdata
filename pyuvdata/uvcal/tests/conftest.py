@@ -26,7 +26,7 @@ def gain_data_main():
             "antenna_diameters are set using values from known telescopes for HERA."
         ],
     ):
-        gain_object = UVCal.from_file(gainfile, use_future_array_shapes=True)
+        gain_object = UVCal.from_file(gainfile)
     gain_object.freq_range = None
 
     yield gain_object
@@ -41,8 +41,6 @@ def gain_data(gain_data_main):
 
     yield gain_object
 
-    del gain_object
-
 
 @pytest.fixture(scope="session")
 def delay_data_main():
@@ -53,17 +51,13 @@ def delay_data_main():
         match=[
             "telescope_location, antenna_positions, antenna_diameters are not "
             "set or are being overwritten. telescope_location, antenna_positions, "
-            "antenna_diameters are set using values from known telescopes for HERA.",
-            "When converting a delay-style cal to future array shapes the flag_array "
-            "must drop the frequency axis",
+            "antenna_diameters are set using values from known telescopes for HERA."
         ],
     ):
-        delay_object = UVCal.from_file(delayfile, use_future_array_shapes=True)
+        delay_object = UVCal.from_file(delayfile)
 
     # yield the data for testing, then del after tests finish
     yield delay_object
-
-    del delay_object
 
 
 @pytest.fixture(scope="function")
@@ -100,7 +94,6 @@ def fhd_cal_raw_main():
         layout_file=test_fhd_cal.layout_testfile,
         settings_file=test_fhd_cal.settings_testfile,
         raw=True,
-        use_future_array_shapes=True,
     )
 
     yield fhd_cal
@@ -127,7 +120,6 @@ def fhd_cal_fit_main():
         layout_file=test_fhd_cal.layout_testfile,
         settings_file=test_fhd_cal.settings_testfile,
         raw=False,
-        use_future_array_shapes=True,
     )
 
     yield fhd_cal

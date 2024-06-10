@@ -48,7 +48,7 @@ def uvdata_obj_main():
             "The uvw_array does not match the expected",
         ],
     ):
-        uvdata_object.read(test_d_file, use_future_array_shapes=True)
+        uvdata_object.read(test_d_file)
 
     yield uvdata_object
 
@@ -97,7 +97,7 @@ def uvcal_obj_main():
         "not set or are being overwritten. telescope_location, antenna_positions, "
         "antenna_diameters are set using values from known telescopes for HERA.",
     ):
-        uvc.read_calfits(test_c_file, use_future_array_shapes=True)
+        uvc.read_calfits(test_c_file)
 
     yield uvc
 
@@ -587,7 +587,6 @@ def test_init_invalid_input():
         UVFlag(14)
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_from_uvcal_error(uvdata_obj):
     uv = uvdata_obj
     uvf = UVFlag()
@@ -604,14 +603,13 @@ def test_from_uvcal_error(uvdata_obj):
     # convert delay object to future array shapes, drop freq_array, set Nfreqs=1
     with uvtest.check_warnings(
         UserWarning,
-        match=[
+        match=(
             "telescope_location, antenna_positions, antenna_diameters are not "
             "set or are being overwritten. telescope_location, antenna_positions, "
-            "antenna_diameters are set using values from known telescopes for HERA.",
-            "When converting a delay-style cal to future array shapes",
-        ],
+            "antenna_diameters are set using values from known telescopes for HERA."
+        ),
     ):
-        delay_object.read_calfits(delayfile, use_future_array_shapes=True)
+        delay_object.read_calfits(delayfile)
 
     delay_object.freq_array = None
     delay_object.channel_width = None
@@ -1011,7 +1009,7 @@ def test_read_write_loop_missing_telescope_info(
 ):
     if uvf_type == "antenna":
         uv = UVCal()
-        uv.read_calfits(test_c_file, use_future_array_shapes=True)
+        uv.read_calfits(test_c_file)
     else:
         uv = uvdata_obj_weird_telparams
 
@@ -1122,7 +1120,7 @@ def test_read_write_loop_missing_telescope_info(
 def test_missing_telescope_info_mwa(test_outfile):
     mwa_uvfits = os.path.join(DATA_PATH, "1133866760.uvfits")
     metafits = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles", "1131733552.metafits")
-    uvd = UVData.from_file(mwa_uvfits, use_future_array_shapes=True)
+    uvd = UVData.from_file(mwa_uvfits)
     uvf = UVFlag(uvd, waterfall=True)
 
     uvf.write(test_outfile, clobber=True)

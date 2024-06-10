@@ -11,7 +11,6 @@ import pytest
 import pyuvdata.tests as uvtest
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 # set up FHD files
 testdir = os.path.join(DATA_PATH, "fhd_cal_data/")
@@ -60,7 +59,7 @@ def test_read_fhdcal_write_read_calfits_h5(
     write_method = "write_" + file_type
     getattr(fhd_cal, write_method)(outfile)
 
-    cal_out = UVCal.from_file(outfile, use_future_array_shapes=True)
+    cal_out = UVCal.from_file(outfile)
     if file_type == "calfits":
         # the phase center catalog does not round trip through calfits files
         cal_out.phase_center_catalog = fhd_cal.phase_center_catalog
@@ -80,16 +79,14 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
     else:
         fhd_cal_full = fhd_cal_fit
 
-    with uvtest.check_warnings(DeprecationWarning, match=_future_array_shapes_warning):
-        fhd_cal = UVCal.from_file(
-            cal_testfile,
-            obs_file=obs_testfile,
-            layout_file=layout_testfile,
-            settings_file=settings_testfile,
-            raw=raw,
-            read_data=False,
-        )
-    fhd_cal.use_future_array_shapes()
+    fhd_cal = UVCal.from_file(
+        cal_testfile,
+        obs_file=obs_testfile,
+        layout_file=layout_testfile,
+        settings_file=settings_testfile,
+        raw=raw,
+        read_data=False,
+    )
 
     fhd_cal2 = fhd_cal_full.copy(metadata_only=True)
 
@@ -130,7 +127,6 @@ def test_read_fhdcal_metadata(raw, fhd_cal_raw, fhd_cal_fit):
             settings_file=settings_testfile_nodiffuse,
             raw=raw,
             read_data=False,
-            use_future_array_shapes=True,
         )
 
     assert fhd_cal.diffuse_model is None
@@ -160,7 +156,6 @@ def test_read_fhdcal_multimode():
                 testdir, testfile_prefix + "multimode_settings.txt"
             ),
             raw=False,
-            use_future_array_shapes=True,
         )
     assert fhd_cal.extra_keywords["MODE_FIT"] == "[90, 150, 230, 320, 400, 524]"
 
@@ -186,7 +181,6 @@ def test_read_fhdcal_multimode():
             ),
             raw=False,
             read_data=False,
-            use_future_array_shapes=True,
         )
     # this file set has a mismatch in Nsources between the cal file & settings
     # file for some reason. I think it's just an issue with the files chosen
@@ -224,12 +218,11 @@ def test_extra_history(extra_history, tmp_path):
         layout_file=layout_testfile,
         settings_file=settings_testfile,
         extra_history=extra_history,
-        use_future_array_shapes=True,
     )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile)
     # the phase center catalog does not round trip through calfits files
     assert fhd_cal != calfits_cal
     calfits_cal.phase_center_catalog = fhd_cal.phase_center_catalog
@@ -266,12 +259,11 @@ def test_flags_galaxy(tmp_path):
             obs_file=obs_testfile_flag,
             layout_file=layout_testfile_flag,
             settings_file=settings_testfile_flag,
-            use_future_array_shapes=True,
         )
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
     fhd_cal.write_calfits(outfile, clobber=True)
-    calfits_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    calfits_cal = UVCal.from_file(outfile)
 
     # the phase center catalog does not round trip through calfits files
     calfits_cal.phase_center_catalog = fhd_cal.phase_center_catalog
@@ -295,7 +287,6 @@ def test_unknown_telescope():
             obs_file=os.path.join(testdir, testfile_prefix + "telescopefoo_obs.sav"),
             layout_file=layout_testfile,
             settings_file=settings_testfile,
-            use_future_array_shapes=True,
         )
     assert fhd_cal.telescope.name == "foo"
 
@@ -314,11 +305,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         ValueError, match="A settings_file must be provided if read_data is False."
     ):
         fhd_cal = UVCal.from_file(
-            cal_file,
-            obs_file=obs_file,
-            layout_file=layout_file,
-            read_data=False,
-            use_future_array_shapes=True,
+            cal_file, obs_file=obs_file, layout_file=layout_file, read_data=False
         )
 
     message_list = ["No settings file"]
@@ -331,12 +318,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
         )
 
     with uvtest.check_warnings(UserWarning, message_list):
-        fhd_cal = UVCal.from_file(
-            cal_file,
-            obs_file=obs_file,
-            layout_file=layout_file,
-            use_future_array_shapes=True,
-        )
+        fhd_cal = UVCal.from_file(cal_file, obs_file=obs_file, layout_file=layout_file)
 
     # Check only pyuvdata version history with no settings file
     expected_history = "\n" + fhd_cal.pyuvdata_version_str
@@ -355,10 +337,7 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
     if nfiles == 1:
         with uvtest.check_warnings(warning_list, match=message_list):
             fhd_cal.read_fhd_cal(
-                cal_file=cal_file,
-                obs_file=obs_file,
-                settings_file=settings_file,
-                use_future_array_shapes=True,
+                cal_file=cal_file, obs_file=obs_file, settings_file=settings_file
             )
 
         with pytest.raises(
@@ -369,7 +348,6 @@ def test_break_read_fhdcal(cal_file, obs_file, layout_file, settings_file, nfile
                 obs_file=obs_file,
                 layout_file=layout_file,
                 read_data=False,
-                use_future_array_shapes=True,
             )
 
 
@@ -395,7 +373,6 @@ def test_read_multi(tmp_path, concat_method, read_method):
                 obs_file=obs_file_multi,
                 settings_file=settings_file_multi,
                 layout_file=layout_file_multi,
-                use_future_array_shapes=True,
             )
     else:
         if read_method == "read_fhd_cal":
@@ -411,7 +388,6 @@ def test_read_multi(tmp_path, concat_method, read_method):
                 obs_file=obs_file_multi,
                 settings_file=settings_file_multi,
                 layout_file=layout_file_multi,
-                use_future_array_shapes=True,
             )
 
     calfits_outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
@@ -427,7 +403,7 @@ def test_read_multi(tmp_path, concat_method, read_method):
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calh5")
     fhd_cal.write_calh5(outfile, clobber=True)
 
-    calh5_cal = UVCal.from_file(outfile, use_future_array_shapes=True)
+    calh5_cal = UVCal.from_file(outfile)
     assert fhd_cal == calh5_cal
 
 
@@ -515,5 +491,4 @@ def test_break_read_multi(cal_file, obs_file, layout_file, settings_file, messag
             obs_file=obs_file,
             layout_file=layout_file,
             settings_file=settings_file,
-            use_future_array_shapes=True,
         )

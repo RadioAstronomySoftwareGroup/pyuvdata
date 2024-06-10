@@ -357,7 +357,6 @@ def new_uvcal(
     elif cal_style == "sky":
         uvc._set_sky()
 
-    uvc._set_future_array_shapes()
     uvc._set_wide_band(wide_band)
 
     uvc.Nants_data = len(ant_array)
@@ -451,10 +450,6 @@ def new_uvcal_from_uvdata(
 
     if not isinstance(uvdata, UVData):
         raise ValueError("uvdata must be a UVData object.")
-
-    uses_future_shapes = uvdata.future_array_shapes
-    if not uses_future_shapes:
-        uvdata.use_future_array_shapes()
 
     if cal_type == "delay":
         wide_band = True
@@ -663,11 +658,5 @@ def new_uvcal_from_uvdata(
         history=history,
         **kwargs,
     )
-
-    # Now convert the UVData object and UVCal object to proper array shapes
-    if not uses_future_shapes:
-        uvdata.use_current_array_shapes()
-        if not wide_band:
-            new.use_current_array_shapes()
 
     return new

@@ -98,7 +98,7 @@ def test_ms_cal_wideband_loopback(sma_pcal, tmp_path, write_func, filename):
     testfile = os.path.join(tmp_path, filename)
     getattr(sma_pcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile, use_future_array_shapes=True)
+    uvcal.read(testfile)
     # Check that the histories line up
     assert sma_pcal.history in uvcal.history
     assert sma_pcal.__eq__(uvcal, allowed_failures=allowed_failures)
@@ -113,7 +113,7 @@ def test_ms_cal_delay_loopback(sma_dcal, tmp_path, write_func, filename):
     testfile = os.path.join(tmp_path, filename)
     getattr(sma_dcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile, use_future_array_shapes=True)
+    uvcal.read(testfile)
     # Check that the histories line up
     assert sma_dcal.history in uvcal.history
     assert sma_dcal.__eq__(uvcal, allowed_failures=allowed_failures)
@@ -128,7 +128,7 @@ def test_ms_cal_bandpass_loopback(sma_bcal, tmp_path, write_func, filename):
     testfile = os.path.join(tmp_path, filename)
     getattr(sma_bcal, write_func)(testfile, clobber=True)
 
-    uvcal.read(testfile, use_future_array_shapes=True)
+    uvcal.read(testfile)
     # Check that the histories line up
     assert sma_bcal.history in uvcal.history
     assert sma_bcal.__eq__(uvcal, allowed_failures=allowed_failures)
@@ -190,10 +190,6 @@ def test_ms_cal_write_err(tmp_path):
 
     uvc.jones_array = [1, 2]
 
-    with pytest.raises(ValueError, match="you must be using future array shapes"):
-        uvc.write_ms_cal(filepath, clobber=True)
-
-    uvc.future_array_shapes = True
     with pytest.raises(ValueError, match="only supports UVCal objects with gain"):
         uvc.write_ms_cal(filepath, clobber=True)
 

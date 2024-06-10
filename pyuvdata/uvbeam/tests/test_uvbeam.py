@@ -53,7 +53,6 @@ def uvbeam_data():
         "model_version",
         "history",
         "antenna_type",
-        "future_array_shapes",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
 

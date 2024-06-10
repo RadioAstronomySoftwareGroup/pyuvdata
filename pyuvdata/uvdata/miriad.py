@@ -19,7 +19,7 @@ from docstring_parser import DocstringStyle
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import known_telescope_location
-from .uvdata import UVData, _future_array_shapes_warning, reporting_request
+from .uvdata import UVData, reporting_request
 
 __all__ = ["Miriad"]
 
@@ -172,7 +172,6 @@ class Miriad(UVData):
             "Nfreqs": "nchan",
             "Nspws": "nspect",
             "Npols": "npol",
-            "channel_width": "sdf",  # in Ghz!
         }
         for item in miriad_header_data:
             header_value = uv[miriad_header_data[item]]
@@ -180,54 +179,39 @@ class Miriad(UVData):
 
         self.telescope.name = uv["telescop"].replace("\x00", "")
 
-        # Do the units and potential sign conversion for channel_width
-        self.channel_width = np.abs(self.channel_width * 1e9)  # change from GHz to Hz
-
-        # Future proof: always set the flex_spw_id_array.
-        self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
-
         # Deal with the spectral axis now
         if self.Nspws > 1:
             self._set_flex_spw()
             # Channel widths are described per spw, just need to expand it out to be
             # for each frequency channel.
-            self.channel_width = (
-                np.concatenate(
-                    tuple(
-                        np.abs(chan_width) + np.zeros(nchan)
-                        for (chan_width, nchan) in zip(uv["sdf"] * 1e9, uv["nschan"])
-                    )
+            self.channel_width = np.concatenate(
+                tuple(
+                    np.full(nchan, 1e9 * np.abs(chan_width), dtype=np.float64)
+                    for chan_width, nchan in zip(uv["sdf"], uv["nschan"])
                 )
-                .flatten()
-                .astype(np.float64)
             )
             # Now setup frequency array
-            # TODO: Spw axis to be collapsed in future release
-            self.freq_array = np.reshape(
-                np.concatenate(
-                    tuple(
-                        chan_width * np.arange(nchan) + sfreq
-                        for (chan_width, nchan, sfreq) in zip(
-                            uv["sdf"] * 1e9, uv["nschan"], uv["sfreq"] * 1e9
-                        )
+            self.freq_array = np.concatenate(
+                tuple(
+                    (chan_width * np.arange(nchan, dtype=np.float64) + sfreq) * 1e9
+                    for chan_width, nchan, sfreq in zip(
+                        uv["sdf"], uv["nschan"], uv["sfreq"]
                     )
                 )
-                .flatten()
-                .astype(np.float64),
-                (1, -1),
             )
             # TODO: Fix this to capture unsorted spectra
             self.flex_spw_id_array = np.concatenate(
                 tuple(
-                    idx + np.zeros(nchan, dtype=int)
-                    for (idx, nchan) in zip(range(self.Nspws), uv["nschan"])
+                    np.full(nchan, idx, dtype=int)
+                    for idx, nchan in zip(range(self.Nspws), uv["nschan"])
                 )
             )
         else:
-            self.freq_array = np.reshape(
-                np.arange(self.Nfreqs) * self.channel_width + uv["sfreq"] * 1e9, (1, -1)
-            )
-            self.channel_width = np.float64(self.channel_width)
+            # sdf (delta freq) and sfreq (chan0 freq) are both in GHz
+            self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
+            self.freq_array = 1e9 * (np.arange(self.Nfreqs) * uv["sdf"] + uv["sfreq"])
+            # Do the units and potential sign conversion for channel_width
+            self.channel_width = np.full(self.Nfreqs, np.abs(uv["sdf"] * 1e9))
 
         self.spw_array = np.arange(self.Nspws)
 
@@ -754,10 +738,13 @@ class Miriad(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a miriad file."""
+        # Check for defunct keyword here
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         from . import aipy_extracts
 
         if not os.path.exists(filepath):
@@ -1216,9 +1203,8 @@ class Miriad(UVData):
             self.Nbls = len(np.unique(self.baseline_array))
 
         # slot the data into a grid
-        # TODO: Spw axis to be collapsed in future release
         self.data_array = np.zeros(
-            (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex64
+            (self.Nblts, self.Nfreqs, self.Npols), dtype=np.complex64
         )
         self.flag_array = np.ones(self.data_array.shape, dtype=np.bool_)
         self.uvw_array = np.zeros((self.Nblts, 3))
@@ -1257,9 +1243,9 @@ class Miriad(UVData):
                 blt = "_".join(blt)
                 blt_index = reverse_inds[blt]
 
-                self.data_array[blt_index, :, :, pol_ind] = d[4]
-                self.flag_array[blt_index, :, :, pol_ind] = d[5]
-                self.nsample_array[blt_index, :, :, pol_ind] = d[6]
+                self.data_array[blt_index, :, pol_ind] = d[4]
+                self.flag_array[blt_index, :, pol_ind] = d[5]
+                self.nsample_array[blt_index, :, pol_ind] = d[6]
                 # because there are uvws/ra/dec for each pol, and one pol may not
                 # have that visibility, we collapse along the polarization
                 # axis but avoid any missing visbilities
@@ -1288,7 +1274,7 @@ class Miriad(UVData):
         lst_list = np.zeros(self.Nblts)
 
         for blt_index in range(self.Nblts):
-            test = ~np.all(self.flag_array[blt_index, :, :, :], axis=(0, 1))
+            test = ~np.all(self.flag_array[blt_index, :, :], axis=0)
             good_pol = np.where(test)[0]
             if len(good_pol) == 0:
                 # No good pols for this blt. Fill with first one.
@@ -1356,7 +1342,7 @@ class Miriad(UVData):
         # get unflagged blts
         # If we have a 1-baseline, single integration data set, set single_ra and
         # single_time to be true, otherwise evaluate the arrays
-        blt_good = np.where(~np.all(self.flag_array, axis=(1, 2, 3)))
+        blt_good = np.where(~np.all(self.flag_array, axis=(1, 2)))
         single_ra = (
             True
             if (len(blt_good[0]) == 1)
@@ -1597,11 +1583,6 @@ class Miriad(UVData):
             # this will error if it could not have been phased with the old method
             self.fix_phase(use_ant_pos=fix_use_ant_pos)
 
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
-
         # check if object has all required uv_properties set
         if run_check:
             self.check(
@@ -1737,10 +1718,7 @@ class Miriad(UVData):
         uv.add_var("nspect", "i")
         uv["nspect"] = self.Nspws
 
-        if self.future_array_shapes:
-            freq_array_use = self.freq_array
-        else:
-            freq_array_use = self.freq_array[0, :]
+        freq_array_use = self.freq_array
         if self.flex_spw:
             win_start_pos = np.insert(
                 np.where(self.flex_spw_id_array[1:] != self.flex_spw_id_array[:-1])[0]
@@ -2135,19 +2113,9 @@ class Miriad(UVData):
 
             for polcnt, pol in enumerate(self.polarization_array):
                 uv["pol"] = pol.astype(np.int64)
-                if self.future_array_shapes:
-                    uv["cnt"] = self.nsample_array[viscnt, :, polcnt].astype(np.double)
-                else:
-                    uv["cnt"] = self.nsample_array[viscnt, 0, :, polcnt].astype(
-                        np.double
-                    )
-
-                if self.future_array_shapes:
-                    data = self.data_array[viscnt, :, polcnt]
-                    flags = self.flag_array[viscnt, :, polcnt]
-                else:
-                    data = self.data_array[viscnt, 0, :, polcnt]
-                    flags = self.flag_array[viscnt, 0, :, polcnt]
+                uv["cnt"] = self.nsample_array[viscnt, :, polcnt].astype(np.double)
+                data = self.data_array[viscnt, :, polcnt]
+                flags = self.flag_array[viscnt, :, polcnt]
                 # Using an assert here because it should be guaranteed by an earlier
                 # method call.
                 assert this_j >= this_i, (
