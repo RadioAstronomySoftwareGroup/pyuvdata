@@ -15,7 +15,7 @@ from scipy.io import readsav
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from ..uvdata.fhd import fhd_filenames, get_fhd_history, get_fhd_layout_info
-from .uvcal import UVCal, _future_array_shapes_warning
+from .uvcal import UVCal
 
 __all__ = ["FHDCal"]
 
@@ -44,10 +44,12 @@ class FHDCal(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read data from an FHD cal.sav file."""
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         if not read_data and settings_file is None:
             raise ValueError("A settings_file must be provided if read_data is False.")
 
@@ -69,9 +71,9 @@ class FHDCal(UVCal):
         self.spw_array = np.array([0])
 
         self.Nfreqs = int(obs_data["N_FREQ"][0])
-        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float64)
-        self.freq_array[0, :] = bl_info["FREQ"][0]
-        self.channel_width = float(obs_data["FREQ_RES"][0])
+        self.freq_array = np.zeros(len(bl_info["FREQ"][0]), dtype=np.float64)
+        self.freq_array[:] = bl_info["FREQ"][0]
+        self.channel_width = np.full(self.Nfreqs, float(obs_data["FREQ_RES"][0]))
 
         self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
@@ -86,9 +88,8 @@ class FHDCal(UVCal):
         # integrations. This can have limited accuracy, so it can be slightly
         # off the actual value.
         # (e.g. 1.999426... rather than 2)
-        time_res = obs_data["TIME_RES"][0]
         # time_res is constrained to be a scalar currently
-        self.integration_time = np.float64(time_res)
+        self.integration_time = np.array([np.float64(obs_data["TIME_RES"][0])])
 
         # array of used frequencies (1: used, 0: flagged)
         freq_use = bl_info["freq_use"][0]
@@ -382,14 +383,14 @@ class FHDCal(UVCal):
                 self._gain_array.expected_shape(self), dtype=np.complex128
             )
             for jones_i, arr in enumerate(fit_gain_array_in):
-                fit_gain_array[:, 0, :, 0, jones_i] = arr
+                fit_gain_array[:, :, 0, jones_i] = arr
             if raw:
                 res_gain_array_in = cal_data["gain_residual"][0]
                 res_gain_array = np.zeros(
                     self._gain_array.expected_shape(self), dtype=np.complex128
                 )
                 for jones_i, arr in enumerate(res_gain_array_in):
-                    res_gain_array[:, 0, :, 0, jones_i] = arr
+                    res_gain_array[:, :, 0, jones_i] = arr
                 self.gain_array = fit_gain_array + res_gain_array
             else:
                 self.gain_array = fit_gain_array
@@ -400,7 +401,7 @@ class FHDCal(UVCal):
             self.quality_array = np.zeros_like(self.gain_array, dtype=np.float64)
             convergence = cal_data["convergence"][0]
             for jones_i, arr in enumerate(convergence):
-                self.quality_array[:, 0, :, 0, jones_i] = arr
+                self.quality_array[:, :, 0, jones_i] = arr
 
             # Currently this can't include the times because the flag array
             # dimensions has to match the gain array dimensions.
@@ -408,10 +409,10 @@ class FHDCal(UVCal):
             self.flag_array = np.zeros_like(self.gain_array, dtype=np.bool_)
             flagged_ants = np.where(ant_use == 0)[0]
             for ant in flagged_ants:
-                self.flag_array[ant, :] = 1
+                self.flag_array[ant] = 1
             flagged_freqs = np.where(freq_use == 0)[0]
             for freq in flagged_freqs:
-                self.flag_array[:, :, freq] = 1
+                self.flag_array[:, freq] = 1
 
         if self.telescope.name.lower() == "mwa":
             self.ref_antenna_name = (
@@ -476,11 +477,6 @@ class FHDCal(UVCal):
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

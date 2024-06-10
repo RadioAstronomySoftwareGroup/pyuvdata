@@ -19,7 +19,7 @@ from .. import hdf5_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import Telescope
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["UVH5", "FastUVH5Meta"]
 
@@ -446,7 +446,6 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             self,
             read_data=False,
             run_check_acceptability=check_lsts,
-            use_future_array_shapes=True,
             astrometry_library=astrometry_library,
         )
         return uvd
@@ -567,16 +566,19 @@ class UVH5(UVData):
                 raise KeyError(str(e)) from e
 
         # check this as soon as we have the inputs
-        if self.freq_array.ndim == 1:
-            arr_shape_msg = (
-                "The size of arrays in this file are not internally consistent, "
-                "which should not happen. Please file an issue in our GitHub issue "
-                "log so that we can fix it."
-            )
-            assert (
-                np.asarray(self.channel_width).size == self.freq_array.size
-            ), arr_shape_msg
-            self._set_future_array_shapes()
+        if self.freq_array.ndim == 2:
+            # This is an old-shaped data set, remove the old spw axis
+            self.freq_array = self.freq_array[0]
+            self.channel_width = np.full(self.freq_array.size, self.channel_width)
+
+        arr_shape_msg = (
+            "The size of arrays in this file are not internally consistent, "
+            "which should not happen. Please file an issue in our GitHub issue "
+            "log so that we can fix it."
+        )
+        assert (
+            np.asarray(self.channel_width).size == self.freq_array.size
+        ), arr_shape_msg
 
         # For now, only set the rectangularity parameters if they exist in the header of
         # the file. These could be set automatically later on, but for now we'll leave
@@ -783,7 +785,6 @@ class UVH5(UVData):
         if dgrp["visdata"].ndim == 3:
             assert self.freq_array.ndim == 1, arr_shape_msg
             assert self.channel_width.size == self.freq_array.size, arr_shape_msg
-            self._set_future_array_shapes()
 
         # get the fundamental datatype of the visdata; if integers, we need to
         # cast to floats
@@ -889,23 +890,13 @@ class UVH5(UVData):
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:
-                    if self.future_array_shapes:
-                        visdata = visdata[:, freq_inds, :]
-                        flags = flags[:, freq_inds, :]
-                        nsamples = nsamples[:, freq_inds, :]
-                    else:
-                        visdata = visdata[:, :, freq_inds, :]
-                        flags = flags[:, :, freq_inds, :]
-                        nsamples = nsamples[:, :, freq_inds, :]
+                    visdata = visdata[..., freq_inds, :]
+                    flags = flags[..., freq_inds, :]
+                    nsamples = nsamples[..., freq_inds, :]
                 if not multidim_index and pol_frac < 1:
-                    if self.future_array_shapes:
-                        visdata = visdata[:, :, pol_inds]
-                        flags = flags[:, :, pol_inds]
-                        nsamples = nsamples[:, :, pol_inds]
-                    else:
-                        visdata = visdata[:, :, :, pol_inds]
-                        flags = flags[:, :, :, pol_inds]
-                        nsamples = nsamples[:, :, :, pol_inds]
+                    visdata = visdata[..., :, pol_inds]
+                    flags = flags[..., :, pol_inds]
+                    nsamples = nsamples[..., :, pol_inds]
 
             elif freq_frac == min_frac:
                 # construct inds list given simultaneous sliceability
@@ -942,15 +933,9 @@ class UVH5(UVData):
                     flags = flags[blt_inds]
                     nsamples = nsamples[blt_inds]
                 if not multidim_index and pol_frac < 1:
-                    if self.future_array_shapes:
-                        visdata = visdata[:, :, pol_inds]
-                        flags = flags[:, :, pol_inds]
-                        nsamples = nsamples[:, :, pol_inds]
-                    else:
-                        visdata = visdata[:, :, :, pol_inds]
-                        flags = flags[:, :, :, pol_inds]
-                        nsamples = nsamples[:, :, :, pol_inds]
-
+                    visdata = visdata[..., pol_inds]
+                    flags = flags[..., pol_inds]
+                    nsamples = nsamples[..., pol_inds]
             else:
                 # construct inds list given simultaneous sliceability
                 inds = [np.s_[:], np.s_[:], pol_inds]
@@ -986,26 +971,23 @@ class UVH5(UVData):
                     flags = flags[blt_inds]
                     nsamples = nsamples[blt_inds]
                 if not multidim_index and freq_frac < 1:
-                    if self.future_array_shapes:
-                        visdata = visdata[:, freq_inds, :]
-                        flags = flags[:, freq_inds, :]
-                        nsamples = nsamples[:, freq_inds, :]
-                    else:
-                        visdata = visdata[:, :, freq_inds, :]
-                        flags = flags[:, :, freq_inds, :]
-                        nsamples = nsamples[:, :, freq_inds, :]
+                    visdata = visdata[..., freq_inds, :]
+                    flags = flags[..., freq_inds, :]
+                    nsamples = nsamples[..., freq_inds, :]
 
             # save arrays in object
             self.data_array = visdata
             self.flag_array = flags
             self.nsample_array = nsamples
 
-        if self.data_array.ndim == 3:
-            assert self.freq_array.ndim == 1, arr_shape_msg
-            assert self.channel_width.size == self.freq_array.size, arr_shape_msg
-            self._set_future_array_shapes()
+        if self.data_array.ndim == 4:
+            # This is a dataset with old shapes -- squeeze out the former spw axis
+            self.data_array = np.squeeze(self.data_array, axis=1)
+            self.flag_array = np.squeeze(self.flag_array, axis=1)
+            self.nsample_array = np.squeeze(self.nsample_array, axis=1)
 
-        return
+        assert self.freq_array.ndim == 1, arr_shape_msg
+        assert self.channel_width.size == self.freq_array.size, arr_shape_msg
 
     @copy_replace_short_description(UVData.read_uvh5, style=DocstringStyle.NUMPYDOC)
     def read_uvh5(
@@ -1040,7 +1022,7 @@ class UVH5(UVData):
         fix_use_ant_pos=True,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         blt_order: tuple[str] | Literal["determine"] | None = None,
         blts_are_rectangular: bool | None = None,
         time_axis_faster_than_bls: bool | None = None,
@@ -1048,6 +1030,9 @@ class UVH5(UVData):
         astrometry_library: str | None = None,
     ):
         """Read in data from a UVH5 file."""
+        # Check for defunct keyword
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         if isinstance(filename, FastUVH5Meta):
             meta = filename
             filename = str(meta.path)
@@ -1131,20 +1116,6 @@ class UVH5(UVData):
         if remove_flex_pol:
             self.remove_flex_pol()
 
-        if use_future_array_shapes:
-            if not self.future_array_shapes:
-                self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
-            if self.future_array_shapes:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings(
-                        "ignore",
-                        message="This method will be removed in version 3.0 when the "
-                        "current array shapes are no longer supported.",
-                    )
-                    self.use_current_array_shapes()
-
         # check if object has all required UVParameters set
         if run_check:
             self.check(
@@ -1173,11 +1144,6 @@ class UVH5(UVData):
         None
         """
         # write out UVH5 version information
-        assert_err_msg = (
-            "This is a bug, please make an issue in our issue log at "
-            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
-        )
-        assert self.future_array_shapes, assert_err_msg
         header["version"] = np.string_("1.2")
 
         # write out telescope and source information
@@ -1381,13 +1347,6 @@ class UVH5(UVData):
             else:
                 raise IOError("File exists; skipping")
 
-        revert_fas = False
-        if not self.future_array_shapes:
-            # We force using future array shapes here to always write version 1.* files.
-            # We capture the current state so that it can be reverted later if needed.
-            revert_fas = True
-            self.use_future_array_shapes()
-
         data_compression, data_compression_opts = hdf5_utils._get_compression(
             data_compression
         )
@@ -1438,15 +1397,6 @@ class UVH5(UVData):
                 data=self.nsample_array.astype(np.float32),
                 compression=nsample_compression,
             )
-
-        if revert_fas:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
 
         return
 
@@ -1536,13 +1486,6 @@ class UVH5(UVData):
             data_compression
         )
 
-        revert_fas = False
-        if not self.future_array_shapes:
-            # We force using future array shapes here to always write version 1.* files.
-            # We capture the current state so that it can be reverted later if needed.
-            revert_fas = True
-            self.use_future_array_shapes()
-
         # write header and empty arrays to file
         with h5py.File(filename, "w") as f:
             # write header
@@ -1580,15 +1523,6 @@ class UVH5(UVData):
                 dtype="f4",
                 compression=nsample_compression,
             )
-
-        if revert_fas:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
 
         return
 
@@ -1812,13 +1746,6 @@ class UVH5(UVData):
                 "initialize_uvh5_file".format(filename)
             )
 
-        revert_fas = False
-        if not self.future_array_shapes:
-            # We force using future array shapes here to always write version 1.* files.
-            # We capture the current state so that it can be reverted later if needed.
-            revert_fas = True
-            self.use_future_array_shapes()
-
         if check_header:
             self._check_header(
                 filename, run_check_acceptability=run_check_acceptability
@@ -1913,16 +1840,11 @@ class UVH5(UVData):
         # check for proper size of input arrays
         proper_shape = (Nblts, Nfreqs, Npols)
         if data_array.shape != proper_shape:
-            if revert_fas and data_array.shape == (Nblts, 1, Nfreqs, Npols):
-                data_array = data_array[:, 0, :, :]
-                flag_array = flag_array[:, 0, :, :]
-                nsample_array = nsample_array[:, 0, :, :]
-            else:
-                raise AssertionError(
-                    "data_array has shape {0}; was expecting {1}".format(
-                        data_array.shape, proper_shape
-                    )
+            raise AssertionError(
+                "data_array has shape {0}; was expecting {1}".format(
+                    data_array.shape, proper_shape
                 )
+            )
 
         # actually write the data
         with h5py.File(filename, "r+") as f:
@@ -2035,14 +1957,5 @@ class UVH5(UVData):
                     # erase dataset first b/c it has fixed-length string datatype
                     del f["Header"]["history"]
                 f["Header"]["history"] = np.string_(history)
-
-        if revert_fas:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
 
         return
