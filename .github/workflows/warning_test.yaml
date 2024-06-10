@@ -31,6 +31,7 @@ jobs:
       - name: Install
         run: |
           CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install -e .[dev]
+          pip install pytest-xdist
 
       - name: Environment Info
         run: |
@@ -42,7 +43,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -W error --pyargs pyuvdata --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
+          pytest -W error --pyargs pyuvdata -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
 
       - uses: codecov/codecov-action@v4
         if: success()
