@@ -72,9 +72,6 @@ class MSCal(UVCal):
         # Use the utility function to verify this actually is an MS file
         ms_utils._ms_utils_call_checks(filepath)
 
-        # Set some initial things from the get go -- no legacy support!
-        self._set_future_array_shapes()
-
         self.filename = [os.path.basename(filepath)]
         self._filename.form = (1,)
 
@@ -423,15 +420,6 @@ class MSCal(UVCal):
             # CASA always wants to see Njones == 2. Easy enough to pad when Njones == 1,
             # but we risk losing information when Njones > 2.
             raise ValueError("CASA MS calibration tables cannot support Njones > 2.")
-
-        # Given that this is coming in _just_ before the "current" array shapes retire,
-        # I'm not going to bother to work toward supporting it unless there's a
-        # particular pressing need.
-        if not self.future_array_shapes:
-            raise ValueError(
-                "In order to call this method, you must be using future array shapes. "
-                "Call the `use_future_array_shapes` method before proceeding."
-            )
 
         if self.gain_convention != "divide":
             raise ValueError(

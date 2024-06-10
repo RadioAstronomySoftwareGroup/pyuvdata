@@ -18,7 +18,7 @@ from scipy.io import readsav
 from .. import Telescope
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
@@ -448,10 +448,11 @@ class FHD(UVData):
         strict_uvw_antpos_check=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a list of FHD files."""
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
         datafiles_dict = {}
         use_model = None
         if isinstance(vis_files, str):
@@ -574,8 +575,6 @@ class FHD(UVData):
         self.Nfreqs = int(obs["N_FREQ"][0])
         self.Nspws = 1
         self.spw_array = np.array([0])
-
-        # Future proof: set the flex_spw_id_array.
         self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
         self.vis_units = "Jy"
@@ -739,11 +738,10 @@ class FHD(UVData):
                 "Nbls does not match the number of unique baselines in the data"
             )
 
-        # TODO: Spw axis to be collapsed in future release
-        self.freq_array = np.zeros((1, len(bl_info["FREQ"][0])), dtype=np.float64)
-        self.freq_array[0, :] = bl_info["FREQ"][0]
+        self.freq_array = np.zeros(len(bl_info["FREQ"][0]), dtype=np.float64)
+        self.freq_array[:] = bl_info["FREQ"][0]
 
-        self.channel_width = float(obs["FREQ_RES"][0])
+        self.channel_width = np.full(self.Nfreqs, float(obs["FREQ_RES"][0]))
 
         # In FHD, uvws are in seconds not meters.
         # FHD follows the FITS uvw direction convention, which is opposite
@@ -779,37 +777,29 @@ class FHD(UVData):
             self.history += self.pyuvdata_version_str
 
         if read_data:
-            # TODO: Spw axis to be collapsed in future release
             self.data_array = np.zeros(
-                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex128
+                (self.Nblts, self.Nfreqs, self.Npols), dtype=np.complex128
             )
-            # TODO: Spw axis to be collapsed in future release
             self.nsample_array = np.zeros(
-                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.float64
+                (self.Nblts, self.Nfreqs, self.Npols), dtype=np.float64
             )
-            # TODO: Spw axis to be collapsed in future release
             self.flag_array = np.zeros(
-                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.bool_
+                (self.Nblts, self.Nfreqs, self.Npols), dtype=np.bool_
             )
             for pol, vis in vis_data.items():
                 pol_i = pol_list.index(linear_pol_dict[pol])
                 # FHD follows the FITS uvw direction convention, which is opposite
                 # ours and Miriad's.
                 # So conjugate the visibilities and flip the uvws:
-                self.data_array[:, 0, :, pol_i] = np.conj(vis)
-                self.flag_array[:, 0, :, pol_i] = vis_weights_data[pol] <= 0
-                self.nsample_array[:, 0, :, pol_i] = np.abs(vis_weights_data[pol])
+                self.data_array[:, :, pol_i] = np.conj(vis)
+                self.flag_array[:, :, pol_i] = vis_weights_data[pol] <= 0
+                self.nsample_array[:, :, pol_i] = np.abs(vis_weights_data[pol])
 
         # wait for LSTs if set in background
         if proc is not None:
             proc.join()
 
         self._set_app_coords_helper()
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         # check if object has all required uv_properties set
         if run_check:

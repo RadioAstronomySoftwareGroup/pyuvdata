@@ -464,7 +464,6 @@ def _check_freq_spacing(
     channel_width,
     channel_width_tols,
     flex_spw,
-    future_array_shapes,
     spw_array,
     flex_spw_id_array,
     raise_errors=True,
@@ -477,16 +476,13 @@ def _check_freq_spacing(
     Parameters
     ----------
     freq_array : array of float
-        Array of frequencies, shape (1, Nfreqs) or (Nfreqs,) if future_array_shapes=True
+        Array of frequencies, shape (Nfreqs,).
     freq_tols : tuple of float
         freq_array tolerances (from uvobj._freq_array.tols).
     channel_width : float or array of float
-        Channel widths, either a scalar or an array of shape (Nfreqs,) if flex_spw=True
-        and/or future_array_shapes=True.
+        Channel widths, either a scalar or an array of shape (Nfreqs,).
     channel_width_tols : tuple of float
         channel_width tolerances (from uvobj._channel_width.tols).
-    future_array_shapes : bool
-        Indicates that parameters have future shapes.
     flex_spw :  bool
         Indicates there are flexible spectral windows.
     spw_array : array of integers or None
@@ -508,12 +504,8 @@ def _check_freq_spacing(
     spacing_error = False
     chanwidth_error = False
     Nfreqs = freq_array.size
-    if future_array_shapes:
-        freq_spacing = np.diff(freq_array)
-        freq_array_use = freq_array
-    else:
-        freq_spacing = np.diff(freq_array[0])
-        freq_array_use = freq_array[0]
+    freq_spacing = np.diff(freq_array)
+    freq_array_use = freq_array
 
     if Nfreqs == 1:
         # Skip all of this if there is only 1 channel
@@ -564,25 +556,15 @@ def _check_freq_spacing(
         freq_dir = np.sign(np.mean(freq_spacing))
         if not _test_array_constant(freq_spacing, tols=freq_tols):
             spacing_error = True
-        if future_array_shapes:
-            if not _test_array_constant(channel_width, tols=freq_tols):
-                spacing_error = True
-            else:
-                if not np.isclose(
-                    np.mean(freq_spacing),
-                    np.mean(channel_width) * freq_dir,
-                    rtol=channel_width_tols[0],
-                    atol=channel_width_tols[1],
-                ):
-                    chanwidth_error = True
-        else:
-            if not np.isclose(
-                np.mean(freq_spacing),
-                channel_width * freq_dir,
-                rtol=channel_width_tols[0],
-                atol=channel_width_tols[1],
-            ):
-                chanwidth_error = True
+        if not _test_array_constant(channel_width, tols=freq_tols):
+            spacing_error = True
+        elif not np.isclose(
+            np.mean(freq_spacing),
+            np.mean(channel_width) * freq_dir,
+            rtol=channel_width_tols[0],
+            atol=channel_width_tols[1],
+        ):
+            chanwidth_error = True
     if raise_errors and spacing_error:
         raise ValueError(
             "The frequencies are not evenly spaced (probably because of a select "
@@ -608,7 +590,6 @@ def _sort_freq_helper(
     spw_array,
     flex_spw,
     flex_spw_id_array,
-    future_array_shapes,
     spw_order,
     channel_order,
     select_spw,
@@ -631,9 +612,6 @@ def _sort_freq_helper(
         directly from the object parameter.
     flex_spw_id_array : array_like of int
         Array of SPW IDs for each channel, taken directly from the object parameter.
-    future_array_shapes : bool
-        Flag indicating whether the object uses the future array shapes, taken
-        directly from the object parameter.
     spw_order : str or array_like of int
         A string describing the desired order of spectral windows along the
         frequecy axis. Allowed strings include `number` (sort on spectral window
@@ -704,7 +682,7 @@ def _sort_freq_helper(
     else:
         index_array = np.arange(Nfreqs)
         # Multipy by 1.0 here to make a cheap copy of the array to manipulate
-        temp_freqs = 1.0 * (freq_array if future_array_shapes else freq_array[0, :])
+        temp_freqs = 1.0 * freq_array
         # Same trick for ints -- add 0 to make a cheap copy
         temp_spws = 0 + (
             flex_spw_id_array if flex_spw else (np.zeros(Nfreqs) + spw_array)
@@ -5860,14 +5838,8 @@ def uvcalibrate(
 
     downselect_cal_freq = False
     if uvcal.freq_array is not None:
-        if uvdata.future_array_shapes:
-            uvdata_freq_arr_use = uvdata.freq_array
-        else:
-            uvdata_freq_arr_use = uvdata.freq_array[0, :]
-        if uvcal.future_array_shapes:
-            uvcal_freq_arr_use = uvcal.freq_array
-        else:
-            uvcal_freq_arr_use = uvcal.freq_array[0, :]
+        uvdata_freq_arr_use = uvdata.freq_array
+        uvcal_freq_arr_use = uvcal.freq_array
         try:
             freq_arr_match = np.allclose(
                 np.sort(uvcal_freq_arr_use),
@@ -5946,16 +5918,8 @@ def uvcalibrate(
             # make a copy to convert to gain
             uvcal_use = uvcal_use.copy()
             new_uvcal = True
-        if uvdata.future_array_shapes:
-            freq_array_use = uvdata.freq_array
-        else:
-            freq_array_use = uvdata.freq_array[0, :]
-        if uvcal.future_array_shapes == uvdata.future_array_shapes:
-            channel_width = uvdata.channel_width
-        elif uvcal.future_array_shapes:
-            channel_width = np.zeros(uvdata.Nfreqs, dtype=float) + uvdata.channel_width
-        else:
-            channel_width = uvdata.channel_width[0]
+        freq_array_use = uvdata.freq_array
+        channel_width = uvdata.channel_width
         uvcal_use.convert_to_gain(
             delay_convention=delay_convention,
             freq_array=freq_array_use,
@@ -6009,10 +5973,7 @@ def uvcalibrate(
                 uvcal_use._key_exists(antnum=uvcal_ant1_num, jpol=feed1)
                 and uvcal_use._key_exists(antnum=uvcal_ant2_num, jpol=feed2)
             ):
-                if uvdata.future_array_shapes:
-                    uvdata.flag_array[blt_inds, :, pol_ind] = True
-                else:
-                    uvdata.flag_array[blt_inds, 0, :, pol_ind] = True
+                uvdata.flag_array[blt_inds, :, pol_ind] = True
                 continue
 
             uvcal_key1 = (uvcal_ant1_num, feed1)
@@ -6037,25 +5998,16 @@ def uvcalibrate(
             if prop_flags:
                 mask = np.isclose(gain, 0.0) | flag
                 gain[mask] = 1.0
-                if uvdata.future_array_shapes:
-                    uvdata.flag_array[blt_inds, :, pol_ind] += mask
-                else:
-                    uvdata.flag_array[blt_inds, 0, :, pol_ind] += mask
+                uvdata.flag_array[blt_inds, :, pol_ind] += mask
 
             # apply to data
             mult_gains = uvcal_use.gain_convention == "multiply"
             if undo:
                 mult_gains = not mult_gains
-            if uvdata.future_array_shapes:
-                if mult_gains:
-                    uvdata.data_array[blt_inds, :, pol_ind] *= gain
-                else:
-                    uvdata.data_array[blt_inds, :, pol_ind] /= gain
+            if mult_gains:
+                uvdata.data_array[blt_inds, :, pol_ind] *= gain
             else:
-                if mult_gains:
-                    uvdata.data_array[blt_inds, 0, :, pol_ind] *= gain
-                else:
-                    uvdata.data_array[blt_inds, 0, :, pol_ind] /= gain
+                uvdata.data_array[blt_inds, :, pol_ind] /= gain
 
     # update attributes
     uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
@@ -6175,12 +6127,7 @@ def apply_uvflag(
             continue
         uvf_ap_inds = uvf.antpair2ind(*ap)
         # addition of boolean is OR
-        if uvd.future_array_shapes == uvf.future_array_shapes:
-            uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
-        elif uvd.future_array_shapes:
-            uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds, 0, :, :]
-        else:
-            uvd.flag_array[uvd_ap_inds, 0, :, :] += uvf.flag_array[uvf_ap_inds]
+        uvd.flag_array[uvd_ap_inds] += uvf.flag_array[uvf_ap_inds]
 
     uvd.history += "\nFlagged with pyuvdata.utils.apply_uvflags."
 

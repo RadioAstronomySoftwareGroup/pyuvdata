@@ -17,7 +17,7 @@ from docstring_parser import DocstringStyle
 from .. import ms_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
-from .uvdata import UVData, _future_array_shapes_warning
+from .uvdata import UVData
 
 __all__ = ["MS"]
 
@@ -178,12 +178,6 @@ class MS(UVData):
             arr_list.append(corrected_data)
             col_list.append("CORRECTED_DATA")
 
-        if not self.future_array_shapes:
-            for idx in range(len(arr_list)):
-                # If using future array shapes, squeeze the arrays now (which just
-                # returns a view, and therefore doesn't impact mem usage).
-                arr_list[idx] = np.squeeze(arr_list[idx], axis=1)
-
         # Some tasks in CASA require a band-representative (band-averaged?) value for
         # the weights and noise for all channels in each row in the MAIN table, which
         # we will roughly calculate in temp_weights below.
@@ -215,10 +209,7 @@ class MS(UVData):
 
             # Band-averaged weights are used for some things in CASA - calculate them
             # here using median nsamples.
-            if self.future_array_shapes:
-                temp_weights = np.median(self.nsample_array, axis=1)
-            else:
-                temp_weights = np.squeeze(np.median(self.nsample_array, axis=2), axis=1)
+            temp_weights = np.median(self.nsample_array, axis=1)
 
             # Grab pointers for the per-blt record arrays
             ant_1_array = self.ant_1_array
@@ -841,10 +832,13 @@ class MS(UVData):
         allow_flex_pol=False,
         check_autos=True,
         fix_autos=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in a casa measurement set."""
+        # Check for defunct keyword here
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
@@ -932,9 +926,7 @@ class MS(UVData):
 
         # This if/else can go away in version 3.0 when channel width will always be an
         # array and the flex_spw_id_array will always be required.
-        if (np.unique(self.channel_width).size == 1) and (len(spw_list) == 1):
-            self.channel_width = float(self.channel_width[0])
-        else:
+        if (np.unique(self.channel_width).size != 1) or (len(spw_list) != 1):
             self._set_flex_spw()
 
         self.Ntimes = int(np.unique(self.time_array).size)
@@ -1027,19 +1019,9 @@ class MS(UVData):
         # Fill in the apparent coordinates here
         self._set_app_coords_helper()
 
-        self.data_array = np.expand_dims(self.data_array, 1)
-        self.nsample_array = np.expand_dims(self.nsample_array, 1)
-        self.flag_array = np.expand_dims(self.flag_array, 1)
-        self.freq_array = np.expand_dims(self.freq_array, 0)
-
         # order polarizations
         if pol_order is not None:
             self.reorder_pols(order=pol_order, run_check=False)
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(

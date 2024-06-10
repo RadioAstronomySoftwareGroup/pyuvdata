@@ -46,7 +46,6 @@ def uvcalibrate_init_data_main():
     uvdata.read(
         os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
         file_type="uvh5",
-        use_future_array_shapes=True,
     )
     uvcal = UVCal()
     with uvtest.check_warnings(
@@ -56,8 +55,7 @@ def uvcalibrate_init_data_main():
         "antenna_diameters are set using values from known telescopes for HERA.",
     ):
         uvcal.read_calfits(
-            os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected"),
-            use_future_array_shapes=True,
+            os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
         )
 
     yield uvdata, uvcal

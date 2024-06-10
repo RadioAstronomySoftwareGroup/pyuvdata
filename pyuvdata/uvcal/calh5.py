@@ -17,7 +17,7 @@ from .. import hdf5_utils
 from .. import utils as uvutils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import Telescope
-from .uvcal import UVCal, _future_array_shapes_warning
+from .uvcal import UVCal
 
 hdf5plugin_present = True
 try:
@@ -122,12 +122,7 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
         The object will be metadata-only.
         """
         uvc = UVCal()
-        uvc.read_calh5(
-            self,
-            read_data=False,
-            run_check_acceptability=check_lsts,
-            use_future_array_shapes=True,
-        )
+        uvc.read_calh5(self, read_data=False, run_check_acceptability=check_lsts)
         return uvc
 
 
@@ -237,7 +232,6 @@ class CalH5(UVCal):
             except AttributeError as e:
                 raise KeyError(str(e)) from e
 
-        self._set_future_array_shapes()
         if self.wide_band:
             self._set_wide_band()
         if self.Nspws > 1 and not self.wide_band:
@@ -626,10 +620,12 @@ class CalH5(UVCal):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
-        use_future_array_shapes=False,
+        use_future_array_shapes=None,
         astrometry_library=None,
     ):
         """Read in data from a CalH5 file."""
+        self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
+
         if isinstance(filename, FastCalH5Meta):
             meta = filename
             filename = str(meta.path)
@@ -675,16 +671,6 @@ class CalH5(UVCal):
         if close_meta:
             meta.close()
 
-        if not use_future_array_shapes:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
-
         # check if object has all required UVParameters set
         if run_check:
             self.check(
@@ -708,11 +694,6 @@ class CalH5(UVCal):
         None
         """
         # write out UVH5 version information
-        assert_err_msg = (
-            "This is a bug, please make an issue in our issue log at "
-            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
-        )
-        assert self.future_array_shapes, assert_err_msg
         header["version"] = np.string_("0.1")
 
         # write out telescope and source information
@@ -837,13 +818,6 @@ class CalH5(UVCal):
             else:
                 raise IOError("File exists; skipping")
 
-        revert_fas = False
-        if not self.future_array_shapes:
-            # We force using future array shapes here.
-            # We capture the current state so that it can be reverted later if needed.
-            revert_fas = True
-            self.use_future_array_shapes()
-
         data_compression, data_compression_opts = hdf5_utils._get_compression(
             data_compression
         )
@@ -893,14 +867,5 @@ class CalH5(UVCal):
                     data=self.total_quality_array.astype(np.float32),
                     compression=quality_compression,
                 )
-
-        if revert_fas:
-            with warnings.catch_warnings():
-                warnings.filterwarnings(
-                    "ignore",
-                    message="This method will be removed in version 3.0 when the "
-                    "current array shapes are no longer supported.",
-                )
-                self.use_current_array_shapes()
 
         return
