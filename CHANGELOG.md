@@ -10,6 +10,10 @@ All notable changes to this project will be documented in this file.
 - Updated minimum optional dependency versions: astropy-healpix>=1.0.2
 
 ### Fixed
+- Fixed a bug where UVFITS header parameters RDATE and DATE-OBS were being
+improperly set.
+- Fixed a bug with calculating Miriad antenna and baseline numbers, which properly
+accounts for MIRIAD antennas being 1-indexed not 0-indexed.
 - Fixed a bug writing UVData objects to UVFITS formats with extra phase center catalog
 entries resulted in an error on read.
 - Fixed a bug where calling `UVData._set_app_coords_helper` with extra phase center
