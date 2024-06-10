@@ -174,8 +174,6 @@ def new_uvbeam(
         uvb.Npols = uvb.polarization_array.size
         uvb._set_power()
 
-    uvb._set_future_array_shapes()
-
     if (nside is not None) and (axis1_array is not None or axis2_array is not None):
         raise ValueError(
             "Provide *either* nside (and optionally healpix_pixel_array and "

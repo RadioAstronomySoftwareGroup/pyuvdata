@@ -20,7 +20,6 @@ import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvcal.tests import extend_jones_axis, time_array_to_time_range
-from pyuvdata.uvcal.uvcal import _future_array_shapes_warning
 
 pytestmark = pytest.mark.filterwarnings(
     "ignore:key CASA_Version in extra_keywords is longer than 8 characters"
@@ -86,7 +85,6 @@ def uvcal_data():
         "flag_array",
         "cal_type",
         "cal_style",
-        "future_array_shapes",
         "history",
     ]
     required_parameters = ["_" + prop for prop in required_properties]
@@ -305,101 +303,16 @@ def test_check_lst(gain_data, time_range):
         calobj.check()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_future_array_shape(caltype, gain_data, delay_data_inputflag):
-    """Convert to future shapes and check. Convert back and test for equality."""
-
-    if caltype == "gain":
-        calobj = gain_data
-        calobj.total_quality_array = np.ones(
-            (calobj._total_quality_array.expected_shape(calobj))
-        )
-    else:
-        calobj = delay_data_inputflag
-        calobj.total_quality_array = np.ones(
-            (calobj._total_quality_array.expected_shape(calobj))
-        )
-
-    calobj2 = calobj.copy()
-    # test the no-op
-    calobj2.use_future_array_shapes()
-    assert calobj == calobj2
-
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match="This method will be removed in version 3.0 when the current array "
-        "shapes are no longer supported.",
-    ):
-        calobj.use_current_array_shapes()
-    with uvtest.check_warnings(None):
-        calobj.check()
-
-    calobj3 = calobj.copy()
-    # test the no-op
-    calobj.use_current_array_shapes()
-    assert calobj3 == calobj
-
-    warn_type = None
-    warn_msg = None
-
-    if caltype == "delay":
-        warn_type = UserWarning
-        warn_msg = (
-            "When converting a delay-style cal to future array shapes the "
-            "flag_array must drop the "
-            "frequency axis so that it will be the same shape as the delay_array."
-        )
-    with uvtest.check_warnings(warn_type, match=warn_msg):
-        calobj.use_future_array_shapes()
-        calobj.check()
-
-    assert calobj == calobj2
-
-
-@pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_future_array_shape_errors(
-    caltype,
-    gain_data,
-    delay_data_inputflag,
-    multi_spw_gain,
-    multi_spw_delay,
-    wideband_gain,
-):
+def test_array_shape_errors(caltype, gain_data, delay_data_inputflag, wideband_gain):
     if caltype == "gain":
         calobj = gain_data
         calobj2 = calobj.copy()
-
-        calobj_multi_spw = multi_spw_gain
-
         calobj_wideband = wideband_gain
         calobj_wideband.select(spws=1)
-        with pytest.raises(
-            ValueError,
-            match="Cannot use current array shapes if cal_style is not 'delay' and "
-            "wide_band is True.",
-        ):
-            with uvtest.check_warnings(
-                DeprecationWarning,
-                "This method will be removed in version 3.0 when the current array "
-                "shapes are no longer supported.",
-            ):
-                calobj_wideband.use_current_array_shapes()
-
     else:
         calobj = delay_data_inputflag
-
-        calobj_multi_spw = multi_spw_delay
-
-        with pytest.raises(
-            ValueError, match="Cannot use current array shapes if Nspws > 1."
-        ):
-            with uvtest.check_warnings(
-                DeprecationWarning,
-                match="This method will be removed in version 3.0 when the current "
-                "array shapes are no longer supported.",
-            ):
-                calobj_multi_spw.use_current_array_shapes()
 
     calobj.integration_time[-1] = calobj.integration_time[0] * 2.0
     if caltype == "delay":
@@ -414,15 +327,6 @@ def test_future_array_shape_errors(
         calobj.check()
 
     with pytest.raises(
-        ValueError, match="integration_time parameter contains multiple unique values"
-    ):
-        with uvtest.check_warnings(
-            UserWarning,
-            match="When converting a delay-style cal to future array shapes",
-        ):
-            calobj.use_current_array_shapes()
-
-    with pytest.raises(
         ValueError, match="The integration times are variable. The calfits format"
     ):
         with uvtest.check_warnings(
@@ -434,16 +338,6 @@ def test_future_array_shape_errors(
     if caltype == "gain":
         calobj2.channel_width[-1] = calobj2.channel_width[0] * 2.0
         calobj2.check()
-
-        with pytest.raises(
-            ValueError, match="channel_width parameter contains multiple unique values"
-        ):
-            with uvtest.check_warnings(
-                UserWarning,
-                match="When converting a delay-style cal to future array shapes",
-            ):
-                calobj2.use_current_array_shapes()
-
         with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
             calobj2._check_freq_spacing()
 
@@ -510,12 +404,12 @@ def test_unknown_telescopes(gain_data, tmp_path):
             UserWarning,
             match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
         ):
-            UVCal.from_file(write_file2, use_future_array_shapes=True)
+            UVCal.from_file(write_file2)
     with uvtest.check_warnings(
         UserWarning,
         match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
     ):
-        UVCal.from_file(write_file2, use_future_array_shapes=True, run_check=False)
+        UVCal.from_file(write_file2, run_check=False)
 
 
 def test_nants_data_telescope_larger(gain_data):
@@ -668,46 +562,24 @@ def test_flexible_spw(gain_data):
         calobj._check_flex_spw_contiguous()
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
+@pytest.mark.filterwarnings("ignore:telescope_location, antenna_positions")
 @pytest.mark.parametrize("convention", ["minus", "plus"])
 @pytest.mark.parametrize("same_freqs", [True, False])
-def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_inputflag):
+def test_convert_to_gain(convention, same_freqs, delay_data_inputflag):
     delay_obj = delay_data_inputflag
-    delay_obj.Nfreqs = 30
-    delay_obj.freq_array = np.arange(delay_obj.Nfreqs) * 1e6 + 1e8
-    delay_obj.channel_width = np.full(delay_obj.Nfreqs, 1e6)
-    with uvtest.check_warnings(
-        DeprecationWarning,
-        match=[
-            "Nfreqs will be required to be 1 for wide_band cals (including all "
-            "delay cals) starting in version 3.0",
-            "The freq_array attribute should not be set if wide_band=True. This will "
-            "become an error in version 3.0.",
-            "The channel_width attribute should not be set if wide_band=True. This "
-            "will become an error in version 3.0.",
-        ],
-    ):
-        delay_obj.check()
-    freq_array = copy.deepcopy(delay_obj.freq_array)
-    channel_width = delay_obj.channel_width
+
+    freq_array = np.arange(30) * 1e6 + 1e8
+    channel_width = np.full(30, 1e6)
     if not same_freqs:
         # try with different number and same number but different values
         if convention == "minus":
-            freq_array = freq_array[0 : (delay_obj.Nfreqs // 2)]
-            channel_width = channel_width[0 : (delay_obj.Nfreqs // 2)]
+            freq_array = freq_array[:15]
+            channel_width = channel_width[:15]
         else:
             freq_array[2] = freq_array[2] + 1e6
 
     # test passing a 1 element array for channel width
-    if not future_shapes:
-        delay_obj.use_current_array_shapes()
-        if convention == "minus":
-            channel_width = np.asarray([delay_obj.channel_width])
-        else:
-            channel_width = delay_obj.channel_width
-    else:
-        assert channel_width.size == freq_array.size
+    assert channel_width.size == freq_array.size
 
     new_gain_obj = delay_obj.copy()
     tqa_size = new_gain_obj.delay_array.shape[1:]
@@ -715,32 +587,9 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
 
     new_gain_obj2 = new_gain_obj.copy()
 
-    if not future_shapes and not same_freqs:
-        with uvtest.check_warnings(
-            UserWarning,
-            match=(
-                "Existing flag array has a frequency axis of length > 1 but "
-                "frequencies do not match freq_array. The existing flag array "
-                "will be collapsed using "
-                "the `pyuvdata.utils.and_collapse` function which will only "
-                "flag an antpol-time if all of the frequecies are flagged for "
-                "that antpol-time. Then it will be broadcast to all the new "
-                "frequencies. To preserve the original flag information, "
-                "create a UVFlag object from this cal object before this "
-                "operation."
-            ),
-        ):
-            new_gain_obj.convert_to_gain(
-                freq_array=freq_array,
-                channel_width=channel_width,
-                delay_convention=convention,
-            )
-    else:
-        new_gain_obj.convert_to_gain(
-            freq_array=freq_array,
-            channel_width=channel_width,
-            delay_convention=convention,
-        )
+    new_gain_obj.convert_to_gain(
+        freq_array=freq_array, channel_width=channel_width, delay_convention=convention
+    )
     assert np.isclose(
         np.max(np.absolute(new_gain_obj.gain_array)),
         1.0,
@@ -758,46 +607,31 @@ def test_convert_to_gain(future_shapes, convention, same_freqs, delay_data_input
         conv = -1
     else:
         conv = 1
-    if future_shapes:
-        assert np.allclose(
-            np.angle(new_gain_obj.gain_array[:, 10, :, :]) % (2 * np.pi),
-            (conv * 2 * np.pi * delay_obj.delay_array[:, 0, :, :] * freq_array[10])
-            % (2 * np.pi),
-            rtol=new_gain_obj._gain_array.tols[0],
-            atol=new_gain_obj._gain_array.tols[1],
-        )
-        assert np.allclose(
-            delay_obj.quality_array,
-            new_gain_obj.quality_array[:, 10, :, :],
-            rtol=new_gain_obj._quality_array.tols[0],
-            atol=new_gain_obj._quality_array.tols[1],
-        )
-
-    else:
-        assert np.allclose(
-            np.angle(new_gain_obj.gain_array[:, :, 10, :, :]) % (2 * np.pi),
-            (conv * 2 * np.pi * delay_obj.delay_array[:, :, 0, :, :] * freq_array[10])
-            % (2 * np.pi),
-            rtol=new_gain_obj._gain_array.tols[0],
-            atol=new_gain_obj._gain_array.tols[1],
-        )
-        assert np.allclose(
-            delay_obj.quality_array,
-            new_gain_obj.quality_array[:, :, 10, :, :],
-            rtol=new_gain_obj._quality_array.tols[0],
-            atol=new_gain_obj._quality_array.tols[1],
-        )
+    assert np.allclose(
+        np.angle(new_gain_obj.gain_array[:, 10, :, :]) % (2 * np.pi),
+        (conv * 2 * np.pi * delay_obj.delay_array[:, 0, :, :] * freq_array[10])
+        % (2 * np.pi),
+        rtol=new_gain_obj._gain_array.tols[0],
+        atol=new_gain_obj._gain_array.tols[1],
+    )
+    assert np.allclose(
+        delay_obj.quality_array,
+        new_gain_obj.quality_array[:, 10, :, :],
+        rtol=new_gain_obj._quality_array.tols[0],
+        atol=new_gain_obj._quality_array.tols[1],
+    )
 
     assert new_gain_obj.history == (
         delay_obj.history + "  Converted from delays to gains using pyuvdata."
     )
 
     if same_freqs:
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match=("In version 3.0 and later freq_array and channel_width will be"),
-        ):
-            new_gain_obj2.convert_to_gain(delay_convention=convention)
+        with uvtest.check_warnings(None):
+            new_gain_obj2.convert_to_gain(
+                delay_convention=convention,
+                freq_array=new_gain_obj.freq_array,
+                channel_width=new_gain_obj.channel_width,
+            )
 
         assert new_gain_obj == new_gain_obj2
 
@@ -807,40 +641,9 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
     delay_obj = delay_data_inputflag
     gain_obj = gain_data
 
-    delay_obj.Nfreqs = 30
+    delay_obj.Nfreqs = 1
     delay_obj.freq_array = np.arange(delay_obj.Nfreqs) * 1e6 + 1e8
     delay_obj.channel_width = np.full(delay_obj.Nfreqs, 1e6)
-    delay_obj_current = delay_obj.copy()
-    delay_obj_current.use_current_array_shapes()
-
-    with pytest.raises(
-        ValueError, match="freq_array contains values outside the freq_range."
-    ):
-        delay_obj_current.convert_to_gain(
-            freq_array=np.asarray([50e6, 60e6]),
-            channel_width=delay_obj_current.channel_width,
-        )
-
-    with pytest.raises(
-        ValueError, match="freq_array parameter must be a one dimensional array"
-    ):
-        delay_obj_current.convert_to_gain(
-            freq_array=delay_obj_current.freq_array,
-            channel_width=delay_obj_current.channel_width,
-        )
-
-    with pytest.raises(
-        ValueError,
-        match="This object is using the current array shapes, so the "
-        "channel_width parameter must be a scalar value",
-    ):
-        delay_obj_current.convert_to_gain(
-            freq_array=delay_obj_current.freq_array[0, :],
-            channel_width=(
-                np.zeros(delay_obj_current.Nfreqs, dtype=float)
-                + delay_obj_current.channel_width
-            ),
-        )
 
     with pytest.raises(
         ValueError,
@@ -848,48 +651,26 @@ def test_convert_to_gain_errors(gain_data, delay_data_inputflag, multi_spw_delay
     ):
         multi_spw_delay.convert_to_gain()
 
-    with pytest.raises(
-        ValueError, match="delay_convention can only be 'minus' or 'plus'"
-    ):
-        delay_obj_current.convert_to_gain(delay_convention="bogus")
-
     with pytest.raises(ValueError, match="The data is already a gain cal_type."):
         gain_obj.convert_to_gain()
 
-    delay_obj_current.freq_array = None
-    delay_obj_current.channel_width = None
-    with pytest.raises(
-        ValueError, match="freq_array and channel_width must be provided"
-    ):
-        delay_obj_current.convert_to_gain()
-
     with pytest.raises(
         ValueError,
-        match="This object is using the future array shapes, so the "
-        "channel_width parameter be an array shaped like the freq_array",
+        match="The channel_width parameter be an array shaped like the freq_array",
     ):
         delay_obj.convert_to_gain(
             freq_array=delay_obj.freq_array, channel_width=delay_obj.channel_width[0]
         )
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_antennas(
-    caltype, future_shapes, gain_data, delay_data_inputflag, tmp_path
-):
+def test_select_antennas(caltype, gain_data, delay_data_inputflag, tmp_path):
     if caltype == "gain":
         calobj = gain_data
         # test list handling
         calobj.ant_array = calobj.ant_array.tolist()
     else:
         calobj = delay_data_inputflag
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -942,9 +723,7 @@ def test_select_antennas(
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check that reading it back in works too
-    new_calobj = UVCal.from_file(
-        write_file_calfits, use_future_array_shapes=future_shapes
-    )
+    new_calobj = UVCal.from_file(write_file_calfits)
     if caltype == "gain":
         # make list type match
         new_calobj.ant_array = new_calobj.ant_array.tolist()
@@ -967,12 +746,9 @@ def test_select_antennas(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_select_times(
-    future_shapes, caltype, time_range, gain_data, delay_data_inputflag, tmp_path
-):
+def test_select_times(caltype, time_range, gain_data, delay_data_inputflag, tmp_path):
     if caltype == "gain":
         calobj = gain_data
     else:
@@ -984,9 +760,6 @@ def test_select_times(
 
     if time_range:
         calobj = time_array_to_time_range(calobj)
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -1079,15 +852,11 @@ def test_select_times(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
 @pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_frequencies(
-    future_shapes, caltype, gain_data, delay_data_inputflag, tmp_path
-):
+def test_select_frequencies(caltype, gain_data, delay_data_inputflag, tmp_path):
     if caltype == "gain":
         calobj = gain_data
     else:
@@ -1096,17 +865,11 @@ def test_select_frequencies(
         calobj.channel_width = gain_data.channel_width
         calobj.Nfreqs = gain_data.Nfreqs
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
-
     calobj2 = calobj.copy()
 
     old_history = calobj.history
 
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
-    else:
-        freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
+    freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
 
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
@@ -1132,31 +895,24 @@ def test_select_frequencies(
     write_file_calfits = str(tmp_path / "select_test.calfits")
     # test writing calfits with only one frequency
     calobj2 = calobj.copy()
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[5]
-    else:
-        freqs_to_keep = calobj.freq_array[0, 5]
+    freqs_to_keep = calobj.freq_array[5]
     calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # test writing calfits with frequencies spaced by more than the channel width
     calobj2 = calobj.copy()
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
-    else:
-        freqs_to_keep = calobj.freq_array[0, [0, 2, 4, 6, 8]]
+    freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
     warn_type = [UserWarning]
     msg = ["Selected frequencies are not contiguous."]
     extra_warn_type = []
     extra_msg = []
     if caltype == "delay":
-        if future_shapes:
-            extra_warn_type += [DeprecationWarning] * 3
-            extra_msg += [
-                "Nfreqs will be required to be 1 for wide_band cals",
-                "The freq_array attribute should not be set if wide_band=True",
-                "The channel_width attribute should not be set if wide_band=True",
-            ]
+        extra_warn_type += [DeprecationWarning] * 3
+        extra_msg += [
+            "Nfreqs will be required to be 1 for wide_band cals",
+            "The freq_array attribute should not be set if wide_band=True",
+            "The channel_width attribute should not be set if wide_band=True",
+        ]
     with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
         calobj2.select(frequencies=freqs_to_keep)
     calobj2.write_calfits(write_file_calfits, clobber=True)
@@ -1170,10 +926,7 @@ def test_select_frequencies(
 
     # check for warnings and errors associated with unevenly spaced frequencies
     calobj2 = calobj.copy()
-    if future_shapes:
-        freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
-    else:
-        freqs_to_keep = calobj2.freq_array[0, [0, 5, 6]]
+    freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
     warn_type = [UserWarning]
     msg = ["Selected frequencies are not evenly spaced."]
     with uvtest.check_warnings(warn_type + extra_warn_type, match=msg + extra_msg):
@@ -1186,23 +939,13 @@ def test_select_frequencies(
         calobj2.write_calfits(write_file_calfits)
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:" + _future_array_shapes_warning)
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
+def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     calobj = multi_spw_gain
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
     old_history = calobj.history
-
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
-    else:
-        freqs_to_keep = calobj.freq_array[0, np.arange(4, 8)]
+    freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
 
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
@@ -1212,27 +955,19 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
         calobj2._total_quality_array.expected_shape(calobj2)
     )
 
-    # add freq_range
-    if future_shapes:
-        calobj2.freq_range = np.zeros(
-            (calobj2.Nspws, 2), dtype=calobj2.freq_array.dtype
-        )
-        for index, spw in enumerate(calobj2.spw_array):
-            spw_inds = np.nonzero(calobj2.flex_spw_id_array == spw)[0]
-            calobj2.freq_range[index, 0] = np.min(
-                np.squeeze(calobj2.freq_array)[spw_inds]
-            )
-            calobj2.freq_range[index, 1] = np.max(
-                np.squeeze(calobj2.freq_array)[spw_inds]
-            )
-        with uvtest.check_warnings(
-            DeprecationWarning,
-            match=(
-                "The freq_range attribute should not be set if cal_type='gain' and "
-                "wide_band=False. This will become an error in version 3.0."
-            ),
-        ):
-            calobj2.check()
+    calobj2.freq_range = np.zeros((calobj2.Nspws, 2), dtype=calobj2.freq_array.dtype)
+    for index, spw in enumerate(calobj2.spw_array):
+        spw_inds = np.nonzero(calobj2.flex_spw_id_array == spw)[0]
+        calobj2.freq_range[index, 0] = np.min(np.squeeze(calobj2.freq_array)[spw_inds])
+        calobj2.freq_range[index, 1] = np.max(np.squeeze(calobj2.freq_array)[spw_inds])
+    with uvtest.check_warnings(
+        DeprecationWarning,
+        match=(
+            "The freq_range attribute should not be set if cal_type='gain' and "
+            "wide_band=False. This will become an error in version 3.0."
+        ),
+    ):
+        calobj2.check()
 
     calobj2.select(frequencies=freqs_to_keep)
 
@@ -1257,12 +992,7 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 
     # test that we can write to calfits if select to only one spw
     calobj2 = calobj.copy()
-
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[np.arange(5)]
-    else:
-        freqs_to_keep = calobj.freq_array[0, np.arange(5)]
-
+    freqs_to_keep = calobj.freq_array[np.arange(5)]
     calobj2.select(frequencies=freqs_to_keep)
     calobj2.check()
 
@@ -1282,15 +1012,12 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 
     assert calobj3 == calobj2
 
-    calobj3 = UVCal.from_file(write_file_calfits, use_future_array_shapes=future_shapes)
+    calobj3 = UVCal.from_file(write_file_calfits)
 
     calobj2.flex_spw = False
     calobj2._flex_spw_id_array.required = False
     calobj2.flex_spw_id_array = np.zeros(calobj2.Nfreqs, dtype=int)
     calobj2.spw_array = np.array([0])
-    if not future_shapes:
-        calobj2._channel_width.form = ()
-        calobj2.channel_width = calobj2.channel_width[0]
     calobj2.check()
 
     assert calobj3 == calobj2
@@ -1298,12 +1025,9 @@ def test_select_frequencies_multispw(future_shapes, multi_spw_gain, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The freq_array attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band cals")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputflag):
+def test_select_freq_chans(caltype, gain_data, delay_data_inputflag):
     if caltype == "gain":
         calobj = gain_data.copy()
     else:
@@ -1325,9 +1049,6 @@ def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputfl
         calobj.channel_width = gain_data.channel_width
         calobj.Nfreqs = gain_data.Nfreqs
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
-
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
@@ -1338,10 +1059,7 @@ def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputfl
     calobj2.select(freq_chans=chans_to_keep)
 
     assert len(chans_to_keep) == calobj2.Nfreqs
-    if future_shapes:
-        obj_freqs = calobj.freq_array
-    else:
-        obj_freqs = calobj.freq_array[0, :]
+    obj_freqs = calobj.freq_array
     for chan in chans_to_keep:
         assert obj_freqs[chan] in calobj2.freq_array
     for f in np.unique(calobj2.freq_array):
@@ -1353,10 +1071,7 @@ def test_select_freq_chans(caltype, future_shapes, gain_data, delay_data_inputfl
     )
 
     # Test selecting both channels and frequencies
-    if future_shapes:
-        obj_freqs = calobj.freq_array
-    else:
-        obj_freqs = calobj.freq_array[0, :]
+    obj_freqs = calobj.freq_array
     freqs_to_keep = obj_freqs[np.arange(7, 10)]  # Overlaps with chans
     all_chans_to_keep = np.arange(4, 10)
 
@@ -1411,21 +1126,17 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize(
     "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
 def test_select_polarizations(
-    future_shapes, caltype, jones_to_keep, gain_data, delay_data_inputflag, tmp_path
+    caltype, jones_to_keep, gain_data, delay_data_inputflag, tmp_path
 ):
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -1515,9 +1226,8 @@ def test_select_phase_centers(uvcal_phase_center):
 @pytest.mark.filterwarnings("ignore:The channel_width attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Nfreqs will be required to be 1 for wide_band")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select(future_shapes, caltype, gain_data, delay_data_inputflag):
+def test_select(caltype, gain_data, delay_data_inputflag):
     # now test selecting along all axes at once
     if caltype == "gain":
         calobj = gain_data
@@ -1527,18 +1237,12 @@ def test_select(future_shapes, caltype, gain_data, delay_data_inputflag):
         calobj.channel_width = gain_data.channel_width
         calobj.Nfreqs = gain_data.Nfreqs
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
-
     calobj2 = calobj.copy()
 
     old_history = calobj.history
 
     ants_to_keep = np.array([10, 89, 43, 9, 80, 96, 64])
-    if future_shapes:
-        freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
-    else:
-        freqs_to_keep = calobj.freq_array[0, np.arange(2, 5)]
+    freqs_to_keep = calobj.freq_array[np.arange(2, 5)]
     times_to_keep = calobj.time_array[[1, 2]]
     jones_to_keep = [-5]
 
@@ -1639,18 +1343,15 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inputflag):
+def test_add_antennas(caltype, gain_data, method, delay_data_inputflag):
     """Test adding antennas between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
@@ -1723,19 +1424,13 @@ def test_add_antennas(future_shapes, caltype, gain_data, method, delay_data_inpu
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_ants(
-    future_shapes, caltype, metadata_only, gain_data, delay_data_inputflag
-):
+def test_reorder_ants(caltype, metadata_only, gain_data, delay_data_inputflag):
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy(metadata_only=metadata_only)
     if metadata_only:
@@ -1794,12 +1489,9 @@ def test_reorder_ants_errors(gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_freqs(
-    future_shapes, caltype, metadata_only, gain_data, delay_data_inputflag
-):
+def test_reorder_freqs(caltype, metadata_only, gain_data, delay_data_inputflag):
     if caltype == "gain":
         calobj = gain_data
         # add total_quality_array
@@ -1810,18 +1502,11 @@ def test_reorder_freqs(
     else:
         calobj = delay_data_inputflag
 
-    if not future_shapes:
-        if caltype == "delay":
-            calobj.freq_array = gain_data.freq_array
-            calobj.channel_width = gain_data.channel_width
-            calobj.Nfreqs = gain_data.Nfreqs
-        calobj.use_current_array_shapes()
-
     calobj2 = calobj.copy(metadata_only=metadata_only)
     if metadata_only:
         calobj = calobj2.copy()
 
-    if future_shapes and caltype == "delay":
+    if caltype == "delay":
         with uvtest.check_warnings(
             UserWarning,
             match="Cannot reorder the frequency/spw axis with only one frequency and "
@@ -1836,10 +1521,7 @@ def test_reorder_freqs(
 
         if caltype == "gain" and not metadata_only:
             # check total quality array
-            if future_shapes:
-                total_quality_diff = np.diff(calobj2.total_quality_array, axis=0)
-            else:
-                total_quality_diff = np.diff(calobj2.total_quality_array, axis=1)
+            total_quality_diff = np.diff(calobj2.total_quality_array, axis=0)
             assert np.all(total_quality_diff < 0)
 
         calobj.reorder_freqs(channel_order=np.flip(np.arange(calobj.Nfreqs)))
@@ -1852,9 +1534,6 @@ def test_reorder_freqs_multi_spw(caltype, multi_spw_gain, multi_spw_delay):
         calobj = multi_spw_gain
     else:
         calobj = multi_spw_delay
-
-    if not calobj.future_array_shapes:
-        calobj.use_future_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -1937,12 +1616,11 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
 @pytest.mark.parametrize("time_range", [True, False])
 def test_reorder_times(
-    future_shapes, caltype, metadata_only, time_range, gain_data, delay_data_inputflag
+    caltype, metadata_only, time_range, gain_data, delay_data_inputflag
 ):
     if caltype == "gain":
         calobj = gain_data
@@ -1957,9 +1635,6 @@ def test_reorder_times(
 
     if time_range:
         calobj = time_array_to_time_range(calobj)
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy(metadata_only=metadata_only)
     if metadata_only:
@@ -1978,10 +1653,7 @@ def test_reorder_times(
 
     if caltype == "gain" and not metadata_only:
         # check total quality array
-        if future_shapes:
-            total_quality_diff = np.diff(calobj2.total_quality_array, axis=1)
-        else:
-            total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
+        total_quality_diff = np.diff(calobj2.total_quality_array, axis=1)
         assert np.all(total_quality_diff < 0)
 
     calobj.reorder_times(np.flip(np.arange(calobj.Ntimes)))
@@ -2020,19 +1692,13 @@ def test_reorder_times_errors(gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_reorder_jones(
-    future_shapes, caltype, metadata_only, gain_data, delay_data_inputflag
-):
+def test_reorder_jones(caltype, metadata_only, gain_data, delay_data_inputflag):
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     # all the input objects have a Njones=1, extend to get to 4
     calobj2 = calobj.copy(metadata_only=metadata_only)
@@ -2040,18 +1706,10 @@ def test_reorder_jones(
 
     if caltype == "gain" and not metadata_only:
         # add total_quality_array
-        if future_shapes:
-            calobj2.total_quality_array = np.tile(
-                np.arange(calobj2.Njones, dtype=float)[np.newaxis, np.newaxis, :],
-                (calobj2.Nfreqs, calobj2.Ntimes, 1),
-            )
-        else:
-            calobj2.total_quality_array = np.tile(
-                np.arange(calobj2.Njones, dtype=float)[
-                    np.newaxis, np.newaxis, np.newaxis, :
-                ],
-                (1, calobj2.Nfreqs, calobj2.Ntimes, 1),
-            )
+        calobj2.total_quality_array = np.tile(
+            np.arange(calobj2.Njones, dtype=float)[np.newaxis, np.newaxis, :],
+            (calobj2.Nfreqs, calobj2.Ntimes, 1),
+        )
 
     calobj = calobj2.copy()
 
@@ -2067,10 +1725,7 @@ def test_reorder_jones(
     if caltype == "gain" and not metadata_only:
         assert calobj2.total_quality_array is not None
         # check total quality array
-        if future_shapes:
-            total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
-        else:
-            total_quality_diff = np.diff(calobj2.total_quality_array, axis=3)
+        total_quality_diff = np.diff(calobj2.total_quality_array, axis=2)
         assert np.all(total_quality_diff < 0)
 
     # the default order is "name"
@@ -2124,11 +1779,9 @@ def test_reorder_jones_errors(gain_data):
 @pytest.mark.filterwarnings("ignore:Cannot reorder the frequency/spw axis with only")
 @pytest.mark.parametrize("add_type", ["ant", "time", "freq", "jones"])
 @pytest.mark.parametrize("sort_type", ["ant", "time", "freq", "jones"])
-@pytest.mark.parametrize(
-    ["future_shapes", "wide_band"], [[True, False], [False, False], [True, True]]
-)
+@pytest.mark.parametrize("wide_band", [True, False])
 def test_add_different_sorting(
-    add_type, sort_type, future_shapes, wide_band, gain_data, wideband_gain
+    add_type, sort_type, wide_band, gain_data, wideband_gain
 ):
     if wide_band:
         calobj = wideband_gain.copy()
@@ -2144,9 +1797,6 @@ def test_add_different_sorting(
 
     # all the input objects have a Njones=1, extend to get to 4
     extend_jones_axis(calobj, total_quality=False)
-
-    if future_shapes:
-        calobj.use_future_array_shapes()
 
     if add_type == "ant":
         ants1 = np.array([9, 10, 20, 22, 31, 43, 53, 64, 80, 81])
@@ -2242,18 +1892,14 @@ def test_add_different_sorting(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
-def test_add_antennas_multispw(future_shapes, multi_spw_gain, quality, method):
+def test_add_antennas_multispw(multi_spw_gain, quality, method):
     """Test adding antennas between two UVCal objects"""
     calobj = multi_spw_gain
 
     if not quality:
         calobj.quality_array = None
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -2280,24 +1926,16 @@ def test_add_antennas_multispw(future_shapes, multi_spw_gain, quality, method):
 
 
 @pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_frequencies(future_shapes, gain_data, method):
+def test_add_frequencies(gain_data, method):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
     calobj = gain_data
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
     calobj2 = calobj.copy()
     calobj_full = calobj.copy()
-    if future_shapes:
-        freqs1 = calobj.freq_array[np.arange(0, calobj.Nfreqs // 2)]
-        freqs2 = calobj.freq_array[np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
-    else:
-        freqs1 = calobj.freq_array[0, np.arange(0, calobj.Nfreqs // 2)]
-        freqs2 = calobj.freq_array[0, np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
+    freqs1 = calobj.freq_array[np.arange(0, calobj.Nfreqs // 2)]
+    freqs2 = calobj.freq_array[np.arange(calobj.Nfreqs // 2, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
@@ -2321,21 +1959,12 @@ def test_add_frequencies(future_shapes, gain_data, method):
     # also check for missing flex_spw_id_array and freq_range in one object
     calobj.select(frequencies=freqs1)
     calobj.flex_spw_id_array = None
-    if future_shapes:
-        calobj.freq_range = np.array(
-            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-        )[np.newaxis, :]
-    else:
-        calobj.freq_range = None
-        calobj2.freq_range = np.array(
-            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-        )
+    calobj.freq_range = np.array(
+        [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+    )[np.newaxis, :]
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=0)
     calobj.total_quality_array = tqa
     msg = [
         "flex_spw_id_array is not set. It will be required starting in version 3.0 "
@@ -2379,19 +2008,15 @@ def test_add_frequencies(future_shapes, gain_data, method):
     calobj.select(frequencies=freqs1)
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=0)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
     calobj.freq_range = np.array([np.min(calobj.freq_array), np.max(calobj.freq_array)])
     calobj2.freq_range = np.array(
         [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
     )
-    if future_shapes:
-        calobj.freq_range = calobj.freq_range[np.newaxis, :]
-        calobj2.freq_range = calobj2.freq_range[np.newaxis, :]
+    calobj.freq_range = calobj.freq_range[np.newaxis, :]
+    calobj2.freq_range = calobj2.freq_range[np.newaxis, :]
 
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
@@ -2406,10 +2031,7 @@ def test_add_frequencies(future_shapes, gain_data, method):
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=0)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=0)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
@@ -2428,12 +2050,7 @@ def test_add_frequencies(future_shapes, gain_data, method):
 
     qa = np.ones(calobj._quality_array.expected_shape(calobj))
     qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2))
-    if future_shapes:
-        ax_num = 1
-    else:
-        ax_num = 2
-
-    tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+    tot_qa = np.concatenate([qa, qa2], axis=1)
 
     calobj.quality_array = qa
     calobj2.quality_array = None
@@ -2444,7 +2061,7 @@ def test_add_frequencies(future_shapes, gain_data, method):
     calobj.select(frequencies=freqs1)
     qa = np.zeros(calobj._quality_array.expected_shape(calobj))
     qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2))
-    tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+    tot_qa = np.concatenate([qa, qa2], axis=1)
 
     calobj.quality_array = None
     calobj2.quality_array = qa2
@@ -2475,14 +2092,13 @@ def test_add_frequencies(future_shapes, gain_data, method):
 @pytest.mark.filterwarnings("ignore:One object has the freq_range set and one does not")
 @pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
 @pytest.mark.filterwarnings("ignore:Some objects have the freq_range set")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize(
     ["split_f_ind", "freq_range1", "freq_range2"],
     [[5, True, True], [3, False, False], [5, True, False]],
 )
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
 def test_add_frequencies_multispw(
-    future_shapes, split_f_ind, method, freq_range1, freq_range2, multi_spw_gain
+    split_f_ind, method, freq_range1, freq_range2, multi_spw_gain
 ):
     """Test adding frequencies between two UVCal objects"""
     # don't test on delays because there's no freq axis for the delay array
@@ -2492,18 +2108,11 @@ def test_add_frequencies_multispw(
 
     calobj = multi_spw_gain
 
-    if not future_shapes:
-        calobj.use_current_array_shapes()
-
     calobj2 = calobj.copy()
 
     calobj_full = calobj.copy()
-    if future_shapes:
-        freqs1 = calobj.freq_array[np.arange(0, split_f_ind)]
-        freqs2 = calobj.freq_array[np.arange(split_f_ind, calobj.Nfreqs)]
-    else:
-        freqs1 = calobj.freq_array[0, np.arange(0, split_f_ind)]
-        freqs2 = calobj.freq_array[0, np.arange(split_f_ind, calobj.Nfreqs)]
+    freqs1 = calobj.freq_array[np.arange(0, split_f_ind)]
+    freqs2 = calobj.freq_array[np.arange(split_f_ind, calobj.Nfreqs)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
@@ -2515,14 +2124,9 @@ def test_add_frequencies_multispw(
             "The freq_range attribute should not be set if cal_type='gain' and "
             "wide_band=False. This will become an error in version 3.0."
         )
-        if future_shapes:
-            calobj.freq_range = np.array(
-                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-            )[np.newaxis, :]
-        else:
-            calobj.freq_range = np.array(
-                [np.min(calobj.freq_array), np.max(calobj.freq_array)]
-            )
+        calobj.freq_range = np.array(
+            [np.min(calobj.freq_array), np.max(calobj.freq_array)]
+        )[np.newaxis, :]
     else:
         calobj.freq_range = None
 
@@ -2532,14 +2136,9 @@ def test_add_frequencies_multispw(
             "The freq_range attribute should not be set if cal_type='gain' and "
             "wide_band=False. This will become an error in version 3.0."
         )
-        if future_shapes:
-            calobj2.freq_range = np.array(
-                [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-            )[np.newaxis, :]
-        else:
-            calobj2.freq_range = np.array(
-                [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
-            )
+        calobj2.freq_range = np.array(
+            [np.min(calobj2.freq_array), np.max(calobj2.freq_array)]
+        )[np.newaxis, :]
     else:
         calobj2.freq_range = None
 
@@ -2563,14 +2162,9 @@ def test_add_frequencies_multispw(
         )
 
     if freq_range1 and freq_range2:
-        if future_shapes:
-            calobj_full.freq_range = np.concatenate(
-                [calobj.freq_range, calobj2.freq_range], axis=0
-            )
-        else:
-            calobj_full.freq_range = np.array(
-                [np.min(calobj_full.freq_array), np.max(calobj_full.freq_array)]
-            )
+        calobj_full.freq_range = np.concatenate(
+            [calobj.freq_range, calobj2.freq_range], axis=0
+        )
     else:
         calobj_full.freq_range = None
 
@@ -2741,14 +2335,10 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
     assert calobj3 == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_times(
-    future_shapes, caltype, time_range, method, gain_data, delay_data_inputflag
-):
+def test_add_times(caltype, time_range, method, gain_data, delay_data_inputflag):
     """Test adding times between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
@@ -2762,9 +2352,6 @@ def test_add_times(
     if time_range:
         keep_time_array = caltype == "gain"
         calobj = time_array_to_time_range(calobj, keep_time_array=keep_time_array)
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -2834,10 +2421,7 @@ def test_add_times(
         calobj.select(time_range=[np.min(times1), np.max(times1)])
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
     with uvtest.check_warnings(add_warn, match=add_msg):
         getattr(calobj, method)(calobj2, **kwargs)
@@ -2853,10 +2437,7 @@ def test_add_times(
         calobj.select(time_range=[np.min(times1), np.max(times1)])
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = None
     calobj2.total_quality_array = tqa2
     with uvtest.check_warnings(add_warn, match=add_msg):
@@ -2874,10 +2455,7 @@ def test_add_times(
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=1)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=1)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     with uvtest.check_warnings(add_warn, match=add_msg):
@@ -2895,11 +2473,7 @@ def test_add_times(
             calobj.select(time_range=[np.min(times1), np.max(times1)])
         qa = np.ones(calobj._quality_array.expected_shape(calobj), dtype=float)
         qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2), dtype=float)
-        if future_shapes:
-            ax_num = 2
-        else:
-            ax_num = 3
-        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=2)
 
         calobj.quality_array = qa
         calobj2.quality_array = None
@@ -2912,7 +2486,7 @@ def test_add_times(
             calobj.select(time_range=[np.min(times1), np.max(times1)])
         qa = np.zeros(calobj._quality_array.expected_shape(calobj), dtype=float)
         qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2), dtype=float)
-        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=2)
 
         calobj.quality_array = None
         calobj2.quality_array = qa2
@@ -2947,18 +2521,14 @@ def test_add_times(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
-def test_add_times_multispw(future_shapes, method, multi_spw_gain, quality):
+def test_add_times_multispw(method, multi_spw_gain, quality):
     """Test adding times between two UVCal objects"""
     calobj = multi_spw_gain
 
     if not quality:
         calobj.quality_array = None
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -2984,19 +2554,14 @@ def test_add_times_multispw(future_shapes, method, multi_spw_gain, quality):
     assert calobj == calobj_full
 
 
-@pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputflag):
+def test_add_jones(caltype, method, gain_data, delay_data_inputflag):
     """Test adding Jones axes between two UVCal objects"""
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data_inputflag
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -3020,10 +2585,7 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
     calobj = calobj_original.copy()
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.zeros(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
@@ -3037,10 +2599,7 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
     calobj = calobj_original.copy()
     tqa = np.zeros(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
     assert np.allclose(
@@ -3055,10 +2614,7 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
     tqa = np.ones(calobj._total_quality_array.expected_shape(calobj))
     tqa2 = np.ones(calobj2._total_quality_array.expected_shape(calobj2))
     tqa *= 2
-    if future_shapes:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=2)
-    else:
-        tot_tqa = np.concatenate([tqa, tqa2], axis=3)
+    tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
@@ -3075,11 +2631,7 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
         calobj = calobj_original.copy()
         qa = np.ones(calobj._quality_array.expected_shape(calobj), dtype=float)
         qa2 = np.zeros(calobj2._quality_array.expected_shape(calobj2), dtype=float)
-        if future_shapes:
-            ax_num = 3
-        else:
-            ax_num = 4
-        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=3)
         calobj.quality_array = qa
         calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
@@ -3090,7 +2642,7 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
         qa = np.zeros(calobj._quality_array.expected_shape(calobj), dtype=float)
         qa2 = np.ones(calobj2._quality_array.expected_shape(calobj2), dtype=float)
 
-        tot_qa = np.concatenate([qa, qa2], axis=ax_num)
+        tot_qa = np.concatenate([qa, qa2], axis=3)
 
         calobj.quality_array = None
         calobj2.quality_array = qa2
@@ -3113,18 +2665,14 @@ def test_add_jones(future_shapes, caltype, method, gain_data, delay_data_inputfl
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
 @pytest.mark.parametrize("quality", [True, False])
-def test_add_jones_multispw(future_shapes, method, quality, multi_spw_gain):
+def test_add_jones_multispw(method, quality, multi_spw_gain):
     """Test adding Jones axes between two UVCal objects"""
     calobj = multi_spw_gain
 
     if not quality:
         calobj.quality_array = None
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
@@ -3385,22 +2933,6 @@ def test_add_errors(
     with pytest.raises(ValueError, match="Parameter telescope does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
 
-    # test array shape mismatch
-    calobj2 = calobj.copy()
-    calobj2.use_current_array_shapes()
-    msg = (
-        " objects must have the same `future_array_shapes` parameter. Use the "
-        "`use_future_array_shapes` or `use_current_array_shapes` methods to convert "
-        "them."
-    )
-    if method == "fast_concat":
-        msg = "All" + msg
-    else:
-        msg = "Both" + msg
-
-    with pytest.raises(ValueError, match=msg):
-        getattr(calobj, method)(calobj2, **kwargs)
-
     # test flex_spw mismatch
     with pytest.raises(
         ValueError,
@@ -3553,27 +3085,18 @@ def test_jones_warning(gain_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
 @pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_frequency_warnings(future_shapes, gain_data, method):
+def test_frequency_warnings(gain_data, method):
     """Test having uneven or non-contiguous frequencies"""
     # test having unevenly spaced frequency separations
     calobj = gain_data
-
-    if not future_shapes:
-        calobj.use_current_array_shapes()
 
     calobj2 = calobj.copy()
 
     go1 = calobj.copy()
     go2 = calobj2.copy()
-    if future_shapes:
-        freqs1 = calobj.freq_array[np.arange(0, 5)]
-        freqs2 = calobj2.freq_array[np.arange(5, 10)]
-    else:
-        freqs1 = calobj.freq_array[0, np.arange(0, 5)]
-        freqs2 = calobj2.freq_array[0, np.arange(5, 10)]
-
+    freqs1 = calobj.freq_array[np.arange(0, 5)]
+    freqs2 = calobj2.freq_array[np.arange(5, 10)]
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
@@ -3583,12 +3106,8 @@ def test_frequency_warnings(future_shapes, gain_data, method):
         kwargs = {}
 
     # change the last frequency bin to be smaller than the others
-    if future_shapes:
-        df = calobj2.freq_array[-1] - calobj2.freq_array[-2]
-        calobj2.freq_array[-1] = calobj2.freq_array[-2] + df / 2
-    else:
-        df = calobj2.freq_array[0, -1] - calobj2.freq_array[0, -2]
-        calobj2.freq_array[0, -1] = calobj2.freq_array[0, -2] + df / 2
+    df = calobj2.freq_array[-1] - calobj2.freq_array[-2]
+    calobj2.freq_array[-1] = calobj2.freq_array[-2] + df / 2
     with uvtest.check_warnings(
         UserWarning, match="Combined frequencies are not evenly spaced"
     ):
@@ -3616,10 +3135,7 @@ def test_frequency_warnings(future_shapes, gain_data, method):
     freqs1 *= 10
     freqs2 *= 10
     freqs = np.concatenate([freqs1, freqs2])
-    if future_shapes:
-        freq_arr = calobj.freq_array
-    else:
-        freq_arr = calobj.freq_array[0, :]
+    freq_arr = calobj.freq_array
     assert np.allclose(
         freq_arr,
         freqs,
@@ -3653,7 +3169,6 @@ def test_parameter_warnings(gain_data):
     )
 
 
-@pytest.mark.filterwarnings("ignore:When converting a delay-style cal to future array")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
 @pytest.mark.parametrize("file_type", ["calfits", "calh5"])
@@ -3684,29 +3199,24 @@ def test_multi_files(
     getattr(calobj2, write_method)(f2, clobber=True)
     # Read both files together
     if method == "fast_concat":
-        calobj = UVCal.from_file([f1, f2], axis="time", use_future_array_shapes=True)
+        calobj = UVCal.from_file([f1, f2], axis="time")
     else:
         if file_type == "calfits":
             with pytest.raises(
                 ValueError,
                 match="Use the generic `UVCal.read` method to read multiple files.",
             ):
-                calobj.read_calfits([f1, f2], use_future_array_shapes=True)
-            warn_type = None
-            msg = ""
-            if caltype == "delay":
-                warn_type = UserWarning
-                msg = 2 * ["When converting a delay-style cal to future array"]
-            with uvtest.check_warnings(warn_type, match=msg):
-                calobj.read([f1, f2], use_future_array_shapes=True)
+                calobj.read_calfits([f1, f2])
+            with uvtest.check_warnings(None):
+                calobj.read([f1, f2])
         else:
             with pytest.raises(
                 ValueError,
                 match="Use the generic `UVCal.read` method to read multiple files.",
             ):
-                calobj.read_calh5([f1, f2], use_future_array_shapes=True)
+                calobj.read_calh5([f1, f2])
 
-            calobj.read([f1, f2], use_future_array_shapes=True)
+            calobj.read([f1, f2])
 
     assert uvutils._check_histories(
         calobj_full.history + "  Downselected to specific times"
@@ -3719,7 +3229,7 @@ def test_multi_files(
     assert calobj == calobj_full
 
     # check metadata only read
-    calobj = UVCal.from_file([f1, f2], read_data=False, use_future_array_shapes=True)
+    calobj = UVCal.from_file([f1, f2], read_data=False)
     calobj_full_metadata_only = calobj_full.copy(metadata_only=True)
 
     calobj.history = calobj_full_metadata_only.history
@@ -3727,13 +3237,9 @@ def test_multi_files(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("future_shapes", [True, False])
-def test_uvcal_get_methods(future_shapes, gain_data):
+def test_uvcal_get_methods(gain_data):
     # load data
     uvc = gain_data
-
-    if not future_shapes:
-        uvc.use_current_array_shapes()
 
     # test get methods: add in a known value and make sure it is returned
     key = (10, "Jee")
@@ -3749,18 +3255,9 @@ def test_uvcal_get_methods(future_shapes, gain_data):
     assert quality_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
 
     # test against by-hand indexing
-    if future_shapes:
-        expected_array = uvc.gain_array[
-            uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5)
-        ]
-    else:
-        expected_array = uvc.gain_array[
-            uvc.ant_array.tolist().index(10),
-            0,
-            :,
-            :,
-            uvc.jones_array.tolist().index(-5),
-        ]
+    expected_array = uvc.gain_array[
+        uvc.ant_array.tolist().index(10), :, :, uvc.jones_array.tolist().index(-5)
+    ]
     np.testing.assert_array_almost_equal(gain_arr, expected_array)
 
     # test variable key input
@@ -3812,7 +3309,7 @@ def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     # read and compare
     # also check that passing a single file in a list works properly
     with uvtest.check_warnings(None):
-        cal_in2 = UVCal.from_file([outfile], use_future_array_shapes=True)
+        cal_in2 = UVCal.from_file([outfile])
     assert cal_in == cal_in2
 
 
@@ -3888,7 +3385,7 @@ def test_match_antpos_antname(gain_data, antnamefix, tmp_path):
         match="antenna_positions are not set or are being overwritten. "
         "antenna_positions are set using values from known telescopes for HERA.",
     ):
-        gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
+        gain_data2 = UVCal.from_file(write_file2)
 
     assert gain_data2.telescope.antenna_positions is not None
     assert gain_data == gain_data2
@@ -3946,7 +3443,7 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
                 "Required UVParameter _antenna_positions has not been set.",
             ],
         ):
-            gain_data2 = UVCal.from_file(write_file2, use_future_array_shapes=True)
+            gain_data2 = UVCal.from_file(write_file2)
 
     with uvtest.check_warnings(
         UserWarning,
@@ -3956,9 +3453,7 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
             "Required UVParameter _antenna_positions has not been set.",
         ],
     ):
-        gain_data2 = UVCal.from_file(
-            write_file2, use_future_array_shapes=True, run_check=False
-        )
+        gain_data2 = UVCal.from_file(write_file2, run_check=False)
 
     assert gain_data2.telescope.antenna_positions is None
 
@@ -3987,17 +3482,9 @@ def test_read_errors():
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
 @pytest.mark.parametrize("flex_spw", [True, False])
-def test_init_from_uvdata(
-    uvdata_future_shapes, uvcal_future_shapes, flex_spw, uvcalibrate_data
-):
+def test_init_from_uvdata(flex_spw, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
-        uvd.flex_spw_id_array = None
 
     if flex_spw:
         uvd._set_flex_spw()
@@ -4018,16 +3505,10 @@ def test_init_from_uvdata(
         # a flex_spw uvcal
         uvc._set_flex_spw()
 
-    if not uvcal_future_shapes:
-        uvc.use_current_array_shapes()
-
     uvc2 = uvc.copy(metadata_only=True)
 
     uvc_new = UVCal.initialize_from_uvdata(
-        uvd,
-        gain_convention=uvc.gain_convention,
-        cal_style=uvc.cal_style,
-        future_array_shapes=uvcal_future_shapes,
+        uvd, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
     )
 
     assert np.allclose(
@@ -4067,21 +3548,11 @@ def test_init_from_uvdata(
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
 @pytest.mark.filterwarnings("ignore:Selected frequencies are not contiguous.")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
 @pytest.mark.parametrize("flex_spw", [True, False])
-def test_init_from_uvdata_setfreqs(
-    uvdata_future_shapes, uvcal_future_shapes, flex_spw, uvcalibrate_data
-):
+def test_init_from_uvdata_setfreqs(flex_spw, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     channel_width = uvd.channel_width[0]
     freqs_use = uvd.freq_array[0:5]
-
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
-
-    if not uvcal_future_shapes:
-        uvc.use_current_array_shapes()
 
     uvc2 = uvc.copy(metadata_only=True)
 
@@ -4097,20 +3568,13 @@ def test_init_from_uvdata_setfreqs(
         # test passing a list instead of a single value
         channel_width = np.full(freqs_use.size, channel_width).tolist()
     else:
-        if uvdata_future_shapes:
-            flex_spw_id_array = np.zeros(5, dtype=int)
-        else:
-            flex_spw_id_array = None
-
+        flex_spw_id_array = np.zeros(5, dtype=int)
         uvc2._set_flex_spw()
-        if not uvcal_future_shapes:
-            uvc2.channel_width = np.full(uvc2.Nfreqs, uvc2.channel_width)
 
     uvc_new = UVCal.initialize_from_uvdata(
         uvd,
         gain_convention=uvc.gain_convention,
         cal_style=uvc.cal_style,
-        future_array_shapes=uvcal_future_shapes,
         freq_array=freqs_use,
         channel_width=channel_width,
         flex_spw_id_array=flex_spw_id_array,
@@ -4154,23 +3618,14 @@ def test_init_from_uvdata_setfreqs(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
 @pytest.mark.parametrize("metadata_only", [True, False])
-def test_init_from_uvdata_settimes(
-    uvdata_future_shapes, uvcal_future_shapes, metadata_only, uvcalibrate_data
-):
+def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
     uvc._set_flex_spw()
     integration_time = np.mean(uvd.integration_time)
     times_use = uvc.time_array[0:3]
 
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
-
-    if not uvcal_future_shapes:
-        uvc.use_current_array_shapes()
-    elif metadata_only:
+    if metadata_only:
         # test passing in a list of integration times
         integration_time = np.full(
             times_use.size, np.mean(uvd.integration_time)
@@ -4184,7 +3639,6 @@ def test_init_from_uvdata_settimes(
         uvd,
         gain_convention=uvc.gain_convention,
         cal_style=uvc.cal_style,
-        future_array_shapes=uvcal_future_shapes,
         metadata_only=metadata_only,
         time_array=times_use,
         integration_time=integration_time,
@@ -4392,20 +3846,10 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize("uvcal_future_shapes", [True, False])
-def test_init_from_uvdata_sky(
-    uvdata_future_shapes, uvcal_future_shapes, uvcalibrate_data, fhd_cal_raw
-):
+def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     uvd, uvc = uvcalibrate_data
     uvc_sky = fhd_cal_raw
     uvc._set_flex_spw()
-
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
-
-    if not uvcal_future_shapes:
-        uvc.use_current_array_shapes()
 
     # make cal object be a sky cal type
     uvc._set_sky()
@@ -4433,7 +3877,6 @@ def test_init_from_uvdata_sky(
         uvd,
         gain_convention=uvc.gain_convention,
         cal_style=uvc.cal_style,
-        future_array_shapes=uvcal_future_shapes,
         sky_catalog=uvc_sky.sky_catalog,
         ref_antenna_name=uvc_sky.ref_antenna_name,
         diffuse_model=uvc_sky.diffuse_model,
@@ -4484,18 +3927,10 @@ def test_init_from_uvdata_sky(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
-@pytest.mark.parametrize(
-    ["uvcal_future_shapes", "flex_spw"], [[True, False], [True, True], [False, False]]
-)
+@pytest.mark.parametrize("flex_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
-def test_init_from_uvdata_delay(
-    uvdata_future_shapes, uvcal_future_shapes, flex_spw, set_frange, uvcalibrate_data
-):
+def test_init_from_uvdata_delay(flex_spw, set_frange, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
 
     # make cal object be a delay cal type
     uvc2 = uvc.copy(metadata_only=True)
@@ -4524,10 +3959,7 @@ def test_init_from_uvdata_delay(
     else:
         uvc._set_flex_spw()
 
-    if not uvcal_future_shapes:
-        uvc.use_current_array_shapes()
-        uvc2.use_current_array_shapes()
-    elif flex_spw:
+    if flex_spw:
         uvc2.spw_array = np.array([1, 2])
         uvc2.Nspws = 2
         uvc2.freq_range = np.asarray(
@@ -4554,7 +3986,6 @@ def test_init_from_uvdata_delay(
         uvd,
         gain_convention=uvc.gain_convention,
         cal_style=uvc.cal_style,
-        future_array_shapes=uvcal_future_shapes,
         cal_type="delay",
         freq_range=freq_range,
         spw_array=spw_array,
@@ -4598,18 +4029,10 @@ def test_init_from_uvdata_delay(
 
 
 @pytest.mark.filterwarnings("ignore:This method will be removed in version 3.0 when")
-@pytest.mark.parametrize("uvdata_future_shapes", [True, False])
 @pytest.mark.parametrize("flex_spw", [True, False])
 @pytest.mark.parametrize("set_frange", [True, False])
-def test_init_from_uvdata_wideband(
-    uvdata_future_shapes, flex_spw, set_frange, uvcalibrate_data
-):
+def test_init_from_uvdata_wideband(flex_spw, set_frange, uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
-
-    # wide-band gain requires future array shapes
-
-    if not uvdata_future_shapes:
-        uvd.use_current_array_shapes()
 
     # make cal object be a wide-band cal
     uvc2 = uvc.copy(metadata_only=True)
@@ -4926,7 +4349,7 @@ def test_flex_jones_write(multi_spw_gain, func, suffix, tmp_path):
     getattr(multi_spw_gain, func)(filename)
 
     uvc = UVCal()
-    uvc.read(filename, use_future_array_shapes=True)
+    uvc.read(filename)
     uvc.history = multi_spw_gain.history
     if suffix == "ms":
         # Handle some extra bits here for MS-type
@@ -5037,14 +4460,6 @@ def test_flex_jones_roundtrip(multi_spw_gain, multi_spw_delay, mode, caltype):
     uvc.remove_flex_jones()
 
     assert uvc == uvc_copy
-
-
-@pytest.mark.parametrize("func", ["_make_flex_jones", "convert_to_flex_jones"])
-def test_flex_jones_future_arr_shapes_err(func):
-    uvc = UVCal()
-    uvc.future_array_shapes = False
-    with pytest.raises(ValueError, match="Must use future array shapes to make"):
-        getattr(uvc, func)()
 
 
 def test_make_flex_jones_flagged_window(multi_spw_gain):
@@ -5196,7 +4611,7 @@ def test_phase_center_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
     getattr(uvcal_phase_center, func)(filename)
 
     uvc = UVCal()
-    uvc.read(filename, use_future_array_shapes=True)
+    uvc.read(filename)
     uvc.history = uvcal_phase_center.history
     if suffix == "ms":
         # Handle some extra bits here for MS-type
@@ -5231,7 +4646,7 @@ def test_refant_array_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path
     getattr(uvcal_phase_center, func)(filename)
 
     uvc = UVCal()
-    uvc.read(filename, use_future_array_shapes=True)
+    uvc.read(filename)
     uvc.history = uvcal_phase_center.history
     if suffix == "ms":
         # Handle some extra bits here for MS-type
@@ -5263,7 +4678,7 @@ def test_antdiam_write_roundtrip(uvcal_phase_center, func, suffix, tmp_path):
     getattr(uvcal_phase_center, func)(filename)
 
     uvc = UVCal()
-    uvc.read(filename, use_future_array_shapes=True)
+    uvc.read(filename)
     uvc.history = uvcal_phase_center.history
     if suffix == "ms":
         # Handle some extra bits here for MS-type

@@ -309,9 +309,7 @@ def test_get_telescope_no_loc():
 def test_hera_loc():
     hera_file = os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected")
     hera_data = UVData()
-    hera_data.read(
-        hera_file, read_data=False, file_type="uvh5", use_future_array_shapes=True
-    )
+    hera_data.read(hera_file, read_data=False, file_type="uvh5")
 
     telescope_obj = Telescope.from_known_telescopes("HERA")
 

@@ -26,7 +26,7 @@ def casa_uvfits_main():
     with uvtest.check_warnings(
         UserWarning, "The uvw_array does not match the expected values"
     ):
-        uv_in.read(casa_tutorial_uvfits, use_future_array_shapes=True)
+        uv_in.read(casa_tutorial_uvfits)
 
     yield uv_in
 
@@ -51,12 +51,9 @@ def hera_uvh5_main():
     # read in test file for the resampling in time functions
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "zen.2458661.23480.HH.uvh5")
-    uv_object.read(testfile, use_future_array_shapes=True)
+    uv_object.read(testfile)
 
     yield uv_object
-
-    # cleanup
-    del uv_object
 
 
 @pytest.fixture(scope="function")
@@ -66,23 +63,15 @@ def hera_uvh5(hera_uvh5_main):
 
     yield uv_object
 
-    # cleanup
-    del uv_object
-
-    return
-
 
 @pytest.fixture(scope="session")
 def paper_miriad_main():
     """Read in PAPER miriad file."""
     pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
     uv_in = UVData()
-    uv_in.read(paper_miriad_file, use_future_array_shapes=True)
+    uv_in.read(paper_miriad_file)
 
     yield uv_in
-
-    # cleanup
-    del uv_in
 
 
 @pytest.fixture(scope="function")
@@ -108,7 +97,7 @@ def sma_mir_main():
             "The lst_array is not self-consistent with the time_array and telescope ",
         ],
     ):
-        uv_object.read(testfile, use_future_array_shapes=True)
+        uv_object.read(testfile)
     uv_object.set_lsts_from_time_array()
 
     yield uv_object
@@ -195,8 +184,8 @@ def uv_phase_comp_main():
         ]
         * 2,
     ):
-        uvd1 = UVData.from_file(file1, use_future_array_shapes=True)
-        uvd2 = UVData.from_file(file2, use_future_array_shapes=True)
+        uvd1 = UVData.from_file(file1)
+        uvd2 = UVData.from_file(file2)
 
     yield uvd1, uvd2
 

@@ -1258,7 +1258,6 @@ def write_ms_spectral_window(
     channel_width=None,
     spw_array=None,
     id_array=None,
-    use_future_array_shapes=True,
 ):
     """
     Write out the spectral information into a CASA table.
@@ -1275,20 +1274,15 @@ def write_ms_spectral_window(
         context).
     freq_array : ndarray
         Required if uvobj not provided, frequency centers for each channel. Expected
-        shape is (1, Nfreqs,) if use_future_array_shapes=False, otherwise (Nfreqs,)
-        if use_future_array_shapes=True.
+        shape is (Nfreqs,), type float.
     channel_width : ndarray or float
         Required if uvobj not provided, frequency centers for each channel. Expected
-        to be a float if use_future_array_shapes=False, otherwise an ndarray of shape
-        (Nfreqs,) if use_future_array_shapes=True.
+        to be of shape (Nfreqs,), type float.
     spw_array : ndarray
         Required if uvobj not provided, ID numbers for spectral windows.
     id_array : ndarray
         Map of how each entry in `freq_array` matches to the spectral windows in
         `spw_array`. Required if uvobj not provided.
-    use_future_array_shapes : bool
-        If False, assume current array shapes for parameters. Default is True, which
-        assumes future array shapes for provided parameters.
 
     Raises
     ------
@@ -1309,11 +1303,6 @@ def write_ms_spectral_window(
             id_array = uvobj.flex_spw_id_array
 
         spw_array = uvobj.spw_array
-        use_future_array_shapes = uvobj.future_array_shapes
-
-    if not use_future_array_shapes:
-        freq_array = freq_array[0]
-        channel_width = np.full_like(freq_array, channel_width)
 
     # Construct a couple of columns we're going to use that are not part of
     # the MS v2.0 baseline format (though are useful for pyuvdata objects).
