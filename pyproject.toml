@@ -103,3 +103,7 @@ script-files = [
 
 [tool.black]
  skip_magic_trailing_comma = true
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+addopts = "--ignore=scripts --ignore=docs"
