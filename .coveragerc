@@ -4,9 +4,23 @@ concurrency = multiprocessing
 parallel = true
 omit =
   */tests/*
-  */conftest.py
+  */docs/*
+  setup.py
+source =
+  pyuvdata
 
 [report]
 omit =
   */tests/*
-  */conftest.py
+  */docs/*
+  setup.py
+
+show_missing = true
+
+[paths]
+source =
+    src
+    */site-packages"
+tests =
+    tests
+    */tests

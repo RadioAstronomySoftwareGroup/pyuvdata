@@ -34,7 +34,7 @@ jobs:
           CIBW_BUILD: ${{ matrix.python }}-${{ matrix.buildplat[1] }}*
           CIBW_ARCHS: ${{ matrix.buildplat[2] }}
           CIBW_TEST_REQUIRES: "-r ci/test_requirements.txt"
-          CIBW_TEST_COMMAND: "python -m pytest --pyargs pyuvdata -n auto"
+          CIBW_TEST_COMMAND: "pytest {project}/tests -n auto"
 
       - uses: actions/upload-artifact@v4
         with:
