@@ -66,10 +66,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          mkdir -p empty
-          cd empty
-          pytest --pyargs pyuvdata -n auto --dist=loadfile --cov=pyuvdata --cov-config=../.coveragerc --cov-report xml:../coverage.xml
-          cd ..
+          python -m pytest -n auto --dist=loadfile --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:./coverage.xml
 
       - uses: codecov/codecov-action@v4
         if: success()

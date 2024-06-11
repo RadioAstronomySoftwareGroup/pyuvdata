@@ -43,7 +43,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          pytest -W error --pyargs pyuvdata -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
+          pytest -W error -n auto --cov=pyuvdata --cov-config=.coveragerc --cov-report xml:coverage.xml
 
       - uses: codecov/codecov-action@v4
         if: success()

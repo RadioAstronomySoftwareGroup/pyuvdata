@@ -53,10 +53,7 @@ jobs:
           command: |
             source ./ci/_activate_current_env.sh
             mkdir test-reports
-            mkdir -p empty
-            cd empty
-            python -m pytest --pyargs pyuvdata -n 2 --dist=loadfile --cov=pyuvdata --cov-config="../.coveragerc" --cov-report xml:".././coverage.xml" --junitxml="../test-reports/xunit.xml"
-            cd ..
+            python -m pytest -n auto --dist=loadfile --cov=pyuvdata --cov-config=".coveragerc" --cov-report xml:"./coverage.xml" --junitxml="test-reports/xunit.xml"
       - save_cache:
           key: deps-{{ .Branch }}-{{ checksum "ci/pyuvdata_tests.yml" }}
           paths:
