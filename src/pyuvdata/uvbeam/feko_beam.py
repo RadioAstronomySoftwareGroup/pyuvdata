@@ -287,12 +287,12 @@ class FEKOBeam(UVBeam):
                 phi_mag = np.sqrt(10 ** (data_each[i, :, phi_mag_col] / 10)).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
-                theta_phase = np.angle(
-                    data_each[i, :, theta_real_col] + 1j * data_c1[:, theta_imag_col]
-                )
-                phi_phase = np.angle(
-                    data_each[i, :, phi_real_col] + 1j * data_c1[:, phi_imag_col]
-                )
+                #theta_phase = np.angle(
+                #    data_each[i, :, theta_real_col] + 1j * data_c1[:, theta_imag_col]
+                #)
+                #phi_phase = np.angle(
+                #    data_each[i, :, phi_real_col] + 1j * data_c1[:, phi_imag_col]
+                #)
                 theta_phase = np.angle(data_each[i,:, theta_real_col] + 1j * data_each[i,:, theta_imag_col])
                 phi_phase = np.angle(data_each[i,:, phi_real_col] +1j *data_each[i,:, phi_imag_col])
 
