@@ -18,10 +18,10 @@ from _pytest.outcomes import Skipped
 from pyuvdata import UVCal, UVData, UVFlag, __version__, hdf5_utils
 from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import old_telescope_metadata_attrs
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
-from .. import check_warnings
 from ..test_utils import frame_selenoid, hasmoon
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")

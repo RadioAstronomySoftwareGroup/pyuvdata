@@ -16,6 +16,7 @@ import numpy as np
 import pytest
 
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_meta_data import (
     NEW_VIS_DTYPE,
     NEW_VIS_PAD,
@@ -30,8 +31,6 @@ from pyuvdata.uvdata.mir_meta_data import (
     MirSpData,
     MirWeData,
 )
-
-from .. import check_warnings
 
 sma_mir_test_file = os.path.join(DATA_PATH, "sma_test.mir")
 

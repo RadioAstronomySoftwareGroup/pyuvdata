@@ -10,9 +10,8 @@ import yaml
 
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.cst_beam import CSTBeam
-
-from .. import check_warnings
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"

@@ -14,8 +14,7 @@ from astropy.io import fits
 import pyuvdata.utils as uvutils
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
-
-from .. import check_warnings
+from pyuvdata.testing import check_warnings
 
 filenames = ["HERA_NicCST_150MHz.txt", "HERA_NicCST_123MHz.txt"]
 cst_folder = "NicCSTbeams"
