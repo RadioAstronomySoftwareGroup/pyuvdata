@@ -22,9 +22,9 @@ import pyuvdata.hdf5_utils as hdf5_utils
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata import uvh5
 
-from .. import check_warnings
 from ..test_utils import frame_selenoid
 
 # ignore common file-read warnings

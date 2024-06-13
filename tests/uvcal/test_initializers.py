@@ -9,10 +9,10 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import Telescope, UVCal
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
 
-from .. import check_warnings
 from ..test_utils import selenoids
 
 

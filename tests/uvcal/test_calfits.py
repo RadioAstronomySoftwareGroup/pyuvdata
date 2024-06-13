@@ -14,8 +14,8 @@ from astropy.io import fits
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from ..test_utils import hasmoon, selenoids
 from . import extend_jones_axis, time_array_to_time_range
 

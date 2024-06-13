@@ -20,8 +20,8 @@ from astropy.io import fits
 import pyuvdata.utils as uvutils
 from pyuvdata import UVBeam, _uvbeam
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from .test_cst_beam import cst_files, cst_yaml_file
 from .test_mwa_beam import filename as mwa_beam_file
 

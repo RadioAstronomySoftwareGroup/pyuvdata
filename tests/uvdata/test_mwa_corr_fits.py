@@ -14,9 +14,8 @@ from astropy.io import fits
 
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mwa_corr_fits import input_output_mapping
-
-from .. import check_warnings
 
 # set up MWA correlator file list
 testdir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")

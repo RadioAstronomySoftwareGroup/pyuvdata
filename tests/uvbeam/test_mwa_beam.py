@@ -9,9 +9,8 @@ import pytest
 import pyuvdata.utils as uvutils
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
-
-from .. import check_warnings
 
 filename = os.path.join(DATA_PATH, "mwa_full_EE_test.h5")
 
