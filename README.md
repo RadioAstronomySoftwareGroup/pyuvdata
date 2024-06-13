@@ -150,7 +150,7 @@ Required:
 * python >= 3.10
 * pyyaml >= 5.4.1
 * scipy >= 1.7.3
-* setuptools_scm >= 7.0.3
+* setuptools_scm >= 8.0
 
 Optional:
 
