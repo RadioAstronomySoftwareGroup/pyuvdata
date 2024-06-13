@@ -2,8 +2,6 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-import glob
-import io
 import os
 import platform
 import sys
@@ -12,14 +10,23 @@ from sysconfig import get_config_var
 import numpy
 from Cython.Build import cythonize
 from packaging.version import parse
-from setuptools import Extension, find_namespace_packages, setup
+from setuptools import Extension, setup
 
-# add pyuvdata to our path in order to use the branch_scheme function
-sys.path.append("pyuvdata")
-from branch_scheme import branch_scheme  # noqa
 
-with io.open("README.md", "r", encoding="utf-8") as readme_file:
-    readme = readme_file.read()
+# define the branch scheme. Have to do it here so we don't have to modify the path
+def branch_scheme(version):
+    """
+    Local version scheme that adds the branch name for absolute reproducibility.
+
+    If and when this is added to setuptools_scm this function can be removed.
+    """
+    if version.exact or version.node is None:
+        return version.format_choice("", "+d{time:{time_format}}", time_format="%Y%m%d")
+    else:
+        if version.branch == "main":
+            return version.format_choice("+{node}", "+{node}.dirty")
+        else:
+            return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
 
 
 def is_platform_mac():
@@ -58,22 +65,22 @@ global_c_macros = [("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]
 miriad_extension = Extension(
     "pyuvdata._miriad",
     sources=[
-        "pyuvdata/uvdata/src/miriad_wrap.pyx",
-        "pyuvdata/uvdata/src/uvio.c",
-        "pyuvdata/uvdata/src/hio.c",
-        "pyuvdata/uvdata/src/pack.c",
-        "pyuvdata/uvdata/src/bug.c",
-        "pyuvdata/uvdata/src/dio.c",
-        "pyuvdata/uvdata/src/headio.c",
-        "pyuvdata/uvdata/src/maskio.c",
+        "src/pyuvdata/uvdata/src/miriad_wrap.pyx",
+        "src/pyuvdata/uvdata/src/uvio.c",
+        "src/pyuvdata/uvdata/src/hio.c",
+        "src/pyuvdata/uvdata/src/pack.c",
+        "src/pyuvdata/uvdata/src/bug.c",
+        "src/pyuvdata/uvdata/src/dio.c",
+        "src/pyuvdata/uvdata/src/headio.c",
+        "src/pyuvdata/uvdata/src/maskio.c",
     ],
     define_macros=global_c_macros,
-    include_dirs=["pyuvdata/uvdata/src/", numpy.get_include()],
+    include_dirs=["src/pyuvdata/uvdata/src/", numpy.get_include()],
 )
 
 corr_fits_extension = Extension(
     "pyuvdata._corr_fits",
-    sources=["pyuvdata/uvdata/corr_fits.pyx"],
+    sources=["src/pyuvdata/uvdata/corr_fits.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
@@ -82,7 +89,7 @@ corr_fits_extension = Extension(
 
 utils_extension = Extension(
     "pyuvdata._utils",
-    sources=["pyuvdata/utils.pyx"],
+    sources=["src/pyuvdata/utils.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
@@ -90,7 +97,7 @@ utils_extension = Extension(
 
 uvbeam_extension = Extension(
     "pyuvdata._uvbeam",
-    sources=["pyuvdata/uvbeam/uvbeam.pyx"],
+    sources=["src/pyuvdata/uvbeam/uvbeam.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
@@ -102,80 +109,7 @@ extensions = [corr_fits_extension, utils_extension, uvbeam_extension]
 if not is_platform_windows():
     extensions.append(miriad_extension)
 
-astroquery_reqs = ["astroquery>=0.4.4"]
-casa_reqs = ["python-casacore>=3.5.2"]
-hdf5_compression_reqs = ["hdf5plugin>=3.2.0"]
-healpix_reqs = ["astropy_healpix>=1.0.2"]
-lunar_reqs = ["lunarsky>=0.2.2"]
-novas_reqs = ["novas", "novas_de405"]
-all_optional_reqs = (
-    astroquery_reqs
-    + casa_reqs
-    + hdf5_compression_reqs
-    + healpix_reqs
-    + lunar_reqs
-    + novas_reqs
+setup(
+    use_scm_version={"local_scheme": branch_scheme},
+    ext_modules=cythonize(extensions, language_level=3),
 )
-test_reqs = all_optional_reqs + [
-    "pytest>=6.2.5",
-    "pytest-xdist",
-    "pytest-cases>=3.8.3",
-    "pytest-cov",
-    "cython>=3.0",
-    "coverage",
-    "pre-commit",
-]
-doc_reqs = ["matplotlib", "sphinx", "pypandoc"]
-
-setup_args = {
-    "name": "pyuvdata",
-    "author": "Radio Astronomy Software Group",
-    "url": "https://github.com/RadioAstronomySoftwareGroup/pyuvdata",
-    "license": "BSD",
-    "description": "an interface for astronomical interferometeric datasets in python",
-    "long_description": readme,
-    "long_description_content_type": "text/markdown",
-    "package_dir": {"pyuvdata": "pyuvdata"},
-    "packages": find_namespace_packages(),
-    "ext_modules": cythonize(extensions, language_level=3),
-    "scripts": [fl for fl in glob.glob("scripts/*") if not os.path.isdir(fl)],
-    "use_scm_version": {"local_scheme": branch_scheme},
-    "include_package_data": True,
-    "python_requires": ">=3.10",
-    "install_requires": [
-        "astropy>=6.0",
-        "docstring-parser>=0.15",
-        "h5py>=3.4",
-        "numpy>=1.23",
-        "pyerfa>=2.0.1.1",
-        "pyyaml>=5.4.1",
-        "scipy>=1.7.3",
-        "setuptools>=61",
-        "setuptools_scm>=7.0.3",
-    ],
-    "extras_require": {
-        "astroquery": astroquery_reqs,
-        "casa": casa_reqs,
-        "hdf5_compression": hdf5_compression_reqs,
-        "healpix": healpix_reqs,
-        "lunar": lunar_reqs,
-        "novas": novas_reqs,
-        "all": all_optional_reqs,
-        "test": test_reqs,
-        "doc": doc_reqs,
-        "dev": test_reqs + doc_reqs,
-    },
-    "classifiers": [
-        "Development Status :: 5 - Production/Stable",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Topic :: Scientific/Engineering :: Astronomy",
-    ],
-    "keywords": "radio astronomy interferometry",
-}
-
-if __name__ == "__main__":
-    setup(**setup_args)

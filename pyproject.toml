@@ -6,6 +6,93 @@ requires = ["setuptools>=61",
             "cython>=3.0"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "pyuvdata"
+authors = [
+    {name = "Bryna Hazelton", email = "brynah@phys.washington.edu"},
+    {name = "Adam Beardsley", email = "adam.beardsley@winona.edu"},
+    {name = "Daniel Jacobs", email = "wheresmytab@gmail.com"},
+    {name = "Garrett Keating", email = "garrett.keating@cfa.harvard.edu"},
+    {name = "Nicholas Kern", email = "nkern@mit.edu"},
+    {name = "Matthew Kolopanis", email = "mjkolopa@asu.edu"},
+    {name = "Adam Lanman", email = "alanman@mit.edu"},
+    {name = "Paul LaPlante", email = "paul.laplante@unlv.edu"},
+    {name = "Steven Murray", email = "murray.steveng@gmail.com"},
+    {name = "Jonathan Pober", email = "jonathan_pober@brown.edu"},
+    {name = "Pyxie Star", email = "pyxstar@uw.edu"},
+]
+maintainers = [
+    {name = "Bryna Hazelton", email = "brynah@phys.washington.edu"},
+    {name = "Matthew Kolopanis", email = "mjkolopa@asu.edu"},
+    {name = "Garrett Keating", email = "garrett.keating@cfa.harvard.edu"},
+    {name = "Steven Murray", email = "murray.steveng@gmail.com"},
+]
+description = "A pythonic interface for radio astronomy interferometry data"
+readme = "README.md"
+dynamic = ["version"]
+dependencies = [
+    "astropy>=6.0",
+    "docstring-parser>=0.15",
+    "h5py>=3.4",
+    "numpy>=1.23",
+    "pyerfa>=2.0.1.1",
+    "pyyaml>=5.4.1",
+    "scipy>=1.7.3",
+    "setuptools>=61",
+    "setuptools_scm>=7.0.3",
+]
+requires-python = ">=3.10"
+keywords = ["radio astronomy", "interferometry"]
+classifiers = [
+    "License :: OSI Approved :: BSD License",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[project.optional-dependencies]
+astroquery = ["astroquery>=0.4.4"]
+casa = ["python-casacore>=3.5.2"]
+hdf5_compression = ["hdf5plugin>=3.2.0"]
+healpix = ["astropy_healpix>=1.0.2"]
+lunar = ["lunarsky>=0.2.2"]
+novas = ["novas", "novas_de405"]
+all = ["pyuvdata[astroquery,casa,hdf5_compression,healpix,lunar,novas]"]
+test = [
+    "pytest>=6.2.5",
+    "pytest-xdist",
+    "pytest-cases>=3.8.3",
+    "pytest-cov",
+    "cython>=3.0",
+    "coverage",
+    "pre-commit",
+]
+doc = ["matplotlib", "pypandoc", "sphinx"]
+dev = ["pyuvdata[all,test,doc]"]
+
+[project.urls]
+Repository = "https://github.com/RadioAstronomySoftwareGroup/pyuvdata"
+Documentation = "https://pyuvdata.readthedocs.io"
+
+
+# Note that this approach is "discouraged" in favor of [project.scripts], but
+# that requires entry-point functions, which would require some refactoring.
+[tool.setuptools]
+script-files = [
+    "scripts/check_uvfits_equal.py",
+    "scripts/convert_to_uvfits.py",
+    "scripts/fhd_batch_convert.py",
+    "scripts/pyuvdata_inspect.py",
+    "scripts/readwrite_uvfits.py",
+    "scripts/renumber_ants.py",
+    "scripts/uvfits_memtest.py",
+]
+
+[tool.setuptools_scm]
+
 [tool.isort]
 profile = "black"
 

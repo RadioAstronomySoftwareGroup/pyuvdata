@@ -1,4 +1,4 @@
-exclude: '(^docs/conf.py|^docs/references/|^pyuvdata/data/|^pyuvdata/uvdata/src/|^pyuvdata/tests/Line_Profiler_full.out|.codecov.yml)'
+exclude: '(^docs/conf.py|^docs/references/|^src/pyuvdata/data/|^src/pyuvdata/uvdata/src/|.codecov.yml)'
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
