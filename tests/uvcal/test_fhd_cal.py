@@ -10,8 +10,7 @@ import pytest
 
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-
-from .. import check_warnings
+from pyuvdata.testing import check_warnings
 
 # set up FHD files
 testdir = os.path.join(DATA_PATH, "fhd_cal_data/")

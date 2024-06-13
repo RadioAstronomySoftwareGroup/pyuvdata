@@ -17,9 +17,8 @@ from astropy.time import Time
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData, UVFlag
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.utils import hasmoon
-
-from . import check_warnings
 
 selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
 

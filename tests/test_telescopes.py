@@ -17,8 +17,7 @@ import pyuvdata
 from pyuvdata import Telescope, UVData, get_telescope
 from pyuvdata.data import DATA_PATH
 from pyuvdata.telescopes import _KNOWN_TELESCOPES, get_antenna_params
-
-from . import check_warnings
+from pyuvdata.testing import check_warnings
 
 required_parameters = [
     "_name",

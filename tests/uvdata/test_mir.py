@@ -16,10 +16,9 @@ import pytest
 
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir import Mir, generate_sma_antpos_dict
 from pyuvdata.uvdata.mir_parser import MirParser
-
-from .. import check_warnings
 
 sma_mir_test_file = os.path.join(DATA_PATH, "sma_test.mir")
 

@@ -18,8 +18,8 @@ from astropy.table import Table
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from . import extend_jones_axis, time_array_to_time_range
 
 pytestmark = pytest.mark.filterwarnings(

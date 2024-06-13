@@ -12,8 +12,7 @@ from astropy.utils import iers
 
 from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
-
-from . import check_warnings
+from pyuvdata.testing import check_warnings
 
 
 @pytest.fixture(autouse=True, scope="session")

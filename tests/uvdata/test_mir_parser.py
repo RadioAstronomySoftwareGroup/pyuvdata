@@ -17,6 +17,7 @@ import numpy as np
 import pytest
 
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_parser import (
     NEW_AUTO_DTYPE,
     NEW_AUTO_HEADER,
@@ -27,8 +28,6 @@ from pyuvdata.uvdata.mir_parser import (
     MirPackdataError,
     MirParser,
 )
-
-from .. import check_warnings
 
 
 @pytest.fixture(scope="module")

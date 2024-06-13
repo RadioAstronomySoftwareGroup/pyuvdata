@@ -23,8 +23,8 @@ from astropy.utils import iers
 import pyuvdata.utils as uvutils
 from pyuvdata import UVCal, UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from ..test_utils import frame_selenoid
 from .test_mwa_corr_fits import filelist as mwa_corr_files
 
