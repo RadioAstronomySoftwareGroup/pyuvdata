@@ -15,9 +15,8 @@ from astropy.time import Time
 
 from pyuvdata import Telescope
 from pyuvdata import parameter as uvp
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import UVBase, _warning, old_telescope_metadata_attrs
-
-from . import check_warnings
 
 ref_latlonalt = (-26.7 * np.pi / 180.0, 116.7 * np.pi / 180.0, 377.8)
 ref_xyz = (-2562123.42683, 5094215.40141, -2848728.58869)

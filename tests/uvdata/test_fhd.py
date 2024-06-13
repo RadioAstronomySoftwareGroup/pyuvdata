@@ -16,8 +16,7 @@ import pytest
 import pyuvdata.utils as uvutils
 from pyuvdata import Telescope, UVData
 from pyuvdata.data import DATA_PATH
-
-from .. import check_warnings
+from pyuvdata.testing import check_warnings
 
 
 def get_fhd_files(filelist):

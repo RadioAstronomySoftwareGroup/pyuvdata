@@ -33,9 +33,8 @@ from astropy.time import Time, TimeDelta
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.miriad import Miriad
-
-from .. import check_warnings
 
 aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
 

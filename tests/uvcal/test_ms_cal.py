@@ -11,8 +11,7 @@ from astropy.units import Quantity
 
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
-
-from .. import check_warnings
+from pyuvdata.testing import check_warnings
 
 pytest.importorskip("casacore")
 

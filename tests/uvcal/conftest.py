@@ -10,8 +10,8 @@ import pytest
 
 from pyuvdata import UVCal
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from . import test_fhd_cal
 
 

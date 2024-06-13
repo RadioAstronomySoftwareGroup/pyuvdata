@@ -10,9 +10,8 @@ import pytest
 
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir_parser import MirParser
-
-from .. import check_warnings
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"

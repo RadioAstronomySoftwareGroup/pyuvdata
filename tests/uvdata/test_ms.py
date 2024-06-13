@@ -15,8 +15,8 @@ from astropy.time import Time
 from pyuvdata import UVData
 from pyuvdata import utils as uvutils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from ..test_utils import frame_selenoid, hasmoon
 
 pytest.importorskip("casacore")

@@ -15,8 +15,8 @@ from astropy.io import fits
 import pyuvdata.utils as uvutils
 from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 
-from .. import check_warnings
 from ..test_utils import frame_selenoid, hasmoon
 
 casa_tutorial_uvfits = os.path.join(

@@ -13,6 +13,7 @@ import pytest
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import Telescope, UVData
+from pyuvdata.testing import check_warnings
 from pyuvdata.utils import polnum2str
 from pyuvdata.uvdata.initializers import (
     configure_blt_rectangularity,
@@ -21,7 +22,6 @@ from pyuvdata.uvdata.initializers import (
     get_time_params,
 )
 
-from .. import check_warnings
 from ..test_utils import selenoids
 
 
