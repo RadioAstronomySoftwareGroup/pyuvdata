@@ -21,12 +21,12 @@ from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
 
-from pyuvdata import Telescope, known_telescopes
-from pyuvdata import parameter as uvp
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import combine_docstrings, copy_replace_short_description
-from pyuvdata.uvbase import UVBase
-from pyuvdata.uvdata.initializers import new_uvdata
+from .. import Telescope, known_telescopes
+from .. import parameter as uvp
+from .. import utils
+from ..docstrings import combine_docstrings, copy_replace_short_description
+from ..uvbase import UVBase
+from .initializers import new_uvdata
 
 __all__ = ["UVData"]
 import logging
@@ -180,7 +180,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=np.float64,
             strict_type_check=True,
-            tols=uvutils.RADIAN_TOL,
+            tols=utils.RADIAN_TOL,
         )
 
         desc = (
@@ -372,7 +372,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=float,
             description=desc,
-            tols=uvutils.RADIAN_TOL,
+            tols=utils.RADIAN_TOL,
         )
 
         desc = (
@@ -384,7 +384,7 @@ class UVData(UVBase):
             form=("Nblts",),
             expected_type=float,
             description=desc,
-            tols=uvutils.RADIAN_TOL,
+            tols=utils.RADIAN_TOL,
         )
 
         desc = (
@@ -771,7 +771,7 @@ class UVData(UVBase):
             source without coordinates.
 
         """
-        cat_entry = uvutils.generate_phase_center_cat_entry(
+        cat_entry = utils.generate_phase_center_cat_entry(
             cat_name=cat_name,
             cat_type=cat_type,
             cat_lon=cat_lon,
@@ -790,7 +790,7 @@ class UVData(UVBase):
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
         if cat_id is None or not force_update:
-            cat_id = uvutils.generate_new_phase_center_id(
+            cat_id = utils.generate_new_phase_center_id(
                 phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
             )
 
@@ -799,7 +799,7 @@ class UVData(UVBase):
             self.phase_center_catalog = {}
         else:
             # Let's warn if this entry has the same name as an existing one
-            temp_id, cat_diffs = uvutils.look_in_catalog(
+            temp_id, cat_diffs = utils.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry
             )
 
@@ -1198,7 +1198,7 @@ class UVData(UVBase):
 
         # First, let's check and see if the dict entries are identical
         for cat_id in cat_id_list[1:]:
-            pc_id, pc_diffs = uvutils.look_in_catalog(
+            pc_id, pc_diffs = utils.look_in_catalog(
                 self.phase_center_catalog,
                 phase_dict=self.phase_center_catalog[cat_id],
                 ignore_name=ignore_name,
@@ -1269,7 +1269,7 @@ class UVData(UVBase):
         ValueError
             If `cat_name` matches no keys in `phase_center_catalog`.
         """
-        return uvutils.print_phase_center_info(
+        return utils.print_phase_center_info(
             self.phase_center_catalog,
             catalog_identifier=catalog_identifier,
             hms_format=hms_format,
@@ -1301,7 +1301,7 @@ class UVData(UVBase):
             If not using the method on a multi-phase-ctr data set, if there's no entry
             that matches `cat_name`, or of the value `new_id` is already taken.
         """
-        new_id = uvutils.generate_new_phase_center_id(
+        new_id = utils.generate_new_phase_center_id(
             phase_center_catalog=self.phase_center_catalog,
             cat_id=new_id,
             old_id=cat_id,
@@ -1370,7 +1370,7 @@ class UVData(UVBase):
             # testing it's sometimes convenient to use self.phase_center_catalog as
             # the ref catalog, which causes a RunTime error due to updates to the dict.
             cat_entry = reference_catalog[cat_id]
-            match_id, match_diffs = uvutils.look_in_catalog(
+            match_id, match_diffs = utils.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
             )
             if match_id is None or match_diffs != 0:
@@ -1511,7 +1511,7 @@ class UVData(UVBase):
 
     def _set_lsts_helper(self, *, astrometry_library=None):
         # the utility function is efficient -- it only calculates unique times
-        self.lst_array = uvutils.get_lst_for_time(
+        self.lst_array = utils.get_lst_for_time(
             jd_array=self.time_array,
             telescope_loc=self.telescope.location,
             frame=self.telescope._location.frame,
@@ -1555,7 +1555,7 @@ class UVData(UVBase):
                 vrad = temp_dict.get("vrad")
                 dist = temp_dict.get("cat_dist")
 
-                app_ra[select_mask], app_dec[select_mask] = uvutils.calc_app_coords(
+                app_ra[select_mask], app_dec[select_mask] = utils.calc_app_coords(
                     lon_coord=lon_val,
                     lat_coord=lat_val,
                     coord_frame=frame,
@@ -1582,7 +1582,7 @@ class UVData(UVBase):
             frame = temp_dict.get("cat_frame")
             epoch = temp_dict.get("cat_epoch")
             if not frame == "altaz":
-                frame_pa[select_mask] = uvutils.calc_frame_pos_angle(
+                frame_pa[select_mask] = utils.calc_frame_pos_angle(
                     time_array=self.time_array[select_mask],
                     app_ra=app_ra[select_mask],
                     app_dec=app_dec[select_mask],
@@ -1637,7 +1637,7 @@ class UVData(UVBase):
         UVH5 and UVData objects can handle this, but MIRIAD, MIR, UVFITS, and MS file
         formats cannot, so we just consider it forbidden.
         """
-        uvutils._check_flex_spw_contiguous(
+        utils._check_flex_spw_contiguous(
             spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
         )
 
@@ -1660,7 +1660,7 @@ class UVData(UVBase):
             Flag that channel spacing does not match channel width.
 
         """
-        return uvutils._check_freq_spacing(
+        return utils._check_freq_spacing(
             freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
@@ -2101,7 +2101,7 @@ class UVData(UVBase):
         auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
         pol_screen = np.array(
             [
-                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                utils.POL_NUM2STR_DICT[pol] in auto_pol_list
                 for pol in self.polarization_array
             ]
         )
@@ -2130,7 +2130,7 @@ class UVData(UVBase):
         allow_flip_conj=False,
         check_autos=False,
         fix_autos=False,
-        lst_tol=uvutils.LST_RAD_TOL,
+        lst_tol=utils.LST_RAD_TOL,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -2307,14 +2307,14 @@ class UVData(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            uvutils.check_surface_based_positions(
+            utils.check_surface_based_positions(
                 antenna_positions=self.telescope.antenna_positions,
                 telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
             # Check the LSTs against what we expect given up-to-date IERS data
-            uvutils.check_lsts_against_times(
+            utils.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
@@ -2382,7 +2382,7 @@ class UVData(UVBase):
                 if self.flex_spw_polarization_array is not None:
                     pol_screen = np.array(
                         [
-                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            utils.POL_NUM2STR_DICT[pol] in auto_pol_list
                             for pol in self.flex_spw_polarization_array
                         ]
                     )
@@ -2395,7 +2395,7 @@ class UVData(UVBase):
                 else:
                     pol_screen = np.array(
                         [
-                            uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                            utils.POL_NUM2STR_DICT[pol] in auto_pol_list
                             for pol in self.polarization_array
                         ]
                     )
@@ -2510,9 +2510,7 @@ class UVData(UVBase):
         int or array_like of int
             second antenna number(s)
         """
-        return uvutils.baseline_to_antnums(
-            baseline, Nants_telescope=self.telescope.Nants
-        )
+        return utils.baseline_to_antnums(baseline, Nants_telescope=self.telescope.Nants)
 
     def antnums_to_baseline(
         self, ant1, ant2, *, attempt256=False, use_miriad_convention=False
@@ -2542,7 +2540,7 @@ class UVData(UVBase):
         """
         # set attempt256 to false if using miriad convention
         attempt256 = False if use_miriad_convention else attempt256
-        return uvutils.antnums_to_baseline(
+        return utils.antnums_to_baseline(
             ant1,
             ant2,
             Nants_telescope=self.telescope.Nants,
@@ -2649,7 +2647,7 @@ class UVData(UVBase):
             if inds.size == 0:
                 inds = None
 
-        inds = uvutils.slicify(inds)
+        inds = utils.slicify(inds)
         self.__antpair2ind_cache[(ant1, ant2, ordered)] = inds
         return inds
 
@@ -2696,7 +2694,7 @@ class UVData(UVBase):
         """
         orig_key = key
 
-        key = uvutils._get_iterable(key)
+        key = utils._get_iterable(key)
         if not isinstance(key, str):
             key = tuple(key)
 
@@ -2707,7 +2705,7 @@ class UVData(UVBase):
             # Single string given, assume it is polarization
             pol_ind1 = np.where(
                 self.polarization_array
-                == uvutils.polstr2num(key, x_orientation=self.telescope.x_orientation)
+                == utils.polstr2num(key, x_orientation=self.telescope.x_orientation)
             )[0]
             if len(pol_ind1) > 0:
                 blt_ind1 = slice(None)
@@ -2753,7 +2751,7 @@ class UVData(UVBase):
             if len(key) == 3:
                 orig_pol = key[2]
                 if isinstance(key[2], str):
-                    pol = uvutils.polstr2num(
+                    pol = utils.polstr2num(
                         key[2], x_orientation=self.telescope.x_orientation
                     )
                 else:
@@ -2774,7 +2772,7 @@ class UVData(UVBase):
             else:
                 if len(key) == 2:
                     try:
-                        pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
+                        pol_ind2 = utils.reorder_conj_pols(self.polarization_array)
                     except ValueError as err:
                         if blt_ind1 is None:
                             if isinstance(orig_key, int):
@@ -2790,9 +2788,9 @@ class UVData(UVBase):
                             pol_ind2 = None
                             blt_ind2 = None
                 else:
-                    pol_ind2 = np.where(
-                        self.polarization_array == uvutils.conj_pol(pol)
-                    )[0]
+                    pol_ind2 = np.where(self.polarization_array == utils.conj_pol(pol))[
+                        0
+                    ]
                     if pol_ind2.size == 0:
                         pol_ind2 = None
 
@@ -2807,7 +2805,7 @@ class UVData(UVBase):
                 raise KeyError(f"Polarization {key_print} not found in data.")
 
         # Convert to slices if possible
-        pol_ind = (uvutils.slicify(pol_ind[0]), uvutils.slicify(pol_ind[1]))
+        pol_ind = (utils.slicify(pol_ind[0]), utils.slicify(pol_ind[1]))
 
         self.__key2ind_cache[key] = (blt_ind1, blt_ind2, pol_ind)
         return (blt_ind1, blt_ind2, pol_ind)
@@ -2938,7 +2936,7 @@ class UVData(UVBase):
         list of str
             list of polarizations (as strings) in the data.
         """
-        return uvutils.polnum2str(
+        return utils.polnum2str(
             self.polarization_array, x_orientation=self.telescope.x_orientation
         )
 
@@ -3022,7 +3020,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3074,7 +3072,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3134,7 +3132,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3178,7 +3176,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
@@ -3223,7 +3221,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
@@ -3327,7 +3325,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(uvutils._get_iterable(val))
+                key += list(utils._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3346,10 +3344,8 @@ class UVData(UVBase):
                 f"Input array shape is {dshape}, expected shape is {expected_shape}."
             )
 
-        blt_slices, blt_sliceable = uvutils._convert_to_slices(
-            ind1, max_nslice_frac=0.1
-        )
-        pol_slices, pol_sliceable = uvutils._convert_to_slices(
+        blt_slices, blt_sliceable = utils._convert_to_slices(ind1, max_nslice_frac=0.1)
+        pol_slices, pol_sliceable = utils._convert_to_slices(
             indp[0], max_nslice_frac=0.5
         )
 
@@ -3402,7 +3398,7 @@ class UVData(UVBase):
         """
         dshape = data.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.data_array, inds, input_array=data)
+        utils._index_dset(self.data_array, inds, input_array=data)
 
         return
 
@@ -3447,7 +3443,7 @@ class UVData(UVBase):
         """
         dshape = flags.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.flag_array, inds, input_array=flags)
+        utils._index_dset(self.flag_array, inds, input_array=flags)
 
         return
 
@@ -3494,7 +3490,7 @@ class UVData(UVBase):
         """
         dshape = nsamples.shape
         inds = self._set_method_helper(dshape, key1, key2, key3)
-        uvutils._index_dset(self.nsample_array, inds, input_array=nsamples)
+        utils._index_dset(self.nsample_array, inds, input_array=nsamples)
 
         return
 
@@ -3629,7 +3625,7 @@ class UVData(UVBase):
             index_array = convention
 
         if index_array[0].size > 0:
-            new_pol_inds = uvutils.reorder_conj_pols(self.polarization_array)
+            new_pol_inds = utils.reorder_conj_pols(self.polarization_array)
 
             self.uvw_array[index_array] *= -1
 
@@ -3703,7 +3699,7 @@ class UVData(UVBase):
                 )
             index_array = order
         elif (order == "AIPS") or (order == "CASA"):
-            index_array = uvutils.determine_pol_order(
+            index_array = utils.determine_pol_order(
                 self.polarization_array, order=order
             )
         else:
@@ -3745,7 +3741,7 @@ class UVData(UVBase):
         if self.blts_are_rectangular is not None and not force:
             return
 
-        rect, time = uvutils.determine_rectangularity(
+        rect, time = utils.determine_rectangularity(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             nbls=self.Nbls,
@@ -3760,7 +3756,7 @@ class UVData(UVBase):
         if self.blt_order is not None:
             return self.blt_order
 
-        order = uvutils.determine_blt_order(
+        order = utils.determine_blt_order(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             ant_1_array=self.ant_1_array,
@@ -4071,7 +4067,7 @@ class UVData(UVBase):
             is not the same length as freq_array.
 
         """
-        index_array = uvutils._sort_freq_helper(
+        index_array = utils._sort_freq_helper(
             Nfreqs=self.Nfreqs,
             freq_array=self.freq_array,
             Nspws=self.Nspws,
@@ -4303,7 +4299,7 @@ class UVData(UVBase):
         if np.all(~select_mask_use):
             warnings.warn("No selected baselines are projected, doing nothing")
 
-        new_uvw = uvutils.calc_uvw(
+        new_uvw = utils.calc_uvw(
             lst_array=self.lst_array,
             use_ant_pos=use_ant_pos,
             uvw_array=self.uvw_array,
@@ -4325,7 +4321,7 @@ class UVData(UVBase):
         self.uvw_array = new_uvw
 
         # remove/update phase center
-        match_id, match_diffs = uvutils.look_in_catalog(
+        match_id, match_diffs = utils.look_in_catalog(
             self.phase_center_catalog, cat_name=cat_name, cat_type="unprojected"
         )
         if match_diffs == 0:
@@ -4377,7 +4373,7 @@ class UVData(UVBase):
         }
 
         if lookup_name:
-            if len(uvutils.look_for_name(self.phase_center_catalog, cat_name)) > 1:
+            if len(utils.look_for_name(self.phase_center_catalog, cat_name)) > 1:
                 raise ValueError(
                     "Name of object has multiple matches in phase center catalog. "
                     "Set lookup_name=False in order to continue."
@@ -4386,7 +4382,7 @@ class UVData(UVBase):
         if lookup_name and (cat_name not in name_dict):
             if (cat_type is None) or (cat_type == "ephem"):
                 [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
-                    uvutils.lookup_jplhorizons(
+                    utils.lookup_jplhorizons(
                         cat_name, time_array, telescope_loc=self.telescope.location
                     )
                 )
@@ -4409,7 +4405,7 @@ class UVData(UVBase):
                 cat_id = name_dict[cat_name]
                 cat_diffs = 0
             else:
-                cat_id, cat_diffs = uvutils.look_in_catalog(
+                cat_id, cat_diffs = utils.look_in_catalog(
                     self.phase_center_catalog,
                     cat_name=cat_name,
                     cat_type=cat_type,
@@ -4493,7 +4489,7 @@ class UVData(UVBase):
                 # Concat the two time ranges to make sure that we cover both the
                 # requested time range _and_ the original time range.
                 [cat_times, cat_lon, cat_lat, cat_dist, cat_vrad] = (
-                    uvutils.lookup_jplhorizons(
+                    utils.lookup_jplhorizons(
                         cat_name,
                         np.concatenate((np.reshape(time_array, -1), cat_times)),
                         telescope_loc=self.telescope.location,
@@ -4714,7 +4710,7 @@ class UVData(UVBase):
 
         # We got the meta-data, now handle calculating the apparent coordinates.
         # First, check if we need to look up the phase center in question
-        new_app_ra, new_app_dec = uvutils.calc_app_coords(
+        new_app_ra, new_app_dec = utils.calc_app_coords(
             lon_coord=phase_dict["cat_lon"],
             lat_coord=phase_dict["cat_lat"],
             coord_frame=phase_dict["cat_frame"],
@@ -4732,7 +4728,7 @@ class UVData(UVBase):
 
         # Now calculate position angles.
         if not phase_frame == "altaz":
-            new_frame_pa = uvutils.calc_frame_pos_angle(
+            new_frame_pa = utils.calc_frame_pos_angle(
                 time_array=time_array,
                 app_ra=new_app_ra,
                 app_dec=new_app_dec,
@@ -4744,7 +4740,7 @@ class UVData(UVBase):
             new_frame_pa = np.zeros(time_array.shape, dtype=float)
 
         # Now its time to do some rotations and calculate the new coordinates
-        new_uvw = uvutils.calc_uvw(
+        new_uvw = utils.calc_uvw(
             app_ra=new_app_ra,
             app_dec=new_app_dec,
             frame_pa=new_frame_pa,
@@ -4846,10 +4842,8 @@ class UVData(UVBase):
 
         # Generate ra/dec of zenith at time in the phase_frame coordinate
         # system to use for phasing
-        if uvutils.hasmoon and isinstance(
-            self.telescope.location, uvutils.MoonLocation
-        ):
-            zenith_coord = uvutils.LunarSkyCoord(
+        if utils.hasmoon and isinstance(self.telescope.location, utils.MoonLocation):
+            zenith_coord = utils.LunarSkyCoord(
                 alt=Angle(90 * units.deg),
                 az=Angle(0 * units.deg),
                 obstime=time,
@@ -4894,7 +4888,7 @@ class UVData(UVBase):
         """
         unprojected_blts = self._check_for_cat_type("unprojected")
 
-        new_uvw = uvutils.calc_uvw(
+        new_uvw = utils.calc_uvw(
             app_ra=self.phase_center_app_ra,
             app_dec=self.phase_center_app_dec,
             frame_pa=self.phase_center_frame_pa,
@@ -4973,7 +4967,7 @@ class UVData(UVBase):
             # upated antenna positions, and B is the old positions. I.e., this is the
             # same as independently calculating uvws from old and new and subtracting
             # one from the other.
-            delta_uvw = uvutils.calc_uvw(
+            delta_uvw = utils.calc_uvw(
                 app_ra=self.phase_center_app_ra,
                 app_dec=self.phase_center_app_dec,
                 frame_pa=self.phase_center_frame_pa,
@@ -5123,7 +5117,7 @@ class UVData(UVBase):
 
                 uvws_use = self.uvw_array[inds, :]
 
-                uvw_rel_positions = uvutils.undo_old_uvw_calc(
+                uvw_rel_positions = utils.undo_old_uvw_calc(
                     frame_phase_center.ra.rad, frame_phase_center.dec.rad, uvws_use
                 )
 
@@ -5138,7 +5132,7 @@ class UVData(UVBase):
 
                 itrs_uvw_coord = frame_uvw_coord.transform_to("itrs")
                 # now convert them to ENU, which is the space uvws are in
-                self.uvw_array[inds, :] = uvutils.ENU_from_ECEF(
+                self.uvw_array[inds, :] = utils.ENU_from_ECEF(
                     itrs_uvw_coord.cartesian.get_xyz().value.T,
                     center_loc=self.telescope.location,
                 )
@@ -5702,7 +5696,7 @@ class UVData(UVBase):
         this.Nants_data = this._calc_nants_data()
 
         # Update filename parameter
-        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        this.filename = utils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -5728,14 +5722,14 @@ class UVData(UVBase):
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
-            histories_match = uvutils._check_histories(this.history, other.history)
+            histories_match = utils._check_histories(this.history, other.history)
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = uvutils._combine_history_addition(
+                    extra_history = utils._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -5979,7 +5973,7 @@ class UVData(UVBase):
 
         histories_match = []
         for obj in other:
-            histories_match.append(uvutils._check_histories(this.history, obj.history))
+            histories_match.append(utils._check_histories(this.history, obj.history))
 
         this.history += history_update_string
         for obj_num, obj in enumerate(other):
@@ -5987,7 +5981,7 @@ class UVData(UVBase):
                 if verbose_history:
                     this.history += " Next object history follows. " + obj.history
                 else:
-                    extra_history = uvutils._combine_history_addition(
+                    extra_history = utils._combine_history_addition(
                         this.history, obj.history
                     )
                     if extra_history is not None:
@@ -6063,7 +6057,7 @@ class UVData(UVBase):
             )
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
-            if not uvutils._test_array_constant_spacing(this._polarization_array):
+            if not utils._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -6133,7 +6127,7 @@ class UVData(UVBase):
 
         # update filename attribute
         for obj in other:
-            this.filename = uvutils._combine_filenames(this.filename, obj.filename)
+            this.filename = utils._combine_filenames(this.filename, obj.filename)
         if this.filename is not None:
             this._filename.form = len(this.filename)
 
@@ -6296,14 +6290,14 @@ class UVData(UVBase):
             this.data_array = this.data_array + other.data_array
             history_update_string = " Visibilities summed using pyuvdata."
 
-        histories_match = uvutils._check_histories(this.history, other.history)
+        histories_match = utils._check_histories(this.history, other.history)
 
         this.history += history_update_string
         if not histories_match:
             if verbose_history:
                 this.history += " Second object history follows. " + other.history
             else:
-                extra_history = uvutils._combine_history_addition(
+                extra_history = utils._combine_history_addition(
                     this.history, other.history
                 )
                 if extra_history is not None:
@@ -6313,7 +6307,7 @@ class UVData(UVBase):
                     )
 
         # merge file names
-        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        this.filename = utils._combine_filenames(this.filename, other.filename)
 
         # Check final object is self-consistent
         if run_check:
@@ -6436,7 +6430,7 @@ class UVData(UVBase):
             polarization specification.
 
         """
-        return uvutils.parse_ants(
+        return utils.parse_ants(
             uv=self,
             ant_str=ant_str,
             print_toggle=print_toggle,
@@ -6576,7 +6570,7 @@ class UVData(UVBase):
 
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
-            blt_inds = uvutils._get_iterable(blt_inds)
+            blt_inds = utils._get_iterable(blt_inds)
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
             history_update_string += "baseline-times"
@@ -6586,12 +6580,12 @@ class UVData(UVBase):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
         if catalog_names is not None:
-            phase_center_ids = uvutils.look_for_name(
+            phase_center_ids = utils.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
 
         if phase_center_ids is not None:
-            phase_center_ids = np.array(uvutils._get_iterable(phase_center_ids))
+            phase_center_ids = np.array(utils._get_iterable(phase_center_ids))
             pc_blt_inds = np.nonzero(
                 np.isin(self.phase_center_id_array, phase_center_ids)
             )[0]
@@ -6637,7 +6631,7 @@ class UVData(UVBase):
                 )
 
         if antenna_nums is not None:
-            antenna_nums = uvutils._get_iterable(antenna_nums)
+            antenna_nums = utils._get_iterable(antenna_nums)
             antenna_nums = np.asarray(antenna_nums)
             if antenna_nums.ndim > 1:
                 antenna_nums = antenna_nums.flatten()
@@ -6730,7 +6724,7 @@ class UVData(UVBase):
                         bls_blt_inds = np.append(bls_blt_inds, list(wh2))
                         if len(bl) == 3:
                             # find conjugate polarization
-                            bl_pols.add(uvutils.conj_pol(bl[2]))
+                            bl_pols.add(utils.conj_pol(bl[2]))
                     else:
                         raise ValueError(
                             "Antenna pair {p} does not have any data "
@@ -6757,7 +6751,7 @@ class UVData(UVBase):
             else:
                 blt_inds = ant_blt_inds
 
-        time_blt_inds = uvutils._select_times_helper(
+        time_blt_inds = utils._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -6813,19 +6807,19 @@ class UVData(UVBase):
             blt_inds = sorted(set(blt_inds))
 
         if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
+            freq_chans = utils._get_iterable(freq_chans)
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
                 frequencies = self.freq_array[freq_chans]
             else:
-                frequencies = uvutils._get_iterable(frequencies)
+                frequencies = utils._get_iterable(frequencies)
                 frequencies = np.sort(
                     list(set(frequencies) | set(self.freq_array[freq_chans]))
                 )
 
         if frequencies is not None:
-            frequencies = uvutils._get_iterable(frequencies)
+            frequencies = utils._get_iterable(frequencies)
             if np.array(frequencies).ndim > 1:
                 frequencies = np.array(frequencies).flatten()
             if n_selects > 0:
@@ -6849,7 +6843,7 @@ class UVData(UVBase):
                 freq_ind_separation = freq_ind_separation[
                     np.diff(self.flex_spw_id_array[freq_inds]) == 0
                 ]
-                if not uvutils._test_array_constant(freq_ind_separation):
+                if not utils._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -6867,7 +6861,7 @@ class UVData(UVBase):
             freq_inds = None
 
         if polarizations is not None:
-            polarizations = uvutils._get_iterable(polarizations)
+            polarizations = utils._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
             if n_selects > 0:
@@ -6880,7 +6874,7 @@ class UVData(UVBase):
             spw_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
-                    p_num = uvutils.polstr2num(
+                    p_num = utils.polstr2num(
                         p, x_orientation=self.telescope.x_orientation
                     )
                 else:
@@ -6928,7 +6922,7 @@ class UVData(UVBase):
                         "No data matching this polarization and frequency selection "
                         "in this UVData object."
                     )
-                if not uvutils._test_array_constant_spacing(
+                if not utils._test_array_constant_spacing(
                     np.unique(self.flex_spw_polarization_array[spw_inds])
                 ):
                     warnings.warn(
@@ -6939,7 +6933,7 @@ class UVData(UVBase):
             else:
                 pol_inds = np.unique(pol_inds)
                 if len(pol_inds) > 2:
-                    if not uvutils._test_array_constant_spacing(pol_inds):
+                    if not utils._test_array_constant_spacing(pol_inds):
                         warnings.warn(
                             "Selected polarization values are not evenly spaced. This "
                             "will make it impossible to write this data out to "
@@ -7750,7 +7744,7 @@ class UVData(UVBase):
             int_times = int_times
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
-                if len(np.unique(dtime)) > 1 and not uvutils._test_array_constant(
+                if len(np.unique(dtime)) > 1 and not utils._test_array_constant(
                     dtime, tols=self._integration_time.tols
                 ):
                     warnings.warn(
@@ -8534,7 +8528,7 @@ class UVData(UVBase):
 
         if use_antpos:
             antpos = self.telescope.get_enu_antpos()
-            result = uvutils.get_antenna_redundancies(
+            result = utils.get_antenna_redundancies(
                 self.telescope.antenna_numbers,
                 antpos,
                 tol=tol,
@@ -8574,7 +8568,7 @@ class UVData(UVBase):
                 antpos, ant1_inds, axis=0
             )
 
-        return uvutils.get_baseline_redundancies(
+        return utils.get_baseline_redundancies(
             baselines,
             baseline_vecs,
             tol=tol,
@@ -8681,7 +8675,7 @@ class UVData(UVBase):
                 # now we have to figure out which times are the same to a tolerance
                 # so we can average over them.
                 time_inds = np.arange(len(group_times + conj_group_times))
-                time_gps = uvutils.find_clusters(
+                time_gps = utils.find_clusters(
                     location_ids=time_inds,
                     location_vectors=np.array(group_times + conj_group_times),
                     tol=self._time_array.tols[1],
@@ -11854,10 +11848,10 @@ class UVData(UVBase):
         pol_list = list(self.polarization_array)
         for pol in pol_list:
             try:
-                feed_pols = uvutils.POL_TO_FEED_DICT[uvutils.POL_NUM2STR_DICT[pol]]
+                feed_pols = utils.POL_TO_FEED_DICT[utils.POL_NUM2STR_DICT[pol]]
                 pol_groups.append(
                     [
-                        pol_list.index(uvutils.POL_STR2NUM_DICT[item + item])
+                        pol_list.index(utils.POL_STR2NUM_DICT[item + item])
                         for item in feed_pols
                     ]
                 )
@@ -11871,7 +11865,7 @@ class UVData(UVBase):
                 # auto is not found in the data, in which case we  throw an error.
                 raise ValueError(
                     "Cannot normalize {pol}, matching pols for autos not found.".format(
-                        pol=uvutils.POL_NUM2STR_DICT[pol]
+                        pol=utils.POL_NUM2STR_DICT[pol]
                     )
                 ) from err
 

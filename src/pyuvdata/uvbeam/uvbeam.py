@@ -14,12 +14,12 @@ from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
 from scipy import interpolate
 
-from pyuvdata import _uvbeam
-from pyuvdata import parameter as uvp
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import combine_docstrings, copy_replace_short_description
-from pyuvdata.uvbase import UVBase
-from pyuvdata.uvbeam import initializers
+from .. import _uvbeam
+from .. import parameter as uvp
+from .. import utils
+from ..docstrings import combine_docstrings, copy_replace_short_description
+from ..uvbase import UVBase
+from . import initializers
 
 __all__ = ["UVBeam"]
 
@@ -696,7 +696,7 @@ class UVBeam(UVBase):
         auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
         pol_screen = np.array(
             [
-                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                utils.POL_NUM2STR_DICT[pol] in auto_pol_list
                 for pol in self.polarization_array
             ]
         )
@@ -736,7 +736,7 @@ class UVBeam(UVBase):
         auto_pol_list = ["xx", "yy", "rr", "ll", "pI", "pQ", "pU", "pV"]
         pol_screen = np.array(
             [
-                uvutils.POL_NUM2STR_DICT[pol] in auto_pol_list
+                utils.POL_NUM2STR_DICT[pol] in auto_pol_list
                 for pol in self.polarization_array
             ]
         )
@@ -928,7 +928,7 @@ class UVBeam(UVBase):
             )
         beam_object.polarization_array = np.array(
             [
-                uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
+                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
                 for ps in pol_strings
             ]
         )
@@ -1150,7 +1150,7 @@ class UVBeam(UVBase):
         )
         beam_object.polarization_array = np.array(
             [
-                uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
+                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
                 for ps in pol_strings
             ]
         )
@@ -1178,7 +1178,7 @@ class UVBeam(UVBase):
         beam_object.data_array = power_data
         beam_object.polarization_array = np.array(
             [
-                uvutils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
+                utils.polstr2num(ps.upper(), x_orientation=self.x_orientation)
                 for ps in pol_strings
             ]
         )
@@ -1484,7 +1484,7 @@ class UVBeam(UVBase):
                 pol_inds = np.arange(Npol_feeds)
             else:
                 pols = [
-                    uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                    utils.polstr2num(p, x_orientation=self.x_orientation)
                     for p in polarizations
                 ]
                 pol_inds = []
@@ -1682,7 +1682,7 @@ class UVBeam(UVBase):
                 pol_inds = np.arange(Npol_feeds)
             else:
                 pols = [
-                    uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                    utils.polstr2num(p, x_orientation=self.x_orientation)
                     for p in polarizations
                 ]
                 pol_inds = []
@@ -2245,7 +2245,7 @@ class UVBeam(UVBase):
         # assert beam_type is power
         assert self.beam_type == "power", "beam_type must be power"
         if isinstance(pol, (str, np.str_)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         pol_array = self.polarization_array
         if pol in pol_array:
             stokes_p_ind = np.where(np.isin(pol_array, pol))[0][0]
@@ -2278,7 +2278,7 @@ class UVBeam(UVBase):
 
         """
         if isinstance(pol, (str, np.str_)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
         if self.Naxes_vec > 1:
@@ -2320,7 +2320,7 @@ class UVBeam(UVBase):
 
         """
         if isinstance(pol, (str, np.str_)):
-            pol = uvutils.polstr2num(pol, x_orientation=self.x_orientation)
+            pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
         if self.Naxes_vec > 1:
@@ -2484,7 +2484,7 @@ class UVBeam(UVBase):
                             )
 
         # Update filename parameter
-        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        this.filename = utils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -2828,7 +2828,7 @@ class UVBeam(UVBase):
 
         # Check specific requirements
         if this.Nfreqs > 1:
-            if not uvutils._test_array_constant_spacing(
+            if not utils._test_array_constant_spacing(
                 this.freq_array, tols=this._freq_array.tols
             ):
                 warnings.warn(
@@ -2837,7 +2837,7 @@ class UVBeam(UVBase):
                 )
 
         if self.beam_type == "power" and this.Npols > 2:
-            if not uvutils._test_array_constant_spacing(this._polarization_array):
+            if not utils._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2845,14 +2845,14 @@ class UVBeam(UVBase):
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
-            histories_match = uvutils._check_histories(this.history, other.history)
+            histories_match = utils._check_histories(this.history, other.history)
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = uvutils._combine_history_addition(
+                    extra_history = utils._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -2969,7 +2969,7 @@ class UVBeam(UVBase):
             beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
 
             if beam_object.Naxes1 > 1:
-                if not uvutils._test_array_constant_spacing(beam_object._axis1_array):
+                if not utils._test_array_constant_spacing(beam_object._axis1_array):
                     warnings.warn(
                         "Selected values along first image axis are "
                         "not evenly spaced. This is not supported by "
@@ -3001,7 +3001,7 @@ class UVBeam(UVBase):
             beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
 
             if beam_object.Naxes2 > 1:
-                if not uvutils._test_array_constant_spacing(beam_object._axis2_array):
+                if not utils._test_array_constant_spacing(beam_object._axis2_array):
                     warnings.warn(
                         "Selected values along second image axis are "
                         "not evenly spaced. This is not supported by "
@@ -3045,17 +3045,17 @@ class UVBeam(UVBase):
                 ]
 
         if freq_chans is not None:
-            freq_chans = uvutils._get_iterable(freq_chans)
+            freq_chans = utils._get_iterable(freq_chans)
             if frequencies is None:
                 frequencies = beam_object.freq_array[freq_chans]
             else:
-                frequencies = uvutils._get_iterable(frequencies)
+                frequencies = utils._get_iterable(frequencies)
                 frequencies = np.sort(
                     list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
                 )
 
         if frequencies is not None:
-            frequencies = uvutils._get_iterable(frequencies)
+            frequencies = utils._get_iterable(frequencies)
             if n_selects > 0:
                 history_update_string += ", frequencies"
             else:
@@ -3081,7 +3081,7 @@ class UVBeam(UVBase):
                 freq_separation = (
                     beam_object.freq_array[1:] - beam_object.freq_array[:-1]
                 )
-                if not uvutils._test_array_constant(
+                if not utils._test_array_constant(
                     freq_separation, tols=beam_object._freq_array.tols
                 ):
                     warnings.warn(
@@ -3124,13 +3124,13 @@ class UVBeam(UVBase):
                 )
             x_orient_dict = {}
             if beam_object.x_orientation is not None:
-                for key, value in uvutils._x_orientation_rep_dict(
+                for key, value in utils._x_orientation_rep_dict(
                     beam_object.x_orientation
                 ).items():
                     if key in beam_object.feed_array:
                         x_orient_dict[value] = key
 
-            feeds = uvutils._get_iterable(feeds)
+            feeds = utils._get_iterable(feeds)
             feeds = [f.lower() for f in feeds]
             if n_selects > 0:
                 history_update_string += ", feeds"
@@ -3176,7 +3176,7 @@ class UVBeam(UVBase):
             if beam_object.beam_type == "efield":
                 raise ValueError("polarizations cannot be used with efield beams")
 
-            polarizations = uvutils._get_iterable(polarizations)
+            polarizations = utils._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
 
@@ -3189,7 +3189,7 @@ class UVBeam(UVBase):
             pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
                 if isinstance(p, str):
-                    p_num = uvutils.polstr2num(p, x_orientation=self.x_orientation)
+                    p_num = utils.polstr2num(p, x_orientation=self.x_orientation)
                 else:
                     p_num = p
                 if p_num in beam_object.polarization_array:
@@ -3214,7 +3214,7 @@ class UVBeam(UVBase):
                     beam_object.polarization_array[1:]
                     - beam_object.polarization_array[:-1]
                 )
-                if not uvutils._test_array_constant(pol_separation):
+                if not utils._test_array_constant(pol_separation):
                     warnings.warn(
                         "Selected polarizations are not evenly spaced. This "
                         "is not supported by the regularly gridded beam fits format"
@@ -3759,7 +3759,7 @@ class UVBeam(UVBase):
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             # update filelist
             basename = os.path.basename(filename)
-            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self.filename = utils._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
     def read_mwa_beam(self, h5filepath, **kwargs):

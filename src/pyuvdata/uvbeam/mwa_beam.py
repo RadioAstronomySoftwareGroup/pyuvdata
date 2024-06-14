@@ -10,9 +10,9 @@ import numpy as np
 from docstring_parser import DocstringStyle
 from scipy.special import factorial, lpmv  # associated Legendre function
 
-from pyuvdata import UVBeam
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
+from .. import utils
+from ..docstrings import copy_replace_short_description
+from . import UVBeam
 
 __all__ = ["P1sin", "P1sin_array", "MWABeam"]
 
@@ -611,7 +611,7 @@ class MWABeam(UVBeam):
         gain_str = "[" + ", ".join(gain_str_list) + "]"
 
         self.history += "  delays set to " + delay_str + "  gains set to " + gain_str
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         self.x_orientation = "east"
