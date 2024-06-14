@@ -11,7 +11,7 @@ import numpy as np
 import numpy.typing as npt
 from astropy.time import Time
 
-from pyuvdata import __version__, utils
+from .. import __version__, utils
 
 
 def new_uvbeam(

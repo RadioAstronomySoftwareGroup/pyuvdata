@@ -11,14 +11,10 @@ from typing import Literal
 import numpy as np
 from astropy.time import Time
 
-from pyuvdata import Telescope, __version__, utils
-from pyuvdata.docstrings import combine_docstrings
-from pyuvdata.telescopes import Locations, get_antenna_params
-from pyuvdata.uvdata.initializers import (
-    get_freq_params,
-    get_spw_params,
-    get_time_params,
-)
+from .. import Telescope, __version__, utils
+from ..docstrings import combine_docstrings
+from ..telescopes import Locations, get_antenna_params
+from ..uvdata.initializers import get_freq_params, get_spw_params, get_time_params
 
 
 def new_uvcal(

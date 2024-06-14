@@ -12,10 +12,10 @@ from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
-from pyuvdata import UVCal
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
-from pyuvdata.uvdata.fhd import fhd_filenames, get_fhd_history, get_fhd_layout_info
+from .. import utils
+from ..docstrings import copy_replace_short_description
+from ..uvdata.fhd import fhd_filenames, get_fhd_history, get_fhd_layout_info
+from . import UVCal
 
 __all__ = ["FHDCal"]
 
@@ -259,7 +259,7 @@ class FHDCal(UVCal):
             else:
                 self.history += "\n" + extra_history
 
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
             if self.history.endswith("\n"):
                 self.history += self.pyuvdata_version_str
             else:

@@ -3,4 +3,4 @@
 # Licensed under the 2-clause BSD License
 
 """Init file for UVBeam."""
-from .uvbeam import *  # noqa
+from .uvbeam import UVBeam  # noqa

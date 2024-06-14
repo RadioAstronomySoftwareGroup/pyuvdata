@@ -16,10 +16,10 @@ from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from pyuvdata import UVData, known_telescope_location
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
-from pyuvdata.uvdata.uvdata import reporting_request
+from .. import known_telescope_location, utils
+from ..docstrings import copy_replace_short_description
+from . import UVData
+from .uvdata import reporting_request
 
 __all__ = ["Miriad"]
 
@@ -211,7 +211,7 @@ class Miriad(UVData):
         self.spw_array = np.arange(self.Nspws)
 
         self.history = uv["history"]
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # check for pyuvdata variables that are not recognized miriad variables
@@ -414,7 +414,7 @@ class Miriad(UVData):
             # these positions back to standard ECEF and if they are absolute
             # positions, subtract off the telescope position to make them
             # relative to the array center.
-            ecef_antpos = uvutils.ECEF_from_rotECEF(antpos, longitude)
+            ecef_antpos = utils.ECEF_from_rotECEF(antpos, longitude)
 
             if self.telescope.location is not None:
                 if absolute_positions:
@@ -429,7 +429,7 @@ class Miriad(UVData):
                 self.telescope.location = EarthLocation.from_geocentric(
                     *np.mean(ecef_antpos[good_antpos, :], axis=0) * units.m
                 )
-                valid_location = uvutils.check_surface_based_positions(
+                valid_location = utils.check_surface_based_positions(
                     telescope_loc=self.telescope.location,
                     raise_error=False,
                     raise_warning=False,
@@ -840,7 +840,7 @@ class Miriad(UVData):
                     else:
                         bl_str_list.append(str(bl[1]) + "_" + str(bl[0]))
                         if len(bl) == 3:
-                            bl_pols.add(uvutils.conj_pol(bl[2]))
+                            bl_pols.add(utils.conj_pol(bl[2]))
 
                 if n_selects > 0:
                     # combine antpair_str_list and bl_str_list with an intersection
@@ -911,9 +911,7 @@ class Miriad(UVData):
                 (
                     p
                     if isinstance(p, (int, np.integer))
-                    else uvutils.polstr2num(
-                        p, x_orientation=self.telescope.x_orientation
-                    )
+                    else utils.polstr2num(p, x_orientation=self.telescope.x_orientation)
                 )
                 for p in polarizations
             ]
@@ -1410,7 +1408,7 @@ class Miriad(UVData):
                 # which do not test as matching, so also test for all nans
                 if not np.all(
                     np.isnan(epoch_list[select_mask])
-                ) and not uvutils._test_array_constant(
+                ) and not utils._test_array_constant(
                     epoch_list[select_mask], tols=(1e-05, 1e-08)
                 ):
                     # This is unusual but allowed within Miriad.
@@ -1442,10 +1440,10 @@ class Miriad(UVData):
                         cat_frame = "fk5"
 
                 radian_tols = self._phase_center_app_ra.tols
-                this_single_ra = uvutils._test_array_constant(
+                this_single_ra = utils._test_array_constant(
                     ra_list[select_mask], tols=radian_tols
                 )
-                this_single_dec = uvutils._test_array_constant(
+                this_single_dec = utils._test_array_constant(
                     dec_list[select_mask], tols=radian_tols
                 )
                 if not cat_type == "unprojected" and (
@@ -1465,7 +1463,7 @@ class Miriad(UVData):
                     )
                     if np.max(counts) > 1:
                         for t_ind in np.arange(unique_times.size):
-                            if not uvutils._test_array_constant(
+                            if not utils._test_array_constant(
                                 lon_use[inverse == t_ind], tols=radian_tols
                             ):
                                 raise ValueError(
@@ -1473,7 +1471,7 @@ class Miriad(UVData):
                                     "different baselines at the same time."
                                     + reporting_request
                                 )
-                            if not uvutils._test_array_constant(
+                            if not utils._test_array_constant(
                                 lat_use[inverse == t_ind], tols=radian_tols
                             ):
                                 raise ValueError(
@@ -1663,7 +1661,7 @@ class Miriad(UVData):
         # per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.0) / 2
         if (self.telescope.location is not None) and calc_lst:
-            miriad_lsts = uvutils.get_lst_for_time(
+            miriad_lsts = utils.get_lst_for_time(
                 miriad_time_array, telescope_loc=self.telescope.location
             )
         else:
@@ -1824,7 +1822,7 @@ class Miriad(UVData):
             antpos_length = np.sqrt(np.sum(np.abs(rel_ecef_antpos) ** 2, axis=1))
 
             ecef_antpos = rel_ecef_antpos + self.telescope._location.xyz()
-            antpos = uvutils.rotECEF_from_ECEF(
+            antpos = utils.rotECEF_from_ECEF(
                 ecef_antpos, self.telescope.location.lon.rad
             )
 

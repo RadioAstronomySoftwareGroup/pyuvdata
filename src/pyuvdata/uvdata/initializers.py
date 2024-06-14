@@ -13,8 +13,8 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from pyuvdata import Telescope, __version__, utils
-from pyuvdata.telescopes import Locations
+from .. import Telescope, __version__, utils
+from ..telescopes import Locations
 
 
 def get_time_params(
