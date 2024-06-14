@@ -17,18 +17,18 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
-from pyuvdata import hdf5_utils
-from pyuvdata import parameter as uvp
-from pyuvdata import utils as uvutils
-from pyuvdata.data import DATA_PATH
-from pyuvdata.uvbase import UVBase
+from . import hdf5_utils
+from . import parameter as uvp
+from . import utils
+from .data import DATA_PATH
+from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
 
 try:
     from lunarsky import MoonLocation
 
-    # This can be built from uvutils.allowed_location_types in python >= 3.11
+    # This can be built from utils.allowed_location_types in python >= 3.11
     # but in 3.10 Union has to be declare with types
     Locations = Union[EarthLocation, MoonLocation]
 except ImportError:
@@ -465,7 +465,7 @@ class Telescope(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            uvutils.check_surface_based_positions(
+            utils.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.location,
                 raise_error=False,
@@ -558,7 +558,7 @@ class Telescope(UVBase):
                     DATA_PATH, telescope_dict["antenna_positions_file"]
                 )
                 antenna_names, antenna_numbers, antenna_positions = (
-                    uvutils.parse_antpos_file(antpos_file)
+                    utils.parse_antpos_file(antpos_file)
                 )
                 ant_info = {
                     "Nants": antenna_names.size,
@@ -773,10 +773,10 @@ class Telescope(UVBase):
         """
         tel_obj = cls()
 
-        if not isinstance(location, tuple(uvutils.allowed_location_types)):
+        if not isinstance(location, tuple(utils.allowed_location_types)):
             raise ValueError(
                 "telescope_location has an unsupported type, it must be one of "
-                f"{uvutils.allowed_location_types}"
+                f"{utils.allowed_location_types}"
             )
 
         tel_obj.name = name
@@ -798,7 +798,7 @@ class Telescope(UVBase):
             tel_obj.instrument = instrument
 
         if x_orientation is not None:
-            x_orientation = uvutils.XORIENTMAP[x_orientation.lower()]
+            x_orientation = utils.XORIENTMAP[x_orientation.lower()]
             tel_obj.x_orientation = x_orientation
 
         if antenna_diameters is not None:
@@ -917,6 +917,6 @@ class Telescope(UVBase):
 
         """
         antenna_xyz = self.antenna_positions + self._location.xyz()
-        antpos = uvutils.ENU_from_ECEF(antenna_xyz, center_loc=self.location)
+        antpos = utils.ENU_from_ECEF(antenna_xyz, center_loc=self.location)
 
         return antpos

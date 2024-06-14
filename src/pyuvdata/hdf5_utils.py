@@ -21,7 +21,7 @@ try:
 except ImportError:
     hasmoon = False
 
-from . import utils as uvutils
+from . import utils
 
 hdf5plugin_present = True
 try:
@@ -101,7 +101,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         raise ValueError(
             "output datatype must be one of (complex, np.complex64, np.complex128)"
         )
-    dset_shape, indices = uvutils._get_dset_shape(dset, indices)
+    dset_shape, indices = utils._get_dset_shape(dset, indices)
     output_array = np.empty(dset_shape, dtype=dtype_out)
     # dset is indexed in native dtype, but is upcast upon assignment
 
@@ -110,7 +110,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     else:
         compound_dtype = [("r", "f8"), ("i", "f8")]
 
-    output_array.view(compound_dtype)[:, :] = uvutils._index_dset(dset, indices)[:, :]
+    output_array.view(compound_dtype)[:, :] = utils._index_dset(dset, indices)[:, :]
 
     return output_array
 
@@ -381,7 +381,7 @@ class HDF5Meta:
             # this branch is for old UVFlag files, which were written with an
             # ECEF 'telescope_location' key rather than the more standard
             # latitude in degrees, longitude in degrees, altitude
-            return uvutils.LatLonAlt_from_XYZ(
+            return utils.LatLonAlt_from_XYZ(
                 self.telescope_location,
                 frame=self.telescope_frame,
                 ellipsoid=self.ellipsoid,
@@ -405,7 +405,7 @@ class HDF5Meta:
     def antpos_enu(self) -> np.ndarray:
         """The antenna positions in ENU coordinates, in meters."""
         lat, lon, alt = self.telescope_location_lat_lon_alt
-        return uvutils.ENU_from_ECEF(
+        return utils.ENU_from_ECEF(
             self.antenna_positions + self.telescope_location,
             latitude=lat,
             longitude=lon,

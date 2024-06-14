@@ -15,9 +15,9 @@ from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
 
-from pyuvdata import Telescope, UVData
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
+from .. import Telescope, utils
+from ..docstrings import copy_replace_short_description
+from . import UVData
 
 __all__ = ["get_fhd_history", "get_fhd_layout_info", "FHD"]
 
@@ -263,8 +263,8 @@ def get_fhd_layout_info(
 
     if xyz_telescope_frame.strip() == "itrf":
         # compare to lat/lon/alt
-        location_latlonalt = uvutils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
-        latlonalt_arr_center = uvutils.LatLonAlt_from_XYZ(
+        location_latlonalt = utils.XYZ_from_LatLonAlt(latitude, longitude, altitude)
+        latlonalt_arr_center = utils.LatLonAlt_from_XYZ(
             arr_center, check_acceptability=run_check_acceptability
         )
         # tolerances are limited by the fact that lat/lon/alt are only saved
@@ -320,10 +320,10 @@ def get_fhd_layout_info(
     layout_fields.remove("antenna_coords")
     # use the longitude from the layout file because that's how the antenna
     # positions were calculated
-    latitude, longitude, altitude = uvutils.LatLonAlt_from_XYZ(
+    latitude, longitude, altitude = utils.LatLonAlt_from_XYZ(
         arr_center, check_acceptability=run_check_acceptability
     )
-    antenna_positions = uvutils.ECEF_from_rotECEF(rot_ecef_positions, longitude)
+    antenna_positions = utils.ECEF_from_rotECEF(rot_ecef_positions, longitude)
 
     antenna_names = [ant.decode("utf8") for ant in layout["antenna_names"][0].tolist()]
     layout_fields.remove("antenna_names")
@@ -585,7 +585,7 @@ class FHD(UVData):
         #   because they depend on the phasing of the visibilities)
         # the values in bl_info.JDATE are the JD for each integration.
         # We need to expand up to Nblts.
-        int_times = list(uvutils._get_iterable(bl_info["JDATE"][0]))
+        int_times = list(utils._get_iterable(bl_info["JDATE"][0]))
         bin_offset = bl_info["BIN_OFFSET"][0]
         if self.Ntimes != len(int_times):
             warnings.warn(
@@ -772,7 +772,7 @@ class FHD(UVData):
         else:
             self.history = ""
 
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         if read_data:

@@ -18,9 +18,9 @@ try:
 except ImportError:
     hasmoon = False
 
-from pyuvdata import UVCal
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
+from .. import utils
+from ..docstrings import copy_replace_short_description
+from . import UVCal
 
 __all__ = ["CALFITS"]
 
@@ -126,14 +126,14 @@ class CALFITS(UVCal):
                     "The calfits file format does not support time_range when there is "
                     "more than one time."
                 )
-            if not uvutils._test_array_constant_spacing(self._time_array):
+            if not utils._test_array_constant_spacing(self._time_array):
                 raise ValueError(
                     "The times are not evenly spaced (probably "
                     "because of a select operation). The calfits format "
                     "does not support unevenly spaced times."
                 )
             time_spacing = np.diff(self.time_array)
-            if not uvutils._test_array_constant(self._integration_time):
+            if not utils._test_array_constant(self._integration_time):
                 raise ValueError(
                     "The integration times are variable. The calfits format "
                     "does not support variable integration times."
@@ -158,7 +158,7 @@ class CALFITS(UVCal):
             time_zero = self.time_array[0]
 
         if self.Njones > 1:
-            if not uvutils._test_array_constant_spacing(self._jones_array):
+            if not utils._test_array_constant_spacing(self._jones_array):
                 raise ValueError(
                     "The jones values are not evenly spaced."
                     "The calibration fits file format does not"
@@ -511,7 +511,7 @@ class CALFITS(UVCal):
 
         with fits.open(filename) as fname:
             hdr = fname[0].header.copy()
-            hdunames = uvutils._fits_indexhdus(fname)
+            hdunames = utils._fits_indexhdus(fname)
 
             anthdu = fname[hdunames["ANTENNAS"]]
             self.telescope.Nants = anthdu.header["NAXIS2"]
@@ -588,7 +588,7 @@ class CALFITS(UVCal):
 
             self.history = str(hdr.get("HISTORY", ""))
 
-            if not uvutils._check_history_version(
+            if not utils._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 if not self.history.endswith("\n"):
@@ -630,9 +630,9 @@ class CALFITS(UVCal):
 
             # generate polarization and time array for either cal_type.
             self.Njones = hdr.pop("NAXIS2")
-            self.jones_array = uvutils._fits_gethduaxis(fname[0], 2)
+            self.jones_array = utils._fits_gethduaxis(fname[0], 2)
             self.Ntimes = hdr.pop("NAXIS3")
-            main_hdr_time_array = uvutils._fits_gethduaxis(fname[0], 3)
+            main_hdr_time_array = utils._fits_gethduaxis(fname[0], 3)
             self.integration_time = np.full(self.Ntimes, hdr.pop("INTTIME"))
 
             # needs to come after Ntimes is defined.
@@ -658,13 +658,13 @@ class CALFITS(UVCal):
                 "supported by the calfits format."
             )
             # subtract 1 to be zero-indexed
-            self.spw_array = uvutils._fits_gethduaxis(fname[0], 5) - 1
+            self.spw_array = utils._fits_gethduaxis(fname[0], 5) - 1
 
             self.Nants_data = hdr.pop("NAXIS6")
             if self.cal_type == "gain":
                 self._set_gain()
                 self.Nfreqs = hdr.pop("NAXIS4")
-                self.freq_array = uvutils._fits_gethduaxis(fname[0], 4)
+                self.freq_array = utils._fits_gethduaxis(fname[0], 4)
                 self.channel_width = np.full(self.Nfreqs, hdr.pop("CHWIDTH"))
 
                 self.flex_spw_id_array = np.full(
@@ -679,7 +679,7 @@ class CALFITS(UVCal):
                     "This file appears to have multiple spectral windows, which is not "
                     "supported by the calfits format."
                 )
-                spw_array = uvutils._fits_gethduaxis(sechdu, 5) - 1
+                spw_array = utils._fits_gethduaxis(sechdu, 5) - 1
 
                 if not np.allclose(spw_array, self.spw_array):
                     raise ValueError(
@@ -687,7 +687,7 @@ class CALFITS(UVCal):
                         " in primary HDU"
                     )
 
-                time_array = uvutils._fits_gethduaxis(sechdu, 3)
+                time_array = utils._fits_gethduaxis(sechdu, 3)
                 if not np.allclose(
                     time_array,
                     main_hdr_time_array,
@@ -698,7 +698,7 @@ class CALFITS(UVCal):
                         "Time values are different in FLAGS HDU than in primary HDU"
                     )
 
-                jones_array = uvutils._fits_gethduaxis(sechdu, 2)
+                jones_array = utils._fits_gethduaxis(sechdu, 2)
                 if not np.allclose(
                     jones_array,
                     self.jones_array,
@@ -735,7 +735,7 @@ class CALFITS(UVCal):
                 if "TOTQLTY" in hdunames:
                     totqualhdu = fname[hdunames["TOTQLTY"]]
                     self.total_quality_array = totqualhdu.data[0]
-                    spw_array = uvutils._fits_gethduaxis(totqualhdu, 4) - 1
+                    spw_array = utils._fits_gethduaxis(totqualhdu, 4) - 1
                     if not np.allclose(spw_array, self.spw_array):
                         raise ValueError(
                             "Spectral window values are different in "
@@ -747,7 +747,7 @@ class CALFITS(UVCal):
 
                     if self.cal_type != "delay":
                         # delay-type files won't have a freq_array
-                        freq_array = uvutils._fits_gethduaxis(totqualhdu, 3)
+                        freq_array = utils._fits_gethduaxis(totqualhdu, 3)
                         if not np.allclose(
                             freq_array,
                             self.freq_array,
@@ -759,7 +759,7 @@ class CALFITS(UVCal):
                                 " in primary HDU"
                             )
 
-                    time_array = uvutils._fits_gethduaxis(totqualhdu, 2)
+                    time_array = utils._fits_gethduaxis(totqualhdu, 2)
                     if not np.allclose(
                         time_array,
                         main_hdr_time_array,
@@ -771,7 +771,7 @@ class CALFITS(UVCal):
                             "primary HDU"
                         )
 
-                    jones_array = uvutils._fits_gethduaxis(totqualhdu, 1)
+                    jones_array = utils._fits_gethduaxis(totqualhdu, 1)
                     if not np.allclose(
                         jones_array,
                         self.jones_array,
@@ -786,7 +786,7 @@ class CALFITS(UVCal):
                 else:
                     self.total_quality_array = None
 
-            self.extra_keywords = uvutils._get_fits_extra_keywords(hdr)
+            self.extra_keywords = utils._get_fits_extra_keywords(hdr)
 
         # wait for LSTs if set in background
         if proc is not None:

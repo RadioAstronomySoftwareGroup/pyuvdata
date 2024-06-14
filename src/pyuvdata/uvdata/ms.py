@@ -14,9 +14,9 @@ import numpy as np
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from pyuvdata import UVData, ms_utils
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
+from .. import ms_utils, utils
+from ..docstrings import copy_replace_short_description
+from . import UVData
 
 __all__ = ["MS"]
 
@@ -122,8 +122,8 @@ class MS(UVData):
 
         # Determine polarization order for writing out in CASA standard order, check
         # if this order can be represented by a single slice.
-        pol_order = uvutils.determine_pol_order(self.polarization_array, order="CASA")
-        [pol_order], _ = uvutils._convert_to_slices(
+        pol_order = utils.determine_pol_order(self.polarization_array, order="CASA")
+        [pol_order], _ = utils._convert_to_slices(
             pol_order, max_nslice=1, return_index_on_fail=True
         )
 
@@ -243,7 +243,7 @@ class MS(UVData):
 
                 # See if we can represent scan_screen with a single slice, which
                 # reduces overhead of copying a new array.
-                [scan_slice], _ = uvutils._convert_to_slices(
+                [scan_slice], _ = utils._convert_to_slices(
                     scan_screen, max_nslice=1, return_index_on_fail=True
                 )
 

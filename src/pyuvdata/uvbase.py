@@ -14,9 +14,9 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 
-from pyuvdata import __version__
-from pyuvdata import parameter as uvp
-from pyuvdata.utils import _get_iterable
+from . import __version__
+from . import parameter as uvp
+from .utils import _get_iterable
 
 __all__ = ["UVBase"]
 
