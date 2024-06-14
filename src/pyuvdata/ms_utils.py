@@ -10,9 +10,8 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from pyuvdata import __version__, known_telescope_location, known_telescopes
-from pyuvdata import utils as uvutils
-from pyuvdata.uvdata.uvdata import reporting_request
+from . import __version__, known_telescope_location, known_telescopes, utils
+from .uvdata.uvdata import reporting_request
 
 try:
     from lunarsky import MoonLocation
@@ -941,7 +940,7 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
                         history_str += message[idx] + "\n"
 
     # Check and make sure the pyuvdata version is in the history if it's not already
-    if not uvutils._check_history_version(history_str, pyuvdata_version_str):
+    if not utils._check_history_version(history_str, pyuvdata_version_str):
         history_str += pyuvdata_version_str
 
     # Finally, return the completed string
@@ -1411,16 +1410,16 @@ def write_ms_feed(
         spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
 
         # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-        pol_str = uvutils.polnum2str(polarization_array[pol_order])
+        pol_str = utils.polnum2str(polarization_array[pol_order])
     else:
         spectral_window_id_table = np.repeat(np.arange(nspws), nfeeds_table)
         nfeeds_table *= nspws
         antenna_id_table = np.tile(antenna_id_table, nspws)
         # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-        pol_str = uvutils.polnum2str(flex_spw_polarization_array)
+        pol_str = utils.polnum2str(flex_spw_polarization_array)
 
     with tables.table(filepath, ack=False, readonly=False) as feed_table:
-        feed_pols = {feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]}
+        feed_pols = {feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]}
         nfeed_pols = len(feed_pols)
         pol_types = [pol.upper() for pol in sorted(feed_pols)]
         pol_type_table = np.tile(pol_types, (nfeeds_table, 1))
@@ -1836,9 +1835,9 @@ def write_ms_polarization(
     with tables.table(filepath, ack=False, readonly=False) as pol_table:
         if flex_pol:
             for idx, spw_pol in enumerate(np.unique(pol_arr)):
-                pol_str = uvutils.polnum2str([spw_pol])
+                pol_str = utils.polnum2str([spw_pol])
                 feed_pols = {
-                    feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
+                    feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]
                 }
                 pol_types = [pol.lower() for pol in sorted(feed_pols)]
                 pol_tuples = np.asarray(
@@ -1853,9 +1852,9 @@ def write_ms_polarization(
                 pol_table.putcell("CORR_PRODUCT", idx, pol_tuples)
                 pol_table.putcell("NUM_CORR", idx, 1)
         else:
-            pol_str = uvutils.polnum2str(pol_arr)
+            pol_str = utils.polnum2str(pol_arr)
             feed_pols = {
-                feed for pol in pol_str for feed in uvutils.POL_TO_FEED_DICT[pol]
+                feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]
             }
             pol_types = [pol.lower() for pol in sorted(feed_pols)]
             pol_tuples = np.asarray(

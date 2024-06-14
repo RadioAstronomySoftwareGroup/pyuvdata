@@ -11,12 +11,12 @@ import warnings
 import numpy as np
 from docstring_parser import DocstringStyle
 
-from pyuvdata import Telescope
-from pyuvdata import parameter as uvp
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import combine_docstrings, copy_replace_short_description
-from pyuvdata.uvbase import UVBase
-from pyuvdata.uvcal import initializers
+from .. import Telescope
+from .. import parameter as uvp
+from .. import utils
+from ..docstrings import combine_docstrings, copy_replace_short_description
+from ..uvbase import UVBase
+from . import initializers
 
 __all__ = ["UVCal"]
 
@@ -233,7 +233,7 @@ class UVCal(UVBase):
             description=desc,
             form=("Ntimes",),
             expected_type=float,
-            tols=uvutils.RADIAN_TOL,
+            tols=utils.RADIAN_TOL,
             required=False,
         )
 
@@ -249,7 +249,7 @@ class UVCal(UVBase):
             description=desc,
             form=("Ntimes", 2),
             expected_type=float,
-            tols=uvutils.RADIAN_TOL,
+            tols=utils.RADIAN_TOL,
             required=False,
         )
 
@@ -1113,12 +1113,12 @@ class UVCal(UVBase):
 
     def _set_lsts_helper(self, *, astrometry_library=None):
         if self.time_array is not None:
-            self.lst_array = uvutils.get_lst_for_time(
+            self.lst_array = utils.get_lst_for_time(
                 jd_array=self.time_array, telescope_loc=self.telescope.location
             )
 
         if self.time_range is not None:
-            self.lst_range = uvutils.get_lst_for_time(
+            self.lst_range = utils.get_lst_for_time(
                 jd_array=self.time_range, telescope_loc=self.telescope.location
             )
         return
@@ -1166,7 +1166,7 @@ class UVCal(UVBase):
 
         """
         if not self.wide_band:
-            uvutils._check_flex_spw_contiguous(
+            utils._check_flex_spw_contiguous(
                 spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
             )
 
@@ -1191,7 +1191,7 @@ class UVCal(UVBase):
         """
         if (self.freq_array is None) or (self.Nfreqs == 1):
             return False, False
-        return uvutils._check_freq_spacing(
+        return utils._check_freq_spacing(
             freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
@@ -1308,7 +1308,7 @@ class UVCal(UVBase):
             source without coordinates.
 
         """
-        cat_entry = uvutils.generate_phase_center_cat_entry(
+        cat_entry = utils.generate_phase_center_cat_entry(
             cat_name=cat_name,
             cat_type=cat_type,
             cat_lon=cat_lon,
@@ -1327,7 +1327,7 @@ class UVCal(UVBase):
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
         if cat_id is None or not force_update:
-            cat_id = uvutils.generate_new_phase_center_id(
+            cat_id = utils.generate_new_phase_center_id(
                 phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
             )
 
@@ -1336,7 +1336,7 @@ class UVCal(UVBase):
             self.phase_center_catalog = {}
         else:
             # Let's warn if this entry has the same name as an existing one
-            temp_id, cat_diffs = uvutils.look_in_catalog(
+            temp_id, cat_diffs = utils.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry
             )
 
@@ -1451,7 +1451,7 @@ class UVCal(UVBase):
         ValueError
             If `cat_name` matches no keys in `phase_center_catalog`.
         """
-        return uvutils.print_phase_center_info(
+        return utils.print_phase_center_info(
             self.phase_center_catalog,
             catalog_identifier=catalog_identifier,
             hms_format=hms_format,
@@ -1483,7 +1483,7 @@ class UVCal(UVBase):
             If not using the method on a multi-phase-ctr data set, if there's no entry
             that matches `cat_name`, or of the value `new_id` is already taken.
         """
-        new_id = uvutils.generate_new_phase_center_id(
+        new_id = utils.generate_new_phase_center_id(
             phase_center_catalog=self.phase_center_catalog,
             cat_id=new_id,
             old_id=cat_id,
@@ -1553,7 +1553,7 @@ class UVCal(UVBase):
             # testing it's sometimes convenient to use self.phase_center_catalog as
             # the ref catalog, which causes a RunTime error due to updates to the dict.
             cat_entry = reference_catalog[cat_id]
-            match_id, match_diffs = uvutils.look_in_catalog(
+            match_id, match_diffs = utils.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
             )
             if match_id is None or match_diffs != 0:
@@ -1576,7 +1576,7 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         check_freq_spacing=False,
-        lst_tol=uvutils.LST_RAD_TOL,
+        lst_tol=utils.LST_RAD_TOL,
     ):
         """
         Add some extra checks on top of checks on UVBase class.
@@ -1666,7 +1666,7 @@ class UVCal(UVBase):
 
         # check that time ranges are well formed and do not overlap
         if self.time_range is not None:
-            if uvutils._check_range_overlap(self.time_range):
+            if utils._check_range_overlap(self.time_range):
                 raise ValueError("Some time_ranges overlap.")
             # note: do not check lst range overlap because of branch cut.
             # Assume they are ok if time_ranges are ok.
@@ -1723,21 +1723,21 @@ class UVCal(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            uvutils.check_surface_based_positions(
+            utils.check_surface_based_positions(
                 antenna_positions=self.telescope.antenna_positions,
                 telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
             if self.time_array is not None:
-                uvutils.check_lsts_against_times(
+                utils.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                 )
             if self.time_range is not None:
-                uvutils.check_lsts_against_times(
+                utils.check_lsts_against_times(
                     jd_array=self.time_range,
                     lst_array=self.lst_range,
                     telescope_loc=self.telescope.location,
@@ -1799,9 +1799,7 @@ class UVCal(UVBase):
                 return False
         if jpol is not None:
             if isinstance(jpol, (str, np.str_)):
-                jpol = uvutils.jstr2num(
-                    jpol, x_orientation=self.telescope.x_orientation
-                )
+                jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
             if jpol not in self.jones_array:
                 return False
 
@@ -1841,7 +1839,7 @@ class UVCal(UVBase):
             Antenna polarization index in data arrays
         """
         if isinstance(jpol, (str, np.str_)):
-            jpol = uvutils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
+            jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
 
         if not self._key_exists(jpol=jpol):
             raise ValueError("{} not found in jones_array".format(jpol))
@@ -1868,7 +1866,7 @@ class UVCal(UVBase):
         :class: numpy ndarray
             Slice of the data_array for the key.
         """
-        key = uvutils._get_iterable(key)
+        key = utils._get_iterable(key)
         if len(key) == 1:
             # interpret as a single antenna
             output = data_array[self.ant2ind(key[0]), :, :, :]
@@ -2024,7 +2022,7 @@ class UVCal(UVBase):
 
         """
         if self.lst_range is not None:
-            return uvutils.get_lst_for_time(
+            return utils.get_lst_for_time(
                 jd_array=self.get_time_array(), telescope_loc=self.telescope.location
             )
         else:
@@ -2214,7 +2212,7 @@ class UVCal(UVBase):
                 index_array = np.flip(index_array)
 
         else:
-            index_array = uvutils._sort_freq_helper(
+            index_array = utils._sort_freq_helper(
                 Nfreqs=self.Nfreqs,
                 freq_array=self.freq_array,
                 Nspws=self.Nspws,
@@ -2411,7 +2409,7 @@ class UVCal(UVBase):
                 index_array = np.argsort(self.jones_array)
             elif "name" in order:
                 name_array = np.asarray(
-                    uvutils.jnum2str(
+                    utils.jnum2str(
                         self.jones_array, x_orientation=self.telescope.x_orientation
                     )
                 )
@@ -2694,7 +2692,7 @@ class UVCal(UVBase):
         )
 
         if this.time_range is not None:
-            if uvutils._check_range_overlap(
+            if utils._check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
             ):
                 raise ValueError("A time_range overlaps in the two objects.")
@@ -2830,7 +2828,7 @@ class UVCal(UVBase):
                 this.reorder_jones(temp_ind)
 
         # Update filename parameter
-        this.filename = uvutils._combine_filenames(this.filename, other.filename)
+        this.filename = utils._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -3341,7 +3339,7 @@ class UVCal(UVBase):
                 )
 
         if this.Njones > 2:
-            if not uvutils._test_array_constant_spacing(this._jones_array):
+            if not utils._test_array_constant_spacing(this._jones_array):
                 warnings.warn(
                     "Combined Jones elements are not evenly spaced. This will "
                     "make it impossible to write this data out to calfits files."
@@ -3350,14 +3348,14 @@ class UVCal(UVBase):
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
-            histories_match = uvutils._check_histories(this.history, other.history)
+            histories_match = utils._check_histories(this.history, other.history)
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = uvutils._combine_history_addition(
+                    extra_history = utils._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -3610,7 +3608,7 @@ class UVCal(UVBase):
         history_update_string += " axis using pyuvdata."
         histories_match = []
         for obj in other:
-            histories_match.append(uvutils._check_histories(this.history, obj.history))
+            histories_match.append(utils._check_histories(this.history, obj.history))
 
         this.history += history_update_string
         for obj_num, obj in enumerate(other):
@@ -3618,7 +3616,7 @@ class UVCal(UVBase):
                 if verbose_history:
                     this.history += " Next object history follows. " + obj.history
                 else:
-                    extra_history = uvutils._combine_history_addition(
+                    extra_history = utils._combine_history_addition(
                         this.history, obj.history
                     )
                     if extra_history is not None:
@@ -3855,7 +3853,7 @@ class UVCal(UVBase):
 
         # update filename attribute
         for obj in other:
-            this.filename = uvutils._combine_filenames(this.filename, obj.filename)
+            this.filename = utils._combine_filenames(this.filename, obj.filename)
         if this.filename is not None:
             this._filename.form = len(this.filename)
 
@@ -3971,7 +3969,7 @@ class UVCal(UVBase):
                     "Only one of antenna_nums and antenna_names can be provided."
                 )
 
-            antenna_names = uvutils._get_iterable(antenna_names)
+            antenna_names = utils._get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
                 if s not in self.telescope.antenna_names:
@@ -3982,7 +3980,7 @@ class UVCal(UVBase):
                 antenna_nums.append(self.telescope.antenna_numbers[ind])
 
         if antenna_nums is not None:
-            antenna_nums = uvutils._get_iterable(antenna_nums)
+            antenna_nums = utils._get_iterable(antenna_nums)
             history_update_string += "antennas"
             n_selects += 1
 
@@ -4011,11 +4009,11 @@ class UVCal(UVBase):
                 )
 
         if catalog_names is not None:
-            phase_center_ids = uvutils.look_for_name(
+            phase_center_ids = utils.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
 
-        time_inds = uvutils._select_times_helper(
+        time_inds = utils._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -4046,7 +4044,7 @@ class UVCal(UVBase):
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
-            time_inds = uvutils._sorted_unique_intersection(
+            time_inds = utils._sorted_unique_intersection(
                 np.where(pc_check)[0], time_inds
             )
 
@@ -4065,7 +4063,7 @@ class UVCal(UVBase):
             time_inds_arr = np.array(time_inds)
             if time_inds_arr.size > 1:
                 time_ind_separation = time_inds_arr[1:] - time_inds_arr[:-1]
-                if not uvutils._test_array_constant(time_ind_separation):
+                if not utils._test_array_constant(time_ind_separation):
                     warnings.warn(
                         "Selected times are not evenly spaced. This "
                         "is not supported by the calfits format."
@@ -4080,7 +4078,7 @@ class UVCal(UVBase):
             else:
                 if not self.wide_band:
                     # Translate the spws into frequencies
-                    freq_chans = uvutils._sorted_unique_union(
+                    freq_chans = utils._sorted_unique_union(
                         np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
                     )
                     spw_inds = None
@@ -4112,7 +4110,7 @@ class UVCal(UVBase):
             )
 
         if frequencies is not None:
-            frequencies = uvutils._get_iterable(frequencies)
+            frequencies = utils._get_iterable(frequencies)
             freq_arr_use = self.freq_array
 
             freq_check = np.isin(frequencies, freq_arr_use)
@@ -4122,7 +4120,7 @@ class UVCal(UVBase):
                     "present in the freq_array"
                 )
 
-            freq_chans = uvutils._sorted_unique_union(
+            freq_chans = utils._sorted_unique_union(
                 np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
             )
 
@@ -4137,7 +4135,7 @@ class UVCal(UVBase):
             if frequencies is not None:
                 pass
 
-            freq_inds = np.array(sorted(uvutils._get_iterable(freq_chans)))
+            freq_inds = np.array(sorted(utils._get_iterable(freq_chans)))
 
             if len(freq_inds) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
@@ -4145,7 +4143,7 @@ class UVCal(UVBase):
                     freq_ind_separation = freq_ind_separation[
                         np.diff(self.flex_spw_id_array[freq_inds]) == 0
                     ]
-                if not uvutils._test_array_constant(freq_ind_separation):
+                if not utils._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -4163,7 +4161,7 @@ class UVCal(UVBase):
             freq_inds = None
 
         if jones is not None:
-            jones = uvutils._get_iterable(jones)
+            jones = utils._get_iterable(jones)
             if np.array(jones).ndim > 1:
                 jones = np.array(jones).flatten()
             if n_selects > 0:
@@ -4176,7 +4174,7 @@ class UVCal(UVBase):
             jones_spws = np.zeros(0, dtype=np.int64)
             for j in jones:
                 if isinstance(j, str):
-                    j_num = uvutils.jstr2num(
+                    j_num = utils.jstr2num(
                         j, x_orientation=self.telescope.x_orientation
                     )
                 else:
@@ -4204,10 +4202,10 @@ class UVCal(UVBase):
                     jones_chans = np.where(
                         np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
                     )[0]
-                    freq_inds = uvutils._sorted_unique_intersection(
+                    freq_inds = utils._sorted_unique_intersection(
                         jones_chans, freq_inds
                     )
-                spw_inds = uvutils._sorted_unique_intersection(jones_spws, spw_inds)
+                spw_inds = utils._sorted_unique_intersection(jones_spws, spw_inds)
 
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
@@ -4216,12 +4214,12 @@ class UVCal(UVBase):
                         "No data matching this Jones selection in this flex-Jones "
                         " UVCal object."
                     )
-                spacing_check = uvutils._test_array_constant_spacing(
+                spacing_check = utils._test_array_constant_spacing(
                     np.unique(self.flex_jones_array[spw_inds])
                 )
             else:
                 jones_inds = sorted(set(jones_inds))
-                spacing_check = uvutils._test_array_constant_spacing(
+                spacing_check = utils._test_array_constant_spacing(
                     self.jones_array[jones_inds]
                 )
             if not spacing_check:

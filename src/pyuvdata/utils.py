@@ -21,7 +21,7 @@ from astropy.time import Time
 from astropy.utils import iers
 from scipy.spatial.distance import cdist
 
-from pyuvdata import _utils
+from . import _utils
 
 try:
     from lunarsky import MoonLocation

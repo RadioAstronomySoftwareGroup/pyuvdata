@@ -16,10 +16,9 @@ import h5py
 import numpy as np
 from docstring_parser import DocstringStyle
 
-from pyuvdata import Telescope, hdf5_utils
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
-from pyuvdata.uvdata import UVData  # avoid circular import errors
+from .. import Telescope, hdf5_utils, utils
+from ..docstrings import copy_replace_short_description
+from . import UVData
 
 __all__ = ["UVH5", "FastUVH5Meta"]
 
@@ -204,7 +203,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
 
     def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
-        return uvutils.determine_blt_order(
+        return utils.determine_blt_order(
             time_array=self.time_array,
             ant_1_array=self.ant_1_array,
             ant_2_array=self.ant_2_array,
@@ -251,7 +250,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         ):
             return True
 
-        is_rect, self.__time_first = uvutils.determine_rectangularity(
+        is_rect, self.__time_first = utils.determine_rectangularity(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             nbls=self.Nbls,
@@ -306,7 +305,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         if "lst_array" in h:
             return h["lst_array"][:]
         else:
-            lst_array = uvutils.get_lst_for_time(
+            lst_array = utils.get_lst_for_time(
                 jd_array=self.time_array,
                 telescope_loc=self.telescope_location_obj,
                 astrometry_library=self._astrometry_library,
@@ -362,14 +361,14 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
     @cached_property
     def baseline_array(self) -> np.ndarray:
         """The baselines in the file, as unique integers."""
-        return uvutils.antnums_to_baseline(
+        return utils.antnums_to_baseline(
             self.ant_1_array, self.ant_2_array, Nants_telescope=self.Nants_telescope
         )
 
     @cached_property
     def unique_baseline_array(self) -> np.ndarray:
         """The unique baselines in the file, as unique integers."""
-        return uvutils.antnums_to_baseline(
+        return utils.antnums_to_baseline(
             self.unique_antpair_1_array,
             self.unique_antpair_2_array,
             Nants_telescope=self.Nants_telescope,
@@ -399,7 +398,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
     def pols(self) -> list[str]:
         """The polarizations in the file, as standardized strings, eg. 'xx' or 'ee'."""
         return [
-            uvutils.polnum2str(p, x_orientation=self.x_orientation)
+            utils.polnum2str(p, x_orientation=self.x_orientation)
             for p in self.polarization_array
         ]
 
@@ -513,11 +512,11 @@ class UVH5(UVData):
             proc = None
 
             if run_check_acceptability:
-                uvutils.check_lsts_against_times(
+                utils.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
-                    lst_tols=(0, uvutils.LST_RAD_TOL),
+                    lst_tols=(0, utils.LST_RAD_TOL),
                 )
         else:
             proc = self.set_lsts_from_time_array(
@@ -587,7 +586,7 @@ class UVH5(UVData):
         if "time_axis_faster_than_bls" in obj.header:
             self.time_axis_faster_than_bls = obj.time_axis_faster_than_bls
 
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # Optional parameters
@@ -800,9 +799,9 @@ class UVH5(UVData):
                     dgrp["visdata"], inds, data_array_dtype
                 )
             else:
-                self.data_array = uvutils._index_dset(dgrp["visdata"], inds)
-            self.flag_array = uvutils._index_dset(dgrp["flags"], inds)
-            self.nsample_array = uvutils._index_dset(dgrp["nsamples"], inds)
+                self.data_array = utils._index_dset(dgrp["visdata"], inds)
+            self.flag_array = utils._index_dset(dgrp["flags"], inds)
+            self.nsample_array = utils._index_dset(dgrp["nsamples"], inds)
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
@@ -818,7 +817,7 @@ class UVH5(UVData):
             # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
             # See pyuvdata PR #805
             if blt_inds is not None:
-                blt_slices, blt_sliceable = uvutils._convert_to_slices(
+                blt_slices, blt_sliceable = utils._convert_to_slices(
                     blt_inds, max_nslice_frac=0.1
                 )
             else:
@@ -826,7 +825,7 @@ class UVH5(UVData):
                 blt_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = uvutils._convert_to_slices(
+                freq_slices, freq_sliceable = utils._convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
             else:
@@ -834,7 +833,7 @@ class UVH5(UVData):
                 freq_sliceable = True
 
             if pol_inds is not None:
-                pol_slices, pol_sliceable = uvutils._convert_to_slices(
+                pol_slices, pol_sliceable = utils._convert_to_slices(
                     pol_inds, max_nslice_frac=0.5
                 )
             else:
@@ -877,9 +876,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = uvutils._index_dset(visdata_dset, inds)
-                flags = uvutils._index_dset(flags_dset, inds)
-                nsamples = uvutils._index_dset(nsamples_dset, inds)
+                    visdata = utils._index_dset(visdata_dset, inds)
+                flags = utils._index_dset(flags_dset, inds)
+                nsamples = utils._index_dset(nsamples_dset, inds)
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:
@@ -915,9 +914,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = uvutils._index_dset(visdata_dset, inds)
-                flags = uvutils._index_dset(flags_dset, inds)
-                nsamples = uvutils._index_dset(nsamples_dset, inds)
+                    visdata = utils._index_dset(visdata_dset, inds)
+                flags = utils._index_dset(flags_dset, inds)
+                nsamples = utils._index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
@@ -953,9 +952,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = uvutils._index_dset(visdata_dset, inds)
-                flags = uvutils._index_dset(flags_dset, inds)
-                nsamples = uvutils._index_dset(nsamples_dset, inds)
+                    visdata = utils._index_dset(visdata_dset, inds)
+                flags = utils._index_dset(flags_dset, inds)
+                nsamples = utils._index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck

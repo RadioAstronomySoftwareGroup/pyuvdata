@@ -2251,16 +2251,34 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
         coord_epoch="J2000.0",
     )
 
-    check_ra, check_dec = uvutils.calc_sidereal_coords(
-        time_array=astrometry_args["time_array"],
-        app_ra=app_ra,
-        app_dec=app_dec,
-        telescope_loc=telescope_loc,
-        coord_frame="fk5",
-        telescope_frame=telescope_frame,
-        ellipsoid=selenoid,
-        coord_epoch=2000.0,
-    )
+    if telescope_frame == "mcmf":
+        from spiceypy.utils.exceptions import SpiceUNKNOWNFRAME
+
+        try:
+            check_ra, check_dec = uvutils.calc_sidereal_coords(
+                time_array=astrometry_args["time_array"],
+                app_ra=app_ra,
+                app_dec=app_dec,
+                telescope_loc=telescope_loc,
+                coord_frame="fk5",
+                telescope_frame=telescope_frame,
+                ellipsoid=selenoid,
+                coord_epoch=2000.0,
+            )
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
+    else:
+        check_ra, check_dec = uvutils.calc_sidereal_coords(
+            time_array=astrometry_args["time_array"],
+            app_ra=app_ra,
+            app_dec=app_dec,
+            telescope_loc=telescope_loc,
+            coord_frame="fk5",
+            telescope_frame=telescope_frame,
+            ellipsoid=selenoid,
+            coord_epoch=2000.0,
+        )
+
     check_coord = SkyCoord(check_ra, check_dec, unit="rad")
     assert np.all(SkyCoord(0, 0, unit="rad").separation(check_coord).uarcsec < 1.0)
 

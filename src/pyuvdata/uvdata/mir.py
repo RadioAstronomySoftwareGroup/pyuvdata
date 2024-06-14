@@ -11,10 +11,9 @@ from astropy.coordinates import angular_separation
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from pyuvdata import Telescope, UVData, known_telescope_location
-from pyuvdata import utils as uvutils
-from pyuvdata.docstrings import copy_replace_short_description
-from pyuvdata.uvdata import mir_parser
+from .. import Telescope, known_telescope_location, utils
+from ..docstrings import copy_replace_short_description
+from . import UVData, mir_parser
 
 __all__ = ["generate_sma_antpos_dict", "Mir"]
 
@@ -59,7 +58,7 @@ def generate_sma_antpos_dict(filepath):
     # We need the antenna positions in ECEF, rather than the native rotECEF format that
     # they are stored in. Get the longitude info, and use the appropriate function in
     # utils to get these values the way that we want them.
-    mir_antpos["xyz_pos"] = uvutils.ECEF_from_rotECEF(
+    mir_antpos["xyz_pos"] = utils.ECEF_from_rotECEF(
         mir_antpos["xyz_pos"], known_telescope_location("SMA").lon.rad
     )
 
@@ -361,7 +360,7 @@ class Mir(UVData):
             # them in the try/except loop here (if present in the data, it will throw
             # an error further downstream).
             try:
-                pol_code_dict[icode_dict[code]] = uvutils.POL_STR2NUM_DICT[code.lower()]
+                pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[code.lower()]
             except KeyError:
                 pass
         if pol_split_tuning and allow_flex_pol:
@@ -542,7 +541,7 @@ class Mir(UVData):
         # coordinate systems are in relative units, no subtraction from
         # telescope geocentric position is required , i.e we are going from
         # relRotECEF -> relECEF
-        self.telescope.antenna_positions = uvutils.ECEF_from_rotECEF(
+        self.telescope.antenna_positions = utils.ECEF_from_rotECEF(
             antXYZ, self.telescope.location.lon.rad
         )
 
@@ -707,7 +706,7 @@ class Mir(UVData):
                 time_arr = Time(
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd
-                source_ra, source_dec = uvutils.transform_app_to_icrs(
+                source_ra, source_dec = utils.transform_app_to_icrs(
                     time_array=time_arr,
                     app_ra=mir_data.in_data["ara"][source_mask],
                     app_dec=mir_data.in_data["adec"][source_mask],
@@ -750,7 +749,7 @@ class Mir(UVData):
         # frame (ICRS) and applying the rotation below (via `calc_uvw`).
         self._set_app_coords_helper(pa_only=True)
 
-        self.uvw_array = uvutils.calc_uvw(
+        self.uvw_array = utils.calc_uvw(
             uvw_array=self.uvw_array,
             old_frame_pa=0.0,
             frame_pa=self.phase_center_frame_pa,
