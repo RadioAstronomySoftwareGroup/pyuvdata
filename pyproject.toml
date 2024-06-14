@@ -11,7 +11,7 @@ name = "pyuvdata"
 authors = [
     {name = "Bryna Hazelton", email = "brynah@phys.washington.edu"},
     {name = "Adam Beardsley", email = "adam.beardsley@winona.edu"},
-    {name = "Daniel Jacobs", email = "wheresmytab@gmail.com"},
+    {name = "Daniel Jacobs", email = "daniel.c.jacobs@gmail.com"},
     {name = "Garrett Keating", email = "garrett.keating@cfa.harvard.edu"},
     {name = "Nicholas Kern", email = "nkern@mit.edu"},
     {name = "Matthew Kolopanis", email = "mjkolopa@asu.edu"},
@@ -19,7 +19,7 @@ authors = [
     {name = "Paul La Plante", email = "paul.laplante@unlv.edu"},
     {name = "Steven Murray", email = "murray.steveng@gmail.com"},
     {name = "Jonathan Pober", email = "jonathan_pober@brown.edu"},
-    {name = "Pyxie Star", email = "pyxstar@uw.edu"},
+    {name = "Pyxie Star", email = "pyxiestar@gmail.com"},
 ]
 maintainers = [
     {name = "Bryna Hazelton", email = "brynah@phys.washington.edu"},
