@@ -14,7 +14,7 @@ authors = [
     {name = "Daniel Jacobs", email = "daniel.c.jacobs@gmail.com"},
     {name = "Garrett Keating", email = "garrett.keating@cfa.harvard.edu"},
     {name = "Nicholas Kern", email = "nkern@mit.edu"},
-    {name = "Matthew Kolopanis", email = "mjkolopa@asu.edu"},
+    {name = "Matthew Kolopanis", email = "matthew.kolopanis@gmail.com"},
     {name = "Adam Lanman", email = "alanman@mit.edu"},
     {name = "Paul La Plante", email = "paul.laplante@unlv.edu"},
     {name = "Steven Murray", email = "murray.steveng@gmail.com"},
@@ -23,7 +23,7 @@ authors = [
 ]
 maintainers = [
     {name = "Bryna Hazelton", email = "brynah@phys.washington.edu"},
-    {name = "Matthew Kolopanis", email = "mjkolopa@asu.edu"},
+    {name = "Matthew Kolopanis", email = "matthew.kolopanis@gmail.com"},
     {name = "Garrett Keating", email = "garrett.keating@cfa.harvard.edu"},
     {name = "Steven Murray", email = "murray.steveng@gmail.com"},
 ]
