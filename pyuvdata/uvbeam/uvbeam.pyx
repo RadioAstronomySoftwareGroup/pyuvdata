@@ -12,6 +12,7 @@ import warnings
 
 cimport cython
 cimport numpy
+
 numpy.import_array()
 
 from libc.math cimport fabs

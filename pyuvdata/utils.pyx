@@ -14,6 +14,7 @@ import warnings
 
 cimport cython
 cimport numpy
+
 numpy.import_array()
 
 from libc.math cimport atan2, cos, sin, sqrt
