@@ -9,6 +9,8 @@ import numpy as np
 # cython imports
 cimport cython
 cimport numpy
+numpy.import_array()
+
 cimport libcpp.complex
 from libc.string cimport strncmp
 
