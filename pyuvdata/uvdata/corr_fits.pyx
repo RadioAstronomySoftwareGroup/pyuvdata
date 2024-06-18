@@ -9,6 +9,8 @@
 
 cimport cython
 cimport numpy
+numpy.import_array()
+
 from libc.stdlib cimport strtod
 from libc.string cimport memcpy, strncmp, strtok
 
