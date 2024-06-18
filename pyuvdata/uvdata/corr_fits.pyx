@@ -9,6 +9,7 @@
 
 cimport cython
 cimport numpy
+
 numpy.import_array()
 
 from libc.stdlib cimport strtod
