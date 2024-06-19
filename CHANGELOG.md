@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- numpy c-api for 2.0 compatibility
+- numpy.string_ calls to numpy.bytes_
+
 ## [2.4.4] - 2024-6-7
 
 ### Changed
