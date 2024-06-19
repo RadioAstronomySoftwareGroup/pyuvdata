@@ -529,7 +529,7 @@ def new_uvdata(
         (lst_array, integration_time),
     ) = configure_blt_rectangularity(
         times=times,
-        antpairs=np.array(antpairs),
+        antpairs=np.asarray(antpairs).astype(int),
         do_blt_outer=do_blt_outer,
         blts_are_rectangular=blts_are_rectangular,
         time_axis_faster_than_bls=time_axis_faster_than_bls,
