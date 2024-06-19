@@ -20,7 +20,8 @@ from cython.parallel import parallel, prange
 from libc.math cimport exp, pi, sqrt
 
 ctypedef fused int_like:
-  numpy.int_t
+  numpy.int32_t
+  numpy.long
   int
 
 cdef inline int_like pfb_mapper(int_like index):
@@ -150,8 +151,8 @@ cdef inline void _make_length_array(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
-  numpy.int_t[::1] ant1_array,
-  numpy.int_t[::1] ant2_array,
+  numpy.int32_t[::1] ant1_array,
+  numpy.int32_t[::1] ant2_array,
   char[:, ::1] cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.

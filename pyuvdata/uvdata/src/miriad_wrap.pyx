@@ -91,7 +91,7 @@ cdef extern from "maxdimc.h":
 
 MAXCHAN = _MAXCHAN
 
-ctypedef numpy.int_t DTYPE_t
+ctypedef numpy.int32_t DTYPE_t
 ctypedef numpy.complex64_t DTYPE_c
 ctypedef numpy.float64_t DTYPE_f64
 
