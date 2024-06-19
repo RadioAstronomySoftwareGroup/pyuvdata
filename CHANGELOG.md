@@ -3,9 +3,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+
 ### Changed
 - numpy c-api for 2.0 compatibility
 - numpy.string_ calls to numpy.bytes_
+
+### Fixed
+- Fixed #1445 in which in some corner cases the `antpairs` array was not correctly interpreted as int.
 
 ## [2.4.4] - 2024-6-7
 
