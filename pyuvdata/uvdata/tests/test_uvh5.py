@@ -2,9 +2,8 @@
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for HDF5 object
+"""Tests for HDF5 object"""
 
-"""
 import json
 import os
 import re
@@ -282,7 +281,7 @@ def test_read_uvh5_errors(tmp_path, casa_uvfits):
 
     with h5py.File(testfile, "r+") as f:
         del f["Header"]["telescope_frame"]
-        f["Header"]["telescope_frame"] = np.string_("foo")
+        f["Header"]["telescope_frame"] = np.bytes_("foo")
 
     with pytest.raises(
         ValueError,
@@ -2069,8 +2068,8 @@ def test_uvh5_read_header_special_cases(casa_uvfits, tmp_path):
         del h5f["Header/history"]
         del h5f["Header/vis_units"]
         del h5f["Header/phase_center_catalog"]
-        h5f["Header/history"] = np.string_("blank history")
-        h5f["Header/phase_type"] = np.string_("blah")
+        h5f["Header/history"] = np.bytes_("blank history")
+        h5f["Header/phase_type"] = np.bytes_("blah")
     with uvtest.check_warnings(
         UserWarning,
         [
@@ -3277,7 +3276,7 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, future_shapes, tmp_pa
 def test_antenna_names_not_list(casa_uvfits, tmp_path):
     """
     Test if antenna_names is cast to an array, dimensions are preserved in
-    ``np.string_`` call during uvh5 write.
+    ``np.bytes_`` call during uvh5 write.
     """
     uv_in = casa_uvfits
     uv_out = UVData()
@@ -3380,7 +3379,7 @@ def test_old_phase_center_catalog_format(sma_mir, tmp_path):
             temp_dict = sma_mir.phase_center_catalog[k].copy()
             temp_dict["cat_id"] = k
             temp_name = temp_dict.pop("cat_name")
-            phase_dict[temp_name] = np.string_(json.dumps(temp_dict))
+            phase_dict[temp_name] = np.bytes_(json.dumps(temp_dict))
 
     uvd = UVData.from_file(testfile, use_future_array_shapes=True)
     uvd.history = sma_mir.history

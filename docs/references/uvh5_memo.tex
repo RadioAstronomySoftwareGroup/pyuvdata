@@ -9,13 +9,13 @@
 \usepackage{geometry}
 \geometry{letterpaper}
 \usepackage{graphicx}
-\usepackage[titletoc,toc,title]{appendix}							
+\usepackage[titletoc,toc,title]{appendix}
 \usepackage{amssymb}
 \usepackage{physics}
 \usepackage{array}
 \usepackage{makecell}
 
-\usepackage{hyperref} 
+\usepackage{hyperref}
 \hypersetup{
     colorlinks = true
 }
@@ -230,7 +230,7 @@ The next level keys must include:
 	  Driftscan means a phase center with a fixed azimuth and
 	  elevation (note that this includes w-projection, even at zenith).
 	  Unprojected means no phasing, including w-projection, has been applied.
-  	\item \textbf{cat\_lon}: \textit{float} 
+  	\item \textbf{cat\_lon}: \textit{float}
 	  The longitudinal coordinate of the phase center, either a single value or a
 	  one dimensional array of length Npts (the number of ephemeris data points)
 	  for ephem type phase centers.
@@ -746,7 +746,7 @@ import h5py
 with h5py.File('test_file.uvh5', 'w') as f:
     header = f.create_group('Header')
     # scalar dataset
-    header['scalar_string'] = np.string_('Hello world!')
+    header['scalar_string'] = np.bytes_('Hello world!')
 
     # array dataset
     str_array = np.array(['hello', 'world'])
@@ -776,11 +776,11 @@ import h5py
 with h5py.File('test_file.uvh5', 'w') as f:
     header = f.create_group('Header')
     # scalar dataset
-    header['scalar_string'] = np.string_('Hello world!')
+    header['scalar_string'] = np.bytes_('Hello world!')
 
     # array dataset
     str_array = ['hello', 'world']
-    header['array_string'] = np.string_(str_array)
+    header['array_string'] = np.bytes_(str_array)
 
 # read the data back in again
 with h5py.File('test_file.uvh5', 'r') as f:
