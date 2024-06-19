@@ -21,6 +21,7 @@ from libc.math cimport exp, pi, sqrt
 
 ctypedef fused int_like:
   numpy.int32_t
+  numpy.int64_t
   numpy.long
   int
 
@@ -151,8 +152,8 @@ cdef inline void _make_length_array(
 @cython.boundscheck(False)
 @cython.wraparound(False)
 cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
-  numpy.int32_t[::1] ant1_array,
-  numpy.int32_t[::1] ant2_array,
+  numpy.int64_t[::1] ant1_array,
+  numpy.int64_t[::1] ant2_array,
   char[:, ::1] cable_lens,
 ):
   """Computer the difference in cable lengths for each baseline.
@@ -162,9 +163,9 @@ cpdef numpy.ndarray[ndim=1, dtype=numpy.float64_t] get_cable_len_diffs(
 
   Parameters
   ----------
-  ant1_array : numpy array of type int_t
+  ant1_array : numpy array of type int64_t
     Array of antenna 1 numbers for each baseline.
-  ant2_array : numpy array of type int_t
+  ant2_array : numpy array of type int64_t
     Array of antenna 2 numbers for each baseline.
   cable_lens : numpy array
     Array of strings of the length of the cable for each antenna.
