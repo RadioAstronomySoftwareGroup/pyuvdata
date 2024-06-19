@@ -4034,9 +4034,8 @@ class UVFlag(UVBase):
             self._set_mode_flag()
         else:
             raise ValueError(
-                "Input mode must be within acceptable values: " "{}".format(
-                    (", ").join(self._mode.acceptable_vals)
-                )
+                "Input mode must be within acceptable values: "
+                "{}".format((", ").join(self._mode.acceptable_vals))
             )
 
         if use_future_array_shapes:
@@ -4233,9 +4232,8 @@ class UVFlag(UVBase):
             self._set_mode_flag()
         else:
             raise ValueError(
-                "Input mode must be within acceptable values: " "{}".format(
-                    (", ").join(self._mode.acceptable_vals)
-                )
+                "Input mode must be within acceptable values: "
+                "{}".format((", ").join(self._mode.acceptable_vals))
             )
 
         if use_future_array_shapes:
