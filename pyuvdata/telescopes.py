@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Telescope information and known telescope list."""
+
 import os
 
 import numpy as np
@@ -205,7 +206,7 @@ def _parse_antpos_file(antenna_positions_file):
     columns = ["name", "number", "x", "y", "z"]
     formats = ["U10", "i8", np.longdouble, np.longdouble, np.longdouble]
 
-    dt = np.format_parser(formats, columns, [])
+    dt = np.rec.format_parser(formats, columns, [])
     ant_array = np.genfromtxt(
         antenna_positions_file,
         delimiter=",",
