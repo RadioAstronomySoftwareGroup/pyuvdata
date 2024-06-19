@@ -1557,8 +1557,8 @@ class MWACorrFITS(UVData):
         ant_1_inds, ant_2_inds = np.transpose(
             list(itertools.combinations_with_replacement(np.arange(self.Nants_data), 2))
         )
-        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int_)
-        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int_)
+        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int64)
+        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int64)
 
         if not mwax:
             # coarse channel mapping for the legacy correlator:
