@@ -1351,7 +1351,7 @@ def test_bad_mode_savefile(uvdata_obj, test_outfile):
     # manually re-read and tamper with parameters
     with h5py.File(test_outfile, "a") as h5:
         mode = h5["Header/mode"]
-        mode[...] = np.string_("test")
+        mode[...] = np.bytes_("test")
 
     with pytest.raises(ValueError, match="File cannot be read. Received mode"):
         uvf = UVFlag(test_outfile, use_future_array_shapes=True)
@@ -1364,7 +1364,7 @@ def test_bad_type_savefile(uvdata_obj, test_outfile):
     # manually re-read and tamper with parameters
     with h5py.File(test_outfile, "a") as h5:
         mode = h5["Header/type"]
-        mode[...] = np.string_("test")
+        mode[...] = np.bytes_("test")
 
     with pytest.raises(ValueError, match="File cannot be read. Received type"):
         uvf = UVFlag(test_outfile)
@@ -1379,7 +1379,7 @@ def test_write_add_version_str(uvdata_obj, test_outfile):
     uvf.write(test_outfile, clobber=True)
 
     with h5py.File(test_outfile, "r") as h5:
-        assert h5["Header/history"].dtype.type is np.string_
+        assert h5["Header/history"].dtype.type is np.bytes_
         hist = h5["Header/history"][()].decode("utf8")
     assert pyuvdata_version_str in hist
 
@@ -2206,7 +2206,7 @@ def test_collapse_pol(test_outfile):
     # correct type
     uvf2.write(test_outfile, clobber=True)
     with h5py.File(test_outfile, "r") as h5:
-        assert h5["Header/polarization_array"].dtype.type is np.string_
+        assert h5["Header/polarization_array"].dtype.type is np.bytes_
     uvf = UVFlag(test_outfile, use_future_array_shapes=True)
     assert uvf._polarization_array.expected_type == str
     assert uvf._polarization_array.acceptable_vals is None

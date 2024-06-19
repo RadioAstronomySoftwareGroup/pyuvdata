@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer flag manipulation."""
+
 import copy
 import os
 import pathlib
@@ -3673,7 +3674,7 @@ class UVFlag(UVBase):
                     self.extra_keywords = {}
                     for key in header["extra_keywords"].keys():
                         if header["extra_keywords"][key].dtype.type in (
-                            np.string_,
+                            np.bytes_,
                             np.object_,
                         ):
                             self.extra_keywords[key] = bytes(
@@ -3688,7 +3689,7 @@ class UVFlag(UVBase):
                     self.label = header["label"][()].decode("utf8")
 
                 polarization_array = header["polarization_array"][()]
-                if isinstance(polarization_array[0], np.string_):
+                if isinstance(polarization_array[0], np.bytes_):
                     polarization_array = np.asarray(polarization_array, dtype=np.str_)
                 self.polarization_array = polarization_array
                 self._check_pol_state()
@@ -3871,15 +3872,15 @@ class UVFlag(UVBase):
             # write out metadata
             if self.future_array_shapes:
                 # this is Version 1.0
-                header["version"] = np.string_("1.0")
+                header["version"] = np.bytes_("1.0")
             else:
-                header["version"] = np.string_("0.1")
+                header["version"] = np.bytes_("0.1")
 
-            header["type"] = np.string_(self.type)
-            header["mode"] = np.string_(self.mode)
+            header["type"] = np.bytes_(self.type)
+            header["mode"] = np.bytes_(self.mode)
 
             if self.telescope_name is not None:
-                header["telescope_name"] = np.string_(self.telescope_name)
+                header["telescope_name"] = np.bytes_(self.telescope_name)
             if self.telescope_location is not None:
                 header["telescope_location"] = self.telescope_location
 
@@ -3899,11 +3900,11 @@ class UVFlag(UVBase):
             header["Npols"] = self.Npols
 
             if self.x_orientation is not None:
-                header["x_orientation"] = np.string_(self.x_orientation)
+                header["x_orientation"] = np.bytes_(self.x_orientation)
 
             if isinstance(self.polarization_array.item(0), str):
                 polarization_array = np.asarray(
-                    self.polarization_array, dtype=np.string_
+                    self.polarization_array, dtype=np.bytes_
                 )
             else:
                 polarization_array = self.polarization_array
@@ -3921,13 +3922,13 @@ class UVFlag(UVBase):
                 )  # create spot in header
                 for k in self.extra_keywords.keys():
                     if isinstance(self.extra_keywords[k], str):
-                        extra_keywords[k] = np.string_(self.extra_keywords[k])
+                        extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                     else:
                         extra_keywords[k] = self.extra_keywords[k]
 
-            header["history"] = np.string_(self.history)
+            header["history"] = np.bytes_(self.history)
 
-            header["label"] = np.string_(self.label)
+            header["label"] = np.bytes_(self.label)
 
             if self.type == "baseline":
                 header["Nblts"] = self.Nblts
@@ -4033,8 +4034,9 @@ class UVFlag(UVBase):
             self._set_mode_flag()
         else:
             raise ValueError(
-                "Input mode must be within acceptable values: "
-                "{}".format((", ").join(self._mode.acceptable_vals))
+                "Input mode must be within acceptable values: " "{}".format(
+                    (", ").join(self._mode.acceptable_vals)
+                )
             )
 
         if use_future_array_shapes:
@@ -4231,8 +4233,9 @@ class UVFlag(UVBase):
             self._set_mode_flag()
         else:
             raise ValueError(
-                "Input mode must be within acceptable values: "
-                "{}".format((", ").join(self._mode.acceptable_vals))
+                "Input mode must be within acceptable values: " "{}".format(
+                    (", ").join(self._mode.acceptable_vals)
+                )
             )
 
         if use_future_array_shapes:

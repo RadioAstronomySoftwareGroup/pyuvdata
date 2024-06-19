@@ -508,7 +508,7 @@ class MWACorrFITS(UVData):
         # as of version 0.29.X cython does not handle numpy arrays of strings
         # particularly efficiently. Casting to bytes, then into this demonic
         # form is a workaround found here: https://stackoverflow.com/a/28777163
-        cable_lens = np.asarray(cable_lens).astype(np.string_)
+        cable_lens = np.asarray(cable_lens).astype(np.bytes_)
         cable_lens = cable_lens.view("uint8").reshape(
             cable_lens.size, cable_lens.dtype.itemsize
         )

@@ -3,6 +3,7 @@
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing UVH5 files."""
+
 from __future__ import annotations
 
 import json
@@ -688,7 +689,7 @@ class FastUVH5Meta:
 
         extra_keywords = {}
         for key in header["extra_keywords"].keys():
-            if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+            if header["extra_keywords"][key].dtype.type in (np.bytes_, np.object_):
                 extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
                     "utf8"
                 )
@@ -1588,17 +1589,17 @@ class UVH5(UVData):
             "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
         )
         assert self.future_array_shapes, assert_err_msg
-        header["version"] = np.string_("1.2")
+        header["version"] = np.bytes_("1.2")
 
         # write out telescope and source information
-        header["telescope_frame"] = np.string_(self._telescope_location.frame)
+        header["telescope_frame"] = np.bytes_(self._telescope_location.frame)
         if self._telescope_location.frame == "mcmf":
             header["ellipsoid"] = self._telescope_location.ellipsoid
         header["latitude"] = self.telescope_location_lat_lon_alt_degrees[0]
         header["longitude"] = self.telescope_location_lat_lon_alt_degrees[1]
         header["altitude"] = self.telescope_location_lat_lon_alt_degrees[2]
-        header["telescope_name"] = np.string_(self.telescope_name)
-        header["instrument"] = np.string_(self.instrument)
+        header["telescope_name"] = np.bytes_(self.telescope_name)
+        header["instrument"] = np.bytes_(self.instrument)
 
         # write out required UVParameters
         header["Nants_data"] = self.Nants_data
@@ -1611,7 +1612,7 @@ class UVH5(UVData):
         header["Ntimes"] = self.Ntimes
         header["antenna_numbers"] = self.antenna_numbers
         header["uvw_array"] = self.uvw_array
-        header["vis_units"] = np.string_(self.vis_units)
+        header["vis_units"] = np.bytes_(self.vis_units)
         header["channel_width"] = self.channel_width
         header["time_array"] = self.time_array
         header["freq_array"] = self.freq_array
@@ -1654,13 +1655,13 @@ class UVH5(UVData):
         if self.gst0 is not None:
             header["gst0"] = self.gst0
         if self.rdate is not None:
-            header["rdate"] = np.string_(self.rdate)
+            header["rdate"] = np.bytes_(self.rdate)
         if self.timesys is not None:
-            header["timesys"] = np.string_(self.timesys)
+            header["timesys"] = np.bytes_(self.timesys)
         if self.x_orientation is not None:
-            header["x_orientation"] = np.string_(self.x_orientation)
+            header["x_orientation"] = np.bytes_(self.x_orientation)
         if self.blt_order is not None:
-            header["blt_order"] = np.string_(", ".join(self.blt_order))
+            header["blt_order"] = np.bytes_(", ".join(self.blt_order))
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
         if self.uvplane_reference_time is not None:
@@ -1668,7 +1669,7 @@ class UVH5(UVData):
         if self.eq_coeffs is not None:
             header["eq_coeffs"] = self.eq_coeffs
         if self.eq_coeffs_convention is not None:
-            header["eq_coeffs_convention"] = np.string_(self.eq_coeffs_convention)
+            header["eq_coeffs_convention"] = np.bytes_(self.eq_coeffs_convention)
         if self.flex_spw_id_array is not None:
             header["flex_spw_id_array"] = self.flex_spw_id_array
         if self.flex_spw_polarization_array is not None:
@@ -1684,7 +1685,7 @@ class UVH5(UVData):
             extra_keywords = header.create_group("extra_keywords")
             for k in self.extra_keywords.keys():
                 if isinstance(self.extra_keywords[k], str):
-                    extra_keywords[k] = np.string_(self.extra_keywords[k])
+                    extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                 elif self.extra_keywords[k] is None:
                     # save as empty/null dataset
                     extra_keywords[k] = h5py.Empty("f")
@@ -1692,7 +1693,7 @@ class UVH5(UVData):
                     extra_keywords[k] = self.extra_keywords[k]
 
         # write out history
-        header["history"] = np.string_(self.history)
+        header["history"] = np.bytes_(self.history)
 
         return
 
@@ -2448,11 +2449,11 @@ class UVH5(UVData):
 
             # append to history if desired
             if add_to_history is not None:
-                history = np.string_(self.history) + np.string_(add_to_history)
+                history = np.bytes_(self.history) + np.bytes_(add_to_history)
                 if "history" in f["Header"]:
                     # erase dataset first b/c it has fixed-length string datatype
                     del f["Header"]["history"]
-                f["Header"]["history"] = np.string_(history)
+                f["Header"]["history"] = np.bytes_(history)
 
         if revert_fas:
             with warnings.catch_warnings():
