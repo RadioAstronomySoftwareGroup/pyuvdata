@@ -11,7 +11,7 @@ from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
 
-from .. import _phasing
+from . import _phasing
 from .lst import get_lst_for_time
 
 try:

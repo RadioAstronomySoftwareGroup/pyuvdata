@@ -5,7 +5,7 @@
 import numpy as np
 from astropy.coordinates import EarthLocation
 
-from .. import _coordinates
+from . import _coordinates
 
 try:
     from lunarsky import MoonLocation
