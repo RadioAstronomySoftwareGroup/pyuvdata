@@ -3764,9 +3764,7 @@ class UVData(UVBase):
                     pol_ind2 = np.array([], dtype=np.int64)
                     pol_ind = (pol_ind1, pol_ind2)
                 else:
-                    raise KeyError(
-                        "Polarization {pol} not found in data.".format(pol=key)
-                    )
+                    raise KeyError(f"Polarization {int(key)} not found in data.")
             else:
                 # Larger number, assume it is a baseline number
                 inv_bl = self.antnums_to_baseline(
@@ -3775,7 +3773,7 @@ class UVData(UVBase):
                 blt_ind1 = np.where(self.baseline_array == key)[0]
                 blt_ind2 = np.where(self.baseline_array == inv_bl)[0]
                 if len(blt_ind1) + len(blt_ind2) == 0:
-                    raise KeyError("Baseline {bl} not found in data.".format(bl=key))
+                    raise KeyError(f"Baseline {int(key)} not found in data.")
                 if len(blt_ind1) > 0:
                     pol_ind1 = np.arange(self.Npols)
                 else:
@@ -3799,8 +3797,9 @@ class UVData(UVBase):
             # Key is an antenna pair
             blt_ind1 = self.antpair2ind(key[0], key[1])
             blt_ind2 = self.antpair2ind(key[1], key[0])
+            key_print = (int(key[0]), int(key[1]))
             if len(blt_ind1) + len(blt_ind2) == 0:
-                raise KeyError("Antenna pair {pair} not found in data".format(pair=key))
+                raise KeyError(f"Antenna pair {key_print} not found in data")
             if len(blt_ind1) > 0:
                 pol_ind1 = np.arange(self.Npols)
             else:
@@ -3811,7 +3810,8 @@ class UVData(UVBase):
                 except ValueError as err:
                     if len(blt_ind1) == 0:
                         raise KeyError(
-                            f"Baseline {key} not found for polarization array in data."
+                            f"Baseline {key_print} not found for polarization "
+                            "array in data."
                         ) from err
                     else:
                         pol_ind2 = np.array([], dtype=np.int64)
@@ -3826,7 +3826,7 @@ class UVData(UVBase):
             if len(blt_ind1) + len(blt_ind2) == 0:
                 raise KeyError(
                     "Antenna pair {pair} not found in data".format(
-                        pair=(key[0], key[1])
+                        pair=(int(key[0]), int(key[1]))
                     )
                 )
             if type(key[2]) is str:
@@ -4408,7 +4408,7 @@ class UVData(UVBase):
         if pick_data_ants:
             data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
             telescope_ants = self.antenna_numbers
-            select = np.in1d(telescope_ants, data_ants)
+            select = np.isin(telescope_ants, data_ants)
             antpos = antpos[select, :]
             ants = telescope_ants[select]
 
@@ -6572,7 +6572,7 @@ class UVData(UVBase):
                 )
 
         # find the blt indices in "other" but not in "this"
-        temp = np.nonzero(~np.in1d(other_blts, this_blts))[0]
+        temp = np.nonzero(~np.isin(other_blts, this_blts))[0]
         if len(temp) > 0:
             bnew_inds = temp
             new_blts = other_blts[temp]
@@ -6582,7 +6582,7 @@ class UVData(UVBase):
             bnew_inds, new_blts = ([], [])
 
         # if there's any overlap in blts, check extra params
-        temp = np.nonzero(np.in1d(other_blts, this_blts))[0]
+        temp = np.nonzero(np.isin(other_blts, this_blts))[0]
         if len(temp) > 0:
             # add metadata to be checked to compatibility params
             extra_params = [
@@ -6644,10 +6644,10 @@ class UVData(UVBase):
             temp = np.where(other_mask)[0]
         else:
             if this.future_array_shapes:
-                temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
+                temp = np.nonzero(~np.isin(other.freq_array, this.freq_array))[0]
             else:
                 temp = np.nonzero(
-                    ~np.in1d(other.freq_array[0, :], this.freq_array[0, :])
+                    ~np.isin(other.freq_array[0, :], this.freq_array[0, :])
                 )[0]
         if len(temp) > 0:
             fnew_inds = temp
@@ -6663,10 +6663,10 @@ class UVData(UVBase):
         # check extra params
         if this.future_array_shapes or this.flex_spw:
             if this.future_array_shapes:
-                temp = np.nonzero(np.in1d(other.freq_array, this.freq_array))[0]
+                temp = np.nonzero(np.isin(other.freq_array, this.freq_array))[0]
             else:
                 temp = np.nonzero(
-                    np.in1d(other.freq_array[0, :], this.freq_array[0, :])
+                    np.isin(other.freq_array[0, :], this.freq_array[0, :])
                 )[0]
             if len(temp) > 0:
                 # add metadata to be checked to compatibility params
@@ -6674,7 +6674,7 @@ class UVData(UVBase):
                 compatibility_params.extend(extra_params)
 
         # find the pol indices in "other" but not in "this"
-        temp = np.nonzero(~np.in1d(other.polarization_array, this.polarization_array))[
+        temp = np.nonzero(~np.isin(other.polarization_array, this.polarization_array))[
             0
         ]
         if len(temp) > 0:
@@ -6964,7 +6964,7 @@ class UVData(UVBase):
 
         # Now populate the data
         pol_t2o = np.nonzero(
-            np.in1d(this.polarization_array, other.polarization_array)
+            np.isin(this.polarization_array, other.polarization_array)
         )[0]
         # Special handling here needed for flex_spw data
         this_freqs = this.freq_array
@@ -6977,13 +6977,13 @@ class UVData(UVBase):
             freq_t2o = np.zeros(this_freqs.shape, dtype=bool)
             for spw_id in set(this.spw_array).intersection(other.spw_array):
                 mask = this.flex_spw_id_array == spw_id
-                freq_t2o[mask] |= np.in1d(
+                freq_t2o[mask] |= np.isin(
                     this_freqs[mask], other_freqs[other.flex_spw_id_array == spw_id]
                 )
             freq_t2o = np.nonzero(freq_t2o)[0]
         else:
-            freq_t2o = np.nonzero(np.in1d(this_freqs, other_freqs))[0]
-        blt_t2o = np.nonzero(np.in1d(this_blts, other_blts))[0]
+            freq_t2o = np.nonzero(np.isin(this_freqs, other_freqs))[0]
+        blt_t2o = np.nonzero(np.isin(this_blts, other_blts))[0]
 
         if not self.metadata_only:
             if this.future_array_shapes:

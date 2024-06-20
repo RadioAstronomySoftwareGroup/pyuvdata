@@ -1082,7 +1082,7 @@ class UVBeam(UVBase):
             warn_feed = []
             for feed in self.feed_array:
                 if feed in ["N", "E", "R", "L"]:
-                    warn_feed.append(feed)
+                    warn_feed.append(str(feed))
             if len(warn_feed) > 0:
                 warnings.warn(
                     f"Feed array has values {warn_feed} that are deprecated. "
@@ -2909,7 +2909,7 @@ class UVBeam(UVBase):
             this._filename.form = (len(this.filename),)
 
         if this.pixel_coordinate_system == "healpix":
-            temp = np.nonzero(~np.in1d(other.pixel_array, this.pixel_array))[0]
+            temp = np.nonzero(~np.isin(other.pixel_array, this.pixel_array))[0]
             if len(temp) > 0:
                 pix_new_inds = temp
                 history_update_string += "healpix pixel"
@@ -2917,7 +2917,7 @@ class UVBeam(UVBase):
             else:
                 pix_new_inds = []
         else:
-            temp = np.nonzero(~np.in1d(other.axis1_array, this.axis1_array))[0]
+            temp = np.nonzero(~np.isin(other.axis1_array, this.axis1_array))[0]
             if len(temp) > 0:
                 ax1_new_inds = temp
                 history_update_string += "first image"
@@ -2925,7 +2925,7 @@ class UVBeam(UVBase):
             else:
                 ax1_new_inds = []
 
-            temp = np.nonzero(~np.in1d(other.axis2_array, this.axis2_array))[0]
+            temp = np.nonzero(~np.isin(other.axis2_array, this.axis2_array))[0]
             if len(temp) > 0:
                 ax2_new_inds = temp
                 if n_axes > 0:
@@ -2937,9 +2937,9 @@ class UVBeam(UVBase):
                 ax2_new_inds = []
 
         if self.future_array_shapes:
-            temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
+            temp = np.nonzero(~np.isin(other.freq_array, this.freq_array))[0]
         else:
-            temp = np.nonzero(~np.in1d(other.freq_array[0, :], this.freq_array[0, :]))[
+            temp = np.nonzero(~np.isin(other.freq_array[0, :], this.freq_array[0, :]))[
                 0
             ]
         if len(temp) > 0:
@@ -2954,7 +2954,7 @@ class UVBeam(UVBase):
 
         if this.beam_type == "power":
             temp = np.nonzero(
-                ~np.in1d(other.polarization_array, this.polarization_array)
+                ~np.isin(other.polarization_array, this.polarization_array)
             )[0]
             if len(temp) > 0:
                 pnew_inds = temp
@@ -2966,7 +2966,7 @@ class UVBeam(UVBase):
             else:
                 pnew_inds = []
         else:
-            temp = np.nonzero(~np.in1d(other.feed_array, this.feed_array))[0]
+            temp = np.nonzero(~np.isin(other.feed_array, this.feed_array))[0]
             if len(temp) > 0:
                 pnew_inds = temp
                 if n_axes > 0:
@@ -3236,7 +3236,7 @@ class UVBeam(UVBase):
         if this.beam_type == "power":
             this.Npols = this.polarization_array.shape[0]
             pol_t2o = np.nonzero(
-                np.in1d(this.polarization_array, other.polarization_array)
+                np.isin(this.polarization_array, other.polarization_array)
             )[0]
 
             if len(pnew_inds) > 0:
@@ -3253,18 +3253,18 @@ class UVBeam(UVBase):
                     this.data_array = np.asarray(this.data_array, dtype=dtype_use)
         else:
             this.Nfeeds = this.feed_array.shape[0]
-            pol_t2o = np.nonzero(np.in1d(this.feed_array, other.feed_array))[0]
+            pol_t2o = np.nonzero(np.isin(this.feed_array, other.feed_array))[0]
 
         if self.future_array_shapes:
-            freq_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
+            freq_t2o = np.nonzero(np.isin(this.freq_array, other.freq_array))[0]
         else:
             freq_t2o = np.nonzero(
-                np.in1d(this.freq_array[0, :], other.freq_array[0, :])
+                np.isin(this.freq_array[0, :], other.freq_array[0, :])
             )[0]
 
         if this.pixel_coordinate_system == "healpix":
             this.Npixels = this.pixel_array.shape[0]
-            pix_t2o = np.nonzero(np.in1d(this.pixel_array, other.pixel_array))[0]
+            pix_t2o = np.nonzero(np.isin(this.pixel_array, other.pixel_array))[0]
             if self.future_array_shapes:
                 this.data_array[
                     np.ix_(np.arange(this.Naxes_vec), pol_t2o, freq_t2o, pix_t2o)
@@ -3280,8 +3280,8 @@ class UVBeam(UVBase):
         else:
             this.Naxes1 = this.axis1_array.shape[0]
             this.Naxes2 = this.axis2_array.shape[0]
-            ax1_t2o = np.nonzero(np.in1d(this.axis1_array, other.axis1_array))[0]
-            ax2_t2o = np.nonzero(np.in1d(this.axis2_array, other.axis2_array))[0]
+            ax1_t2o = np.nonzero(np.isin(this.axis1_array, other.axis1_array))[0]
+            ax2_t2o = np.nonzero(np.isin(this.axis2_array, other.axis2_array))[0]
             if self.future_array_shapes:
                 this.data_array[
                     np.ix_(

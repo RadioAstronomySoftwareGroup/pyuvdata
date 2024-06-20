@@ -645,7 +645,7 @@ class FHD(UVData):
         if read_data:
             # TODO: Spw axis to be collapsed in future release
             self.data_array = np.zeros(
-                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex_
+                (self.Nblts, 1, self.Nfreqs, self.Npols), dtype=np.complex128
             )
             # TODO: Spw axis to be collapsed in future release
             self.nsample_array = np.zeros(

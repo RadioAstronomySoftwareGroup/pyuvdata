@@ -251,7 +251,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
     offset = H_REAL_SIZE
 
   elif type[0] == "d":
-    if not isinstance(val, (float, np.float32, np.float64, np.float_)):
+    if not isinstance(val, (float, np.float32, np.float64)):
       raise ValueError("expected a double")
     db = <double>val
     hwrited_c(item_hdl, &db, offset, H_DBLE_SIZE, &iostat)

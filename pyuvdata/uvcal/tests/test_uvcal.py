@@ -2722,8 +2722,8 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
         calobj2.select(antenna_nums=ants2, spws=spw2)
 
         # zero out missing data in reference object
-        ant1_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants1))[0]
-        ant2_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants2))[0]
+        ant1_inds = np.nonzero(np.isin(calobj_full.ant_array, ants1))[0]
+        ant2_inds = np.nonzero(np.isin(calobj_full.ant_array, ants2))[0]
         if caltype == "delay":
             calobj_full.delay_array[ant1_inds, 1:] = 0
             calobj_full.delay_array[ant2_inds, 0] = 0
@@ -3297,26 +3297,26 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
 
     # remove the missing parts from calobj_full
     if ant:
-        ant1_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants1))[0]
-        ant2_inds = np.nonzero(np.in1d(calobj_full.ant_array, ants2))[0]
+        ant1_inds = np.nonzero(np.isin(calobj_full.ant_array, ants1))[0]
+        ant2_inds = np.nonzero(np.isin(calobj_full.ant_array, ants2))[0]
     else:
         ant1_inds = np.arange(calobj_full.Nants_data)
         ant2_inds = np.arange(calobj_full.Nants_data)
     if freq:
-        freq1_inds = np.nonzero(np.in1d(calobj_full.freq_array, freqs1))[0]
-        freq2_inds = np.nonzero(np.in1d(calobj_full.freq_array, freqs2))[0]
+        freq1_inds = np.nonzero(np.isin(calobj_full.freq_array, freqs1))[0]
+        freq2_inds = np.nonzero(np.isin(calobj_full.freq_array, freqs2))[0]
     else:
         freq1_inds = np.arange(calobj_full.Nfreqs)
         freq2_inds = np.arange(calobj_full.Nfreqs)
     if time:
-        time1_inds = np.nonzero(np.in1d(calobj_full.time_array, times1))[0]
-        time2_inds = np.nonzero(np.in1d(calobj_full.time_array, times2))[0]
+        time1_inds = np.nonzero(np.isin(calobj_full.time_array, times1))[0]
+        time2_inds = np.nonzero(np.isin(calobj_full.time_array, times2))[0]
     else:
         time1_inds = np.arange(calobj_full.Ntimes)
         time2_inds = np.arange(calobj_full.Ntimes)
     if jones:
-        jones1_inds = np.nonzero(np.in1d(calobj_full.jones_array, jones1))[0]
-        jones2_inds = np.nonzero(np.in1d(calobj_full.jones_array, jones2))[0]
+        jones1_inds = np.nonzero(np.isin(calobj_full.jones_array, jones1))[0]
+        jones2_inds = np.nonzero(np.isin(calobj_full.jones_array, jones2))[0]
     else:
         jones1_inds = np.arange(calobj_full.Njones)
         jones2_inds = np.arange(calobj_full.Njones)
