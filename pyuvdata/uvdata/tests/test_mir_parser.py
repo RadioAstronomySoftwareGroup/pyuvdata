@@ -1849,7 +1849,8 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     # Alright, let's tweak the data now to give us something to compare
     for sphid, nch in zip(mir_data.sp_data["sphid"], mir_data.sp_data["nch"]):
         if use_raw:
-            mir_data.raw_data[sphid]["data"][:] = np.arange(nch * 2)
+            print(mir_data.raw_data[sphid]["data"].shape)
+            mir_data.raw_data[sphid]["data"][:] = np.arange(int(nch * 2.0))
             mir_data.raw_data[sphid]["scale_fac"] = np.int16(0)
         else:
             mir_data.vis_data[sphid]["data"][:] = np.arange(nch)

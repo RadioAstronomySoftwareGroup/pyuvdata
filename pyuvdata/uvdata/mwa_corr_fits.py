@@ -1030,7 +1030,7 @@ class MWACorrFITS(UVData):
         if flag_small_auto_ants:
             # find antenna indices for small sig ants and add to flagged_ant_inds
             ant_inds = np.unique(np.nonzero(small_auto_flags)[1])
-            ant_inds = ant_inds[~np.in1d(ant_inds, flagged_ant_inds)]
+            ant_inds = ant_inds[~np.isin(ant_inds, flagged_ant_inds)]
             if len(ant_inds) != 0:
                 self.history += (
                     " The following antennas were flagged by the Van Vleck correction: "

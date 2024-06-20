@@ -2522,7 +2522,7 @@ class UVCal(UVBase):
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
-        temp = np.nonzero(~np.in1d(other.ant_array, this.ant_array))[0]
+        temp = np.nonzero(~np.isin(other.ant_array, this.ant_array))[0]
         if len(temp) > 0:
             anew_inds = temp
             history_update_string += "antenna"
@@ -2530,7 +2530,7 @@ class UVCal(UVBase):
         else:
             anew_inds = []
 
-        temp = np.nonzero(~np.in1d(other.time_array, this.time_array))[0]
+        temp = np.nonzero(~np.isin(other.time_array, this.time_array))[0]
         if len(temp) > 0:
             tnew_inds = temp
             if n_axes > 0:
@@ -2561,10 +2561,10 @@ class UVCal(UVBase):
                 temp = np.where(other_mask)[0]
             else:
                 if this.future_array_shapes:
-                    temp = np.nonzero(~np.in1d(other.freq_array, this.freq_array))[0]
+                    temp = np.nonzero(~np.isin(other.freq_array, this.freq_array))[0]
                 else:
                     temp = np.nonzero(
-                        ~np.in1d(other.freq_array[0, :], this.freq_array[0, :])
+                        ~np.isin(other.freq_array[0, :], this.freq_array[0, :])
                     )[0]
             if len(temp) > 0:
                 fnew_inds = temp
@@ -2576,7 +2576,7 @@ class UVCal(UVBase):
             else:
                 fnew_inds = []
         elif this.wide_band:
-            temp = np.nonzero(~np.in1d(other.spw_array, this.spw_array))[0]
+            temp = np.nonzero(~np.isin(other.spw_array, this.spw_array))[0]
             if len(temp) > 0:
                 fnew_inds = temp
                 if n_axes > 0:
@@ -2591,7 +2591,7 @@ class UVCal(UVBase):
             # delay type, set fnew_inds to an empty list
             fnew_inds = []
 
-        temp = np.nonzero(~np.in1d(other.jones_array, this.jones_array))[0]
+        temp = np.nonzero(~np.isin(other.jones_array, this.jones_array))[0]
         if len(temp) > 0:
             jnew_inds = temp
             if n_axes > 0:
@@ -3219,20 +3219,20 @@ class UVCal(UVBase):
 
         # Now populate the data
         if not self.metadata_only:
-            jones_t2o = np.nonzero(np.in1d(this.jones_array, other.jones_array))[0]
-            times_t2o = np.nonzero(np.in1d(this.time_array, other.time_array))[0]
+            jones_t2o = np.nonzero(np.isin(this.jones_array, other.jones_array))[0]
+            times_t2o = np.nonzero(np.isin(this.time_array, other.time_array))[0]
             if self.wide_band:
-                freqs_t2o = np.nonzero(np.in1d(this.spw_array, other.spw_array))[0]
+                freqs_t2o = np.nonzero(np.isin(this.spw_array, other.spw_array))[0]
             elif self.future_array_shapes:
-                freqs_t2o = np.nonzero(np.in1d(this.freq_array, other.freq_array))[0]
+                freqs_t2o = np.nonzero(np.isin(this.freq_array, other.freq_array))[0]
             else:
                 if self.cal_type == "gain":
                     freqs_t2o = np.nonzero(
-                        np.in1d(this.freq_array[0, :], other.freq_array[0, :])
+                        np.isin(this.freq_array[0, :], other.freq_array[0, :])
                     )[0]
                 else:
                     freqs_t2o = [0]
-            ants_t2o = np.nonzero(np.in1d(this.ant_array, other.ant_array))[0]
+            ants_t2o = np.nonzero(np.isin(this.ant_array, other.ant_array))[0]
             if self.future_array_shapes:
                 if this.cal_type == "delay":
                     this.delay_array[

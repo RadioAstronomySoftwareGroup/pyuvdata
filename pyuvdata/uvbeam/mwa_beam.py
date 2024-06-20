@@ -151,7 +151,7 @@ def P1sin_array(nmax, theta):
 
     # Make sure that we don't divide by 0 (sin(0) = sin(pi) = 0 ) proper results
     # are inserted at the end of this function. Set to NaN for now
-    sin_theta[(theta == 0) | (theta == np.pi)] = np.NaN
+    sin_theta[(theta == 0) | (theta == np.pi)] = np.nan
 
     # create at forehand
     P_sin = np.zeros((nmax**2 + 2 * nmax, np.size(theta)))
