@@ -1888,7 +1888,7 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
             if use_raw:
                 assert np.all(
                     mir_data.raw_data[sphid]["data"][: chan_shift * 2]
-                    == np.arange(-(2 * chan_shift), nch * 2)
+                    == np.arange(-(2.0 * chan_shift), nch * 2.0)
                 )
             else:
                 assert np.all(
