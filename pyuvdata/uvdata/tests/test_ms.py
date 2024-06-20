@@ -47,12 +47,18 @@ def safe_extract(
 ):
     # this is factored this way (splitting out the `check_members` function)
     # to appease bandit.
-    tar.extractall(
-        path,
-        members=check_members(tar, path),
-        numeric_owner=numeric_owner,
-        filter=use_filter,
-    )
+    try:
+        tar.extractall(
+            path,
+            members=check_members(tar, path),
+            numeric_owner=numeric_owner,
+            filter=use_filter,
+        )
+    except TypeError:
+        # older versions of python don't have the filter argument
+        tar.extractall(
+            path, members=check_members(tar, path), numeric_owner=numeric_owner
+        )
 
 
 @pytest.fixture(scope="session")
