@@ -2030,6 +2030,14 @@ def test_mir_fix_v3(mir_data, muck_antrx):
         assert np.isclose(mir_copy.in_data[item], mir_data.in_data[item], atol=3e-4)
         mir_copy.in_data[item] = mir_data.in_data[item]
 
+    # Check that stuff is within the single precision limit, since that's what the
+    # uvw values are stored in.
+    for item in ["u", "v", "w"]:
+        assert np.allclose(
+            mir_copy.bl_data[item], mir_data.bl_data[item], atol=0, rtol=2e-7
+        )
+        mir_copy.bl_data[item] = mir_data.bl_data[item]
+
     assert mir_copy == mir_data
 
 
