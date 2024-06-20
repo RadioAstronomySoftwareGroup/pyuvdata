@@ -103,10 +103,10 @@ if not is_platform_windows():
     extensions.append(miriad_extension)
 
 astroquery_reqs = ["astroquery>=0.4.4"]
-casa_reqs = ["python-casacore>=3.5.2"]
+casa_reqs = ["python-casacore>=3.5.2", "numpy>=1.23,<2.0"]
 hdf5_compression_reqs = ["hdf5plugin>=3.2.0"]
 healpix_reqs = ["astropy_healpix>=1.0.2"]
-lunar_reqs = ["lunarsky>=0.2.2"]
+lunar_reqs = ["lunarsky>=0.2.2", "numpy>=1.23,<2.0"]
 novas_reqs = ["novas", "novas_de405"]
 all_optional_reqs = (
     astroquery_reqs
