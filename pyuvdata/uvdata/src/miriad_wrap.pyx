@@ -219,7 +219,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
     offset = H_BYTE_SIZE * int_1
 
   elif type[0] == "i":
-    if not isinstance(val, (int, np.int_, np.intc)):
+    if not isinstance(val, (int, np.int32, np.int64)):
       raise ValueError("expected an int")
     int_1 = <int>val
     hwritei_c(item_hdl, &int_1, offset, H_INT_SIZE, &iostat)
@@ -227,7 +227,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
     offset = H_INT_SIZE
 
   elif type[0] == "j":
-    if not isinstance(val, (int, np.int_, np.intc)):
+    if not isinstance(val, (int, np.int32, np.int64)):
       raise ValueError("expected an int")
     sh = <short>val
     hwritej_c(item_hdl, &sh, offset, H_INT2_SIZE, &iostat)
@@ -235,7 +235,7 @@ cpdef int hwrite(int item_hdl, int offset, val, str type) except *:
     offset = H_INT2_SIZE
 
   elif type[0] == "l":
-    if not isinstance(val, (int, np.intc, np.int_)):
+    if not isinstance(val, (int, np.int32, np.int64)):
       raise ValueError("expected a  long")
     lg = <long>val
     hwritel_c(item_hdl, &lg, offset, H_INT8_SIZE, &iostat)
