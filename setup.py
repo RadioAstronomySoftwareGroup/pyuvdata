@@ -88,7 +88,7 @@ corr_fits_extension = Extension(
 )
 
 bls_extension = Extension(
-    "pyuvdata._bls",
+    "pyuvdata.utils._bls",
     sources=["src/pyuvdata/utils/bls.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
@@ -96,7 +96,7 @@ bls_extension = Extension(
 )
 
 coordinates_extension = Extension(
-    "pyuvdata._coordinates",
+    "pyuvdata.utils._coordinates",
     sources=["src/pyuvdata/utils/coordinates.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
@@ -104,7 +104,7 @@ coordinates_extension = Extension(
 )
 
 phasing_extension = Extension(
-    "pyuvdata._phasing",
+    "pyuvdata.utils._phasing",
     sources=["src/pyuvdata/utils/phasing.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],

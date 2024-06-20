@@ -7,7 +7,7 @@ import warnings
 
 import numpy as np
 
-from .. import _bls
+from . import _bls
 from .pol import polnum2str, polstr2num
 
 __all__ = ["baseline_to_antnums", "antnums_to_baseline"]
