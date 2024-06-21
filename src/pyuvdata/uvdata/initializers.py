@@ -211,7 +211,7 @@ def configure_blt_rectangularity(
         )
 
         (blts_are_rectangular, time_axis_faster_than_bls) = (
-            utils.helpers.determine_rectangularity(
+            utils.bltaxis.determine_rectangularity(
                 time_array=times, baseline_array=baselines, nbls=nbl, ntimes=nt
             )
         )

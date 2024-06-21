@@ -466,7 +466,7 @@ class Telescope(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            utils.helpers.check_surface_based_positions(
+            utils.coordinates.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.location,
                 raise_error=False,

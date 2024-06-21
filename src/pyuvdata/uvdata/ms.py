@@ -16,7 +16,6 @@ from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import ms as ms_utils
 from . import UVData
 
@@ -125,7 +124,7 @@ class MS(UVData):
         # Determine polarization order for writing out in CASA standard order, check
         # if this order can be represented by a single slice.
         pol_order = utils.pol.determine_pol_order(self.polarization_array, order="CASA")
-        [pol_order], _ = helpers._convert_to_slices(
+        [pol_order], _ = utils.tools._convert_to_slices(
             pol_order, max_nslice=1, return_index_on_fail=True
         )
 
@@ -245,7 +244,7 @@ class MS(UVData):
 
                 # See if we can represent scan_screen with a single slice, which
                 # reduces overhead of copying a new array.
-                [scan_slice], _ = helpers._convert_to_slices(
+                [scan_slice], _ = utils.tools._convert_to_slices(
                     scan_screen, max_nslice=1, return_index_on_fail=True
                 )
 

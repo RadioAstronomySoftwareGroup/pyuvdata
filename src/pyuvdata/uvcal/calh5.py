@@ -15,7 +15,6 @@ from docstring_parser import DocstringStyle
 from .. import utils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import Telescope
-from ..utils import helpers
 from ..utils.file_io import hdf5 as hdf5_utils
 from .uvcal import UVCal
 
@@ -268,7 +267,9 @@ class CalH5(UVCal):
             # versions allowed one to store this even if it wasn't actually being used
             optional_parameters.remove("flex_spw_id_array")
 
-        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils.history._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
 
         # Optional parameters
@@ -287,14 +288,14 @@ class CalH5(UVCal):
 
         if run_check_acceptability:
             if self.time_array is not None:
-                helpers.check_lsts_against_times(
+                utils.times.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
                     lst_tols=(0, utils.LST_RAD_TOL),
                 )
             if self.time_range is not None:
-                helpers.check_lsts_against_times(
+                utils.times.check_lsts_against_times(
                     jd_array=self.time_range,
                     lst_array=self.lst_range,
                     telescope_loc=self.telescope.location,
@@ -446,7 +447,7 @@ class CalH5(UVCal):
             # TODO: this logic is similar to what is in uvh5. See if an abstracted
             # version can be pulled out into a util function.
             if ant_inds is not None:
-                ant_slices, ant_sliceable = helpers._convert_to_slices(
+                ant_slices, ant_sliceable = utils.tools._convert_to_slices(
                     ant_inds, max_nslice_frac=0.1
                 )
             else:
@@ -454,7 +455,7 @@ class CalH5(UVCal):
                 ant_sliceable = True
 
             if time_inds is not None:
-                time_slices, time_sliceable = helpers._convert_to_slices(
+                time_slices, time_sliceable = utils.tools._convert_to_slices(
                     time_inds, max_nslice_frac=0.1
                 )
             else:
@@ -462,7 +463,7 @@ class CalH5(UVCal):
                 time_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = helpers._convert_to_slices(
+                freq_slices, freq_sliceable = utils.tools._convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
             else:
@@ -470,7 +471,7 @@ class CalH5(UVCal):
                 freq_sliceable = True
 
             if spw_inds is not None:
-                spw_slices, spw_sliceable = helpers._convert_to_slices(
+                spw_slices, spw_sliceable = utils.tools._convert_to_slices(
                     spw_inds, max_nslice_frac=0.1
                 )
             else:
@@ -478,7 +479,7 @@ class CalH5(UVCal):
                 spw_sliceable = True
 
             if jones_inds is not None:
-                jones_slices, jones_sliceable = helpers._convert_to_slices(
+                jones_slices, jones_sliceable = utils.tools._convert_to_slices(
                     jones_inds, max_nslice_frac=0.5
                 )
             else:

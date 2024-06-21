@@ -431,7 +431,7 @@ def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     uv1.read(np.array([testfile1, testfile2]), file_type="uvh5")
 
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_in.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -475,7 +475,7 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
     uv_full.read_uvfits(uvfits_filename, read_data=False)
     uv1.read([testfile1, testfile2], read_data=False)
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -515,7 +515,7 @@ def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
     uv2.write_uvh5(testfile2, clobber=True)
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_in.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
