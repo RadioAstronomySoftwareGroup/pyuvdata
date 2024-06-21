@@ -17,11 +17,11 @@ from docstring_parser import DocstringStyle
 from scipy.integrate import simpson
 from scipy.special import erf
 
-from .. import Telescope, _corr_fits, utils
+from .. import Telescope, utils
 from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
 from ..utils.file_io import fits as fits_utils
-from . import UVData
+from . import UVData, _corr_fits
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 

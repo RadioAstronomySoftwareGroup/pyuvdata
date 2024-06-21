@@ -17,7 +17,7 @@ import re
 import numpy as np
 
 try:
-    from pyuvdata import _miriad
+    from . import _miriad
 except ImportError as e:  # pragma: no cover
     raise ImportError(
         "The miriad extension is not built but is required for reading miriad "

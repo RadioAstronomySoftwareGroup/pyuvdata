@@ -63,7 +63,7 @@ else:
 global_c_macros = [("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION")]
 
 miriad_extension = Extension(
-    "pyuvdata._miriad",
+    "pyuvdata.uvdata._miriad",
     sources=[
         "src/pyuvdata/uvdata/src/miriad_wrap.pyx",
         "src/pyuvdata/uvdata/src/uvio.c",
@@ -79,7 +79,7 @@ miriad_extension = Extension(
 )
 
 corr_fits_extension = Extension(
-    "pyuvdata._corr_fits",
+    "pyuvdata.uvdata._corr_fits",
     sources=["src/pyuvdata/uvdata/corr_fits.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
@@ -112,7 +112,7 @@ phasing_extension = Extension(
 )
 
 uvbeam_extension = Extension(
-    "pyuvdata._uvbeam",
+    "pyuvdata.uvbeam._uvbeam",
     sources=["src/pyuvdata/uvbeam/uvbeam.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],

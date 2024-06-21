@@ -14,12 +14,11 @@ from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
 from scipy import interpolate
 
-from .. import _uvbeam
 from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
-from . import initializers
+from . import _uvbeam, initializers
 
 __all__ = ["UVBeam"]
 
