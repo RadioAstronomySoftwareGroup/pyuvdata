@@ -18,7 +18,6 @@ from docstring_parser import DocstringStyle
 
 from .. import known_telescope_location, utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from . import UVData
 from .uvdata import reporting_request
 
@@ -212,7 +211,9 @@ class Miriad(UVData):
         self.spw_array = np.arange(self.Nspws)
 
         self.history = uv["history"]
-        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils.history._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
 
         # check for pyuvdata variables that are not recognized miriad variables
@@ -430,7 +431,7 @@ class Miriad(UVData):
                 self.telescope.location = EarthLocation.from_geocentric(
                     *np.mean(ecef_antpos[good_antpos, :], axis=0) * units.m
                 )
-                valid_location = helpers.check_surface_based_positions(
+                valid_location = utils.coordinates.check_surface_based_positions(
                     telescope_loc=self.telescope.location,
                     raise_error=False,
                     raise_warning=False,
@@ -1409,7 +1410,7 @@ class Miriad(UVData):
                 # which do not test as matching, so also test for all nans
                 if not np.all(
                     np.isnan(epoch_list[select_mask])
-                ) and not helpers._test_array_constant(
+                ) and not utils.tools._test_array_constant(
                     epoch_list[select_mask], tols=(1e-05, 1e-08)
                 ):
                     # This is unusual but allowed within Miriad.
@@ -1441,10 +1442,10 @@ class Miriad(UVData):
                         cat_frame = "fk5"
 
                 radian_tols = self._phase_center_app_ra.tols
-                this_single_ra = helpers._test_array_constant(
+                this_single_ra = utils.tools._test_array_constant(
                     ra_list[select_mask], tols=radian_tols
                 )
-                this_single_dec = helpers._test_array_constant(
+                this_single_dec = utils.tools._test_array_constant(
                     dec_list[select_mask], tols=radian_tols
                 )
                 if not cat_type == "unprojected" and (
@@ -1464,7 +1465,7 @@ class Miriad(UVData):
                     )
                     if np.max(counts) > 1:
                         for t_ind in np.arange(unique_times.size):
-                            if not helpers._test_array_constant(
+                            if not utils.tools._test_array_constant(
                                 lon_use[inverse == t_ind], tols=radian_tols
                             ):
                                 raise ValueError(
@@ -1472,7 +1473,7 @@ class Miriad(UVData):
                                     "different baselines at the same time."
                                     + reporting_request
                                 )
-                            if not helpers._test_array_constant(
+                            if not utils.tools._test_array_constant(
                                 lat_use[inverse == t_ind], tols=radian_tols
                             ):
                                 raise ValueError(

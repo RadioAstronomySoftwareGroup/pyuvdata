@@ -20,7 +20,6 @@ from scipy.special import erf
 from .. import Telescope, _corr_fits, utils
 from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import fits as fits_utils
 from . import UVData
 
@@ -1363,7 +1362,7 @@ class MWACorrFITS(UVData):
         for filename in filelist:
             # update filename attribute
             basename = os.path.basename(filename)
-            self.filename = helpers._combine_filenames(self.filename, [basename])
+            self.filename = utils.tools._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
             if filename.lower().endswith(".metafits"):
@@ -1525,7 +1524,9 @@ class MWACorrFITS(UVData):
         self.telescope.antenna_names = meta_dict["antenna_names"]
         self.telescope.antenna_positions = meta_dict["antenna_positions"]
         self.history = meta_dict["history"]
-        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils.history._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
         for key, value in meta_dict["extra_keywords"].items():
             self.extra_keywords[key] = value

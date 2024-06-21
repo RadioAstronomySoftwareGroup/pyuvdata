@@ -748,7 +748,7 @@ def test_multi_files(cst_efield_2freq, tmp_path):
     beam2.write_beamfits(testfile2, clobber=True)
     beam1.read_beamfits([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         beam_full.history + "  Downselected "
         "to specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"

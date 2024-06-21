@@ -2,6 +2,8 @@
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for coordinate transforms."""
+import warnings
+
 import numpy as np
 from astropy.coordinates import EarthLocation
 
@@ -32,6 +34,12 @@ if hasmoon:
         "CE-1-LAM-GEO": _coordinates.Body.Moon_ce1lamgeo,
     }
     allowed_location_types.append(MoonLocation)
+
+
+_range_dict = {
+    "itrs": (6.35e6, 6.39e6, "Earth"),
+    "mcmf": (1717100.0, 1757100.0, "Moon"),
+}
 
 
 def LatLonAlt_from_XYZ(xyz, *, frame="ITRS", ellipsoid=None, check_acceptability=True):
@@ -472,3 +480,90 @@ def ECEF_from_ENU(
         xyz = np.squeeze(xyz)
 
     return xyz
+
+
+def check_surface_based_positions(
+    *,
+    telescope_loc=None,
+    telescope_frame="itrs",
+    antenna_positions=None,
+    raise_error=True,
+    raise_warning=True,
+):
+    """
+    Check that antenna positions are consistent with ground-based values.
+
+    Check that the antenna position, telescope location, or combination of both produces
+    locations that are consistent with surface-based positions. If supplying both
+    antenna position and telescope location, the check will be run against the sum total
+    of both. For the Earth, the permitted range of values is betwen 6350 and 6390 km,
+    whereas for theMoon the range is 1717.1 to 1757.1 km.
+
+    telescope_loc : tuple or EarthLocation or MoonLocation
+        Telescope location, specified as a 3-element tuple (specifying geo/selenocentric
+        position in meters) or as an astropy EarthLocation (or lunarsky MoonLocation).
+    telescope_frame : str, optional
+        Reference frame for latitude/longitude/altitude. Options are itrs (default) or
+        mcmf. Only used if telescope_loc is not an EarthLocation or MoonLocation.
+    antenna_positions : ndarray of float
+        List of antenna positions relative to array center in ECEF coordinates,
+        required if not providing `uvw_array`. Shape is (Nants, 3). If no telescope_loc
+        is specified, these values will be assumed to be relative to geocenter.
+    raise_error : bool
+        If True, an error is raised if telescope_loc and/or telescope_loc do not conform
+        to expectations for a surface-based telescope. Default is True.
+    raise_warning : bool
+        If True, a warning is raised if telescope_loc and/or telescope_loc do not
+        conform to expectations for a surface-based telescope. Default is True, only
+        used if `raise_error` is set to False.
+
+    Returns
+    -------
+    valid : bool
+        If True, the antenna_positions and/or telescope_loc conform to expectations for
+        a surface-based telescope. Otherwise returns false.
+
+    """
+    if antenna_positions is None:
+        antenna_positions = np.zeros((1, 3))
+
+    if isinstance(telescope_loc, EarthLocation) or (
+        hasmoon and isinstance(telescope_loc, MoonLocation)
+    ):
+        antenna_positions = antenna_positions + (
+            telescope_loc.x.to("m").value,
+            telescope_loc.y.to("m").value,
+            telescope_loc.z.to("m").value,
+        )
+        if isinstance(telescope_loc, EarthLocation):
+            telescope_frame = "itrs"
+        else:
+            telescope_frame = "mcmf"
+    elif telescope_loc is not None:
+        antenna_positions = antenna_positions + telescope_loc
+
+    low_lim, hi_lim, world = _range_dict[telescope_frame]
+
+    err_type = None
+    if np.any(np.sum(antenna_positions**2.0, axis=1) < low_lim**2.0):
+        err_type = "below"
+    elif np.any(np.sum(antenna_positions**2.0, axis=1) > hi_lim**2.0):
+        err_type = "above"
+
+    if err_type is None:
+        return True
+
+    err_msg = (
+        f"{telescope_frame} position vector magnitudes must be on the order of "
+        f"the radius of {world} -- they appear to lie well {err_type} this."
+    )
+
+    # If desired, raise an error
+    if raise_error:
+        raise ValueError(err_msg)
+
+    # Otherwise, if desired, raise a warning instead
+    if raise_warning:
+        warnings.warn(err_msg)
+
+    return False

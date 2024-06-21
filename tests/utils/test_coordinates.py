@@ -12,6 +12,7 @@ from astropy.coordinates import EarthLocation
 
 from pyuvdata import utils
 from pyuvdata.data import DATA_PATH
+from pyuvdata.testing import check_warnings
 from pyuvdata.utils.coordinates import hasmoon
 
 selenoids = ["SPHERE", "GSFC", "GRAIL23", "CE-1-LAM-GEO"]
@@ -747,3 +748,79 @@ def test_mwa_ecef_conversion():
     # test other direction of ECEF rotation
     rot_xyz = utils.rotECEF_from_ECEF(new_xyz, lon)
     np.testing.assert_allclose(rot_xyz.T, xyz)
+
+
+@pytest.mark.parametrize("err_state", ["err", "warn", "none"])
+@pytest.mark.parametrize("tel_loc", ["Center", "Moon", "Earth", "Space"])
+@pytest.mark.parametrize("check_frame", ["Moon", "Earth"])
+@pytest.mark.parametrize("del_tel_loc", [False, None, True])
+def test_check_surface_based_positions(err_state, tel_loc, check_frame, del_tel_loc):
+    tel_loc_dict = {
+        "Center": np.array([0, 0, 0]),
+        "Moon": np.array([0, 0, 1.737e6]),
+        "Earth": np.array([0, 6.37e6, 0]),
+        "Space": np.array([4.22e7, 0, 0]),
+    }
+    tel_frame_dict = {"Moon": "mcmf", "Earth": "itrs"}
+
+    ant_pos = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    )
+    if del_tel_loc:
+        ant_pos += tel_loc_dict[tel_loc]
+
+    fail_type = err_msg = err_type = None
+    err_check = check_warnings
+    if (tel_loc != check_frame) and (err_state != "none"):
+        if tel_loc == "Center":
+            fail_type = "below"
+        elif tel_loc == "Space":
+            fail_type = "above"
+        else:
+            fail_type = "above" if tel_loc == "Earth" else "below"
+
+    if fail_type is not None:
+        err_msg = (
+            f"{tel_frame_dict[check_frame]} position vector magnitudes must be "
+            f"on the order of the radius of {check_frame} -- they appear to lie well "
+            f"{fail_type} this."
+        )
+        if err_state == "err":
+            err_type = ValueError
+            err_check = pytest.raises
+        else:
+            err_type = UserWarning
+
+        with err_check(err_type, match=err_msg):
+            status = utils.coordinates.check_surface_based_positions(
+                telescope_loc=None if (del_tel_loc) else tel_loc_dict[tel_loc],
+                antenna_positions=None if (del_tel_loc is None) else ant_pos,
+                telescope_frame=tel_frame_dict[check_frame],
+                raise_error=err_state == "err",
+                raise_warning=err_state == "warn",
+            )
+
+        assert (err_state == "err") or (status == (tel_loc == check_frame))
+
+
+@pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
+@pytest.mark.parametrize("tel_loc", ["Earth", "Moon"])
+@pytest.mark.parametrize("check_frame", ["Earth", "Moon"])
+def test_check_surface_based_positions_earthmoonloc(tel_loc, check_frame):
+    frame = "mcmf" if (check_frame == "Moon") else "itrs"
+
+    if tel_loc == "Earth":
+        loc = EarthLocation.from_geodetic(0, 0, 0)
+    else:
+        loc = MoonLocation.from_selenodetic(0, 0, 0)
+
+    if tel_loc == check_frame:
+        assert utils.coordinates.check_surface_based_positions(
+            telescope_loc=loc, telescope_frame=frame
+        )
+    else:
+        with pytest.raises(ValueError, match=(f"{frame} position vector")):
+            utils.coordinates.check_surface_based_positions(
+                telescope_loc=[loc.x.value, loc.y.value, loc.z.value],
+                telescope_frame=frame,
+            )

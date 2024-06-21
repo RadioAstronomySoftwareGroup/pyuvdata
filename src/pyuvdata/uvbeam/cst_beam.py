@@ -9,7 +9,6 @@ import warnings
 import numpy as np
 
 from .. import utils
-from ..utils import helpers
 from . import UVBeam
 
 __all__ = ["CSTBeam"]
@@ -153,7 +152,9 @@ class CSTBeam(UVBeam):
         self.model_name = model_name
         self.model_version = model_version
         self.history = history
-        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils.history._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
 
         if x_orientation is not None:
@@ -242,14 +243,14 @@ class CSTBeam(UVBeam):
         theta_data = theta_data.reshape((theta_axis.size, phi_axis.size), order="F")
         phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
-        if not helpers._test_array_constant_spacing(
+        if not utils.tools._test_array_constant_spacing(
             theta_axis, tols=self._axis2_array.tols
         ):
             raise ValueError(
                 "Data does not appear to be regularly gridded in zenith angle"
             )
 
-        if not helpers._test_array_constant_spacing(
+        if not utils.tools._test_array_constant_spacing(
             phi_axis, tols=self._axis1_array.tols
         ):
             raise ValueError(

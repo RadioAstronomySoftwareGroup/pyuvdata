@@ -25,7 +25,6 @@ from .. import Telescope, known_telescopes
 from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
-from ..utils import helpers
 from ..utils import phasing as phs_utils
 from ..utils.file_io import hdf5 as hdf5_utils
 from ..uvbase import UVBase
@@ -772,7 +771,7 @@ class UVData(UVBase):
             source without coordinates.
 
         """
-        cat_entry = utils.ps_cat.generate_phase_center_cat_entry(
+        cat_entry = utils.phase_center_catalog.generate_phase_center_cat_entry(
             cat_name=cat_name,
             cat_type=cat_type,
             cat_lon=cat_lon,
@@ -791,7 +790,7 @@ class UVData(UVBase):
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
         if cat_id is None or not force_update:
-            cat_id = utils.ps_cat.generate_new_phase_center_id(
+            cat_id = utils.phase_center_catalog.generate_new_phase_center_id(
                 phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
             )
 
@@ -800,7 +799,7 @@ class UVData(UVBase):
             self.phase_center_catalog = {}
         else:
             # Let's warn if this entry has the same name as an existing one
-            temp_id, cat_diffs = utils.ps_cat.look_in_catalog(
+            temp_id, cat_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry
             )
 
@@ -1199,7 +1198,7 @@ class UVData(UVBase):
 
         # First, let's check and see if the dict entries are identical
         for cat_id in cat_id_list[1:]:
-            pc_id, pc_diffs = utils.ps_cat.look_in_catalog(
+            pc_id, pc_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog,
                 phase_dict=self.phase_center_catalog[cat_id],
                 ignore_name=ignore_name,
@@ -1270,7 +1269,7 @@ class UVData(UVBase):
         ValueError
             If `cat_name` matches no keys in `phase_center_catalog`.
         """
-        return utils.ps_cat.print_phase_center_info(
+        return utils.phase_center_catalog.print_phase_center_info(
             self.phase_center_catalog,
             catalog_identifier=catalog_identifier,
             hms_format=hms_format,
@@ -1302,7 +1301,7 @@ class UVData(UVBase):
             If not using the method on a multi-phase-ctr data set, if there's no entry
             that matches `cat_name`, or of the value `new_id` is already taken.
         """
-        new_id = utils.ps_cat.generate_new_phase_center_id(
+        new_id = utils.phase_center_catalog.generate_new_phase_center_id(
             phase_center_catalog=self.phase_center_catalog,
             cat_id=new_id,
             old_id=cat_id,
@@ -1371,7 +1370,7 @@ class UVData(UVBase):
             # testing it's sometimes convenient to use self.phase_center_catalog as
             # the ref catalog, which causes a RunTime error due to updates to the dict.
             cat_entry = reference_catalog[cat_id]
-            match_id, match_diffs = utils.ps_cat.look_in_catalog(
+            match_id, match_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
             )
             if match_id is None or match_diffs != 0:
@@ -1638,7 +1637,7 @@ class UVData(UVBase):
         UVH5 and UVData objects can handle this, but MIRIAD, MIR, UVFITS, and MS file
         formats cannot, so we just consider it forbidden.
         """
-        helpers._check_flex_spw_contiguous(
+        utils.frequency._check_flex_spw_contiguous(
             spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
         )
 
@@ -1661,7 +1660,7 @@ class UVData(UVBase):
             Flag that channel spacing does not match channel width.
 
         """
-        return helpers._check_freq_spacing(
+        return utils.frequency._check_freq_spacing(
             freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
@@ -2308,14 +2307,14 @@ class UVData(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            helpers.check_surface_based_positions(
+            utils.coordinates.check_surface_based_positions(
                 antenna_positions=self.telescope.antenna_positions,
                 telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
             # Check the LSTs against what we expect given up-to-date IERS data
-            helpers.check_lsts_against_times(
+            utils.times.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
                 lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
@@ -2648,7 +2647,7 @@ class UVData(UVBase):
             if inds.size == 0:
                 inds = None
 
-        inds = helpers.slicify(inds)
+        inds = utils.tools.slicify(inds)
         self.__antpair2ind_cache[(ant1, ant2, ordered)] = inds
         return inds
 
@@ -2695,7 +2694,7 @@ class UVData(UVBase):
         """
         orig_key = key
 
-        key = helpers._get_iterable(key)
+        key = utils.tools._get_iterable(key)
         if not isinstance(key, str):
             key = tuple(key)
 
@@ -2806,7 +2805,7 @@ class UVData(UVBase):
                 raise KeyError(f"Polarization {key_print} not found in data.")
 
         # Convert to slices if possible
-        pol_ind = (helpers.slicify(pol_ind[0]), helpers.slicify(pol_ind[1]))
+        pol_ind = (utils.tools.slicify(pol_ind[0]), utils.tools.slicify(pol_ind[1]))
 
         self.__key2ind_cache[key] = (blt_ind1, blt_ind2, pol_ind)
         return (blt_ind1, blt_ind2, pol_ind)
@@ -3022,7 +3021,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3074,7 +3073,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3134,7 +3133,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3178,7 +3177,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
@@ -3223,7 +3222,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         inds1, inds2, indp = self._key2inds(key)
@@ -3327,7 +3326,7 @@ class UVData(UVBase):
             if isinstance(val, str):
                 key.append(val)
             elif val is not None:
-                key += list(helpers._get_iterable(val))
+                key += list(utils.tools._get_iterable(val))
         if len(key) > 3:
             raise ValueError("no more than 3 key values can be passed")
         ind1, ind2, indp = self._key2inds(key)
@@ -3346,10 +3345,10 @@ class UVData(UVBase):
                 f"Input array shape is {dshape}, expected shape is {expected_shape}."
             )
 
-        blt_slices, blt_sliceable = helpers._convert_to_slices(
+        blt_slices, blt_sliceable = utils.tools._convert_to_slices(
             ind1, max_nslice_frac=0.1
         )
-        pol_slices, pol_sliceable = helpers._convert_to_slices(
+        pol_slices, pol_sliceable = utils.tools._convert_to_slices(
             indp[0], max_nslice_frac=0.5
         )
 
@@ -3745,7 +3744,7 @@ class UVData(UVBase):
         if self.blts_are_rectangular is not None and not force:
             return
 
-        rect, time = helpers.determine_rectangularity(
+        rect, time = utils.bltaxis.determine_rectangularity(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             nbls=self.Nbls,
@@ -3760,7 +3759,7 @@ class UVData(UVBase):
         if self.blt_order is not None:
             return self.blt_order
 
-        order = helpers.determine_blt_order(
+        order = utils.bltaxis.determine_blt_order(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             ant_1_array=self.ant_1_array,
@@ -4071,7 +4070,7 @@ class UVData(UVBase):
             is not the same length as freq_array.
 
         """
-        index_array = helpers._sort_freq_helper(
+        index_array = utils.frequency._sort_freq_helper(
             Nfreqs=self.Nfreqs,
             freq_array=self.freq_array,
             Nspws=self.Nspws,
@@ -4325,7 +4324,7 @@ class UVData(UVBase):
         self.uvw_array = new_uvw
 
         # remove/update phase center
-        match_id, match_diffs = utils.ps_cat.look_in_catalog(
+        match_id, match_diffs = utils.phase_center_catalog.look_in_catalog(
             self.phase_center_catalog, cat_name=cat_name, cat_type="unprojected"
         )
         if match_diffs == 0:
@@ -4377,7 +4376,14 @@ class UVData(UVBase):
         }
 
         if lookup_name:
-            if len(utils.ps_cat.look_for_name(self.phase_center_catalog, cat_name)) > 1:
+            if (
+                len(
+                    utils.phase_center_catalog.look_for_name(
+                        self.phase_center_catalog, cat_name
+                    )
+                )
+                > 1
+            ):
                 raise ValueError(
                     "Name of object has multiple matches in phase center catalog. "
                     "Set lookup_name=False in order to continue."
@@ -4409,7 +4415,7 @@ class UVData(UVBase):
                 cat_id = name_dict[cat_name]
                 cat_diffs = 0
             else:
-                cat_id, cat_diffs = utils.ps_cat.look_in_catalog(
+                cat_id, cat_diffs = utils.phase_center_catalog.look_in_catalog(
                     self.phase_center_catalog,
                     cat_name=cat_name,
                     cat_type=cat_type,
@@ -5702,7 +5708,7 @@ class UVData(UVBase):
         this.Nants_data = this._calc_nants_data()
 
         # Update filename parameter
-        this.filename = helpers._combine_filenames(this.filename, other.filename)
+        this.filename = utils.tools._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -5728,14 +5734,16 @@ class UVData(UVBase):
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
-            histories_match = helpers._check_histories(this.history, other.history)
+            histories_match = utils.history._check_histories(
+                this.history, other.history
+            )
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = helpers._combine_history_addition(
+                    extra_history = utils.history._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -5979,7 +5987,9 @@ class UVData(UVBase):
 
         histories_match = []
         for obj in other:
-            histories_match.append(helpers._check_histories(this.history, obj.history))
+            histories_match.append(
+                utils.history._check_histories(this.history, obj.history)
+            )
 
         this.history += history_update_string
         for obj_num, obj in enumerate(other):
@@ -5987,7 +5997,7 @@ class UVData(UVBase):
                 if verbose_history:
                     this.history += " Next object history follows. " + obj.history
                 else:
-                    extra_history = helpers._combine_history_addition(
+                    extra_history = utils.history._combine_history_addition(
                         this.history, obj.history
                     )
                     if extra_history is not None:
@@ -6063,7 +6073,7 @@ class UVData(UVBase):
             )
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
 
-            if not helpers._test_array_constant_spacing(this._polarization_array):
+            if not utils.tools._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -6133,7 +6143,7 @@ class UVData(UVBase):
 
         # update filename attribute
         for obj in other:
-            this.filename = helpers._combine_filenames(this.filename, obj.filename)
+            this.filename = utils.tools._combine_filenames(this.filename, obj.filename)
         if this.filename is not None:
             this._filename.form = len(this.filename)
 
@@ -6296,14 +6306,14 @@ class UVData(UVBase):
             this.data_array = this.data_array + other.data_array
             history_update_string = " Visibilities summed using pyuvdata."
 
-        histories_match = helpers._check_histories(this.history, other.history)
+        histories_match = utils.history._check_histories(this.history, other.history)
 
         this.history += history_update_string
         if not histories_match:
             if verbose_history:
                 this.history += " Second object history follows. " + other.history
             else:
-                extra_history = helpers._combine_history_addition(
+                extra_history = utils.history._combine_history_addition(
                     this.history, other.history
                 )
                 if extra_history is not None:
@@ -6313,7 +6323,7 @@ class UVData(UVBase):
                     )
 
         # merge file names
-        this.filename = helpers._combine_filenames(this.filename, other.filename)
+        this.filename = utils.tools._combine_filenames(this.filename, other.filename)
 
         # Check final object is self-consistent
         if run_check:
@@ -6576,7 +6586,7 @@ class UVData(UVBase):
 
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
-            blt_inds = helpers._get_iterable(blt_inds)
+            blt_inds = utils.tools._get_iterable(blt_inds)
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
             history_update_string += "baseline-times"
@@ -6586,12 +6596,12 @@ class UVData(UVBase):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
         if catalog_names is not None:
-            phase_center_ids = utils.ps_cat.look_for_name(
+            phase_center_ids = utils.phase_center_catalog.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
 
         if phase_center_ids is not None:
-            phase_center_ids = np.array(helpers._get_iterable(phase_center_ids))
+            phase_center_ids = np.array(utils.tools._get_iterable(phase_center_ids))
             pc_blt_inds = np.nonzero(
                 np.isin(self.phase_center_id_array, phase_center_ids)
             )[0]
@@ -6637,7 +6647,7 @@ class UVData(UVBase):
                 )
 
         if antenna_nums is not None:
-            antenna_nums = helpers._get_iterable(antenna_nums)
+            antenna_nums = utils.tools._get_iterable(antenna_nums)
             antenna_nums = np.asarray(antenna_nums)
             if antenna_nums.ndim > 1:
                 antenna_nums = antenna_nums.flatten()
@@ -6757,7 +6767,7 @@ class UVData(UVBase):
             else:
                 blt_inds = ant_blt_inds
 
-        time_blt_inds = helpers._select_times_helper(
+        time_blt_inds = utils.times._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -6813,19 +6823,19 @@ class UVData(UVBase):
             blt_inds = sorted(set(blt_inds))
 
         if freq_chans is not None:
-            freq_chans = helpers._get_iterable(freq_chans)
+            freq_chans = utils.tools._get_iterable(freq_chans)
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
                 frequencies = self.freq_array[freq_chans]
             else:
-                frequencies = helpers._get_iterable(frequencies)
+                frequencies = utils.tools._get_iterable(frequencies)
                 frequencies = np.sort(
                     list(set(frequencies) | set(self.freq_array[freq_chans]))
                 )
 
         if frequencies is not None:
-            frequencies = helpers._get_iterable(frequencies)
+            frequencies = utils.tools._get_iterable(frequencies)
             if np.array(frequencies).ndim > 1:
                 frequencies = np.array(frequencies).flatten()
             if n_selects > 0:
@@ -6849,7 +6859,7 @@ class UVData(UVBase):
                 freq_ind_separation = freq_ind_separation[
                     np.diff(self.flex_spw_id_array[freq_inds]) == 0
                 ]
-                if not helpers._test_array_constant(freq_ind_separation):
+                if not utils.tools._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -6867,7 +6877,7 @@ class UVData(UVBase):
             freq_inds = None
 
         if polarizations is not None:
-            polarizations = helpers._get_iterable(polarizations)
+            polarizations = utils.tools._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
             if n_selects > 0:
@@ -6928,7 +6938,7 @@ class UVData(UVBase):
                         "No data matching this polarization and frequency selection "
                         "in this UVData object."
                     )
-                if not helpers._test_array_constant_spacing(
+                if not utils.tools._test_array_constant_spacing(
                     np.unique(self.flex_spw_polarization_array[spw_inds])
                 ):
                     warnings.warn(
@@ -6939,7 +6949,7 @@ class UVData(UVBase):
             else:
                 pol_inds = np.unique(pol_inds)
                 if len(pol_inds) > 2:
-                    if not helpers._test_array_constant_spacing(pol_inds):
+                    if not utils.tools._test_array_constant_spacing(pol_inds):
                         warnings.warn(
                             "Selected polarization values are not evenly spaced. This "
                             "will make it impossible to write this data out to "
@@ -7750,7 +7760,7 @@ class UVData(UVBase):
             int_times = int_times
             if len(np.unique(int_times)) == 1:
                 # this baseline has all the same integration times
-                if len(np.unique(dtime)) > 1 and not helpers._test_array_constant(
+                if len(np.unique(dtime)) > 1 and not utils.tools._test_array_constant(
                     dtime, tols=self._integration_time.tols
                 ):
                     warnings.warn(

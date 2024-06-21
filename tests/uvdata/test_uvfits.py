@@ -1329,7 +1329,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read(np.array([testfile1, testfile2]), file_type="uvfits")
 
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -1371,7 +1371,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
 
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -1414,7 +1414,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], read_data=False)
 
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "

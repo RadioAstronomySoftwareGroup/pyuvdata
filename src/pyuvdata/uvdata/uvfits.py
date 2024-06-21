@@ -24,7 +24,6 @@ except ImportError:
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import fits as fits_utils
 from . import UVData
 
@@ -71,7 +70,7 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                helpers.check_lsts_against_times(
+                utils.times.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
@@ -475,7 +474,7 @@ class UVFITS(UVData):
                 if self.blt_order == ("bda",):
                     self._blt_order.form = (1,)
             self.history = str(vis_hdr.get("HISTORY", ""))
-            if not helpers._check_history_version(
+            if not utils.history._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -952,7 +951,7 @@ class UVFITS(UVData):
         if self.Npols > 1:
             pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
-            if not helpers._test_array_constant_spacing(polarization_array):
+            if not utils.tools._test_array_constant_spacing(polarization_array):
                 raise ValueError(
                     "The polarization values are not evenly spaced (probably "
                     "because of a select operation). The uvfits format "

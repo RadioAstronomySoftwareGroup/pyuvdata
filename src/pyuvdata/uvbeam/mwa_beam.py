@@ -611,7 +611,7 @@ class MWABeam(UVBeam):
         gain_str = "[" + ", ".join(gain_str_list) + "]"
 
         self.history += "  delays set to " + delay_str + "  gains set to " + gain_str
-        if not utils.helpers._check_history_version(
+        if not utils.history._check_history_version(
             self.history, self.pyuvdata_version_str
         ):
             self.history += self.pyuvdata_version_str

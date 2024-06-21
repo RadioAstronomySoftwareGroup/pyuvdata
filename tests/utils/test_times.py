@@ -1,7 +1,7 @@
 # -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
-"""Tests for LST utility functions."""
+"""Tests for time related utility functions."""
 
 import numpy as np
 import pytest
@@ -9,7 +9,7 @@ from astropy import units
 from astropy.coordinates import EarthLocation
 
 from pyuvdata import utils
-from pyuvdata.utils.lst import hasmoon
+from pyuvdata.utils.times import hasmoon
 
 if hasmoon:
     from lunarsky import MoonLocation

@@ -19,7 +19,6 @@ import pyuvdata.utils.file_io.fits as fits_utils
 from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
-from pyuvdata.utils import helpers
 
 from . import extend_jones_axis, time_array_to_time_range
 
@@ -728,7 +727,7 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     for ant in calobj2.ant_array:
         assert ant in ants_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
         calobj2.history,
     )
@@ -825,7 +824,7 @@ def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
         for t in np.unique(calobj2.time_array):
             assert t in times_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
         calobj2.history,
     )
@@ -919,7 +918,7 @@ def test_select_frequencies(gain_data, tmp_path):
     for f in np.unique(calobj2.freq_array):
         assert f in freqs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
@@ -984,7 +983,7 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     for f in np.unique(calobj2.freq_array):
         assert f in freqs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
@@ -1056,7 +1055,7 @@ def test_select_freq_chans(gain_data):
     for f in np.unique(calobj2.freq_array):
         assert f in obj_freqs
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         calobj2.history,
     )
@@ -1104,7 +1103,7 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
     for spw in calobj2.spw_array:
         assert spw in spws_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific spectral windows using pyuvdata.",
         calobj2.history,
     )
@@ -1157,7 +1156,7 @@ def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data, tmp
                 jones_to_keep, x_orientation=calobj2.telescope.x_orientation
             )
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific jones polarization terms "
         "using pyuvdata.",
@@ -1268,7 +1267,7 @@ def test_select(caltype, gain_data, delay_data):
         assert j in calobj2.jones_array
     for j in np.unique(calobj2.jones_array):
         assert j in jones_to_keep
-    assert helpers._check_histories(expected_history, calobj2.history)
+    assert utils.history._check_histories(expected_history, calobj2.history)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1318,7 +1317,7 @@ def test_select_wideband(caltype, multi_spw_delay, wideband_gain):
     for j in np.unique(calobj2.jones_array):
         assert j in jones_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific antennas, times, "
         "spectral windows, jones polarization terms "
@@ -1350,7 +1349,7 @@ def test_add_antennas(caltype, gain_data, method, delay_data):
 
     getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "antennas using pyuvdata. Combined "
         "data along antenna axis using pyuvdata.",
@@ -1889,7 +1888,7 @@ def test_add_antennas_multispw(multi_spw_gain, quality, method):
 
     getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "antennas using pyuvdata. Combined "
         "data along antenna axis using pyuvdata.",
@@ -1920,7 +1919,7 @@ def test_add_frequencies(gain_data, method):
 
     getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
@@ -2059,7 +2058,7 @@ def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
         calobj_sum = getattr(calobj, method)(calobj2, **kwargs)
 
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
@@ -2086,7 +2085,7 @@ def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
         calobj_sum = calobj2 + calobj
 
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "frequencies using pyuvdata. Combined "
         "data along frequency axis using pyuvdata.",
@@ -2160,20 +2159,20 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
 
     # Check history is correct, before replacing and doing a full object check
     if axis == "multi":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific antennas, spectral "
             "windows using pyuvdata. Combined data along antenna, spectral window axis "
             "using pyuvdata.",
             calobj3.history,
         )
     elif axis == "spw":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
             calobj3.history,
         )
     elif axis == "antenna":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
             "Combined data along antenna axis using pyuvdata.",
             calobj3.history,
@@ -2191,20 +2190,20 @@ def test_add_spw_wideband(axis, caltype, method, multi_spw_delay, wideband_gain)
 
     # Check history is correct, before replacing and doing a full object check
     if axis == "multi":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific antennas, spectral "
             "windows using pyuvdata. Combined data along antenna, spectral window axis "
             "using pyuvdata.",
             calobj3.history,
         )
     elif axis == "spw":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific spectral windows using "
             "pyuvdata. Combined data along spectral window axis using pyuvdata.",
             calobj3.history,
         )
     elif axis == "antenna":
-        assert helpers._check_histories(
+        assert utils.history._check_histories(
             calobj_full.history + "  Downselected to specific antennas using pyuvdata. "
             "Combined data along antenna axis using pyuvdata.",
             calobj3.history,
@@ -2261,7 +2260,7 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
     with check_warnings(add_warn, match=add_msg):
         getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "times using pyuvdata. Combined "
         "data along time axis using pyuvdata.",
@@ -2390,7 +2389,7 @@ def test_add_times_multispw(method, multi_spw_gain, quality):
         kwargs = {}
     getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific "
         "times using pyuvdata. Combined "
         "data along time axis using pyuvdata.",
@@ -2560,7 +2559,7 @@ def test_add(caltype, method, gain_data, delay_data):
 
     calobj_add = getattr(calobj, method)(calobj2, **kwargs)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_original.history + "  Downselected to specific "
         "antennas using pyuvdata. Combined "
         "data along antenna axis using pyuvdata.",
@@ -2578,7 +2577,7 @@ def test_add(caltype, method, gain_data, delay_data):
     new_cal = getattr(calobj, method)(calobj2, **kwargs)
 
     additional_history = "Some random history string"
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_original.history + " Combined data along antenna axis "
         "using pyuvdata. Unique part of next object history follows.  "
         + additional_history,
@@ -2587,7 +2586,7 @@ def test_add(caltype, method, gain_data, delay_data):
 
     kwargs["verbose_history"] = True
     new_cal = getattr(calobj, method)(calobj2, **kwargs)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_original.history + " Combined data along antenna axis "
         "using pyuvdata. Next object history follows.  " + calobj2.history,
         new_cal.history,
@@ -3060,7 +3059,7 @@ def test_multi_files(caltype, method, gain_data, delay_data, tmp_path, file_type
 
             calobj.read([f1, f2])
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         calobj_full.history + "  Downselected to specific times"
         " using pyuvdata. Combined data "
         "along time axis using pyuvdata.",
@@ -3349,7 +3348,7 @@ def test_init_from_uvdata(multi_spw, uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3419,7 +3418,7 @@ def test_init_from_uvdata_setfreqs(multi_spw, uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3481,7 +3480,7 @@ def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3536,7 +3535,7 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3592,7 +3591,7 @@ def test_init_single_pol(uvcalibrate_data, pol):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3642,7 +3641,7 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3721,7 +3720,7 @@ def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3816,7 +3815,7 @@ def test_init_from_uvdata_delay(multi_spw, set_frange, uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
@@ -3909,7 +3908,7 @@ def test_init_from_uvdata_wideband(multi_spw, set_frange, uvcalibrate_data):
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uvc_new.history[:200],
         (
             "Initialized from a UVData object with pyuvdata."
