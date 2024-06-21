@@ -12,7 +12,7 @@ from astropy.time import Time
 from astropy.utils import iers
 
 from . import _phasing
-from .lst import get_lst_for_time
+from .times import get_lst_for_time
 
 try:
     from lunarsky import MoonLocation

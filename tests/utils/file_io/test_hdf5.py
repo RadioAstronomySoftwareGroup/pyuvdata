@@ -7,16 +7,16 @@ import numpy as np
 import pytest
 
 import pyuvdata.utils.file_io.hdf5 as hdf5_utils
-from pyuvdata.utils import helpers
+from pyuvdata import utils
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_read_slicing():
     """Test HDF5 slicing helper functions"""
     # check trivial slice representations
-    slices, _ = helpers._convert_to_slices([])
+    slices, _ = utils.tools._convert_to_slices([])
     assert slices == [slice(0, 0, 0)]
-    slices, _ = helpers._convert_to_slices(10)
+    slices, _ = utils.tools._convert_to_slices(10)
     assert slices == [slice(10, 11, 1)]
 
     # dataset shape checking
@@ -28,7 +28,7 @@ def test_read_slicing():
 
     # dataset indexing
     # check various kinds of indexing give the right answer
-    slices = [helpers._convert_to_slices(ind)[0] for ind in indices]
+    slices = [utils.tools._convert_to_slices(ind)[0] for ind in indices]
     slices[1] = 0
     data = hdf5_utils._index_dset(dset, slices)
     assert data.shape == tuple(shape)
@@ -37,9 +37,11 @@ def test_read_slicing():
     bool_arr = np.zeros((10000,), dtype=bool)
     index_arr = np.arange(1, 10000, 2)
     bool_arr[index_arr] = True
-    assert helpers._convert_to_slices(bool_arr) == helpers._convert_to_slices(index_arr)
-    assert helpers._convert_to_slices(bool_arr, return_index_on_fail=True) == (
-        helpers._convert_to_slices(index_arr, return_index_on_fail=True)
+    assert utils.tools._convert_to_slices(bool_arr) == utils.tools._convert_to_slices(
+        index_arr
+    )
+    assert utils.tools._convert_to_slices(bool_arr, return_index_on_fail=True) == (
+        utils.tools._convert_to_slices(index_arr, return_index_on_fail=True)
     )
 
     # Index return on fail with two slices
@@ -47,7 +49,7 @@ def test_read_slicing():
     bool_arr[0:2] = [True, False]
 
     for item in [index_arr, bool_arr]:
-        result, check = helpers._convert_to_slices(
+        result, check = utils.tools._convert_to_slices(
             item, max_nslice=1, return_index_on_fail=True
         )
         assert not check
@@ -60,7 +62,7 @@ def test_read_slicing():
     bool_arr[index_arr] = True
 
     for item in [index_arr, bool_arr]:
-        result, check = helpers._convert_to_slices(item, return_index_on_fail=True)
+        result, check = utils.tools._convert_to_slices(item, return_index_on_fail=True)
         assert not check
         assert len(result) == 1
         assert result[0] is item

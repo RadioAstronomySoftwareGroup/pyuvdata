@@ -940,7 +940,7 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
                         history_str += message[idx] + "\n"
 
     # Check and make sure the pyuvdata version is in the history if it's not already
-    if not utils.helpers._check_history_version(history_str, pyuvdata_version_str):
+    if not utils.history._check_history_version(history_str, pyuvdata_version_str):
         history_str += pyuvdata_version_str
 
     # Finally, return the completed string

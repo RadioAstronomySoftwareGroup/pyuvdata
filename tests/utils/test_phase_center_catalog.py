@@ -5,7 +5,7 @@
 
 import pytest
 
-import pyuvdata.utils.ps_cat as ps_cat_utils
+import pyuvdata.utils.phase_center_catalog as ps_cat_utils
 
 
 def test_generate_new_phase_center_id_errs():

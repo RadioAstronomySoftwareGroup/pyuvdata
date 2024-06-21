@@ -23,7 +23,6 @@ from astropy.utils import iers
 from pyuvdata import UVCal, UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
-from pyuvdata.utils import helpers
 
 from ..utils.test_coordinates import frame_selenoid
 from .test_mwa_corr_fits import filelist as mwa_corr_files
@@ -1345,9 +1344,9 @@ def test_select_blts(paper_uvh5):
     assert len(blt_inds) == uv_object2.Nblts
 
     # verify that histories are different
-    assert not helpers._check_histories(old_history, uv_object2.history)
+    assert not utils.history._check_histories(old_history, uv_object2.history)
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific baseline-times using pyuvdata.",
         uv_object2.history,
     )
@@ -1360,7 +1359,7 @@ def test_select_blts(paper_uvh5):
 
     assert len(blt_inds) == uv_object2.Nblts
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific baseline-times using pyuvdata.",
         uv_object2.history,
     )
@@ -1399,7 +1398,7 @@ def test_select_phase_center_id(tmp_path, carma_miriad):
     uv2 = uv_obj.select(phase_center_ids=[1, 2], inplace=False)
 
     uv_sum = uv1 + uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_obj.history + "  Downselected to specific phase center IDs using pyuvdata.  "
         "Combined data along baseline-time axis using pyuvdata.",
         uv_sum.history,
@@ -1433,7 +1432,7 @@ def test_select_phase_center_id_blts(carma_miriad):
     )
 
     uv_sum = uv1 + uv2 + uv3
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_obj.history
         + "  Downselected to specific baseline-times, phase center IDs using pyuvdata. "
         "Combined data along baseline-time axis using pyuvdata.  "
@@ -1477,7 +1476,7 @@ def test_select_antennas(casa_uvfits):
     ):
         assert ant in ants_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
         uv_object2.history,
     )
@@ -1495,7 +1494,7 @@ def test_select_antennas(casa_uvfits):
     ):
         assert ant in ants_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
         uv_object2.history,
     )
@@ -1614,7 +1613,7 @@ def test_select_bls(casa_uvfits):
     for pair in sorted_pairs_object2:
         assert pair in sorted_pairs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific baselines using pyuvdata.",
         uv_object2.history,
     )
@@ -1643,7 +1642,7 @@ def test_select_bls(casa_uvfits):
     for pair in sorted_pairs_object3:
         assert pair in sorted_pairs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific baselines using pyuvdata.",
         uv_object3.history,
     )
@@ -1682,7 +1681,7 @@ def test_select_bls(casa_uvfits):
     for bl in sorted_pairs_object2:
         assert bl in sorted_bls_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history
         + "  Downselected to specific baselines, polarizations using pyuvdata.",
         uv_object2.history,
@@ -1711,7 +1710,7 @@ def test_select_bls(casa_uvfits):
     for pair in sorted_pairs_object2:
         assert pair in sorted_pairs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific baselines using pyuvdata.",
         uv_object2.history,
     )
@@ -1796,7 +1795,7 @@ def test_select_times(casa_uvfits):
     for t in np.unique(uv_object2.time_array):
         assert t in times_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
         uv_object2.history,
     )
@@ -1811,7 +1810,7 @@ def test_select_times(casa_uvfits):
     for t in np.unique(uv_object2.time_array):
         assert t in times_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
         uv_object2.history,
     )
@@ -1850,7 +1849,7 @@ def test_select_time_range(casa_uvfits):
     for t in np.unique(uv_object2.time_array):
         assert t in times_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
         uv_object2.history,
     )
@@ -1878,7 +1877,7 @@ def test_select_lsts(casa_uvfits, tmp_path):
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -1893,7 +1892,7 @@ def test_select_lsts(casa_uvfits, tmp_path):
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -2037,7 +2036,7 @@ def test_select_lsts_multi_day(casa_uvfits):
     unique_jds = np.unique(np.asarray(uv_object2.time_array, dtype=np.int_))
     assert len(unique_jds) == 2
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -2146,7 +2145,7 @@ def test_select_lst_range(casa_uvfits, tmp_path):
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -2195,7 +2194,7 @@ def test_select_lst_range_too_big(casa_uvfits):
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -2230,7 +2229,7 @@ def test_select_lst_range_wrap_around(casa_uvfits):
     for lst in np.unique(uv_object2.lst_array):
         assert lst in lsts_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
         uv_object2.history,
     )
@@ -2312,7 +2311,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     for f in np.unique(uv_object2.freq_array):
         assert f in freqs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
@@ -2327,7 +2326,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     for f in np.unique(uv_object2.freq_array):
         assert f in freqs_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
@@ -2340,7 +2339,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     for f in uv_object2.freq_array:
         assert f in [freqs_to_keep[0]]
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
@@ -2423,7 +2422,7 @@ def test_select_freq_chans(casa_uvfits):
     for f in np.unique(uv_object2.freq_array):
         assert f in uv_object.freq_array[chans_to_keep]
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
@@ -2438,7 +2437,7 @@ def test_select_freq_chans(casa_uvfits):
     for f in np.unique(uv_object2.freq_array):
         assert f in uv_object.freq_array[chans_to_keep]
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uv_object2.history,
     )
@@ -2490,7 +2489,7 @@ def test_select_polarizations(hera_uvh5, pols_to_keep):
                 pols_to_keep, x_orientation=uv_object2.telescope.x_orientation
             )
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
         uv_object2.history,
     )
@@ -2615,7 +2614,7 @@ def test_select(casa_uvfits):
     for p in np.unique(uv_object2.polarization_array):
         assert p in pols_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific baseline-times, antennas, "
         "baselines, times, frequencies, "
@@ -2711,7 +2710,7 @@ def test_select_with_lst(casa_uvfits):
     for p in np.unique(uv_object2.polarization_array):
         assert p in pols_to_keep
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific baseline-times, antennas, "
         "baselines, lsts, frequencies, "
@@ -2735,7 +2734,7 @@ def test_select_not_inplace(casa_uvfits):
     old_history = uv_object.history
     uv1 = uv_object.select(freq_chans=np.arange(32), inplace=False)
     uv1 += uv_object.select(freq_chans=np.arange(32, 64), inplace=False)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -3236,14 +3235,14 @@ def test_sum_vis(casa_uvfits):
     uv_summed = uv_half.sum_vis(uv_half_mod)
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_half.history + " Visibilities summed using pyuvdata. Unique part of second "
         "object history follows.  testing the history.",
         uv_summed.history,
     )
     # add a test for full coverage of _combine_history_addition function
     assert (
-        helpers._combine_history_addition(
+        utils.history._combine_history_addition(
             uv_half.history
             + " Visibilities summed using pyuvdata. Unique part of second "
             "object history follows.  testing the history.",
@@ -3255,7 +3254,7 @@ def test_sum_vis(casa_uvfits):
     uv_summed = uv_half.sum_vis(uv_half_mod, verbose_history=True)
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_half.history
         + " Visibilities summed using pyuvdata. Second object history follows. "
         + uv_half_mod.history,
@@ -3266,7 +3265,7 @@ def test_sum_vis(casa_uvfits):
     uv_diffed = uv_full.diff_vis(uv_half)
 
     assert np.array_equal(uv_diffed.data_array, uv_half.data_array)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + " Visibilities differenced using pyuvdata.", uv_diffed.history
     )
 
@@ -3358,7 +3357,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -3387,7 +3386,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization axis "
@@ -3413,7 +3412,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time axis "
@@ -3433,7 +3432,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
@@ -3470,7 +3469,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv3.baseline_array = uv3.baseline_array[-1::-1]
     uv1 += uv3
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
@@ -3493,7 +3492,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
         times=times[len(times) // 2 :], polarizations=uv2.polarization_array[2:4]
     )
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times, polarizations using "
         "pyuvdata. Combined data along "
@@ -3533,7 +3532,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times, frequencies using "
         "pyuvdata. Combined data along "
@@ -3572,7 +3571,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1 + uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
@@ -3685,7 +3684,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1 + uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Unique part of next "
         "object history follows.  testing the history.",
@@ -3695,7 +3694,7 @@ def test_add(casa_uvfits, hera_uvh5_xx):
     assert uv_new == uv_full
 
     uv_new = uv1.__add__(uv2, verbose_history=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
         "follows.  " + uv2.history,
@@ -3727,7 +3726,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(freq_chans=np.arange(32, 64))
     uv1 += uv2
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency "
@@ -3743,7 +3742,7 @@ def test_add_unprojected(casa_uvfits):
     uv1.select(polarizations=uv1.polarization_array[0:2])
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization "
@@ -3760,7 +3759,7 @@ def test_add_unprojected(casa_uvfits):
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
@@ -3780,7 +3779,7 @@ def test_add_unprojected(casa_uvfits):
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time "
@@ -3802,7 +3801,7 @@ def test_add_unprojected(casa_uvfits):
         times=times[len(times) // 2 :], polarizations=uv2.polarization_array[2:4]
     )
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times, polarizations using "
         "pyuvdata. Combined data along "
@@ -3842,7 +3841,7 @@ def test_add_unprojected(casa_uvfits):
     uv1.select(times=times[0 : len(times) // 2], freq_chans=np.arange(0, 32))
     uv2.select(times=times[len(times) // 2 :], freq_chans=np.arange(32, 64))
     uv1 += uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times, frequencies using "
         "pyuvdata. Combined data along "
@@ -3881,7 +3880,7 @@ def test_add_unprojected(casa_uvfits):
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1 + uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
@@ -3923,7 +3922,7 @@ def test_add_unprojected(casa_uvfits):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1 + uv2
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata.  Unique part of next "
         "object history follows.  testing the history.",
@@ -3933,7 +3932,7 @@ def test_add_unprojected(casa_uvfits):
     assert uv_new == uv_full
 
     uv_new = uv1.__add__(uv2, verbose_history=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
         "follows." + uv2.history,
@@ -4135,7 +4134,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv3.select(freq_chans=np.arange(40, 64))
     uv1.fast_concat([uv2, uv3], "freq", inplace=True)
     # Check history is correct, before replacing and doing a full object check
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -4186,7 +4185,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.select(polarizations=uv2.polarization_array[1:3])
     uv3.select(polarizations=uv3.polarization_array[3:4])
     uv1.fast_concat([uv2, uv3], "polarization", inplace=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific polarizations using pyuvdata. "
         "Combined data along polarization axis "
@@ -4231,7 +4230,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.select(times=times[len(times) // 3 : (len(times) // 3) * 2])
     uv3.select(times=times[(len(times) // 3) * 2 :])
     uv1.fast_concat([uv2, uv3], "blt", inplace=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time axis "
@@ -4250,7 +4249,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv1.select(blt_inds=ind1)
     uv2.select(blt_inds=ind2)
     uv1.fast_concat(uv2, "blt", inplace=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time axis "
@@ -4302,7 +4301,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.select(blt_inds=ind2)
     uv2.fast_concat(uv1, "blt", inplace=True)
 
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific baseline-times using pyuvdata. "
         "Combined data along baseline-time "
@@ -4370,7 +4369,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv1.select(times=times[0 : len(times) // 2])
     uv2.select(times=times[len(times) // 2 :])
     uv1 = uv1.fast_concat(uv2, "blt", inplace=False)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific times using pyuvdata. "
         "Combined data along baseline-time "
@@ -4472,7 +4471,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     uv2.select(polarizations=uv2.polarization_array[2:4])
     uv2.history += " testing the history. AIPS WTSCAL = 1.0"
     uv_new = uv1.fast_concat(uv2, "polarization")
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Unique part of next "
         "object history follows. testing the history.",
@@ -4482,7 +4481,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
     assert uv_new == uv_full
 
     uv_new = uv1.fast_concat(uv2, "polarization", verbose_history=True)
-    assert helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
         "follows." + uv2.history,
@@ -6490,7 +6489,7 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
         "Combined data along polarization axis using pyuvdata. Combined data along "
         "baseline-time axis using pyuvdata. Overwrote invalid data using pyuvdata."
     )
-    assert helpers._check_histories(uvfull.history, uv.history + extra_history)
+    assert utils.history._check_histories(uvfull.history, uv.history + extra_history)
     uvfull.history = uv.history  # make histories match
     assert uv == uvfull
 
@@ -6505,7 +6504,7 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
         "Combined data along polarization axis using pyuvdata. Combined data along "
         "baseline-time axis using pyuvdata."
     )
-    assert helpers._check_histories(uvfull.history, uv.history + extra_history2)
+    assert utils.history._check_histories(uvfull.history, uv.history + extra_history2)
     uvfull.history = uv.history  # make histories match
     assert uv == uvfull
 
@@ -6547,7 +6546,7 @@ def test_overlapping_data_add(casa_uvfits, tmp_path):
     uvfull.read(np.array([uv1_out, uv2_out, uv3_out, uv4_out]))
     uvfull.reorder_blts()
     uv.reorder_blts()
-    assert helpers._check_histories(uvfull.history, uv.history + extra_history2)
+    assert utils.history._check_histories(uvfull.history, uv.history + extra_history2)
     uvfull.history = uv.history  # make histories match
 
     # make sure filenames are what we expect
@@ -9627,7 +9626,9 @@ def test_print_object_multi(carma_miriad):
 )
 def test_look_in_catalog_err(sma_mir, kwargs, err_type, err_msg):
     with pytest.raises(err_type, match=err_msg):
-        utils.ps_cat.look_in_catalog(sma_mir.phase_center_catalog, **kwargs)
+        utils.phase_center_catalog.look_in_catalog(
+            sma_mir.phase_center_catalog, **kwargs
+        )
 
 
 @pytest.mark.parametrize(
@@ -9656,7 +9657,7 @@ def test_look_in_catalog(hera_uvh5, name, stype, arg_dict, exp_id, exp_diffs):
     parameters and that recorded in the UVData object.
     """
     hera_uvh5.print_phase_center_info()
-    [cat_id, num_diffs] = utils.ps_cat.look_in_catalog(
+    [cat_id, num_diffs] = utils.phase_center_catalog.look_in_catalog(
         hera_uvh5.phase_center_catalog,
         cat_name=name,
         cat_type=stype,
@@ -9684,16 +9685,16 @@ def test_look_in_catalog_phase_dict(sma_mir):
     behave as expected
     """
     # Now try lookup using a dictionary of properties
-    assert utils.ps_cat.look_in_catalog(
+    assert utils.phase_center_catalog.look_in_catalog(
         sma_mir.phase_center_catalog, cat_name="3c84"
     ) == (1, 5)
     phase_dict = sma_mir.phase_center_catalog[1]
-    assert utils.ps_cat.look_in_catalog(
+    assert utils.phase_center_catalog.look_in_catalog(
         sma_mir.phase_center_catalog, cat_name="3c84", phase_dict=phase_dict
     ) == (1, 0)
 
     # Make sure that if we set ignore_name, we still get a match
-    assert utils.ps_cat.look_in_catalog(
+    assert utils.phase_center_catalog.look_in_catalog(
         sma_mir.phase_center_catalog,
         cat_name="3c84",
         phase_dict=phase_dict,
@@ -9701,7 +9702,7 @@ def test_look_in_catalog_phase_dict(sma_mir):
     ) == (1, 0)
 
     # Match w/ a mis-capitalization
-    assert utils.ps_cat.look_in_catalog(
+    assert utils.phase_center_catalog.look_in_catalog(
         sma_mir.phase_center_catalog,
         cat_name="3C84",
         phase_dict=phase_dict,
@@ -10009,7 +10010,7 @@ def test_add_clear_phase_center(sma_mir):
     # Check to see that the catalog actually changed
     assert sma_mir.phase_center_catalog != check_dict
     # And ake sure we can ID by name, but find diffs if attributes dont match
-    assert utils.ps_cat.look_in_catalog(
+    assert utils.phase_center_catalog.look_in_catalog(
         sma_mir.phase_center_catalog, cat_name="Mars", cat_lon=[0], cat_lat=[0]
     ) == (0, 7)
 
@@ -10088,14 +10089,18 @@ def test_split_phase_center(hera_uvh5):
     select_mask = np.isin(hera_uvh5.time_array, np.unique(hera_uvh5.time_array)[::2])
 
     hera_uvh5.split_phase_center("3c84", new_name="3c84_2", select_mask=select_mask)
-    cat_id1 = utils.ps_cat.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
-    cat_id2 = utils.ps_cat.look_for_name(hera_uvh5.phase_center_catalog, "3c84_2")
+    cat_id1 = utils.phase_center_catalog.look_for_name(
+        hera_uvh5.phase_center_catalog, "3c84"
+    )
+    cat_id2 = utils.phase_center_catalog.look_for_name(
+        hera_uvh5.phase_center_catalog, "3c84_2"
+    )
     # Check that the catalog IDs also line up w/ what we expect
     assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
     assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id2)
     assert hera_uvh5.Nphase == 2
 
-    cat_id_all = utils.ps_cat.look_for_name(
+    cat_id_all = utils.phase_center_catalog.look_for_name(
         hera_uvh5.phase_center_catalog, ["3c84", "3c84_2"]
     )
     assert np.all(np.isin(hera_uvh5.phase_center_id_array, cat_id_all))
@@ -10131,8 +10136,12 @@ def test_split_phase_center_downselect(hera_uvh5):
             downselect=True,
         )
 
-    cat_id1 = utils.ps_cat.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
-    cat_id3 = utils.ps_cat.look_for_name(hera_uvh5.phase_center_catalog, "3c84_3")
+    cat_id1 = utils.phase_center_catalog.look_for_name(
+        hera_uvh5.phase_center_catalog, "3c84"
+    )
+    cat_id3 = utils.phase_center_catalog.look_for_name(
+        hera_uvh5.phase_center_catalog, "3c84_3"
+    )
     assert np.all(hera_uvh5.phase_center_id_array[~select_mask] == cat_id1)
     assert np.all(hera_uvh5.phase_center_id_array[select_mask] == cat_id3)
 
@@ -10152,7 +10161,9 @@ def test_split_phase_center_downselect(hera_uvh5):
     assert hera_uvh5.phase_center_catalog == catalog_copy
     assert np.all(
         hera_uvh5.phase_center_id_array
-        == utils.ps_cat.look_for_name(hera_uvh5.phase_center_catalog, "3c84")
+        == utils.phase_center_catalog.look_for_name(
+            hera_uvh5.phase_center_catalog, "3c84"
+        )
     )
 
 
@@ -10326,12 +10337,16 @@ def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
     )
     assert (
         phase_dict.pop("cat_id")
-        == utils.ps_cat.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+        == utils.phase_center_catalog.look_for_name(
+            sma_mir.phase_center_catalog, "3c84"
+        )[0]
     )
     assert (
         phase_dict
         == sma_mir.phase_center_catalog[
-            utils.ps_cat.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+            utils.phase_center_catalog.look_for_name(
+                sma_mir.phase_center_catalog, "3c84"
+            )[0]
         ]
     )
 
@@ -10343,7 +10358,9 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     """
     # Finally, check that we get a good result if feeding the same values, even if not
     # actually performing a lookup
-    cat_id = utils.ps_cat.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+    cat_id = utils.phase_center_catalog.look_for_name(
+        sma_mir.phase_center_catalog, "3c84"
+    )[0]
     phase_dict = sma_mir._phase_dict_helper(
         lon=sma_mir.phase_center_catalog[cat_id].get("cat_lon"),
         lat=sma_mir.phase_center_catalog[cat_id].get("cat_lat"),
@@ -10363,7 +10380,9 @@ def test_phase_dict_helper_jpl_lookup_existing(sma_mir):
     assert (
         phase_dict
         == sma_mir.phase_center_catalog[
-            utils.ps_cat.look_for_name(sma_mir.phase_center_catalog, "3c84")[0]
+            utils.phase_center_catalog.look_for_name(
+                sma_mir.phase_center_catalog, "3c84"
+            )[0]
         ]
     )
 

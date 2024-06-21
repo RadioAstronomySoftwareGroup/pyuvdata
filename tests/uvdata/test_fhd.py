@@ -713,7 +713,7 @@ def test_multi_files(fhd_model, axis, fhd_model_files):
 
     fhd_uv2 = fhd_model
 
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         fhd_uv2.history + " Combined data along polarization axis using pyuvdata.",
         fhd_uv1.history,
     )

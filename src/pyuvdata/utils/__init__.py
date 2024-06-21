@@ -20,33 +20,39 @@ LST_RAD_TOL = 2 * np.pi * 5e-3 / (86400.0)
 # these seem to be necessary for the installed package to access these submodules
 from . import array_collapse  # noqa
 from . import bls  # noqa
+from . import bltaxis  # noqa
 from . import coordinates  # noqa
 from . import file_io  # noqa
-from . import helpers  # noqa
+from . import frequency  # noqa
+from . import history  # noqa
+from . import phase_center_catalog  # noqa
 from . import phasing  # noqa
 from . import pol  # noqa
-from . import ps_cat  # noqa
 from . import redundancy  # noqa
+from . import times  # noqa
+from . import tools  # noqa
 
 # Add things to the utils namespace used by outside packages
 from .array_collapse import collapse  # noqa
 from .bls import *  # noqa
 from .coordinates import *  # noqa
-from .lst import get_lst_for_time  # noqa
 from .phasing import uvw_track_generator  # noqa
 from .pol import *  # noqa
+from .times import get_lst_for_time  # noqa
+
+# deprecated imports
 
 
 def _check_histories(history1, history2):
     """Check if two histories are the same.
 
-    Deprecated. Use pyuvdata.utils.helpers._check_histories
+    Deprecated. Use pyuvdata.utils.history._check_histories
     """
-    from .helpers import _check_histories
+    from .history import _check_histories
 
     warnings.warn(
         "The _check_histories function has moved, please import it from "
-        "pyuvdata.utils.helpers. This warnings will become an error in version 3.2",
+        "pyuvdata.utils.history. This warnings will become an error in version 3.2",
         DeprecationWarning,
     )
 
@@ -87,6 +93,8 @@ def _fits_gethduaxis(hdu, axis):
 def _fits_indexhdus(hdulist):
     """
     Get a dict of table names and HDU numbers from a FITS HDU list.
+
+    Deprecated. Use pyuvdata.utils.file_io.fits._indexhdus.
 
     Parameters
     ----------

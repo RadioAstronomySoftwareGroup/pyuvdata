@@ -13,7 +13,6 @@ from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import ms as ms_utils
 from . import UVCal
 
@@ -534,7 +533,7 @@ class MSCal(UVCal):
                 else:
                     spw_selection = np.equal(self.flex_spw_id_array, spw_id)
                 spw_nchan = sum(spw_selection)
-                [spw_selection], _ = helpers._convert_to_slices(
+                [spw_selection], _ = utils.tools._convert_to_slices(
                     spw_selection, max_nslice=1, return_index_on_fail=True
                 )
                 spw_sel_dict[spw_id] = (spw_selection, spw_nchan)
@@ -613,7 +612,7 @@ class MSCal(UVCal):
             # Determine polarization order for writing out in CASA standard order, check
             # if this order can be represented by a single slice.
             pol_order = utils.pol.determine_pol_order(self.jones_array, order="CASA")
-            [pol_order], _ = helpers._convert_to_slices(
+            [pol_order], _ = utils.tools._convert_to_slices(
                 pol_order, max_nslice=1, return_index_on_fail=True
             )
 

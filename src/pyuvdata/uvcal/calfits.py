@@ -18,8 +18,8 @@ try:
 except ImportError:
     hasmoon = False
 
+from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import fits as fits_utils
 from . import UVCal
 
@@ -127,14 +127,14 @@ class CALFITS(UVCal):
                     "The calfits file format does not support time_range when there is "
                     "more than one time."
                 )
-            if not helpers._test_array_constant_spacing(self._time_array):
+            if not utils.tools._test_array_constant_spacing(self._time_array):
                 raise ValueError(
                     "The times are not evenly spaced (probably "
                     "because of a select operation). The calfits format "
                     "does not support unevenly spaced times."
                 )
             time_spacing = np.diff(self.time_array)
-            if not helpers._test_array_constant(self._integration_time):
+            if not utils.tools._test_array_constant(self._integration_time):
                 raise ValueError(
                     "The integration times are variable. The calfits format "
                     "does not support variable integration times."
@@ -159,7 +159,7 @@ class CALFITS(UVCal):
             time_zero = self.time_array[0]
 
         if self.Njones > 1:
-            if not helpers._test_array_constant_spacing(self._jones_array):
+            if not utils.tools._test_array_constant_spacing(self._jones_array):
                 raise ValueError(
                     "The jones values are not evenly spaced."
                     "The calibration fits file format does not"
@@ -589,7 +589,7 @@ class CALFITS(UVCal):
 
             self.history = str(hdr.get("HISTORY", ""))
 
-            if not helpers._check_history_version(
+            if not utils.history._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 if not self.history.endswith("\n"):

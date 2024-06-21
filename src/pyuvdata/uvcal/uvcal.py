@@ -15,7 +15,6 @@ from .. import Telescope
 from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
-from ..utils import helpers
 from ..uvbase import UVBase
 from . import initializers
 
@@ -1167,7 +1166,7 @@ class UVCal(UVBase):
 
         """
         if not self.wide_band:
-            helpers._check_flex_spw_contiguous(
+            utils.frequency._check_flex_spw_contiguous(
                 spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
             )
 
@@ -1192,7 +1191,7 @@ class UVCal(UVBase):
         """
         if (self.freq_array is None) or (self.Nfreqs == 1):
             return False, False
-        return helpers._check_freq_spacing(
+        return utils.frequency._check_freq_spacing(
             freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             channel_width=self.channel_width,
@@ -1309,7 +1308,7 @@ class UVCal(UVBase):
             source without coordinates.
 
         """
-        cat_entry = utils.ps_cat.generate_phase_center_cat_entry(
+        cat_entry = utils.phase_center_catalog.generate_phase_center_cat_entry(
             cat_name=cat_name,
             cat_type=cat_type,
             cat_lon=cat_lon,
@@ -1328,7 +1327,7 @@ class UVCal(UVBase):
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
         if cat_id is None or not force_update:
-            cat_id = utils.ps_cat.generate_new_phase_center_id(
+            cat_id = utils.phase_center_catalog.generate_new_phase_center_id(
                 phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
             )
 
@@ -1337,7 +1336,7 @@ class UVCal(UVBase):
             self.phase_center_catalog = {}
         else:
             # Let's warn if this entry has the same name as an existing one
-            temp_id, cat_diffs = utils.ps_cat.look_in_catalog(
+            temp_id, cat_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry
             )
 
@@ -1452,7 +1451,7 @@ class UVCal(UVBase):
         ValueError
             If `cat_name` matches no keys in `phase_center_catalog`.
         """
-        return utils.ps_cat.print_phase_center_info(
+        return utils.phase_center_catalog.print_phase_center_info(
             self.phase_center_catalog,
             catalog_identifier=catalog_identifier,
             hms_format=hms_format,
@@ -1484,7 +1483,7 @@ class UVCal(UVBase):
             If not using the method on a multi-phase-ctr data set, if there's no entry
             that matches `cat_name`, or of the value `new_id` is already taken.
         """
-        new_id = utils.ps_cat.generate_new_phase_center_id(
+        new_id = utils.phase_center_catalog.generate_new_phase_center_id(
             phase_center_catalog=self.phase_center_catalog,
             cat_id=new_id,
             old_id=cat_id,
@@ -1554,7 +1553,7 @@ class UVCal(UVBase):
             # testing it's sometimes convenient to use self.phase_center_catalog as
             # the ref catalog, which causes a RunTime error due to updates to the dict.
             cat_entry = reference_catalog[cat_id]
-            match_id, match_diffs = utils.ps_cat.look_in_catalog(
+            match_id, match_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry, ignore_name=ignore_name
             )
             if match_id is None or match_diffs != 0:
@@ -1667,7 +1666,7 @@ class UVCal(UVBase):
 
         # check that time ranges are well formed and do not overlap
         if self.time_range is not None:
-            if helpers._check_range_overlap(self.time_range):
+            if utils.tools._check_range_overlap(self.time_range):
                 raise ValueError("Some time_ranges overlap.")
             # note: do not check lst range overlap because of branch cut.
             # Assume they are ok if time_ranges are ok.
@@ -1724,21 +1723,21 @@ class UVCal(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            helpers.check_surface_based_positions(
+            utils.coordinates.check_surface_based_positions(
                 antenna_positions=self.telescope.antenna_positions,
                 telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
             if self.time_array is not None:
-                helpers.check_lsts_against_times(
+                utils.times.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
                     lst_tols=self._lst_array.tols if lst_tol is None else [0, lst_tol],
                 )
             if self.time_range is not None:
-                helpers.check_lsts_against_times(
+                utils.times.check_lsts_against_times(
                     jd_array=self.time_range,
                     lst_array=self.lst_range,
                     telescope_loc=self.telescope.location,
@@ -1867,7 +1866,7 @@ class UVCal(UVBase):
         :class: numpy ndarray
             Slice of the data_array for the key.
         """
-        key = helpers._get_iterable(key)
+        key = utils.tools._get_iterable(key)
         if len(key) == 1:
             # interpret as a single antenna
             output = data_array[self.ant2ind(key[0]), :, :, :]
@@ -2213,7 +2212,7 @@ class UVCal(UVBase):
                 index_array = np.flip(index_array)
 
         else:
-            index_array = helpers._sort_freq_helper(
+            index_array = utils.frequency._sort_freq_helper(
                 Nfreqs=self.Nfreqs,
                 freq_array=self.freq_array,
                 Nspws=self.Nspws,
@@ -2693,7 +2692,7 @@ class UVCal(UVBase):
         )
 
         if this.time_range is not None:
-            if helpers._check_range_overlap(
+            if utils.tools._check_range_overlap(
                 np.concatenate((this.time_range, other.time_range), axis=0)
             ):
                 raise ValueError("A time_range overlaps in the two objects.")
@@ -2829,7 +2828,7 @@ class UVCal(UVBase):
                 this.reorder_jones(temp_ind)
 
         # Update filename parameter
-        this.filename = helpers._combine_filenames(this.filename, other.filename)
+        this.filename = utils.tools._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -3340,7 +3339,7 @@ class UVCal(UVBase):
                 )
 
         if this.Njones > 2:
-            if not helpers._test_array_constant_spacing(this._jones_array):
+            if not utils.tools._test_array_constant_spacing(this._jones_array):
                 warnings.warn(
                     "Combined Jones elements are not evenly spaced. This will "
                     "make it impossible to write this data out to calfits files."
@@ -3349,14 +3348,16 @@ class UVCal(UVBase):
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
-            histories_match = helpers._check_histories(this.history, other.history)
+            histories_match = utils.history._check_histories(
+                this.history, other.history
+            )
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = helpers._combine_history_addition(
+                    extra_history = utils.history._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -3609,7 +3610,9 @@ class UVCal(UVBase):
         history_update_string += " axis using pyuvdata."
         histories_match = []
         for obj in other:
-            histories_match.append(helpers._check_histories(this.history, obj.history))
+            histories_match.append(
+                utils.history._check_histories(this.history, obj.history)
+            )
 
         this.history += history_update_string
         for obj_num, obj in enumerate(other):
@@ -3617,7 +3620,7 @@ class UVCal(UVBase):
                 if verbose_history:
                     this.history += " Next object history follows. " + obj.history
                 else:
-                    extra_history = helpers._combine_history_addition(
+                    extra_history = utils.history._combine_history_addition(
                         this.history, obj.history
                     )
                     if extra_history is not None:
@@ -3854,7 +3857,7 @@ class UVCal(UVBase):
 
         # update filename attribute
         for obj in other:
-            this.filename = helpers._combine_filenames(this.filename, obj.filename)
+            this.filename = utils.tools._combine_filenames(this.filename, obj.filename)
         if this.filename is not None:
             this._filename.form = len(this.filename)
 
@@ -3970,7 +3973,7 @@ class UVCal(UVBase):
                     "Only one of antenna_nums and antenna_names can be provided."
                 )
 
-            antenna_names = helpers._get_iterable(antenna_names)
+            antenna_names = utils.tools._get_iterable(antenna_names)
             antenna_nums = []
             for s in antenna_names:
                 if s not in self.telescope.antenna_names:
@@ -3981,7 +3984,7 @@ class UVCal(UVBase):
                 antenna_nums.append(self.telescope.antenna_numbers[ind])
 
         if antenna_nums is not None:
-            antenna_nums = helpers._get_iterable(antenna_nums)
+            antenna_nums = utils.tools._get_iterable(antenna_nums)
             history_update_string += "antennas"
             n_selects += 1
 
@@ -4010,11 +4013,11 @@ class UVCal(UVBase):
                 )
 
         if catalog_names is not None:
-            phase_center_ids = utils.ps_cat.look_for_name(
+            phase_center_ids = utils.phase_center_catalog.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
 
-        time_inds = helpers._select_times_helper(
+        time_inds = utils.times._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -4045,7 +4048,7 @@ class UVCal(UVBase):
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
-            time_inds = helpers._sorted_unique_intersection(
+            time_inds = utils.tools._sorted_unique_intersection(
                 np.where(pc_check)[0], time_inds
             )
 
@@ -4064,7 +4067,7 @@ class UVCal(UVBase):
             time_inds_arr = np.array(time_inds)
             if time_inds_arr.size > 1:
                 time_ind_separation = time_inds_arr[1:] - time_inds_arr[:-1]
-                if not helpers._test_array_constant(time_ind_separation):
+                if not utils.tools._test_array_constant(time_ind_separation):
                     warnings.warn(
                         "Selected times are not evenly spaced. This "
                         "is not supported by the calfits format."
@@ -4079,7 +4082,7 @@ class UVCal(UVBase):
             else:
                 if not self.wide_band:
                     # Translate the spws into frequencies
-                    freq_chans = helpers._sorted_unique_union(
+                    freq_chans = utils.tools._sorted_unique_union(
                         np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
                     )
                     spw_inds = None
@@ -4111,7 +4114,7 @@ class UVCal(UVBase):
             )
 
         if frequencies is not None:
-            frequencies = helpers._get_iterable(frequencies)
+            frequencies = utils.tools._get_iterable(frequencies)
             freq_arr_use = self.freq_array
 
             freq_check = np.isin(frequencies, freq_arr_use)
@@ -4121,7 +4124,7 @@ class UVCal(UVBase):
                     "present in the freq_array"
                 )
 
-            freq_chans = helpers._sorted_unique_union(
+            freq_chans = utils.tools._sorted_unique_union(
                 np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
             )
 
@@ -4136,7 +4139,7 @@ class UVCal(UVBase):
             if frequencies is not None:
                 pass
 
-            freq_inds = np.array(sorted(helpers._get_iterable(freq_chans)))
+            freq_inds = np.array(sorted(utils.tools._get_iterable(freq_chans)))
 
             if len(freq_inds) > 1:
                 freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
@@ -4144,7 +4147,7 @@ class UVCal(UVBase):
                     freq_ind_separation = freq_ind_separation[
                         np.diff(self.flex_spw_id_array[freq_inds]) == 0
                     ]
-                if not helpers._test_array_constant(freq_ind_separation):
+                if not utils.tools._test_array_constant(freq_ind_separation):
                     warnings.warn(
                         "Selected frequencies are not evenly spaced. This "
                         "will make it impossible to write this data out to "
@@ -4162,7 +4165,7 @@ class UVCal(UVBase):
             freq_inds = None
 
         if jones is not None:
-            jones = helpers._get_iterable(jones)
+            jones = utils.tools._get_iterable(jones)
             if np.array(jones).ndim > 1:
                 jones = np.array(jones).flatten()
             if n_selects > 0:
@@ -4203,10 +4206,10 @@ class UVCal(UVBase):
                     jones_chans = np.where(
                         np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
                     )[0]
-                    freq_inds = helpers._sorted_unique_intersection(
+                    freq_inds = utils.tools._sorted_unique_intersection(
                         jones_chans, freq_inds
                     )
-                spw_inds = helpers._sorted_unique_intersection(jones_spws, spw_inds)
+                spw_inds = utils.tools._sorted_unique_intersection(jones_spws, spw_inds)
 
                 # Trap a corner case here where the frequency and polarization selects
                 # on a flex-pol data set end up with no actual data being selected.
@@ -4215,12 +4218,12 @@ class UVCal(UVBase):
                         "No data matching this Jones selection in this flex-Jones "
                         " UVCal object."
                     )
-                spacing_check = helpers._test_array_constant_spacing(
+                spacing_check = utils.tools._test_array_constant_spacing(
                     np.unique(self.flex_jones_array[spw_inds])
                 )
             else:
                 jones_inds = sorted(set(jones_inds))
-                spacing_check = helpers._test_array_constant_spacing(
+                spacing_check = utils.tools._test_array_constant_spacing(
                     self.jones_array[jones_inds]
                 )
             if not spacing_check:

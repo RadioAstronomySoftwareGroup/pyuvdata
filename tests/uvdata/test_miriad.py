@@ -861,7 +861,7 @@ def test_loop_multi_phase(tmp_path, paper_miriad, frame):
 
     # without the "phsframe" variable, the unprojected phase center gets interpreted as
     # an ephem type phase center.
-    zen_id, _ = utils.ps_cat.look_in_catalog(
+    zen_id, _ = utils.phase_center_catalog.look_in_catalog(
         uv3.phase_center_catalog, cat_name="zenith"
     )
     new_id = uv3._add_phase_center(cat_name="zenith", cat_type="unprojected")
@@ -1935,7 +1935,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], file_type="miriad")
 
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -1961,7 +1961,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1 = UVData()
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert utils.helpers._check_histories(
+    assert utils.history._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"

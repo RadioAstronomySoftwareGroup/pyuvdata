@@ -10,8 +10,8 @@ import numpy as np
 from astropy.io import fits
 from docstring_parser import DocstringStyle
 
+from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils import helpers
 from ..utils.file_io import fits as fits_utils
 from . import UVBeam
 
@@ -331,7 +331,7 @@ class BeamFITS(UVBeam):
             self.x_orientation = primary_header.pop("XORIENT", None)
 
             self.history = str(primary_header.get("HISTORY", ""))
-            if not helpers._check_history_version(
+            if not utils.history._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -534,7 +534,7 @@ class BeamFITS(UVBeam):
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[1:] - self.freq_array[:-1]
-            if not helpers._test_array_constant(
+            if not utils.tools._test_array_constant(
                 freq_spacing, tols=self._freq_array.tols
             ):
                 raise ValueError(
@@ -551,7 +551,7 @@ class BeamFITS(UVBeam):
         else:
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
-                if not helpers._test_array_constant_spacing(self._axis1_array):
+                if not utils.tools._test_array_constant_spacing(self._axis1_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along first axis. "
                         "The beam fits format does not support "
@@ -562,7 +562,7 @@ class BeamFITS(UVBeam):
                 axis1_spacing = 1
 
             if self.Naxes2 > 1:
-                if not helpers._test_array_constant_spacing(self._axis2_array):
+                if not utils.tools._test_array_constant_spacing(self._axis2_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along second axis. "
                         "The beam fits format does not support "
@@ -642,7 +642,9 @@ class BeamFITS(UVBeam):
         # set up feed or pol axis
         if self.beam_type == "power":
             if self.Npols > 1:
-                if not helpers._test_array_constant_spacing(self._polarization_array):
+                if not utils.tools._test_array_constant_spacing(
+                    self._polarization_array
+                ):
                     raise ValueError(
                         "The polarization values are not evenly "
                         "spaced (probably because of a select operation). "

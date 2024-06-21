@@ -159,4 +159,4 @@ def test_dead_dipoles():
         + gain_str
         + beam1.pyuvdata_version_str
     )
-    assert utils.helpers._check_histories(history_str, beam1.history)
+    assert utils.history._check_histories(history_str, beam1.history)

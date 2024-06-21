@@ -678,7 +678,9 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     miriad_uv._set_app_coords_helper()
 
     if multi_frame:
-        cat_id = utils.ps_cat.look_for_name(miriad_uv.phase_center_catalog, "NOISE")
+        cat_id = utils.phase_center_catalog.look_for_name(
+            miriad_uv.phase_center_catalog, "NOISE"
+        )
         ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"][0]
         dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"][0]
         with pytest.raises(
