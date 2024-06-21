@@ -976,12 +976,7 @@ utility method.
   >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
   >>> # convert to East, North, Up (ENU) coords.
-  >>> antpos = utils.ENU_from_ECEF(
-  ...   antpos,
-  ...   latitude=uvd.telescope.location.lat.rad,
-  ...   longitude=uvd.telescope.location.lon.rad,
-  ...   altitude=uvd.telescope.location.height.to('m').value
-  ... )
+  >>> antpos = utils.ENU_from_ECEF(antpos, center_loc=uvd.telescope.location)
 
 UVData: Selecting data
 ----------------------
