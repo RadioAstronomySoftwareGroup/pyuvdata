@@ -591,7 +591,12 @@ class MS(UVData):
             blt_dict[blt_tuple] = idx
 
         nblts = len(unique_blts)
-        pol_list = np.unique([data_dict[key]["CORR_TYPE"] for key in data_dict.keys()])
+
+        # Iterate through this list to handle singleton elements (which numpy doesn't
+        # like to combine w/ 1-D arrays).
+        pol_list = np.unique(
+            [item for key in data_dict.keys() for item in data_dict[key]["CORR_TYPE"]]
+        )
         npols = len(pol_list)
 
         spw_dict = {
