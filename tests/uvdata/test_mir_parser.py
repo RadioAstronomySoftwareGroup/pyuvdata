@@ -850,7 +850,7 @@ def test_check_data_index(mir_data):
 
     # Now muck with the records so that this becomes False
     for item in ["sp_data", "ac_data"]:
-        getattr(mir_data, item)._data[0] = -1
+        getattr(mir_data, item)._data[0] = 123
         assert not mir_data._check_data_index()
         getattr(mir_data, item)._data[0] = 1
         assert mir_data._check_data_index()
