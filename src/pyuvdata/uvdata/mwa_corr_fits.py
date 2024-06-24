@@ -20,7 +20,7 @@ from scipy.special import erf
 from .. import Telescope, utils
 from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
-from ..utils.file_io import fits as fits_utils
+from ..utils.io import fits as fits_utils
 from . import UVData, _corr_fits
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]

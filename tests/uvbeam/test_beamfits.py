@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-import pyuvdata.utils.file_io.fits as fits_utils
+import pyuvdata.utils.io.fits as fits_utils
 from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings

@@ -23,7 +23,7 @@ def test_deprecated_utils_import():
         with check_warnings(
             DeprecationWarning,
             match="The _fits_indexhdus function has moved, please import it as "
-            "pyuvdata.utils.file_io.fits._indexhdus. This warnings will become an "
+            "pyuvdata.utils.io.fits._indexhdus. This warnings will become an "
             "error in version 3.2",
         ):
             utils._fits_indexhdus(hdu_list)
@@ -31,7 +31,7 @@ def test_deprecated_utils_import():
         with check_warnings(
             DeprecationWarning,
             match="The _fits_gethduaxis function has moved, please import it as "
-            "pyuvdata.utils.file_io.fits._gethduaxis. This warnings will become an "
+            "pyuvdata.utils.io.fits._gethduaxis. This warnings will become an "
             "error in version 3.2",
         ):
             utils._fits_gethduaxis(vis_hdu, 5)

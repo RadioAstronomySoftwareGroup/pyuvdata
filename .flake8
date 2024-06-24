@@ -15,8 +15,10 @@ per-file-ignores =
     src/pyuvdata/uvdata/uvdata.py: N802
     src/pyuvdata/uvbeam/mwa_beam.py: N802
     src/pyuvdata/utils/coordinates.py: N802, N803
+    src/pyuvdata/utils/io/__init__.py: A005
     tests/utils/test_coordinates.py: D,N802
     tests/__init__.py: D,N802
+    tests/utils/io/__init__.py: A005
 docstring-convention = numpy
 select = C,E,W,T4,B9,F,D,A,N,RST,B
 rst-roles =

@@ -16,7 +16,7 @@ from docstring_parser import DocstringStyle
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..utils.file_io import ms as ms_utils
+from ..utils.io import ms as ms_utils
 from . import UVData
 
 __all__ = ["MS"]

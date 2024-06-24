@@ -18,7 +18,7 @@ from docstring_parser import DocstringStyle
 
 from .. import Telescope, utils
 from ..docstrings import copy_replace_short_description
-from ..utils.file_io import hdf5 as hdf5_utils
+from ..utils.io import hdf5 as hdf5_utils
 from . import UVData
 
 __all__ = ["UVH5", "FastUVH5Meta"]

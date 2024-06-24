@@ -233,3 +233,14 @@ def test_pol_order(pols, aips_order, casa_order, order):
         assert all(check == casa_order)
     if order == "AIPS":
         assert all(check == aips_order)
+
+
+def test_x_orientation_pol_map():
+    with check_warnings(
+        DeprecationWarning,
+        match="This function (_x_orientation_rep_dict) is deprecated, use "
+        "pyuvdata.utils.pol.x_orientation_pol_map instead.",
+    ):
+        assert utils._x_orientation_rep_dict("east") == {"x": "e", "y": "n"}
+
+    assert utils.x_orientation_pol_map("north") == {"x": "n", "y": "e"}

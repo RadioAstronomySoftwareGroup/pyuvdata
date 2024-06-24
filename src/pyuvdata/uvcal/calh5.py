@@ -15,7 +15,7 @@ from docstring_parser import DocstringStyle
 from .. import utils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import Telescope
-from ..utils.file_io import hdf5 as hdf5_utils
+from ..utils.io import hdf5 as hdf5_utils
 from .uvcal import UVCal
 
 hdf5plugin_present = True
