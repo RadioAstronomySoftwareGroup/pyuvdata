@@ -18,7 +18,7 @@ from astropy import units
 from pyuvdata import UVCal, UVData, UVFlag, __version__, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
-from pyuvdata.utils.file_io import hdf5 as hdf5_utils
+from pyuvdata.utils.io import hdf5 as hdf5_utils
 from pyuvdata.uvbase import old_telescope_metadata_attrs
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 

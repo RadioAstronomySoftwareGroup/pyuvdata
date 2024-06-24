@@ -52,7 +52,7 @@ def write_index_rst(readme_file=None, write_file=None):
         "   telescope\n"
         "   fast_uvh5_meta\n"
         "   fast_calh5_meta\n"
-        "   utility_functions\n"
+        "   functions\n"
         "   developer_docs\n"
     )
 

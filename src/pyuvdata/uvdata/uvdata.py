@@ -26,7 +26,7 @@ from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..utils import phasing as phs_utils
-from ..utils.file_io import hdf5 as hdf5_utils
+from ..utils.io import hdf5 as hdf5_utils
 from ..uvbase import UVBase
 from .initializers import new_uvdata
 
