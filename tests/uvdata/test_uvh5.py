@@ -18,7 +18,7 @@ import pytest
 from astropy.time import Time
 from packaging import version
 
-import pyuvdata.utils.file_io.hdf5 as hdf5_utils
+import pyuvdata.utils.io.hdf5 as hdf5_utils
 from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings

@@ -20,8 +20,8 @@ from astropy.coordinates import Angle, EarthLocation
 from . import parameter as uvp
 from . import utils
 from .data import DATA_PATH
-from .utils.file_io import antpos
-from .utils.file_io import hdf5 as hdf5_utils
+from .utils.io import antpos
+from .utils.io import hdf5 as hdf5_utils
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]

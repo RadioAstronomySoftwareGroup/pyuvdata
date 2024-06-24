@@ -6,7 +6,7 @@
 import numpy as np
 import pytest
 
-import pyuvdata.utils.file_io.hdf5 as hdf5_utils
+import pyuvdata.utils.io.hdf5 as hdf5_utils
 from pyuvdata import utils
 
 

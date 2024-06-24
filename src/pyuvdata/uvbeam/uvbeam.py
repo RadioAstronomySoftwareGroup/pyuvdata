@@ -3133,7 +3133,7 @@ class UVBeam(UVBase):
                 )
             x_orient_dict = {}
             if beam_object.x_orientation is not None:
-                for key, value in utils._x_orientation_rep_dict(
+                for key, value in utils.x_orientation_pol_map(
                     beam_object.x_orientation
                 ).items():
                     if key in beam_object.feed_array:

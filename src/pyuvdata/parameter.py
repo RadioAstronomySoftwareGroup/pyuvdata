@@ -31,7 +31,7 @@ except ImportError:
     hasmoon = False
 
 
-__all__ = ["UVParameter", "AngleParameter", "LocationParameter"]
+__all__ = ["UVParameter", "AngleParameter", "LocationParameter", "SkyCoordParameter"]
 
 
 def _get_generic_type(expected_type, strict_type_check=False):
@@ -1228,6 +1228,17 @@ class SkyCoordParameter(UVParameter):
         )
 
     def __eq__(self, other, *, silent=False):
+        """
+        Test if classes match and values are within tolerances.
+
+        Parameters
+        ----------
+        other : UVParameter or subclass
+            The other UVParameter to compare with this one.
+        silent : bool
+            When set to False (default), descriptive text is printed out when parameters
+            do not match. If set to True, this text is not printed.
+        """
         if not issubclass(self.value.__class__, SkyCoord) or not issubclass(
             other.value.__class__, SkyCoord
         ):

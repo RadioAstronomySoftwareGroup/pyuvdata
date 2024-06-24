@@ -22,9 +22,9 @@ from . import array_collapse  # noqa
 from . import bls  # noqa
 from . import bltaxis  # noqa
 from . import coordinates  # noqa
-from . import file_io  # noqa
 from . import frequency  # noqa
 from . import history  # noqa
+from . import io  # noqa
 from . import phase_center_catalog  # noqa
 from . import phasing  # noqa
 from . import pol  # noqa
@@ -63,7 +63,7 @@ def _fits_gethduaxis(hdu, axis):
     """
     Make axis arrays for fits files.
 
-    Deprecated. Use pyuvdata.utils.file_io.fits._gethduaxis.
+    Deprecated. Use pyuvdata.utils.io.fits._gethduaxis.
 
     Parameters
     ----------
@@ -78,11 +78,11 @@ def _fits_gethduaxis(hdu, axis):
         Array of values for the specified axis.
 
     """
-    from .file_io.fits import _gethduaxis
+    from .io.fits import _gethduaxis
 
     warnings.warn(
         "The _fits_gethduaxis function has moved, please import it as "
-        "pyuvdata.utils.file_io.fits._gethduaxis. This warnings will become an "
+        "pyuvdata.utils.io.fits._gethduaxis. This warnings will become an "
         "error in version 3.2",
         DeprecationWarning,
     )
@@ -94,7 +94,7 @@ def _fits_indexhdus(hdulist):
     """
     Get a dict of table names and HDU numbers from a FITS HDU list.
 
-    Deprecated. Use pyuvdata.utils.file_io.fits._indexhdus.
+    Deprecated. Use pyuvdata.utils.io.fits._indexhdus.
 
     Parameters
     ----------
@@ -107,11 +107,11 @@ def _fits_indexhdus(hdulist):
         dictionary with table names as keys and HDU number as values.
 
     """
-    from .file_io.fits import _indexhdus
+    from .io.fits import _indexhdus
 
     warnings.warn(
         "The _fits_indexhdus function has moved, please import it as "
-        "pyuvdata.utils.file_io.fits._indexhdus. This warnings will become an "
+        "pyuvdata.utils.io.fits._indexhdus. This warnings will become an "
         "error in version 3.2",
         DeprecationWarning,
     )

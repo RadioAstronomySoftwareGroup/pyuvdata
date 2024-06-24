@@ -1946,15 +1946,18 @@ def test_uvw_track_generator_moon(selenoid):
 
     if selenoid == "SPHERE":
         # check defaults
-        gen_results = utils.uvw_track_generator(
-            lon_coord=0.0,
-            lat_coord=0.0,
-            coord_frame="icrs",
-            telescope_loc=(0, 0, 0),
-            time_array=2456789.0,
-            antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
-            telescope_frame="mcmf",
-        )
+        try:
+            gen_results = utils.uvw_track_generator(
+                lon_coord=0.0,
+                lat_coord=0.0,
+                coord_frame="icrs",
+                telescope_loc=(0, 0, 0),
+                time_array=2456789.0,
+                antenna_positions=np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]]),
+                telescope_frame="mcmf",
+            )
+        except SpiceUNKNOWNFRAME as err:
+            pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
         # Check that the total lengths all match 1
         np.testing.assert_allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)

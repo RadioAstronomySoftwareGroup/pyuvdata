@@ -14,7 +14,7 @@ from scipy.io import readsav
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
-from ..uvdata.fhd import fhd_filenames, get_fhd_history, get_fhd_layout_info
+from ..utils.io import fhd as fhd_utils
 from . import UVCal
 
 __all__ = ["FHDCal"]
@@ -53,7 +53,7 @@ class FHDCal(UVCal):
         if not read_data and settings_file is None:
             raise ValueError("A settings_file must be provided if read_data is False.")
 
-        filenames = fhd_filenames(
+        filenames = fhd_utils.fhd_filenames(
             obs_file=obs_file,
             layout_file=layout_file,
             settings_file=settings_file,
@@ -160,7 +160,7 @@ class FHDCal(UVCal):
                     for ant in obs_tile_names
                 ]
 
-            layout_param_dict = get_fhd_layout_info(
+            layout_param_dict = fhd_utils.get_fhd_layout_info(
                 layout_file=layout_file,
                 telescope_name=self.telescope.name,
                 latitude=latitude,
@@ -246,7 +246,7 @@ class FHDCal(UVCal):
                     "[" + ", ".join(str(int(d)) for d in obs_data["delays"][0]) + "]"
                 )
         if settings_file is not None:
-            self.history, self.observer = get_fhd_history(
+            self.history, self.observer = fhd_utils.get_fhd_history(
                 settings_file, return_user=True
             )
         else:

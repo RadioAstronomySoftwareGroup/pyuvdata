@@ -23,6 +23,7 @@ __all__ = [
     "jnum2str",
     "conj_pol",
     "_x_orientation_rep_dict",
+    "x_orientation_pol_map",
     "parse_polstr",
     "parse_jpolstr",
 ]
@@ -84,7 +85,36 @@ XORIENTMAP = {
 
 
 def _x_orientation_rep_dict(x_orientation):
-    """Create replacement dict based on x_orientation."""
+    """
+    Create replacement dict based on x_orientation.
+
+    Deprecated. Use x_orientation_pol_map instead.
+
+    """
+    warnings.warn(
+        "This function (_x_orientation_rep_dict) is deprecated, use "
+        "pyuvdata.utils.pol.x_orientation_pol_map instead.",
+        DeprecationWarning,
+    )
+
+    return x_orientation_pol_map(x_orientation)
+
+
+def x_orientation_pol_map(x_orientation: str) -> dict:
+    """
+    Return map from "x" and "y" pols to "e" and "n" based on x_orientation.
+
+    Parameters
+    ----------
+    x_orientation : str
+        String giving the x_orientation, one of "east" or "north".
+
+    Returns
+    -------
+    dict
+        Dictionary mapping "x" and "y" pols to "e" and "n" based on x_orientation.
+
+    """
     try:
         if XORIENTMAP[x_orientation.lower()] == "east":
             return {"x": "e", "y": "n"}
@@ -151,7 +181,7 @@ def polstr2num(pol: str | IterableType[str], *, x_orientation: str | None = None
     dict_use = deepcopy(POL_STR2NUM_DICT)
     if x_orientation is not None:
         try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
+            rep_dict = x_orientation_pol_map(x_orientation)
             for key, value in POL_STR2NUM_DICT.items():
                 new_key = key.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[new_key] = value
@@ -206,7 +236,7 @@ def polnum2str(num, *, x_orientation=None):
     dict_use = deepcopy(POL_NUM2STR_DICT)
     if x_orientation is not None:
         try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
+            rep_dict = x_orientation_pol_map(x_orientation)
             for key, value in POL_NUM2STR_DICT.items():
                 new_val = value.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[key] = new_val
@@ -256,7 +286,7 @@ def jstr2num(jstr, *, x_orientation=None):
     dict_use = deepcopy(JONES_STR2NUM_DICT)
     if x_orientation is not None:
         try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
+            rep_dict = x_orientation_pol_map(x_orientation)
             for key, value in JONES_STR2NUM_DICT.items():
                 new_key = key.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[new_key] = value
@@ -307,7 +337,7 @@ def jnum2str(jnum, *, x_orientation=None):
     dict_use = deepcopy(JONES_NUM2STR_DICT)
     if x_orientation is not None:
         try:
-            rep_dict = _x_orientation_rep_dict(x_orientation)
+            rep_dict = x_orientation_pol_map(x_orientation)
             for key, value in JONES_NUM2STR_DICT.items():
                 new_val = value.replace("x", rep_dict["x"]).replace("y", rep_dict["y"])
                 dict_use[key] = new_val
