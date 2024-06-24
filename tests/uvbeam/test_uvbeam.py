@@ -17,9 +17,10 @@ from astropy import units
 from astropy.coordinates import Angle
 from astropy.io import fits
 
-from pyuvdata import UVBeam, _uvbeam, utils
+from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
+from pyuvdata.uvbeam import _uvbeam
 
 from .test_cst_beam import cst_files, cst_yaml_file
 from .test_mwa_beam import filename as mwa_beam_file
