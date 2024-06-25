@@ -4252,7 +4252,7 @@ class MirParser(object):
             # For some SWARM-era data, corrchunk not filled in, which some pieces of
             # the processing depend upon. Fix that using the iband values.
             new_chunks = self.sp_data.get_value("iband", where=("correlator", "eq", 1))
-            new_chunks -= np.min(new_chunks) - 1
+            new_chunks -= np.min(new_chunks)
             self.sp_data.set_value(
                 "corrchunk", new_chunks, where=("correlator", "eq", 1)
             )

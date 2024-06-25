@@ -2010,12 +2010,16 @@ def test_mir_fix_v3_noop(mir_data, from_file):
 
 
 @pytest.mark.parametrize("muck_antrx", [False, True])
-def test_mir_fix_v3(mir_data, muck_antrx):
+@pytest.mark.parametrize("muck_corrchunk", [False, True])
+def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
     mir_data = MirParser()._load_test_data(has_auto=True)
     mir_copy = mir_data.copy()
     mir_copy.codes_data._data[0]["code"] = "2"
     if muck_antrx:
         mir_copy.bl_data["ant1rx"] = mir_copy.bl_data["ant2rx"] = 0
+
+    if muck_corrchunk:
+        mir_copy.sp_data["corrchunk"] = 0
 
     with check_warnings(UserWarning, "Pre v.3 MIR file format detected"):
         mir_copy._make_v3_compliant()
@@ -2345,3 +2349,19 @@ def test_mir_parser_read_path_vs_str():
         Path(sma_data_path), load_cross=True, load_auto=True, has_auto=True
     )
     assert sma_str_init == sma_path_init
+
+
+def test_mir_parser_missing_auto_rx(mir_data):
+    # Muck with the data
+    assert np.all(mir_data.ac_data._mask)
+
+    # Now screen out the second receiver
+    mir_data.bl_data["ant1rx"] = 0
+    mir_data.bl_data["ant2rx"] = 0
+
+    # Call the "fix"
+    mir_data._fix_acdata()
+
+    # Verify that every other entry is flagged, which means no data for that rx
+    assert np.array_equal(mir_data.ac_data._mask, [True, False] * 8)
+    mir_data.ac_data["corrchunk"]
