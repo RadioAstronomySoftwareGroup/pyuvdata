@@ -32,6 +32,7 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Modified `UVBeam.interp` to speed up processing when `check_azza_domain=True`.
 - Updated minimum dependencies: setuptools>=64, setuptools_scm>=8.0
 - Restructured to a `src` layout. This should not affect most users, but the
 `check_warnings` function has moved from `pyuvdata.tests` to `pyuvdata.testing`.
