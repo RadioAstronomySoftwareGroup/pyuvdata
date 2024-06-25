@@ -2715,7 +2715,7 @@ class UVData(UVBase):
                 pol_ind2 = None
                 pol_ind = (pol_ind1, pol_ind2)
             else:
-                raise KeyError("Polarization {pol} not found in data.".format(pol=key))
+                raise KeyError(f"Polarization {key} not found in data.")
         elif len(key) == 1:
             key = key[0]  # For simplicity
             if isinstance(key, Iterable):
@@ -2745,9 +2745,10 @@ class UVData(UVBase):
 
             if blt_ind1 is None and blt_ind2 is None:
                 if isinstance(orig_key, int):
-                    raise KeyError(f"Baseline {orig_key} not found in data")
+                    raise KeyError(f"Baseline {int(orig_key)} not found in data")
                 else:
-                    raise KeyError(f"Antenna pair {key[:2]} not found in data")
+                    key_print = (int(key[0]), int(key[1]))
+                    raise KeyError(f"Antenna pair {key_print} not found in data")
 
             if len(key) == 3:
                 orig_pol = key[2]
@@ -2776,8 +2777,13 @@ class UVData(UVBase):
                         pol_ind2 = uvutils.reorder_conj_pols(self.polarization_array)
                     except ValueError as err:
                         if blt_ind1 is None:
+                            if isinstance(orig_key, int):
+                                key_print = int(orig_key)
+                            else:
+                                key_print = (int(orig_key[0]), int(orig_key[1]))
+
                             raise KeyError(
-                                f"Baseline {orig_key} not found for polarization "
+                                f"Baseline {key_print} not found for polarization "
                                 "array in data."
                             ) from err
                         else:
@@ -2794,7 +2800,11 @@ class UVData(UVBase):
             if (blt_ind1 is None or pol_ind1 is None) and (
                 blt_ind2 is None or pol_ind2 is None
             ):
-                raise KeyError(f"Polarization {orig_pol} not found in data.")
+                if isinstance(orig_pol, str):
+                    key_print = orig_pol
+                else:
+                    key_print = int(orig_pol)
+                raise KeyError(f"Polarization {key_print} not found in data.")
 
         # Convert to slices if possible
         pol_ind = (uvutils.slicify(pol_ind[0]), uvutils.slicify(pol_ind[1]))
