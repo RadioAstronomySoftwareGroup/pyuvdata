@@ -17,10 +17,10 @@ from astropy import units
 from astropy.coordinates import Angle
 from astropy.io import fits
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVBeam, _uvbeam
+from pyuvdata import UVBeam, _uvbeam, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
+from pyuvdata.utils import helpers
 
 from .test_cst_beam import cst_files, cst_yaml_file
 from .test_mwa_beam import filename as mwa_beam_file
@@ -433,7 +433,7 @@ def test_efield_to_power(
     if physical_orientation:
         efield_beam.feed_array = np.array(["e", "n"])
         power_beam.polarization_array = np.array(
-            uvutils.polstr2num(["ee", "nn"], x_orientation=power_beam.x_orientation)
+            utils.polstr2num(["ee", "nn"], x_orientation=power_beam.x_orientation)
         )
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
@@ -1602,7 +1602,7 @@ def test_select_axis(cst_power_1freq, tmp_path):
     for i in np.unique(power_beam2.axis1_array):
         assert i in power_beam.axis1_array
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to "
         "specific parts of first image axis "
         "using pyuvdata.",
@@ -1644,7 +1644,7 @@ def test_select_axis(cst_power_1freq, tmp_path):
     for i in np.unique(power_beam2.axis2_array):
         assert i in power_beam.axis2_array
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to "
         "specific parts of second image axis "
         "using pyuvdata.",
@@ -1702,7 +1702,7 @@ def test_select_frequencies(
     for f in np.unique(beam2.freq_array):
         assert f in freqs_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         beam2.history,
     )
@@ -1745,7 +1745,7 @@ def test_select_frequencies(
     for f in np.unique(beam2.freq_array):
         assert f in beam.freq_array[chans_to_keep]
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         beam2.history,
     )
@@ -1794,7 +1794,7 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
     for f in np.unique(efield_beam2.feed_array):
         assert f in feeds_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific feeds using pyuvdata.",
         efield_beam2.history,
     )
@@ -1859,18 +1859,18 @@ def test_select_polarizations(pols_to_keep, cst_efield_1freq):
             assert p in power_beam2.polarization_array
         else:
             assert (
-                uvutils.polstr2num(p, x_orientation=power_beam2.x_orientation)
+                utils.polstr2num(p, x_orientation=power_beam2.x_orientation)
                 in power_beam2.polarization_array
             )
     for p in np.unique(power_beam2.polarization_array):
         if isinstance(pols_to_keep[0], int):
             assert p in pols_to_keep
         else:
-            assert p in uvutils.polstr2num(
+            assert p in utils.polstr2num(
                 pols_to_keep, x_orientation=power_beam2.x_orientation
             )
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
         power_beam2.history,
     )
@@ -1975,7 +1975,7 @@ def test_select(beam_type, cst_power_1freq, cst_efield_1freq):
         for f in np.unique(beam2.feed_array):
             assert f in feeds_to_keep
 
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific parts of first image axis, "
             "parts of second image axis, "
@@ -1989,7 +1989,7 @@ def test_select(beam_type, cst_power_1freq, cst_efield_1freq):
         for p in np.unique(beam2.polarization_array):
             assert p in pols_to_keep
 
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific parts of first image axis, "
             "parts of second image axis, "
@@ -2006,7 +2006,7 @@ def test_add_axis1(power_beam_for_adding):
     beam2 = power_beam.select(axis1_inds=np.arange(180, 360), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific parts of "
         "first image axis using pyuvdata. "
         "Combined data along first image axis "
@@ -2032,7 +2032,7 @@ def test_add_axis2(power_beam_for_adding):
     beam2 = power_beam.select(axis2_inds=np.arange(90, 181), inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific parts of "
         "second image axis using pyuvdata. "
         "Combined data along second image axis "
@@ -2058,7 +2058,7 @@ def test_add_frequencies(power_beam_for_adding):
     beam2 = power_beam.select(freq_chans=1, inplace=False)
     beam1 += beam2
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific frequencies "
         "using pyuvdata. Combined data along "
         "frequency axis using pyuvdata.",
@@ -2082,7 +2082,7 @@ def test_add_pols(power_beam_for_adding):
     beam1 = power_beam.select(polarizations=-5, inplace=False)
     beam2 = power_beam.select(polarizations=-6, inplace=False)
     beam1 += beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific polarizations "
         "using pyuvdata. Combined data along "
         "polarization axis using pyuvdata.",
@@ -2120,7 +2120,7 @@ def test_add_feeds(antenna_type, efield_beam_for_adding, phased_array_beam_2freq
     with check_warnings(expected_warning, match=warn_msg):
         beam2 = efield_beam.select(feeds=efield_beam.feed_array[1], inplace=False)
     beam1 += beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         efield_beam.history + "  Downselected to specific feeds "
         "using pyuvdata. Combined data along "
         "feed axis using pyuvdata.",
@@ -2166,7 +2166,7 @@ def test_add_multi_power(power_beam_for_adding):
         inplace=False,
     )
     beam1 += beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific parts of "
         "first image axis, polarizations using "
         "pyuvdata. Combined data along first "
@@ -2196,7 +2196,7 @@ def test_add_multi_efield(efield_beam_for_adding):
         inplace=False,
     )
     beam1 += beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         efield_beam.history + "  Downselected to specific parts of "
         "first image axis, parts of second "
         "image axis using pyuvdata. Combined "
@@ -2273,7 +2273,7 @@ def test_add_cross_power(cross_power_beam_for_adding, use_double):
 
     beam2.history += " testing the history. Read/written with pyuvdata"
     new_beam = beam1 + beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Unique part of next "
         "object history follows.  testing the history.",
@@ -2283,7 +2283,7 @@ def test_add_cross_power(cross_power_beam_for_adding, use_double):
     assert new_beam == power_beam
 
     new_beam = beam1.__add__(beam2, verbose_history=True)
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         power_beam.history + "  Downselected to specific polarizations using pyuvdata. "
         "Combined data along polarization axis using pyuvdata. Next object history "
         "follows. " + beam2.history,
@@ -2363,7 +2363,7 @@ def test_select_healpix_pixels(
     for pi in np.unique(beam_healpix2.pixel_array):
         assert pi in pixels_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific healpix pixels using pyuvdata.",
         beam_healpix2.history,
     )
@@ -2453,7 +2453,7 @@ def test_select_healpix_pixels(
     else:
         history_add = "polarizations"
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to "
         "specific healpix pixels, frequencies, "
         f"{history_add} using pyuvdata.",
@@ -2498,7 +2498,7 @@ def test_add_healpix(
         inplace=False,
     )
     beam1 += beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         beam_healpix.history + "  Downselected to specific healpix "
         "pixels, frequencies using pyuvdata. "
         "Combined data along healpix pixel, "
@@ -2521,7 +2521,7 @@ def test_add_healpix(
             freq_chans=1, feeds=beam_healpix.feed_array[1], inplace=False
         )
         beam1 += beam2
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             beam_healpix.history + "  Downselected to specific frequencies, "
             "feeds using pyuvdata. Combined data "
             "along frequency, feed axis using pyuvdata.",
@@ -2541,7 +2541,7 @@ def test_add_healpix(
         pixels=beam_healpix.pixel_array[beam_healpix.Npixels // 2 :], inplace=False
     )
     beam1 = beam1 + beam2
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         beam_healpix.history + "  Downselected to specific healpix pixels "
         "using pyuvdata. Combined data "
         "along healpix pixel axis using pyuvdata.",

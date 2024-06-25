@@ -11,8 +11,8 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVBeam
+import pyuvdata.utils.file_io.fits as fits_utils
+from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
@@ -135,7 +135,7 @@ def test_read_cst_write_read_fits_intensity(cst_power_1freq, tmp_path):
         data = fname[0].data
         primary_hdr = fname[0].header
         primary_hdr["BTYPE"] = "Intensity"
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         bandpass_hdu = fname[hdunames["BANDPARM"]]
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -165,7 +165,7 @@ def test_read_cst_write_read_fits_no_coordsys(cst_power_1freq, tmp_path):
         data = fname[0].data
         primary_hdr = fname[0].header
         primary_hdr.pop("COORDSYS")
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         bandpass_hdu = fname[hdunames["BANDPARM"]]
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -197,7 +197,7 @@ def test_read_cst_write_read_fits_change_freq_units(cst_power_1freq, tmp_path):
         primary_hdr["CUNIT3"] = "MHz"
         primary_hdr["CRVAL3"] = primary_hdr["CRVAL3"] / 1e6
         primary_hdr["CDELT3"] = primary_hdr["CRVAL3"] / 1e6
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         bandpass_hdu = fname[hdunames["BANDPARM"]]
 
         prihdu = fits.PrimaryHDU(data=data, header=primary_hdr)
@@ -258,7 +258,7 @@ def test_writeread_healpix_no_corrdsys(cst_power_1freq_cut_healpix, tmp_path):
         data = fname[0].data
         primary_hdr = fname[0].header
         primary_hdr.pop("COORDSYS")
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         hpx_hdu = fname[hdunames["HPX_INDS"]]
         bandpass_hdu = fname[hdunames["BANDPARM"]]
 
@@ -353,7 +353,7 @@ def test_header_val_errors(cst_efield_1freq, tmp_path, header_dict, err, error_m
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         basisvec_hdu = fname[hdunames["BASISVEC"]]
         bandpass_hdu = fname[hdunames["BANDPARM"]]
 
@@ -437,7 +437,7 @@ def test_basisvec_hdu_errors(cst_efield_1freq, tmp_path, header_dict, error_msg)
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         basisvec_hdu = fname[hdunames["BASISVEC"]]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
@@ -493,7 +493,7 @@ def test_healpix_errors(cst_efield_1freq_cut_healpix, tmp_path, header_dict, err
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         basisvec_hdu = fname[hdunames["BASISVEC"]]
         hpx_hdu = fname[hdunames["HPX_INDS"]]
         bandpass_hdu = fname[hdunames["BANDPARM"]]
@@ -547,7 +547,7 @@ def test_healpix_basisvec_hdu_errors(
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         basisvec_hdu = fname[hdunames["BASISVEC"]]
         basisvec_hdr = basisvec_hdu.header
         basisvec_data = basisvec_hdu.data
@@ -748,7 +748,7 @@ def test_multi_files(cst_efield_2freq, tmp_path):
     beam2.write_beamfits(testfile2, clobber=True)
     beam1.read_beamfits([testfile1, testfile2])
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         beam_full.history + "  Downselected "
         "to specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"

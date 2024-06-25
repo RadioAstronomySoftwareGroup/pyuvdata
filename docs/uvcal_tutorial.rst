@@ -258,7 +258,7 @@ a) Data for a single antenna and instrumental polarization
 UVCal: Calibrating UVData
 -------------------------
 Calibration solutions in a :class:`pyuvdata.UVCal` object can be applied to a
-:class:`pyuvdata.UVData` object using the :func:`pyuvdata.utils.uvcalibrate` function.
+:class:`pyuvdata.UVData` object using the :func:`pyuvdata.uvcalibrate` function.
 
 
 a) Calibration of UVData by UVCal
@@ -267,7 +267,7 @@ a) Calibration of UVData by UVCal
 
   >>> # We can calibrate directly using a UVCal object
   >>> import os
-  >>> from pyuvdata import UVData, UVCal, utils
+  >>> from pyuvdata import UVData, UVCal, uvcalibrate
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd = UVData.from_file(
   ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
@@ -281,10 +281,10 @@ a) Calibration of UVData by UVCal
   >>> uvc.telescope.antenna_names = np.array(
   ...     [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
   ... )
-  >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
+  >>> uvd_calibrated = uvcalibrate(uvd, uvc, inplace=False)
 
   >>> # We can also un-calibrate using the same UVCal
-  >>> uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
+  >>> uvd_uncalibrated = uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
 
 
 UVCal: Selecting data
@@ -385,7 +385,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> import numpy as np
   >>> from pyuvdata import UVCal
   >>> from pyuvdata.data import DATA_PATH
-  >>> import pyuvdata.utils as uvutils
+  >>> from pyuvdata import utils
   >>> filename = os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
   >>> cal = UVCal.from_file(filename)
 
@@ -394,7 +394,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   [-5 -6]
 
   >>> # Jones component numbers can be converted to strings using a utility function
-  >>> print(uvutils.jnum2str(cal.jones_array))
+  >>> print(utils.jnum2str(cal.jones_array))
   ['Jxx', 'Jyy']
 
   >>> # make a copy of the object and select Jones components using the component numbers
@@ -404,7 +404,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> # print Jones component numbers and strings after select
   >>> print(cal2.jones_array)
   [-5]
-  >>> print(uvutils.jnum2str(cal2.jones_array))
+  >>> print(utils.jnum2str(cal2.jones_array))
   ['Jxx']
 
   >>> # make a copy of the object and select Jones components using the component strings
@@ -414,7 +414,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> # print Jones component numbers and strings after select
   >>> print(cal2.jones_array)
   [-5]
-  >>> print(uvutils.jnum2str(cal2.jones_array))
+  >>> print(utils.jnum2str(cal2.jones_array))
   ['Jxx']
 
   >>> # print x_orientation
@@ -428,7 +428,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   >>> # print Jones component numbers and strings after select
   >>> print(cal2.jones_array)
   [-5]
-  >>> print(uvutils.jnum2str(cal2.jones_array))
+  >>> print(utils.jnum2str(cal2.jones_array))
   ['Jxx']
 
 UVCal: Adding data

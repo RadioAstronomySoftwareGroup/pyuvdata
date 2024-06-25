@@ -18,6 +18,7 @@ from .. import _uvbeam
 from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
+from ..utils import helpers
 from ..uvbase import UVBase
 from . import initializers
 
@@ -2488,7 +2489,7 @@ class UVBeam(UVBase):
                             )
 
         # Update filename parameter
-        this.filename = utils._combine_filenames(this.filename, other.filename)
+        this.filename = helpers._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -2832,7 +2833,7 @@ class UVBeam(UVBase):
 
         # Check specific requirements
         if this.Nfreqs > 1:
-            if not utils._test_array_constant_spacing(
+            if not helpers._test_array_constant_spacing(
                 this.freq_array, tols=this._freq_array.tols
             ):
                 warnings.warn(
@@ -2841,7 +2842,7 @@ class UVBeam(UVBase):
                 )
 
         if self.beam_type == "power" and this.Npols > 2:
-            if not utils._test_array_constant_spacing(this._polarization_array):
+            if not helpers._test_array_constant_spacing(this._polarization_array):
                 warnings.warn(
                     "Combined polarizations are not evenly spaced. This will "
                     "make it impossible to write this data out to some file types."
@@ -2849,14 +2850,14 @@ class UVBeam(UVBase):
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
-            histories_match = utils._check_histories(this.history, other.history)
+            histories_match = helpers._check_histories(this.history, other.history)
 
             this.history += history_update_string
             if not histories_match:
                 if verbose_history:
                     this.history += " Next object history follows. " + other.history
                 else:
-                    extra_history = utils._combine_history_addition(
+                    extra_history = helpers._combine_history_addition(
                         this.history, other.history
                     )
                     if extra_history is not None:
@@ -2973,7 +2974,7 @@ class UVBeam(UVBase):
             beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
 
             if beam_object.Naxes1 > 1:
-                if not utils._test_array_constant_spacing(beam_object._axis1_array):
+                if not helpers._test_array_constant_spacing(beam_object._axis1_array):
                     warnings.warn(
                         "Selected values along first image axis are "
                         "not evenly spaced. This is not supported by "
@@ -3005,7 +3006,7 @@ class UVBeam(UVBase):
             beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
 
             if beam_object.Naxes2 > 1:
-                if not utils._test_array_constant_spacing(beam_object._axis2_array):
+                if not helpers._test_array_constant_spacing(beam_object._axis2_array):
                     warnings.warn(
                         "Selected values along second image axis are "
                         "not evenly spaced. This is not supported by "
@@ -3049,17 +3050,17 @@ class UVBeam(UVBase):
                 ]
 
         if freq_chans is not None:
-            freq_chans = utils._get_iterable(freq_chans)
+            freq_chans = helpers._get_iterable(freq_chans)
             if frequencies is None:
                 frequencies = beam_object.freq_array[freq_chans]
             else:
-                frequencies = utils._get_iterable(frequencies)
+                frequencies = helpers._get_iterable(frequencies)
                 frequencies = np.sort(
                     list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
                 )
 
         if frequencies is not None:
-            frequencies = utils._get_iterable(frequencies)
+            frequencies = helpers._get_iterable(frequencies)
             if n_selects > 0:
                 history_update_string += ", frequencies"
             else:
@@ -3085,7 +3086,7 @@ class UVBeam(UVBase):
                 freq_separation = (
                     beam_object.freq_array[1:] - beam_object.freq_array[:-1]
                 )
-                if not utils._test_array_constant(
+                if not helpers._test_array_constant(
                     freq_separation, tols=beam_object._freq_array.tols
                 ):
                     warnings.warn(
@@ -3134,7 +3135,7 @@ class UVBeam(UVBase):
                     if key in beam_object.feed_array:
                         x_orient_dict[value] = key
 
-            feeds = utils._get_iterable(feeds)
+            feeds = helpers._get_iterable(feeds)
             feeds = [f.lower() for f in feeds]
             if n_selects > 0:
                 history_update_string += ", feeds"
@@ -3180,7 +3181,7 @@ class UVBeam(UVBase):
             if beam_object.beam_type == "efield":
                 raise ValueError("polarizations cannot be used with efield beams")
 
-            polarizations = utils._get_iterable(polarizations)
+            polarizations = helpers._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
 
@@ -3218,7 +3219,7 @@ class UVBeam(UVBase):
                     beam_object.polarization_array[1:]
                     - beam_object.polarization_array[:-1]
                 )
-                if not utils._test_array_constant(pol_separation):
+                if not helpers._test_array_constant(pol_separation):
                     warnings.warn(
                         "Selected polarizations are not evenly spaced. This "
                         "is not supported by the regularly gridded beam fits format"
@@ -3763,7 +3764,7 @@ class UVBeam(UVBase):
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             # update filelist
             basename = os.path.basename(filename)
-            self.filename = utils._combine_filenames(self.filename, [basename])
+            self.filename = helpers._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
     def read_mwa_beam(self, h5filepath, **kwargs):

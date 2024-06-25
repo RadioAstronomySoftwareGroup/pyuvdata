@@ -20,6 +20,8 @@ from scipy.special import erf
 from .. import Telescope, _corr_fits, utils
 from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
+from ..utils import helpers
+from ..utils.file_io import fits as fits_utils
 from . import UVData
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
@@ -187,7 +189,7 @@ def read_metafits(
                 "CALIBDEL",
             ]
         # store remaining keys in extra keywords
-        meta_extra_keywords = utils._get_fits_extra_keywords(
+        meta_extra_keywords = fits_utils._get_extra_keywords(
             meta_hdr, keywords_to_skip=["DATE-OBS"] + mwax_keys_to_skip
         )
 
@@ -1361,7 +1363,7 @@ class MWACorrFITS(UVData):
         for filename in filelist:
             # update filename attribute
             basename = os.path.basename(filename)
-            self.filename = utils._combine_filenames(self.filename, [basename])
+            self.filename = helpers._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
             if filename.lower().endswith(".metafits"):
@@ -1371,11 +1373,11 @@ class MWACorrFITS(UVData):
                 metafits_file = filename
             elif filename.lower().endswith(".fits"):
                 with fits.open(filename, memmap=True) as hdu_list:
-                    hdunames = utils._fits_indexhdus(hdu_list)
+                    hdunames = fits_utils._indexhdus(hdu_list)
                     if "PPDS" in hdunames.keys():
                         ppds_file = filename
                         ppd_meta_header = hdu_list[0].header
-                        ppd_extra_keywords = utils._get_fits_extra_keywords(
+                        ppd_extra_keywords = fits_utils._get_extra_keywords(
                             ppd_meta_header,
                             keywords_to_skip=["DATE-OBS", "TELESCOP", "INSTRUME"],
                         )
@@ -1523,7 +1525,7 @@ class MWACorrFITS(UVData):
         self.telescope.antenna_names = meta_dict["antenna_names"]
         self.telescope.antenna_positions = meta_dict["antenna_positions"]
         self.history = meta_dict["history"]
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         for key, value in meta_dict["extra_keywords"].items():
             self.extra_keywords[key] = value

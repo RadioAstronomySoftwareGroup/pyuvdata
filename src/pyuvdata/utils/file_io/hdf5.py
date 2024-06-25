@@ -21,7 +21,7 @@ try:
 except ImportError:
     hasmoon = False
 
-from . import utils
+from ..coordinates import ENU_from_ECEF, LatLonAlt_from_XYZ
 
 hdf5plugin_present = True
 try:
@@ -71,6 +71,193 @@ def _check_complex_dtype(dtype):
     return
 
 
+def _get_slice_len(s, axlen):
+    """
+    Get length of a slice s into array of len axlen.
+
+    Parameters
+    ----------
+    s : slice object
+        Slice object to index with
+    axlen : int
+        Length of axis s slices into
+
+    Returns
+    -------
+    int
+        Length of slice object
+    """
+    if s.start is None:
+        start = 0
+    else:
+        start = s.start
+    if s.stop is None:
+        stop = axlen
+    else:
+        stop = np.min([s.stop, axlen])
+    if s.step is None:
+        step = 1
+    else:
+        step = s.step
+
+    return ((stop - 1 - start) // step) + 1
+
+
+def _get_dset_shape(dset, indices):
+    """
+    Given a tuple of indices, determine the indexed array shape.
+
+    Parameters
+    ----------
+    dset : numpy array or h5py dataset
+        A numpy array or a reference to an HDF5 dataset on disk. Requires the
+        `dset.shape` attribute exists and returns a tuple.
+    indices : tuple
+        A tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+        For data arrays with 4 dimensions, the second dimension (the old spw axis)
+        should not be included because it can only be length one.
+
+    Returns
+    -------
+    tuple
+        a tuple with the shape of the indexed array
+    tuple
+        a tuple with indices used (will be different than input if dset has
+        4 dimensions and indices has 3 dimensions)
+    """
+    dset_shape = list(dset.shape)
+    if len(dset_shape) == 4 and len(indices) == 3:
+        indices = (indices[0], np.s_[:], indices[1], indices[2])
+
+    for i, inds in enumerate(indices):
+        # check for integer
+        if isinstance(inds, (int, np.integer)):
+            dset_shape[i] = 1
+        # check for slice object
+        if isinstance(inds, slice):
+            dset_shape[i] = _get_slice_len(inds, dset_shape[i])
+        # check for list
+        if isinstance(inds, list):
+            # check for list of integers
+            if isinstance(inds[0], (int, np.integer)):
+                dset_shape[i] = len(inds)
+            elif isinstance(inds[0], slice):
+                dset_shape[i] = sum((_get_slice_len(s, dset_shape[i]) for s in inds))
+
+    return dset_shape, indices
+
+
+def _index_dset(dset, indices, *, input_array=None):
+    """
+    Index a UVH5 data, flags or nsamples h5py dataset to get data or overwrite data.
+
+    If no `input_array` is passed, this function extracts the data at the indices
+    and returns it. If `input_array` is passed, this function replaced the data at the
+    indices with the input array.
+
+    Parameters
+    ----------
+    dset : h5py dataset
+        A reference to an HDF5 dataset on disk.
+    indices : tuple
+        A tuple with the indices to extract along each dimension of dset.
+        Each element should contain a list of indices, a slice element,
+        or a list of slice elements that will be concatenated after slicing.
+        Indices must be provided such that all dimensions can be indexed
+        simultaneously. This should have a length equal to the length of the dset,
+        with an exception to support the old array shape for uvdata arrays (in that
+        case the dset is length 4 but the second dimension is shallow, so only three
+        indices need to be passed).
+    input_array : ndarray, optional
+        Array to be copied into the dset at the indices. If not provided, the data in
+        the dset is indexed and returned.
+
+    Returns
+    -------
+    ndarray or None
+        The indexed dset if the `input_array` parameter is not used.
+
+    Notes
+    -----
+    This makes and fills an empty array with dset indices.
+    For trivial indexing, (e.g. a trivial slice), constructing
+    a new array and filling it is suboptimal over direct
+    indexing, e.g. dset[indices].
+    This function specializes in repeated slices over the same axis,
+    e.g. if indices is [[slice(0, 5), slice(10, 15), ...], ..., ]
+    """
+    # get dset and arr shape
+    dset_shape = dset.shape
+    arr_shape, indices = _get_dset_shape(dset, indices)
+
+    if input_array is None:
+        # create empty array of dset dtype
+        arr = np.empty(arr_shape, dtype=dset.dtype)
+    else:
+        arr = input_array
+
+    # get arr and dset indices for each dimension in indices
+    dset_indices = []
+    arr_indices = []
+    nselects_per_dim = []
+    for i, dset_inds in enumerate(indices):
+        if isinstance(dset_inds, (int, np.integer)):
+            # this dimension is len 1, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([[dset_inds]])
+            nselects_per_dim.append(1)
+
+        elif isinstance(dset_inds, slice):
+            # this dimension is just a slice, so slice is fine
+            arr_indices.append([slice(None)])
+            dset_indices.append([dset_inds])
+            nselects_per_dim.append(1)
+
+        elif isinstance(dset_inds, (list, np.ndarray)):
+            if isinstance(dset_inds[0], (int, np.integer)):
+                # this is a list of integers, append slice
+                arr_indices.append([slice(None)])
+                dset_indices.append([dset_inds])
+                nselects_per_dim.append(1)
+            elif isinstance(dset_inds[0], slice):
+                # this is a list of slices, need list of slice lens
+                slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
+                ssums = [sum(slens[:j]) for j in range(len(slens))]
+                arr_inds = [slice(s, s + l) for s, l in zip(ssums, slens)]
+                arr_indices.append(arr_inds)
+                dset_indices.append(dset_inds)
+                nselects_per_dim.append(len(dset_inds))
+
+    # iterate through all selections and fill the array
+    total_selects = np.prod(nselects_per_dim)
+    axis_arrays = []
+    for nsel in nselects_per_dim:
+        axis_arrays.append(np.arange(nsel, dtype=int))
+    sel_index_arrays = list(np.meshgrid(*axis_arrays))
+    for ind, array in enumerate(sel_index_arrays):
+        sel_index_arrays[ind] = array.flatten()
+    for sel in np.arange(total_selects):
+        sel_arr_indices = []
+        sel_dset_indices = []
+        for dim in np.arange(len(dset_shape)):
+            this_index = (sel_index_arrays[dim])[sel]
+            sel_arr_indices.append(arr_indices[dim][this_index])
+            sel_dset_indices.append(dset_indices[dim][this_index])
+        if input_array is None:
+            # index dset and assign to arr
+            arr[(*sel_arr_indices,)] = dset[(*sel_dset_indices,)]
+        else:
+            # index arr and assign to dset
+            dset[(*sel_dset_indices,)] = arr[(*sel_arr_indices,)]
+
+    if input_array is None:
+        return arr
+    else:
+        return
+
+
 def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     """
     Read the given data set of a specified type to floating point complex data.
@@ -101,7 +288,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
         raise ValueError(
             "output datatype must be one of (complex, np.complex64, np.complex128)"
         )
-    dset_shape, indices = utils._get_dset_shape(dset, indices)
+    dset_shape, indices = _get_dset_shape(dset, indices)
     output_array = np.empty(dset_shape, dtype=dtype_out)
     # dset is indexed in native dtype, but is upcast upon assignment
 
@@ -110,7 +297,7 @@ def _read_complex_astype(dset, indices, dtype_out=np.complex64):
     else:
         compound_dtype = [("r", "f8"), ("i", "f8")]
 
-    output_array.view(compound_dtype)[:, :] = utils._index_dset(dset, indices)[:, :]
+    output_array.view(compound_dtype)[:, :] = _index_dset(dset, indices)[:, :]
 
     return output_array
 
@@ -381,7 +568,7 @@ class HDF5Meta:
             # this branch is for old UVFlag files, which were written with an
             # ECEF 'telescope_location' key rather than the more standard
             # latitude in degrees, longitude in degrees, altitude
-            return utils.LatLonAlt_from_XYZ(
+            return LatLonAlt_from_XYZ(
                 self.telescope_location,
                 frame=self.telescope_frame,
                 ellipsoid=self.ellipsoid,
@@ -405,7 +592,7 @@ class HDF5Meta:
     def antpos_enu(self) -> np.ndarray:
         """The antenna positions in ENU coordinates, in meters."""
         lat, lon, alt = self.telescope_location_lat_lon_alt
-        return utils.ENU_from_ECEF(
+        return ENU_from_ECEF(
             self.antenna_positions + self.telescope_location,
             latitude=lat,
             longitude=lon,

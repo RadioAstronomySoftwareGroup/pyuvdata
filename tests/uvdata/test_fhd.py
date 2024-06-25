@@ -13,8 +13,7 @@ from shutil import copyfile
 import numpy as np
 import pytest
 
-import pyuvdata.utils as uvutils
-from pyuvdata import Telescope, UVData
+from pyuvdata import Telescope, UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
@@ -714,7 +713,7 @@ def test_multi_files(fhd_model, axis, fhd_model_files):
 
     fhd_uv2 = fhd_model
 
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         fhd_uv2.history + " Combined data along polarization axis using pyuvdata.",
         fhd_uv1.history,
     )

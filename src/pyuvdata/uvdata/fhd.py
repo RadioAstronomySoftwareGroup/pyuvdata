@@ -585,7 +585,7 @@ class FHD(UVData):
         #   because they depend on the phasing of the visibilities)
         # the values in bl_info.JDATE are the JD for each integration.
         # We need to expand up to Nblts.
-        int_times = list(utils._get_iterable(bl_info["JDATE"][0]))
+        int_times = list(utils.helpers._get_iterable(bl_info["JDATE"][0]))
         bin_offset = bl_info["BIN_OFFSET"][0]
         if self.Ntimes != len(int_times):
             warnings.warn(
@@ -772,7 +772,9 @@ class FHD(UVData):
         else:
             self.history = ""
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not utils.helpers._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
 
         if read_data:

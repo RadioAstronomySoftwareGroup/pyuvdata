@@ -8,7 +8,7 @@ import os
 import numpy as np
 import pytest
 
-from pyuvdata import ms_utils
+import pyuvdata.utils.file_io.ms as ms_utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 

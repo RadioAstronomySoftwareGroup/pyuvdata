@@ -12,12 +12,12 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVData
+import pyuvdata.utils.file_io.fits as fits_utils
+from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..test_utils import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid, hasmoon
 
 casa_tutorial_uvfits = os.path.join(
     DATA_PATH, "day2_TDEM0003_10s_norx_1src_1spw.uvfits"
@@ -157,7 +157,7 @@ def test_time_precision(tmp_path):
     uvd2.read(testfile)
 
     unique_times, inverse_inds = np.unique(uvd2.time_array, return_inverse=True)
-    unique_lst_array = uvutils.get_lst_for_time(
+    unique_lst_array = utils.get_lst_for_time(
         unique_times, telescope_loc=uvd.telescope.location
     )
 
@@ -195,7 +195,7 @@ def test_break_read_uvfits(tmp_path):
     file1 = os.path.join(DATA_PATH, "1061316296.uvfits")
     write_file = os.path.join(tmp_path, "multi_subarray.uvfits")
     with fits.open(file1, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
         vis_data = vis_hdu.data.copy()
@@ -213,7 +213,7 @@ def test_break_read_uvfits(tmp_path):
     write_file = os.path.join(tmp_path, "bad_frame.uvfits")
 
     with fits.open(file1, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
         ant_hdr = ant_hdu.header.copy()
@@ -245,7 +245,7 @@ def test_source_group_params(casa_uvfits, tmp_path):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -341,7 +341,7 @@ def test_source_frame_defaults(casa_uvfits, tmp_path, frame):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -392,7 +392,7 @@ def test_multi_source_frame_defaults(casa_uvfits, tmp_path, frame_list):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -441,7 +441,7 @@ def test_missing_aips_su_table(casa_uvfits, tmp_path):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -528,7 +528,7 @@ def test_readwriteread(tmp_path, casa_uvfits, telescope_frame, selenoid):
             height=uv_in.telescope.location.height,
             ellipsoid=selenoid,
         )
-        new_full_antpos = uvutils.ECEF_from_ENU(
+        new_full_antpos = utils.ECEF_from_ENU(
             enu=enu_antpos, center_loc=uv_in.telescope.location
         )
         uv_in.telescope.antenna_positions = (
@@ -552,7 +552,7 @@ def test_readwriteread(tmp_path, casa_uvfits, telescope_frame, selenoid):
     # it is properly defaulted to SPHERE
     if telescope_frame == "mcmf" and selenoid == "SPHERE":
         with fits.open(write_file, memmap=True) as hdu_list:
-            hdunames = uvutils._fits_indexhdus(hdu_list)
+            hdunames = fits_utils._indexhdus(hdu_list)
             ant_hdu = hdu_list[hdunames["AIPS AN"]]
             ant_hdr = ant_hdu.header.copy()
 
@@ -588,7 +588,7 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -624,7 +624,7 @@ def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):
             ],
         ):
             uv2 = UVData.from_file(write_file2)
-        uv2.uvw_array = uvutils._rotate_one_axis(
+        uv2.uvw_array = utils.phasing._rotate_one_axis(
             xyz_array=uv2.uvw_array[:, :, None],
             rot_amount=-1 * (uv2.phase_center_app_dec - np.pi / 2),
             rot_axis=0,
@@ -647,7 +647,7 @@ def test_uvw_coordinate_suffix_errors(casa_uvfits, tmp_path, uvw_suffix):
     uv_in.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -805,7 +805,7 @@ def test_readwriteread_missing_info(tmp_path, casa_uvfits, lat_lon_alt):
     # check missing telescope_name, timesys vs timsys spelling, xyz_telescope_frame=????
     uv_in.write_uvfits(write_file)
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
 
@@ -882,7 +882,7 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
     uv_singlet.write_uvfits(write_file)
 
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -936,7 +936,7 @@ def test_uvfits_no_moon(casa_uvfits, tmp_path):
 
     uv_out = UVData()
     with fits.open(write_file, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
         ant_hdr = ant_hdu.header.copy()
 
@@ -1181,7 +1181,7 @@ def test_select_read_nospw_pol(casa_uvfits, tmp_path):
     # this requires writing a new file because the no spw file we have has only 1 pol
 
     with fits.open(casa_tutorial_uvfits, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         vis_hdr = vis_hdu.header.copy()
         raw_data_array = vis_hdu.data.data
@@ -1329,7 +1329,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read(np.array([testfile1, testfile2]), file_type="uvfits")
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -1371,7 +1371,7 @@ def test_multi_files_axis(casa_uvfits, tmp_path):
 
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -1414,7 +1414,7 @@ def test_multi_files_metadata_only(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], read_data=False)
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis "
@@ -1479,7 +1479,7 @@ def test_cotter_telescope_frame(tmp_path):
     uvd1 = UVData()
 
     with fits.open(file1, memmap=True) as hdu_list:
-        hdunames = uvutils._fits_indexhdus(hdu_list)
+        hdunames = fits_utils._indexhdus(hdu_list)
         vis_hdu = hdu_list[0]
         ant_hdu = hdu_list[hdunames["AIPS AN"]]
         ant_hdu.header.pop("FRAME")
@@ -1718,7 +1718,7 @@ def test_miriad_convention(tmp_path):
     expected_vals = {"ANTENNA1_0": 4, "ANTENNA2_0": 8, "NOSTA_0": 1}
 
     # Check baselines match MIRIAD convention
-    bl_miriad_expected = uvutils.antnums_to_baseline(
+    bl_miriad_expected = utils.antnums_to_baseline(
         uv.ant_1_array, uv.ant_2_array, Nants_telescope=512, use_miriad_convention=True
     )
     with fits.open(testfile1) as hdu:

@@ -12,12 +12,11 @@ import numpy as np
 import pytest
 from astropy.time import Time
 
-from pyuvdata import UVData
-from pyuvdata import utils as uvutils
+from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..test_utils import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid, hasmoon
 
 pytest.importorskip("casacore")
 
@@ -127,7 +126,7 @@ def test_read_nrao_loopback(tmp_path, nrao_uv, telescope_frame, selenoid, del_te
             height=uvobj.telescope.location.height,
             ellipsoid=selenoid,
         )
-        new_full_antpos = uvutils.ECEF_from_ENU(
+        new_full_antpos = utils.ECEF_from_ENU(
             enu=enu_antpos, center_loc=uvobj.telescope.location
         )
         uvobj.telescope.antenna_positions = (
@@ -679,7 +678,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
     miriad_uv._set_app_coords_helper()
 
     if multi_frame:
-        cat_id = uvutils.look_for_name(miriad_uv.phase_center_catalog, "NOISE")
+        cat_id = utils.ps_cat.look_for_name(miriad_uv.phase_center_catalog, "NOISE")
         ra_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lon"][0]
         dec_use = miriad_uv.phase_center_catalog[cat_id[0]]["cat_lat"][0]
         with pytest.raises(

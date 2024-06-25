@@ -1095,7 +1095,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import pyuvdata.utils as uvutils
+  >>> from pyuvdata import utils
   >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(filename)
 
@@ -1104,7 +1104,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   [-1 -2 -3 -4]
 
   >>> # polarization numbers can be converted to strings using a utility function
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl', 'lr']
 
   >>> # select polarizations using the polarization numbers
@@ -1113,7 +1113,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvd.polarization_array)
   [-1 -2 -3]
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl']
 
   >>> # select polarizations using the polarization strings
@@ -1122,7 +1122,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvd.polarization_array)
   [-1 -2]
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'll']
 
   >>> # read in a file with linear polarizations and an x_orientation
@@ -1132,7 +1132,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> # print polarization numbers and strings
   >>> print(uvd.polarization_array)
   [-5 -6]
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['xx', 'yy']
 
   >>> # print x_orientation
@@ -1145,7 +1145,7 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvd.polarization_array)
   [-6]
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['yy']
 
 
@@ -1794,14 +1794,14 @@ ordering set by the user.
   >>> import os
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> import pyuvdata.utils as uvutils
+  >>> from pyuvdata import utils
   >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
   >>> uvd = UVData.from_file(uvfits_file)
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'll', 'rl', 'lr']
 
   >>> uvd.reorder_pols('CASA')
-  >>> print(uvutils.polnum2str(uvd.polarization_array))
+  >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'rl', 'lr', 'll']
 
 .. _flex_pol:
@@ -1969,9 +1969,9 @@ object (except for antenna pairs with no associated data).
 
 There are also utility functions to get redundant groups from either a list of baselines
 vectors and corresponding baseline indices
-(:func:`pyuvdata.utils.get_baseline_redundancies`)
+(:func:`pyuvdata.utils.redundancy.get_baseline_redundancies`)
 or antenna positions and antenna indices
-(:func:`pyuvdata.utils.get_antenna_redundancies`). Note that using these utility
+(:func:`pyuvdata.utils.redundancy.get_antenna_redundancies`). Note that using these utility
 functions for the baselines on an object is less memory efficient than using
 :meth:`pyuvdata.UVData.get_redundancies` because the latter only uses the first time in
 the baseline array.
@@ -1983,7 +1983,7 @@ the baseline array.
   >>> import numpy as np
   >>> from pyuvdata import UVData
   >>> from pyuvdata.data import DATA_PATH
-  >>> from pyuvdata import utils as uvutils
+  >>> from pyuvdata import utils
 
   >>> # This file contains a HERA19 layout.
   >>> uvd = UVData.from_file(

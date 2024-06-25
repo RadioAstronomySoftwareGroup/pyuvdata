@@ -11,12 +11,12 @@ import numpy as np
 import pytest
 from astropy.io import fits
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVCal
+import pyuvdata.utils.file_io.fits as fits_utils
+from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 
-from ..test_utils import hasmoon, selenoids
+from ..utils.test_coordinates import hasmoon, selenoids
 from . import extend_jones_axis, time_array_to_time_range
 
 
@@ -72,7 +72,7 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
 
     cal_in = gain_data
 
-    enu_antpos = uvutils.ENU_from_ECEF(
+    enu_antpos = utils.ENU_from_ECEF(
         (cal_in.telescope.antenna_positions + cal_in.telescope._location.xyz()),
         center_loc=cal_in.telescope.location,
     )
@@ -83,7 +83,7 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
         ellipsoid=selenoid,
     )
 
-    new_full_antpos = uvutils.ECEF_from_ENU(
+    new_full_antpos = utils.ECEF_from_ENU(
         enu=enu_antpos, center_loc=cal_in.telescope.location
     )
     cal_in.telescope.antenna_positions = (
@@ -104,7 +104,7 @@ def test_moon_loopback(tmp_path, gain_data, selenoid):
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
 
         primary_hdr.pop("ARRAYX")
@@ -132,7 +132,7 @@ def test_calfits_no_moon(gain_data, tmp_path):
     with fits.open(write_file, memmap=True) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
 
         primary_hdr["FRAME"] = "mcmf"
@@ -265,7 +265,7 @@ def test_fits_header_errors_delay(delay_data, tmp_path, header_dict, error_msg):
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
         flag_hdu = fname[hdunames["FLAGS"]]
         flag_hdr = flag_hdu.header
@@ -331,7 +331,7 @@ def test_fits_header_errors_gain(gain_data, tmp_path, header_dict, error_msg):
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
         totqualhdu = fname[hdunames["TOTQLTY"]]
         totqualhdr = totqualhdu.header
@@ -363,7 +363,7 @@ def test_latlonalt_noxyz(gain_data, tmp_path):
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
 
         primary_hdr.pop("ARRAYX")
@@ -574,7 +574,7 @@ def test_read_noversion_history(gain_data, tmp_path):
     with fits.open(write_file) as fname:
         data = fname[0].data
         primary_hdr = fname[0].header
-        hdunames = uvutils._fits_indexhdus(fname)
+        hdunames = fits_utils._indexhdus(fname)
         ant_hdu = fname[hdunames["ANTENNAS"]]
 
         primary_hdr["HISTORY"] = ""

@@ -4130,7 +4130,7 @@ class MirParser(object):
 
         from astropy.time import Time
 
-        from .. import utils as uvutils
+        from .. import utils
         from ..telescopes import known_telescope_location
 
         # First thing -- we only want modern (i.e., SWARM) data, since the older (ASIC)
@@ -4162,12 +4162,12 @@ class MirParser(object):
         mjd_arr = Time(mjd_arr, format="mjd", scale="utc").tt.mjd
 
         # Calculate the LST at the time of obs
-        lst_arr = (12.0 / np.pi) * uvutils.get_lst_for_time(
+        lst_arr = (12.0 / np.pi) * utils.get_lst_for_time(
             jd_array=jd_arr, telescope_loc=telescope_location
         )
 
         # Finally, calculate the apparent coordinates based on what we have in the data
-        app_ra, app_dec = uvutils.calc_app_coords(
+        app_ra, app_dec = utils.phasing.calc_app_coords(
             lon_coord=self.in_data["rar"],
             lat_coord=self.in_data["decr"],
             time_array=jd_arr,

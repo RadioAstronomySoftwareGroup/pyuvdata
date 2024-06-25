@@ -16,6 +16,7 @@ import numpy as np
 from .. import Telescope, UVCal, UVData
 from .. import parameter as uvp
 from .. import utils
+from ..utils import helpers
 from ..uvbase import UVBase
 
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols"]
@@ -825,13 +826,13 @@ class UVFlag(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            utils.check_surface_based_positions(
+            helpers.check_surface_based_positions(
                 antenna_positions=self.telescope.antenna_positions,
                 telescope_loc=self.telescope.location,
                 raise_error=False,
             )
 
-            utils.check_lsts_against_times(
+            helpers.check_lsts_against_times(
                 jd_array=self.time_array,
                 lst_array=self.lst_array,
                 telescope_loc=self.telescope.location,
@@ -1127,7 +1128,7 @@ class UVFlag(UVBase):
                 "UVFlag objects can only call 'parse_ants' function "
                 "if type is 'baseline'."
             )
-        return utils.parse_ants(
+        return utils.bls.parse_ants(
             self,
             ant_str=ant_str,
             print_toggle=print_toggle,
@@ -1200,7 +1201,7 @@ class UVFlag(UVBase):
         self.clear_unused_attributes()
         self.history += "Pol axis collapse. "
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         if run_check:
@@ -1322,7 +1323,7 @@ class UVFlag(UVBase):
         self._set_type_waterfall()
         self.history += 'Collapsed to type "waterfall". '  # + self.pyuvdata_version_str
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         self.clear_unused_attributes()
@@ -1392,7 +1393,7 @@ class UVFlag(UVBase):
         """Convert a UVFlag object of type "waterfall" or "antenna" to type "baseline".
 
         Broadcasts the flag array to all baselines.
-        This function does NOT apply flags to uv (see utils.apply_uvflag for that).
+        This function does NOT apply flags to uv (see pyuvdata.apply_uvflag for that).
         Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
         and `antenna_positions`) may be reordered to match the ordering on `uv`.
 
@@ -1595,7 +1596,7 @@ class UVFlag(UVBase):
 
         self.history += 'Broadcast to type "baseline". '
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         if run_check:
@@ -1615,7 +1616,7 @@ class UVFlag(UVBase):
         """Convert a UVFlag object of type "waterfall" to type "antenna".
 
         Broadcasts the flag array to all antennas.
-        This function does NOT apply flags to uv (see utils.apply_uvflag for that).
+        This function does NOT apply flags to uv (see pyuvdata.apply_uvflag for that).
         Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
         and `antenna_positions`) may be reordered to match the ordering on `uv`.
 
@@ -1760,7 +1761,7 @@ class UVFlag(UVBase):
         self._set_type_antenna()
         self.history += 'Broadcast to type "antenna". '
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         if run_check:
@@ -1806,7 +1807,7 @@ class UVFlag(UVBase):
                 "Unknown UVFlag mode: " + self.mode + ". Cannot convert to flag."
             )
         self.history += 'Converted to mode "flag". '
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.clear_unused_attributes()
 
@@ -1879,7 +1880,7 @@ class UVFlag(UVBase):
             )
         self.history += 'Converted to mode "metric". '
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
         self.clear_unused_attributes()
 
@@ -1945,7 +1946,7 @@ class UVFlag(UVBase):
             )
 
         # Update filename parameter
-        this.filename = utils._combine_filenames(this.filename, other.filename)
+        this.filename = helpers._combine_filenames(this.filename, other.filename)
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
@@ -2147,7 +2148,7 @@ class UVFlag(UVBase):
                 )
 
         this.history += "Data combined along " + axis + " axis. "
-        if not utils._check_history_version(this.history, this.pyuvdata_version_str):
+        if not helpers._check_history_version(this.history, this.pyuvdata_version_str):
             this.history += this.pyuvdata_version_str
 
         this.Ntimes = np.unique(this.time_array).size
@@ -2243,7 +2244,7 @@ class UVFlag(UVBase):
         if other.history not in this.history:
             this.history += "Flags OR'd with: " + other.history
 
-        if not utils._check_history_version(this.history, this.pyuvdata_version_str):
+        if not helpers._check_history_version(this.history, this.pyuvdata_version_str):
             this.history += this.pyuvdata_version_str
 
         if run_check:
@@ -2309,7 +2310,7 @@ class UVFlag(UVBase):
 
         """
         # Ensure others is iterable (in case of single UVFlag object)
-        # cannot use utils._get_iterable because the object itself is iterable
+        # cannot use helpers._get_iterable because the object itself is iterable
         if not isinstance(others, (list, tuple, np.ndarray)):
             others = [others]
 
@@ -2341,7 +2342,7 @@ class UVFlag(UVBase):
         this.weights_array = warray
         this.history += "Combined metric arrays. "
 
-        if not utils._check_history_version(this.history, this.pyuvdata_version_str):
+        if not helpers._check_history_version(this.history, this.pyuvdata_version_str):
             this.history += this.pyuvdata_version_str
 
         if run_check:
@@ -2459,7 +2460,7 @@ class UVFlag(UVBase):
 
         # test for blt_inds presence before adding inds from antennas & times
         if blt_inds is not None:
-            blt_inds = utils._get_iterable(blt_inds)
+            blt_inds = helpers._get_iterable(blt_inds)
             if np.array(blt_inds).ndim > 1:
                 blt_inds = np.array(blt_inds).flatten()
             if self.type == "baseline":
@@ -2469,7 +2470,7 @@ class UVFlag(UVBase):
             n_selects += 1
 
         if antenna_nums is not None:
-            antenna_nums = utils._get_iterable(antenna_nums)
+            antenna_nums = helpers._get_iterable(antenna_nums)
             if np.array(antenna_nums).ndim > 1:
                 antenna_nums = np.array(antenna_nums).flatten()
             if n_selects > 0:
@@ -2600,7 +2601,7 @@ class UVFlag(UVBase):
                 blt_inds = ant_blt_inds
 
         if times is not None:
-            times = utils._get_iterable(times)
+            times = helpers._get_iterable(times)
             if np.array(times).ndim > 1:
                 times = np.array(times).flatten()
 
@@ -2649,14 +2650,14 @@ class UVFlag(UVBase):
             blt_inds = sorted(set(blt_inds))
 
         if freq_chans is not None:
-            freq_chans = utils._get_iterable(freq_chans)
+            freq_chans = helpers._get_iterable(freq_chans)
             if np.array(freq_chans).ndim > 1:
                 freq_chans = np.array(freq_chans).flatten()
             if frequencies is None:
                 frequencies = np.squeeze(self.freq_array)[freq_chans]
 
             else:
-                frequencies = utils._get_iterable(frequencies)
+                frequencies = helpers._get_iterable(frequencies)
                 frequencies = np.sort(
                     list(
                         set(frequencies) | set(np.squeeze(self.freq_array)[freq_chans])
@@ -2664,7 +2665,7 @@ class UVFlag(UVBase):
                 )
 
         if frequencies is not None:
-            frequencies = utils._get_iterable(frequencies)
+            frequencies = helpers._get_iterable(frequencies)
             if np.array(frequencies).ndim > 1:
                 frequencies = np.array(frequencies).flatten()
             if n_selects > 0:
@@ -2688,7 +2689,7 @@ class UVFlag(UVBase):
             freq_inds = None
 
         if polarizations is not None:
-            polarizations = utils._get_iterable(polarizations)
+            polarizations = helpers._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
             if n_selects > 0:
@@ -3129,7 +3130,7 @@ class UVFlag(UVBase):
                         "freq_array spacing."
                     )
                     freq_delta = np.diff(np.squeeze(self.freq_array))
-                    if utils._test_array_constant_spacing(
+                    if helpers._test_array_constant_spacing(
                         self.freq_array, tols=self._freq_array.tols
                     ):
                         self.channel_width = np.full(self.Nfreqs, freq_delta[0])
@@ -3225,7 +3226,7 @@ class UVFlag(UVBase):
 
                 self.history += history
 
-                if not utils._check_history_version(
+                if not helpers._check_history_version(
                     self.history, self.pyuvdata_version_str
                 ):
                     self.history += self.pyuvdata_version_str
@@ -3449,7 +3450,7 @@ class UVFlag(UVBase):
                 polarization_array = self.polarization_array
             header["polarization_array"] = polarization_array
 
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -3586,7 +3587,7 @@ class UVFlag(UVBase):
         if waterfall:
             self._set_type_waterfall()
             self.history += 'Flag object with type "waterfall" created. '
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -3610,7 +3611,7 @@ class UVFlag(UVBase):
         else:
             self._set_type_baseline()
             self.history += 'Flag object with type "baseline" created. '
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -3749,7 +3750,7 @@ class UVFlag(UVBase):
         if waterfall:
             self._set_type_waterfall()
             self.history += 'Flag object with type "waterfall" created. '
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -3772,7 +3773,7 @@ class UVFlag(UVBase):
         else:
             self._set_type_antenna()
             self.history += 'Flag object with type "antenna" created. '
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
