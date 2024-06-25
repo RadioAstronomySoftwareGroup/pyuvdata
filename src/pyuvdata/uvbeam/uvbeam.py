@@ -1403,7 +1403,7 @@ class UVBeam(UVBase):
 
         phi_length = np.abs(self.axis1_array[0] - self.axis1_array[-1]) + axis1_diff
 
-        phi_vals, theta_vals = np.meshgrid(self.axis1_array, self.axis2_array)
+        phi_vals, theta_vals = self.axis1_array, self.axis2_array
 
         freq_axis = 2
         assert input_data_array.shape[freq_axis] == input_nfreqs
@@ -1418,19 +1418,10 @@ class UVBeam(UVBase):
             extend_length = 3
             phi_use = np.concatenate(
                 (
-                    np.flip(phi_vals[:, :extend_length] * (-1) - axis1_diff, axis=1),
+                    phi_vals[0] + (np.arange(-extend_length, 0) * axis1_diff),
                     phi_vals,
-                    phi_vals[:, -1 * extend_length :] + extend_length * axis1_diff,
-                ),
-                axis=1,
-            )
-            theta_use = np.concatenate(
-                (
-                    theta_vals[:, :extend_length],
-                    theta_vals,
-                    theta_vals[:, -1 * extend_length :],
-                ),
-                axis=1,
+                    phi_vals[-1] + (np.arange(1, extend_length + 1) * axis1_diff),
+                )
             )
 
             low_slice = input_data_array[..., :extend_length]
@@ -1441,8 +1432,10 @@ class UVBeam(UVBase):
             )
         else:
             phi_use = phi_vals
-            theta_use = theta_vals
             data_use = input_data_array
+
+        # This is now always true, keeping this here to keep naming convention the same
+        theta_use = theta_vals
 
         if self.basis_vector_array is not None:
             if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
@@ -1505,21 +1498,21 @@ class UVBeam(UVBase):
         if check_azza_domain:
             za_sq_dist = np.full(len(za_array), np.inf)
             az_sq_dist = np.full(len(az_array), np.inf)
-            if sum(theta_use.shape) > len(za_array):
+            if (len(theta_use) + len(phi_use)) > len(za_array):
                 # If there are fewer interpolation points than grid points, go
                 # through the grid points one-by-one to spot any outliers
                 for idx in range(npoints):
-                    az_sq_dist[idx] = np.min((theta_use[:, 0] - za_array[idx]) ** 2.0)
-                    za_sq_dist[idx] = np.min((phi_use[0, :] - za_array[idx]) ** 2.0)
+                    za_sq_dist[idx] = np.min((theta_use - za_array[idx]) ** 2.0)
+                    az_sq_dist[idx] = np.min((phi_use - az_array[idx]) ** 2.0)
             else:
                 # Otherwise, if we have lots of interpolation points, then it's faster
                 # to evaluate the grid steps one-by-one.
-                for idx in range(theta_use.shape[0]):
-                    temp_arr = np.square(za_array - theta_use[idx, 0])
+                for theta_val in theta_use:
+                    temp_arr = np.square(za_array - theta_val)
                     za_sq_dist = np.where(za_sq_dist > temp_arr, temp_arr, za_sq_dist)
 
-                for idx in range(phi_use.shape[1]):
-                    temp_arr = np.square(az_array - phi_use[0, idx])
+                for phi_val in phi_use:
+                    temp_arr = np.square(az_array - phi_val)
                     az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
 
             if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
@@ -1552,24 +1545,21 @@ class UVBeam(UVBase):
                         if np.iscomplexobj(data_use):
                             # interpolate real and imaginary parts separately
                             real_lut = interpolate.RectBivariateSpline(
-                                theta_use[:, 0],
-                                phi_use[0, :],
+                                theta_use,
+                                phi_use,
                                 data_use[data_inds].real,
                                 **spline_opts,
                             )
                             imag_lut = interpolate.RectBivariateSpline(
-                                theta_use[:, 0],
-                                phi_use[0, :],
+                                theta_use,
+                                phi_use,
                                 data_use[data_inds].imag,
                                 **spline_opts,
                             )
                             lut = get_lambda(real_lut, imag_lut)
                         else:
                             lut = interpolate.RectBivariateSpline(
-                                theta_use[:, 0],
-                                phi_use[0, :],
-                                data_use[data_inds],
-                                **spline_opts,
+                                theta_use, phi_use, data_use[data_inds], **spline_opts
                             )
                             lut = get_lambda(lut)
                         if reuse_spline:
