@@ -87,9 +87,25 @@ corr_fits_extension = Extension(
     extra_link_args=extra_link_args,
 )
 
-utils_extension = Extension(
-    "pyuvdata._utils",
-    sources=["src/pyuvdata/utils.pyx"],
+bls_extension = Extension(
+    "pyuvdata._bls",
+    sources=["src/pyuvdata/utils/bls.pyx"],
+    define_macros=global_c_macros,
+    include_dirs=[numpy.get_include()],
+    extra_compile_args=extra_compile_args,
+)
+
+coordinates_extension = Extension(
+    "pyuvdata._coordinates",
+    sources=["src/pyuvdata/utils/coordinates.pyx"],
+    define_macros=global_c_macros,
+    include_dirs=[numpy.get_include()],
+    extra_compile_args=extra_compile_args,
+)
+
+phasing_extension = Extension(
+    "pyuvdata._phasing",
+    sources=["src/pyuvdata/utils/phasing.pyx"],
     define_macros=global_c_macros,
     include_dirs=[numpy.get_include()],
     extra_compile_args=extra_compile_args,
@@ -103,7 +119,13 @@ uvbeam_extension = Extension(
     extra_compile_args=extra_compile_args,
 )
 
-extensions = [corr_fits_extension, utils_extension, uvbeam_extension]
+extensions = [
+    corr_fits_extension,
+    bls_extension,
+    coordinates_extension,
+    phasing_extension,
+    uvbeam_extension,
+]
 
 # don't build miriad on windows
 if not is_platform_windows():

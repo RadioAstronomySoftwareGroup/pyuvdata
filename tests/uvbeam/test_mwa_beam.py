@@ -6,8 +6,7 @@ import os
 import numpy as np
 import pytest
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVBeam
+from pyuvdata import UVBeam, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbeam.mwa_beam import P1sin, P1sin_array
@@ -160,4 +159,4 @@ def test_dead_dipoles():
         + gain_str
         + beam1.pyuvdata_version_str
     )
-    assert uvutils._check_histories(history_str, beam1.history)
+    assert utils.helpers._check_histories(history_str, beam1.history)

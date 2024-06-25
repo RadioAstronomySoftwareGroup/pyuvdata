@@ -16,8 +16,10 @@ import h5py
 import numpy as np
 from docstring_parser import DocstringStyle
 
-from .. import Telescope, hdf5_utils, utils
+from .. import Telescope, utils
 from ..docstrings import copy_replace_short_description
+from ..utils import helpers
+from ..utils.file_io import hdf5 as hdf5_utils
 from . import UVData
 
 __all__ = ["UVH5", "FastUVH5Meta"]
@@ -203,7 +205,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
 
     def get_blt_order(self) -> tuple[str]:
         """Get the blt order from analysing metadata."""
-        return utils.determine_blt_order(
+        return helpers.determine_blt_order(
             time_array=self.time_array,
             ant_1_array=self.ant_1_array,
             ant_2_array=self.ant_2_array,
@@ -250,7 +252,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         ):
             return True
 
-        is_rect, self.__time_first = utils.determine_rectangularity(
+        is_rect, self.__time_first = helpers.determine_rectangularity(
             time_array=self.time_array,
             baseline_array=self.baseline_array,
             nbls=self.Nbls,
@@ -512,7 +514,7 @@ class UVH5(UVData):
             proc = None
 
             if run_check_acceptability:
-                utils.check_lsts_against_times(
+                helpers.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
@@ -586,7 +588,7 @@ class UVH5(UVData):
         if "time_axis_faster_than_bls" in obj.header:
             self.time_axis_faster_than_bls = obj.time_axis_faster_than_bls
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # Optional parameters
@@ -799,9 +801,9 @@ class UVH5(UVData):
                     dgrp["visdata"], inds, data_array_dtype
                 )
             else:
-                self.data_array = utils._index_dset(dgrp["visdata"], inds)
-            self.flag_array = utils._index_dset(dgrp["flags"], inds)
-            self.nsample_array = utils._index_dset(dgrp["nsamples"], inds)
+                self.data_array = hdf5_utils._index_dset(dgrp["visdata"], inds)
+            self.flag_array = hdf5_utils._index_dset(dgrp["flags"], inds)
+            self.nsample_array = hdf5_utils._index_dset(dgrp["nsamples"], inds)
         else:
             # do select operations on everything except data_array, flag_array
             # and nsample_array
@@ -817,7 +819,7 @@ class UVH5(UVData):
             # max_nslice_frac of 0.1 yields slice speedup over fancy index for HERA data
             # See pyuvdata PR #805
             if blt_inds is not None:
-                blt_slices, blt_sliceable = utils._convert_to_slices(
+                blt_slices, blt_sliceable = helpers._convert_to_slices(
                     blt_inds, max_nslice_frac=0.1
                 )
             else:
@@ -825,7 +827,7 @@ class UVH5(UVData):
                 blt_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = utils._convert_to_slices(
+                freq_slices, freq_sliceable = helpers._convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
             else:
@@ -833,7 +835,7 @@ class UVH5(UVData):
                 freq_sliceable = True
 
             if pol_inds is not None:
-                pol_slices, pol_sliceable = utils._convert_to_slices(
+                pol_slices, pol_sliceable = helpers._convert_to_slices(
                     pol_inds, max_nslice_frac=0.5
                 )
             else:
@@ -876,9 +878,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = utils._index_dset(visdata_dset, inds)
-                flags = utils._index_dset(flags_dset, inds)
-                nsamples = utils._index_dset(nsamples_dset, inds)
+                    visdata = hdf5_utils._index_dset(visdata_dset, inds)
+                flags = hdf5_utils._index_dset(flags_dset, inds)
+                nsamples = hdf5_utils._index_dset(nsamples_dset, inds)
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
                 if not multidim_index and freq_frac < 1:
@@ -914,9 +916,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = utils._index_dset(visdata_dset, inds)
-                flags = utils._index_dset(flags_dset, inds)
-                nsamples = utils._index_dset(nsamples_dset, inds)
+                    visdata = hdf5_utils._index_dset(visdata_dset, inds)
+                flags = hdf5_utils._index_dset(flags_dset, inds)
+                nsamples = hdf5_utils._index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck
@@ -952,9 +954,9 @@ class UVH5(UVData):
                         visdata_dset, inds, data_array_dtype
                     )
                 else:
-                    visdata = utils._index_dset(visdata_dset, inds)
-                flags = utils._index_dset(flags_dset, inds)
-                nsamples = utils._index_dset(nsamples_dset, inds)
+                    visdata = hdf5_utils._index_dset(visdata_dset, inds)
+                flags = hdf5_utils._index_dset(flags_dset, inds)
+                nsamples = hdf5_utils._index_dset(nsamples_dset, inds)
 
                 # down select on other dimensions if necessary
                 # use indices not slices here: generally not the bottleneck

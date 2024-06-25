@@ -17,10 +17,11 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
-from . import hdf5_utils
 from . import parameter as uvp
 from . import utils
 from .data import DATA_PATH
+from .utils.file_io import antpos
+from .utils.file_io import hdf5 as hdf5_utils
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
@@ -465,7 +466,7 @@ class Telescope(UVBase):
 
         if run_check_acceptability:
             # Check antenna positions
-            utils.check_surface_based_positions(
+            utils.helpers.check_surface_based_positions(
                 antenna_positions=self.antenna_positions,
                 telescope_loc=self.location,
                 raise_error=False,
@@ -558,7 +559,7 @@ class Telescope(UVBase):
                     DATA_PATH, telescope_dict["antenna_positions_file"]
                 )
                 antenna_names, antenna_numbers, antenna_positions = (
-                    utils.parse_antpos_file(antpos_file)
+                    antpos.read_antpos_csv(antpos_file)
                 )
                 ant_info = {
                     "Nants": antenna_names.size,
@@ -773,10 +774,10 @@ class Telescope(UVBase):
         """
         tel_obj = cls()
 
-        if not isinstance(location, tuple(utils.allowed_location_types)):
+        if not isinstance(location, tuple(utils.coordinates.allowed_location_types)):
             raise ValueError(
                 "telescope_location has an unsupported type, it must be one of "
-                f"{utils.allowed_location_types}"
+                f"{utils.coordinates.allowed_location_types}"
             )
 
         tel_obj.name = name

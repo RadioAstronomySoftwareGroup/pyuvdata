@@ -14,8 +14,8 @@ per-file-ignores =
 # remove the following lines as functions and input variables are renamed to pep8 style:
     src/pyuvdata/uvdata/uvdata.py: N802
     src/pyuvdata/uvbeam/mwa_beam.py: N802
-    src/pyuvdata/utils.py: N802, N803
-    tests/test_utils.py: D,N802
+    src/pyuvdata/utils/coordinates.py: N802, N803
+    tests/utils/test_coordinates.py: D,N802
     tests/__init__.py: D,N802
 docstring-convention = numpy
 select = C,E,W,T4,B9,F,D,A,N,RST,B

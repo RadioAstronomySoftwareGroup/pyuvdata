@@ -24,6 +24,8 @@ except ImportError:
 
 from .. import utils
 from ..docstrings import copy_replace_short_description
+from ..utils import helpers
+from ..utils.file_io import fits as fits_utils
 from . import UVData
 
 __all__ = ["UVFITS"]
@@ -69,7 +71,7 @@ class UVFITS(UVData):
             # angles in uvfits files are stored in degrees, so convert to radians
             self.lst_array = np.deg2rad(vis_hdu.data.par("lst"))
             if run_check_acceptability:
-                utils.check_lsts_against_times(
+                helpers.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
@@ -392,7 +394,7 @@ class UVFITS(UVData):
         with fits.open(filename, memmap=True) as hdu_list:
             vis_hdu = hdu_list[0]  # assumes the visibilities are in the primary hdu
             vis_hdr = vis_hdu.header.copy()
-            hdunames = utils._fits_indexhdus(hdu_list)  # find the rest of the tables
+            hdunames = fits_utils._indexhdus(hdu_list)  # find the rest of the tables
 
             # First get everything we can out of the header.
 
@@ -412,7 +414,7 @@ class UVFITS(UVData):
             # check if we have an spw dimension
             if vis_hdr["NAXIS"] == 7:
                 self.Nspws = vis_hdr.pop("NAXIS5")
-                self.spw_array = utils._fits_gethduaxis(vis_hdu, 5).astype(np.int64) - 1
+                self.spw_array = fits_utils._gethduaxis(vis_hdu, 5).astype(np.int64) - 1
                 ra_axis = 6
                 dec_axis = 7
             else:
@@ -440,7 +442,7 @@ class UVFITS(UVData):
                 # the AIPS SU table.
 
                 # Get rest freq value
-                ref_freq = utils._fits_gethduaxis(vis_hdu, 4)[0]
+                ref_freq = fits_utils._gethduaxis(vis_hdu, 4)[0]
                 self.channel_width = np.transpose(
                     np.tile(abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
                 ).flatten()
@@ -455,11 +457,11 @@ class UVFITS(UVData):
                 # If there's only one window, then the UVFITS file may not have an
                 # FQ table, in which case pull the info from the main table
                 self.Nfreqs = vis_hdr.pop("NAXIS4")
-                self.freq_array = utils._fits_gethduaxis(vis_hdu, 4)
+                self.freq_array = fits_utils._gethduaxis(vis_hdu, 4)
                 self.channel_width = np.full(self.Nfreqs, vis_hdr.pop("CDELT4"))
                 self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
-            self.polarization_array = np.int32(utils._fits_gethduaxis(vis_hdu, 3))
+            self.polarization_array = np.int32(fits_utils._gethduaxis(vis_hdu, 3))
             # other info -- not required but frequently used
             self.telescope.name = vis_hdr.pop("TELESCOP", None)
             self.telescope.instrument = vis_hdr.pop("INSTRUME", None)
@@ -473,7 +475,7 @@ class UVFITS(UVData):
                 if self.blt_order == ("bda",):
                     self._blt_order.form = (1,)
             self.history = str(vis_hdr.get("HISTORY", ""))
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
@@ -529,7 +531,7 @@ class UVFITS(UVData):
                 )
                 self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
-            self.extra_keywords = utils._get_fits_extra_keywords(
+            self.extra_keywords = fits_utils._get_extra_keywords(
                 vis_hdr,
                 keywords_to_skip=[
                     "DATE-OBS",
@@ -765,7 +767,7 @@ class UVFITS(UVData):
             # fix up the uvws if in the NCP baseline coordinate frame.
             # Must be done here because it requires the phase_center_app_dec
             if "UU---NCP" in vis_hdu.data.parnames:
-                self.uvw_array = utils._rotate_one_axis(
+                self.uvw_array = utils.phasing._rotate_one_axis(
                     xyz_array=self.uvw_array[:, :, None],
                     rot_amount=self.phase_center_app_dec - np.pi / 2,
                     rot_axis=0,
@@ -950,7 +952,7 @@ class UVFITS(UVData):
         if self.Npols > 1:
             pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
-            if not utils._test_array_constant_spacing(polarization_array):
+            if not helpers._test_array_constant_spacing(polarization_array):
                 raise ValueError(
                     "The polarization values are not evenly spaced (probably "
                     "because of a select operation). The uvfits format "
@@ -1478,7 +1480,7 @@ class UVFITS(UVData):
             # coordinate frame, although nothing in phase_center_catalog forces
             # objects to share the same frame. So we want to make sure that
             # everything lines up with the coordinate frame listed.
-            new_ra, new_dec = utils.transform_sidereal_coords(
+            new_ra, new_dec = utils.phasing.transform_sidereal_coords(
                 longitude=phase_dict["cat_lon"],
                 latitude=phase_dict["cat_lat"],
                 in_coord_frame=phase_dict["cat_frame"],

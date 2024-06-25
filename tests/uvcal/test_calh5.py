@@ -10,13 +10,12 @@ import numpy as np
 import pytest
 from astropy.units import Quantity
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVCal
+from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.uvcal import FastCalH5Meta
 from pyuvdata.uvdata import FastUVH5Meta
 
-from ..test_utils import selenoids
+from ..utils.test_coordinates import selenoids
 from . import extend_jones_axis, time_array_to_time_range
 
 
@@ -107,7 +106,7 @@ def test_calh5_loop_moon(tmp_path, gain_data, selenoid):
 
     cal_in = gain_data
 
-    enu_antpos = uvutils.ENU_from_ECEF(
+    enu_antpos = utils.ENU_from_ECEF(
         (cal_in.telescope.antenna_positions + cal_in.telescope._location.xyz()),
         center_loc=cal_in.telescope.location,
     )
@@ -118,7 +117,7 @@ def test_calh5_loop_moon(tmp_path, gain_data, selenoid):
         ellipsoid=selenoid,
     )
 
-    new_full_antpos = uvutils.ECEF_from_ENU(
+    new_full_antpos = utils.ECEF_from_ENU(
         enu=enu_antpos, center_loc=cal_in.telescope.location
     )
     cal_in.telescope.antenna_positions = (
