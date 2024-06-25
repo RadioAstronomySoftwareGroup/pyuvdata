@@ -156,7 +156,7 @@ class Mir(UVData):
             if corrchunk is not None:
                 select_where += [("corrchunk", "eq", corrchunk)]
             elif not pseudo_cont:
-                select_where += [("corrchunk", "ne", 0)]
+                select_where += [("band", "ne", "c1")]
             if swarm_only:
                 select_where += [("correlator", "eq", 1)]
 
