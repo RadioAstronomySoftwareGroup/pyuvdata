@@ -885,23 +885,23 @@ class Telescope(UVBase):
             Dataset to write the telescope metadata to.
 
         """
-        header["telescope_frame"] = np.string_(self._location.frame)
+        header["telescope_frame"] = np.bytes_(self._location.frame)
         if self._location.frame == "mcmf":
             header["ellipsoid"] = self._location.ellipsoid
         lat, lon, alt = self.location_lat_lon_alt_degrees
         header["latitude"] = lat
         header["longitude"] = lon
         header["altitude"] = alt
-        header["telescope_name"] = np.string_(self.name)
+        header["telescope_name"] = np.bytes_(self.name)
         header["Nants_telescope"] = self.Nants
         header["antenna_numbers"] = self.antenna_numbers
         header["antenna_positions"] = self.antenna_positions
         header["antenna_names"] = np.asarray(self.antenna_names, dtype="bytes")
 
         if self.instrument is not None:
-            header["instrument"] = np.string_(self.instrument)
+            header["instrument"] = np.bytes_(self.instrument)
         if self.x_orientation is not None:
-            header["x_orientation"] = np.string_(self.x_orientation)
+            header["x_orientation"] = np.bytes_(self.x_orientation)
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
 

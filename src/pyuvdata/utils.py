@@ -2019,7 +2019,7 @@ def parse_antpos_file(antenna_positions_file):
     columns = ["name", "number", "x", "y", "z"]
     formats = ["U10", "i8", np.longdouble, np.longdouble, np.longdouble]
 
-    dt = np.format_parser(formats, columns, [])
+    dt = np.rec.format_parser(formats, columns, [])
     ant_array = np.genfromtxt(
         antenna_positions_file,
         delimiter=",",
@@ -6652,7 +6652,7 @@ def _index_dset(dset, indices, *, input_array=None):
     axis_arrays = []
     for nsel in nselects_per_dim:
         axis_arrays.append(np.arange(nsel, dtype=int))
-    sel_index_arrays = np.meshgrid(*axis_arrays)
+    sel_index_arrays = list(np.meshgrid(*axis_arrays))
     for ind, array in enumerate(sel_index_arrays):
         sel_index_arrays[ind] = array.flatten()
     for sel in np.arange(total_selects):
