@@ -1503,16 +1503,30 @@ class UVBeam(UVBase):
             pol_inds = np.arange(Npol_feeds)
 
         if check_azza_domain:
-            for point_i in range(npoints):
-                pix_dists = np.sqrt(
-                    (theta_use - za_array[point_i]) ** 2.0
-                    + (phi_use - az_array[point_i]) ** 2.0
+            za_sq_dist = np.full(len(za_array), np.inf)
+            az_sq_dist = np.full(len(az_array), np.inf)
+            if sum(theta_use.shape) > len(za_array):
+                # If there are fewer interpolation points than grid points, go
+                # through the grid points one-by-one to spot any outliers
+                for idx in range(npoints):
+                    az_sq_dist[idx] = np.min((theta_use[:, 0] - za_array[idx]) ** 2.0)
+                    za_sq_dist[idx] = np.min((phi_use[0, :] - za_array[idx]) ** 2.0)
+            else:
+                # Otherwise, if we have lots of interpolation points, then it's faster
+                # to evaluate the grid steps one-by-one.
+                for idx in range(theta_use.shape[0]):
+                    temp_arr = np.square(za_array - theta_use[idx, 0])
+                    za_sq_dist = np.where(za_sq_dist > temp_arr, temp_arr, za_sq_dist)
+
+                for idx in range(phi_use.shape[1]):
+                    temp_arr = np.square(az_array - phi_use[0, idx])
+                    az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
+
+            if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
+                raise ValueError(
+                    "at least one interpolation location "
+                    "is outside of the UVBeam pixel coverage."
                 )
-                if np.min(pix_dists) > (max_axis_diff * 2.0):
-                    raise ValueError(
-                        "at least one interpolation location "
-                        "is outside of the UVBeam pixel coverage."
-                    )
 
         data_shape = (self.Naxes_vec, Npol_feeds, input_nfreqs, npoints)
         interp_data = np.zeros(data_shape, dtype=data_type)
