@@ -105,3 +105,18 @@ def uvcalibrate_data(uvcalibrate_data_main):
     uvcal = uvcal_in.copy()
 
     yield uvdata, uvcal
+
+
+@pytest.fixture(scope="session")
+def uvcalibrate_uvdata_oldfiles_main():
+    uvd = UVData()
+    uvd.read(os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5"))
+
+    yield uvd
+
+
+@pytest.fixture(scope="function")
+def uvcalibrate_uvdata_oldfiles(uvcalibrate_uvdata_oldfiles_main):
+    uvd = uvcalibrate_uvdata_oldfiles_main.copy()
+
+    yield uvd

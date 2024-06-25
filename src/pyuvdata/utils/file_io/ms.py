@@ -10,8 +10,8 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from . import __version__, known_telescope_location, known_telescopes, utils
-from .uvdata.uvdata import reporting_request
+from ... import __version__, known_telescope_location, known_telescopes, utils
+from ...uvdata.uvdata import reporting_request
 
 try:
     from lunarsky import MoonLocation
@@ -940,7 +940,7 @@ def read_ms_history(filepath, pyuvdata_version_str, check_origin=False, raise_er
                         history_str += message[idx] + "\n"
 
     # Check and make sure the pyuvdata version is in the history if it's not already
-    if not utils._check_history_version(history_str, pyuvdata_version_str):
+    if not utils.helpers._check_history_version(history_str, pyuvdata_version_str):
         history_str += pyuvdata_version_str
 
     # Finally, return the completed string
@@ -1419,7 +1419,9 @@ def write_ms_feed(
         pol_str = utils.polnum2str(flex_spw_polarization_array)
 
     with tables.table(filepath, ack=False, readonly=False) as feed_table:
-        feed_pols = {feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]}
+        feed_pols = {
+            feed for pol in pol_str for feed in utils.pol.POL_TO_FEED_DICT[pol]
+        }
         nfeed_pols = len(feed_pols)
         pol_types = [pol.upper() for pol in sorted(feed_pols)]
         pol_type_table = np.tile(pol_types, (nfeeds_table, 1))
@@ -1837,7 +1839,7 @@ def write_ms_polarization(
             for idx, spw_pol in enumerate(np.unique(pol_arr)):
                 pol_str = utils.polnum2str([spw_pol])
                 feed_pols = {
-                    feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]
+                    feed for pol in pol_str for feed in utils.pol.POL_TO_FEED_DICT[pol]
                 }
                 pol_types = [pol.lower() for pol in sorted(feed_pols)]
                 pol_tuples = np.asarray(
@@ -1854,7 +1856,7 @@ def write_ms_polarization(
         else:
             pol_str = utils.polnum2str(pol_arr)
             feed_pols = {
-                feed for pol in pol_str for feed in utils.POL_TO_FEED_DICT[pol]
+                feed for pol in pol_str for feed in utils.pol.POL_TO_FEED_DICT[pol]
             }
             pol_types = [pol.lower() for pol in sorted(feed_pols)]
             pol_tuples = np.asarray(

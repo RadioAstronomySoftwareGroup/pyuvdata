@@ -321,7 +321,7 @@ or "ee).
   >>> import numpy as np
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import pyuvdata.utils as uvutils
+  >>> from pyuvdata import utils
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> uvb = UVBeam.from_file(settings_file, beam_type='efield')
 
@@ -352,7 +352,7 @@ or "ee).
   [-5 -6 -7 -8]
 
   >>> # polarization numbers can be converted to strings using a utility function
-  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  >>> print(utils.polnum2str(uvb.polarization_array))
   ['xx', 'yy', 'xy', 'yx']
 
   >>> # select polarizations using the polarization numbers
@@ -361,7 +361,7 @@ or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvb.polarization_array)
   [-5 -6 -7]
-  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  >>> print(utils.polnum2str(uvb.polarization_array))
   ['xx', 'yy', 'xy']
 
   >>> # select polarizations using the polarization strings
@@ -370,7 +370,7 @@ or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvb.polarization_array)
   [-5 -6]
-  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  >>> print(utils.polnum2str(uvb.polarization_array))
   ['xx', 'yy']
 
   >>> # print x_orientation
@@ -383,7 +383,7 @@ or "ee).
   >>> # print polarization numbers and strings after select
   >>> print(uvb.polarization_array)
   [-5]
-  >>> print(uvutils.polnum2str(uvb.polarization_array))
+  >>> print(utils.polnum2str(uvb.polarization_array))
   ['xx']
 
 
@@ -455,7 +455,7 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> from matplotlib.colors import LogNorm # doctest: +SKIP
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> from pyuvdata import utils as uvutils
+  >>> from pyuvdata import utils
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
 
@@ -468,7 +468,7 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 
   >>> # plotting pseudo-stokes I
   >>> pol_array = pstokes_beam.polarization_array
-  >>> pstokes = uvutils.polstr2num('pI')
+  >>> pstokes = utils.polstr2num('pI')
   >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
   >>> azimuth, za = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
   >>> plt.scatter(azimuth, 1-za, c=np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :]), norm=LogNorm()) # doctest: +SKIP

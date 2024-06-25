@@ -706,7 +706,7 @@ class Mir(UVData):
                 time_arr = Time(
                     mir_data.in_data["mjd"][source_mask], scale="tt", format="mjd"
                 ).utc.jd
-                source_ra, source_dec = utils.transform_app_to_icrs(
+                source_ra, source_dec = utils.phasing.transform_app_to_icrs(
                     time_array=time_arr,
                     app_ra=mir_data.in_data["ara"][source_mask],
                     app_dec=mir_data.in_data["adec"][source_mask],
@@ -749,7 +749,7 @@ class Mir(UVData):
         # frame (ICRS) and applying the rotation below (via `calc_uvw`).
         self._set_app_coords_helper(pa_only=True)
 
-        self.uvw_array = utils.calc_uvw(
+        self.uvw_array = utils.phasing.calc_uvw(
             uvw_array=self.uvw_array,
             old_frame_pa=0.0,
             frame_pa=self.phase_center_frame_pa,

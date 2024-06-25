@@ -16,7 +16,7 @@ from astropy.units import Quantity
 
 from . import __version__
 from . import parameter as uvp
-from .utils import _get_iterable
+from .utils.helpers import _get_iterable
 
 __all__ = ["UVBase"]
 

@@ -16,8 +16,8 @@ from __future__ import annotations
 import builtins
 import warnings
 
-import astropy.units as units
 import numpy as np
+from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
 
 allowed_location_types = [EarthLocation]

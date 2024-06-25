@@ -3,9 +3,9 @@
 # Licensed under the 2-clause BSD License
 import copy
 
-import astropy.units as units
 import numpy as np
 import pytest
+from astropy import units
 from astropy.coordinates import (
     CartesianRepresentation,
     EarthLocation,
@@ -25,7 +25,7 @@ from pyuvdata import parameter as uvp
 from pyuvdata.parameter import allowed_location_types
 from pyuvdata.uvbase import UVBase
 
-from .test_utils import (
+from .utils.test_coordinates import (
     frame_selenoid,
     ref_latlonalt,
     ref_latlonalt_moon,

@@ -12,9 +12,11 @@ import h5py
 import numpy as np
 from docstring_parser import DocstringStyle
 
-from .. import hdf5_utils, utils
+from .. import utils
 from ..docstrings import copy_replace_short_description
 from ..telescopes import Telescope
+from ..utils import helpers
+from ..utils.file_io import hdf5 as hdf5_utils
 from .uvcal import UVCal
 
 hdf5plugin_present = True
@@ -266,7 +268,7 @@ class CalH5(UVCal):
             # versions allowed one to store this even if it wasn't actually being used
             optional_parameters.remove("flex_spw_id_array")
 
-        if not utils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not helpers._check_history_version(self.history, self.pyuvdata_version_str):
             self.history += self.pyuvdata_version_str
 
         # Optional parameters
@@ -285,14 +287,14 @@ class CalH5(UVCal):
 
         if run_check_acceptability:
             if self.time_array is not None:
-                utils.check_lsts_against_times(
+                helpers.check_lsts_against_times(
                     jd_array=self.time_array,
                     lst_array=self.lst_array,
                     telescope_loc=self.telescope.location,
                     lst_tols=(0, utils.LST_RAD_TOL),
                 )
             if self.time_range is not None:
-                utils.check_lsts_against_times(
+                helpers.check_lsts_against_times(
                     jd_array=self.time_range,
                     lst_array=self.lst_range,
                     telescope_loc=self.telescope.location,
@@ -416,15 +418,15 @@ class CalH5(UVCal):
             # no select, read in all the data
             inds = (np.s_[:], np.s_[:], np.s_[:], np.s_[:])
             if self.cal_type == "gain":
-                self.gain_array = utils._index_dset(dgrp["gains"], inds)
+                self.gain_array = hdf5_utils._index_dset(dgrp["gains"], inds)
             else:
-                self.delay_array = utils._index_dset(dgrp["delays"], inds)
-            self.flag_array = utils._index_dset(dgrp["flags"], inds)
+                self.delay_array = hdf5_utils._index_dset(dgrp["delays"], inds)
+            self.flag_array = hdf5_utils._index_dset(dgrp["flags"], inds)
             if quality_present:
-                self.quality_array = utils._index_dset(dgrp["qualities"], inds)
+                self.quality_array = hdf5_utils._index_dset(dgrp["qualities"], inds)
             if total_quality_present:
                 tq_inds = (np.s_[:], np.s_[:], np.s_[:])
-                self.total_quality_array = utils._index_dset(
+                self.total_quality_array = hdf5_utils._index_dset(
                     dgrp["total_qualities"], tq_inds
                 )
         else:
@@ -444,7 +446,7 @@ class CalH5(UVCal):
             # TODO: this logic is similar to what is in uvh5. See if an abstracted
             # version can be pulled out into a util function.
             if ant_inds is not None:
-                ant_slices, ant_sliceable = utils._convert_to_slices(
+                ant_slices, ant_sliceable = helpers._convert_to_slices(
                     ant_inds, max_nslice_frac=0.1
                 )
             else:
@@ -452,7 +454,7 @@ class CalH5(UVCal):
                 ant_sliceable = True
 
             if time_inds is not None:
-                time_slices, time_sliceable = utils._convert_to_slices(
+                time_slices, time_sliceable = helpers._convert_to_slices(
                     time_inds, max_nslice_frac=0.1
                 )
             else:
@@ -460,7 +462,7 @@ class CalH5(UVCal):
                 time_sliceable = True
 
             if freq_inds is not None:
-                freq_slices, freq_sliceable = utils._convert_to_slices(
+                freq_slices, freq_sliceable = helpers._convert_to_slices(
                     freq_inds, max_nslice_frac=0.1
                 )
             else:
@@ -468,7 +470,7 @@ class CalH5(UVCal):
                 freq_sliceable = True
 
             if spw_inds is not None:
-                spw_slices, spw_sliceable = utils._convert_to_slices(
+                spw_slices, spw_sliceable = helpers._convert_to_slices(
                     spw_inds, max_nslice_frac=0.1
                 )
             else:
@@ -476,7 +478,7 @@ class CalH5(UVCal):
                 spw_sliceable = True
 
             if jones_inds is not None:
-                jones_slices, jones_sliceable = utils._convert_to_slices(
+                jones_slices, jones_sliceable = helpers._convert_to_slices(
                     jones_inds, max_nslice_frac=0.5
                 )
             else:
@@ -549,13 +551,13 @@ class CalH5(UVCal):
                 jones_frac = 1
 
             # index datasets
-            cal_data = utils._index_dset(caldata_dset, inds)
-            flags = utils._index_dset(flags_dset, inds)
+            cal_data = hdf5_utils._index_dset(caldata_dset, inds)
+            flags = hdf5_utils._index_dset(flags_dset, inds)
             if quality_present:
-                qualities = utils._index_dset(qualities_dset, inds)
+                qualities = hdf5_utils._index_dset(qualities_dset, inds)
             if total_quality_present:
                 tq_inds = inds[1:]
-                total_qualities = utils._index_dset(total_qualities_dset, tq_inds)
+                total_qualities = hdf5_utils._index_dset(total_qualities_dset, tq_inds)
             # down select on other dimensions if necessary
             # use indices not slices here: generally not the bottleneck
             if ant_frac < 1:

@@ -13,7 +13,7 @@ from pyuvdata.testing import check_warnings
 from pyuvdata.uvcal.initializers import new_uvcal, new_uvcal_from_uvdata
 from pyuvdata.uvdata.initializers import new_uvdata
 
-from ..test_utils import selenoids
+from ..utils.test_coordinates import selenoids
 
 
 @pytest.fixture(scope="function")
@@ -91,7 +91,7 @@ def uvc_simplest():
 @pytest.fixture(scope="function")
 def uvc_simplest_moon():
     pytest.importorskip("lunarsky")
-    from pyuvdata.utils import MoonLocation
+    from pyuvdata.utils.coordinates import MoonLocation
 
     return {
         "freq_array": np.linspace(100e6, 200e6, 10),

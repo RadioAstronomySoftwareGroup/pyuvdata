@@ -30,8 +30,7 @@ from astropy import units
 from astropy.coordinates import Angle
 from astropy.time import Time, TimeDelta
 
-import pyuvdata.utils as uvutils
-from pyuvdata import UVData
+from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.miriad import Miriad
@@ -567,7 +566,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
     antpos_length = np.sqrt(np.sum(np.abs(rel_ecef_antpos) ** 2, axis=1))
 
     ecef_antpos = rel_ecef_antpos + uv_in.telescope._location.xyz()
-    antpos = uvutils.rotECEF_from_ECEF(ecef_antpos, uv_in.telescope.location.lon.rad)
+    antpos = utils.rotECEF_from_ECEF(ecef_antpos, uv_in.telescope.location.lon.rad)
 
     # zero out bad locations (these are checked on read)
     antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
@@ -726,10 +725,10 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
     good_antpos = np.where(antpos_length > 0)[0]
     rot_ants = good_antpos[: len(good_antpos) // 2]
-    rot_antpos = uvutils.rotECEF_from_ECEF(
+    rot_antpos = utils.rotECEF_from_ECEF(
         ecef_antpos[rot_ants, :], uv_in.telescope.location.lon.rad + np.pi
     )
-    modified_antpos = uvutils.rotECEF_from_ECEF(
+    modified_antpos = utils.rotECEF_from_ECEF(
         ecef_antpos, uv_in.telescope.location.lon.rad
     )
     modified_antpos[rot_ants, :] = rot_antpos
@@ -862,7 +861,9 @@ def test_loop_multi_phase(tmp_path, paper_miriad, frame):
 
     # without the "phsframe" variable, the unprojected phase center gets interpreted as
     # an ephem type phase center.
-    zen_id, _ = uvutils.look_in_catalog(uv3.phase_center_catalog, cat_name="zenith")
+    zen_id, _ = utils.ps_cat.look_in_catalog(
+        uv3.phase_center_catalog, cat_name="zenith"
+    )
     new_id = uv3._add_phase_center(cat_name="zenith", cat_type="unprojected")
     uv3.phase_center_id_array[np.nonzero(uv3.phase_center_id_array == zen_id)] = new_id
     uv3._clear_unused_phase_centers()
@@ -902,7 +903,7 @@ def test_miriad_only_itrs(tmp_path, paper_miriad):
     uv_in.telescope.location = MoonLocation.from_selenodetic(
         lat=latitude * units.rad, lon=longitude * units.rad, height=altitude * units.m
     )
-    new_full_antpos = uvutils.ECEF_from_ENU(
+    new_full_antpos = utils.ECEF_from_ENU(
         enu=enu_antpos, center_loc=uv_in.telescope.location
     )
 
@@ -1934,7 +1935,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1.read([testfile1, testfile2], file_type="miriad")
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -1960,7 +1961,7 @@ def test_multi_files(casa_uvfits, tmp_path):
     uv1 = UVData()
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -1995,7 +1996,7 @@ def test_antpos_units(casa_uvfits, tmp_path):
     aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
     aantpos = aantpos[uv.telescope.antenna_numbers, :]
     aantpos = (
-        uvutils.ECEF_from_rotECEF(aantpos, uv.telescope.location.lon.rad)
+        utils.ECEF_from_rotECEF(aantpos, uv.telescope.location.lon.rad)
         - uv.telescope._location.xyz()
     )
     assert np.allclose(aantpos, uv.telescope.antenna_positions)
@@ -2020,7 +2021,7 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     t1 = Time(uv["time"], format="jd", location=uvd.telescope.location)
     dt = TimeDelta(uv["inttime"] / 2, format="sec")
     t2 = t1 + dt
-    lsts = uvutils.get_lst_for_time(
+    lsts = utils.get_lst_for_time(
         np.array([t1.jd, t2.jd]), telescope_loc=uvd.telescope.location
     )
     delta_lst = lsts[1] - lsts[0]

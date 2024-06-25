@@ -9,20 +9,21 @@ import re
 import shutil
 import warnings
 
-import astropy.units as units
 import h5py
 import numpy as np
 import pytest
 from _pytest.outcomes import Skipped
+from astropy import units
 
-from pyuvdata import UVCal, UVData, UVFlag, __version__, hdf5_utils
-from pyuvdata import utils as uvutils
+from pyuvdata import UVCal, UVData, UVFlag, __version__, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
+from pyuvdata.utils import helpers
+from pyuvdata.utils.file_io import hdf5 as hdf5_utils
 from pyuvdata.uvbase import old_telescope_metadata_attrs
 from pyuvdata.uvflag import and_rows_cols, flags2waterfall
 
-from ..test_utils import frame_selenoid, hasmoon
+from ..utils.test_coordinates import frame_selenoid, hasmoon
 
 test_d_file = os.path.join(DATA_PATH, "zen.2457698.40355.xx.HH.uvcAA.uvh5")
 test_c_file = os.path.join(DATA_PATH, "zen.2457555.42443.HH.uvcA.omni.calfits")
@@ -758,7 +759,7 @@ def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid
             height=uv.telescope.location.height,
             ellipsoid=selenoid,
         )
-        new_full_antpos = uvutils.ECEF_from_ENU(
+        new_full_antpos = utils.ECEF_from_ENU(
             enu=enu_antpos, center_loc=uv.telescope.location
         )
         uv.telescope.antenna_positions = new_full_antpos - uv.telescope._location.xyz()
@@ -3261,13 +3262,13 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
         assert uvf1.Ntimes == new_nblts
 
     # verify that histories are different
-    assert not uvutils._check_histories(uvf.history, uvf1.history)
+    assert not helpers._check_histories(uvf.history, uvf1.history)
     if uvf.type == "baseline":
         addition_str = "baseline-times"
     else:
         addition_str = "times"
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         uvf.history + f"  Downselected to specific {addition_str} using pyuvdata.",
         uvf1.history,
     )
@@ -3346,7 +3347,7 @@ def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
         for ant in np.unique(uvf2.ant_array):
             assert ant in ants_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
         uvf2.history,
     )
@@ -3426,7 +3427,7 @@ def test_select_bls(input_uvf, uvf_mode):
         for pair in sorted_pairs_object2:
             assert pair in sorted_pairs_to_keep
 
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to specific baselines using pyuvdata.",
             uvf2.history,
         )
@@ -3469,7 +3470,7 @@ def test_select_bls(input_uvf, uvf_mode):
         for pair in sorted_pairs_object2:
             assert pair in sorted_pairs_to_keep
 
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific baselines, polarizations using pyuvdata.",
             uvf2.history,
@@ -3557,7 +3558,7 @@ def test_select_times(input_uvf, uvf_mode):
     for t in np.unique(uvf2.time_array):
         assert t in times_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.", uvf2.history
     )
     # check that it also works with higher dimension array
@@ -3571,7 +3572,7 @@ def test_select_times(input_uvf, uvf_mode):
     for t in np.unique(uvf2.time_array):
         assert t in times_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.", uvf2.history
     )
     # check for errors associated with times not included in data
@@ -3606,7 +3607,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     for f in np.unique(uvf2.freq_array):
         assert f in freqs_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uvf2.history,
     )
@@ -3621,7 +3622,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     for f in np.unique(uvf2.freq_array):
         assert f in freqs_to_keep
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uvf2.history,
     )
@@ -3634,7 +3635,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     for f in uvf2.freq_array:
         assert f in [freqs_to_keep[0]]
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uvf2.history,
     )
@@ -3672,7 +3673,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
     for f in np.unique(uvf2.freq_array):
         assert f in uvf.freq_array[chans_to_keep]
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uvf2.history,
     )
@@ -3688,7 +3689,7 @@ def test_select_freq_chans(input_uvf, uvf_mode):
     for f in np.unique(uvf2.freq_array):
         assert f in uvf.freq_array[chans_to_keep]
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
         uvf2.history,
     )
@@ -3737,18 +3738,18 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
             assert p in uvf2.polarization_array
         else:
             assert (
-                uvutils.polstr2num(p, x_orientation=uvf2.telescope.x_orientation)
+                utils.polstr2num(p, x_orientation=uvf2.telescope.x_orientation)
                 in uvf2.polarization_array
             )
     for p in np.unique(uvf2.polarization_array):
         if isinstance(pols_to_keep[0], int):
             assert p in pols_to_keep
         else:
-            assert p in uvutils.polstr2num(
+            assert p in utils.polstr2num(
                 pols_to_keep, x_orientation=uvf2.telescope.x_orientation
             )
 
-    assert uvutils._check_histories(
+    assert helpers._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
         uvf2.history,
     )
@@ -3887,7 +3888,7 @@ def test_select(input_uvf, uvf_mode):
         assert p in pols_to_keep
 
     if uvf.type == "baseline":
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific baseline-times, antennas, "
             "baselines, times, frequencies, "
@@ -3895,7 +3896,7 @@ def test_select(input_uvf, uvf_mode):
             uvf2.history,
         )
     elif uvf.type == "antenna":
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific times, antennas, "
             "frequencies, "
@@ -3903,7 +3904,7 @@ def test_select(input_uvf, uvf_mode):
             uvf2.history,
         )
     else:
-        assert uvutils._check_histories(
+        assert helpers._check_histories(
             old_history + "  Downselected to "
             "specific times, "
             "frequencies, "
@@ -3965,7 +3966,7 @@ def test_select_parse_ants(uvf_from_data, uvf_mode):
     assert uvf.Nbls == 3
     assert np.array_equiv(
         np.unique(uvf.baseline_array),
-        uvutils.antnums_to_baseline(
+        utils.antnums_to_baseline(
             *np.transpose([(88, 97), (97, 104), (97, 105)]),
             Nants_telescope=uvf.telescope.Nants,
         ),

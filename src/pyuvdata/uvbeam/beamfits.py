@@ -10,8 +10,9 @@ import numpy as np
 from astropy.io import fits
 from docstring_parser import DocstringStyle
 
-from .. import utils
 from ..docstrings import copy_replace_short_description
+from ..utils import helpers
+from ..utils.file_io import fits as fits_utils
 from . import UVBeam
 
 __all__ = ["BeamFITS"]
@@ -87,7 +88,7 @@ class BeamFITS(UVBeam):
         with fits.open(filename) as fname:
             primary_hdu = fname[0]
             primary_header = primary_hdu.header.copy()
-            hdunames = utils._fits_indexhdus(fname)  # find the rest of the tables
+            hdunames = fits_utils._indexhdus(fname)  # find the rest of the tables
             data = primary_hdu.data
             # only support simple antenna_types for now.
             # support for phased arrays should be added
@@ -157,10 +158,10 @@ class BeamFITS(UVBeam):
                 self.Naxes1 = primary_header.pop("NAXIS" + str(ax_nums["img_ax1"]))
                 self.Naxes2 = primary_header.pop("NAXIS" + str(ax_nums["img_ax2"]))
 
-                self.axis1_array = utils._fits_gethduaxis(
+                self.axis1_array = fits_utils._gethduaxis(
                     primary_hdu, ax_nums["img_ax1"]
                 )
-                self.axis2_array = utils._fits_gethduaxis(
+                self.axis2_array = fits_utils._gethduaxis(
                     primary_hdu, ax_nums["img_ax2"]
                 )
 
@@ -244,7 +245,7 @@ class BeamFITS(UVBeam):
                 while len(data.shape) < n_efield_dims - 1:
                     data = np.expand_dims(data, axis=0)
 
-            self.freq_array = utils._fits_gethduaxis(primary_hdu, ax_nums["freq"])
+            self.freq_array = fits_utils._gethduaxis(primary_hdu, ax_nums["freq"])
             # default frequency axis is Hz, but check for corresonding CUNIT
             freq_units = primary_header.pop("CUNIT" + str(ax_nums["freq"]), "Hz")
             if freq_units != "Hz":
@@ -293,7 +294,7 @@ class BeamFITS(UVBeam):
                     self.Npols = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
 
                 self.polarization_array = np.int32(
-                    utils._fits_gethduaxis(primary_hdu, ax_nums["feed_pol"])
+                    fits_utils._gethduaxis(primary_hdu, ax_nums["feed_pol"])
                 )
                 self._set_power()
             elif self.beam_type == "efield":
@@ -330,12 +331,12 @@ class BeamFITS(UVBeam):
             self.x_orientation = primary_header.pop("XORIENT", None)
 
             self.history = str(primary_header.get("HISTORY", ""))
-            if not utils._check_history_version(
+            if not helpers._check_history_version(
                 self.history, self.pyuvdata_version_str
             ):
                 self.history += self.pyuvdata_version_str
 
-            self.extra_keywords = utils._get_fits_extra_keywords(primary_header)
+            self.extra_keywords = fits_utils._get_extra_keywords(primary_header)
 
             # read BASISVEC HDU if present
             if "BASISVEC" in hdunames:
@@ -382,10 +383,10 @@ class BeamFITS(UVBeam):
                             "CTYPE" + str(basisvec_ax_nums["img_ax2"])
                         ].lower(),
                     ]
-                    basisvec_axis1_array = utils._fits_gethduaxis(
+                    basisvec_axis1_array = fits_utils._gethduaxis(
                         basisvec_hdu, basisvec_ax_nums["img_ax1"]
                     )
-                    basisvec_axis2_array = utils._fits_gethduaxis(
+                    basisvec_axis2_array = fits_utils._gethduaxis(
                         basisvec_hdu, basisvec_ax_nums["img_ax2"]
                     )
 
@@ -533,7 +534,9 @@ class BeamFITS(UVBeam):
 
         if self.Nfreqs > 1:
             freq_spacing = self.freq_array[1:] - self.freq_array[:-1]
-            if not utils._test_array_constant(freq_spacing, tols=self._freq_array.tols):
+            if not helpers._test_array_constant(
+                freq_spacing, tols=self._freq_array.tols
+            ):
                 raise ValueError(
                     "The frequencies are not evenly spaced (probably "
                     "because of a select operation). The beamfits format "
@@ -548,7 +551,7 @@ class BeamFITS(UVBeam):
         else:
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
-                if not utils._test_array_constant_spacing(self._axis1_array):
+                if not helpers._test_array_constant_spacing(self._axis1_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along first axis. "
                         "The beam fits format does not support "
@@ -559,7 +562,7 @@ class BeamFITS(UVBeam):
                 axis1_spacing = 1
 
             if self.Naxes2 > 1:
-                if not utils._test_array_constant_spacing(self._axis2_array):
+                if not helpers._test_array_constant_spacing(self._axis2_array):
                     raise ValueError(
                         "The pixels are not evenly spaced along second axis. "
                         "The beam fits format does not support "
@@ -639,7 +642,7 @@ class BeamFITS(UVBeam):
         # set up feed or pol axis
         if self.beam_type == "power":
             if self.Npols > 1:
-                if not utils._test_array_constant_spacing(self._polarization_array):
+                if not helpers._test_array_constant_spacing(self._polarization_array):
                     raise ValueError(
                         "The polarization values are not evenly "
                         "spaced (probably because of a select operation). "

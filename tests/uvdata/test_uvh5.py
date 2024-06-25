@@ -18,14 +18,13 @@ import pytest
 from astropy.time import Time
 from packaging import version
 
-import pyuvdata.hdf5_utils as hdf5_utils
-import pyuvdata.utils as uvutils
-from pyuvdata import UVData
+import pyuvdata.utils.file_io.hdf5 as hdf5_utils
+from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata import uvh5
 
-from ..test_utils import frame_selenoid
+from ..utils.test_coordinates import frame_selenoid
 
 # ignore common file-read warnings
 pytestmark = [
@@ -53,7 +52,7 @@ def uv_partial_write(casa_uvfits, tmp_path):
     # convert a uvfits file to uvh5, cutting down the amount of data
     uv_uvfits = casa_uvfits
     uv_uvfits.select(antenna_nums=[3, 7, 24])
-    uv_uvfits.lst_array = uvutils.get_lst_for_time(
+    uv_uvfits.lst_array = utils.get_lst_for_time(
         uv_uvfits.time_array, telescope_loc=uv_uvfits.telescope.location
     )
 
@@ -201,7 +200,7 @@ def test_read_uvfits_write_uvh5_read_uvh5(
             height=uv_in.telescope.location.height,
             ellipsoid=selenoid,
         )
-        new_full_antpos = uvutils.ECEF_from_ENU(
+        new_full_antpos = utils.ECEF_from_ENU(
             enu=enu_antpos, center_loc=uv_in.telescope.location
         )
         uv_in.telescope.antenna_positions = (
@@ -432,7 +431,7 @@ def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     uv1.read(np.array([testfile1, testfile2]), file_type="uvh5")
 
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_in.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -476,7 +475,7 @@ def test_uvh5_read_multiple_files_metadata_only(casa_uvfits, tmp_path):
     uv_full.read_uvfits(uvfits_filename, read_data=False)
     uv1.read([testfile1, testfile2], read_data=False)
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_full.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"
@@ -516,7 +515,7 @@ def test_uvh5_read_multiple_files_axis(casa_uvfits, tmp_path):
     uv2.write_uvh5(testfile2, clobber=True)
     uv1.read([testfile1, testfile2], axis="freq")
     # Check history is correct, before replacing and doing a full object check
-    assert uvutils._check_histories(
+    assert utils.helpers._check_histories(
         uv_in.history + "  Downselected to "
         "specific frequencies using pyuvdata. "
         "Combined data along frequency axis using"

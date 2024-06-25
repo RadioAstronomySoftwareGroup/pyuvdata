@@ -22,7 +22,7 @@ from pyuvdata.uvdata.initializers import (
     get_time_params,
 )
 
-from ..test_utils import selenoids
+from ..utils.test_coordinates import selenoids
 
 
 @pytest.fixture(scope="function")
@@ -63,7 +63,7 @@ def simplest_working_params() -> dict[str, Any]:
 @pytest.fixture
 def lunar_simple_params() -> dict[str, Any]:
     pytest.importorskip("lunarsky")
-    from pyuvdata.utils import MoonLocation
+    from pyuvdata.utils.coordinates import MoonLocation
 
     return {
         "freq_array": np.linspace(1e8, 2e8, 100),
