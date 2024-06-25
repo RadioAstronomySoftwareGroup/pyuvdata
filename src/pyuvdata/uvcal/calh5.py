@@ -704,7 +704,7 @@ class CalH5(UVCal):
         None
         """
         # write out UVH5 version information
-        header["version"] = np.string_("0.1")
+        header["version"] = np.bytes_("0.1")
 
         # write out telescope and source information
         self.telescope.write_hdf5_header(header)
@@ -719,9 +719,9 @@ class CalH5(UVCal):
         header["jones_array"] = self.jones_array
         header["spw_array"] = self.spw_array
         header["ant_array"] = self.ant_array
-        header["cal_type"] = np.string_(self.cal_type)
-        header["cal_style"] = np.string_(self.cal_style)
-        header["gain_convention"] = np.string_(self.gain_convention)
+        header["cal_type"] = np.bytes_(self.cal_type)
+        header["cal_style"] = np.bytes_(self.cal_style)
+        header["gain_convention"] = np.bytes_(self.gain_convention)
         header["wide_band"] = self.wide_band
 
         # write out optional parameters
@@ -751,23 +751,23 @@ class CalH5(UVCal):
         if self.baseline_range is not None:
             header["baseline_range"] = self.baseline_range
         if self.diffuse_model is not None:
-            header["diffuse_model"] = np.string_(self.diffuse_model)
+            header["diffuse_model"] = np.bytes_(self.diffuse_model)
         if self.freq_array is not None:
             header["freq_array"] = self.freq_array
         if self.freq_range is not None:
             header["freq_range"] = self.freq_range
         if self.gain_scale is not None:
-            header["gain_scale"] = np.string_(self.gain_scale)
+            header["gain_scale"] = np.bytes_(self.gain_scale)
         if self.git_hash_cal is not None:
-            header["git_hash_cal"] = np.string_(self.git_hash_cal)
+            header["git_hash_cal"] = np.bytes_(self.git_hash_cal)
         if self.git_origin_cal is not None:
-            header["git_origin_cal"] = np.string_(self.git_origin_cal)
+            header["git_origin_cal"] = np.bytes_(self.git_origin_cal)
         if self.observer is not None:
-            header["observer"] = np.string_(self.observer)
+            header["observer"] = np.bytes_(self.observer)
         if self.ref_antenna_name is not None:
-            header["ref_antenna_name"] = np.string_(self.ref_antenna_name)
+            header["ref_antenna_name"] = np.bytes_(self.ref_antenna_name)
         if self.sky_catalog is not None:
-            header["sky_catalog"] = np.string_(self.sky_catalog)
+            header["sky_catalog"] = np.bytes_(self.sky_catalog)
         if self.phase_center_id_array is not None:
             header["phase_center_id_array"] = self.phase_center_id_array
         if self.Nphase is not None:
@@ -789,7 +789,7 @@ class CalH5(UVCal):
             extra_keywords = header.create_group("extra_keywords")
             for k in self.extra_keywords.keys():
                 if isinstance(self.extra_keywords[k], str):
-                    extra_keywords[k] = np.string_(self.extra_keywords[k])
+                    extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                 elif self.extra_keywords[k] is None:
                     # save as empty/null dataset
                     extra_keywords[k] = h5py.Empty("f")
@@ -797,7 +797,7 @@ class CalH5(UVCal):
                     extra_keywords[k] = self.extra_keywords[k]
 
         # write out history
-        header["history"] = np.string_(self.history)
+        header["history"] = np.bytes_(self.history)
 
         return
 

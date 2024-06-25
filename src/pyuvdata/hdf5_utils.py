@@ -498,7 +498,7 @@ class HDF5Meta:
 
         extra_keywords = {}
         for key in header["extra_keywords"].keys():
-            if header["extra_keywords"][key].dtype.type in (np.string_, np.object_):
+            if header["extra_keywords"][key].dtype.type in (np.bytes_, np.object_):
                 extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
                     "utf8"
                 )
