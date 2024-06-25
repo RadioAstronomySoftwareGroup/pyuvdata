@@ -1,11 +1,9 @@
 [build-system]
- requires = [
-  "setuptools>=61",
-  "wheel",
-  "setuptools_scm>=7.0.3",
-  "numpy",
-  "cython>=3.0",
- ]
+requires = ["setuptools>=64",
+            "wheel",
+            "setuptools_scm>=8.0",
+            "numpy",
+            "cython>=3.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -40,8 +38,8 @@ dependencies = [
     "pyerfa>=2.0.1.1",
     "pyyaml>=5.4.1",
     "scipy>=1.7.3",
-    "setuptools>=61",
-    "setuptools_scm>=7.0.3",
+    "setuptools>=64",
+    "setuptools_scm>=8.0",
 ]
 requires-python = ">=3.10"
 keywords = ["radio astronomy", "interferometry"]
