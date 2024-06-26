@@ -21,10 +21,11 @@ from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
 
-from .. import Telescope, known_telescopes
+from .. import Telescope
 from .. import parameter as uvp
 from .. import utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
+from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
 from ..uvbase import UVBase
@@ -325,16 +326,16 @@ class UVData(UVBase):
         desc = (
             "Dictionary that acts as a catalog, containing information on individual "
             "phase centers. Keys are the catalog IDs of the different phase centers in "
-            "the object (matched to the parameter `phase_center_id_array`). At a "
+            "the object (matched to the parameter ``phase_center_id_array``). At a "
             "minimum, each dictionary must contain the keys: "
             "'cat_name' giving the phase center name (this does not have to be unique, "
             "non-unique values can be used to indicate sets of phase centers that make "
             "up a mosaic observation), "
             "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
             "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
-            "Az/El, NOT the same as the old `phase_type`='drift') or 'unprojected' "
+            "Az/El, NOT the same as the old ``phase_type`` = 'drift') or 'unprojected' "
             "(baseline coordinates in ENU, but data are not phased, similar to "
-            "the old `phase_type`='drift') "
+            "the old ``phase_type`` = 'drift') "
             "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
             "dimensional array of length Npts --the number of ephemeris data points-- "
             "for ephem type phase centers), "

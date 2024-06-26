@@ -16,8 +16,9 @@ from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import known_telescope_location, utils
+from .. import utils
 from ..docstrings import copy_replace_short_description
+from ..telescopes import known_telescope_location
 from . import UVData
 from .uvdata import reporting_request
 
