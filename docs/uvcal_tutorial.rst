@@ -258,7 +258,7 @@ a) Data for a single antenna and instrumental polarization
 UVCal: Calibrating UVData
 -------------------------
 Calibration solutions in a :class:`pyuvdata.UVCal` object can be applied to a
-:class:`pyuvdata.UVData` object using the :func:`pyuvdata.uvcalibrate` function.
+:class:`pyuvdata.UVData` object using the :func:`pyuvdata.utils.uvcalibrate` function.
 
 
 a) Calibration of UVData by UVCal
@@ -267,7 +267,7 @@ a) Calibration of UVData by UVCal
 
   >>> # We can calibrate directly using a UVCal object
   >>> import os
-  >>> from pyuvdata import UVData, UVCal, uvcalibrate
+  >>> from pyuvdata import UVData, UVCal, utils
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd = UVData.from_file(
   ...    os.path.join(DATA_PATH, "zen.2458098.45361.HH.uvh5_downselected"),
@@ -281,10 +281,10 @@ a) Calibration of UVData by UVCal
   >>> uvc.telescope.antenna_names = np.array(
   ...     [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
   ... )
-  >>> uvd_calibrated = uvcalibrate(uvd, uvc, inplace=False)
+  >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
 
   >>> # We can also un-calibrate using the same UVCal
-  >>> uvd_uncalibrated = uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
+  >>> uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
 
 
 UVCal: Selecting data

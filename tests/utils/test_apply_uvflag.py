@@ -6,8 +6,8 @@
 import numpy as np
 import pytest
 
-from pyuvdata import UVFlag, apply_uvflag, utils
-from pyuvdata.testing import check_warnings
+from pyuvdata import UVFlag
+from pyuvdata.utils import apply_uvflag
 
 
 @pytest.mark.filterwarnings("ignore:The shapes of several attributes will be changing")
@@ -26,12 +26,7 @@ def test_apply_uvflag(uvcalibrate_uvdata_oldfiles):
     uvf.flag_array[uvf.antpair2ind(9, 10)[:2]] = True
 
     # apply flags and check for basic flag propagation
-    with check_warnings(
-        DeprecationWarning,
-        match="uvcalibrate has moved, please import it as 'from pyuvdata import "
-        "uvcalibrate'. This warnings will become an error in version 3.2",
-    ):
-        uvdf = utils.apply_uvflag(uvd, uvf, inplace=False)
+    uvdf = apply_uvflag(uvd, uvf, inplace=False)
     assert np.all(uvdf.flag_array[uvdf.antpair2ind(9, 10)][:2])
 
     # test inplace
