@@ -140,7 +140,9 @@ def test_properties():
 
 def test_known_telescopes():
     """Test known_telescopes function returns expected results."""
-    assert sorted(pyuvdata.known_telescopes()) == sorted(expected_known_telescopes)
+    assert sorted(pyuvdata.telescopes.known_telescopes()) == sorted(
+        expected_known_telescopes
+    )
 
 
 def test_update_params_from_known():
@@ -203,7 +205,7 @@ def test_update_params_from_known():
 
 
 def test_from_known():
-    for inst in pyuvdata.known_telescopes():
+    for inst in pyuvdata.telescopes.known_telescopes():
         # don't run check b/c some telescopes won't have antenna info defined
         telescope_obj = Telescope.from_known_telescopes(inst, run_check=False)
         assert telescope_obj.name == inst

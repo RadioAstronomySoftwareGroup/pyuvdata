@@ -44,13 +44,6 @@ def write_telescope_rst(write_file=None):
         "`optional`_. The :meth:`pyuvdata.Telescope.check` method can be called\n"
         "on the object to verify that all of the required attributes have been\n"
         "set in a consistent way.\n\n"
-        "Note that angle type attributes also have convenience properties named the\n"
-        "same thing with ``_degrees`` appended through which you can get or set the\n"
-        "value in degrees. Similarly location type attributes (which are given in\n"
-        "geocentric xyz coordinates) have convenience properties named the\n"
-        "same thing with ``_lat_lon_alt`` and ``_lat_lon_alt_degrees`` appended\n"
-        "through which you can get or set the values using latitude, longitude and\n"
-        "altitude values in radians or degrees and meters.\n\n"
     )
     out += "Required\n********\n"
     out += (
@@ -90,7 +83,8 @@ def write_telescope_rst(write_file=None):
         ":class:`astropy.coordinates.EarthLocation` object, which\n"
         "is shown here using the Geodetic representation. Also note that for\n"
         "some telescopes we store csv files giving antenna layout information\n"
-        "which can be used if data files are missing that information.\n\n"
+        "which can be used if data files are missing that information.\n"
+        "We also provide a convenience function to get known telescope locations.\n\n"
     )
 
     known_tel_use = copy.deepcopy(_KNOWN_TELESCOPES)
@@ -103,6 +97,8 @@ def write_telescope_rst(write_file=None):
     json_obj = json.dumps(known_tel_use, sort_keys=True, indent=4)
     json_obj = json_obj[:-1] + " }"
     out += ".. code-block:: JavaScript\n\n {json_str}\n\n".format(json_str=json_obj)
+
+    out += ".. autofunction:: pyuvdata.telescopes.known_telescope_location\n\n"
 
     t = Time.now()
     t.format = "iso"

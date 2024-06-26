@@ -53,11 +53,6 @@ def write_uvcal_rst(write_file=None):
         "``delay_array``, ``flag_array``, ``quality_array``) are not. The\n"
         ":meth:`pyuvdata.UVCal.check` method will still pass for metadata only\n"
         "objects.\n\n"
-        "Note location type attributes (which are given in topocentric xyz\n"
-        "coordinates) have convenience properties named the same thing with\n"
-        "``_lat_lon_alt`` and ``_lat_lon_alt_degrees`` appended through which you can\n"
-        "get or set the values using latitude, longitude and altitude values in\n"
-        "radians or degrees and meters.\n\n"
     )
     out += "Required\n********\n"
     out += (
