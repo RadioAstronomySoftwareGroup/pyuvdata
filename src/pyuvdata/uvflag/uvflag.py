@@ -1396,9 +1396,10 @@ class UVFlag(UVBase):
         """Convert a UVFlag object of type "waterfall" or "antenna" to type "baseline".
 
         Broadcasts the flag array to all baselines.
-        This function does NOT apply flags to uv (see pyuvdata.apply_uvflag for that).
-        Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
-        and `antenna_positions`) may be reordered to match the ordering on `uv`.
+        This function does NOT apply flags to uv (see pyuvdata.utils.apply_uvflag
+        for that). Note that the antenna metadata arrays (`antenna_names`,
+        `antenna_numbers` and `antenna_positions`) may be reordered to match the
+        ordering on `uv`.
 
         Parameters
         ----------
@@ -1621,9 +1622,10 @@ class UVFlag(UVBase):
         """Convert a UVFlag object of type "waterfall" to type "antenna".
 
         Broadcasts the flag array to all antennas.
-        This function does NOT apply flags to uv (see pyuvdata.apply_uvflag for that).
-        Note that the antenna metadata arrays (`antenna_names`, `antenna_numbers`
-        and `antenna_positions`) may be reordered to match the ordering on `uv`.
+        This function does NOT apply flags to uv (see pyuvdata.utils.apply_uvflag
+        for that). Note that the antenna metadata arrays (`antenna_names`,
+        `antenna_numbers` and `antenna_positions`) may be reordered to match the
+        ordering on `uv`.
 
         Parameters
         ----------

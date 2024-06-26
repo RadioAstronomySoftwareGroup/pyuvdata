@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 
-from .utils.pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2num
+from .pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2num
 
 
 def uvcalibrate(
@@ -410,7 +410,7 @@ def uvcalibrate(
                 uvdata.data_array[blt_inds, :, pol_ind] /= gain
 
     # update attributes
-    uvdata.history += "\nCalibrated with pyuvdata.uvcalibrate."
+    uvdata.history += "\nCalibrated with pyuvdata.utils.uvcalibrate."
     if undo:
         uvdata.vis_units = "uncalib"
     else:

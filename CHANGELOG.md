@@ -33,8 +33,6 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Restructured `utils.py` into a new submodule `utils` with functions split among
 several submodules. Utility functions used widely are still available from
 pyuvdata.utils, although this access pattern is deprecated for some of them.
-- Moved `uvcalibrate` and `apply_uvflag` to their own modules at the top level.
-Accessing them via `utils` is still available but is deprecated.
 - Modified `UVBeam.interp` to speed up processing when `check_azza_domain=True`.
 - Updated minimum dependencies: setuptools>=64, setuptools_scm>=8.0
 - Restructured to a `src` layout. This should not affect most users, but the
