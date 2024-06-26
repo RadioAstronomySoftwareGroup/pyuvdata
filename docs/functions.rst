@@ -1,17 +1,11 @@
-Useful Functions
-================
-There are some functions that interact with multiple types of objects to apply
-calibrations solutions and flagging to other objects.
-
-.. autofunction:: pyuvdata.uvcalibrate
-
-.. autofunction:: pyuvdata.apply_uvflag
-
-
 Utility Functions
------------------
+================
 Some of our utility functions are widely used. The most commonly used ones are
 noted here, for others see the developer docs: :ref:`developer docs utility functions`.
+
+.. autofunction:: pyuvdata.utils.uvcalibrate
+
+.. autofunction:: pyuvdata.utils.apply_uvflag
 
 .. autofunction:: pyuvdata.utils.baseline_to_antnums
 .. autofunction:: pyuvdata.utils.antnums_to_baseline

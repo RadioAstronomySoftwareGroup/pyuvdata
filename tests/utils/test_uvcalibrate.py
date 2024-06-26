@@ -8,9 +8,10 @@ import re
 import numpy as np
 import pytest
 
-from pyuvdata import UVCal, utils, uvcalibrate
+from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
+from pyuvdata.utils import uvcalibrate
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
@@ -137,14 +138,7 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
         # set the gain_scale to "Jy" to test that vis units are set properly
         uvc.gain_scale = "Jy"
 
-    with check_warnings(
-        DeprecationWarning,
-        match="uvcalibrate has moved, please import it as 'from pyuvdata import "
-        "uvcalibrate'. This warnings will become an error in version 3.2",
-    ):
-        uvdcal = utils.uvcalibrate(
-            uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj
-        )
+    uvdcal = uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
     if gain_convention == "divide":
         assert uvdcal.vis_units == "uncalib"
     else:
