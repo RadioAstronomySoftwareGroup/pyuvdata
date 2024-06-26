@@ -26,6 +26,6 @@ dependencies:
   - setuptools_scm>=8.0
   - sphinx
   - pip:
-      - lunarsky>=0.2.2
+      - lunarsky>=0.2.4
       - novas
       - novas_de405
