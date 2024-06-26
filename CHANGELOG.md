@@ -30,6 +30,7 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Updated minimum optional dependency versions: lunarsky>=0.2.4
 - Restructured `utils.py` into a new submodule `utils` with functions split among
 several submodules. Utility functions used widely are still available from
 pyuvdata.utils, although this access pattern is deprecated for some of them.
