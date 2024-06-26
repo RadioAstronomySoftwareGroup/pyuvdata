@@ -10,7 +10,8 @@ import numpy as np
 from astropy.coordinates import EarthLocation
 from astropy.time import Time
 
-from ... import __version__, known_telescope_location, known_telescopes, utils
+from ... import __version__, utils
+from ...telescopes import known_telescope_location, known_telescopes
 from ...uvdata.uvdata import reporting_request
 
 try:

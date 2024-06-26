@@ -49,13 +49,9 @@ def write_uvdata_rst(write_file=None):
         "``flag_array``, ``nsample_array``) are not. The\n"
         ":meth:`pyuvdata.UVData.check` method will still pass for metadata only\n"
         "objects.\n\n"
-        "Note that angle type attributes also have convenience properties named the\n"
-        "same thing with ``_degrees`` appended through which you can get or set the\n"
-        "value in degrees. Similarly location type attributes (which are given in\n"
-        "geocentric xyz coordinates) have convenience properties named the\n"
-        "same thing with ``_lat_lon_alt`` and ``_lat_lon_alt_degrees`` appended\n"
-        "through which you can get or set the values using latitude, longitude and\n"
-        "altitude values in radians or degrees and meters.\n\n"
+        "Note that angle type attributes also have convenience properties named\n"
+        "the same thing with ``_degrees`` appended through which you can get or\n"
+        "set the value in degrees.\n\n"
     )
     out += "Required\n********\n"
     out += (

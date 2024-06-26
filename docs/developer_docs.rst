@@ -40,8 +40,9 @@ the user classes and the file-specific classes automatically as needed, so users
 generally do not need to interact with these classes, but developers may need to.
 
 
-UVData
-******
+UVData Classes
+**************
+
 
 .. autoclass:: pyuvdata.uvdata.fhd.FHD
   :members:
@@ -64,8 +65,9 @@ UVData
 .. autoclass:: pyuvdata.uvdata.uvh5.UVH5
   :members:
 
-UVCal
-*****
+
+UVCal Classes
+*************
 
 .. autoclass:: pyuvdata.uvcal.calfits.CALFITS
   :members:
@@ -76,8 +78,8 @@ UVCal
 .. autoclass:: pyuvdata.uvcal.fhd_cal.FHDCal
   :members:
 
-UVBeam
-******
+UVBeam Classes
+**************
 
 .. autoclass:: pyuvdata.uvbeam.beamfits.BeamFITS
   :members:
@@ -89,182 +91,43 @@ UVBeam
   :members:
 
 
-.. _Developer Docs Utility Functions:
+Other Modules and Functions
+---------------------------
 
-Utility Functions
------------------
-Note that we are also listing private functions here (functions that start with
-an underscore). While they are listed here, **they are not considered part of the
-public API, so they can change without notice**. If you find that you need to rely
-one of them let us know in a github issue and we can consider making it part of
-the public API.
-
-
-File I/O Utility Functions
-**************************
-
-Antenna position files
-++++++++++++++++++++++
-
-.. automodule:: pyuvdata.utils.io.antpos
-  :members:
-  :private-members:
-  :undoc-members:
-
-FHD files
-+++++++++
-
-.. automodule:: pyuvdata.utils.io.fhd
-  :members:
-  :private-members:
-  :undoc-members:
-
-FITS files
-++++++++++
-
-.. automodule:: pyuvdata.utils.io.fits
-  :members:
-  :private-members:
-  :undoc-members:
-
-HDF5 files
-++++++++++
-
-.. automodule:: pyuvdata.utils.io.hdf5
-  :members:
-  :private-members:
-  :undoc-members:
-
-Measurement Set files
-+++++++++++++++++++++
-
-.. automodule:: pyuvdata.utils.io.ms
-  :members:
-  :private-members:
-  :undoc-members:
-
-Array collapse functions for flags
-**********************************
-
-.. automodule:: pyuvdata.utils.array_collapse
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with baseline numbers
-*******************************************
-
-.. automodule:: pyuvdata.utils.bls
-  :members:
-  :private-members:
-  :undoc-members:
-  :ignore-module-all:
-
-Functions for working with the baseline-time axis
-*************************************************
-
-.. automodule:: pyuvdata.utils.bltaxis
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with telescope coordinates
-************************************************
-
-.. automodule:: pyuvdata.utils.coordinates
-  :members:
-  :private-members:
-  :undoc-members:
-  :ignore-module-all:
-
-Functions for working with the frequency axis
-*********************************************
-
-.. automodule:: pyuvdata.utils.frequency
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with history
-**********************************
-
-.. automodule:: pyuvdata.utils.history
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with phase center catalogs
-************************************************
-
-.. automodule:: pyuvdata.utils.phase_center_catalog
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with phasing
-**********************************
-
-.. automodule:: pyuvdata.utils.phasing
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with polarizations
-****************************************
-
-.. automodule:: pyuvdata.utils.pol
-  :members:
-  :private-members:
-  :undoc-members:
-  :ignore-module-all:
-
-Functions for working with baseline redundancies
-************************************************
-
-.. automodule:: pyuvdata.utils.redundancy
-  :members:
-  :private-members:
-  :undoc-members:
-
-Functions for working with times and LSTs
-*****************************************
-
-.. automodule:: pyuvdata.utils.times
-  :members:
-  :private-members:
-  :undoc-members:
-
-General utility functions
-*************************
-
-.. automodule:: pyuvdata.utils.tools
-  :members:
-  :private-members:
-  :undoc-members:
-
-Mir Parser
-----------
-.. automodule:: pyuvdata.uvdata.mir_parser
-  :members:
-
-.. automodule:: pyuvdata.uvdata.mir_meta_data
-  :members:
-
-
-Other Functions
----------------
+MWA Beam Functions
+******************
+Functions related to constructing the MWA beam from the input files which are in
+a harmonic space.
 
 .. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin
 
 .. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin_array
 
-.. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols
-
-.. autofunction:: pyuvdata.uvflag.uvflag.flags2waterfall
-
 
 aipy extracts
--------------
+*************
 
 .. automodule:: pyuvdata.uvdata.aipy_extracts
   :members:
+
+
+MIR parser
+**********
+
+.. automodule:: pyuvdata.uvdata.mir_parser
+  :members:
+
+MIR metadata
+************
+
+.. automodule:: pyuvdata.uvdata.mir_meta_data
+  :members:
+
+
+UVFlag Functions
+****************
+Flag handling functions.
+
+.. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols
+
+.. autofunction:: pyuvdata.uvflag.uvflag.flags2waterfall

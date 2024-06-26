@@ -11,8 +11,9 @@ from astropy.coordinates import angular_separation
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
-from .. import Telescope, known_telescope_location, utils
+from .. import Telescope, utils
 from ..docstrings import copy_replace_short_description
+from ..telescopes import known_telescope_location
 from . import UVData, mir_parser
 
 __all__ = ["generate_sma_antpos_dict", "Mir"]
