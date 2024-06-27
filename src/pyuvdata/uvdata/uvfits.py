@@ -170,7 +170,7 @@ class UVFITS(UVData):
                 ),
                 dtype=self._uvw_array.expected_type,
             )
-            * const.c.to("m/s").value
+            * const.c.to_value("m/s")
         ).T
 
         if "INTTIM" in vis_hdu.data.parnames:
@@ -996,7 +996,7 @@ class UVFITS(UVData):
             [data_array.real, data_array.imag, weights_array], axis=6
         )
         # convert to seconds units
-        uvw_array_sec = -1 * self.uvw_array / const.c.to("m/s").value
+        uvw_array_sec = -1 * self.uvw_array / const.c.to_value("m/s")
 
         if self.data_array.dtype == "complex128":
             write_precision = 64

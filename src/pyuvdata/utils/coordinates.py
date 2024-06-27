@@ -301,7 +301,7 @@ def ENU_from_ECEF(
             )
         latitude = center_loc.lat.rad
         longitude = center_loc.lon.rad
-        altitude = center_loc.height.to("m").value
+        altitude = center_loc.height.to_value("m")
         if isinstance(center_loc, EarthLocation):
             frame = "ITRS"
         else:
@@ -425,7 +425,7 @@ def ECEF_from_ENU(
             )
         latitude = center_loc.lat.rad
         longitude = center_loc.lon.rad
-        altitude = center_loc.height.to("m").value
+        altitude = center_loc.height.to_value("m")
         if isinstance(center_loc, EarthLocation):
             frame = "ITRS"
         else:
@@ -531,9 +531,9 @@ def check_surface_based_positions(
         hasmoon and isinstance(telescope_loc, MoonLocation)
     ):
         antenna_positions = antenna_positions + (
-            telescope_loc.x.to("m").value,
-            telescope_loc.y.to("m").value,
-            telescope_loc.z.to("m").value,
+            telescope_loc.x.to_value("m"),
+            telescope_loc.y.to_value("m"),
+            telescope_loc.z.to_value("m"),
         )
         if isinstance(telescope_loc, EarthLocation):
             telescope_frame = "itrs"

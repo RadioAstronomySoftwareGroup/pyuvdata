@@ -4257,7 +4257,7 @@ class UVData(UVBase):
         # Check for singleton w arrays, in which case no select mask gets applied.
         delta_w_lambda = (
             delta_w[... if delta_w.shape[0] == 1 else select_mask]
-            * (1.0 / const.c.to("m/s").value)
+            * (1.0 / const.c.to_value("m/s"))
             * self.freq_array.reshape(1, self.Nfreqs)
         )
 
@@ -5094,7 +5094,7 @@ class UVData(UVBase):
             if not self.metadata_only:
                 w_lambda = (
                     self.uvw_array[:, 2].reshape(self.Nblts, 1)
-                    / const.c.to("m/s").value
+                    / const.c.to_value("m/s")
                     * self.freq_array.reshape(1, self.Nfreqs)
                 )
                 phs = np.exp(-1j * 2 * np.pi * (-1) * w_lambda[:, :, None])
@@ -7514,7 +7514,7 @@ class UVData(UVBase):
             # new sample.
             for ii, idx in enumerate(range(i0, i1)):
                 idx2 = ii + offset + n2 - n_new_samples[i]
-                nt = ((t0 * units.day) + (dt * idx2 * units.s)).to(units.day).value
+                nt = ((t0 * units.day) + (dt * idx2 * units.s)).to_value(units.day)
                 temp_time[idx] = nt
 
             temp_int_time[i0:i1] = dt

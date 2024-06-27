@@ -2591,7 +2591,7 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
 
     # Check for the case of a uniform beam over the whole sky
     hp_obj = HEALPix(nside=healpix_norm.nside)
-    d_omega = hp_obj.pixel_area.to("steradian").value
+    d_omega = hp_obj.pixel_area.to_value("steradian")
     npix = healpix_norm.Npixels
     healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
     assert np.allclose(

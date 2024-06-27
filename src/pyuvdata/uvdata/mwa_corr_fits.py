@@ -526,7 +526,7 @@ class MWACorrFITS(UVData):
             * 2
             * np.pi
             * cable_len_diffs.reshape(self.Nblts, 1)
-            / const.c.to("m/s").value
+            / const.c.to_value("m/s")
             * self.freq_array.reshape(1, self.Nfreqs)
         )[:, :, None]
         history_add_string = " Applied cable length correction."
