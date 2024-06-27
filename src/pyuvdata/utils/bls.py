@@ -44,9 +44,9 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
         np.ascontiguousarray(baseline, dtype=np.uint64)
     )
     if return_array:
-        return ant1, ant2
+        return np.astype(ant1, int), np.astype(ant2, int)
     else:
-        return ant1.item(0), ant2.item(0)
+        return int(ant1.item(0)), int(ant2.item(0))
 
 
 def antnums_to_baseline(
