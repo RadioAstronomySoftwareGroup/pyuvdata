@@ -9,7 +9,23 @@ from pathlib import Path
 
 from setuptools_scm import get_version
 
-from .branch_scheme import branch_scheme
+
+# copy this function here from setup.py.
+# Copying code is terrible, but it's better than altering the python path in setup.py.
+def branch_scheme(version):  # pragma: nocover
+    """
+    Local version scheme that adds the branch name for absolute reproducibility.
+
+    If and when this is added to setuptools_scm this function can be removed.
+    """
+    if version.exact or version.node is None:
+        return version.format_choice("", "+d{time:{time_format}}", time_format="%Y%m%d")
+    else:
+        if version.branch == "main":
+            return version.format_choice("+{node}", "+{node}.dirty")
+        else:
+            return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
+
 
 try:  # pragma: nocover
     # get accurate version for developer installs
