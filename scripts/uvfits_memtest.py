@@ -43,7 +43,7 @@ def read_uvfits():
                 (vis_hdu.data.par("UU"), vis_hdu.data.par("VV"), vis_hdu.data.par("WW"))
             )
         )
-        * const.c.to("m/s").value
+        * const.c.to_value("m/s")
     ).T
 
     if vis_hdu.header["NAXIS"] == 7:

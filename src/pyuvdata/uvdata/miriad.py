@@ -400,7 +400,7 @@ class Miriad(UVData):
         nants = uv["nants"]
         try:
             # Miriad stores antpos values in units of ns, pyuvdata uses meters.
-            antpos = uv["antpos"].reshape(3, nants).T * const.c.to("m/ns").value
+            antpos = uv["antpos"].reshape(3, nants).T * const.c.to_value("m/ns")
 
             # first figure out what are good antenna positions so we can only
             # use the non-zero ones to evaluate position information
@@ -443,7 +443,7 @@ class Miriad(UVData):
                     mean_lon, mean_lat, mean_alt = self.telescope.location.geodetic
                     mean_lat = mean_lat.rad
                     mean_lon = mean_lon.rad
-                    mean_alt = mean_alt.to("m").value
+                    mean_alt = mean_alt.to_value("m")
                     tol = 2 * np.pi / (60.0 * 60.0 * 24.0)  # 1 arcsecond in radians
                     mean_lat_close = np.isclose(mean_lat, latitude, rtol=0, atol=tol)
                     mean_lon_close = np.isclose(mean_lon, longitude, rtol=0, atol=tol)
@@ -1226,7 +1226,7 @@ class Miriad(UVData):
         frame_pa_pol_list = np.zeros((self.Nblts, self.Npols))
         lst_pol_list = np.zeros((self.Nblts, self.Npols))
 
-        c_ns = const.c.to("m/ns").value
+        c_ns = const.c.to_value("m/ns")
         for pol, data in data_accumulator.items():
             pol_ind = self._pol_to_ind(pol)
             for d in data:
@@ -1834,7 +1834,7 @@ class Miriad(UVData):
 
             uv.add_var("antpos", "d")
             # Miriad stores antpos values in units of ns, pyuvdata uses meters.
-            uv["antpos"] = (antpos.T.flatten() / const.c.to("m/ns").value).astype(
+            uv["antpos"] = (antpos.T.flatten() / const.c.to_value("m/ns")).astype(
                 np.double
             )
 
@@ -1850,7 +1850,7 @@ class Miriad(UVData):
         uv.add_var("instrume", "a")
         uv["instrume"] = self.telescope.instrument
         uv.add_var("altitude", "d")
-        uv["altitude"] = self.telescope.location.height.to("m").value.astype(np.double)
+        uv["altitude"] = self.telescope.location.height.to_value("m").astype(np.double)
 
         # optional pyuvdata variables that are not recognized miriad variables
         if self.dut1 is not None:
@@ -1952,7 +1952,7 @@ class Miriad(UVData):
         uv.add_var("obspa", "d")  # Non-standard MIRIAD keyword
 
         # write data
-        c_ns = const.c.to("m/ns").value
+        c_ns = const.c.to_value("m/ns")
         any_ephem = np.any(self._check_for_cat_type("ephem"))
         any_driftscan = np.any(self._check_for_cat_type("driftscan"))
         if any_driftscan:

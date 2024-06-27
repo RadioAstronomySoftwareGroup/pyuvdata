@@ -972,7 +972,7 @@ utility method.
   >>> from pyuvdata import utils
 
   >>> # get antennas positions in ECEF
-  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to("m").value
+  >>> telescope_ecef_xyz = Quantity(uvd.telescope.location.geocentric).to_value("m")
   >>> antpos = uvd.telescope.antenna_positions + telescope_ecef_xyz
 
   >>> # convert to East, North, Up (ENU) coords.

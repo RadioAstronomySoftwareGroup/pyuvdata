@@ -189,7 +189,7 @@ class CALFITS(UVCal):
             prihdr["ELLIPSOI"] = self.telescope._location.ellipsoid
         prihdr["LAT"] = self.telescope.location.lat.rad
         prihdr["LON"] = self.telescope.location.lon.rad
-        prihdr["ALT"] = self.telescope.location.height.to("m").value
+        prihdr["ALT"] = self.telescope.location.height.to_value("m")
         prihdr["GNCONVEN"] = self.gain_convention
         prihdr["CALTYPE"] = self.cal_type
         prihdr["CALSTYLE"] = self.cal_style

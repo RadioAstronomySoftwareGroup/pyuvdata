@@ -278,15 +278,14 @@ def test_old_known_tel_dict_keys():
         assert KNOWN_TELESCOPES["HERA"]["longitude"] == hera_tel.location.lon.rad
 
     with check_warnings(DeprecationWarning, match=warn_msg):
-        assert (
-            KNOWN_TELESCOPES["HERA"]["altitude"]
-            == hera_tel.location.height.to("m").value
-        )
+        assert KNOWN_TELESCOPES["HERA"][
+            "altitude"
+        ] == hera_tel.location.height.to_value("m")
 
     with check_warnings(DeprecationWarning, match=warn_msg):
         np.testing.assert_allclose(
             KNOWN_TELESCOPES["HERA"]["center_xyz"],
-            Quantity(hera_tel.location.geocentric).to("m").value,
+            Quantity(hera_tel.location.geocentric).to_value("m"),
         )
     with check_warnings(DeprecationWarning, match=warn_msg):
         assert KNOWN_TELESCOPES["HERA"]["citation"] == hera_tel.citation

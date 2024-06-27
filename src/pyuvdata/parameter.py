@@ -978,7 +978,7 @@ class LocationParameter(UVParameter):
                 centric_coords = self.value.selenocentric
             else:
                 centric_coords = self.value.geocentric
-            return units.Quantity(centric_coords).to("m").value
+            return units.Quantity(centric_coords).to_value("m")
 
     def set_xyz(self, xyz, *, frame=None, ellipsoid=None):
         """Set the body centric coordinates in meters."""
@@ -1013,7 +1013,7 @@ class LocationParameter(UVParameter):
         else:
             lat = self.value.lat.rad
             lon = self.value.lon.rad
-            alt = self.value.height.to("m").value
+            alt = self.value.height.to_value("m")
             return lat, lon, alt
 
     def set_lat_lon_alt(self, lat_lon_alt, ellipsoid=None):
@@ -1055,7 +1055,7 @@ class LocationParameter(UVParameter):
         else:
             lat = self.value.lat.deg
             lon = self.value.lon.deg
-            alt = self.value.height.to("m").value
+            alt = self.value.height.to_value("m")
             return lat, lon, alt
 
     def set_lat_lon_alt_degrees(self, lat_lon_alt_degree, ellipsoid=None):

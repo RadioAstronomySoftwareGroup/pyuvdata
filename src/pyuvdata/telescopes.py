@@ -113,10 +113,10 @@ class TelMapping(Mapping):
             if key == "longitude":
                 return self._mapping["location"].lon.rad
             if key == "altitude":
-                return self._mapping["location"].height.to("m").value
+                return self._mapping["location"].height.to_value("m")
             if key == "center_xyz":
-                return (
-                    units.Quantity(self._mapping["location"].geocentric).to("m").value
+                return units.Quantity(self._mapping["location"].geocentric).to_value(
+                    "m"
                 )
 
         return self._mapping[key]

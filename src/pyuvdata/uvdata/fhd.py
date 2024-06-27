@@ -348,9 +348,9 @@ class FHD(UVData):
         # ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
         self.uvw_array = np.zeros((self.Nblts, 3))
-        self.uvw_array[:, 0] = (-1) * params["UU"][0] * const.c.to("m/s").value
-        self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to("m/s").value
-        self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to("m/s").value
+        self.uvw_array[:, 0] = (-1) * params["UU"][0] * const.c.to_value("m/s")
+        self.uvw_array[:, 1] = (-1) * params["VV"][0] * const.c.to_value("m/s")
+        self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to_value("m/s")
 
         lin_pol_order = ["xx", "yy", "xy", "yx"]
         linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))

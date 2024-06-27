@@ -665,9 +665,9 @@ class HDF5Meta:
             loc_obj = self.telescope_location_obj
             return np.array(
                 [
-                    loc_obj.x.to("m").value,
-                    loc_obj.y.to("m").value,
-                    loc_obj.z.to("m").value,
+                    loc_obj.x.to_value("m"),
+                    loc_obj.y.to_value("m"),
+                    loc_obj.z.to_value("m"),
                 ]
             )
 

@@ -570,7 +570,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
     # zero out bad locations (these are checked on read)
     antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
-    antpos = antpos.T.flatten() / const.c.to("m/ns").value
+    antpos = antpos.T.flatten() / const.c.to_value("m/ns")
 
     # make new file
     aipy_uv2 = aipy_extracts.UV(testfile, status="new")
@@ -735,7 +735,7 @@ def test_miriad_location_handling(paper_miriad_main, tmp_path):
 
     # zero out bad locations (these are checked on read)
     modified_antpos[np.where(antpos_length == 0), :] = [0, 0, 0]
-    modified_antpos = modified_antpos.T.flatten() / const.c.to("m/ns").value
+    modified_antpos = modified_antpos.T.flatten() / const.c.to_value("m/ns")
 
     # make new file
     if os.path.exists(testfile):
@@ -1993,7 +1993,7 @@ def test_antpos_units(casa_uvfits, tmp_path):
     testfile = os.path.join(tmp_path, "uv_antpos_units")
     _write_miriad(uv, testfile, clobber=True)
     auv = aipy_extracts.UV(testfile)
-    aantpos = auv["antpos"].reshape(3, -1).T * const.c.to("m/ns").value
+    aantpos = auv["antpos"].reshape(3, -1).T * const.c.to_value("m/ns")
     aantpos = aantpos[uv.telescope.antenna_numbers, :]
     aantpos = (
         utils.ECEF_from_rotECEF(aantpos, uv.telescope.location.lon.rad)

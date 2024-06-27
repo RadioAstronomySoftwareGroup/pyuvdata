@@ -668,12 +668,12 @@ def test_hdf5_meta_telescope_location(test_outfile):
 
     assert np.isclose(lat, meta.telescope_location_obj.lat.rad)
     assert np.isclose(lon, meta.telescope_location_obj.lon.rad)
-    assert np.isclose(alt, meta.telescope_location_obj.height.to("m").value)
+    assert np.isclose(alt, meta.telescope_location_obj.height.to_value("m"))
 
     lat_deg, lon_deg, alt = meta.telescope_location_lat_lon_alt_degrees
     assert np.isclose(lat_deg, meta.telescope_location_obj.lat.deg)
     assert np.isclose(lon_deg, meta.telescope_location_obj.lon.deg)
-    assert np.isclose(alt, meta.telescope_location_obj.height.to("m").value)
+    assert np.isclose(alt, meta.telescope_location_obj.height.to_value("m"))
 
     if hasmoon:
         from lunarsky import MoonLocation
@@ -683,9 +683,9 @@ def test_hdf5_meta_telescope_location(test_outfile):
         )
         moon_xyz = np.array(
             [
-                moon_loc.x.to("m").value,
-                moon_loc.y.to("m").value,
-                moon_loc.z.to("m").value,
+                moon_loc.x.to_value("m"),
+                moon_loc.y.to_value("m"),
+                moon_loc.z.to_value("m"),
             ]
         )
 
