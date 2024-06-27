@@ -55,7 +55,7 @@ classifiers = [
 
 [project.optional-dependencies]
 astroquery = ["astroquery>=0.4.4"]
-casa = ["python-casacore>=3.5.2"]
+casa = ["python-casacore>=3.5.2", "numpy>=1.23,<2.0"]
 hdf5_compression = ["hdf5plugin>=3.2.0"]
 healpix = ["astropy_healpix>=1.0.2"]
 lunar = ["lunarsky>=0.2.4"]
