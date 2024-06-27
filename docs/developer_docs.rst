@@ -94,16 +94,6 @@ UVBeam Classes
 Other Modules and Functions
 ---------------------------
 
-MWA Beam Functions
-******************
-Functions related to constructing the MWA beam from the input files which are in
-a harmonic space.
-
-.. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin
-
-.. autofunction:: pyuvdata.uvbeam.mwa_beam.P1sin_array
-
-
 aipy extracts
 *************
 
@@ -126,7 +116,7 @@ MIR metadata
 
 UVFlag Functions
 ****************
-Flag handling functions.
+Some useful flag handling functions.
 
 .. autofunction:: pyuvdata.uvflag.uvflag.and_rows_cols
 

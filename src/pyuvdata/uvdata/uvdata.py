@@ -2926,7 +2926,8 @@ class UVData(UVBase):
         list of tuples of int
             list of unique antpair tuples (ant1, ant2) with data associated with them.
         """
-        return list(zip(*self.baseline_to_antnums(self.get_baseline_nums())))
+        ant1_arr, ant2_arr = self.baseline_to_antnums(self.get_baseline_nums())
+        return list(zip((ant1_arr).tolist(), (ant2_arr).tolist()))
 
     def get_pols(self):
         """
