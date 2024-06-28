@@ -2100,9 +2100,9 @@ class MirParser(object):
             data_arr = self.ac_data._data[field]
             export_data_arr = self.bl_data._data[field]
             for key, idx_arr in ac_groups.items():
-                try:
+                if key in bl_groups:
                     data_arr[idx_arr] = np.median(export_data_arr[bl_groups[key]])
-                except KeyError:
+                else:
                     # If no key is found, then skip over filling in the data. Odds are
                     # this is single-rx data, which means the second receiver is
                     # basically blank, so flag the entry
