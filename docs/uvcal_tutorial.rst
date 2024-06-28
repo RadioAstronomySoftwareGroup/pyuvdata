@@ -330,7 +330,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> cal = UVCal.from_file(filename, use_future_array_shapes=True)
 
   >>> # print all the antenna names with data in the original file
-  >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
+  >>> print([str(cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
   ['ant0', 'ant1', 'ant11', 'ant12', 'ant13', 'ant23', 'ant24', 'ant25']
 
   >>> # print the first 10 frequencies in the original file
@@ -340,7 +340,7 @@ b) Select antennas to keep using the antenna names, also select frequencies to k
   >>> cal.select(antenna_names=['ant11', 'ant13', 'ant25'], freq_chans=np.arange(0, 4))
 
   >>> # print all the antenna names with data after the select
-  >>> print([cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]] for a in cal.ant_array])
+  >>> print([str(cal.antenna_names[np.where(cal.antenna_numbers==a)[0][0]]) for a in cal.ant_array])
   ['ant11', 'ant13', 'ant25']
 
   >>> # print all the frequencies after the select

@@ -1059,7 +1059,7 @@ c) Select a few antenna pairs to keep
 
   >>> # note that order of the values in the pair does not matter
   >>> # print all the antenna pairs after the select
-  >>> print(sorted(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
+  >>> print(sorted(set(zip(uvd.ant_1_array.tolist(), uvd.ant_2_array.tolist()))))
   [(1, 2), (1, 7), (1, 21)]
 
 d) Select antenna pairs using baseline numbers
@@ -1083,7 +1083,7 @@ d) Select antenna pairs using baseline numbers
   >>> # print unique baselines and antennas after select
   >>> print(np.unique(uvd.baseline_array))
   [73736 73753 81945]
-  >>> print(list(set(zip(uvd.ant_1_array, uvd.ant_2_array))))
+  >>> print(list(set(zip(uvd.ant_1_array.tolist(), uvd.ant_2_array.tolist()))))
   [(8, 25), (4, 25), (4, 8)]
 
 e) Select polarizations
@@ -2039,19 +2039,16 @@ in the full data array based on redundancy.
   >>> uv_backup = uv0.copy()
   >>> uvd2 = uv0.compress_by_redundancy(method="select", tol=tol, inplace=False)
   >>> uv0.compress_by_redundancy(method="select", tol=tol)
-  >>> uvd2 == uv0
-  True
+  >>> assert uvd2 == uv0
 
   >>> # Note -- Compressing and inflating changes the baseline order, reorder before comparing.
   >>> uv0.inflate_by_redundancy(tol=tol)
   >>> uv_backup.reorder_blts(conj_convention="u>0", uvw_tol=tol)
   >>> uv0.reorder_blts()
-  >>> np.all(uv0.baseline_array == uv_backup.baseline_array)
-  True
+  >>> assert np.all(uv0.baseline_array == uv_backup.baseline_array)
 
   >>> uvd2.inflate_by_redundancy(tol=tol)
-  >>> uvd2 == uv0
-  True
+  >>> assert uvd2 == uv0
 
 UVData: Normalizing data
 ------------------------
