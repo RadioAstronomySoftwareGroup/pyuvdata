@@ -2364,4 +2364,3 @@ def test_mir_parser_missing_auto_rx(mir_data):
 
     # Verify that every other entry is flagged, which means no data for that rx
     assert np.array_equal(mir_data.ac_data._mask, [True, False] * 8)
-    mir_data.ac_data["corrchunk"]
