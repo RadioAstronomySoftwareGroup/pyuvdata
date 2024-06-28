@@ -47,7 +47,7 @@ jobs:
           name: install
           command: |
             source ./ci/_activate_current_env.sh
-            CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install .
+            CFLAGS="-DCYTHON_TRACE=1 -DCYTHON_TRACE_NOGIL=1" pip install --no-deps .
       - run:
           name: run pyuvdata tests
           command: |
@@ -108,7 +108,7 @@ jobs:
           name: install
           command: |
             source ./ci/_activate_current_env.sh
-            pip install -e .
+            pip install --no-deps -e .
       - run:
           name: run tutorial tests
           command: |
