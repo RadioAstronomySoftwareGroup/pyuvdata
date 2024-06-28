@@ -55,6 +55,16 @@ error when evaluating a "flex-spw" dataset where Nspws was 1.
 - Fixed a bug where selection and addition/concat methods did not operate correctly on
 flex-spw `UVCal` objects where `Nspws>1`.
 
+### Removed
+- Support for current array shapes has been removed on `UVData`, `UVCal`, `UVFlag`, and
+`UVBeam` objects, as well as the `use_current_array_shapes` method for these classes.
+- The `flex_spw` attribute has been removed on `UVData` and `UVCal` objects.
+- Support for using the old phasing attributes (`phase_center_ra`, `phase_center_dec`,
+`phase_center_frame`, `phase_center_epoch`, `phase_type`, and `object_name`) in `UVData`.
+- Support for handling of the `input_flag_array` parameter for `UVCal` objects.
+- Support for providing capitalized variants of `UVBeam.feed_array`.
+- Support for 'unknown' cal type in `UVCal` objects.
+
 ## [2.4.5] - 2024-6-28
 
 ### Changed
