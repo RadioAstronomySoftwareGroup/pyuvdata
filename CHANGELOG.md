@@ -30,6 +30,16 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Future array shapes are now the only supported standard for `UVData`, `UVCal`,
+`UVFlag`, `UVBeam` classes.
+- `UVCal` objects where the cal type is delay must now have `wide_band=True`.
+- The `flex_spw_id_array` is now required for `UVCal` objects were `wide_band=False`.
+- `UVCal` objects with `wide_band=True` may only have the `freq_range` parameter set and
+the `freq_array`and `channel_width` parameters. If `wide_band=False`, then the
+`freq_array`and `channel_width` parameters must be set, while the `freq_range` parameter
+must be left unset.
+- For `UVCal` objects, only one of the time-based parameters (`time_array` and
+`time_range`) may be set on a given object.
 - Telescope-related metadata (including antenna metadata) on `UVData`, `UVCal`
 and `UVFlag` have been refactored into a `Telescope` object (attached to these
 objects as the `telescope` attribute) and most of the code related to these
@@ -63,6 +73,10 @@ gives the number of different time solutions and the second axis gives the start
 times for those solutions.
 
 ### Deprecated
+- The `future_array_shapes` attribute on `UVBase` objects has been deprecated, as
+pyuvdata now exclusively uses future array shapes.
+- The `use_future_array_shapes` keyword in several different class methods, as well as
+the `use_future_array_shapes` method on `UVBase` objects.
 - Accessing the telescope-related metadata through their old attribute names on
 `UVData`, `UVCal` and `UVFlag` rather than via their attributes on the attached
 `Telescope` object (e.g. `UVData.telescope_name` -> `UVData.telescope.name` and
