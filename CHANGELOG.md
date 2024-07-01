@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.0] - 2024-7-1
+
 ### Added
 - Several new methods on `Telescope` objects, including the classmethods
 `from_known_telescopes` and `new` to instantiate new objects and the
@@ -30,6 +32,7 @@ time for each time range or the time_array (if there's a time_array and no time_
 - Added new keyword handling for v.6 of the MIR data format within `MirParser`.
 
 ### Changed
+- Updated minimum dependency versions: scipy>=1.8, setuptools_scm>=8.1
 - Updated minimum optional dependency versions: lunarsky>=0.2.4
 - Restructured `utils.py` into a new submodule `utils` with functions split among
 several submodules. Utility functions used widely are still available from
