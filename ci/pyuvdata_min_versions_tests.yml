@@ -12,7 +12,7 @@ dependencies:
   - pyerfa==2.0.1.1
   - python-casacore==3.5.0
   - pyyaml==5.4.1
-  - scipy==1.7.3
+  - scipy==1.8.*
   - coverage
   - pytest==6.2.5
   - pytest-cases==3.8.3
@@ -20,7 +20,7 @@ dependencies:
   - pytest-xdist
   - cython==3.0.0
   - setuptools==64
-  - setuptools_scm==8.0.*
+  - setuptools_scm==8.1
   - pip
   - pip:
       - lunarsky==0.2.4

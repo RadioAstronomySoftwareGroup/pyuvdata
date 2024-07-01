@@ -149,8 +149,8 @@ Required:
 * pyerfa >= 2.0.1.1
 * python >= 3.10
 * pyyaml >= 5.4.1
-* scipy >= 1.7.3
-* setuptools_scm >= 8.0
+* scipy >= 1.8
+* setuptools_scm >= 8.1
 
 Optional:
 
