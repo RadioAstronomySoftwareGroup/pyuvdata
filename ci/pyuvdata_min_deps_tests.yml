@@ -3,17 +3,17 @@ channels:
   - conda-forge
 dependencies:
   - astropy>=6.0
+  - cython>=3.0
   - docstring_parser>=0.15
   - h5py>=3.1
-  - scipy>=1.5
   - numpy>=1.23
   - pyerfa>=2.0
   - pyyaml>=5.4.1
+  - scipy>=1.8
+  - setuptools_scm>=8.1
   - coverage
   - pytest>=6.2.5
   - pytest-cases>=3.8.3
   - pytest-cov
   - pytest-xdist
-  - cython>=3.0
-  - setuptools_scm>=8.0
   - pip
