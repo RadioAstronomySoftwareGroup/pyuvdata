@@ -211,7 +211,7 @@ def sma_mir_catalog(sma_mir_main):
 @pytest.fixture(scope="session")
 def carma_miriad_main():
     # read in test file for the resampling in time functions
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     uv_object = UVData()
     testfile = os.path.join(DATA_PATH, "carma_miriad")
     with warnings.catch_warnings():
@@ -224,7 +224,7 @@ def carma_miriad_main():
 
 @pytest.fixture(scope="function")
 def carma_miriad(carma_miriad_main):
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     uv_object = carma_miriad_main.copy()
 
     yield uv_object
@@ -9581,7 +9581,7 @@ def test_print_object_multi(carma_miriad):
     Test the print_phase_center_info function when there are multiple objects stored in
     the internal catalog.
     """
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
 
     _ = carma_miriad._add_phase_center(
         "NOISE", cat_type="unprojected", force_update=True, cat_id=0
@@ -9829,7 +9829,7 @@ def test_clear_unused_phase_centers_no_op(sma_mir):
 @pytest.mark.parametrize("cat_id,new_name", [(1, "foo"), ([1, 2], "foo")])
 def test_rename_phase_center_ints(carma_miriad, cat_id, new_name):
     uvd = carma_miriad.copy()
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     uvd.rename_phase_center(cat_id, new_name)
 
 
@@ -9862,7 +9862,7 @@ def test_rename_phase_center_bad_args(carma_miriad, args, err_type, msg):
     Verify that rename_phase_center will throw appropriate errors when supplying
     bad arguments to the method.
     """
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     with pytest.raises(err_type, match=msg):
         carma_miriad.rename_phase_center(*args)
 
@@ -9963,7 +9963,7 @@ def test_merge_phase_centers_bad_args(carma_miriad, cat_iden, err_type, msg):
     """
     Verify that merge_phase_centers will throw an error if supplied with bad args
     """
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     with pytest.raises(err_type, match=msg):
         carma_miriad.merge_phase_centers(cat_iden)
 
@@ -11229,7 +11229,7 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
 def test_from_file(filename, msg, fhd_data_files):
     kwargs = {}
     if "miriad" in filename:
-        pytest.importorskip("pyuvdata._miriad")
+        pytest.importorskip("pyuvdata.uvdata._miriad")
     elif "fhd" in filename:
         filename = fhd_data_files["filename"]
         kwargs = fhd_data_files

@@ -428,7 +428,7 @@ def test_flex_pol_roundtrip(sma_mir_filt, filetype, tmp_path):
     if filetype == "ms":
         pytest.importorskip("casacore")
     elif filetype == "miriad":
-        pytest.importorskip("pyuvdata._miriad")
+        pytest.importorskip("pyuvdata.uvdata._miriad")
 
     uvd2 = sma_mir_filt.copy(metadata_only=True)
 
