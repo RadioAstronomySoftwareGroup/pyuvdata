@@ -368,7 +368,7 @@ def test_read_ms_write_miriad(nrao_uv, tmp_path):
     Read in ms file, write out as miriad, read back in and check for
     object equality.
     """
-    pytest.importorskip("pyuvdata._miriad")
+    pytest.importorskip("pyuvdata.uvdata._miriad")
     ms_uv = nrao_uv
     miriad_uv = UVData()
     testfile = os.path.join(tmp_path, "outtest_miriad")
