@@ -715,9 +715,12 @@ class CALFITS(UVCal):
             if read_data:
                 data = fname[0].data
                 if self.cal_type == "gain":
-                    self.gain_array = (
-                        data[:, 0, :, :, :, 0] + 1j * data[:, 0, :, :, :, 1]
+                    data_dtype = data.dtype.str[0] + (
+                        "c8" if data.dtype.str[-2:] == "f4" else "c16"
                     )
+                    self.gain_array = np.squeeze(
+                        data[:, 0, :, :, :, :2].view(data_dtype), axis=-1
+                    ).astype(complex)
                     self.flag_array = data[:, 0, :, :, :, 2].astype("bool")
                     if has_quality:
                         self.quality_array = data[:, 0, :, :, :, -1]

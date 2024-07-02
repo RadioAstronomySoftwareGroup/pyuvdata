@@ -341,7 +341,13 @@ class UVFITS(UVData):
 
         # FITS uvw direction convention is opposite ours and Miriad's.
         # So conjugate the visibilities and flip the uvws:
-        self.data_array = raw_data_array[:, :, :, 0] - 1j * raw_data_array[:, :, :, 1]
+        data_dtype = raw_data_array.dtype.str[0] + (
+            "c8" if raw_data_array.dtype.str[-2:] == "f4" else "c16"
+        )
+        self.data_array = np.squeeze(
+            raw_data_array[:, :, :, :2].view(data_dtype), axis=-1
+        )
+        self.data_array = np.conjugate(self.data_array)
         self.flag_array = raw_data_array[:, :, :, 2] <= 0
         self.nsample_array = np.abs(raw_data_array[:, :, :, 2])
 
