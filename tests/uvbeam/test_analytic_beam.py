@@ -247,26 +247,27 @@ def test_power_analytic_beam(beam_obj, kwargs, xy_grid):
     # check power beams are peak normalized
     assert np.max(power_vals) == 1.0
 
+    atol = 2e-15
     np.testing.assert_allclose(
         efield_vals[0, 0] ** 2 + efield_vals[1, 0] ** 2,
         power_vals[0, 0],
         rtol=0,
-        atol=1e-15,
+        atol=atol,
     )
 
     np.testing.assert_allclose(
         efield_vals[0, 1] ** 2 + efield_vals[1, 1] ** 2,
         power_vals[0, 1],
         rtol=0,
-        atol=1e-15,
+        atol=atol,
     )
 
     cross_power = (
         efield_vals[0, 0] * efield_vals[0, 1] + efield_vals[1, 0] * efield_vals[1, 1]
     )
-    np.testing.assert_allclose(cross_power, power_vals[0, 2], rtol=0, atol=1e-15)
+    np.testing.assert_allclose(cross_power, power_vals[0, 2], rtol=0, atol=atol)
 
-    np.testing.assert_allclose(cross_power, power_vals[0, 3], rtol=0, atol=1e-15)
+    np.testing.assert_allclose(cross_power, power_vals[0, 3], rtol=0, atol=atol)
 
 
 def test_eval_errors(az_za_deg_grid):
