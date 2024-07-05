@@ -583,6 +583,21 @@ class UVData(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
+        desc = (
+            "The convention used for combining linear polarizations (e.g. XX and YY) "
+            "into pseudo-Stokes parameters (e.g. I, Q, U, V). Options are 'sum' and "
+            "'avg', corresponding to I=XX+YY and I=(XX+YY)/2 respectively. This "
+            "parameter is not required, and only makes sense for calibrated data."
+        )
+        self._pol_convention = uvp.UVParameter(
+            "pol_convention",
+            required=False,
+            description=desc,
+            form="str",
+            spoof_val="avg",
+            acceptable_vals=["sum", "avg"],
+        )
+
         self.__antpair2ind_cache = {}
         self.__key2ind_cache = {}
 
@@ -2199,6 +2214,18 @@ class UVData(UVBase):
         )
         logger.debug("... Done UVBase Check")
 
+        # Check consistency between pol_convention and units of data
+        if self.vis_units != 'uncalib' and self.pol_convention is None:
+            warnings.warn(
+                "pol_convention is unset and the data is calibrated. This leaves the "
+                "convention ambiguous. Consider setting pol_convention to 'sum' or 'avg'."
+            )
+        elif self.vis_units == 'uncalib' and self.pol_convention is not None:
+            raise ValueError(
+                "pol_convention is set but the data is uncalibrated. This "
+                "is not allowed."
+            )
+        
         # then run telescope object check
         self.telescope.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
