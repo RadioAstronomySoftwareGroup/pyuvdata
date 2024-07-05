@@ -3233,11 +3233,40 @@ class UVData(UVBase):
             inds2 = slice(0, 0)
         return np.append(self.lst_array[inds1], self.lst_array[inds2])
 
+    def get_enu_data_ants(self):
+        """
+        Get positions for antennas with data in East, North, Up coordinates.
+
+        The difference between this method and `self.telescope.get_enu_antpos()`
+        is that this method only returns positions information for antennas
+        that have visibilities associated with them (the set returned by
+        `self.get_ants()`). It also returns the array of antenna numbers
+        corresponding to the first axis of the returned positions array.
+
+        Returns
+        -------
+        antpos : ndarray
+            Antenna positions in East, North, Up coordinates in units of
+            meters, shape=(Nants, 3)
+        ants : ndarray
+            Antenna numbers matching ordering of antpos, shape=(Nants,)
+
+        """
+        antpos = self.telescope.get_enu_antpos()
+        data_ants = self.get_ants()
+        telescope_ants = self.telescope.antenna_numbers
+        select = np.isin(telescope_ants, data_ants)
+        antpos = antpos[select, :]
+        ants = telescope_ants[select]
+
+        return antpos, ants
+
     def get_ENU_antpos(self, *, center=False, pick_data_ants=False):
         """
         Get antenna positions in East, North, Up coordinates in units of meters.
 
-        Deprecated in favor of `self.telescope.get_enu_antpos()`.
+        Deprecated in favor of `self.telescope.get_enu_antpos()` or
+        `self.get_enu_data_ants` if you only want positions for antennas with data.
 
         Parameters
         ----------
@@ -3259,18 +3288,15 @@ class UVData(UVBase):
 
         """
         warnings.warn(
-            "This method is deprecated in favor of `self.telescope.get_enu_antpos`. "
-            "This will become an error in version 3.2",
+            "This method is deprecated in favor of `self.telescope.get_enu_antpos` "
+            "or `self.get_enu_data_ants`. This will become an error in version 3.2",
             DeprecationWarning,
         )
-        antpos = self.telescope.get_enu_antpos()
-        ants = self.telescope.antenna_numbers
         if pick_data_ants:
-            data_ants = np.unique(np.concatenate([self.ant_1_array, self.ant_2_array]))
-            telescope_ants = self.telescope.antenna_numbers
-            select = np.isin(telescope_ants, data_ants)
-            antpos = antpos[select, :]
-            ants = telescope_ants[select]
+            antpos, ants = self.get_enu_data_ants()
+        else:
+            antpos = self.telescope.get_enu_antpos()
+            ants = self.telescope.antenna_numbers
 
         if center:
             antpos -= np.median(antpos, axis=0)

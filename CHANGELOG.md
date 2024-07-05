@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `UVData.get_enu_data_ants` method to get east, north, up positions only for
+antennas with data.
+
 ## [3.0.0] - 2024-7-1
 
 ### Added
