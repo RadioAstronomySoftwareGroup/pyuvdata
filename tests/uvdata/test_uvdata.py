@@ -4994,8 +4994,8 @@ def test_get_enu_antpos(hera_uvh5_xx):
     # no center, no pick data ants
     with check_warnings(
         DeprecationWarning,
-        match="This method is deprecated in favor of `self.telescope.get_enu_antpos`. "
-        "This will become an error in version 3.2",
+        match="This method is deprecated in favor of `self.telescope.get_enu_antpos` "
+        "or `self.get_enu_data_ants`. This will become an error in version 3.2",
     ):
         antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
     assert len(ants) == 113
