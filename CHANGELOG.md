@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New UVParameter `pol_convention` on `UVData` and `UVCal`. This specifies the convention
+assumed for converting linear to stokes polarizations -- either "sum" or "avg". Also
+added to `uvcalibrate` to apply from the `UVCal` to the `UVData`.
 - New `ignore_telescope_param_update_warnings_for` function that globally ignores
 warnings for specific telescopes.
 - New `.telescope` cached property on the `FastUVH5Meta` object that auto-creates a
