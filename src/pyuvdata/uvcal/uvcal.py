@@ -597,6 +597,22 @@ class UVCal(UVBase):
             required=False,
         )
 
+        desc = (
+            "The convention used for combining linear polarizations (e.g. XX and YY) "
+            "into pseudo-Stokes parameters (e.g. I, Q, U, V). Options are 'sum' and "
+            "'avg', corresponding to I=XX+YY and I=(XX+YY)/2 respectively. This "
+            "parameter is not required, for backwards-compatibility reasons, but is "
+            "highly recommended."
+        )
+        self._pol_convention = uvp.UVParameter(
+            "pol_convention",
+            required=False,
+            description=desc,
+            form="str",
+            spoof_val="avg",
+            acceptable_vals=["sum", "avg"],
+        )
+
         super(UVCal, self).__init__()
 
         # Assign attributes to UVParameters after initialization, since UVBase.__init__
@@ -1636,6 +1652,13 @@ class UVCal(UVBase):
         super(UVCal, self).check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
+
+        # Check consistency between pol_convention and units of data
+        if self.pol_convention is None:
+            warnings.warn(
+                "pol_convention is unset. This leaves the "
+                "convention ambiguous. Consider setting pol_convention to 'sum' or 'avg'."
+            )
 
         # then run telescope object check
         self.telescope.check(

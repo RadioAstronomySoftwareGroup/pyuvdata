@@ -3,6 +3,8 @@
 # Licensed under the 2-clause BSD License
 """Code to apply calibration solutions to visibility data."""
 import warnings
+from .. import UVData, UVCal
+from typing import Literal
 
 import numpy as np
 
@@ -10,8 +12,8 @@ from .pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2n
 
 
 def uvcalibrate(
-    uvdata,
-    uvcal,
+    uvdata: UVData,
+    uvcal: UVCal,
     *,
     inplace=True,
     prop_flags=True,
@@ -21,6 +23,7 @@ def uvcalibrate(
     undo=False,
     time_check=True,
     ant_check=True,
+    pol_convention: Literal['sum', 'avg'] | None = None,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -61,6 +64,14 @@ def uvcalibrate(
         object have calibration solutions in the UVCal object. If this option is
         set to False, uvcalibrate will proceed without erroring and data for
         antennas without calibrations will be flagged.
+    pol_convention : str, {"sum", "avg"}, optional
+        The convention used for combining linear polarizations (e.g. XX and YY) into 
+        pseudo-Stokes parameters (e.g. I, Q, U, V). Options 'sum' and 'avg' correspond
+        to I=XX+YY and I=(XX+YY)/2 respectively. If None, the convention is determined
+        from the UVCal object. If `pol_convention` is not specified on the UVCal object
+        and is not specified, an error is raised. If the convention specified here is
+        different from that in the UVCal object, the one specified here will take
+        precedence, and the necessary conversions will be made.
 
     Returns
     -------
@@ -79,6 +90,18 @@ def uvcalibrate(
             "calibrations"
         )
 
+    if pol_convention is None:
+        pol_convention = uvcal.pol_convention
+    
+    if pol_convention is None:
+        raise ValueError(
+            "pol_convention must be specified on the UVCal object or as an argument."
+        )
+    if pol_convention not in ["sum", "avg"]:
+        raise ValueError(
+            "pol_convention must be either 'sum' or 'avg'."
+        )
+    
     if not inplace:
         uvdata = uvdata.copy()
 
@@ -416,6 +439,21 @@ def uvcalibrate(
     else:
         if uvcal_use.gain_scale is not None:
             uvdata.vis_units = uvcal_use.gain_scale
+
+    # Set pol convention properly
+    uvdata.pol_convention = pol_convention
+    if pol_convention != uvcal_use.pol_convention:
+        for i, pol in enumerate(uvdata.polarization_array):
+            if pol > 0:  # pseudo-stokes
+                if pol_convention == "sum":
+                    uvdata.data_array[..., i] *= 2
+                else:
+                    uvdata.data_array[..., i] /= 2
+            else:  # linear pols
+                if pol_convention == "sum":
+                    uvdata.data_array[..., i] /= 2
+                else:
+                    uvdata.data_array[..., i] *= 2
 
     if not inplace:
         return uvdata
