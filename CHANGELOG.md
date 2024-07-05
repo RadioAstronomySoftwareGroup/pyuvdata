@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New `.telescope` cached property on the `FastUVH5Meta` object that auto-creates a
+telescope object from the metadata.
 - `UVData.get_enu_data_ants` method to get east, north, up positions only for
 antennas with data.
 
