@@ -7,13 +7,12 @@ from typing import Literal
 
 import numpy as np
 
-from .. import UVCal, UVData
 from .pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2num
 
 
 def uvcalibrate(
-    uvdata: UVData,
-    uvcal: UVCal,
+    uvdata,
+    uvcal,
     *,
     inplace=True,
     prop_flags=True,
