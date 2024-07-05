@@ -5,7 +5,6 @@
 """Telescope information and known telescope list."""
 from __future__ import annotations
 
-import copy
 import os
 import warnings
 from collections.abc import Mapping
@@ -844,7 +843,7 @@ class Telescope(UVBase):
             meta = hdf5_utils.HDF5Meta(path)
 
         else:
-            meta = copy.deepcopy(filename)
+            meta = filename  # no copy required because its read-only
 
         tel_obj.location = meta.telescope_location_obj
 
