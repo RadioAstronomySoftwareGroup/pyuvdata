@@ -449,6 +449,11 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
         )
         return uvd
 
+    @cached_property
+    def telescope(self):
+        """A Telescope object created from the data."""
+        return Telescope.from_hdf5(self, run_check=False)
+
 
 class UVH5(UVData):
     """
