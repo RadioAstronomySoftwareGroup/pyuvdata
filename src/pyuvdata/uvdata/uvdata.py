@@ -2215,17 +2215,18 @@ class UVData(UVBase):
         logger.debug("... Done UVBase Check")
 
         # Check consistency between pol_convention and units of data
-        if self.vis_units != 'uncalib' and self.pol_convention is None:
+        if self.vis_units != "uncalib" and self.pol_convention is None:
             warnings.warn(
                 "pol_convention is unset and the data is calibrated. This leaves the "
-                "convention ambiguous. Consider setting pol_convention to 'sum' or 'avg'."
+                "convention ambiguous. Consider setting pol_convention to 'sum' or "
+                "'avg'."
             )
-        elif self.vis_units == 'uncalib' and self.pol_convention is not None:
+        elif self.vis_units == "uncalib" and self.pol_convention is not None:
             raise ValueError(
                 "pol_convention is set but the data is uncalibrated. This "
                 "is not allowed."
             )
-        
+
         # then run telescope object check
         self.telescope.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
