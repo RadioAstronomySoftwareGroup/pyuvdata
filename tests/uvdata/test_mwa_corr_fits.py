@@ -3,6 +3,7 @@
 
 """Tests for MWACorrFITS object."""
 
+import copy
 import importlib
 import itertools
 import os
@@ -1410,6 +1411,93 @@ def test_partial_read_time_axis(tmp_path, mwax, select):
         uv_full.history[:loc_divided]
         + f" Downselected to specific {sel_type} using pyuvdata. "
         + uv_full.history[loc_divided:]
+    )
+
+    assert uv_partial == exp_uv
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+@pytest.mark.parametrize(
+    "select_kwargs",
+    [
+        {"polarizations": ["xx"]},
+        {"polarizations": ["xx", "yy"]},
+        {"polarizations": ["xx", "xy"]},
+    ],
+)
+@pytest.mark.parametrize("mwax", [False, True])
+def test_partial_read_pol_axis(tmp_path, mwax, select_kwargs):
+    if mwax:
+        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=6)
+    else:
+        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=6, ncoarse=1)
+
+    uv_full = UVData.from_file(files_use)
+
+    uv_partial = UVData.from_file(files_use, **select_kwargs)
+    exp_uv = uv_full.select(**select_kwargs, inplace=False)
+    # fix order of operations in history
+    loc_divided = uv_full.history.find("Divided")
+    exp_uv.history = (
+        uv_full.history[:loc_divided]
+        + " Downselected to specific polarizations using pyuvdata. "
+        + uv_full.history[loc_divided:]
+    )
+
+    assert uv_partial == exp_uv
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+@pytest.mark.parametrize(
+    ["select_kwargs", "selections"],
+    [
+        [
+            {"polarizations": ["xx", "yy"], "antenna_nums": [18, 31, 66, 95]},
+            ["antennas", "polarizations"],
+        ],
+        [
+            {"polarizations": ["xx"], "antenna_nums": "most"},
+            ["antennas", "polarizations"],
+        ],
+        [{"antenna_nums": [18, 31, 66, 95], "times": [0, 2]}, ["antennas", "times"]],
+        [{"polarizations": ["xx", "yy"], "times": [0, 2]}, ["times", "polarizations"]],
+    ],
+)
+@pytest.mark.parametrize("mwax", [False, True])
+def test_partial_read_multi(tmp_path, mwax, select_kwargs, selections):
+    if mwax:
+        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=6)
+    else:
+        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=6, ncoarse=1)
+
+    uv_full = UVData.from_file(files_use)
+    all_ants = uv_full.get_ants()
+
+    kwargs_use = copy.deepcopy(select_kwargs)
+    if "antenna_nums" in select_kwargs and isinstance(
+        select_kwargs["antenna_nums"], str
+    ):
+        kwargs_use["antenna_nums"] = all_ants[0 : all_ants.size // 2]
+    if "times" in select_kwargs:
+        unique_times = np.unique(uv_full.time_array)
+        print(unique_times)
+        kwargs_use["times"] = unique_times[select_kwargs["times"]]
+
+    uv_partial = UVData.from_file(files_use, **kwargs_use)
+    exp_uv = uv_full.select(**kwargs_use, inplace=False)
+    # fix order of operations in history
+    loc_divided = uv_full.history.find("Divided")
+    if not mwax and "antenna_nums" in select_kwargs:
+        loc_downsel = uv_full.history.find("  Downselected")
+        hist_end = uv_full.history[loc_divided:loc_downsel]
+    else:
+        hist_end = uv_full.history[loc_divided:]
+    exp_uv.history = (
+        uv_full.history[:loc_divided]
+        + f" Downselected to specific {', '.join(selections)} using pyuvdata. "
+        + hist_end
     )
 
     assert uv_partial == exp_uv
