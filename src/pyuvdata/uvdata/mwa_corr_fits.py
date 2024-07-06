@@ -643,6 +643,7 @@ class MWACorrFITS(UVData):
         pol_index_array,
         bl_inds=None,
         time_inds=None,
+        pol_inds=None,
     ):
         """
         Read the fits file and populate into memory.
@@ -675,6 +676,9 @@ class MWACorrFITS(UVData):
             Baseline indices (after any re-mapping) to select on read.
         time_inds : array, optional
             Time indices to select on read.
+        pol_inds : array, optional
+            Polarization indices to select on read. These are the indices for the
+            array on disk, which will then be reordered according to pol_index_array.
 
         """
         # get the file number from the file name
@@ -698,34 +702,39 @@ class MWACorrFITS(UVData):
                 dtype=np.complex64,
             )
 
-        if bl_inds is not None:
-            bl_inds = np.array(bl_inds)
-            if not mwax:
-                # map_inds gives the baseline-pol ordering
-                n_orig_bls = int(
-                    len(self.telescope.antenna_numbers)
-                    * (len(self.telescope.antenna_numbers) + 1)
-                    / 2.0
-                )
-                # reshape, do selection along bl axis, then flatten
-                bl_inds_map = np.take(
-                    map_inds.reshape(n_orig_bls, self.Npols), bl_inds, axis=0
-                ).flatten()
-                conj = np.take(
-                    conj.reshape(n_orig_bls, self.Npols), bl_inds, axis=0
-                ).flatten()
+        n_orig_bls = int(
+            len(self.telescope.antenna_numbers)
+            * (len(self.telescope.antenna_numbers) + 1)
+            / 2.0
+        )
+        bl_frac = self.Nbls / n_orig_bls
 
-                # The data array is written with real, imaginary parts interleaved.
-                # This corresponds to a 2d array flattened where the last axis is
-                # real, imaginary
-                # So the indices need to be updated for that structure.
-                bl_inds_map_ri = np.concatenate(
-                    (
-                        bl_inds_map[:, np.newaxis] * 2,
-                        bl_inds_map[:, np.newaxis] * 2 + 1,
-                    ),
-                    axis=1,
-                ).flatten()
+        n_orig_pols = 4
+        pol_frac = self.Npols / n_orig_pols
+
+        if not mwax and (bl_inds is not None or pol_inds is not None):
+            # map_inds gives the baseline-pol ordering
+            # reshape, do selection along bl axis, then flatten
+            bl_inds_map = map_inds.reshape(n_orig_bls, n_orig_pols)
+            conj = conj.reshape(n_orig_bls, n_orig_pols)
+            if bl_inds is not None:
+                bl_inds_map = np.take(bl_inds_map, bl_inds, axis=0)
+                conj = np.take(conj, bl_inds, axis=0)
+            if pol_inds is not None:
+                bl_inds_map = np.take(bl_inds_map, pol_inds, axis=1)
+                conj = np.take(conj, pol_inds, axis=1)
+
+            bl_inds_map = bl_inds_map.flatten()
+            conj = conj.flatten()
+
+            # The data array is written with real, imaginary parts interleaved.
+            # This corresponds to a 2d array flattened where the last axis is
+            # real, imaginary
+            # So the indices need to be updated for that structure.
+            bl_inds_map_ri = np.concatenate(
+                (bl_inds_map[:, np.newaxis] * 2, bl_inds_map[:, np.newaxis] * 2 + 1),
+                axis=1,
+            ).flatten()
 
         with fits.open(filename, mode="denywrite") as hdu_list:
             # if mwax, data is in every other hdu
@@ -750,13 +759,40 @@ class MWACorrFITS(UVData):
                     t_ind_use = this_time_ind
                 # dump data into matrix
                 # and take data from real to complex numbers
-                if bl_inds is not None:
+                if bl_inds is not None or pol_inds is not None:
                     if not mwax:
                         coarse_chan_data.view(np.float32)[t_ind_use, :, :] = hdu.data[
                             :, bl_inds_map_ri
                         ]
                     else:
-                        temp_data = hdu.data[bl_inds]
+                        if pol_inds is not None:
+                            fpol_inds = np.arange(num_fine_chans * n_orig_pols).reshape(
+                                num_fine_chans, n_orig_pols
+                            )
+                            fpol_inds = np.take(fpol_inds, pol_inds, axis=1).flatten()
+
+                            # The data array is written with real, imaginary
+                            # parts interleaved.
+                            # This corresponds to a 2d array flattened where the
+                            # last axis is real, imaginary
+                            # So the indices need to be updated for that structure.
+                            fpol_inds_ri = np.concatenate(
+                                (
+                                    fpol_inds[:, np.newaxis] * 2,
+                                    fpol_inds[:, np.newaxis] * 2 + 1,
+                                ),
+                                axis=1,
+                            ).flatten()
+
+                        if bl_frac < pol_frac:
+                            temp_data = hdu.data[bl_inds]
+                            if pol_inds is not None:
+                                temp_data = temp_data[:, fpol_inds_ri]
+                        else:
+                            temp_data = hdu.data[:, fpol_inds_ri]
+                            if bl_inds is not None:
+                                temp_data = temp_data[bl_inds]
+
                         coarse_chan_data.view(np.float32)[t_ind_use, :, :] = temp_data
                 else:
                     coarse_chan_data.view(np.float32)[t_ind_use, :, :] = hdu.data
@@ -767,7 +803,7 @@ class MWACorrFITS(UVData):
                 ] = 1.0
                 self.flag_array[t_ind_use, :, coarse_ind, :] = False
         if not mwax:
-            if bl_inds is None:
+            if bl_inds is None and pol_inds is None:
                 # do mapping and reshaping here to avoid copying whole data_array
                 # map_inds gives the baseline-pol ordering
                 np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
@@ -1369,7 +1405,7 @@ class MWACorrFITS(UVData):
         time_range=None,
         lsts=None,
         lst_range=None,
-        # polarizations=None,
+        polarizations=None,
         keep_all_metadata=True,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
@@ -1741,14 +1777,14 @@ class MWACorrFITS(UVData):
             )
         # for mwax, polarizations are ordered xx, xy, yx, yy
         if mwax:
-            self.polarization_array = np.array([-5, -7, -8, -6])
+            file_pol_array = np.array([-5, -7, -8, -6])
         # otherwise, polarizations are ordered yy, yx, xy, xx
         else:
-            self.polarization_array = np.array([-6, -8, -7, -5])
+            file_pol_array = np.array([-6, -8, -7, -5])
         # get index array for AIPS reordering
-        pol_index_array = np.argsort(np.abs(self.polarization_array))
+        pol_index_array = np.argsort(np.abs(file_pol_array))
         # reorder polarization_array here to avoid memory spike from self.reorder_pols
-        self.polarization_array = self.polarization_array[pol_index_array]
+        self.polarization_array = file_pol_array[pol_index_array]
 
         if read_data:
             if not mwax:
@@ -1781,6 +1817,7 @@ class MWACorrFITS(UVData):
                 map_inds = None
                 conj = None
 
+            selections = []
             # check if we want to do any select on the baseline axis
             # Note: only passing the ant_1/2_arrays and baseline_array for one time.
             bl_inds, bl_selections = _select_blt_preprocess(
@@ -1804,6 +1841,7 @@ class MWACorrFITS(UVData):
                 lst_tols=None,
                 phase_center_id_array=self.phase_center_id_array,
             )
+            selections.extend(bl_selections)
 
             # only passing the unique times to figure out which HDUs to read.
             time_inds, time_selections = utils.times._select_times_helper(
@@ -1818,23 +1856,51 @@ class MWACorrFITS(UVData):
                 obj_time_range=None,
                 obj_lst_range=None,
             )
+            selections.extend(time_selections)
 
-            selections = []
-            if bl_inds is not None or time_inds is not None:
+            if polarizations is not None:
+                polarizations = utils.tools._get_iterable(polarizations)
+                if np.array(polarizations).ndim > 1:
+                    polarizations = np.array(polarizations).flatten()
+                selections.append("polarizations")
+
+                file_pol_inds = np.zeros(0, dtype=np.int64)
+                pol_inds = np.zeros(0, dtype=np.int64)
+                for p in polarizations:
+                    if isinstance(p, str):
+                        p_num = utils.polstr2num(
+                            p, x_orientation=self.telescope.x_orientation
+                        )
+                    else:
+                        p_num = p
+                    if p_num in self.polarization_array:
+                        pol_inds = np.append(
+                            pol_inds, np.where(self.polarization_array == p_num)[0]
+                        )
+                        file_pol_inds = np.append(
+                            file_pol_inds, np.where(file_pol_array == p_num)[0]
+                        )
+                # get index array for AIPS reordering post downselect
+                pol_index_array = np.argsort(np.abs(file_pol_array[file_pol_inds]))
+            else:
+                pol_inds = None
+                file_pol_inds = None
+
+            if len(selections) > 0:
                 # do select operations on everything except data_array, flag_array
                 # and nsample_array
-                blt_inds = np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls)
-                if bl_inds is not None:
-                    ant_1_inds = ant_1_inds[bl_inds]
-                    ant_2_inds = ant_2_inds[bl_inds]
-                    selections.extend(bl_selections)
+                if bl_inds is not None or time_inds is not None:
+                    blt_inds = np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls)
+                    if bl_inds is not None:
+                        ant_1_inds = ant_1_inds[bl_inds]
+                        ant_2_inds = ant_2_inds[bl_inds]
 
-                    blt_inds = np.take(blt_inds, bl_inds, axis=1)
-                if time_inds is not None:
-                    selections.extend(time_selections)
-
-                    blt_inds = np.take(blt_inds, time_inds, axis=0)
-                blt_inds = blt_inds.flatten()
+                        blt_inds = np.take(blt_inds, bl_inds, axis=1)
+                    if time_inds is not None:
+                        blt_inds = np.take(blt_inds, time_inds, axis=0)
+                    blt_inds = blt_inds.flatten()
+                else:
+                    blt_inds = None
 
                 history_update_string = (
                     "  Downselected to specific "
@@ -1844,7 +1910,7 @@ class MWACorrFITS(UVData):
                 self._select_by_index(
                     blt_inds=blt_inds,
                     freq_inds=None,
-                    pol_inds=None,
+                    pol_inds=pol_inds,
                     history_update_string=history_update_string,
                     keep_all_metadata=keep_all_metadata,
                 )
@@ -1879,6 +1945,7 @@ class MWACorrFITS(UVData):
                     pol_index_array=pol_index_array,
                     bl_inds=bl_inds,
                     time_inds=time_inds,
+                    pol_inds=file_pol_inds,
                 )
 
             # propagate coarse flags

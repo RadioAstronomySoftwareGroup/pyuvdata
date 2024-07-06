@@ -11186,6 +11186,7 @@ class UVData(UVBase):
                 select_time_range = None
                 select_times = None
                 select_lsts = None
+                select_polarizations = None
 
                 # MWA corr fits can only handle length-two bls tuples, anything
                 # else needs to be handled via select.
@@ -11196,7 +11197,6 @@ class UVData(UVBase):
                 select_ant_str = ant_str
                 select_blt_inds = blt_inds
                 select_phase_center_ids = phase_center_ids
-                select_polarizations = polarizations
                 select_frequencies = frequencies
                 select_freq_chans = freq_chans
 
@@ -11317,7 +11317,7 @@ class UVData(UVBase):
                     time_range=time_range,
                     lsts=lsts,
                     lst_range=lst_range,
-                    # polarizations=polarizations,
+                    polarizations=polarizations,
                     keep_all_metadata=keep_all_metadata,
                     use_aoflagger_flags=use_aoflagger_flags,
                     remove_dig_gains=remove_dig_gains,
