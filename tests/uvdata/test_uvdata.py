@@ -88,6 +88,7 @@ def uvdata_props():
         "filename",
         "blts_are_rectangular",
         "time_axis_faster_than_bls",
+        "pol_convention",
     ]
     extra_parameters = ["_" + prop for prop in extra_properties]
 
@@ -11939,3 +11940,21 @@ def test_get_ants_rectangular(hera_uvh5):
     hera_uvh5.reorder_blts(order="time", minor_order="baseline")
     ants1 = np.sort(hera_uvh5.get_ants())
     assert np.all(ants1 == ants)
+
+
+def test_pol_convention_warnings(hera_uvh5):
+    hera_uvh5.vis_units = "Jy"
+    hera_uvh5.pol_convention = None
+    with pytest.warns(UserWarning, match="pol_convention is unset"):
+        hera_uvh5.check()
+
+    hera_uvh5.pol_convention = "badconvention"
+    with pytest.raises(ValueError):
+        hera_uvh5.check()
+
+    hera_uvh5.vis_units = "uncalib"
+    hera_uvh5.pol_convention = "sum"
+    with pytest.raises(
+        ValueError, match="pol_convention is set but the data is uncalibrated"
+    ):
+        hera_uvh5.check()
