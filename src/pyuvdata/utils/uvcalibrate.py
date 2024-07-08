@@ -93,11 +93,19 @@ def uvcalibrate(
         pol_convention = uvcal.pol_convention
 
     if pol_convention is None:
-        raise ValueError(
-            "pol_convention must be specified on the UVCal object or as an argument."
+        warnings.warn(
+            message=(
+                "pol_convention is not specified, so the resulting UVData object will "
+                "have ambiguous convention. This is deprecated and will be an error in "
+                "pyuvdata v3.2.",
+            ),
+            category=DeprecationWarning,
+            stacklevel=2,
         )
-    if pol_convention not in ["sum", "avg"]:
-        raise ValueError("pol_convention must be either 'sum' or 'avg'.")
+    elif pol_convention not in ["sum", "avg"]:
+        raise ValueError(
+            f"pol_convention must be either 'sum' or 'avg'. Got {pol_convention}"
+        )
 
     if not inplace:
         uvdata = uvdata.copy()
