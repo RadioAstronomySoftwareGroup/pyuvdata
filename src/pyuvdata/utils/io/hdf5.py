@@ -730,3 +730,11 @@ class HDF5Meta:
                 phase_center_catalog[pc_id] = pc_dict
 
         return phase_center_catalog
+
+    @cached_property
+    def telescope(self):
+        """A Telescope object created from the data."""
+        # Import here because otherwise it's a circular import
+        from ...telescopes import Telescope
+
+        return Telescope.from_hdf5(self, run_check=False)
