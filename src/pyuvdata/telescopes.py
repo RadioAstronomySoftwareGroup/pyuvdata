@@ -93,6 +93,38 @@ _KNOWN_TELESCOPES = {
 }
 
 
+# Define a (private) dictionary that tracks whether the user wants warnings
+# to be raised on updating known telescopes from params.
+_WARN_STATUS = {k.lower(): True for k in _KNOWN_TELESCOPES}
+
+
+def ignore_telescope_param_update_warnings_for(tel: str):
+    """Globally ignore update warnings for a given telescope.
+
+    This affects the :meth:`Telescope.update_params_from_known_telescopes` method,
+    which updates unspecified telescope information with known information from
+    a KNOWN_TELESCOPE. In some cases, you will know that many files have
+    unspecified information and that it is OK to supply this information from the
+    known info in pyuvdata. Ignoring warnings can be achieved by setting `warn=False`
+    in that method, but this is sometimes difficult because it is called further
+    up in the stack. This simple convenience method allows all such warnings for a
+    given telescope to be ignored.
+    """
+    if tel not in _WARN_STATUS:
+        raise ValueError(f"'{tel}' is not a known telescope")
+    _WARN_STATUS[tel] = False
+
+
+def unignore_telescope_param_update_warnings_for(tel: str):
+    """Globally un-ignore update warnings for a given telescope.
+
+    See :func:`ignore_telescope_param_update_warnings`
+    """
+    if tel not in _WARN_STATUS:
+        raise ValueError(f"'{tel}' is not a known telescope")
+    _WARN_STATUS[tel] = True
+
+
 # Deprecation to handle accessing old keys of KNOWN_TELESCOPES
 class TelMapping(Mapping):
     def __init__(self, mapping=()):
@@ -651,7 +683,7 @@ class Telescope(UVBase):
                 self.x_orientation = telescope_dict["x_orientation"]
 
         full_list = astropy_sites_list + known_telescope_list
-        if warn and len(full_list) > 0:
+        if warn and _WARN_STATUS.get(self.name.lower(), True) and len(full_list) > 0:
             warn_str = ", ".join(full_list) + " are not set or are being overwritten. "
             specific_str = []
             if len(astropy_sites_list) > 0:
