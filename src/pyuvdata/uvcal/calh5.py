@@ -253,6 +253,7 @@ class CalH5(UVCal):
             "ref_antenna_array",
             "scan_number_array",
             "sky_catalog",
+            "pol_convention",
         ]
 
         for attr in required_parameters:
@@ -773,6 +774,9 @@ class CalH5(UVCal):
             header["phase_center_id_array"] = self.phase_center_id_array
         if self.Nphase is not None:
             header["Nphase"] = self.Nphase
+        if self.pol_convention is not None:
+            header["pol_convention"] = self.pol_convention
+
         if self.phase_center_catalog is not None:
             pc_group = header.create_group("phase_center_catalog")
             for pc, pc_dict in self.phase_center_catalog.items():

@@ -606,6 +606,7 @@ class UVH5(UVData):
             "flex_spw_id_array",
             "flex_spw_polarization_array",
             "extra_keywords",
+            "pol_convention",
         ]:
             try:
                 setattr(self, attr, getattr(obj, attr))
@@ -1213,6 +1214,8 @@ class UVH5(UVData):
             header["blts_are_rectangular"] = self.blts_are_rectangular
         if self.time_axis_faster_than_bls is not None:
             header["time_axis_faster_than_bls"] = self.time_axis_faster_than_bls
+        if self.pol_convention is not None:
+            header["pol_convention"] = self.pol_convention
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
