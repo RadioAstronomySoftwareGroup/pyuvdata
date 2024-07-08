@@ -110,9 +110,9 @@ def ignore_telescope_param_update_warnings_for(tel: str):
     up in the stack. This simple convenience method allows all such warnings for a
     given telescope to be ignored.
     """
-    if tel not in _WARN_STATUS:
+    if tel.lower() not in _WARN_STATUS:
         raise ValueError(f"'{tel}' is not a known telescope")
-    _WARN_STATUS[tel] = False
+    _WARN_STATUS[tel.lower()] = False
 
 
 def unignore_telescope_param_update_warnings_for(tel: str):
