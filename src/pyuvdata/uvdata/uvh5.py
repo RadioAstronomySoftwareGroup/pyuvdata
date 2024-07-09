@@ -109,6 +109,7 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
             "eq_coeffs_convention",
             "phase_center_frame",
             "version",
+            "pol_convention",
         }
     )
 
@@ -1215,7 +1216,7 @@ class UVH5(UVData):
         if self.time_axis_faster_than_bls is not None:
             header["time_axis_faster_than_bls"] = self.time_axis_faster_than_bls
         if self.pol_convention is not None:
-            header["pol_convention"] = self.pol_convention
+            header["pol_convention"] = np.bytes_(self.pol_convention)
 
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
