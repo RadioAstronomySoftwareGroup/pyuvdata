@@ -72,6 +72,7 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
             "sky_catalog",
             "instrument",
             "version",
+            "pol_convention",
         }
     )
 
@@ -775,7 +776,7 @@ class CalH5(UVCal):
         if self.Nphase is not None:
             header["Nphase"] = self.Nphase
         if self.pol_convention is not None:
-            header["pol_convention"] = self.pol_convention
+            header["pol_convention"] = np.bytes_(self.pol_convention)
 
         if self.phase_center_catalog is not None:
             pc_group = header.create_group("phase_center_catalog")
