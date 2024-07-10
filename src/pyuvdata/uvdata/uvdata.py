@@ -65,16 +65,16 @@ def _select_blt_preprocess(
 
     Parameters
     ----------
-    antenna_nums : array_like of int, optional
+    select_antenna_nums : array_like of int, optional
         The antennas numbers to keep in the object (antenna positions and
         names for the removed antennas will be retained unless
         `keep_all_metadata` is False). This cannot be provided if
-        `antenna_names` is also provided.
-    antenna_names : array_like of str, optional
+        `select_antenna_names` is also provided.
+    select_antenna_names : array_like of str, optional
         The antennas names to keep in the object (antenna positions and
         names for the removed antennas will be retained unless
         `keep_all_metadata` is False). This cannot be provided if
-        `antenna_nums` is also provided.
+        `select_antenna_nums` is also provided.
     bls : list of 2-tuples, optional
         A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) specifying
         baselines to keep in the object. The ordering of the numbers within the
@@ -9567,6 +9567,57 @@ class UVData(UVBase):
         filelist : list of str
             The list of MWA correlator files to read from. Must include at
             least one fits file and only one metafits file per data set.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]). The
+            ordering of the numbers within the tuple does not matter.
+            Note that this is different than what can be passed to the parameter
+            of the same name on `select` and other read methods -- this parameter
+            does not accept 3-tuples or baseline numbers.
+            Ignored if read_data is False.
+            # frequencies : array_like of float, optional
+            #     The frequencies to include when reading data into the object, each
+            #     value passed here should exist in the freq_array. Ignored if
+            #     read_data is False.
+            # freq_chans : array_like of int, optional
+            #     The frequency channel numbers to include when reading data into the
+            #     object. Ignored if read_data is False.
+            # times : array_like of float, optional
+            #     The times to include when reading data into the object, each value
+            #     passed here should exist in the time_array. Cannot be used with
+            #     `time_range`, `lsts`, or `lst_array`.
+            # time_range : array_like of float, optional
+            #     The time range in Julian Date to include when reading data into
+            #     the object, must be length 2. Some of the times in the file should
+            #     fall between the first and last elements.
+            #     Cannot be used with `times`.
+            # lsts : array_like of float, optional
+            #     The local sidereal times (LSTs) to keep in the object, each value
+            #     passed here should exist in the lst_array. Cannot be used with
+            #     `times`, `time_range`, or `lst_range`.
+            # lst_range : array_like of float, optional
+            #     The local sidereal time (LST) range in radians to keep in the
+            #     object, must be of length 2. Some of the LSTs in the object should
+            #     fall between the first and last elements. If the second value is
+            #     smaller than the first, the LSTs are treated as having phase-wrapped
+            #     around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            #     the larger value, through 0, and end at the smaller value.
+            # polarizations : array_like of int, optional
+            #     The polarizations numbers to include when reading data into the
+            #     object, each value passed here should exist in the polarization_array.
+            #     Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -10211,6 +10262,7 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+            Note that this keyword is not supported for MWA correlator FITS files.
         bls : list of tuple, optional
             A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
             baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
@@ -10218,7 +10270,8 @@ class UVData(UVBase):
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
             antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
+            None. Note that for MWA correlator FITS files, this can only be a
+            list of antenna number 2-tuples.
         catalog_names : str or array-like of str, optional
             The names of the phase centers (sources) to include when reading data into
             the object, which should match exactly in spelling and capitalization.
@@ -10998,7 +11051,7 @@ class UVData(UVBase):
                 # everything is merged into it at the end of this loop
 
         else:
-            if file_type in ["fhd", "ms", "mwa_corr_fits"]:
+            if file_type in ["fhd", "ms"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -11134,6 +11187,57 @@ class UVData(UVBase):
                         "not supported by read_mir. This select will "
                         "be done after reading the file."
                     )
+            elif file_type == "mwa_corr_fits":
+                select = True
+                # these are all done by partial read, so set to None
+                select_antenna_nums = None
+                select_antenna_names = None
+                select_bls = None
+                # select_lst_range = None
+                # select_time_range = None
+                # select_times = None
+                # select_lsts = None
+
+                # MWA corr fits can only handle length-two bls tuples, anything
+                # else needs to be handled via select.
+                if bls is not None and not all(len(item) == 2 for item in bls):
+                    select_bls = bls
+
+                # these aren't supported by partial read, so do it in select
+                select_ant_str = ant_str
+                select_blt_inds = blt_inds
+                select_phase_center_ids = phase_center_ids
+                select_polarizations = polarizations
+                select_frequencies = frequencies
+                select_freq_chans = freq_chans
+                select_lst_range = lst_range
+                select_time_range = time_range
+                select_times = times
+                select_lsts = lsts
+
+                if all(
+                    item is None
+                    for item in [
+                        select_bls,
+                        blt_inds,
+                        phase_center_ids,
+                        ant_str,
+                        frequencies,
+                        freq_chans,
+                        lst_range,
+                        time_range,
+                        times,
+                        lsts,
+                    ]
+                ):
+                    # If there's nothing to select, just bypass that operation.
+                    select = False
+                else:
+                    warnings.warn(
+                        "Warning: a select on read keyword is set that is "
+                        "not supported by read_mwa_corr_fits. This select will "
+                        "be done after reading the file."
+                    )
             # reading a single "file". Call the appropriate file-type read
             if file_type == "uvfits":
                 self.read_uvfits(
@@ -11223,6 +11327,17 @@ class UVData(UVBase):
             elif file_type == "mwa_corr_fits":
                 self.read_mwa_corr_fits(
                     filename,
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    bls=bls,
+                    # frequencies=frequencies,
+                    # freq_chans=freq_chans,
+                    # times=times,
+                    # time_range=time_range,
+                    # lsts=lsts,
+                    # lst_range=lst_range,
+                    # polarizations=polarizations,
+                    keep_all_metadata=keep_all_metadata,
                     use_aoflagger_flags=use_aoflagger_flags,
                     remove_dig_gains=remove_dig_gains,
                     remove_coarse_band=remove_coarse_band,
