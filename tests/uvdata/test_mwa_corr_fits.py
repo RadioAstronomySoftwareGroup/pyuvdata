@@ -199,7 +199,8 @@ def test_select_on_read():
     with check_warnings(
         UserWarning,
         [
-            'Warning: select on read keyword set, but file_type is "mwa_corr_fits"',
+            "Warning: a select on read keyword is set that is not supported by "
+            "read_mwa_corr_fits. This select will be done after reading the file.",
             "some coarse channel files were not submitted",
         ],
     ):
@@ -1355,3 +1356,61 @@ def test_van_vleck(benchmark, cheby):
         rtol=uv1._data_array.tols[0],
         atol=uv1._data_array.tols[1],
     )
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+@pytest.mark.parametrize(
+    ["select_kwargs", "warn_msg"],
+    [
+        [{"antenna_nums": [18, 31, 66, 95]}, ""],
+        [{"antenna_names": [f"Tile{ant:03d}" for ant in [18, 31, 66, 95]]}, ""],
+        [{"bls": [(48, 34), (96, 11), (22, 87)]}, ""],
+        [
+            {"ant_str": "48_34,96_11,22_87"},
+            "a select on read keyword is set that is not supported by "
+            "read_mwa_corr_fits. This select will be done after reading the file.",
+        ],
+    ],
+)
+@pytest.mark.parametrize("mwax", [False, True])
+def test_partial_read_bl_axis(tmp_path, mwax, select_kwargs, warn_msg):
+    if mwax:
+        # generate a spoof file with 16 channels
+        cb_spoof = str(tmp_path / "mwax_cb_spoof80_ch137_000.fits")
+        meta_spoof = str(tmp_path / "mwax_cb_spoof80.metafits")
+
+        with fits.open(filelist[12]) as mini1:
+            mini1[1].data = np.repeat(mini1[1].data, 16, axis=1)
+            mini1.writeto(cb_spoof)
+
+        with fits.open(filelist[11]) as meta:
+            meta[0].header["FINECHAN"] = 80
+            meta.writeto(meta_spoof)
+
+        files_use = [meta_spoof, cb_spoof]
+
+    else:
+        cb_spoof = str(tmp_path / "cb_spoof_01_00.fits")
+        with fits.open(filelist[1]) as mini1:
+            mini1[1].data = np.repeat(mini1[1].data, 32, axis=0)
+            mini1.writeto(cb_spoof)
+        files_use = [filelist[0], cb_spoof]
+
+    uv_full = UVData.from_file(files_use)
+
+    warn_msg_list = ["some coarse channel files were not submitted"]
+    if warn_msg != "":
+        warn_msg_list.append(warn_msg)
+
+    if mwax and "bls" not in select_kwargs:
+        # The bls selection has no autos
+        warn_msg_list.append("Fixing auto-correlations to be be real-only")
+
+    with check_warnings(UserWarning, match=warn_msg_list):
+        uv_partial = UVData.from_file(files_use, **select_kwargs)
+    exp_uv = uv_full.select(**select_kwargs, inplace=False)
+
+    # history doesn't match because of different order of operations.
+    exp_uv.history = uv_partial.history
+
+    assert uv_partial == exp_uv

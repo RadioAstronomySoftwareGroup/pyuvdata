@@ -21,6 +21,7 @@ from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
 from ..utils.io import fits as fits_utils
 from . import UVData, _corr_fits
+from .uvdata import _select_blt_preprocess
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 
@@ -57,6 +58,7 @@ def read_metafits(
         meta_tbl = meta[1].data
 
         # because of polarization, each antenna # is listed twice
+        # antenna_inds are the correlator input numbers.
         antenna_inds = meta_tbl["Antenna"][1::2]
         antenna_numbers = meta_tbl["Tile"][1::2]
         antenna_names = meta_tbl["TileName"][1::2]
@@ -629,6 +631,7 @@ class MWACorrFITS(UVData):
 
     def _read_fits_file(
         self,
+        *,
         filename,
         time_array,
         file_nums,
@@ -638,6 +641,7 @@ class MWACorrFITS(UVData):
         map_inds,
         conj,
         pol_index_array,
+        bl_inds=None,
     ):
         """
         Read the fits file and populate into memory.
@@ -666,6 +670,8 @@ class MWACorrFITS(UVData):
             Indices for conjugating data_array from weird correlator packing.
         pol_index_array : array
             Indices for reordering polarizations to the 'AIPS' convention
+        bl_inds : array, optional
+            Baseline indices (after any re-mapping) to select on read.
 
         """
         # get the file number from the file name
@@ -688,6 +694,36 @@ class MWACorrFITS(UVData):
                 (self.Ntimes, num_fine_chans, self.Nbls * self.Npols),
                 dtype=np.complex64,
             )
+
+        if bl_inds is not None:
+            bl_inds = np.array(bl_inds)
+            if not mwax:
+                # map_inds gives the baseline-pol ordering
+                n_orig_bls = int(
+                    len(self.telescope.antenna_numbers)
+                    * (len(self.telescope.antenna_numbers) + 1)
+                    / 2.0
+                )
+                # reshape, do selection along bl axis, then flatten
+                bl_inds_map = np.take(
+                    map_inds.reshape(n_orig_bls, self.Npols), bl_inds, axis=0
+                ).flatten()
+                conj = np.take(
+                    conj.reshape(n_orig_bls, self.Npols), bl_inds, axis=0
+                ).flatten()
+
+                # The data array is written with real, imaginary parts interleaved.
+                # This corresponds to a 2d array flattened where the last axis is
+                # real, imaginary
+                # So the indices need to be updated for that structure.
+                bl_inds_map_ri = np.concatenate(
+                    (
+                        bl_inds_map[:, np.newaxis] * 2,
+                        bl_inds_map[:, np.newaxis] * 2 + 1,
+                    ),
+                    axis=1,
+                ).flatten()
+
         with fits.open(filename, mode="denywrite") as hdu_list:
             # if mwax, data is in every other hdu
             if mwax:
@@ -704,7 +740,16 @@ class MWACorrFITS(UVData):
                 time_ind = np.where(time_array == time)[0][0]
                 # dump data into matrix
                 # and take data from real to complex numbers
-                coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data
+                if bl_inds is not None:
+                    if not mwax:
+                        coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data[
+                            :, bl_inds_map_ri
+                        ]
+                    else:
+                        temp_data = hdu.data[bl_inds]
+                        coarse_chan_data.view(np.float32)[time_ind, :, :] = temp_data
+                else:
+                    coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data
                 # fill nsample and flag arrays
                 # think about using the mwax weights array in the future
                 self.nsample_array[
@@ -712,16 +757,21 @@ class MWACorrFITS(UVData):
                 ] = 1.0
                 self.flag_array[time_ind, :, coarse_ind, :] = False
         if not mwax:
-            # do mapping and reshaping here to avoid copying whole data_array
-            np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
+            if bl_inds is None:
+                # do mapping and reshaping here to avoid copying whole data_array
+                # map_inds gives the baseline-pol ordering
+                np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
             # conjugate data
             coarse_chan_data[:, :, conj] = np.conj(coarse_chan_data[:, :, conj])
         # reshape
+        # each time gets its own HDU. MWAX has 2 HDUs per time (data/weights alternate)
         if mwax:
+            # freq and pol axes are combined, baseline axis is separate
             coarse_chan_data = coarse_chan_data.reshape(
                 (self.Ntimes, self.Nbls, num_fine_chans, self.Npols)
             )
         else:
+            # freq axis, then baseline-pol axis
             coarse_chan_data = coarse_chan_data.reshape(
                 (self.Ntimes, num_fine_chans, self.Nbls, self.Npols)
             )
@@ -729,6 +779,7 @@ class MWACorrFITS(UVData):
         coarse_chan_data = coarse_chan_data.reshape(
             self.Nblts, num_fine_chans, self.Npols
         )
+
         # reorder pols here to avoid memory spike from self.reorder_pols
         np.take(coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data)
         # make a mask where data actually is so coarse channels that
@@ -759,7 +810,7 @@ class MWACorrFITS(UVData):
         freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
         with fits.open(filename, mode="denywrite") as aoflags:
             flags = aoflags[1].data.field("FLAGS")
-        # some flag files are longer than data; crop the ends
+        # some flag files are longer than data; crop the end
         flags = flags[: self.Nblts, :]
         # some flag files are shorter than data; assume same end time
         blt_ind = self.Nblts - len(flags)
@@ -1299,6 +1350,17 @@ class MWACorrFITS(UVData):
         self,
         filelist,
         *,
+        antenna_nums=None,
+        antenna_names=None,
+        bls=None,
+        # frequencies=None,
+        # freq_chans=None,
+        # times=None,
+        # time_range=None,
+        # lsts=None,
+        # lst_range=None,
+        # polarizations=None,
+        keep_all_metadata=True,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
@@ -1354,6 +1416,11 @@ class MWACorrFITS(UVData):
         if not isinstance(start_flag, int | float) and start_flag != "goodtime":
             raise ValueError("start_flag must be int or float or 'goodtime'")
 
+        # check that bls are a list of 2-tuples as required by _select_blt_preprocess
+        if bls is not None and not all(len(item) == 2 for item in bls):
+            raise ValueError(
+                "bls must be a list of 2-tuples giving antenna number pairs"
+            )
         # iterate through files and organize
         # create a list of included file numbers
         # find the first and last times that have data
@@ -1402,6 +1469,8 @@ class MWACorrFITS(UVData):
                         # check headers for first and last times containing data
                         headstart = hdu_list[1].header
                         headfin = hdu_list[-1].header
+                        # start & end times are for the full file set
+                        # first & last are for this file
                         first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
                         last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
                         if start_time == 0.0:
@@ -1595,8 +1664,6 @@ class MWACorrFITS(UVData):
         ant_1_inds, ant_2_inds = np.transpose(
             list(itertools.combinations_with_replacement(np.arange(self.Nants_data), 2))
         )
-        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int64)
-        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int64)
 
         if not mwax:
             # coarse channel mapping for the legacy correlator:
@@ -1679,7 +1746,6 @@ class MWACorrFITS(UVData):
                         corr_ants_to_pfb_inputs[(meta_dict["antenna_inds"][i], p)] = (
                             2 * i + p
                         )
-
                 # for mapping, start with a pair of antennas/polarizations
                 # this is the pair we want to find the data for
                 # map the pair to the corresponding coarse pfb input indices
@@ -1701,6 +1767,59 @@ class MWACorrFITS(UVData):
             else:
                 map_inds = None
                 conj = None
+
+            # check if we want to do any select on the baseline axis
+            # Note: only passing the ant_1/2_arrays and baseline_array for one time.
+            bl_inds, bl_selections = _select_blt_preprocess(
+                select_antenna_nums=antenna_nums,
+                select_antenna_names=antenna_names,
+                bls=bls,
+                times=None,
+                time_range=None,
+                lsts=None,
+                lst_range=None,
+                blt_inds=None,
+                phase_center_ids=None,
+                antenna_names=self.telescope.antenna_names,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=ant_1_array,
+                ant_2_array=ant_2_array,
+                baseline_array=self.antnums_to_baseline(ant_1_array, ant_2_array),
+                time_array=self.time_array,
+                time_tols=self._time_array.tols,
+                lst_array=self.lst_array,
+                lst_tols=self._lst_array.tols,
+                phase_center_id_array=self.phase_center_id_array,
+            )
+
+            if bl_inds is not None:
+                ant_1_inds = ant_1_inds[bl_inds]
+                ant_2_inds = ant_2_inds[bl_inds]
+
+                history_update_string = (
+                    "  Downselected to specific "
+                    + ", ".join(bl_selections)
+                    + " using pyuvdata."
+                )
+                # do select operations on everything except data_array, flag_array
+                # and nsample_array
+                blt_inds = np.take(
+                    np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls),
+                    bl_inds,
+                    axis=1,
+                ).flatten()
+                self._select_by_index(
+                    blt_inds=blt_inds,
+                    freq_inds=None,
+                    pol_inds=None,
+                    history_update_string=history_update_string,
+                    keep_all_metadata=keep_all_metadata,
+                )
+
+        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int64)
+        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int64)
+
+        if read_data:
             # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
                 (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype
@@ -1716,15 +1835,16 @@ class MWACorrFITS(UVData):
             # read data files
             for filename in file_dict["data"]:
                 self._read_fits_file(
-                    filename,
-                    time_array,
-                    file_nums,
-                    num_fine_chans,
-                    meta_dict["int_time"],
-                    mwax,
-                    map_inds,
-                    conj,
-                    pol_index_array,
+                    filename=filename,
+                    time_array=time_array,
+                    file_nums=file_nums,
+                    num_fine_chans=num_fine_chans,
+                    int_time=meta_dict["int_time"],
+                    mwax=mwax,
+                    map_inds=map_inds,
+                    conj=conj,
+                    pol_index_array=pol_index_array,
+                    bl_inds=bl_inds,
                 )
 
             # propagate coarse flags
@@ -1836,9 +1956,20 @@ class MWACorrFITS(UVData):
 
         # remove bad antennas
         # select must be called after lst thread is re-joined
-        if remove_flagged_ants:
+        if (
+            remove_flagged_ants
+            and meta_dict["flagged_ant_inds"].size > 0
+            and np.sum(
+                np.isin(
+                    meta_dict["flagged_ant_inds"],
+                    np.union1d(self.ant_1_array, self.ant_2_array),
+                )
+            )
+            > 0
+        ):
             good_ants = np.delete(
-                np.array(self.telescope.antenna_numbers), meta_dict["flagged_ant_inds"]
+                np.union1d(self.ant_1_array, self.ant_2_array),
+                meta_dict["flagged_ant_inds"],
             )
             self.select(antenna_nums=good_ants, run_check=False)
 
