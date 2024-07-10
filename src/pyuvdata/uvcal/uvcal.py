@@ -4012,10 +4012,7 @@ class UVCal(UVBase):
             string to append to the end of the history.
 
         """
-        # build up history string as we go
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
-
+        selections = []
         if antenna_names is not None:
             if antenna_nums is not None:
                 raise ValueError(
@@ -4034,8 +4031,7 @@ class UVCal(UVBase):
 
         if antenna_nums is not None:
             antenna_nums = utils.tools._get_iterable(antenna_nums)
-            history_update_string += "antennas"
-            n_selects += 1
+            selections.append("antennas")
 
             ant_inds = np.zeros(0, dtype=np.int64)
             for ant in antenna_nums:
@@ -4067,7 +4063,7 @@ class UVCal(UVBase):
                 self.phase_center_catalog, catalog_names
             )
 
-        time_inds = utils.times._select_times_helper(
+        time_inds, time_selections = utils.times._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -4080,21 +4076,8 @@ class UVCal(UVBase):
             lst_tols=self._lst_array.tols,
         )
         if time_inds is not None:
+            selections.extend(time_selections)
             time_inds = sorted(set(time_inds.tolist()))
-
-        if times is not None or time_range is not None:
-            if n_selects > 0:
-                history_update_string += ", times"
-            else:
-                history_update_string += "times"
-            n_selects += 1
-
-        if lsts is not None or lst_range is not None:
-            if n_selects > 0:
-                history_update_string += ", lsts"
-            else:
-                history_update_string += "lsts"
-            n_selects += 1
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
@@ -4102,14 +4085,10 @@ class UVCal(UVBase):
                 np.where(pc_check)[0], time_inds
             )
 
-            update_substring = (
+            pc_selection = (
                 "phase center IDs" if (catalog_names is None) else "catalog names"
             )
-            if n_selects > 0:
-                history_update_string += ", " + update_substring
-            else:
-                history_update_string += update_substring
-            n_selects += 1
+            selections.append(pc_selection)
 
         if time_inds is not None and self.time_range is None:
             # don't warn if time_range is not None because calfits does not support
@@ -4137,11 +4116,7 @@ class UVCal(UVBase):
                     )
                     spw_inds = None
                 else:
-                    if n_selects > 0:
-                        history_update_string += ", spectral windows"
-                    else:
-                        history_update_string += "spectral windows"
-                    n_selects += 1
+                    selections.append("spectral windows")
 
                     # Check and see that all requested spws are available
                     spw_check = np.isin(spws, self.spw_array)
@@ -4179,11 +4154,7 @@ class UVCal(UVBase):
             )
 
         if freq_chans is not None:
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
+            selections.append("frequencies")
 
             # Check and see that all requested freqs are available
             if frequencies is not None:
@@ -4218,11 +4189,7 @@ class UVCal(UVBase):
             jones = utils.tools._get_iterable(jones)
             if np.array(jones).ndim > 1:
                 jones = np.array(jones).flatten()
-            if n_selects > 0:
-                history_update_string += ", jones polarization terms"
-            else:
-                history_update_string += "jones polarization terms"
-            n_selects += 1
+            selections.append("jones polarization terms")
 
             jones_inds = np.zeros(0, dtype=np.int64)
             jones_spws = np.zeros(0, dtype=np.int64)
@@ -4284,10 +4251,14 @@ class UVCal(UVBase):
         else:
             jones_inds = None
 
-        history_update_string += " using pyuvdata."
-
-        if n_selects == 0:
-            history_update_string = ""
+        # build up history string from selections
+        history_update_string = ""
+        if len(selections) > 0:
+            history_update_string = (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
 
         return (
             ant_inds,
