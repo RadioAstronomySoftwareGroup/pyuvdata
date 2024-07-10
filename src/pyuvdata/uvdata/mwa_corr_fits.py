@@ -642,6 +642,7 @@ class MWACorrFITS(UVData):
         conj,
         pol_index_array,
         bl_inds=None,
+        time_inds=None,
     ):
         """
         Read the fits file and populate into memory.
@@ -672,6 +673,8 @@ class MWACorrFITS(UVData):
             Indices for reordering polarizations to the 'AIPS' convention
         bl_inds : array, optional
             Baseline indices (after any re-mapping) to select on read.
+        time_inds : array, optional
+            Time indices to select on read.
 
         """
         # get the file number from the file name
@@ -737,25 +740,32 @@ class MWACorrFITS(UVData):
                     + hdu.header["MILLITIM"] / 1000.0
                     + int_time / 2.0
                 )
-                time_ind = np.where(time_array == time)[0][0]
+                this_time_ind = np.where(time_array == time)[0][0]
+                if time_inds is not None:
+                    if this_time_ind not in time_inds:
+                        # skip this time
+                        continue
+                    t_ind_use = np.where(time_inds == this_time_ind)[0][0]
+                else:
+                    t_ind_use = this_time_ind
                 # dump data into matrix
                 # and take data from real to complex numbers
                 if bl_inds is not None:
                     if not mwax:
-                        coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data[
+                        coarse_chan_data.view(np.float32)[t_ind_use, :, :] = hdu.data[
                             :, bl_inds_map_ri
                         ]
                     else:
                         temp_data = hdu.data[bl_inds]
-                        coarse_chan_data.view(np.float32)[time_ind, :, :] = temp_data
+                        coarse_chan_data.view(np.float32)[t_ind_use, :, :] = temp_data
                 else:
-                    coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data
+                    coarse_chan_data.view(np.float32)[t_ind_use, :, :] = hdu.data
                 # fill nsample and flag arrays
                 # think about using the mwax weights array in the future
                 self.nsample_array[
-                    time_ind, :, freq_ind : freq_ind + num_fine_chans, :
+                    t_ind_use, :, freq_ind : freq_ind + num_fine_chans, :
                 ] = 1.0
-                self.flag_array[time_ind, :, coarse_ind, :] = False
+                self.flag_array[t_ind_use, :, coarse_ind, :] = False
         if not mwax:
             if bl_inds is None:
                 # do mapping and reshaping here to avoid copying whole data_array
@@ -1355,10 +1365,10 @@ class MWACorrFITS(UVData):
         bls=None,
         # frequencies=None,
         # freq_chans=None,
-        # times=None,
-        # time_range=None,
-        # lsts=None,
-        # lst_range=None,
+        times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
         # polarizations=None,
         keep_all_metadata=True,
         use_aoflagger_flags=None,
@@ -1633,9 +1643,12 @@ class MWACorrFITS(UVData):
         self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         # convert times to lst
-        proc = self.set_lsts_from_time_array(
-            background=background_lsts, astrometry_library=astrometry_library
+        lst_array = utils.times.get_lst_for_time(
+            float_time_array,
+            telescope_loc=self.telescope.location,
+            astrometry_library=astrometry_library,
         )
+        self.lst_array = np.repeat(lst_array, self.Nbls)
 
         self.integration_time = np.full((self.Nblts), meta_dict["int_time"])
 
@@ -1785,29 +1798,49 @@ class MWACorrFITS(UVData):
                 ant_1_array=ant_1_array,
                 ant_2_array=ant_2_array,
                 baseline_array=self.antnums_to_baseline(ant_1_array, ant_2_array),
-                time_array=self.time_array,
-                time_tols=self._time_array.tols,
-                lst_array=self.lst_array,
-                lst_tols=self._lst_array.tols,
+                time_array=None,
+                time_tols=None,
+                lst_array=None,
+                lst_tols=None,
                 phase_center_id_array=self.phase_center_id_array,
             )
 
-            if bl_inds is not None:
-                ant_1_inds = ant_1_inds[bl_inds]
-                ant_2_inds = ant_2_inds[bl_inds]
+            # only passing the unique times to figure out which HDUs to read.
+            time_inds, time_selections = utils.times._select_times_helper(
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                obj_time_array=float_time_array,
+                time_tols=self._time_array.tols,
+                obj_lst_array=lst_array,
+                lst_tols=self._lst_array.tols,
+                obj_time_range=None,
+                obj_lst_range=None,
+            )
+
+            selections = []
+            if bl_inds is not None or time_inds is not None:
+                # do select operations on everything except data_array, flag_array
+                # and nsample_array
+                blt_inds = np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls)
+                if bl_inds is not None:
+                    ant_1_inds = ant_1_inds[bl_inds]
+                    ant_2_inds = ant_2_inds[bl_inds]
+                    selections.extend(bl_selections)
+
+                    blt_inds = np.take(blt_inds, bl_inds, axis=1)
+                if time_inds is not None:
+                    selections.extend(time_selections)
+
+                    blt_inds = np.take(blt_inds, time_inds, axis=0)
+                blt_inds = blt_inds.flatten()
 
                 history_update_string = (
                     "  Downselected to specific "
-                    + ", ".join(bl_selections)
+                    + ", ".join(selections)
                     + " using pyuvdata."
                 )
-                # do select operations on everything except data_array, flag_array
-                # and nsample_array
-                blt_inds = np.take(
-                    np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls),
-                    bl_inds,
-                    axis=1,
-                ).flatten()
                 self._select_by_index(
                     blt_inds=blt_inds,
                     freq_inds=None,
@@ -1845,6 +1878,7 @@ class MWACorrFITS(UVData):
                     conj=conj,
                     pol_index_array=pol_index_array,
                     bl_inds=bl_inds,
+                    time_inds=time_inds,
                 )
 
             # propagate coarse flags
@@ -1945,9 +1979,11 @@ class MWACorrFITS(UVData):
             # be conjugated
             np.conj(self.data_array, out=self.data_array)
 
-        # wait for LSTs if set in background
-        if proc is not None:
-            proc.join()
+        if self.Nspws == 1 or np.all(np.diff(self.spw_array) == 1):
+            # everything is contiguous, just use one spw
+            self.Nspws = 1
+            self.spw_array = np.array([0])
+            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         self._set_app_coords_helper()
 

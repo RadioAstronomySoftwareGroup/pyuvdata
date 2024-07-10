@@ -230,7 +230,7 @@ def _select_blt_preprocess(
         else:
             blt_inds = ant_blt_inds
 
-    time_blt_inds = utils.times._select_times_helper(
+    time_blt_inds, time_selections = utils.times._select_times_helper(
         times=times,
         time_range=time_range,
         lsts=lsts,
@@ -243,19 +243,8 @@ def _select_blt_preprocess(
         lst_tols=lst_tols,
     )
 
-    if times is not None or time_range is not None:
-        selections.append("times")
-
-        if blt_inds is not None:
-            # Use intesection (and) to join
-            # antenna_names/nums/ant_pairs_nums/blt_inds with times
-            blt_inds = np.intersect1d(blt_inds, time_blt_inds)
-        else:
-            blt_inds = time_blt_inds
-
-    if lsts is not None or lst_range is not None:
-        selections.append("lsts")
-
+    if time_blt_inds is not None:
+        selections.extend(time_selections)
         if blt_inds is not None:
             # Use intesection (and) to join
             # antenna_names/nums/ant_pairs_nums/blt_inds with times
@@ -11193,10 +11182,10 @@ class UVData(UVBase):
                 select_antenna_nums = None
                 select_antenna_names = None
                 select_bls = None
-                # select_lst_range = None
-                # select_time_range = None
-                # select_times = None
-                # select_lsts = None
+                select_lst_range = None
+                select_time_range = None
+                select_times = None
+                select_lsts = None
 
                 # MWA corr fits can only handle length-two bls tuples, anything
                 # else needs to be handled via select.
@@ -11210,10 +11199,6 @@ class UVData(UVBase):
                 select_polarizations = polarizations
                 select_frequencies = frequencies
                 select_freq_chans = freq_chans
-                select_lst_range = lst_range
-                select_time_range = time_range
-                select_times = times
-                select_lsts = lsts
 
                 if all(
                     item is None
@@ -11224,10 +11209,6 @@ class UVData(UVBase):
                         ant_str,
                         frequencies,
                         freq_chans,
-                        lst_range,
-                        time_range,
-                        times,
-                        lsts,
                     ]
                 ):
                     # If there's nothing to select, just bypass that operation.
@@ -11332,10 +11313,10 @@ class UVData(UVBase):
                     bls=bls,
                     # frequencies=frequencies,
                     # freq_chans=freq_chans,
-                    # times=times,
-                    # time_range=time_range,
-                    # lsts=lsts,
-                    # lst_range=lst_range,
+                    times=times,
+                    time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
                     # polarizations=polarizations,
                     keep_all_metadata=keep_all_metadata,
                     use_aoflagger_flags=use_aoflagger_flags,

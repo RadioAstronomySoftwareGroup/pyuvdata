@@ -6,6 +6,7 @@
 import importlib
 import itertools
 import os
+import shutil
 import warnings
 
 import h5py
@@ -41,35 +42,73 @@ testfiles = [
 filelist = [os.path.join(testdir, filei) for filei in testfiles]
 
 
+def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
+    fine_res = 1280 // nfreq
+
+    cb_spoof = str(tmp_path / f"mwax_cb_spoof{fine_res}_ch137_000.fits")
+    meta_spoof = str(tmp_path / f"mwax_cb_spoof{fine_res}.metafits")
+
+    outfiles = []
+    with fits.open(filelist[12]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, nfreq, axis=1)  # data
+        mini1[2].data = np.repeat(mini1[2].data, nfreq, axis=1)  # weights
+
+        for tind in range(1, ntimes):
+            new_time = mini1[1].header["TIME"] + 2 * tind
+            extra_dat = np.copy(mini1[1].data)
+            extra_samps = np.copy(mini1[2].data)
+            mini1.append(fits.ImageHDU(extra_dat))
+            mini1.append(fits.ImageHDU(extra_samps))
+            data_hdu_ind = tind * 2 + 1
+            samp_hdu_ind = tind * 2 + 2
+            mini1[data_hdu_ind].header["TIME"] = new_time
+            mini1[samp_hdu_ind].header["TIME"] = new_time
+            mini1[data_hdu_ind].header["MILLITIM"] = 0
+            mini1[samp_hdu_ind].header["MILLITIM"] = 0
+
+        mini1.writeto(cb_spoof)
+        outfiles.append(cb_spoof)
+    for nfile in range(1, ncoarse):
+        filename = str(tmp_path / f"mwax_cb_spoof{fine_res}_ch{137 + nfile}_000.fits")
+        shutil.copy(cb_spoof, filename)
+        outfiles.append(filename)
+
+    with fits.open(filelist[11]) as meta:
+        meta[0].header["FINECHAN"] = fine_res
+        meta.writeto(meta_spoof)
+
+    return [meta_spoof, cb_spoof]
+
+
+def spoof_legacy(tmp_path, nfreq=16, ntimes=2, ncoarse=2):
+    input_files = filelist[1:3]
+    spoof_files = [
+        str(tmp_path / "spoof_01_00.fits"),
+        str(tmp_path / "spoof_06_00.fits"),
+    ]
+
+    files_use = [filelist[0]]
+    for f_ind in range(ncoarse):
+        with fits.open(input_files[f_ind]) as mini:
+            mini[1].data = np.repeat(mini[1].data, nfreq, axis=0)
+            extra_dat = np.copy(mini[1].data)
+            for tind in range(1, ntimes):
+                new_time = mini[1].header["TIME"] + tind // 2
+                new_millitime = (tind % 2) * 500
+                mini.append(fits.ImageHDU(extra_dat))
+                hdu_ind = tind + 1
+                mini[hdu_ind].header["MILLITIM"] = new_millitime
+                mini[hdu_ind].header["TIME"] = new_time
+            mini.writeto(spoof_files[f_ind])
+            files_use.append(spoof_files[f_ind])
+
+    return files_use
+
+
 @pytest.fixture(scope="module")
 def flag_file_init(tmp_path_factory):
     tmp_path = tmp_path_factory.mktemp("pyuvdata_corr_fits", numbered=True)
-    spoof_file1 = str(tmp_path / "spoof_01_00.fits")
-    spoof_file6 = str(tmp_path / "spoof_06_00.fits")
-    # spoof box files of the appropriate size
-    with fits.open(filelist[1]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 8, axis=0)
-        extra_dat = np.copy(mini1[1].data)
-        for _ in range(2):
-            mini1.append(fits.ImageHDU(extra_dat))
-        mini1[2].header["MILLITIM"] = 500
-        mini1[2].header["TIME"] = mini1[1].header["TIME"]
-        mini1[3].header["MILLITIM"] = 0
-        mini1[3].header["TIME"] = mini1[1].header["TIME"] + 1
-        mini1.writeto(spoof_file1)
-
-    with fits.open(filelist[2]) as mini6:
-        mini6[1].data = np.repeat(mini6[1].data, 8, axis=0)
-        extra_dat = np.copy(mini6[1].data)
-        for _ in range(2):
-            mini6.append(fits.ImageHDU(extra_dat))
-        mini6[2].header["MILLITIM"] = 500
-        mini6[2].header["TIME"] = mini6[1].header["TIME"]
-        mini6[3].header["MILLITIM"] = 0
-        mini6[3].header["TIME"] = mini6[1].header["TIME"] + 1
-        mini6.writeto(spoof_file6)
-
-    flag_testfiles = [spoof_file1, spoof_file6, filelist[0]]
+    flag_testfiles = spoof_legacy(tmp_path, nfreq=8, ntimes=3)
 
     yield flag_testfiles
 
@@ -126,20 +165,7 @@ def test_read_mwax_write_uvfits(tmp_path):
     Read in MWAX correlator files, write out as uvfits, read back in and check
     for object equality.
     """
-    # spoof testfile to contain 2 times and 2 freqs
-    spoof_file = str(tmp_path / "mwax_spoof_ch137_000.fits")
-    with fits.open(filelist[12]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 2, axis=1)
-        mini1[2].data = np.repeat(mini1[2].data, 2, axis=1)
-        extra_dat = np.copy(mini1[1].data)
-        extra_samps = np.copy(mini1[2].data)
-        mini1.append(fits.ImageHDU(extra_dat))
-        mini1.append(fits.ImageHDU(extra_samps))
-        mini1[3].header["TIME"] = 1636374472
-        mini1[4].header["TIME"] = 1636374472
-        mini1[3].header["MILLITIM"] = 0
-        mini1[4].header["MILLITIM"] = 0
-        mini1.writeto(spoof_file)
+    spoof_files = spoof_mwax(tmp_path)
     mwax_uv = UVData()
     uvfits_uv = UVData()
     messages = [
@@ -147,11 +173,7 @@ def test_read_mwax_write_uvfits(tmp_path):
         "some coarse channel files were not submitted",
     ]
     with check_warnings(UserWarning, messages):
-        mwax_uv.read(
-            [spoof_file, filelist[11]],
-            correct_cable_len=True,
-            phase_to_pointing_center=True,
-        )
+        mwax_uv.read(spoof_files, correct_cable_len=True, phase_to_pointing_center=True)
     testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
     mwax_uv.write_uvfits(testfile)
     uvfits_uv.read_uvfits(testfile)
@@ -181,35 +203,6 @@ def test_mwax_metafits_keys(tmp_path):
     uv.read([meta_spoof_file, filelist[1]])
 
     assert "DELAYMOD" not in uv.extra_keywords
-
-
-@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
-def test_select_on_read():
-    mwa_uv = UVData()
-    mwa_uv2 = UVData()
-    mwa_uv.read(filelist[0:2], correct_cable_len=True)
-    unique_times = np.unique(mwa_uv.time_array)
-    select_times = unique_times[
-        np.where(
-            (unique_times >= np.min(mwa_uv.time_array))
-            & (unique_times <= np.mean(mwa_uv.time_array))
-        )
-    ]
-    mwa_uv.select(times=select_times)
-    with check_warnings(
-        UserWarning,
-        [
-            "Warning: a select on read keyword is set that is not supported by "
-            "read_mwa_corr_fits. This select will be done after reading the file.",
-            "some coarse channel files were not submitted",
-        ],
-    ):
-        mwa_uv2.read(
-            filelist[0:2],
-            correct_cable_len=True,
-            time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
-        )
-    assert mwa_uv == mwa_uv2
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -446,13 +439,9 @@ def test_fine_channels_mwax(tmp_path):
     are submitted.
     """
     mwax_uv = UVData()
-    bad_fine = str(tmp_path / "bad_ch137_000.fits.fits")
-    with fits.open(filelist[12]) as mini:
-        mini[1].data = np.repeat(mini[1].data, 2, axis=1)
-        mini[2].data = np.repeat(mini[2].data, 2, axis=1)
-        mini.writeto(bad_fine)
+    spoof_files = spoof_mwax(tmp_path)
     with pytest.raises(ValueError, match="files submitted have different numbers"):
-        mwax_uv.read([bad_fine, filelist[12]])
+        mwax_uv.read([spoof_files[1], filelist[12]])
     del mwax_uv
 
 
@@ -759,16 +748,13 @@ def test_remove_dig_gains():
 def test_remove_coarse_band(tmp_path):
     """Test coarse band removal."""
     # generate a spoof file with 32 channels
-    cb_spoof = str(tmp_path / "cb_spoof_01_00.fits")
-    with fits.open(filelist[1]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 32, axis=0)
-        mini1.writeto(cb_spoof)
+    spoof_files = spoof_legacy(tmp_path, nfreq=32, ncoarse=1)
 
     uv1 = UVData()
-    uv1.read([filelist[0], cb_spoof], data_array_dtype=np.complex64)
+    uv1.read(spoof_files, data_array_dtype=np.complex64)
 
     uv2 = UVData()
-    uv2.read([filelist[0], cb_spoof], remove_coarse_band=False)
+    uv2.read(spoof_files, remove_coarse_band=False)
 
     with h5py.File(
         DATA_PATH + "/mwa_config_data/MWA_rev_cb_10khz_doubles.h5", "r"
@@ -791,22 +777,14 @@ def test_remove_coarse_band(tmp_path):
 def test_remove_coarse_band_mwax_40(tmp_path):
     """Test coarse band removal for a 40 kHz mwax file."""
     # generate a spoof file with 32 channels
-    cb_spoof = str(tmp_path / "mwax_cb_spoof40_ch137_000.fits")
-    meta_spoof = str(tmp_path / "mwax_cb_spoof40.metafits")
 
-    with fits.open(filelist[12]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 32, axis=1)
-        mini1.writeto(cb_spoof)
-
-    with fits.open(filelist[11]) as meta:
-        meta[0].header["FINECHAN"] = 80
-        meta.writeto(meta_spoof)
+    spoof_files = spoof_mwax(tmp_path, nfreq=32)
 
     uv1 = UVData()
-    uv1.read([filelist[11], cb_spoof])
+    uv1.read(spoof_files)
 
     uv2 = UVData()
-    uv2.read([filelist[11], cb_spoof], remove_coarse_band=False)
+    uv2.read(spoof_files, remove_coarse_band=False)
 
     with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_40kHz.h5", "r") as f:
         cb_array = f["coarse_band"][:]
@@ -824,22 +802,13 @@ def test_remove_coarse_band_mwax_40(tmp_path):
 def test_remove_coarse_band_mwax_80(tmp_path):
     """Test coarse band removal for an 80 kHz mwax file."""
     # generate a spoof file with 16 channels
-    cb_spoof = str(tmp_path / "mwax_cb_spoof80_ch137_000.fits")
-    meta_spoof = str(tmp_path / "mwax_cb_spoof80.metafits")
-
-    with fits.open(filelist[12]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 16, axis=1)
-        mini1.writeto(cb_spoof)
-
-    with fits.open(filelist[11]) as meta:
-        meta[0].header["FINECHAN"] = 80
-        meta.writeto(meta_spoof)
+    spoof_files = spoof_mwax(tmp_path, nfreq=16)
 
     uv1 = UVData()
-    uv1.read([meta_spoof, cb_spoof])
+    uv1.read(spoof_files)
 
     uv2 = UVData()
-    uv2.read([meta_spoof, cb_spoof], remove_coarse_band=False)
+    uv2.read(spoof_files, remove_coarse_band=False)
 
     with h5py.File(DATA_PATH + "/mwa_config_data/mwax_pfb_bandpass_80kHz.h5", "r") as f:
         cb_array = f["coarse_band"][:]
@@ -856,21 +825,11 @@ def test_remove_coarse_band_mwax_80(tmp_path):
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 def test_remove_coarse_band_mwax_warning(tmp_path):
     """Test coarse band removal for a file we don't have a passband for."""
-    # generate a spoof file with 16 channels
-    cb_spoof = str(tmp_path / "mwax_cb_spoof160_ch137_000.fits")
-    meta_spoof = str(tmp_path / "mwax_cb_spoof160.metafits")
-
-    with fits.open(filelist[12]) as mini1:
-        mini1[1].data = np.repeat(mini1[1].data, 8, axis=1)
-        mini1.writeto(cb_spoof)
-
-    with fits.open(filelist[11]) as meta:
-        meta[0].header["FINECHAN"] = 160
-        meta.writeto(meta_spoof)
+    spoof_files = spoof_mwax(tmp_path, nfreq=8)
 
     uv = UVData()
     with pytest.raises(ValueError, match="mwax passband shapes are only available"):
-        uv.read([meta_spoof, cb_spoof], flag_init=False)
+        uv.read(spoof_files, flag_init=False)
 
 
 def test_aoflagger_flags():
@@ -1375,26 +1334,9 @@ def test_van_vleck(benchmark, cheby):
 @pytest.mark.parametrize("mwax", [False, True])
 def test_partial_read_bl_axis(tmp_path, mwax, select_kwargs, warn_msg):
     if mwax:
-        # generate a spoof file with 16 channels
-        cb_spoof = str(tmp_path / "mwax_cb_spoof80_ch137_000.fits")
-        meta_spoof = str(tmp_path / "mwax_cb_spoof80.metafits")
-
-        with fits.open(filelist[12]) as mini1:
-            mini1[1].data = np.repeat(mini1[1].data, 16, axis=1)
-            mini1.writeto(cb_spoof)
-
-        with fits.open(filelist[11]) as meta:
-            meta[0].header["FINECHAN"] = 80
-            meta.writeto(meta_spoof)
-
-        files_use = [meta_spoof, cb_spoof]
-
+        files_use = spoof_mwax(tmp_path, nfreq=16)
     else:
-        cb_spoof = str(tmp_path / "cb_spoof_01_00.fits")
-        with fits.open(filelist[1]) as mini1:
-            mini1[1].data = np.repeat(mini1[1].data, 32, axis=0)
-            mini1.writeto(cb_spoof)
-        files_use = [filelist[0], cb_spoof]
+        files_use = spoof_legacy(tmp_path, nfreq=16, ncoarse=1)
 
     uv_full = UVData.from_file(files_use)
 
@@ -1410,7 +1352,64 @@ def test_partial_read_bl_axis(tmp_path, mwax, select_kwargs, warn_msg):
         uv_partial = UVData.from_file(files_use, **select_kwargs)
     exp_uv = uv_full.select(**select_kwargs, inplace=False)
 
-    # history doesn't match because of different order of operations.
-    exp_uv.history = uv_partial.history
+    if "bls" in select_kwargs:
+        sel_type = "antenna pairs"
+    else:
+        sel_type = "antennas"
+
+    if warn_msg == "":
+        # history doesn't match because of different order of operations.
+        # fix order of operations in history
+        loc_divided = uv_full.history.find("Divided")
+        if not mwax:
+            loc_downsel = uv_full.history.find("  Downselected")
+            hist_end = uv_full.history[loc_divided:loc_downsel]
+        else:
+            hist_end = uv_full.history[loc_divided:]
+        exp_uv.history = (
+            uv_full.history[:loc_divided]
+            + f" Downselected to specific {sel_type} using pyuvdata. "
+            + hist_end
+        )
+    assert uv_partial == exp_uv
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+@pytest.mark.parametrize("select", ["times", "time_range", "lsts", "lst_range"])
+@pytest.mark.parametrize("mwax", [False, True])
+def test_partial_read_time_axis(tmp_path, mwax, select):
+    if mwax:
+        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=6)
+    else:
+        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=6, ncoarse=1)
+
+    uv_full = UVData.from_file(files_use)
+    unique_times = np.unique(uv_full.time_array)
+    assert uv_full.Ntimes == 6
+    unique_lsts = np.unique(uv_full.lst_array)
+
+    if select == "times":
+        select_kwargs = {"times": unique_times[[0, 2]]}
+        sel_type = "times"
+    elif select == "lsts":
+        select_kwargs = {"lsts": unique_lsts[[0, 2]]}
+        sel_type = "lsts"
+    elif select == "time_range":
+        select_kwargs = {"time_range": [unique_times[0], unique_times[3]]}
+        sel_type = "times"
+    else:
+        select_kwargs = {"lst_range": [unique_lsts[0], unique_lsts[3]]}
+        sel_type = "lsts"
+
+    uv_partial = UVData.from_file(files_use, **select_kwargs)
+    exp_uv = uv_full.select(**select_kwargs, inplace=False)
+    # fix order of operations in history
+    loc_divided = uv_full.history.find("Divided")
+    exp_uv.history = (
+        uv_full.history[:loc_divided]
+        + f" Downselected to specific {sel_type} using pyuvdata. "
+        + uv_full.history[loc_divided:]
+    )
 
     assert uv_partial == exp_uv
