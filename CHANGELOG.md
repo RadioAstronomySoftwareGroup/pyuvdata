@@ -3,6 +3,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added support for partial read for MWA correlator FITS files.
+- Added `antenna_names`, `time_range`, `lsts` and `lst_range` parameters to
+`UVFlag.select` to match UVData and UVCal select methods.
+
 ### Changed
 - Made it possible to *not* return the `interp_basis_vector` array from beam
 interpolators.
