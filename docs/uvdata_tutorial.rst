@@ -1557,20 +1557,17 @@ Measurement set (ms) files do not support reading only the metadata
   >>> print(uvd.data_array)
   None
 
-b) Reading only parts of uvfits, uvh5 or miriad data
-****************************************************
+b) Reading only parts of files
+******************************
 The same options that are available for the :meth:`pyuvdata.UVData.select` method can
 also be passed to the :meth:`pyuvdata.UVData.read`` method to do the select on the read,
 saving memory and time if only a portion of the data are needed.
 
-Note that these keywords can be used for any file type, but for FHD,
-MWA correlator FITS files, and
+Note that these keywords can be used for any file type, but for FHD and
 measurement set (ms) files, the select is done after the read, which does not
-save memory. Miriad only supports some of the selections on the read, the
-unsupported ones are done after the read.
-Any of the select keywords can be used for any file type, but selects for keywords
-that are not supported by the select on read for a given file type will be
-done after the read, which does not save memory.
+save memory. Miriad and Mir only supports some of the selections on the read, the
+unsupported ones are done after the read. MWA correlator fits has support for most
+but not all selections, the unsupported ones are done after the read.
 
 .. code-block:: python
 
