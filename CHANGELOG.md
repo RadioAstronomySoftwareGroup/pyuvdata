@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Added support for partial read for MWA correlator FITS files.
+- Added `antenna_names`, `time_range`, `lsts` and `lst_range` parameters to
+`UVFlag.select` to match UVData and UVCal select methods.
 - New optional spatial interpolation method, ``interpolation_function="az_za_map_coordinates"`` that improves the linear
 interpolation speed for data in ``az_za`` coordinates.
 - New UVParameter `pol_convention` on `UVData` and `UVCal`. This specifies the convention
