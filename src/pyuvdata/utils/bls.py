@@ -2,13 +2,14 @@
 # Licensed under the 2-clause BSD License
 """Utilities for baseline numbers."""
 
+import copy
 import re
 import warnings
 
 import numpy as np
 
 from . import _bls
-from .pol import polnum2str, polstr2num
+from .pol import conj_pol, polnum2str, polstr2num
 
 __all__ = ["baseline_to_antnums", "antnums_to_baseline"]
 
@@ -384,3 +385,75 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
         )
 
     return ant_pairs_nums, polarizations
+
+
+def _extract_bls_pol(
+    *, bls, polarizations, baseline_array, ant_1_array, ant_2_array, nants_telescope
+):
+    if isinstance(bls, list) and all(
+        isinstance(bl_ind, int | np.integer) for bl_ind in bls
+    ):
+        for bl_ind in bls:
+            if bl_ind not in baseline_array:
+                raise ValueError(
+                    f"Baseline number {bl_ind} is not present in the " "baseline_array"
+                )
+        bls = list(
+            zip(*baseline_to_antnums(bls, Nants_telescope=nants_telescope), strict=True)
+        )
+    elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
+        bls = [bls]
+    if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
+        raise ValueError(
+            "bls must be a list of tuples of antenna numbers "
+            "(optionally with polarization) or a list of baseline numbers."
+        )
+    if not all(
+        [isinstance(item[0], int | np.integer) for item in bls]
+        + [isinstance(item[1], int | np.integer) for item in bls]
+    ):
+        raise ValueError(
+            "bls must be a list of tuples of antenna numbers "
+            "(optionally with polarization) or a list of baseline numbers."
+        )
+    if any(len(item) == 3 for item in bls):
+        if polarizations is not None:
+            raise ValueError(
+                "Cannot provide any length-3 tuples and also specify " "polarizations."
+            )
+
+        bls_2 = copy.deepcopy(bls)
+        for bl_i, bl in enumerate(bls):
+            if len(bl) == 2:
+                continue
+
+            if not isinstance(bl[2], str):
+                raise ValueError(
+                    "The third element in a bl tuple must be a " "polarization string"
+                )
+
+            bl_pols = set()
+            wh1 = np.where(np.logical_and(ant_1_array == bl[0], ant_2_array == bl[1]))[
+                0
+            ]
+            if len(wh1) > 0:
+                bls_2[bl_i] = (bl[0], bl[1])
+                bl_pols.add(bl[2])
+            else:
+                wh2 = np.where(
+                    np.logical_and(ant_1_array == bl[1], ant_2_array == bl[0])
+                )[0]
+
+                if len(wh2) > 0:
+                    bls_2[bl_i] = (bl[1], bl[0])
+                    # find conjugate polarization
+                    bl_pols.add(conj_pol(bl[2]))
+                else:
+                    raise ValueError(
+                        f"Antenna pair {bl} does not have any data "
+                        "associated with it."
+                    )
+
+            polarizations = list(bl_pols)
+        bls = bls_2
+    return bls, polarizations

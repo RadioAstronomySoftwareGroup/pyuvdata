@@ -3287,19 +3287,15 @@ def test_select_waterfall_errors(uvf_from_waterfall):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
 @pytest.mark.parametrize("dimension", list(range(1, 4)))
-def test_select_blt_inds(input_uvf, uvf_mode, dimension):
-    uvf = input_uvf
+def test_select_blt_inds(uvf_from_data, uvf_mode, dimension):
+    uvf = uvf_from_data
 
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     np.random.seed(0)
-    if uvf.type == "baseline":
-        n_select = uvf.Nblts
-    else:
-        n_select = uvf.Ntimes
+    n_select = uvf.Nblts
 
     blt_inds = np.random.choice(n_select, size=n_select // 2, replace=False)
     new_nblts = n_select // 2
@@ -3320,42 +3316,20 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
         old_param = getattr(uvf, param_name)
         old_param_obj = getattr(uvf, "_" + param_name)
         blt_inds_use = np.atleast_1d(blt_inds.squeeze())
-        if uvf.type == "baseline":
-            np.testing.assert_allclose(
-                old_param[blt_inds_use],
-                new_param,
-                rtol=old_param_obj.tols[0],
-                atol=old_param_obj.tols[1],
-            )
-        if uvf.type == "antenna":
-            np.testing.assert_allclose(
-                old_param[:, :, blt_inds_use],
-                new_param,
-                rtol=old_param_obj.tols[0],
-                atol=old_param_obj.tols[1],
-            )
-        if uvf.type == "waterfall":
-            np.testing.assert_allclose(
-                old_param[blt_inds_use],
-                new_param,
-                rtol=old_param_obj.tols[0],
-                atol=old_param_obj.tols[1],
-            )
+        np.testing.assert_allclose(
+            old_param[blt_inds_use],
+            new_param,
+            rtol=old_param_obj.tols[0],
+            atol=old_param_obj.tols[1],
+        )
 
-    if uvf.type == "baseline":
-        assert uvf1.Nblts == new_nblts
-    else:
-        assert uvf1.Ntimes == new_nblts
+    assert uvf1.Nblts == new_nblts
 
     # verify that histories are different
     assert not utils.history._check_histories(uvf.history, uvf1.history)
-    if uvf.type == "baseline":
-        addition_str = "baseline-times"
-    else:
-        addition_str = "times"
 
     assert utils.history._check_histories(
-        uvf.history + f"  Downselected to specific {addition_str} using pyuvdata.",
+        uvf.history + "  Downselected to specific baseline-times using pyuvdata.",
         uvf1.history,
     )
 
@@ -3375,6 +3349,9 @@ def test_select_blt_inds_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
 
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
+
+    if uvf.type != "baseline":
+        err_msg = 'Only "baseline" mode UVFlag objects may select along the blt axis'
 
     with pytest.raises(ValueError, match=err_msg):
         uvf.select(**select_kwargs)
@@ -3446,8 +3423,10 @@ def test_select_antenna_nums_error(input_uvf, uvf_mode):
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
     # also test for error if antenna numbers not present in data
-    with pytest.raises(ValueError, match="Antenna number 708 is not present"):
-        uvf.select(antenna_nums=[708, 709, 710])
+    with pytest.raises(
+        ValueError, match=re.escape("Antenna number [708] is not present")
+    ):
+        uvf.select(antenna_nums=[708, 9, 10])
 
 
 def sort_bl(p):
@@ -3514,7 +3493,7 @@ def test_select_bls(input_uvf, uvf_mode):
             assert pair in sorted_pairs_to_keep
 
         assert utils.history._check_histories(
-            old_history + "  Downselected to specific baselines using pyuvdata.",
+            old_history + "  Downselected to specific antenna pairs using pyuvdata.",
             uvf2.history,
         )
 
@@ -3559,7 +3538,7 @@ def test_select_bls(input_uvf, uvf_mode):
 
         assert utils.history._check_histories(
             old_history + "  Downselected to "
-            "specific baselines, polarizations using pyuvdata.",
+            "specific antenna pairs, polarizations using pyuvdata.",
             uvf2.history,
         )
 
@@ -3571,48 +3550,6 @@ def test_select_bls(input_uvf, uvf_mode):
             for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
         ]
         assert list(set(sorted_pairs_object2)) == [ant_pairs_to_keep[0]]
-
-
-@cases_decorator_no_waterfall
-@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-@pytest.mark.parametrize(
-    "select_kwargs,err_msg",
-    [
-        ({"bls": [3]}, "bls must be a list of tuples"),
-        ({"bls": [(np.pi, 2 * np.pi)]}, "bls must be a list of tuples of integer"),
-        (
-            {"bls": (0, 1, "xx"), "polarizations": [-5]},
-            "Cannot provide length-3 tuples and also specify polarizations.",
-        ),
-        (
-            {"bls": (0, 1, 5)},
-            "The third element in each bl must be a polarization string",
-        ),
-        ({"bls": (455, 456)}, "Antenna number 455 is not present"),
-        ({"bls": (97, 456)}, "Antenna number 456 is not present"),
-        (
-            {"bls": (97, 97)},
-            r"Antenna pair \(97, 97\) does not have any data associated with it.",
-        ),
-    ],
-)
-def test_select_bls_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
-    uvf = input_uvf
-    # used to set the mode depending on which input is given to uvf_mode
-    getattr(uvf, uvf_mode)()
-    np.random.seed(0)
-    if uvf.type != "baseline":
-        with pytest.raises(
-            ValueError,
-            match='Only "baseline" mode UVFlag objects may select along the '
-            "baseline axis",
-        ):
-            uvf.select(bls=[(0, 1)])
-    else:
-        if select_kwargs["bls"] == (97, 97):
-            uvf.select(bls=[(97, 104), (97, 105), (88, 97)])
-        with pytest.raises(ValueError, match=err_msg):
-            uvf.select(**select_kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3863,7 +3800,7 @@ def test_select(input_uvf, uvf_mode):
     if uvf.type == "baseline":
         blt_inds = np.arange(uvf.Nblts - 1)
     else:
-        blt_inds = np.arange(uvf.Ntimes - 1)
+        blt_inds = None
 
     # new freqs
     freqs_to_keep = np.random.choice(
@@ -3932,19 +3869,6 @@ def test_select(input_uvf, uvf_mode):
                 )
             ]
         )
-    else:
-        if uvf.type == "baseline":
-            blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
-        else:
-            blts_blt_select = [i in blt_inds for i in np.arange(uvf.Ntimes)]
-
-        blts_time_select = [t in times_to_keep for t in uvf.time_array]
-        Nblts_select = np.sum(
-            [
-                bi & ti
-                for (bi, ti) in zip(blts_blt_select, blts_time_select, strict=True)
-            ]
-        )
 
     uvf2 = uvf.copy()
     uvf2.select(
@@ -3961,11 +3885,8 @@ def test_select(input_uvf, uvf_mode):
         for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
             assert ant in ants_to_keep
     elif uvf.type == "antenna":
-        assert Nblts_select == uvf2.Ntimes
         for ant in np.unique(uvf2.ant_array):
             assert ant in ants_to_keep
-    else:
-        assert Nblts_select == uvf2.Ntimes
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
     for f in freqs_to_keep:
@@ -3984,25 +3905,19 @@ def test_select(input_uvf, uvf_mode):
 
     if uvf.type == "baseline":
         assert utils.history._check_histories(
-            old_history + "  Downselected to "
-            "specific baseline-times, antennas, "
-            "baselines, times, frequencies, "
-            "polarizations using pyuvdata.",
+            old_history + "  Downselected to specific baseline-times, antennas, "
+            "antenna pairs, times, frequencies, polarizations using pyuvdata.",
             uvf2.history,
         )
     elif uvf.type == "antenna":
         assert utils.history._check_histories(
-            old_history + "  Downselected to "
-            "specific times, antennas, "
-            "frequencies, "
-            "polarizations using pyuvdata.",
+            old_history + "  Downselected to specific antennas, times, "
+            "frequencies, polarizations using pyuvdata.",
             uvf2.history,
         )
     else:
         assert utils.history._check_histories(
-            old_history + "  Downselected to "
-            "specific times, "
-            "frequencies, "
+            old_history + "  Downselected to specific times, frequencies, "
             "polarizations using pyuvdata.",
             uvf2.history,
         )
