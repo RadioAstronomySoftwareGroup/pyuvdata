@@ -1653,13 +1653,6 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
-        # Check consistency between pol_convention and units of data
-        if self.pol_convention is None:
-            warnings.warn(
-                "pol_convention is unset. This leaves the "
-                "convention ambiguous. Consider setting pol_convention to 'sum' or 'avg'."
-            )
-
         # then run telescope object check
         self.telescope.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability

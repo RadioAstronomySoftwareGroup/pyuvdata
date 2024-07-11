@@ -2215,13 +2215,7 @@ class UVData(UVBase):
         logger.debug("... Done UVBase Check")
 
         # Check consistency between pol_convention and units of data
-        if self.vis_units != "uncalib" and self.pol_convention is None:
-            warnings.warn(
-                "pol_convention is unset and the data is calibrated. This leaves the "
-                "convention ambiguous. Consider setting pol_convention to 'sum' or "
-                "'avg'."
-            )
-        elif self.vis_units == "uncalib" and self.pol_convention is not None:
+        if self.vis_units == "uncalib" and self.pol_convention is not None:
             raise ValueError(
                 "pol_convention is set but the data is uncalibrated. This "
                 "is not allowed."
