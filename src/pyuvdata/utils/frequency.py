@@ -310,7 +310,13 @@ def _sort_freq_helper(
 
 
 def _select_freq_helper(
-    *, frequencies, freq_chans, obj_freq_array, freq_tols, obj_spw_id_array
+    *,
+    frequencies,
+    freq_chans,
+    obj_freq_array,
+    freq_tols,
+    obj_spw_id_array,
+    warn_freq_spacing=True,
 ):
     """
     Get time indices in a select.
@@ -328,6 +334,8 @@ def _select_freq_helper(
         Length 2 tuple giving (rtol, atol) to use for freq matching.
     obj_spw_id_array : array_like of int
         flex_spw_id_array on object.
+    warn_freq_spacing : bool
+        Whether or not to warn about frequency spacing.
 
     Returns
     -------
@@ -357,7 +365,7 @@ def _select_freq_helper(
                     )[0],
                 )
             else:
-                raise ValueError(f"Frequency {freq} is not present in the time_array.")
+                raise ValueError(f"Frequency {freq} is not present in the freq_array.")
 
     if freq_chans is not None:
         selections = ["frequencies"]
@@ -371,17 +379,20 @@ def _select_freq_helper(
                 freq_ind_separation = freq_ind_separation[
                     np.diff(obj_spw_id_array[freq_inds]) == 0
                 ]
-            if not tools._test_array_constant(freq_ind_separation):
+            if (
+                not tools._test_array_constant(freq_ind_separation)
+                and warn_freq_spacing
+            ):
                 warnings.warn(
                     "Selected frequencies are not evenly spaced. This "
                     "will make it impossible to write this data out to "
-                    "calfits files"
+                    "some file types"
                 )
-            elif np.max(freq_ind_separation) > 1:
+            elif np.max(freq_ind_separation) > 1 and warn_freq_spacing:
                 warnings.warn(
                     "Selected frequencies are not contiguous. This "
                     "will make it impossible to write this data out to "
-                    "calfits files."
+                    "some file types."
                 )
 
         freq_inds = np.array(sorted(set(freq_inds)), dtype=np.int64)
