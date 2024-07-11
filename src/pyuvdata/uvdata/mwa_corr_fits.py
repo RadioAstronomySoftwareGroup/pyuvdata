@@ -22,7 +22,6 @@ from ..data import DATA_PATH
 from ..docstrings import copy_replace_short_description
 from ..utils.io import fits as fits_utils
 from . import UVData, _corr_fits
-from .uvdata import _select_blt_preprocess
 
 __all__ = ["input_output_mapping", "MWACorrFITS"]
 
@@ -1893,7 +1892,7 @@ class MWACorrFITS(UVData):
             selections = []
             # check if we want to do any select on the baseline axis
             # Note: only passing the ant_1/2_arrays and baseline_array for one time.
-            bl_inds, bl_selections = _select_blt_preprocess(
+            bl_inds, bl_selections = utils.bltaxis._select_blt_preprocess(
                 select_antenna_nums=antenna_nums,
                 select_antenna_names=antenna_names,
                 bls=bls,
