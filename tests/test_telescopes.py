@@ -7,6 +7,7 @@
 """
 import copy
 import os
+import warnings
 
 import numpy as np
 import pytest
@@ -16,7 +17,12 @@ from astropy.units import Quantity
 import pyuvdata
 from pyuvdata import Telescope, UVData, get_telescope
 from pyuvdata.data import DATA_PATH
-from pyuvdata.telescopes import _KNOWN_TELESCOPES, get_antenna_params
+from pyuvdata.telescopes import (
+    _KNOWN_TELESCOPES,
+    get_antenna_params,
+    ignore_telescope_param_update_warnings_for,
+    unignore_telescope_param_update_warnings_for,
+)
 from pyuvdata.testing import check_warnings
 
 required_parameters = [
@@ -477,3 +483,22 @@ def test_get_enu_antpos():
     antpos = tel.get_enu_antpos()
     assert antpos.shape == (tel.Nants, 3)
     assert np.isclose(antpos[0, 0], 19.340211050751535)
+
+
+def test_ignore_param_updates_error():
+    with pytest.raises(ValueError, match="'deathstar' is not a known telescope"):
+        ignore_telescope_param_update_warnings_for("deathstar")
+
+    with pytest.raises(ValueError, match="'deathstar' is not a known telescope"):
+        unignore_telescope_param_update_warnings_for("deathstar")
+
+
+def test_update_without_warning():
+    ignore_telescope_param_update_warnings_for("hera")
+    t = Telescope()
+    t.name = "HERA"
+    with warnings.catch_warnings():
+        # error if there is a warning
+        warnings.simplefilter("error")
+        t.update_params_from_known_telescopes()
+    unignore_telescope_param_update_warnings_for("hera")
