@@ -770,8 +770,10 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     # or providing numbers and names
     with pytest.raises(
         ValueError,
-        match=f"Antenna number {np.max(calobj.ant_array) + 1} "
-        "is not present in the array",
+        match=re.escape(
+            f"Antenna number {np.max(calobj.ant_array) + np.arange(1, 3)} "
+            "is not present in the ant_array"
+        ),
     ):
         calobj.select(antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3))
 

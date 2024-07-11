@@ -4013,39 +4013,6 @@ class UVCal(UVBase):
 
         """
         selections = []
-        if antenna_names is not None:
-            if antenna_nums is not None:
-                raise ValueError(
-                    "Only one of antenna_nums and antenna_names can be provided."
-                )
-
-            antenna_names = utils.tools._get_iterable(antenna_names)
-            antenna_nums = []
-            for s in antenna_names:
-                if s not in self.telescope.antenna_names:
-                    raise ValueError(
-                        f"Antenna name {s} is not present in the antenna_names array"
-                    )
-                ind = np.where(np.array(self.telescope.antenna_names) == s)[0][0]
-                antenna_nums.append(self.telescope.antenna_numbers[ind])
-
-        if antenna_nums is not None:
-            antenna_nums = utils.tools._get_iterable(antenna_nums)
-            selections.append("antennas")
-
-            ant_inds = np.zeros(0, dtype=np.int64)
-            for ant in antenna_nums:
-                if ant in self.ant_array:
-                    ant_inds = np.append(ant_inds, np.where(self.ant_array == ant)[0])
-                else:
-                    raise ValueError(
-                        f"Antenna number {ant} is not present in the array"
-                    )
-
-            ant_inds = sorted(set(ant_inds))
-        else:
-            ant_inds = None
-
         if (phase_center_ids is not None) and (catalog_names is not None):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
@@ -4058,10 +4025,15 @@ class UVCal(UVBase):
                 "IDs or catalog names."
             )
 
-        if catalog_names is not None:
-            phase_center_ids = utils.phase_center_catalog.look_for_name(
-                self.phase_center_catalog, catalog_names
-            )
+        ant_inds, ant_selections = utils.antenna._select_antenna_helper(
+            antenna_names=antenna_names,
+            antenna_nums=antenna_nums,
+            tel_ant_names=self.telescope.antenna_names,
+            tel_ant_nums=self.telescope.antenna_numbers,
+            obj_ant_array=self.ant_array,
+        )
+        if ant_inds is not None:
+            selections.extend(ant_selections)
 
         time_inds, time_selections = utils.times._select_times_helper(
             times=times,
@@ -4078,6 +4050,11 @@ class UVCal(UVBase):
         if time_inds is not None:
             selections.extend(time_selections)
             time_inds = sorted(set(time_inds.tolist()))
+
+        if catalog_names is not None:
+            phase_center_ids = utils.phase_center_catalog.look_for_name(
+                self.phase_center_catalog, catalog_names
+            )
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
