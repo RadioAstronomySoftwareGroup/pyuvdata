@@ -6586,10 +6586,7 @@ class UVData(UVBase):
             string to append to the end of the history.
 
         """
-        # build up history string as we go
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
-
+        selections = []
         if ant_str is not None:
             if not (
                 antenna_nums is None
@@ -6608,17 +6605,6 @@ class UVData(UVBase):
                         f"There is no data matching ant_str={ant_str} in this object."
                     )
 
-        # Antennas, times and blt_inds all need to be combined into a set of
-        # blts indices to keep.
-
-        # test for blt_inds presence before adding inds from antennas & times
-        if blt_inds is not None:
-            blt_inds = utils.tools._get_iterable(blt_inds)
-            if np.array(blt_inds).ndim > 1:
-                blt_inds = np.array(blt_inds).flatten()
-            history_update_string += "baseline-times"
-            n_selects += 1
-
         if (phase_center_ids is not None) and (catalog_names is not None):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
@@ -6626,292 +6612,60 @@ class UVData(UVBase):
             phase_center_ids = utils.phase_center_catalog.look_for_name(
                 self.phase_center_catalog, catalog_names
             )
-
-        if phase_center_ids is not None:
-            phase_center_ids = np.array(utils.tools._get_iterable(phase_center_ids))
-            pc_blt_inds = np.nonzero(
-                np.isin(self.phase_center_id_array, phase_center_ids)
-            )[0]
-            if blt_inds is not None:
-                # Use intersection (and) to join phase_center_ids
-                # with blt_inds
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(pc_blt_inds)), dtype=np.int64
-                )
-            else:
-                blt_inds = pc_blt_inds
-
-            update_substring = (
-                "phase center IDs" if (catalog_names is None) else "catalog names"
-            )
-            if n_selects > 0:
-                history_update_string += ", " + update_substring
-            else:
-                history_update_string += update_substring
-            n_selects += 1
-
-        if antenna_names is not None:
-            if antenna_nums is not None:
-                raise ValueError(
-                    "Only one of antenna_nums and antenna_names can be provided."
-                )
-
-            if not isinstance(antenna_names, (list, tuple, np.ndarray)):
-                antenna_names = (antenna_names,)
-            if np.array(antenna_names).ndim > 1:
-                antenna_names = np.array(antenna_names).flatten()
-            antenna_nums = []
-            for s in antenna_names:
-                if s not in self.telescope.antenna_names:
-                    raise ValueError(
-                        "Antenna name {a} is not present in the antenna_names"
-                        " array".format(a=s)
-                    )
-                antenna_nums.append(
-                    self.telescope.antenna_numbers[
-                        np.where(np.array(self.telescope.antenna_names) == s)
-                    ][0]
-                )
-
-        if antenna_nums is not None:
-            antenna_nums = utils.tools._get_iterable(antenna_nums)
-            antenna_nums = np.asarray(antenna_nums)
-            if antenna_nums.ndim > 1:
-                antenna_nums = antenna_nums.flatten()
-            if n_selects > 0:
-                history_update_string += ", antennas"
-            else:
-                history_update_string += "antennas"
-            n_selects += 1
-            # Check to make sure that we actually have these antenna nums in the data
-            ant_check = np.logical_or(
-                np.isin(antenna_nums, self.ant_1_array),
-                np.isin(antenna_nums, self.ant_2_array),
-            )
-            if not np.all(ant_check):
-                raise ValueError(
-                    f"Antenna number {antenna_nums[~ant_check]} is not present in the "
-                    "ant_1_array or ant_2_array"
-                )
-            ant_blt_inds = np.where(
-                np.logical_and(
-                    np.isin(self.ant_1_array, antenna_nums),
-                    np.isin(self.ant_2_array, antenna_nums),
-                )
-            )[0]
-        else:
-            ant_blt_inds = None
+            selections.append("catalog names")
+        elif phase_center_ids is not None:
+            selections.append("phase center IDs")
 
         if bls is not None:
-            if isinstance(bls, list) and all(
-                isinstance(bl_ind, (int, np.integer)) for bl_ind in bls
-            ):
-                for bl_ind in bls:
-                    if not (bl_ind in self.baseline_array):
-                        raise ValueError(
-                            "Baseline number {i} is not present in the "
-                            "baseline_array".format(i=bl_ind)
-                        )
-                bls = list(zip(*self.baseline_to_antnums(bls)))
-            elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
-                bls = [bls]
-            if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
-                raise ValueError(
-                    "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization) or a list of baseline numbers."
-                )
-            if not all(
-                [isinstance(item[0], (int, np.integer)) for item in bls]
-                + [isinstance(item[1], (int, np.integer)) for item in bls]
-            ):
-                raise ValueError(
-                    "bls must be a list of tuples of antenna numbers "
-                    "(optionally with polarization) or a list of baseline numbers."
-                )
-            if all(len(item) == 3 for item in bls):
-                if polarizations is not None:
-                    raise ValueError(
-                        "Cannot provide length-3 tuples and also specify polarizations."
-                    )
-                if not all(isinstance(item[2], str) for item in bls):
-                    raise ValueError(
-                        "The third element in each bl must be a polarization string"
-                    )
-
-            if ant_str is None:
-                if n_selects > 0:
-                    history_update_string += ", baselines"
-                else:
-                    history_update_string += "baselines"
-            else:
-                history_update_string += "antenna pairs"
-            n_selects += 1
-            bls_blt_inds = np.zeros(0, dtype=np.int64)
-            bl_pols = set()
-            for bl in bls:
-                wh1 = np.where(
-                    np.logical_and(self.ant_1_array == bl[0], self.ant_2_array == bl[1])
-                )[0]
-                if len(wh1) > 0:
-                    bls_blt_inds = np.append(bls_blt_inds, list(wh1))
-                    if len(bl) == 3:
-                        bl_pols.add(bl[2])
-                else:
-                    wh2 = np.where(
-                        np.logical_and(
-                            self.ant_1_array == bl[1], self.ant_2_array == bl[0]
-                        )
-                    )[0]
-
-                    if len(wh2) > 0:
-                        bls_blt_inds = np.append(bls_blt_inds, list(wh2))
-                        if len(bl) == 3:
-                            # find conjugate polarization
-                            bl_pols.add(utils.conj_pol(bl[2]))
-                    else:
-                        raise ValueError(
-                            "Antenna pair {p} does not have any data "
-                            "associated with it.".format(p=bl)
-                        )
-            if len(bl_pols) > 0:
-                polarizations = list(bl_pols)
-
-            if ant_blt_inds is not None:
-                # Use intersection (and) to join antenna_names/nums & ant_pairs_nums
-                ant_blt_inds = np.array(
-                    list(set(ant_blt_inds).intersection(bls_blt_inds))
-                )
-            else:
-                ant_blt_inds = bls_blt_inds
-
-        if ant_blt_inds is not None:
-            if blt_inds is not None:
-                # Use intersection (and) to join antenna_names/nums/ant_pairs_nums
-                # with blt_inds
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(ant_blt_inds)), dtype=np.int64
-                )
-            else:
-                blt_inds = ant_blt_inds
-
-        time_blt_inds = utils.times._select_times_helper(
+            bls, polarizations = utils.bls._extract_bls_pol(
+                bls=bls,
+                polarizations=polarizations,
+                baseline_array=self.baseline_array,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                nants_telescope=self.telescope.Nants,
+            )
+        blt_inds, blt_selections = utils.bltaxis._select_blt_preprocess(
+            select_antenna_nums=antenna_nums,
+            select_antenna_names=antenna_names,
+            bls=bls,
             times=times,
             time_range=time_range,
             lsts=lsts,
             lst_range=lst_range,
-            obj_time_array=self.time_array,
-            obj_time_range=None,
-            obj_lst_array=self.lst_array,
-            obj_lst_range=None,
+            blt_inds=blt_inds,
+            phase_center_ids=phase_center_ids,
+            antenna_names=self.telescope.antenna_names,
+            antenna_numbers=self.telescope.antenna_numbers,
+            ant_1_array=self.ant_1_array,
+            ant_2_array=self.ant_2_array,
+            baseline_array=self.baseline_array,
+            time_array=self.time_array,
             time_tols=self._time_array.tols,
+            lst_array=self.lst_array,
             lst_tols=self._lst_array.tols,
+            phase_center_id_array=self.phase_center_id_array,
         )
+        selections.extend(blt_selections)
 
-        if times is not None or time_range is not None:
-            if n_selects > 0:
-                history_update_string += ", times"
-            else:
-                history_update_string += "times"
-            n_selects += 1
-
-            if blt_inds is not None:
-                # Use intesection (and) to join
-                # antenna_names/nums/ant_pairs_nums/blt_inds with times
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int64
-                )
-            else:
-                blt_inds = time_blt_inds
-
-        if lsts is not None or lst_range is not None:
-            if n_selects > 0:
-                history_update_string += ", lsts"
-            else:
-                history_update_string += "lsts"
-            n_selects += 1
-
-            if blt_inds is not None:
-                # Use intesection (and) to join
-                # antenna_names/nums/ant_pairs_nums/blt_inds with times
-                blt_inds = np.array(
-                    list(set(blt_inds).intersection(time_blt_inds)), dtype=np.int64
-                )
-            else:
-                blt_inds = time_blt_inds
-
-        if blt_inds is not None:
-            if len(blt_inds) == 0:
-                raise ValueError("No baseline-times were found that match criteria")
-            if max(blt_inds) >= self.Nblts:
-                raise ValueError("blt_inds contains indices that are too large")
-            if min(blt_inds) < 0:
-                raise ValueError("blt_inds contains indices that are negative")
-
-            blt_inds = sorted(set(blt_inds))
-
-        if freq_chans is not None:
-            freq_chans = utils.tools._get_iterable(freq_chans)
-            if np.array(freq_chans).ndim > 1:
-                freq_chans = np.array(freq_chans).flatten()
-            if frequencies is None:
-                frequencies = self.freq_array[freq_chans]
-            else:
-                frequencies = utils.tools._get_iterable(frequencies)
-                frequencies = np.sort(
-                    list(set(frequencies) | set(self.freq_array[freq_chans]))
-                )
-
-        if frequencies is not None:
-            frequencies = utils.tools._get_iterable(frequencies)
-            if np.array(frequencies).ndim > 1:
-                frequencies = np.array(frequencies).flatten()
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
-
-            freq_arr_use = self.freq_array
-            # Check and see that all requested freqs are available
-            freq_check = np.isin(frequencies, freq_arr_use)
-            if not np.all(freq_check):
-                raise ValueError(
-                    "Frequency %g is not present in the freq_array"
-                    % frequencies[np.where(~freq_check)[0][0]]
-                )
-            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
-
-            if len(frequencies) > 1:
-                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                freq_ind_separation = freq_ind_separation[
-                    np.diff(self.flex_spw_id_array[freq_inds]) == 0
-                ]
-                if not utils.tools._test_array_constant(freq_ind_separation):
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-                elif np.max(freq_ind_separation) > 1:
-                    warnings.warn(
-                        "Selected frequencies are not contiguous. This "
-                        "will make it impossible to write this data out to "
-                        "some file types."
-                    )
-
-            freq_inds = sorted(set(freq_inds))
-        else:
-            freq_inds = None
+        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            obj_freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            obj_channel_width=self.channel_width,
+            channel_width_tols=self._channel_width.tols,
+            obj_spw_id_array=self.flex_spw_id_array,
+        )
+        if freq_inds is not None:
+            freq_inds = sorted(freq_inds.tolist())
+            selections.extend(freq_selections)
 
         if polarizations is not None:
             polarizations = utils.tools._get_iterable(polarizations)
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
-            if n_selects > 0:
-                history_update_string += ", polarizations"
-            else:
-                history_update_string += "polarizations"
-            n_selects += 1
+            selections.append("polarizations")
 
             pol_inds = np.zeros(0, dtype=np.int64)
             spw_inds = np.zeros(0, dtype=np.int64)
@@ -6986,7 +6740,14 @@ class UVData(UVBase):
         else:
             pol_inds = None
 
-        history_update_string += " using pyuvdata."
+        # build up history string from selections
+        history_update_string = ""
+        if len(selections) > 0:
+            history_update_string = (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
 
         return blt_inds, freq_inds, pol_inds, history_update_string
 
@@ -9441,6 +9202,57 @@ class UVData(UVBase):
         filelist : list of str
             The list of MWA correlator files to read from. Must include at
             least one fits file and only one metafits file per data set.
+        antenna_nums : array_like of int, optional
+            The antennas numbers to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_names` is also provided. Ignored if read_data is False.
+        antenna_names : array_like of str, optional
+            The antennas names to include when reading data into the object
+            (antenna positions and names for the removed antennas will be retained
+            unless `keep_all_metadata` is False). This cannot be provided if
+            `antenna_nums` is also provided. Ignored if read_data is False.
+        bls : list of tuple, optional
+            A list of antenna number tuples (e.g. [(0, 1), (3, 2)]). The
+            ordering of the numbers within the tuple does not matter.
+            Note that this is different than what can be passed to the parameter
+            of the same name on `select` and other read methods -- this parameter
+            does not accept 3-tuples or baseline numbers.
+            Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+            Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
+        keep_all_metadata : bool
+            Option to keep all the metadata associated with antennas, even those
+            that do not have data associated with them after the select option.
         use_aoflagger_flags : bool
             Option to use aoflagger mwaf flag files. Defaults to true if aoflagger
             flag files are submitted.
@@ -10085,6 +9897,7 @@ class UVData(UVBase):
             An ant_str cannot be passed in addition to any of `antenna_nums`,
             `antenna_names`, `bls` args or the `polarizations` parameters,
             if it is a ValueError will be raised.
+            Note that this keyword is not supported for MWA correlator FITS files.
         bls : list of tuple, optional
             A list of antenna number tuples (e.g. [(0, 1), (3, 2)]) or a list of
             baseline 3-tuples (e.g. [(0, 1, 'xx'), (2, 3, 'yy')]) specifying baselines
@@ -10092,7 +9905,8 @@ class UVData(UVBase):
             the ordering of the numbers within the tuple does not matter. For
             length-3 tuples, the polarization string is in the order of the two
             antennas. If length-3 tuples are provided, `polarizations` must be
-            None.
+            None. Note that for MWA correlator FITS files, this can only be a
+            list of antenna number 2-tuples.
         catalog_names : str or array-like of str, optional
             The names of the phase centers (sources) to include when reading data into
             the object, which should match exactly in spelling and capitalization.
@@ -10870,7 +10684,7 @@ class UVData(UVBase):
                 # everything is merged into it at the end of this loop
 
         else:
-            if file_type in ["fhd", "ms", "mwa_corr_fits"]:
+            if file_type in ["fhd", "ms"]:
                 if (
                     antenna_nums is not None
                     or antenna_names is not None
@@ -11006,6 +10820,45 @@ class UVData(UVBase):
                         "not supported by read_mir. This select will "
                         "be done after reading the file."
                     )
+            elif file_type == "mwa_corr_fits":
+                select = True
+                # these are all done by partial read, so set to None
+                select_antenna_nums = None
+                select_antenna_names = None
+                select_bls = None
+                select_lst_range = None
+                select_time_range = None
+                select_times = None
+                select_lsts = None
+                select_polarizations = None
+                select_frequencies = None
+                select_freq_chans = None
+
+                # MWA corr fits can only handle length-two bls tuples, anything
+                # else needs to be handled via select.
+                bls_use = copy.deepcopy(bls)
+                if bls is not None:
+                    if not all(len(item) == 2 for item in bls):
+                        select_bls = bls
+                        bls_use = None
+
+                # these aren't supported by partial read, so do it in select
+                select_ant_str = ant_str
+                select_blt_inds = blt_inds
+                select_phase_center_ids = phase_center_ids
+
+                if all(
+                    item is None
+                    for item in [select_bls, blt_inds, phase_center_ids, ant_str]
+                ):
+                    # If there's nothing to select, just bypass that operation.
+                    select = False
+                else:
+                    warnings.warn(
+                        "Warning: a select on read keyword is set that is "
+                        "not supported by read_mwa_corr_fits. This select will "
+                        "be done after reading the file."
+                    )
             # reading a single "file". Call the appropriate file-type read
             if file_type == "uvfits":
                 self.read_uvfits(
@@ -11095,6 +10948,17 @@ class UVData(UVBase):
             elif file_type == "mwa_corr_fits":
                 self.read_mwa_corr_fits(
                     filename,
+                    antenna_nums=antenna_nums,
+                    antenna_names=antenna_names,
+                    bls=bls_use,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
+                    times=times,
+                    time_range=time_range,
+                    lsts=lsts,
+                    lst_range=lst_range,
+                    polarizations=polarizations,
+                    keep_all_metadata=keep_all_metadata,
                     use_aoflagger_flags=use_aoflagger_flags,
                     remove_dig_gains=remove_dig_gains,
                     remove_coarse_band=remove_coarse_band,

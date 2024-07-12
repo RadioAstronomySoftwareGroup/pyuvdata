@@ -4,6 +4,7 @@
 
 """Class for reading MWA correlator FITS files."""
 
+import copy
 import itertools
 import os
 import warnings
@@ -58,6 +59,7 @@ def read_metafits(
         meta_tbl = meta[1].data
 
         # because of polarization, each antenna # is listed twice
+        # antenna_inds are the correlator input numbers.
         antenna_inds = meta_tbl["Antenna"][1::2]
         antenna_numbers = meta_tbl["Tile"][1::2]
         antenna_names = meta_tbl["TileName"][1::2]
@@ -539,6 +541,8 @@ class MWACorrFITS(UVData):
         start_flag=2.0,
         end_flag=0.0,
         flag_dc_offset=True,
+        freq_inds=None,
+        n_orig_freq=None,
     ):
         """
         Apply routine flagging to the MWA Correlator FITS file data.
@@ -559,6 +563,10 @@ class MWACorrFITS(UVData):
             0 for no flagging.
         flag_dc_offset: bool
             Set to True to flag the center fine channel of each coarse channel.
+        freq_inds : array_like of int, optional
+            Frequency indices that were kept if frequency selection was done.
+        n_orig_freq : int, optional
+            Number of original frequencies if frequency selection was done.
 
         Raises
         ------
@@ -600,19 +608,29 @@ class MWACorrFITS(UVData):
             else np.reshape(self.flag_array, reshape)
         )
 
+        if freq_inds is not None:
+            nfreq_use = n_orig_freq
+        else:
+            nfreq_use = self.Nfreqs
+
         bad_chan_inds = []
         if num_ch_flag > 0:
             for ch_count in range(num_ch_flag):
                 # count up from the left
-                left_chans = list(range(ch_count, self.Nfreqs, num_fine_chan))
+                left_chans = list(range(ch_count, nfreq_use, num_fine_chan))
                 # count down from the right
-                right_chans = list(range(self.Nfreqs - 1 - ch_count, 0, -num_fine_chan))
+                right_chans = list(range(nfreq_use - 1 - ch_count, 0, -num_fine_chan))
                 bad_chan_inds += left_chans + right_chans
 
         if flag_dc_offset:
-            bad_chan_inds += list(range(num_fine_chan // 2, self.Nfreqs, num_fine_chan))
+            bad_chan_inds += list(range(num_fine_chan // 2, nfreq_use, num_fine_chan))
 
         if len(bad_chan_inds) != 0:
+            if freq_inds is not None:
+                mask = np.zeros(nfreq_use)
+                mask[bad_chan_inds] = 1
+                mask = mask[freq_inds]
+                bad_chan_inds = np.nonzero(mask)[0]
             self.flag_array[:, :, bad_chan_inds, :] = True
 
         if (num_start_flag > 0) or (num_end_flag > 0):
@@ -630,6 +648,7 @@ class MWACorrFITS(UVData):
 
     def _read_fits_file(
         self,
+        *,
         filename,
         time_array,
         file_nums,
@@ -639,6 +658,10 @@ class MWACorrFITS(UVData):
         map_inds,
         conj,
         pol_index_array,
+        bl_inds=None,
+        time_inds=None,
+        pol_inds=None,
+        freq_inds=None,
     ):
         """
         Read the fits file and populate into memory.
@@ -667,6 +690,15 @@ class MWACorrFITS(UVData):
             Indices for conjugating data_array from weird correlator packing.
         pol_index_array : array
             Indices for reordering polarizations to the 'AIPS' convention
+        bl_inds : array, optional
+            Baseline indices (after any re-mapping) to select on read.
+        time_inds : array, optional
+            Time indices to select on read.
+        pol_inds : array, optional
+            Polarization indices to select on read. These are the indices for the
+            array on disk, which will then be reordered according to pol_index_array.
+        freq_inds : array, optional
+            Frequency indices to select on read.
 
         """
         # get the file number from the file name
@@ -674,21 +706,78 @@ class MWACorrFITS(UVData):
             file_num = int(filename.split("_")[-2][-3:])
         else:
             file_num = int(filename.split("_")[-2][-2:])
-        # map file number to frequency index
-        freq_ind = np.where(file_nums == file_num)[0][0] * num_fine_chans
         # get a coarse channel index for flag array
         coarse_ind = np.where(file_nums == file_num)[0][0]
+        # map file number to frequency index
+        freq_ind = coarse_ind * num_fine_chans
+
+        if freq_inds is not None:
+            # check that we want to read this file
+            this_file_f_inds = np.arange(num_fine_chans) + freq_ind
+            this_freq_inds = np.nonzero(np.isin(this_file_f_inds, freq_inds))[0]
+            final_freq_inds_slice = utils.tools.slicify(
+                np.nonzero(np.isin(freq_inds, this_file_f_inds))[0]
+            )
+            n_freq_read = this_freq_inds.size
+            if this_freq_inds.size == 0:
+                return coarse_ind, np.zeros(0, dtype=int)
+            this_freq_inds_slice = utils.tools.slicify(this_freq_inds)
+        else:
+            this_freq_inds = None
+            n_freq_read = num_fine_chans
+            final_freq_inds_slice = utils.tools.slicify(
+                np.arange(freq_ind, freq_ind + n_freq_read)
+            )
+
         # create an intermediate array for data
         if mwax:
             coarse_chan_data = np.zeros(
-                (self.Ntimes, self.Nbls, num_fine_chans * self.Npols),
-                dtype=np.complex64,
+                (self.Ntimes, self.Nbls, n_freq_read * self.Npols), dtype=np.complex64
             )
         else:
             coarse_chan_data = np.zeros(
-                (self.Ntimes, num_fine_chans, self.Nbls * self.Npols),
-                dtype=np.complex64,
+                (self.Ntimes, n_freq_read, self.Nbls * self.Npols), dtype=np.complex64
             )
+
+        n_orig_bls = int(
+            len(self.telescope.antenna_numbers)
+            * (len(self.telescope.antenna_numbers) + 1)
+            / 2.0
+        )
+        bl_frac = self.Nbls / n_orig_bls
+
+        n_orig_pols = 4
+        pol_frac = self.Npols / n_orig_pols
+
+        freq_frac = n_freq_read / num_fine_chans
+
+        blpol_frac = bl_frac * pol_frac
+        fpol_frac = freq_frac * pol_frac
+
+        if not mwax and (bl_inds is not None or pol_inds is not None):
+            # map_inds gives the baseline-pol ordering
+            # reshape, do selection along bl axis, then flatten
+            bl_inds_map = map_inds.reshape(n_orig_bls, n_orig_pols)
+            conj = conj.reshape(n_orig_bls, n_orig_pols)
+            if bl_inds is not None:
+                bl_inds_map = np.take(bl_inds_map, bl_inds, axis=0)
+                conj = np.take(conj, bl_inds, axis=0)
+            if pol_inds is not None:
+                bl_inds_map = np.take(bl_inds_map, pol_inds, axis=1)
+                conj = np.take(conj, pol_inds, axis=1)
+
+            bl_inds_map = bl_inds_map.flatten()
+            conj = conj.flatten()
+
+            # The data array is written with real, imaginary parts interleaved.
+            # This corresponds to a 2d array flattened where the last axis is
+            # real, imaginary
+            # So the indices need to be updated for that structure.
+            bl_inds_map_ri = np.concatenate(
+                (bl_inds_map[:, np.newaxis] * 2, bl_inds_map[:, np.newaxis] * 2 + 1),
+                axis=1,
+            ).flatten()
+
         with fits.open(filename, mode="denywrite") as hdu_list:
             # if mwax, data is in every other hdu
             if mwax:
@@ -697,49 +786,106 @@ class MWACorrFITS(UVData):
                 # entry 0 is a header, so we skip it.
                 if hdu.data is None:
                     continue
-                time = (
+                this_time = (
                     hdu.header["TIME"]
                     + hdu.header["MILLITIM"] / 1000.0
                     + int_time / 2.0
                 )
-                time_ind = np.where(time_array == time)[0][0]
+                this_time_ind = np.where(time_array == this_time)[0][0]
+                if time_inds is not None:
+                    if this_time_ind not in time_inds:
+                        # skip this time
+                        continue
+                    t_ind_use = np.where(time_inds == this_time_ind)[0][0]
+                else:
+                    t_ind_use = this_time_ind
                 # dump data into matrix
                 # and take data from real to complex numbers
-                coarse_chan_data.view(np.float32)[time_ind, :, :] = hdu.data
+                if bl_inds is not None or freq_inds is not None or pol_inds is not None:
+                    if not mwax:
+                        if blpol_frac < freq_frac:
+                            temp_data = hdu.data[:, bl_inds_map_ri]
+                            if this_freq_inds is not None:
+                                temp_data = temp_data[this_freq_inds_slice]
+                        else:
+                            temp_data = hdu.data[this_freq_inds_slice, :]
+                            if bl_inds is not None or pol_inds is not None:
+                                temp_data = temp_data[:, bl_inds_map_ri]
+
+                        coarse_chan_data.view(np.float32)[t_ind_use, :, :] = temp_data
+                    else:
+                        if this_freq_inds is not None or pol_inds is not None:
+                            fpol_inds = np.arange(num_fine_chans * n_orig_pols).reshape(
+                                num_fine_chans, n_orig_pols
+                            )
+                            if this_freq_inds is not None:
+                                fpol_inds = np.take(fpol_inds, this_freq_inds, axis=0)
+
+                            if pol_inds is not None:
+                                fpol_inds = np.take(fpol_inds, pol_inds, axis=1)
+
+                            fpol_inds = fpol_inds.flatten()
+
+                            # The data array is written with real, imaginary
+                            # parts interleaved.
+                            # This corresponds to a 2d array flattened where the
+                            # last axis is real, imaginary
+                            # So the indices need to be updated for that structure.
+                            fpol_inds_ri = np.concatenate(
+                                (
+                                    fpol_inds[:, np.newaxis] * 2,
+                                    fpol_inds[:, np.newaxis] * 2 + 1,
+                                ),
+                                axis=1,
+                            ).flatten()
+
+                        if bl_frac < fpol_frac:
+                            temp_data = hdu.data[bl_inds]
+                            if pol_inds is not None or this_freq_inds is not None:
+                                temp_data = temp_data[:, fpol_inds_ri]
+                        else:
+                            temp_data = hdu.data[:, fpol_inds_ri]
+                            if bl_inds is not None:
+                                temp_data = temp_data[bl_inds]
+
+                        coarse_chan_data.view(np.float32)[t_ind_use, :, :] = temp_data
+                else:
+                    coarse_chan_data.view(np.float32)[t_ind_use, :, :] = hdu.data
                 # fill nsample and flag arrays
                 # think about using the mwax weights array in the future
-                self.nsample_array[
-                    time_ind, :, freq_ind : freq_ind + num_fine_chans, :
-                ] = 1.0
-                self.flag_array[time_ind, :, coarse_ind, :] = False
+                self.nsample_array[t_ind_use, :, final_freq_inds_slice, :] = 1.0
+                self.flag_array[t_ind_use, :, coarse_ind, :] = False
         if not mwax:
-            # do mapping and reshaping here to avoid copying whole data_array
-            np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
+            if bl_inds is None and pol_inds is None:
+                # do mapping and reshaping here to avoid copying whole data_array
+                # map_inds gives the baseline-pol ordering
+                np.take(coarse_chan_data, map_inds, axis=2, out=coarse_chan_data)
             # conjugate data
             coarse_chan_data[:, :, conj] = np.conj(coarse_chan_data[:, :, conj])
         # reshape
+        # each time gets its own HDU. MWAX has 2 HDUs per time (data/weights alternate)
         if mwax:
+            # freq and pol axes are combined, baseline axis is separate
             coarse_chan_data = coarse_chan_data.reshape(
-                (self.Ntimes, self.Nbls, num_fine_chans, self.Npols)
+                (self.Ntimes, self.Nbls, n_freq_read, self.Npols)
             )
         else:
+            # freq axis, then baseline-pol axis
             coarse_chan_data = coarse_chan_data.reshape(
-                (self.Ntimes, num_fine_chans, self.Nbls, self.Npols)
+                (self.Ntimes, n_freq_read, self.Nbls, self.Npols)
             )
             coarse_chan_data = np.swapaxes(coarse_chan_data, 1, 2)
-        coarse_chan_data = coarse_chan_data.reshape(
-            self.Nblts, num_fine_chans, self.Npols
-        )
+        coarse_chan_data = coarse_chan_data.reshape(self.Nblts, n_freq_read, self.Npols)
+
         # reorder pols here to avoid memory spike from self.reorder_pols
         np.take(coarse_chan_data, pol_index_array, axis=-1, out=coarse_chan_data)
         # make a mask where data actually is so coarse channels that
         # are split into two files don't overwrite eachother
         data_mask = coarse_chan_data != 0
-        self.data_array[:, freq_ind : freq_ind + num_fine_chans, :][data_mask] = (
-            coarse_chan_data[data_mask]
-        )
-
-        return
+        self.data_array[:, final_freq_inds_slice, :][data_mask] = coarse_chan_data[
+            data_mask
+        ]
+        return coarse_ind, this_freq_inds
 
     def _read_flag_file(self, filename, file_nums, num_fine_chans):
         """
@@ -760,7 +906,7 @@ class MWACorrFITS(UVData):
         freq_ind = np.where(file_nums == flag_num)[0][0] * num_fine_chans
         with fits.open(filename, mode="denywrite") as aoflags:
             flags = aoflags[1].data.field("FLAGS")
-        # some flag files are longer than data; crop the ends
+        # some flag files are longer than data; crop the end
         flags = flags[: self.Nblts, :]
         # some flag files are shorter than data; assume same end time
         blt_ind = self.Nblts - len(flags)
@@ -1138,6 +1284,7 @@ class MWACorrFITS(UVData):
         correct_van_vleck,
         remove_coarse_band,
         remove_dig_gains,
+        freq_inds_dict,
     ):
         """
         Apply pfb, digital gain, and Van Vleck corrections to a coarse band.
@@ -1166,12 +1313,23 @@ class MWACorrFITS(UVData):
             Option to remove pfb coarse band shape from data.
         remove_dig_gains : bool
             Option to remove digital gains from data.
+        freq_inds_dict : dict, optional
+            Dictionary giving the set of frequency indices kept and their indices
+            in the final frequency array for each coarse channel index.
+            Should be None if no frequency selection is done.
 
         """
         # get coarse band data as np.complex128
-        cb_data = self.data_array[
-            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
-        ].astype(np.complex128)
+        if freq_inds_dict is not None:
+            if (freq_inds_dict[cb_num]["freq_inds"]).size == 0:
+                return
+            cb_data = self.data_array[:, freq_inds_dict[cb_num]["freq_inds"], :].astype(
+                np.complex128
+            )
+        else:
+            cb_data = self.data_array[
+                :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+            ].astype(np.complex128)
         # remove digital gains
         if remove_dig_gains:
             dig_gains1 = dig_gains[ant_1_inds, cb_num, np.newaxis, np.newaxis]
@@ -1180,11 +1338,17 @@ class MWACorrFITS(UVData):
             cb_data /= dig_gains2
         # remove coarse band
         if remove_coarse_band:
-            cb_data /= cb_array[:num_fine_chans, np.newaxis]
+            if freq_inds_dict is not None:
+                cb_data /= cb_array[freq_inds_dict[cb_num]["coarse_inds"], np.newaxis]
+            else:
+                cb_data /= cb_array[:num_fine_chans, np.newaxis]
         # put corrected data back into data array
-        self.data_array[
-            :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
-        ] = cb_data
+        if freq_inds_dict is not None:
+            self.data_array[:, freq_inds_dict[cb_num]["freq_inds"], :] = cb_data
+        else:
+            self.data_array[
+                :, cb_num * num_fine_chans : (cb_num + 1) * num_fine_chans, :
+            ] = cb_data
 
     def _apply_corrections(
         self,
@@ -1202,6 +1366,7 @@ class MWACorrFITS(UVData):
         correct_van_vleck,
         remove_coarse_band,
         remove_dig_gains,
+        freq_inds_dict,
     ):
         """
         Prepare and apply pfb, digital gain, and Van Vleck corrections.
@@ -1234,6 +1399,10 @@ class MWACorrFITS(UVData):
             Option to remove pfb coarse band shape from data.
         remove_dig_gains : bool
             Option to remove digital gains from data.
+        freq_inds_dict : dict, optional
+            Dictionary giving the set of frequency indices kept and their indices
+            in the final frequency array for each coarse channel index.
+            Should be None if no frequency selection is done.
 
         Returns
         -------
@@ -1289,6 +1458,7 @@ class MWACorrFITS(UVData):
                 correct_van_vleck,
                 remove_coarse_band,
                 remove_dig_gains,
+                freq_inds_dict,
             )
 
         return flagged_ant_inds
@@ -1300,6 +1470,17 @@ class MWACorrFITS(UVData):
         self,
         filelist,
         *,
+        antenna_nums=None,
+        antenna_names=None,
+        bls=None,
+        frequencies=None,
+        freq_chans=None,
+        times=None,
+        time_range=None,
+        lsts=None,
+        lst_range=None,
+        polarizations=None,
+        keep_all_metadata=True,
         use_aoflagger_flags=None,
         remove_dig_gains=True,
         remove_coarse_band=True,
@@ -1356,6 +1537,11 @@ class MWACorrFITS(UVData):
             if start_flag != "goodtime":
                 raise ValueError("start_flag must be int or float or 'goodtime'")
 
+        # check that bls are a list of 2-tuples as required by _select_blt_preprocess
+        if bls is not None and not all(len(item) == 2 for item in bls):
+            raise ValueError(
+                "bls must be a list of 2-tuples giving antenna number pairs"
+            )
         # iterate through files and organize
         # create a list of included file numbers
         # find the first and last times that have data
@@ -1404,6 +1590,8 @@ class MWACorrFITS(UVData):
                         # check headers for first and last times containing data
                         headstart = hdu_list[1].header
                         headfin = hdu_list[-1].header
+                        # start & end times are for the full file set
+                        # first & last are for this file
                         first_time = headstart["TIME"] + headstart["MILLITIM"] / 1000.0
                         last_time = headfin["TIME"] + headfin["MILLITIM"] / 1000.0
                         if start_time == 0.0:
@@ -1569,9 +1757,12 @@ class MWACorrFITS(UVData):
         self.phase_center_id_array = np.zeros(self.Nblts, dtype=int) + cat_id
 
         # convert times to lst
-        proc = self.set_lsts_from_time_array(
-            background=background_lsts, astrometry_library=astrometry_library
+        lst_array = utils.times.get_lst_for_time(
+            float_time_array,
+            telescope_loc=self.telescope.location,
+            astrometry_library=astrometry_library,
         )
+        self.lst_array = np.repeat(lst_array, self.Nbls)
 
         self.integration_time = np.full((self.Nblts), meta_dict["int_time"])
 
@@ -1600,8 +1791,6 @@ class MWACorrFITS(UVData):
         ant_1_inds, ant_2_inds = np.transpose(
             list(itertools.combinations_with_replacement(np.arange(self.Nants_data), 2))
         )
-        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int64)
-        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int64)
 
         if not mwax:
             # coarse channel mapping for the legacy correlator:
@@ -1634,12 +1823,11 @@ class MWACorrFITS(UVData):
         spw_inds = np.nonzero(file_mask)[0]
         if np.any(np.diff(spw_inds) > 1):
             warnings.warn("coarse channels are not contiguous for this observation")
-            # add spectral windows
-            self.Nspws = len(spw_inds)
-            self.spw_array = meta_dict["coarse_chans"][spw_inds]
-            self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
-        else:
-            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
+        # add spectral windows
+        self.Nspws = len(spw_inds)
+        full_spw_array = meta_dict["coarse_chans"][spw_inds]
+        self.spw_array = copy.deepcopy(full_spw_array)
+        self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
 
         # warn user if not all coarse channels are included
         if len(included_file_nums) != len(meta_dict["coarse_chans"]):
@@ -1666,14 +1854,14 @@ class MWACorrFITS(UVData):
             )
         # for mwax, polarizations are ordered xx, xy, yx, yy
         if mwax:
-            self.polarization_array = np.array([-5, -7, -8, -6])
+            file_pol_array = np.array([-5, -7, -8, -6])
         # otherwise, polarizations are ordered yy, yx, xy, xx
         else:
-            self.polarization_array = np.array([-6, -8, -7, -5])
+            file_pol_array = np.array([-6, -8, -7, -5])
         # get index array for AIPS reordering
-        pol_index_array = np.argsort(np.abs(self.polarization_array))
+        pol_index_array = np.argsort(np.abs(file_pol_array))
         # reorder polarization_array here to avoid memory spike from self.reorder_pols
-        self.polarization_array = self.polarization_array[pol_index_array]
+        self.polarization_array = file_pol_array[pol_index_array]
 
         if read_data:
             if not mwax:
@@ -1684,7 +1872,6 @@ class MWACorrFITS(UVData):
                         corr_ants_to_pfb_inputs[(meta_dict["antenna_inds"][i], p)] = (
                             2 * i + p
                         )
-
                 # for mapping, start with a pair of antennas/polarizations
                 # this is the pair we want to find the data for
                 # map the pair to the corresponding coarse pfb input indices
@@ -1706,6 +1893,122 @@ class MWACorrFITS(UVData):
             else:
                 map_inds = None
                 conj = None
+
+            selections = []
+            # check if we want to do any select on the baseline axis
+            # Note: only passing the ant_1/2_arrays and baseline_array for one time.
+            bl_inds, bl_selections = utils.bltaxis._select_blt_preprocess(
+                select_antenna_nums=antenna_nums,
+                select_antenna_names=antenna_names,
+                bls=bls,
+                times=None,
+                time_range=None,
+                lsts=None,
+                lst_range=None,
+                blt_inds=None,
+                phase_center_ids=None,
+                antenna_names=self.telescope.antenna_names,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=ant_1_array,
+                ant_2_array=ant_2_array,
+                baseline_array=self.antnums_to_baseline(ant_1_array, ant_2_array),
+                time_array=None,
+                time_tols=None,
+                lst_array=None,
+                lst_tols=None,
+                phase_center_id_array=self.phase_center_id_array,
+            )
+            selections.extend(bl_selections)
+
+            # only passing the unique times to figure out which HDUs to read.
+            time_inds, time_selections = utils.times._select_times_helper(
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                obj_time_array=float_time_array,
+                time_tols=self._time_array.tols,
+                obj_lst_array=lst_array,
+                lst_tols=self._lst_array.tols,
+                obj_time_range=None,
+                obj_lst_range=None,
+            )
+            selections.extend(time_selections)
+
+            freq_inds, freq_selections = utils.frequency._select_freq_helper(
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                obj_freq_array=self.freq_array,
+                freq_tols=self._freq_array.tols,
+                obj_channel_width=self.channel_width,
+                channel_width_tols=self._channel_width.tols,
+                obj_spw_id_array=self.flex_spw_id_array,
+            )
+            if freq_inds is not None:
+                selections.extend(freq_selections)
+
+            if polarizations is not None:
+                polarizations = utils.tools._get_iterable(polarizations)
+                if np.array(polarizations).ndim > 1:
+                    polarizations = np.array(polarizations).flatten()
+                selections.append("polarizations")
+
+                file_pol_inds = np.zeros(0, dtype=np.int64)
+                pol_inds = np.zeros(0, dtype=np.int64)
+                for p in polarizations:
+                    if isinstance(p, str):
+                        p_num = utils.polstr2num(
+                            p, x_orientation=self.telescope.x_orientation
+                        )
+                    else:
+                        p_num = p
+                    if p_num in self.polarization_array:
+                        pol_inds = np.append(
+                            pol_inds, np.where(self.polarization_array == p_num)[0]
+                        )
+                        file_pol_inds = np.append(
+                            file_pol_inds, np.where(file_pol_array == p_num)[0]
+                        )
+                # get index array for AIPS reordering post downselect
+                pol_index_array = np.argsort(np.abs(file_pol_array[file_pol_inds]))
+            else:
+                pol_inds = None
+                file_pol_inds = None
+
+            if len(selections) > 0:
+                # do select operations on everything except data_array, flag_array
+                # and nsample_array
+                if bl_inds is not None or time_inds is not None:
+                    blt_inds = np.arange(self.Nblts).reshape(self.Ntimes, self.Nbls)
+                    if bl_inds is not None:
+                        ant_1_inds = ant_1_inds[bl_inds]
+                        ant_2_inds = ant_2_inds[bl_inds]
+
+                        blt_inds = np.take(blt_inds, bl_inds, axis=1)
+                    if time_inds is not None:
+
+                        blt_inds = np.take(blt_inds, time_inds, axis=0)
+                    blt_inds = blt_inds.flatten()
+                else:
+                    blt_inds = None
+
+                history_update_string = (
+                    "  Downselected to specific "
+                    + ", ".join(selections)
+                    + " using pyuvdata."
+                )
+                self._select_by_index(
+                    blt_inds=blt_inds,
+                    freq_inds=freq_inds,
+                    pol_inds=pol_inds,
+                    history_update_string=history_update_string,
+                    keep_all_metadata=keep_all_metadata,
+                )
+
+        ant_1_inds = np.tile(np.array(ant_1_inds), self.Ntimes).astype(np.int64)
+        ant_2_inds = np.tile(np.array(ant_2_inds), self.Ntimes).astype(np.int64)
+
+        if read_data:
             # create arrays for data, nsamples, and flags
             self.data_array = np.zeros(
                 (self.Nblts, self.Nfreqs, self.Npols), dtype=data_array_dtype
@@ -1715,22 +2018,36 @@ class MWACorrFITS(UVData):
                 dtype=nsample_array_dtype,
             )
             self.flag_array = np.full(
-                (self.Ntimes, self.Nbls, len(spw_inds), self.Npols), True
+                (self.Ntimes, self.Nbls, self.Nspws, self.Npols), True
             )
 
             # read data files
+            freq_inds_dict = None
+            if freq_inds is not None:
+                freq_inds_dict = {}
             for filename in file_dict["data"]:
-                self._read_fits_file(
-                    filename,
-                    time_array,
-                    file_nums,
-                    num_fine_chans,
-                    meta_dict["int_time"],
-                    mwax,
-                    map_inds,
-                    conj,
-                    pol_index_array,
+                coarse_ind, this_freq_inds = self._read_fits_file(
+                    filename=filename,
+                    time_array=time_array,
+                    file_nums=file_nums,
+                    num_fine_chans=num_fine_chans,
+                    int_time=meta_dict["int_time"],
+                    mwax=mwax,
+                    map_inds=map_inds,
+                    conj=conj,
+                    pol_index_array=pol_index_array,
+                    bl_inds=bl_inds,
+                    time_inds=time_inds,
+                    freq_inds=freq_inds,
+                    pol_inds=file_pol_inds,
                 )
+                if freq_inds is not None:
+                    this_spw = full_spw_array[coarse_ind]
+                    this_final_inds = np.nonzero(self.flex_spw_id_array == this_spw)[0]
+                    freq_inds_dict[coarse_ind] = {
+                        "coarse_inds": this_freq_inds,
+                        "freq_inds": this_final_inds,
+                    }
 
             # propagate coarse flags
             if propagate_coarse_flags:
@@ -1739,7 +2056,20 @@ class MWACorrFITS(UVData):
                     self.flag_array[:, :, np.newaxis, :], self.Nfreqs, axis=2
                 )
             else:
-                self.flag_array = np.repeat(self.flag_array, num_fine_chans, axis=2)
+                if freq_inds is not None:
+                    temp_flag_array = np.zeros(
+                        (self.Ntimes, self.Nbls, self.Nfreqs, self.Npols), dtype=bool
+                    )
+                    for spw_ind, spw in enumerate(self.spw_array):
+                        this_f_inds = np.nonzero(self.flex_spw_id_array == spw)[0]
+                        temp_flag_array[:, :, this_f_inds] = np.repeat(
+                            self.flag_array[:, :, spw_ind, np.newaxis],
+                            this_f_inds.size,
+                            axis=2,
+                        )
+                    self.flag_array = temp_flag_array
+                else:
+                    self.flag_array = np.repeat(self.flag_array, num_fine_chans, axis=2)
 
             if flag_init:
                 self.flag_init(
@@ -1748,6 +2078,8 @@ class MWACorrFITS(UVData):
                     start_flag=meta_dict["start_flag"],
                     end_flag=end_flag,
                     flag_dc_offset=flag_dc_offset,
+                    freq_inds=freq_inds,
+                    n_orig_freq=len(included_file_nums) * num_fine_chans,
                 )
 
             # flag bad ants
@@ -1799,6 +2131,7 @@ class MWACorrFITS(UVData):
                     correct_van_vleck=correct_van_vleck,
                     remove_coarse_band=remove_coarse_band,
                     remove_dig_gains=remove_dig_gains,
+                    freq_inds_dict=freq_inds_dict,
                 )
 
             # rescale data
@@ -1830,9 +2163,16 @@ class MWACorrFITS(UVData):
             # be conjugated
             np.conj(self.data_array, out=self.data_array)
 
-        # wait for LSTs if set in background
-        if proc is not None:
-            proc.join()
+        if self.Nspws == 1 or (
+            np.all(np.diff(self.spw_array) == 1)
+            and utils.tools._test_array_constant_spacing(
+                self.freq_array, tols=self._freq_array.tols
+            )
+        ):
+            # everything is contiguous, just use one spw
+            self.Nspws = 1
+            self.spw_array = np.array([0])
+            self.flex_spw_id_array = np.full(self.Nfreqs, self.spw_array[0], dtype=int)
 
         self._set_app_coords_helper()
 
@@ -1841,9 +2181,20 @@ class MWACorrFITS(UVData):
 
         # remove bad antennas
         # select must be called after lst thread is re-joined
-        if remove_flagged_ants:
+        if (
+            remove_flagged_ants
+            and meta_dict["flagged_ant_inds"].size > 0
+            and np.sum(
+                np.isin(
+                    meta_dict["flagged_ant_inds"],
+                    np.union1d(self.ant_1_array, self.ant_2_array),
+                )
+            )
+            > 0
+        ):
             good_ants = np.delete(
-                np.array(self.telescope.antenna_numbers), meta_dict["flagged_ant_inds"]
+                np.union1d(self.ant_1_array, self.ant_2_array),
+                meta_dict["flagged_ant_inds"],
             )
             self.select(antenna_nums=good_ants, run_check=False)
 
