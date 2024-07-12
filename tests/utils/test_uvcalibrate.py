@@ -136,12 +136,30 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
     uvc.gain_convention = gain_convention
 
     if gain_convention == "divide":
-        assert uvc.gain_scale is None
+        # set the gain_scale to None to test handling
+        uvc.gain_scale = None
+        cal_warn_msg = (
+            "gain_scale is not set, so resulting uvdata will not have correct " "units"
+        )
+        cal_warn_type = UserWarning
+        undo_warn_msg = [
+            "The pol_convention is not specified on the UVData, so it is "
+            "impossible to know if the correct convention is being applied to "
+            "undo the calibration. This behaviour is deprecated, and for now "
+            "will result in the same convention being assumed for the UVData and "
+            "UVCal objects. Please set the pol_convention attribute on the UVData "
+            "object.",
+            "gain_scale is not set, so resulting uvdata will not have correct units",
+        ]
+        undo_warn_type = [DeprecationWarning, UserWarning]
     else:
-        # set the gain_scale to "Jy" to test that vis units are set properly
-        uvc.gain_scale = "Jy"
+        cal_warn_msg = ""
+        cal_warn_type = None
+        undo_warn_msg = ""
+        undo_warn_type = None
 
-    uvdcal = uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
+    with check_warnings(cal_warn_type, match=cal_warn_msg):
+        uvdcal = uvcalibrate(uvd, uvc, inplace=False, flip_gain_conj=flip_gain_conj)
     if gain_convention == "divide":
         assert uvdcal.vis_units == "uncalib"
     else:
@@ -174,15 +192,16 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
         )
 
     # test undo
-    uvdcal = uvcalibrate(
-        uvdcal,
-        uvc,
-        prop_flags=True,
-        ant_check=False,
-        inplace=False,
-        undo=True,
-        flip_gain_conj=flip_gain_conj,
-    )
+    with check_warnings(undo_warn_type, match=undo_warn_msg):
+        uvdcal = uvcalibrate(
+            uvdcal,
+            uvc,
+            prop_flags=True,
+            ant_check=False,
+            inplace=False,
+            undo=True,
+            flip_gain_conj=flip_gain_conj,
+        )
 
     np.testing.assert_array_almost_equal(uvd.get_data(key), uvdcal.get_data(key))
     assert uvdcal.vis_units == "uncalib"
@@ -453,8 +472,7 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
         msg_start = "Times do not match between UVData and UVCal"
     err_msg = msg_start + ". Set time_check=False to apply calibration anyway."
     warn_msg = [
-        "gain_scale is not set",
-        msg_start + " but time_check is False, so calibration will be applied anyway.",
+        msg_start + " but time_check is False, so calibration will be applied anyway."
     ]
 
     with pytest.raises(ValueError, match=err_msg):

@@ -114,6 +114,7 @@ def uvcal_data():
         "total_quality_array",
         "extra_keywords",
         "gain_scale",
+        "pol_convention",
         "filename",
         "scan_number_array",
         "phase_center_catalog",
@@ -3375,6 +3376,11 @@ def test_init_from_uvdata(multi_spw, uvcalibrate_data):
 
     uvc_new.set_lsts_from_time_array()
 
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
+
     assert uvc_new == uvc2
 
 
@@ -3442,6 +3448,11 @@ def test_init_from_uvdata_setfreqs(multi_spw, uvcalibrate_data):
     uvc_new.set_lsts_from_time_array()
 
     uvc_new.history = uvc2.history
+
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
 
     assert uvc_new == uvc2
 
@@ -3511,6 +3522,11 @@ def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
 
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
+
     assert uvc_new == uvc2
 
 
@@ -3559,6 +3575,11 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
+
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
 
     assert uvc_new == uvc2
 
@@ -3616,6 +3637,11 @@ def test_init_single_pol(uvcalibrate_data, pol):
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
 
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
+
     assert uvc_new == uvc2
 
 
@@ -3665,6 +3691,11 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
+
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
 
     assert uvc_new == uvc2
 
@@ -3744,6 +3775,9 @@ def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
+
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
 
     assert uvc_new == uvc2
 
@@ -3840,6 +3874,11 @@ def test_init_from_uvdata_delay(multi_spw, set_frange, uvcalibrate_data):
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
 
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
+
     assert uvc_new == uvc2
 
 
@@ -3932,6 +3971,11 @@ def test_init_from_uvdata_wideband(multi_spw, set_frange, uvcalibrate_data):
     assert uvc_new._time_array == uvc2._time_array
     uvc_new.time_array = uvc2.time_array
     uvc_new.set_lsts_from_time_array()
+
+    assert uvc_new.pol_convention != uvc2.pol_convention
+    uvc_new.pol_convention = uvc2.pol_convention
+    assert uvc_new.gain_scale != uvc2.gain_scale
+    uvc_new.gain_scale = uvc2.gain_scale
 
     assert uvc_new == uvc2
 
