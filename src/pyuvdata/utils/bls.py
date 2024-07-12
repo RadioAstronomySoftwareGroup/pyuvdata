@@ -396,7 +396,7 @@ def _extract_bls_pol(
         for bl_ind in bls:
             if bl_ind not in baseline_array:
                 raise ValueError(
-                    f"Baseline number {bl_ind} is not present in the " "baseline_array"
+                    f"Baseline number {bl_ind} is not present in the baseline_array"
                 )
         bls = list(
             zip(*baseline_to_antnums(bls, Nants_telescope=nants_telescope), strict=True)
@@ -419,17 +419,17 @@ def _extract_bls_pol(
     if any(len(item) == 3 for item in bls):
         if polarizations is not None:
             raise ValueError(
-                "Cannot provide any length-3 tuples and also specify " "polarizations."
+                "Cannot provide any length-3 tuples and also specify polarizations."
             )
 
         bls_2 = copy.deepcopy(bls)
         for bl_i, bl in enumerate(bls):
-            if len(bl) == 2:
-                continue
+            if len(bl) != 3:
+                raise ValueError("If some bls are 3-tuples, all bls must be 3-tuples.")
 
             if not isinstance(bl[2], str):
                 raise ValueError(
-                    "The third element in a bl tuple must be a " "polarization string"
+                    "The third element in a bl tuple must be a polarization string"
                 )
 
             bl_pols = set()
