@@ -28,6 +28,7 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
     # downselect to match each other in shape (but not in actual values!)
     uvd.select(frequencies=uvd.freq_array[:10])
     uvc.select(times=uvc.time_array[:3])
+    uvc.pol_convention = "avg"
 
     with pytest.raises(
         ValueError,
@@ -78,6 +79,8 @@ def test_uvcalibrate_delay_oldfiles(uvcalibrate_uvdata_oldfiles):
     # downselect to match
     uvc.select(times=uvc.time_array[3])
     uvc.gain_convention = "multiply"
+    uvc.pol_convention = "avg"
+    uvc.gain_scale = "Jy"
 
     freq_array_use = np.squeeze(uvd.freq_array)
     chan_with_use = uvd.channel_width
@@ -250,6 +253,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
 
     assert exp_err == str(errinfo.value)
 
+    uvc_sub.gain_scale = "Jy"
     with pytest.warns(UserWarning) as warninfo:
         uvdcal = uvcalibrate(
             uvd, uvc_sub, prop_flags=True, ant_check=False, inplace=False
@@ -268,6 +272,7 @@ def test_uvcalibrate_flag_propagation(uvcalibrate_data):
 @pytest.mark.filterwarnings("ignore:Cannot preserve total_quality_array")
 def test_uvcalibrate_flag_propagation_name_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
+    uvc.gain_scale = "Jy"
 
     # test flag propagation
     uvc.flag_array[0] = True
@@ -320,6 +325,7 @@ def test_uvcalibrate_extra_cal_antennas(uvcalibrate_data):
 
 def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
     uvd, uvc = uvcalibrate_init_data
+    uvc.gain_scale = "Jy"
 
     with pytest.raises(
         ValueError,
@@ -346,7 +352,7 @@ def test_uvcalibrate_antenna_names_mismatch(uvcalibrate_init_data):
 @pytest.mark.parametrize("time_range", [True, False])
 def test_uvcalibrate_time_mismatch(uvcalibrate_data, time_range):
     uvd, uvc = uvcalibrate_data
-
+    uvc.gain_scale = "Jy"
     if time_range:
         tstarts = uvc.time_array - uvc.integration_time / (86400 * 2)
         tends = uvc.time_array + uvc.integration_time / (86400 * 2)
@@ -447,7 +453,8 @@ def test_uvcalibrate_single_time_types(uvcalibrate_data, time_range):
         msg_start = "Times do not match between UVData and UVCal"
     err_msg = msg_start + ". Set time_check=False to apply calibration anyway."
     warn_msg = [
-        msg_start + " but time_check is False, so calibration will be applied anyway."
+        "gain_scale is not set",
+        msg_start + " but time_check is False, so calibration will be applied anyway.",
     ]
 
     with pytest.raises(ValueError, match=err_msg):
