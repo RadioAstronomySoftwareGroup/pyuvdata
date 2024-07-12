@@ -100,17 +100,18 @@ def _check_freq_spacing(
             freq_dir = -1.0 if all(freq_spacing < 0) else 1.0
             if not tools._test_array_constant(freq_spacing, tols=freq_tols):
                 spacing_error = True
-            if not tools._test_array_constant(
-                channel_width[mask], tols=channel_width_tols
-            ):
-                spacing_error = True
-            elif not np.allclose(
-                freq_spacing,
-                np.mean(channel_width[mask]) * freq_dir,
-                rtol=channel_width_tols[0],
-                atol=channel_width_tols[1],
-            ):
-                chanwidth_error = True
+            if channel_width is not None:
+                if not tools._test_array_constant(
+                    channel_width[mask], tols=channel_width_tols
+                ):
+                    spacing_error = True
+                elif not np.allclose(
+                    freq_spacing,
+                    np.mean(channel_width[mask]) * freq_dir,
+                    rtol=channel_width_tols[0],
+                    atol=channel_width_tols[1],
+                ):
+                    chanwidth_error = True
 
     if raise_errors and spacing_error:
         raise ValueError(
@@ -315,6 +316,8 @@ def _select_freq_helper(
     freq_chans,
     obj_freq_array,
     freq_tols,
+    obj_channel_width,
+    channel_width_tols,
     obj_spw_id_array,
     warn_freq_spacing=True,
 ):
@@ -332,6 +335,11 @@ def _select_freq_helper(
         Frequency array on object.
     freq_tols : tuple of float
         Length 2 tuple giving (rtol, atol) to use for freq matching.
+    obj_channel_width : array_like of float or None
+        Channel width array on object, used for checking for FITs issues.
+    channel_width_tols : tuple of float or None
+        Length 2 tuple giving (rtol, atol) to use for channel_width vs freq
+        separation checking. Can be None if obj_channel_width is None.
     obj_spw_id_array : array_like of int
         flex_spw_id_array on object.
     warn_freq_spacing : bool
@@ -373,26 +381,38 @@ def _select_freq_helper(
         freq_inds = tools._get_iterable(freq_chans)
         freq_inds = np.unique(freq_inds)
 
-        if len(freq_inds) > 1:
-            freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-            if obj_spw_id_array is not None:
-                freq_ind_separation = freq_ind_separation[
-                    np.diff(obj_spw_id_array[freq_inds]) == 0
-                ]
-            if (
-                not tools._test_array_constant(freq_ind_separation)
-                and warn_freq_spacing
-            ):
+        if obj_channel_width is not None:
+            sel_chan_width = obj_channel_width[freq_inds]
+        else:
+            sel_chan_width = None
+
+        if obj_spw_id_array is not None:
+            sel_spw_id_array = obj_spw_id_array[freq_inds]
+            sel_spw_array = np.unique(obj_spw_id_array[freq_inds])
+        else:
+            sel_spw_id_array = np.zeros_like(freq_inds)
+            sel_spw_array = np.array([0])
+
+        spacing_error, chanwidth_error = _check_freq_spacing(
+            freq_array=obj_freq_array[freq_inds],
+            freq_tols=freq_tols,
+            channel_width=sel_chan_width,
+            channel_width_tols=channel_width_tols,
+            spw_array=sel_spw_array,
+            flex_spw_id_array=sel_spw_id_array,
+            raise_errors=False,
+        )
+
+        if warn_freq_spacing:
+            if spacing_error:
                 warnings.warn(
-                    "Selected frequencies are not evenly spaced. This "
-                    "will make it impossible to write this data out to "
-                    "some file types"
+                    "Selected frequencies are not evenly spaced. This will make it "
+                    "impossible to write this data out to some file types"
                 )
-            elif np.max(freq_ind_separation) > 1 and warn_freq_spacing:
+            elif chanwidth_error:
                 warnings.warn(
-                    "Selected frequencies are not contiguous. This "
-                    "will make it impossible to write this data out to "
-                    "some file types."
+                    "Selected frequencies are not contiguous. This will make it "
+                    "impossible to write this data out to some file types."
                 )
 
         freq_inds = np.array(sorted(set(freq_inds)), dtype=np.int64)

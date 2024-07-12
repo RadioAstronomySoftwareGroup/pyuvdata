@@ -2406,8 +2406,8 @@ class UVBeam(UVBase):
             Option to check acceptable range of the values of required parameters
             after combining objects
         inplace : bool
-            Option to perform the select directly on self or return a new UVBeam
-            object.
+            Option to perform the interpolation directly on self or return a new
+            UVBeam object.
 
         """
         if self.pixel_coordinate_system == "healpix":
@@ -3203,18 +3203,14 @@ class UVBeam(UVBase):
         else:
             beam_object = self.copy()
 
-        # build up history string as we go
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
-
+        selections = []
         if axis1_inds is not None:
             if beam_object.pixel_coordinate_system == "healpix":
                 raise ValueError(
                     "axis1_inds cannot be used with healpix coordinate system"
                 )
 
-            history_update_string += "parts of first image axis"
-            n_selects += 1
+            selections.append("parts of first image axis")
 
             axis1_inds = sorted(set(axis1_inds))
             if min(axis1_inds) < 0 or max(axis1_inds) > beam_object.Naxes1 - 1:
@@ -3242,11 +3238,7 @@ class UVBeam(UVBase):
                     "axis2_inds cannot be used with healpix coordinate system"
                 )
 
-            if n_selects > 0:
-                history_update_string += ", parts of second image axis"
-            else:
-                history_update_string += "parts of second image axis"
-            n_selects += 1
+            selections.append("parts of second image axis")
 
             axis2_inds = sorted(set(axis2_inds))
             if min(axis2_inds) < 0 or max(axis2_inds) > beam_object.Naxes2 - 1:
@@ -3274,8 +3266,7 @@ class UVBeam(UVBase):
                     "pixels can only be used with healpix coordinate system"
                 )
 
-            history_update_string += "healpix pixels"
-            n_selects += 1
+            selections.append("healpix pixels")
 
             pix_inds = np.zeros(0, dtype=np.int64)
             for p in pixels:
@@ -3306,38 +3297,23 @@ class UVBeam(UVBase):
                     list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
                 )
 
-        if frequencies is not None:
-            frequencies = utils.tools._get_iterable(frequencies)
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
+        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            obj_freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            obj_channel_width=None,
+            channel_width_tols=None,
+            obj_spw_id_array=None,
+        )
+        if freq_inds is not None:
+            freq_inds = sorted(freq_inds.tolist())
+            selections.extend(freq_selections)
 
-            freq_inds = np.zeros(0, dtype=np.int64)
-            freq_arr_use = beam_object.freq_array
-            for f in frequencies:
-                if f in freq_arr_use:
-                    freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
-                else:
-                    raise ValueError(f"Frequency {f} is not present in the freq_array")
-
-            freq_inds = sorted(set(freq_inds))
             beam_object.Nfreqs = len(freq_inds)
             beam_object.freq_array = beam_object.freq_array[freq_inds]
             beam_object.bandpass_array = beam_object.bandpass_array[freq_inds]
 
-            if beam_object.Nfreqs > 1:
-                freq_separation = (
-                    beam_object.freq_array[1:] - beam_object.freq_array[:-1]
-                )
-                if not utils.tools._test_array_constant(
-                    freq_separation, tols=beam_object._freq_array.tols
-                ):
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "is not supported by the regularly gridded beam fits format"
-                    )
             if beam_object.receiver_temperature_array is not None:
                 rx_temp_array = beam_object.receiver_temperature_array
                 beam_object.receiver_temperature_array = rx_temp_array[freq_inds]
@@ -3382,11 +3358,7 @@ class UVBeam(UVBase):
 
             feeds = utils.tools._get_iterable(feeds)
             feeds = [f.lower() for f in feeds]
-            if n_selects > 0:
-                history_update_string += ", feeds"
-            else:
-                history_update_string += "feeds"
-            n_selects += 1
+            selections.append("feeds")
 
             feed_inds = np.zeros(0, dtype=np.int64)
             for f in feeds:
@@ -3428,11 +3400,7 @@ class UVBeam(UVBase):
             if np.array(polarizations).ndim > 1:
                 polarizations = np.array(polarizations).flatten()
 
-            if n_selects > 0:
-                history_update_string += ", polarizations"
-            else:
-                history_update_string += "polarizations"
-            n_selects += 1
+            selections.append("polarizations")
 
             pol_inds = np.zeros(0, dtype=np.int64)
             for p in polarizations:
@@ -3487,7 +3455,15 @@ class UVBeam(UVBase):
                 else:
                     beam_object.data_array = np.abs(beam_object.data_array)
 
-        history_update_string += " using pyuvdata."
+        # build up history string from selections
+        history_update_string = ""
+        if len(selections) > 0:
+            history_update_string = (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
+
         beam_object.history = beam_object.history + history_update_string
 
         # check if object is self-consistent

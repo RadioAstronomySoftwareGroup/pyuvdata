@@ -1935,6 +1935,8 @@ class MWACorrFITS(UVData):
                 freq_chans=freq_chans,
                 obj_freq_array=self.freq_array,
                 freq_tols=self._freq_array.tols,
+                obj_channel_width=self.channel_width,
+                channel_width_tols=self._channel_width.tols,
                 obj_spw_id_array=self.flex_spw_id_array,
             )
             if freq_inds is not None:
