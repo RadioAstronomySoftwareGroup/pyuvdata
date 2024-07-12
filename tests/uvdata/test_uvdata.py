@@ -1603,205 +1603,124 @@ def sort_bl(p):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_bls(casa_uvfits):
+@pytest.mark.parametrize(
+    "sel_type", ["antpair", "blnum", "antpairpol", "antpair_npint", "single"]
+)
+def test_select_bls(casa_uvfits, sel_type):
     uv_object = casa_uvfits
     old_history = uv_object.history
     first_ants = [7, 3, 8, 3, 22, 28, 9]
     second_ants = [1, 21, 9, 2, 3, 4, 23]
+    pols = ["RR", "RR", "RR", "RR", "RR", "RR", "RR"]
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
+    bls_nums_to_keep = [
+        uv_object.antnums_to_baseline(ant1, ant2) for ant1, ant2 in sorted_pairs_to_keep
+    ]
+    bls_to_keep = list(zip(first_ants, second_ants, pols, strict=True))
 
     blts_select = [
         sort_bl((a1, a2)) in sorted_pairs_to_keep
         for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     Nblts_selected = np.sum(blts_select)
+    sel_str = "antenna pairs"
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(bls=ant_pairs_to_keep)
-    sorted_pairs_object2 = [
-        sort_bl(p)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
-    ]
-
-    assert len(new_unique_ants) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
-    for ant in new_unique_ants:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
-    for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
-    ):
-        assert ant in new_unique_ants
-    for pair in sorted_pairs_to_keep:
-        assert pair in sorted_pairs_object2
-    for pair in sorted_pairs_object2:
-        assert pair in sorted_pairs_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # check using baseline number parameter
-    uv_object3 = uv_object.copy()
-    bls_nums_to_keep = [
-        uv_object.antnums_to_baseline(ant1, ant2) for ant1, ant2 in sorted_pairs_to_keep
-    ]
-
-    uv_object3.select(bls=bls_nums_to_keep)
-    sorted_pairs_object3 = [
-        sort_bl(p)
-        for p in zip(uv_object3.ant_1_array, uv_object3.ant_2_array, strict=True)
-    ]
-
-    assert len(new_unique_ants) == uv_object3.Nants_data
-    assert Nblts_selected == uv_object3.Nblts
-    for ant in new_unique_ants:
-        assert ant in uv_object3.ant_1_array or ant in uv_object3.ant_2_array
-    for ant in np.unique(
-        uv_object3.ant_1_array.tolist() + uv_object3.ant_2_array.tolist()
-    ):
-        assert ant in new_unique_ants
-    for pair in sorted_pairs_to_keep:
-        assert pair in sorted_pairs_object3
-    for pair in sorted_pairs_object3:
-        assert pair in sorted_pairs_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
-        uv_object3.history,
-    )
-
-    # check select with polarizations
-    first_ants = [7, 3, 8, 3, 22, 28, 9]
-    second_ants = [1, 21, 9, 2, 3, 4, 23]
-    pols = ["RR", "RR", "RR", "RR", "RR", "RR", "RR"]
-    new_unique_ants = np.unique(first_ants + second_ants)
-    bls_to_keep = list(zip(first_ants, second_ants, pols, strict=True))
-    sorted_bls_to_keep = [sort_bl(p) for p in bls_to_keep]
-
-    blts_select = [
-        sort_bl((a1, a2, "RR")) in sorted_bls_to_keep
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
-    ]
-    Nblts_selected = np.sum(blts_select)
-
-    uv_object2 = uv_object.copy()
-    uv_object2.select(bls=bls_to_keep)
-    sorted_pairs_object2 = [
-        sort_bl(p) + ("RR",)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
-    ]
-
-    assert len(new_unique_ants) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
-    for ant in new_unique_ants:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
-    for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
-    ):
-        assert ant in new_unique_ants
-    for bl in sorted_bls_to_keep:
-        assert bl in sorted_pairs_object2
-    for bl in sorted_pairs_object2:
-        assert bl in sorted_bls_to_keep
-
-    assert utils.history._check_histories(
-        old_history
-        + "  Downselected to specific antenna pairs, polarizations using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # check that you can use numpy integers with out errors:
-    first_ants = list(map(np.int32, [7, 3, 8, 3, 22, 28, 9]))
-    second_ants = list(map(np.int32, [1, 21, 9, 2, 3, 4, 23]))
-    ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
-
-    uv_object2 = uv_object.select(bls=ant_pairs_to_keep, inplace=False)
-    sorted_pairs_object2 = [
-        sort_bl(p)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
-    ]
-
-    assert len(new_unique_ants) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
-    for ant in new_unique_ants:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
-    for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
-    ):
-        assert ant in new_unique_ants
-    for pair in sorted_pairs_to_keep:
-        assert pair in sorted_pairs_object2
-    for pair in sorted_pairs_object2:
-        assert pair in sorted_pairs_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific antenna pairs using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # check that you can specify a single pair without errors
-    uv_object2.select(bls=(1, 7))
-    sorted_pairs_object2 = [
-        sort_bl(p)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
-    ]
-    assert list(set(sorted_pairs_object2)) == [(1, 7)]
-
-    # check for errors associated with antenna pairs not included in data and bad inputs
-    with pytest.raises(
-        ValueError, match="bls must be a list of tuples of antenna numbers"
-    ):
-        uv_object.select(bls=list(zip(first_ants, second_ants, strict=True)) + [1, 7])
-
-    with pytest.raises(
-        ValueError, match="bls must be a list of tuples of antenna numbers"
-    ):
-        uv_object.select(
-            bls=[
-                (
-                    uv_object.telescope.antenna_names[0],
-                    uv_object.telescope.antenna_names[1],
-                )
-            ]
+    if sel_type == "antpair":
+        bls_select = ant_pairs_to_keep
+    elif sel_type == "antpair_npint":
+        bls_select = list(
+            zip(
+                list(map(np.int32, first_ants)),
+                list(map(np.int32, second_ants)),
+                strict=True,
+            )
         )
+    elif sel_type == "blnum":
+        bls_select = bls_nums_to_keep
+    elif sel_type == "antpairpol":
+        bls_select = bls_to_keep
+        sel_str = "antenna pairs, polarizations"
+    elif sel_type == "single":
+        bls_select = (1, 7)
+        new_unique_ants = [1, 7]
+        sorted_pairs_to_keep = [(1, 7)]
+        blts_select = [
+            sort_bl((a1, a2)) in sorted_pairs_to_keep
+            for (a1, a2) in zip(
+                uv_object.ant_1_array, uv_object.ant_2_array, strict=True
+            )
+        ]
+        Nblts_selected = np.sum(blts_select)
 
-    with pytest.raises(
-        ValueError, match=re.escape("Antenna pair (5, 1) does not have any data")
+    uv_object2 = uv_object.copy()
+    uv_object2.select(bls=bls_select)
+    sorted_pairs_object2 = [
+        sort_bl(p)
+        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
+    ]
+
+    assert len(new_unique_ants) == uv_object2.Nants_data
+    assert Nblts_selected == uv_object2.Nblts
+    for ant in new_unique_ants:
+        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
+    for ant in np.unique(
+        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
     ):
-        uv_object.select(bls=(5, 1))
+        assert ant in new_unique_ants
+    for pair in sorted_pairs_to_keep:
+        assert pair in sorted_pairs_object2
+    for pair in sorted_pairs_object2:
+        assert pair in sorted_pairs_to_keep
 
-    with pytest.raises(
-        ValueError, match=re.escape("Antenna pair (1, 5) does not have any data")
-    ):
-        uv_object.select(bls=(1, 5))
+    if sel_type == "antpairpol":
+        assert uv_object2.Npols == 1
+    if sel_type == "2_3_tuple":
+        assert uv_object2.Npols == 1
 
-    with pytest.raises(
-        ValueError, match=re.escape("Antenna pair (27, 27) does not have any data")
-    ):
-        uv_object.select(bls=(27, 27))
+    assert utils.history._check_histories(
+        old_history + f"  Downselected to specific {sel_str} using pyuvdata.",
+        uv_object2.history,
+    )
 
-    with pytest.raises(
-        ValueError,
-        match="Cannot provide any length-3 tuples and also specify polarizations.",
-    ):
-        uv_object.select(bls=(7, 1, "RR"), polarizations="RR")
 
-    with pytest.raises(
-        ValueError,
-        match="The third element in a bl tuple must be a polarization string",
-    ):
-        uv_object.select(bls=(7, 1, 7))
+@pytest.mark.parametrize(
+    ["sel_kwargs", "err_msg"],
+    [
+        [
+            {"bls": list(zip([7, 3, 8], [1, 21, 9], strict=True)) + [1, 7]},
+            "bls must be a list of tuples of antenna numbers",
+        ],
+        [{"bls": ("foo", "bar")}, "bls must be a list of tuples of antenna numbers"],
+        [{"bls": (5, 1)}, re.escape("Antenna pair (5, 1) does not have any data")],
+        [
+            {"bls": (5, 1, "RR")},
+            re.escape("Antenna pair (5, 1, 'RR') does not have any data"),
+        ],
+        [{"bls": (1, 5)}, re.escape("Antenna pair (1, 5) does not have any data")],
+        [{"bls": (27, 27)}, re.escape("Antenna pair (27, 27) does not have any data")],
+        [
+            {"bls": (7, 1, "RR"), "polarizations": "RR"},
+            "Cannot provide any length-3 tuples and also specify polarizations.",
+        ],
+        [
+            {"bls": (7, 1, 7)},
+            "The third element in a bl tuple must be a polarization string",
+        ],
+        [
+            {"bls": [(7, 1, "RR"), (1, 5)]},
+            "If some bls are 3-tuples, all bls must be 3-tuples.",
+        ],
+        [{"bls": []}, "bls must be a list of tuples of antenna numbers"],
+        [{"bls": [100]}, "Baseline number 100 is not present in the baseline_array"],
+    ],
+)
+def test_select_bls_errors(casa_uvfits, sel_kwargs, err_msg):
+    uv_object = casa_uvfits
 
-    with pytest.raises(
-        ValueError, match="bls must be a list of tuples of antenna numbers"
-    ):
-        uv_object.select(bls=[])
-
-    with pytest.raises(ValueError, match="Baseline number 100 is not present in the"):
-        uv_object.select(bls=[100])
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.select(**sel_kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
