@@ -90,18 +90,30 @@ def uvcalibrate(
         )
 
     if pol_convention is None:
-        pol_convention = uvcal.pol_convention
+        pol_convention = uvdata.pol_convention if undo else uvcal.pol_convention
 
     if pol_convention is None:
-        warnings.warn(
-            message=(
-                "pol_convention is not specified, so the resulting UVData object will "
-                "have ambiguous convention. This is deprecated and will be an error in "
-                "pyuvdata v3.2.",
-            ),
-            category=DeprecationWarning,
-            stacklevel=2,
-        )
+        if not undo:
+            warnings.warn(
+                message=(
+                    "pol_convention is not specified, so the resulting UVData object "
+                    "will have ambiguous convention. This is deprecated and will be an "
+                    "error in pyuvdata v3.2."
+                ),
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+        else:
+            warnings.warn(
+                "The pol_convention is not specified on the UVData, so it is impossible"
+                " to know if the correct convention is being applied to undo the "
+                "calibration. This behaviour is deprecated, and for now will result in "
+                "the same convention being assumed for the UVData and UVCal objects. "
+                "Please set the pol_convention attribute on the UVData object.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+
     elif pol_convention not in ["sum", "avg"]:
         raise ValueError(
             f"pol_convention must be either 'sum' or 'avg'. Got {pol_convention}"
@@ -446,19 +458,42 @@ def uvcalibrate(
             uvdata.vis_units = uvcal_use.gain_scale
 
     # Set pol convention properly
-    uvdata.pol_convention = pol_convention
-    if pol_convention != uvcal_use.pol_convention:
-        for i, pol in enumerate(uvdata.polarization_array):
-            if pol > 0:  # pseudo-stokes
-                if pol_convention == "sum":
-                    uvdata.data_array[..., i] *= 2
-                else:
-                    uvdata.data_array[..., i] /= 2
-            else:  # linear pols
-                if pol_convention == "sum":
-                    uvdata.data_array[..., i] /= 2
-                else:
-                    uvdata.data_array[..., i] *= 2
+    if uvcal_use.gain_scale is None:
+        # ignore all pol_convention stuff, because who knows???
+        warnings.warn(
+            "gain_scale is not set, so resulting uvdata will not have correct units"
+        )
+    else:
+        if not undo:
+            uvdata.pol_convention = pol_convention
+            if pol_convention != uvcal_use.pol_convention:
+                for i, pol in enumerate(uvdata.polarization_array):
+                    if pol > 0:  # pseudo-stokes
+                        if pol_convention == "sum":
+                            uvdata.data_array[..., i] *= 2
+                        else:
+                            uvdata.data_array[..., i] /= 2
+                    else:  # linear pols
+                        if pol_convention == "sum":
+                            uvdata.data_array[..., i] /= 2
+                        else:
+                            uvdata.data_array[..., i] *= 2
+        else:
+            uvdata.pol_convention = None
+            # here the pol_convention should be what is being assumed/specified
+            # on the uvdata
+            if pol_convention != uvcal_use.pol_convention:
+                for i, pol in enumerate(uvdata.polarization_array):
+                    if pol > 0:  # pseudo-stokes
+                        if pol_convention == "sum":
+                            uvdata.data_array[..., i] /= 2
+                        else:
+                            uvdata.data_array[..., i] *= 2
+                    else:  # linear pols
+                        if pol_convention == "sum":
+                            uvdata.data_array[..., i] *= 2
+                        else:
+                            uvdata.data_array[..., i] /= 2
 
     if not inplace:
         return uvdata

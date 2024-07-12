@@ -58,6 +58,8 @@ def uvcalibrate_init_data_main():
             os.path.join(DATA_PATH, "zen.2458098.45361.HH.omni.calfits_downselected")
         )
 
+    uvcal.pol_convention = "avg"
+
     yield uvdata, uvcal
 
 
