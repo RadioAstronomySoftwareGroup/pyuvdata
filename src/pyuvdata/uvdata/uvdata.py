@@ -6971,55 +6971,16 @@ class UVData(UVBase):
         )
         selections.extend(blt_selections)
 
-        if freq_chans is not None:
-            freq_chans = utils.tools._get_iterable(freq_chans)
-            if np.array(freq_chans).ndim > 1:
-                freq_chans = np.array(freq_chans).flatten()
-            if frequencies is None:
-                frequencies = self.freq_array[freq_chans]
-            else:
-                frequencies = utils.tools._get_iterable(frequencies)
-                frequencies = np.sort(
-                    list(set(frequencies) | set(self.freq_array[freq_chans]))
-                )
-
-        if frequencies is not None:
-            frequencies = utils.tools._get_iterable(frequencies)
-            if np.array(frequencies).ndim > 1:
-                frequencies = np.array(frequencies).flatten()
-            selections.append("frequencies")
-
-            freq_arr_use = self.freq_array
-            # Check and see that all requested freqs are available
-            freq_check = np.isin(frequencies, freq_arr_use)
-            if not np.all(freq_check):
-                raise ValueError(
-                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]:g} "
-                    "is not present in the freq_array"
-                )
-            freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
-
-            if len(frequencies) > 1:
-                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                freq_ind_separation = freq_ind_separation[
-                    np.diff(self.flex_spw_id_array[freq_inds]) == 0
-                ]
-                if not utils.tools._test_array_constant(freq_ind_separation):
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-                elif np.max(freq_ind_separation) > 1:
-                    warnings.warn(
-                        "Selected frequencies are not contiguous. This "
-                        "will make it impossible to write this data out to "
-                        "some file types."
-                    )
-
-            freq_inds = sorted(set(freq_inds))
-        else:
-            freq_inds = None
+        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            obj_freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            obj_spw_id_array=self.flex_spw_id_array,
+        )
+        if freq_inds is not None:
+            freq_inds = sorted(freq_inds.tolist())
+            selections.extend(freq_selections)
 
         if polarizations is not None:
             polarizations = utils.tools._get_iterable(polarizations)
@@ -9573,37 +9534,37 @@ class UVData(UVBase):
             of the same name on `select` and other read methods -- this parameter
             does not accept 3-tuples or baseline numbers.
             Ignored if read_data is False.
-            # frequencies : array_like of float, optional
-            #     The frequencies to include when reading data into the object, each
-            #     value passed here should exist in the freq_array. Ignored if
-            #     read_data is False.
-            # freq_chans : array_like of int, optional
-            #     The frequency channel numbers to include when reading data into the
-            #     object. Ignored if read_data is False.
-            # times : array_like of float, optional
-            #     The times to include when reading data into the object, each value
-            #     passed here should exist in the time_array. Cannot be used with
-            #     `time_range`, `lsts`, or `lst_array`.
-            # time_range : array_like of float, optional
-            #     The time range in Julian Date to include when reading data into
-            #     the object, must be length 2. Some of the times in the file should
-            #     fall between the first and last elements.
-            #     Cannot be used with `times`.
-            # lsts : array_like of float, optional
-            #     The local sidereal times (LSTs) to keep in the object, each value
-            #     passed here should exist in the lst_array. Cannot be used with
-            #     `times`, `time_range`, or `lst_range`.
-            # lst_range : array_like of float, optional
-            #     The local sidereal time (LST) range in radians to keep in the
-            #     object, must be of length 2. Some of the LSTs in the object should
-            #     fall between the first and last elements. If the second value is
-            #     smaller than the first, the LSTs are treated as having phase-wrapped
-            #     around LST = 2*pi = 0, and the LSTs kept on the object will run from
-            #     the larger value, through 0, and end at the smaller value.
-            # polarizations : array_like of int, optional
-            #     The polarizations numbers to include when reading data into the
-            #     object, each value passed here should exist in the polarization_array.
-            #     Ignored if read_data is False.
+        frequencies : array_like of float, optional
+            The frequencies to include when reading data into the object, each
+            value passed here should exist in the freq_array. Ignored if
+            read_data is False.
+        freq_chans : array_like of int, optional
+            The frequency channel numbers to include when reading data into the
+            object. Ignored if read_data is False.
+        times : array_like of float, optional
+            The times to include when reading data into the object, each value
+            passed here should exist in the time_array. Cannot be used with
+            `time_range`, `lsts`, or `lst_array`.
+        time_range : array_like of float, optional
+            The time range in Julian Date to include when reading data into
+            the object, must be length 2. Some of the times in the file should
+            fall between the first and last elements.
+            Cannot be used with `times`.
+        lsts : array_like of float, optional
+            The local sidereal times (LSTs) to keep in the object, each value
+            passed here should exist in the lst_array. Cannot be used with
+            `times`, `time_range`, or `lst_range`.
+        lst_range : array_like of float, optional
+            The local sidereal time (LST) range in radians to keep in the
+            object, must be of length 2. Some of the LSTs in the object should
+            fall between the first and last elements. If the second value is
+            smaller than the first, the LSTs are treated as having phase-wrapped
+            around LST = 2*pi = 0, and the LSTs kept on the object will run from
+            the larger value, through 0, and end at the smaller value.
+        polarizations : array_like of int, optional
+            The polarizations numbers to include when reading data into the
+            object, each value passed here should exist in the polarization_array.
+            Ignored if read_data is False.
         keep_all_metadata : bool
             Option to keep all the metadata associated with antennas, even those
             that do not have data associated with them after the select option.
@@ -11187,6 +11148,8 @@ class UVData(UVBase):
                 select_times = None
                 select_lsts = None
                 select_polarizations = None
+                select_frequencies = None
+                select_freq_chans = None
 
                 # MWA corr fits can only handle length-two bls tuples, anything
                 # else needs to be handled via select.
@@ -11197,19 +11160,10 @@ class UVData(UVBase):
                 select_ant_str = ant_str
                 select_blt_inds = blt_inds
                 select_phase_center_ids = phase_center_ids
-                select_frequencies = frequencies
-                select_freq_chans = freq_chans
 
                 if all(
                     item is None
-                    for item in [
-                        select_bls,
-                        blt_inds,
-                        phase_center_ids,
-                        ant_str,
-                        frequencies,
-                        freq_chans,
-                    ]
+                    for item in [select_bls, blt_inds, phase_center_ids, ant_str]
                 ):
                     # If there's nothing to select, just bypass that operation.
                     select = False
@@ -11311,8 +11265,8 @@ class UVData(UVBase):
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
                     bls=bls,
-                    # frequencies=frequencies,
-                    # freq_chans=freq_chans,
+                    frequencies=frequencies,
+                    freq_chans=freq_chans,
                     times=times,
                     time_range=time_range,
                     lsts=lsts,

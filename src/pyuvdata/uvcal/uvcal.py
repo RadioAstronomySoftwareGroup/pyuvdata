@@ -4138,52 +4138,17 @@ class UVCal(UVBase):
                 "no freq_array."
             )
 
-        if frequencies is not None:
-            frequencies = utils.tools._get_iterable(frequencies)
-            freq_arr_use = self.freq_array
+        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            obj_freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            obj_spw_id_array=self.flex_spw_id_array,
+        )
 
-            freq_check = np.isin(frequencies, freq_arr_use)
-            if not np.all(freq_check):
-                raise ValueError(
-                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
-                    "present in the freq_array"
-                )
-
-            freq_chans = utils.tools._sorted_unique_union(
-                np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
-            )
-
-        if freq_chans is not None:
-            selections.append("frequencies")
-
-            # Check and see that all requested freqs are available
-            if frequencies is not None:
-                pass
-
-            freq_inds = np.array(sorted(utils.tools._get_iterable(freq_chans)))
-
-            if len(freq_inds) > 1:
-                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                if self.flex_spw_id_array is not None:
-                    freq_ind_separation = freq_ind_separation[
-                        np.diff(self.flex_spw_id_array[freq_inds]) == 0
-                    ]
-                if not utils.tools._test_array_constant(freq_ind_separation):
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "calfits files"
-                    )
-                elif np.max(freq_ind_separation) > 1:
-                    warnings.warn(
-                        "Selected frequencies are not contiguous. This "
-                        "will make it impossible to write this data out to "
-                        "calfits files."
-                    )
-
-            freq_inds = sorted(set(freq_inds))
-        else:
-            freq_inds = None
+        if freq_inds is not None:
+            freq_inds = sorted(freq_inds.tolist())
+            selections.extend(freq_selections)
 
         if jones is not None:
             jones = utils.tools._get_iterable(jones)
