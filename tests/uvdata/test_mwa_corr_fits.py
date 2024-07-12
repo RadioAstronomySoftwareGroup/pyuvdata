@@ -76,9 +76,11 @@ def spoof_mwax(tmp_path, nfreq=16, ntimes=2, ncoarse=1):
 
     with fits.open(filelist[11]) as meta:
         meta[0].header["FINECHAN"] = fine_res
+        meta[0].header["NCHANS"] = len(meta[0].header["CHANNELS"].split(",")) * nfreq
         meta.writeto(meta_spoof)
+        outfiles.append(meta_spoof)
 
-    return [meta_spoof, cb_spoof]
+    return outfiles
 
 
 def spoof_legacy(tmp_path, nfreq=16, ntimes=2, ncoarse=2):
@@ -427,7 +429,9 @@ def test_fine_channels(tmp_path):
     with fits.open(filelist[2]) as mini6:
         mini6[1].data = np.concatenate((mini6[1].data, mini6[1].data))
         mini6.writeto(bad_fine)
-    with pytest.raises(ValueError, match="files submitted have different numbers"):
+    with pytest.raises(
+        ValueError, match="files submitted have different numbers of fine channels"
+    ):
         mwa_uv.read([bad_fine, filelist[1]])
     del mwa_uv
 
@@ -441,8 +445,10 @@ def test_fine_channels_mwax(tmp_path):
     """
     mwax_uv = UVData()
     spoof_files = spoof_mwax(tmp_path)
-    with pytest.raises(ValueError, match="files submitted have different numbers"):
-        mwax_uv.read([spoof_files[1], filelist[12]])
+    with pytest.raises(
+        ValueError, match="files submitted have different numbers of fine channels"
+    ):
+        mwax_uv.read(spoof_files + [filelist[12]])
     del mwax_uv
 
 
@@ -1417,6 +1423,68 @@ def test_partial_read_time_axis(tmp_path, mwax, select):
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+@pytest.mark.filterwarnings("ignore:coarse channels are not contiguous for this")
+@pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
+@pytest.mark.filterwarnings("ignore:Selected frequencies are not evenly spaced.")
+@pytest.mark.parametrize(
+    ["mwax", "select_kwargs", "read_kwargs", "nspw_exp"],
+    [
+        [True, {"frequencies": np.arange(10)}, {"propagate_coarse_flags": False}, 1],
+        [True, {"frequencies": np.arange(20)}, {}, 1],
+        [True, {"frequencies": np.arange(10, 20)}, {}, 1],
+        [
+            True,
+            {"freq_chans": np.concatenate((np.arange(0, 10), np.arange(20, 30)))},
+            {},
+            2,
+        ],
+        [False, {"frequencies": np.arange(5, 10)}, {}, 2],
+    ],
+)
+def test_partial_read_freq_axis(tmp_path, mwax, select_kwargs, read_kwargs, nspw_exp):
+    if mwax:
+        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=1, ncoarse=2)
+    else:
+        files_use = spoof_legacy(tmp_path, nfreq=8, ntimes=1, ncoarse=2)
+
+    uv_full = UVData.from_file(files_use, **read_kwargs)
+
+    kwargs_use = copy.deepcopy(select_kwargs)
+    if "frequencies" in select_kwargs:
+        kwargs_use["frequencies"] = uv_full.freq_array[select_kwargs["frequencies"]]
+
+    uv_partial = UVData.from_file(files_use, **read_kwargs, **kwargs_use)
+    assert uv_partial.Nspws == nspw_exp
+
+    exp_uv = uv_full.select(**kwargs_use, inplace=False)
+    # fix up spws
+    if nspw_exp == 1 and (exp_uv.Nspws != 1 or exp_uv.spw_array[0] != 0):
+        exp_uv.Nspws = 1
+        exp_uv.spw_array = np.array([0])
+        exp_uv.flex_spw_id_array = np.full(
+            exp_uv.Nfreqs, exp_uv.spw_array[0], dtype=int
+        )
+    elif exp_uv.Nspws != nspw_exp:
+        # this only happens for MWAX where selecting discontinuous sets
+        exp_uv.Nspws = 2
+        exp_uv.spw_array = np.array([137, 138])
+        n_137 = (np.nonzero(select_kwargs["freq_chans"] < 16)[0]).size
+        n_138 = (np.nonzero(select_kwargs["freq_chans"] >= 16)[0]).size
+        exp_uv.flex_spw_id_array = np.concatenate(
+            (np.full(n_137, 137, dtype=int), np.full(n_138, 138, dtype=int))
+        )
+
+    # fix order of operations in history
+    loc_divided = uv_full.history.find("Divided")
+    exp_uv.history = (
+        uv_full.history[:loc_divided]
+        + " Downselected to specific frequencies using pyuvdata. "
+        + uv_full.history[loc_divided:]
+    )
+    assert uv_partial == exp_uv
+
+
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 @pytest.mark.parametrize(
     "select_kwargs",
@@ -1429,9 +1497,9 @@ def test_partial_read_time_axis(tmp_path, mwax, select):
 @pytest.mark.parametrize("mwax", [False, True])
 def test_partial_read_pol_axis(tmp_path, mwax, select_kwargs):
     if mwax:
-        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=6)
+        files_use = spoof_mwax(tmp_path, nfreq=16)
     else:
-        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=6, ncoarse=1)
+        files_use = spoof_legacy(tmp_path, nfreq=16, ncoarse=1)
 
     uv_full = UVData.from_file(files_use)
 
@@ -1463,6 +1531,24 @@ def test_partial_read_pol_axis(tmp_path, mwax, select_kwargs):
         ],
         [{"antenna_nums": [18, 31, 66, 95], "times": [0, 2]}, ["antennas", "times"]],
         [{"polarizations": ["xx", "yy"], "times": [0, 2]}, ["times", "polarizations"]],
+        [
+            {"polarizations": ["xx", "yy"], "freq_chans": np.arange(2)},
+            ["frequencies", "polarizations"],
+        ],
+        [
+            {"antenna_nums": [18, 31, 66, 95], "freq_chans": np.arange(10)},
+            ["antennas", "frequencies"],
+        ],
+        [{"times": [0, 2], "freq_chans": np.arange(10)}, ["times", "frequencies"]],
+        [
+            {
+                "antenna_nums": [18, 31, 66, 95],
+                "times": [0, 2],
+                "freq_chans": np.arange(10),
+                "polarizations": ["xx", "yy"],
+            },
+            ["antennas", "times", "frequencies", "polarizations"],
+        ],
     ],
 )
 @pytest.mark.parametrize("mwax", [False, True])
@@ -1482,7 +1568,6 @@ def test_partial_read_multi(tmp_path, mwax, select_kwargs, selections):
         kwargs_use["antenna_nums"] = all_ants[0 : all_ants.size // 2]
     if "times" in select_kwargs:
         unique_times = np.unique(uv_full.time_array)
-        print(unique_times)
         kwargs_use["times"] = unique_times[select_kwargs["times"]]
 
     uv_partial = UVData.from_file(files_use, **kwargs_use)
