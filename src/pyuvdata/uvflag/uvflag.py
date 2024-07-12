@@ -2568,6 +2568,8 @@ class UVFlag(UVBase):
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
+            obj_channel_width=self.channel_width,
+            channel_width_tols=self._channel_width.tols,
             obj_spw_id_array=self.flex_spw_id_array,
             warn_freq_spacing=False,
         )
@@ -2603,9 +2605,13 @@ class UVFlag(UVBase):
             pol_inds = None
 
         # build up history string from selections
-        history_update_string = (
-            "  Downselected to specific " + ", ".join(selections) + " using pyuvdata."
-        )
+        history_update_string = ""
+        if len(selections) > 0:
+            history_update_string = (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
 
         return blt_inds, time_inds, ant_inds, freq_inds, pol_inds, history_update_string
 
