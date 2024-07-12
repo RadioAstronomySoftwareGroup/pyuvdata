@@ -10869,8 +10869,10 @@ class UVData(UVBase):
 
                 # MWA corr fits can only handle length-two bls tuples, anything
                 # else needs to be handled via select.
+                bls_use = copy.deepcopy(bls)
                 if bls is not None and not all(len(item) == 2 for item in bls):
                     select_bls = bls
+                    bls_use = None
 
                 # these aren't supported by partial read, so do it in select
                 select_ant_str = ant_str
@@ -10980,7 +10982,7 @@ class UVData(UVBase):
                     filename,
                     antenna_nums=antenna_nums,
                     antenna_names=antenna_names,
-                    bls=bls,
+                    bls=bls_use,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
                     times=times,

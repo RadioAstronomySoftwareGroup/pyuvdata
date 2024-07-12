@@ -1332,6 +1332,11 @@ def test_van_vleck(benchmark, cheby):
         [{"antenna_names": [f"Tile{ant:03d}" for ant in [18, 31, 66, 95]]}, ""],
         [{"bls": [(48, 34), (96, 11), (22, 87)]}, ""],
         [
+            {"bls": [(48, 34, "xx"), (96, 11, "xx"), (22, 87, "xx")]},
+            "a select on read keyword is set that is not supported by "
+            "read_mwa_corr_fits. This select will be done after reading the file.",
+        ],
+        [
             {"ant_str": "48_34,96_11,22_87"},
             "a select on read keyword is set that is not supported by "
             "read_mwa_corr_fits. This select will be done after reading the file.",
@@ -1351,7 +1356,7 @@ def test_partial_read_bl_axis(tmp_path, mwax, select_kwargs, warn_msg):
     if warn_msg != "":
         warn_msg_list.append(warn_msg)
 
-    if mwax and "bls" not in select_kwargs:
+    if mwax and ("bls" not in select_kwargs or warn_msg != ""):
         # The bls selection has no autos
         warn_msg_list.append("Fixing auto-correlations to be be real-only")
 
@@ -1490,8 +1495,9 @@ def test_partial_read_freq_axis(tmp_path, mwax, select_kwargs, read_kwargs, nspw
     "select_kwargs",
     [
         {"polarizations": ["xx"]},
-        {"polarizations": ["xx", "yy"]},
+        {"polarizations": np.atleast_3d(["xx", "yy"])},
         {"polarizations": ["xx", "xy"]},
+        {"polarizations": [-7, -8]},
     ],
 )
 @pytest.mark.parametrize("mwax", [False, True])
@@ -1554,9 +1560,9 @@ def test_partial_read_pol_axis(tmp_path, mwax, select_kwargs):
 @pytest.mark.parametrize("mwax", [False, True])
 def test_partial_read_multi(tmp_path, mwax, select_kwargs, selections):
     if mwax:
-        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=6)
+        files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=3)
     else:
-        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=6, ncoarse=1)
+        files_use = spoof_legacy(tmp_path, nfreq=16, ntimes=3, ncoarse=1)
 
     uv_full = UVData.from_file(files_use)
     all_ants = uv_full.get_ants()
@@ -1586,3 +1592,12 @@ def test_partial_read_multi(tmp_path, mwax, select_kwargs, selections):
     )
 
     assert uv_partial == exp_uv
+
+
+def test_partial_read_errors(tmp_path):
+    files_use = spoof_mwax(tmp_path, nfreq=16, ntimes=1)
+    uvd = UVData()
+    with pytest.raises(
+        ValueError, match="bls must be a list of 2-tuples giving antenna number pairs"
+    ):
+        uvd.read_mwa_corr_fits(files_use, bls=[(18, 31, "xx")])

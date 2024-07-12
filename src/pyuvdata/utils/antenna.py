@@ -40,10 +40,7 @@ def _select_antenna_helper(
             )
 
         for ant in antenna_nums:
-            if ant in obj_ant_array:
-                ant_inds = np.append(ant_inds, np.where(obj_ant_array == ant)[0])
-            else:
-                raise ValueError(f"Antenna number {ant} is not present in the array")
+            ant_inds = np.append(ant_inds, np.where(obj_ant_array == ant)[0])
 
         ant_inds = sorted(set(ant_inds))
     else:
