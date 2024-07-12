@@ -1,0 +1,160 @@
+# -*- mode: python; coding: utf-8 -*-
+# Copyright (c) 2022 Radio Astronomy Software Group
+# Licensed under the 2-clause BSD License
+
+"""Definition for BeamInterface object."""
+from __future__ import annotations
+
+import copy
+import warnings
+from typing import Literal
+
+import numpy as np
+import numpy.typing as npt
+
+from .analytic_beam import AnalyticBeam
+from .uvbeam import UVBeam
+
+# Other methods we may want to include:
+#  - beam area
+#  - beam squared area
+#  - efield_to_pstokes
+
+
+class BeamInterface:
+    """
+    Definition for a unified beam interface.
+
+    This object provides a unified interface for UVBeam and AnalyticBeam objects
+    to compute beam response values in any direction.
+
+    Attributes
+    ----------
+    beam : pyuvdata.UVBeam or pyuvdata.AnalyticBeam
+        Beam object to use for computations
+    beam_type : str
+        The beam type, either "efield" or "power".
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne).
+        Used if beam is a UVBeam and and the input UVBeam is an Efield beam but
+        beam_type is "power".
+        Ignored otherwise (the cross pol inclusion is set by the beam object.)
+
+    """
+
+    def __init__(
+        self,
+        beam: AnalyticBeam | UVBeam,
+        beam_type: Literal["efield", "power"] | None = None,
+        include_cross_pols: bool = True,
+    ):
+        if not isinstance(beam, UVBeam) and not isinstance(beam, AnalyticBeam):
+            raise ValueError("beam must be a UVBeam or an AnalyticBeam instance.")
+        self.beam = beam
+        if isinstance(beam, UVBeam):
+            self._isuvbeam = True
+            if beam_type is None or beam_type == beam.beam_type:
+                self.beam_type = beam.beam_type
+            elif beam_type == "power":
+                warnings.warn(
+                    "Input beam is an efield UVBeam but beam_type is specified as "
+                    "'power'. Converting efield beam to power."
+                )
+                self.beam.efield_to_power(calc_cross_pols=include_cross_pols)
+            else:
+                raise ValueError(
+                    "Input beam is a power UVBeam but beam_type is specified as "
+                    "'efield'. It's not possible to convert a power beam to an "
+                    "efield beam, either provide an efield UVBeam or do not "
+                    "specify `beam_type`."
+                )
+        else:
+            # AnalyticBeam
+            self._isuvbeam = False
+            self.beam_type = beam_type
+
+    def compute_response(
+        self,
+        az_array: npt.NDArray[np.float],
+        za_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[np.float] | None,
+        az_za_grid: bool = False,
+        freq_interp_tol: float = 1.0,
+        reuse_spline: bool = False,
+        spline_opts: dict | None = None,
+    ):
+        """
+        Calculate beam responses, by interpolating UVBeams or evaluating AnalyticBeams.
+
+        Parameters
+        ----------
+        az_array : array_like of floats, optional
+            Azimuth values to compute the response for in radians, either
+            specifying the azimuth positions for every interpolation point or
+            specifying the azimuth vector for a meshgrid if az_za_grid is True.
+        za_array : array_like of floats, optional
+            Zenith values to compute the response for in radians, either
+            specifying the zenith positions for every interpolation point or
+            specifying the zenith vector for a meshgrid if az_za_grid is True.
+        freq_array : array_like of floats or None
+            Frequency values to compute the response for in Hz. If beam is a UVBeam
+            this can be set to None to get the responses at the UVBeam frequencies.
+            It must be a numpy array if beam is an analytic beam.
+        az_za_grid : bool
+            Option to treat the `az_array` and `za_array` as the input vectors
+            for points on a mesh grid.
+        freq_interp_tol : float
+            Frequency distance tolerance [Hz] of nearest neighbors.
+            If *all* elements in freq_array have nearest neighbor distances within
+            the specified tolerance then return the beam at each nearest neighbor,
+            otherwise interpolate the beam.
+        reuse_spline : bool
+            Save the interpolation functions for reuse. Only applies for
+            `az_za_simple` interpolation.
+        spline_opts : dict
+            Provide options to numpy.RectBivariateSpline. This includes spline
+            order parameters `kx` and `ky`, and smoothing parameter `s`.
+            Only applies for `az_za_simple` interpolation.
+
+        Returns
+        -------
+        array_like of float or complex
+            An array of computed values, shape (Naxes_vec, Nfeeds or Npols,
+            freq_array.size, az_array.size)
+        """
+        if not isinstance(az_array, np.ndarray) or az_array.ndim != 1:
+            raise ValueError("az_array must be a one-dimensional numpy array")
+        if not isinstance(za_array, np.ndarray) or za_array.ndim != 1:
+            raise ValueError("za_array must be a one-dimensional numpy array")
+
+        if self._isuvbeam:
+            interp_data, _ = self.beam.interp(
+                az_array=az_array,
+                za_array=za_array,
+                az_za_grid=az_za_grid,
+                freq_array=freq_array,
+                freq_interp_tol=freq_interp_tol,
+                reuse_spline=reuse_spline,
+                spline_opts=spline_opts,
+            )
+        else:
+            if not isinstance(freq_array, np.ndarray) or freq_array.ndim != 1:
+                raise ValueError("freq_array must be a one-dimensional numpy array")
+            if az_za_grid:
+                az_array_use, za_array_use = np.meshgrid(az_array, za_array)
+                az_array_use = az_array_use.flatten()
+                za_array_use = za_array_use.flatten()
+            else:
+                az_array_use = copy.copy(az_array)
+                za_array_use = copy.copy(za_array)
+
+            if self.beam_type == "efield":
+                interp_data = self.beam.efield_eval(
+                    az_array_use, za_array_use, freq_array
+                )
+            else:
+                interp_data = self.beam.power_eval(
+                    az_array_use, za_array_use, freq_array
+                )
+
+        return interp_data

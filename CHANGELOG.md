@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New analytic beam classes: AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam
+that support evaluating either the efield or power beam in any direction and frequency.
+- A new BeamInterface class that provides a unified interface to UVBeam and analytic
+beam objects to get beam responses in any direction and frequency (via
+interpolation or evaluation as appropriate).
 - New `ignore_telescope_param_update_warnings_for` function that globally ignores
 warnings for specific telescopes.
 - New `.telescope` cached property on the `FastUVH5Meta` object that auto-creates a
