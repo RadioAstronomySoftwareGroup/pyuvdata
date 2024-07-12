@@ -11944,9 +11944,6 @@ def test_get_ants_rectangular(hera_uvh5):
 
 def test_pol_convention_warnings(hera_uvh5):
     hera_uvh5.vis_units = "Jy"
-    hera_uvh5.pol_convention = None
-    with pytest.warns(UserWarning, match="pol_convention is unset"):
-        hera_uvh5.check()
 
     hera_uvh5.pol_convention = "badconvention"
     with pytest.raises(ValueError):

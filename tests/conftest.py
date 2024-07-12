@@ -59,6 +59,7 @@ def uvcalibrate_init_data_main():
         )
 
     uvcal.pol_convention = "avg"
+    uvcal.gain_scale = "Jy"
 
     yield uvdata, uvcal
 
