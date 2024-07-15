@@ -485,6 +485,8 @@ class UVFITS(UVData):
             if self.vis_units == "UNCALIB":
                 self.vis_units = "uncalib"
 
+            self.pol_convention = vis_hdr.pop("POLCONV", None)
+
             # PHSFRAME is not a standard UVFITS keyword, but was used by older
             # versions of pyuvdata. To ensure backwards compatibility, we look
             # for it first to determine the coordinate frame for the data
@@ -1249,6 +1251,9 @@ class UVFITS(UVData):
                         if frame in most_common_frames:
                             hdu.header["RADESYS"] = frame
                             break
+
+        if self.pol_convention is not None:
+            hdu.header["POLCONV"] = self.pol_convention
 
         if self.telescope.x_orientation is not None:
             hdu.header["XORIENT"] = self.telescope.x_orientation

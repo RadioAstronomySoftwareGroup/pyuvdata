@@ -3132,24 +3132,43 @@ def test_uvcal_get_methods(gain_data):
         uvc.get_gains(10)
 
 
-@pytest.mark.parametrize("file_type", ["calfits", "calh5"])
+@pytest.mark.parametrize("file_type", ["calfits", "calh5", "ms"])
 def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     # read a test file
     cal_in = gain_data
 
     # set some optional parameters
     cal_in.gain_scale = "Jy"
+    cal_in.pol_convention = "sum"
 
     # write
     outfile = str(tmp_path / ("test." + file_type))
     write_method = "write_" + file_type
+    if file_type == "ms":
+        write_method += "_cal"
+        warn_msg = (
+            "key CASA_Version in extra_keywords is longer than 8 characters. It "
+            "will be truncated to 8 if written to a calfits file format."
+        )
+        warn_type = UserWarning
+    else:
+        warn_msg = ""
+        warn_type = None
     with check_warnings(None):
         getattr(cal_in, write_method)(outfile)
 
     # read and compare
     # also check that passing a single file in a list works properly
-    with check_warnings(None):
-        cal_in2 = UVCal.from_file([outfile])
+    with check_warnings(warn_type, match=warn_msg):
+        cal_in2 = UVCal.from_file([outfile], file_type=file_type)
+
+    # some things are different for ms and it's ok. reset those
+    if file_type == "ms":
+        cal_in2.scan_number_array = None
+        cal_in2.scan_number_array = None
+        cal_in2.extra_keywords = cal_in.extra_keywords
+        cal_in2.history = cal_in.history
+
     assert cal_in == cal_in2
 
 

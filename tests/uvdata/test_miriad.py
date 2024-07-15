@@ -1176,6 +1176,8 @@ def test_roundtrip_optional_params(uv_in_paper, tmp_path):
     uv_in, uv_out, testfile = uv_in_paper
 
     uv_in.telescope.x_orientation = "east"
+    uv_in.pol_convention = "sum"
+    uv_in.vis_units = "Jy"
     uv_in.reorder_blts()
 
     _write_miriad(uv_in, testfile, clobber=True)

@@ -234,6 +234,7 @@ class MSCal(UVCal):
 
         self.sky_catalog = main_keywords.get("pyuvdata_sky_catalog", None)
         self.gain_scale = main_keywords.get("pyuvdata_gain_scale", None)
+        self.pol_convention = main_keywords.get("pyuvdata_polconv", None)
         self.observer = main_keywords.get("pyuvdata_observer", None)
         if "pyuvdata_cal_style" in main_keywords:
             self.cal_style = main_keywords["pyuvdata_cal_style"]
@@ -491,6 +492,8 @@ class MSCal(UVCal):
 
             if self.gain_scale is not None:
                 ms.putkeyword("pyuvdata_gain_scale", self.gain_scale)
+            if self.pol_convention is not None:
+                ms.putkeyword("pyuvdata_polconv", self.pol_convention)
 
             if self.observer is not None:
                 ms.putkeyword("pyuvdata_observer", self.observer)

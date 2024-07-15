@@ -357,6 +357,8 @@ class MS(UVData):
 
         if self.telescope.x_orientation is not None:
             ms.putkeyword("pyuvdata_xorient", self.telescope.x_orientation)
+        if self.pol_convention is not None:
+            ms.putkeyword("pyuvdata_polconv", self.pol_convention)
 
         ms.done()
 
@@ -450,6 +452,9 @@ class MS(UVData):
 
         if "pyuvdata_xorient" in main_keywords.keys():
             self.telescope.x_orientation = main_keywords["pyuvdata_xorient"]
+
+        if "pyuvdata_polconv" in main_keywords.keys():
+            self.pol_convention = main_keywords["pyuvdata_polconv"]
 
         default_vis_units = {
             "DATA": "uncalib",

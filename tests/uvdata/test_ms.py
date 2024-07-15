@@ -946,6 +946,25 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
     assert uv_obj2 == uv_obj
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_ms_optional_parameters(nrao_uv, tmp_path):
+    uv_obj = nrao_uv
+
+    uv_obj.telescope.x_orientation = "east"
+    uv_obj.pol_convention = "sum"
+    uv_obj.vis_units = "Jy"
+
+    test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
+    uv_obj.write_ms(test_file, force_phase=True)
+
+    uv_obj2 = UVData.from_file(test_file)
+
+    uv_obj2._consolidate_phase_center_catalogs(
+        reference_catalog=uv_obj.phase_center_catalog
+    )
+    assert uv_obj2 == uv_obj
+
+
 def test_no_source(sma_mir, tmp_path):
     uv = UVData()
     uv2 = UVData()
