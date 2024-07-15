@@ -3134,6 +3134,9 @@ def test_uvcal_get_methods(gain_data):
 
 @pytest.mark.parametrize("file_type", ["calfits", "calh5", "ms"])
 def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
+    if file_type == "ms":
+        pytest.importorskip("casacore")
+
     # read a test file
     cal_in = gain_data
 
