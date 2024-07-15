@@ -267,6 +267,7 @@ a) Calibration of UVData by UVCal
 
   >>> # We can calibrate directly using a UVCal object
   >>> import os
+  >>> import numpy as np
   >>> from pyuvdata import UVData, UVCal, utils
   >>> from pyuvdata.data import DATA_PATH
   >>> uvd = UVData.from_file(
@@ -281,7 +282,14 @@ a) Calibration of UVData by UVCal
   >>> uvc.telescope.antenna_names = np.array(
   ...     [name.replace("ant", "HH") for name in uvc.telescope.antenna_names]
   ... )
+  >>> # We should also set the gain_scale and pol_convention, which was not set
+  >>> # in this old file. In old HERA files, like this one, the pol_convention
+  >>> # was implicitly "avg" but in new files it is explicitly "sum"
+  >>> uvc.gain_scale = "Jy"
+  >>> uvc.pol_convention = "avg"
   >>> uvd_calibrated = utils.uvcalibrate(uvd, uvc, inplace=False)
+  >>> print(uvd_calibrated.pol_convention)
+  avg
 
   >>> # We can also un-calibrate using the same UVCal
   >>> uvd_uncalibrated = utils.uvcalibrate(uvd_calibrated, uvc, inplace=False, undo=True)
