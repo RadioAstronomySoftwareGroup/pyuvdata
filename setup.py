@@ -124,5 +124,7 @@ if not is_platform_windows():
 setup(
     use_scm_version={"local_scheme": branch_scheme},
     ext_modules=cythonize(extensions, language_level=3),
-    rust_extensions=RustExtension("pyuvdata._utils_rs", binding=Binding.PyO3, debug=False),
+    rust_extensions=[
+        RustExtension("pyuvdata.utils._utils_rs", binding=Binding.PyO3, debug=False)
+    ],
 )
