@@ -692,6 +692,7 @@ class Mir(UVData):
         self.uvw_array = (-1.0) * uvw_array
 
         self.vis_units = "Jy"
+        self.pol_convention = "avg"
 
         isource = np.unique(mir_data.in_data["isource"])
         for sou_id in isource:

@@ -178,6 +178,7 @@ class FHD(UVData):
         self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
 
         self.vis_units = "Jy"
+        self.pol_convention = "sum"
 
         # bl_info.JDATE (a vector of length Ntimes) is the only safe date/time
         # to use in FHD files.

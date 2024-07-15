@@ -207,6 +207,8 @@ class CALFITS(UVCal):
             prihdr["DIFFUSE"] = self.diffuse_model
         if self.gain_scale is not None:
             prihdr["GNSCALE"] = self.gain_scale
+        if self.pol_convention is not None:
+            prihdr["POLCONV"] = self.pol_convention
         if self.Ntimes > 1:
             prihdr["INTTIME"] = median_int_time
         else:
@@ -599,6 +601,7 @@ class CALFITS(UVCal):
 
             self.gain_convention = hdr.pop("GNCONVEN")
             self.gain_scale = hdr.pop("GNSCALE", None)
+            self.pol_convention = hdr.pop("POLCONV", None)
             self.cal_type = hdr.pop("CALTYPE")
 
             # old files might have a freq range for gain types but we don't want them
@@ -606,6 +609,8 @@ class CALFITS(UVCal):
                 self.freq_range = np.array(
                     [list(map(float, hdr.pop("FRQRANGE").split(",")))]
                 )
+            else:
+                hdr.pop("FRQRANGE", None)
 
             self.cal_style = hdr.pop("CALSTYLE")
             if self.cal_style == "sky":

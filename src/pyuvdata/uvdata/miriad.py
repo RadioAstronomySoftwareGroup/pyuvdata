@@ -88,6 +88,7 @@ class Miriad(UVData):
             "rdate",
             "timesys",
             "xorient",
+            "polconv",
             "cnt",
             "ra",
             "dec",
@@ -240,6 +241,8 @@ class Miriad(UVData):
             self.timesys = uv["timesys"].replace("\x00", "")
         if "xorient" in uv.vartable.keys():
             self.telescope.x_orientation = uv["xorient"].replace("\x00", "")
+        if "polconv" in uv.vartable.keys():
+            self.pol_convention = uv["polconv"].replace("\x00", "")
         if "bltorder" in uv.vartable.keys():
             blt_order_str = uv["bltorder"].replace("\x00", "")
             self.blt_order = tuple(blt_order_str.split(", "))
@@ -1871,6 +1874,9 @@ class Miriad(UVData):
         if self.telescope.x_orientation is not None:
             uv.add_var("xorient", "a")
             uv["xorient"] = self.telescope.x_orientation
+        if self.pol_convention is not None:
+            uv.add_var("polconv", "a")
+            uv["polconv"] = self.pol_convention
         if self.blt_order is not None:
             blt_order_str = ", ".join(self.blt_order)
             uv.add_var("bltorder", "a")

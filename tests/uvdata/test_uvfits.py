@@ -702,13 +702,14 @@ def test_readwriteread_no_lst(tmp_path, casa_uvfits):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_readwriteread_x_orientation(tmp_path, casa_uvfits):
+def test_uvfits_optional_params(tmp_path, casa_uvfits):
     uv_in = casa_uvfits
     uv_out = UVData()
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
-    # check that if x_orientation is set, it's read back out properly
+    # check that if optional params are set, they are read back out properly
     uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.pol_convention = "sum"
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
 
