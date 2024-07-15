@@ -9,7 +9,7 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
-from . import _coordinates
+from ._utils_rs import _coordinates
 
 __all__ = [
     "LatLonAlt_from_XYZ",
@@ -432,10 +432,12 @@ def ENU_from_ECEF(
         body = selenoids[ellipsoid]
     enu = _coordinates._ENU_from_ECEF(
         xyz,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
-        body,
+        np.float64(latitude),
+        np.float64(longitude),
+        np.float64(altitude),
+        # we have already forced the frame to conform to our options
+        # and if we  don't have moon we have already errored.
+        (_coordinates.Body.Earth if frame == "ITRS" else selenoids[ellipsoid]),
     )
     enu = enu.T
 
@@ -529,9 +531,9 @@ def ECEF_from_ENU(
         body = selenoids[ellipsoid]
     xyz = _coordinates._ECEF_from_ENU(
         enu,
-        np.ascontiguousarray(latitude, dtype=np.float64),
-        np.ascontiguousarray(longitude, dtype=np.float64),
-        np.ascontiguousarray(altitude, dtype=np.float64),
+        np.float64(latitude),
+        np.float64(longitude),
+        np.float64(altitude),
         body,
     )
     xyz = xyz.T
