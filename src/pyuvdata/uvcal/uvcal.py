@@ -598,11 +598,12 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "The convention used for combining linear polarizations (e.g. XX and YY) "
-            "into pseudo-Stokes parameters (e.g. I, Q, U, V). Options are 'sum' and "
-            "'avg', corresponding to I=XX+YY and I=(XX+YY)/2 respectively. This "
-            "parameter is not required, for backwards-compatibility reasons, but is "
-            "highly recommended."
+            "The convention for how instrumental polarizations (e.g. XX and YY) "
+            "are converted to Stokes parameters. Options are 'sum' and 'avg', "
+            "corresponding to I=XX+YY and I=(XX+YY)/2 (for linear instrumental "
+            "polarizations) respectively. This parameter is not required, for "
+            "backwards-compatibility reasons, but is highly recommended. If "
+            "pol_convention is set, gain_scale should also be set."
         )
         self._pol_convention = uvp.UVParameter(
             "pol_convention",

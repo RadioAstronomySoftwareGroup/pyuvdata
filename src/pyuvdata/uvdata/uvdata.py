@@ -584,10 +584,12 @@ class UVData(UVBase):
         )
 
         desc = (
-            "The convention used for combining linear polarizations (e.g. XX and YY) "
-            "into pseudo-Stokes parameters (e.g. I, Q, U, V). Options are 'sum' and "
-            "'avg', corresponding to I=XX+YY and I=(XX+YY)/2 respectively. This "
-            "parameter is not required, and only makes sense for calibrated data."
+            "The convention for how instrumental polarizations (e.g. XX and YY) "
+            "are converted to Stokes parameters. Options are 'sum' and 'avg', "
+            "corresponding to I=XX+YY and I=(XX+YY)/2 (for linear instrumental "
+            "polarizations) respectively. This parameter is not required, and "
+            "only makes sense for calibrated data. If pol_convention is set, "
+            "vis_units should be set to real units (as opposed to 'uncalib')."
         )
         self._pol_convention = uvp.UVParameter(
             "pol_convention",
