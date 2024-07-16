@@ -3141,8 +3141,16 @@ def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     cal_in = gain_data
 
     # set some optional parameters
-    cal_in.gain_scale = "Jy"
     cal_in.pol_convention = "sum"
+    with check_warnings(
+        UserWarning,
+        match="gain_scale should be set if pol_convention is set. When "
+        "calibrating data with `uvcalibrate`, pol_convention will be ignored if "
+        "gain_scale is not set.",
+    ):
+        cal_in.check()
+
+    cal_in.gain_scale = "Jy"
 
     # write
     outfile = str(tmp_path / ("test." + file_type))
