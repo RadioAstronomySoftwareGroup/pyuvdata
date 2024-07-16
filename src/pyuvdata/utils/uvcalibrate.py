@@ -109,7 +109,8 @@ def uvcalibrate(
                 " to know if the correct convention is being applied to undo the "
                 "calibration. This behaviour is deprecated, and for now will result in "
                 "the same convention being assumed for the UVData and UVCal objects. "
-                "Please set the pol_convention attribute on the UVData object.",
+                "Please set the pol_convention attribute on the UVData object. "
+                "This will become an error in pyuvdata v3.2.",
                 category=DeprecationWarning,
                 stacklevel=2,
             )

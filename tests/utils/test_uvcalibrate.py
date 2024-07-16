@@ -28,6 +28,7 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
     # downselect to match each other in shape (but not in actual values!)
     uvd.select(frequencies=uvd.freq_array[:10])
     uvc.select(times=uvc.time_array[:3])
+    uvc.gain_scale = "Jy"
     uvc.pol_convention = "avg"
 
     with pytest.raises(
@@ -138,9 +139,10 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
     if gain_convention == "divide":
         # set the gain_scale to None to test handling
         uvc.gain_scale = None
-        cal_warn_msg = (
-            "gain_scale is not set, so resulting uvdata will not have correct " "units"
-        )
+        cal_warn_msg = [
+            "gain_scale is not set, so resulting uvdata will not have correct units",
+            "gain_scale should be set if pol_convention is set",
+        ]
         cal_warn_type = UserWarning
         undo_warn_msg = [
             "The pol_convention is not specified on the UVData, so it is "
@@ -150,8 +152,9 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
             "UVCal objects. Please set the pol_convention attribute on the UVData "
             "object.",
             "gain_scale is not set, so resulting uvdata will not have correct units",
+            "gain_scale should be set if pol_convention is set",
         ]
-        undo_warn_type = [DeprecationWarning, UserWarning]
+        undo_warn_type = [DeprecationWarning, UserWarning, UserWarning]
     else:
         cal_warn_msg = ""
         cal_warn_type = None

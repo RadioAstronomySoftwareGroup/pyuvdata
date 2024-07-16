@@ -1658,6 +1658,14 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
+        # gain_scale should be set if pol_convention is set.
+        if self.pol_convention is not None and self.gain_scale is None:
+            warnings.warn(
+                "gain_scale should be set if pol_convention is set. When calibrating "
+                "data with `uvcalibrate`, pol_convention will be ignored if "
+                "gain_scale is not set."
+            )
+
         # deprecate having both time_array and time_range set
         time_like_pairs = [("time_array", "time_range"), ("lst_array", "lst_range")]
         for pair in time_like_pairs:
