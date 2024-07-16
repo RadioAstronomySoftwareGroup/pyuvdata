@@ -35,3 +35,69 @@ def test_antnums_to_baseline_miriad_convention():
         ant1, ant2, Nants_telescope=n_ant, use_miriad_convention=True
     )
     np.testing.assert_allclose(bl, bl_gold)
+
+
+try:
+    import pytest_benchmark  # noqa
+
+    hasbench = True
+except:  # noqa
+    hasbench = False
+
+
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+@pytest.mark.parametrize(
+    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"nbls={x:}"
+)
+@pytest.mark.parametrize(
+    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"start={x:}"
+)
+def test_bls_to_ants_bench(benchmark, bl_start, nbls):
+    bls = np.arange(bl_start, bl_start + nbls)
+    if nbls > 65535:
+        bls += 65536
+    nants_telescope = 2048 if bl_start < 2**16 + 2**22 else 2**16 + 2**22
+    antnums = benchmark(
+        bl_utils.baseline_to_antnums,
+        bls,
+        Nants_telescope=nants_telescope,
+    )
+
+    bls_out = bl_utils.antnums_to_baseline(
+        antnums[0],
+        antnums[1],
+        Nants_telescope=nants_telescope,
+        attempt256=bl_start < 2**16,
+        use_miriad_convention=False,
+    )
+
+    assert np.array_equal(bls, bls_out)
+
+
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+@pytest.mark.parametrize(
+    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"nbls={x:}"
+)
+@pytest.mark.parametrize(
+    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"start={x:}"
+)
+def test_ants_to_bls_bench(benchmark, bl_start, nbls):
+    bls = np.arange(bl_start, bl_start + nbls)
+    nants_telescope = 2048 if bl_start < 2**16 + 2**22 else 2**16 + 2**22
+    if nbls > 65535:
+        bls += 65536
+    a1, a2 = bl_utils.baseline_to_antnums(bls, Nants_telescope=nants_telescope)
+
+    bls_out = benchmark(
+        bl_utils.antnums_to_baseline,
+        a1,
+        a2,
+        Nants_telescope=nants_telescope,
+        attempt256=bl_start < 2**16,
+        use_miriad_convention=False,
+    )
+    a1_out, a2_out = bl_utils.baseline_to_antnums(
+        bls_out, Nants_telescope=nants_telescope
+    )
+    assert np.array_equal(a1, a1_out)
+    assert np.array_equal(a2, a2_out)
