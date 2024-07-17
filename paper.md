@@ -62,12 +62,16 @@ bibliography: paper.bib
 ---
 
 # Summary
-pyuvdata is an open-source software package that seeks to do provide a well-documented,
+pyuvdata is an open-source software package that seeks to provide a well-documented,
 feature-rich interface for many of the different data formats that exist within radio
 interferometry, including support for reading and writing UVH5 [@uvh5], UVFITS
 [@uvfits], MIRIAD [@miriad], and measurement set [@ms] visibility files; and reading of
 FHD [@fhd] and MIR [@mir] visibility save files. Additionally, pyuvdata supports reading
-and writing measurement set calibration tables, and reading of FHD calibration tables.
+and writing measurement set, CalFITS [@calfits], and CalH5 (Hazelton et al., _in prep_)
+calibration tables; and reading of FHD calibration tables. pyuvdata also provides
+interfaces for and handling of models of antenna primary beams, including reading and
+writing of BeamFITS [@beamfits] and MWA-formatted beam models, as well as for flags
+tables.
 
 # Statement of Need
 There are several standard formats for astronomical interferometric data, but
@@ -83,8 +87,12 @@ for specialized types of analyses and simulations leveraging data in a variety o
 formats.
 
 pyuvdata has been designed to facilitate interoperability between different instruments
-and codes by providing high quality, well documented conversion routines as well as an interface to interact with interferometric data and simulations directly in Python. Originally motivated to support new low frequency instruments (e.g. MWA (http://www.mwatelescope.org/), PAPER (http://eor.berkeley.edu/), HERA (http://reionization.org/)),
-the capabilities of pyuvdata have been steadily expanded to support handling of data from
-several telescopes, ranging from meter to submillimeter wavelengths.
+and codes by providing high quality, well documented conversion routines as well as an
+interface to interact with interferometric data and simulations directly in Python.
+Originally motivated to support new low frequency instruments (e.g. MWA
+(http://www.mwatelescope.org/), PAPER (http://eor.berkeley.edu/), HERA
+(http://reionization.org/)), the capabilities of pyuvdata have been steadily expanded
+to support handling of data from several telescopes, ranging from meter to submillimeter
+wavelengths.
 
 # References
