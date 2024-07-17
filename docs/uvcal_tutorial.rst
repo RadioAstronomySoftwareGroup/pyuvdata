@@ -42,6 +42,23 @@ gives the beginning and end of the time range. The local sidereal times follow a
 pattern, UVCal objects should have either an ``lst_array`` or an ``lst_range`` attribute
 set.
 
+Generating calibration solutions typically requires choosing a convention concerning how
+polarized sky emission is mapped to the linear polarizations of the instrument. For
+linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be mapped to
+``I = (XX + YY)/2`` (the ``avg`` convention) or ``I = XX + YY`` (the ``sum``
+convention). This choice is generally encoded in the sky model to which the visibilities
+are calibrated. Different tools and simulators make different choices, generally following
+a standard choice for the field. In ``pyuvdata`` either of these choices are OK, but the
+choice should be recorded as the ``pol_convention`` parameter in both ``UVCal`` and
+``UVData`` objects. Since the ``pol_convention`` has always (at least implicitly) been
+chosen for calibration solutions, we suggest *always* specifying this parameter on the
+``UVCal`` object (though we do not enforce this, for backwards compatibility reasons).
+Only *calibrated* ``UVData`` objects make sense to have the ``pol_convention`` specified.
+To learn more about this parameter and how ``pyuvdata`` deals with it, please see the
+section below `UVCal: Calibrating UVData`_.
+
+
+
 For most users, the convenience methods for quick data access (see
 `UVCal: Quick data access`_) are the easiest way to get data for particular antennas.
 Those methods take the antenna numbers (i.e. numbers listed in ``telescope.antenna_numbers``)
@@ -260,6 +277,64 @@ UVCal: Calibrating UVData
 Calibration solutions in a :class:`pyuvdata.UVCal` object can be applied to a
 :class:`pyuvdata.UVData` object using the :func:`pyuvdata.utils.uvcalibrate` function.
 
+Generating calibration solutions typically requires choosing a convention concerning how
+polarized sky emission is mapped to the linear polarizations of the instrument. For
+linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be mapped to
+``I = (XX + YY)/2`` (the ``avg`` convention) or ``I = XX + YY`` (the ``sum``
+convention). This choice is generally encoded in the sky model to which the visibilities
+are calibrated. Different tools and simulators make different choices, generally following
+a standard choice for the field. When calibrating a ``UVData`` object with a ``UVCal``
+object using :func:`pyuvdata.utils.uvcalibrate`, it is *required* to specify this
+convention. At this time, the convention can be specified either on the ``UVCal`` object
+itself, or as a parameter to :func:`pyuvdata.utils.uvcalibrate`. The chosen ``pol_convention``
+will then be applied to and stored on the resulting ``UVData`` object.
+
+There are a few non-trivial combinations of parameters concerning the ``pol_convention``
+that should be noted:
+
+* There are two parameters to :func:`pyuvdata.utils.uvcalibrate` that specify how
+  the convention should be handled: ``uvd_pol_convention`` and ``uvc_pol_convention``,
+  and these act differently depending on whether ``undo`` is True or False. The
+  ``uvc_pol_convention`` is only ever meant to specify what convention the ``UVCal``
+  object actually uses, and is therefore unnecessary if ``UVCal.pol_convention`` is
+  specified (regardless of whether calibrating or uncalibrating). On the other hand,
+  the ``uvd_pol_convention`` specifies the *desired* convention on the resulting
+  ``UVData`` object if calibrating, and otherwise specifies the actual convention on
+  the ``UVData`` object (if uncalibrating, and this convention is not already specified
+  on the object itself).
+* Regardless of the value of ``undo``, the convention that is inferred for the
+  calibration solutions is determined as follows:
+  * If neither ``uvc_pol_convention`` nor ``uvcal.pol_convention`` are specified, a
+    a warning is raised (since the resulting calibrated data is not well-determined),
+    and it is *assumed* that the solutions have the same convention as the ``UVData``
+    (i.e. the desired convention in the case of calibration, or the actual convention
+    in the case of uncalibration). If these are also not specified, no convention
+    corrections are applied, and the result is ambiguous.
+  * If both ``uvc_pol_convention`` and ``uvcal.pol_convention`` are specified and are
+    different, an error is raised.
+* When **calibrating** in :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=False``):
+  * If ``uvdata.pol_convention`` is specified, an error is raised, because you are
+    trying to calibrate already-calibrated data.
+  * The convention applied to the resulting ``UVData`` object is inferred in the
+    following precedence: (i) the value of ``uvd_pol_convention``, (ii) whatever is
+    specified as the convention of the ``UVCal`` object (either via ``uvc_pol_convention``
+    or ``uvcal.pol_convention``, see above), (iii) if still unspecified, no convention
+    will be used and a warning will be raised. This was always the behaviour in earlier
+    versions of ``pyuvdata`` (pre-v3).
+* When **un-calibrating** with :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=True``):
+  * If both ``uvd_pol_convention`` and ``uvdata.pol_convention`` are defined and
+    are different, an error is raised.
+  * If neither are set, a warning is raised, since the resulting un-calibrated values
+    may not be the same as the original values before calibration (since a different
+    convention could have been used to calibrate originally than is being used to
+    de-calibrate). However, calibration will continue, assuming that the ``UVData``
+    object has the same convention as the ``UVCal`` object used to de-calibrate.
+* It is not supported to have ``pol_convention`` set on ``UVCal``, but *not*
+  ``gain_scale``. A ``pol_convention`` only makes sense in the context of having a
+  scale for the gains.
+* Mis-matching ``uvd_pol_convention`` and ``uvc_pol_convention`` is perfectly fine: any
+  necessary corrections in the calibration will be made to obtain the correct desired
+  convention.
 
 a) Calibration of UVData by UVCal
 *********************************

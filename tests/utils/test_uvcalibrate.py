@@ -4,6 +4,7 @@
 """Tests for uvcalibrate function."""
 import os
 import re
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -12,6 +13,117 @@ from pyuvdata import UVCal, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.utils import uvcalibrate
+from pyuvdata.utils.uvcalibrate import _get_pol_conventions
+
+
+class TestGetPolConventions:
+    def tets_nothing_specified(self):
+        with check_warnings(
+            DeprecationWarning,
+            match=[
+                "pol_convention is not specified on the UVCal object",
+                "Neither uvd_pol_convention not uvc_pol_convention are specified",
+            ],
+        ):
+            uvc, uvd = _get_pol_conventions(
+                uvdata=SimpleNamespace(pol_convention=None),
+                uvcal=SimpleNamespace(pol_convention=None),
+                undo=False,
+                uvc_pol_convention=None,
+                uvd_pol_convention=None,
+            )
+        assert uvc is None
+        assert uvd is None
+
+    def test_uvc_pol_convention_set(self):
+        uvc, uvd = _get_pol_conventions(
+            uvdata=SimpleNamespace(pol_convention=None),
+            uvcal=SimpleNamespace(pol_convention="avg"),
+            undo=False,
+            uvc_pol_convention=None,
+            uvd_pol_convention=None,
+        )
+        assert uvc == "avg"
+        assert uvd == "avg"
+
+    def test_uvc_uvcal_different(self):
+        with pytest.raises(
+            ValueError, match="uvc_pol_convention is set, and different"
+        ):
+            _get_pol_conventions(
+                uvdata=SimpleNamespace(pol_convention=None),
+                uvcal=SimpleNamespace(pol_convention="sum"),
+                undo=False,
+                uvc_pol_convention="avg",
+                uvd_pol_convention=None,
+            )
+
+    def test_uvd_nor_uvdata_set(self):
+        with pytest.warns(
+            DeprecationWarning,
+            match="pol_convention is not specified on the UVData object",
+        ):
+            uvc, uvd = _get_pol_conventions(
+                uvdata=SimpleNamespace(pol_convention=None),
+                uvcal=SimpleNamespace(pol_convention="avg"),
+                undo=True,
+                uvc_pol_convention=None,
+                uvd_pol_convention=None,
+            )
+        assert uvc == "avg"
+        assert uvd == "avg"
+
+    @pytest.mark.parametrize("undo", [True, False])
+    def test_only_objects_set(self, undo):
+        uvc, uvd = _get_pol_conventions(
+            uvdata=SimpleNamespace(pol_convention="sum" if undo else None),
+            uvcal=SimpleNamespace(pol_convention="avg"),
+            undo=undo,
+            uvc_pol_convention=None,
+            uvd_pol_convention=None if undo else "sum",
+        )
+        assert uvc == "avg"
+        assert uvd == "sum"
+
+    def test_uvd_uvdata_different(self):
+        with pytest.raises(
+            ValueError, match="Both uvd_pol_convention and uvdata.pol_convention"
+        ):
+            _get_pol_conventions(
+                uvdata=SimpleNamespace(pol_convention="sum"),
+                uvcal=SimpleNamespace(pol_convention="avg"),
+                undo=True,
+                uvc_pol_convention="avg",
+                uvd_pol_convention="avg",
+            )
+
+    def test_calibrate_already_calibrated(self):
+        with pytest.raises(
+            ValueError, match="You are trying to calibrate already-calibrated data"
+        ):
+            _get_pol_conventions(
+                uvdata=SimpleNamespace(pol_convention="avg"),
+                uvcal=SimpleNamespace(pol_convention="avg"),
+                undo=False,
+                uvc_pol_convention="avg",
+                uvd_pol_convention="avg",
+            )
+
+    @pytest.mark.parametrize("which", ["uvc", "uvd"])
+    def test_bad_convention(self, which):
+        good = SimpleNamespace(pol_convention="avg")
+        bad = SimpleNamespace(pol_convention="what a silly convention")
+
+        with pytest.raises(
+            ValueError, match=f"{which}_pol_convention must be 'sum' or 'avg'"
+        ):
+            _get_pol_conventions(
+                uvdata=good if which == "uvc" else bad,
+                uvcal=good if which == "uvd" else bad,
+                undo=True,
+                uvc_pol_convention=None,
+                uvd_pol_convention=None,
+            )
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
@@ -140,18 +252,13 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
         # set the gain_scale to None to test handling
         uvc.gain_scale = None
         cal_warn_msg = [
-            "gain_scale is not set, so resulting uvdata will not have correct units",
+            "gain_scale is not set, so there is no way to know",
             "gain_scale should be set if pol_convention is set",
         ]
         cal_warn_type = UserWarning
         undo_warn_msg = [
-            "The pol_convention is not specified on the UVData, so it is "
-            "impossible to know if the correct convention is being applied to "
-            "undo the calibration. This behaviour is deprecated, and for now "
-            "will result in the same convention being assumed for the UVData and "
-            "UVCal objects. Please set the pol_convention attribute on the UVData "
-            "object.",
-            "gain_scale is not set, so resulting uvdata will not have correct units",
+            "pol_convention is not specified on the UVData object",
+            "gain_scale is not set, so there is no way to know",
             "gain_scale should be set if pol_convention is set",
         ]
         undo_warn_type = [DeprecationWarning, UserWarning, UserWarning]

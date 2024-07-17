@@ -10,6 +10,86 @@ import numpy as np
 from .pol import POL_TO_FEED_DICT, jnum2str, parse_jpolstr, polnum2str, polstr2num
 
 
+def _get_pol_conventions(
+    uvdata,
+    uvcal,
+    undo: bool,
+    uvc_pol_convention: Literal["sum", "avg"] | None,
+    uvd_pol_convention: Literal["sum", "avg"] | None,
+):
+    if uvc_pol_convention is None and uvcal.pol_convention is None:
+        warnings.warn(
+            message=(
+                "pol_convention is not specified on the UVCal object, and "
+                "uvc_pol_convention was not specified. This is deprecated, and will"
+                " be an error in pyuvdata 3.2, since it is impossible to properly "
+                "infer. For now, we are tentatively assuming "
+                "that the UVCal and UVData objects (implicitly) have the same "
+                "convention."
+            ),
+            category=DeprecationWarning,
+            stacklevel=2,
+        )
+        uvc_pol_convention = uvd_pol_convention or uvdata.pol_convention
+    elif uvc_pol_convention is None:
+        uvc_pol_convention = uvcal.pol_convention
+    elif uvc_pol_convention != uvcal.pol_convention:
+        raise ValueError(
+            "uvc_pol_convention is set, and different than uvcal.pol_convention."
+        )
+
+    if undo:
+        if uvd_pol_convention is None and uvdata.pol_convention is None:
+            warnings.warn(
+                message=(
+                    "pol_convention is not specified on the UVData object, and "
+                    "uvd_pol_convention was not specified. This is deprecated, and will"
+                    " be an error in pyuvdata 3.2, since it is impossible to know how "
+                    "to properly un-calibrate. For now, we are tentatively assuming "
+                    "that the UVCal and UVData objects (implicitly) have the same "
+                    "convention."
+                ),
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            uvd_pol_convention = uvc_pol_convention
+        elif uvd_pol_convention is None:
+            uvd_pol_convention = uvdata.pol_convention
+        elif uvd_pol_convention != uvdata.pol_convention:
+            raise ValueError(
+                "Both uvd_pol_convention and uvdata.pol_convention were specified with"
+                f"different values: {uvd_pol_convention} and {uvdata.pol_convention}."
+            )
+    else:
+        if uvdata.pol_convention is not None:
+            raise ValueError("You are trying to calibrate already-calibrated data.")
+        if uvd_pol_convention is None:
+            uvd_pol_convention = uvc_pol_convention
+
+        if uvd_pol_convention is None:
+            # Both uvc and uvd have no pol_convention specified
+            warnings.warn(
+                message=(
+                    "Neither uvd_pol_convention nor uvc_pol_convention are specified, "
+                    "so the resulting UVData object will have ambiguous convention. "
+                    "This is deprecated and will be an error in pyuvdata v3.2."
+                ),
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+
+    if uvd_pol_convention not in ["sum", "avg", None]:
+        raise ValueError(
+            f"uvd_pol_convention must be 'sum' or 'avg'. Got {uvd_pol_convention}"
+        )
+    if uvc_pol_convention not in ["sum", "avg", None]:
+        raise ValueError(
+            f"uvc_pol_convention must be 'sum' or 'avg'. Got {uvc_pol_convention}"
+        )
+
+    return uvc_pol_convention, uvd_pol_convention
+
+
 def uvcalibrate(
     uvdata,
     uvcal,
@@ -22,7 +102,8 @@ def uvcalibrate(
     undo: bool = False,
     time_check: bool = True,
     ant_check: bool = True,
-    pol_convention: Literal["sum", "avg"] | None = None,
+    uvc_pol_convention: Literal["sum", "avg"] | None = None,
+    uvd_pol_convention: Literal["sum", "avg"] | None = None,
 ):
     """
     Calibrate a UVData object with a UVCal object.
@@ -91,36 +172,24 @@ def uvcalibrate(
             "calibrations"
         )
 
-    if pol_convention is None:
-        pol_convention = uvdata.pol_convention if undo else uvcal.pol_convention
-
-    if pol_convention is None:
-        if not undo:
-            warnings.warn(
-                message=(
-                    "pol_convention is not specified, so the resulting UVData object "
-                    "will have ambiguous convention. This is deprecated and will be an "
-                    "error in pyuvdata v3.2."
-                ),
-                category=DeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            warnings.warn(
-                "The pol_convention is not specified on the UVData, so it is impossible"
-                " to know if the correct convention is being applied to undo the "
-                "calibration. This behaviour is deprecated, and for now will result in "
-                "the same convention being assumed for the UVData and UVCal objects. "
-                "Please set the pol_convention attribute on the UVData object. "
-                "This will become an error in pyuvdata v3.2.",
-                category=DeprecationWarning,
-                stacklevel=2,
-            )
-
-    elif pol_convention not in ["sum", "avg"]:
-        raise ValueError(
-            f"pol_convention must be either 'sum' or 'avg'. Got {pol_convention}"
+    if uvcal.gain_scale is None:
+        warnings.warn(
+            "gain_scale is not set, so there is no way to know what the resulting units"
+            " are. For now, we assume that `gain_scale` matches whatever is on the "
+            "UVData object (i.e. we do not change its units). Furthermore, all "
+            "corrections concerning the pol_convention will be ignored.",
+            category=UserWarning,
+            stacklevel=2,
         )
+    elif undo and uvcal.gain_scale != uvdata.vis_units:
+        raise ValueError(
+            "Cannot undo calibration if gain_scale is not the same as the units on "
+            "the UVData object."
+        )
+
+    uvc_pol_convention, uvd_pol_convention = _get_pol_conventions(
+        uvdata, uvcal, undo, uvc_pol_convention, uvd_pol_convention
+    )
 
     if not inplace:
         uvdata = uvdata.copy()
@@ -461,42 +530,28 @@ def uvcalibrate(
             uvdata.vis_units = uvcal_use.gain_scale
 
     # Set pol convention properly
-    if uvcal_use.gain_scale is None:
-        # ignore all pol_convention stuff, because who knows???
-        warnings.warn(
-            "gain_scale is not set, so resulting uvdata will not have correct units"
+    if uvcal.gain_scale is not None:
+        _apply_pol_convention_corrections(
+            uvdata, undo, uvd_pol_convention, uvc_pol_convention
         )
-    else:
-        if not undo:
-            uvdata.pol_convention = pol_convention
-            if pol_convention != uvcal_use.pol_convention:
-                for i, pol in enumerate(uvdata.polarization_array):
-                    if pol > 0:  # pseudo-stokes
-                        if pol_convention == "sum":
-                            uvdata.data_array[..., i] *= 2
-                        else:
-                            uvdata.data_array[..., i] /= 2
-                    else:  # linear pols
-                        if pol_convention == "sum":
-                            uvdata.data_array[..., i] /= 2
-                        else:
-                            uvdata.data_array[..., i] *= 2
-        else:
-            uvdata.pol_convention = None
-            # here the pol_convention should be what is being assumed/specified
-            # on the uvdata
-            if pol_convention != uvcal_use.pol_convention:
-                for i, pol in enumerate(uvdata.polarization_array):
-                    if pol > 0:  # pseudo-stokes
-                        if pol_convention == "sum":
-                            uvdata.data_array[..., i] /= 2
-                        else:
-                            uvdata.data_array[..., i] *= 2
-                    else:  # linear pols
-                        if pol_convention == "sum":
-                            uvdata.data_array[..., i] *= 2
-                        else:
-                            uvdata.data_array[..., i] /= 2
 
     if not inplace:
         return uvdata
+
+
+def _apply_pol_convention_corrections(
+    uvdata, undo, uvd_pol_convention, uvc_pol_convention
+):
+    if uvd_pol_convention != uvc_pol_convention:
+        correction = np.ones(uvdata.Npols)
+        correction[uvdata.polarization_array > 0] *= 2
+        correction[uvdata.polarization_array < 0] /= 2
+
+        if (undo and uvd_pol_convention == "sum") or (
+            not undo and uvd_pol_convention == "avg"
+        ):
+            correction = 1 / correction
+
+        uvdata.data_array *= correction
+
+    uvdata.pol_convention = None if undo else uvd_pol_convention
