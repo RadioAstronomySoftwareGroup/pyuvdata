@@ -43,7 +43,7 @@ pattern, UVCal objects should have either an ``lst_array`` or an ``lst_range`` a
 set.
 
 Generating calibration solutions typically requires choosing a convention concerning how
-polarized sky emission is mapped to the linear polarizations of the instrument. For
+polarized sky emission is mapped to the instrumental polarizations. For
 linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be mapped to
 ``I = (XX + YY)/2`` (the ``avg`` convention) or ``I = XX + YY`` (the ``sum``
 convention). This choice is generally encoded in the sky model to which the visibilities
@@ -278,7 +278,7 @@ Calibration solutions in a :class:`pyuvdata.UVCal` object can be applied to a
 :class:`pyuvdata.UVData` object using the :func:`pyuvdata.utils.uvcalibrate` function.
 
 Generating calibration solutions typically requires choosing a convention concerning how
-polarized sky emission is mapped to the linear polarizations of the instrument. For
+polarized sky emission is mapped to the instrumental polarizations. For
 linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be mapped to
 ``I = (XX + YY)/2`` (the ``avg`` convention) or ``I = XX + YY`` (the ``sum``
 convention). This choice is generally encoded in the sky model to which the visibilities
