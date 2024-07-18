@@ -144,16 +144,18 @@ def uvcalibrate(
         object have calibration solutions in the UVCal object. If this option is
         set to False, uvcalibrate will proceed without erroring and data for
         antennas without calibrations will be flagged.
-    pol_convention : str, {"sum", "avg"}, optional
-        The convention for how instrumental polarizations (e.g. XX and YY) are
-        converted to Stokes parameters. Options are 'sum' and 'avg', corresponding
-        to I=XX+YY and I=(XX+YY)/2 (for linear instrumental polarizations)
-        respectively. If None, the convention is determined from the UVCal object.
-        If `pol_convention` is not specified and is not set on the UVCal object,
-        a deprecation warning is raised (will be an error in the future). If the
-        convention specified here is different from that in the UVCal object,
-        the one specified here will take precedence, and the necessary conversions
-        will be made.
+    uvc_pol_convention : str, {"sum", "avg"}, optional
+        The convention for how instrumental polarizations (e.g. XX and YY) are assumed
+        to have been converted to Stokes parameters in ``uvcal``. Options are 'sum' and
+        'avg', corresponding to I=XX+YY and I=(XX+YY)/2 (for linear instrumental
+        polarizations) respectively. Only required if ``pol_convention`` is not set on
+        ``uvcal`` itself. If it is not specified and is not set on the UVCal
+        object, a deprecation warning is raised (will be an error in the future).
+    uvd_pol_convention : str, {"sum", "avg"}, optional
+        The same polarization convention as ``uvc_pol_convention``, except that this
+        represents either the convention that *has* been adopted in ``uvdata`` (in the
+        case that ``undo=True``), or the convention that is *desired* for the resulting
+        ``UVData`` object (if ``undo=False``).
 
     Returns
     -------
