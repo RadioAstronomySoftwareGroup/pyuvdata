@@ -749,3 +749,78 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_uvdata_oldfiles):
         "calibrations",
     ):
         uvcalibrate(uvd, uvc, inplace=False)
+
+
+@pytest.mark.parametrize("convention_on_object", [True, False])
+@pytest.mark.parametrize("uvc_pol_convention", ["sum", "avg", None])
+@pytest.mark.parametrize("uvd_pol_convention", ["sum", "avg", None])
+def test_uvcalibrate_pol_conventions(
+    uvcalibrate_data, convention_on_object, uvc_pol_convention, uvd_pol_convention
+):
+    uvd, uvc = uvcalibrate_data
+
+    # Set defaults
+    uvd.pol_convention = None
+    uvc.pol_convention = None
+    uvc.gain_array[:] = 1.0
+    uvd.data_array[:] = 1.0
+
+    uvdpol = uvd_pol_convention
+
+    if convention_on_object:
+        uvc.pol_convention = uvc_pol_convention
+        uvcpol = None
+    else:
+        uvcpol = uvc_pol_convention
+
+    # go forwards and back
+    calib = uvcalibrate(
+        uvd,
+        uvc,
+        uvd_pol_convention=uvdpol,
+        uvc_pol_convention=uvcpol,
+        undo=False,
+        inplace=False,
+    )
+    roundtrip = uvcalibrate(
+        calib,
+        uvc,
+        uvd_pol_convention=uvdpol,
+        uvc_pol_convention=uvcpol,
+        undo=True,
+        inplace=False,
+    )
+
+    assert calib.pol_convention == uvd_pol_convention or uvc_pol_convention
+    assert roundtrip.pol_convention is None
+
+    # Check we went around the loop properly.
+    np.testing.assert_allclose(roundtrip.data_array, uvd.data_array)
+
+    if (
+        uvc_pol_convention == uvd_pol_convention
+        or uvc_pol_convention is None
+        or uvd_pol_convention is None
+    ):
+        np.testing.assert_almost_equal(calib.data_array, 1.0)
+    else:
+        if uvc_pol_convention == "sum":
+            # Then uvd pol convention is 'avg', so it has I = (XX+YY)/2, i.e. XX ~ I,
+            # but the cal intrinsically assumed that I = (XX+YY), i.e. XX ~ I/2.
+            # Therefore, the result should be 2.0
+            np.testing.assert_allclose(calib.data_array, 2.0)
+        else:
+            # the opposite
+            np.testing.assert_allclose(calib.data_array, 0.5)
+
+
+def test_gain_scale_wrong(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    uvc.gain_scale = "mK"
+    uvd.vis_units = "Jy"
+
+    with pytest.raises(
+        ValueError, match="Cannot undo calibration if gain_scale is not the same"
+    ):
+        uvcalibrate(uvd, uvc, undo=True)

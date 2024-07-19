@@ -33,9 +33,12 @@ def _get_pol_conventions(
         uvc_pol_convention = uvd_pol_convention or uvdata.pol_convention
     elif uvc_pol_convention is None:
         uvc_pol_convention = uvcal.pol_convention
-    elif uvc_pol_convention != uvcal.pol_convention:
+    elif (
+        uvcal.pol_convention is not None and uvc_pol_convention != uvcal.pol_convention
+    ):
         raise ValueError(
-            "uvc_pol_convention is set, and different than uvcal.pol_convention."
+            "uvc_pol_convention is set, and different than uvcal.pol_convention. "
+            f"Got {uvc_pol_convention} and {uvcal.pol_convention}."
         )
 
     if undo:
@@ -55,7 +58,10 @@ def _get_pol_conventions(
             uvd_pol_convention = uvc_pol_convention
         elif uvd_pol_convention is None:
             uvd_pol_convention = uvdata.pol_convention
-        elif uvd_pol_convention != uvdata.pol_convention:
+        elif (
+            uvdata.pol_convention is not None
+            and uvd_pol_convention != uvdata.pol_convention
+        ):
             raise ValueError(
                 "Both uvd_pol_convention and uvdata.pol_convention were specified with"
                 f"different values: {uvd_pol_convention} and {uvdata.pol_convention}."
@@ -77,7 +83,6 @@ def _get_pol_conventions(
                 category=DeprecationWarning,
                 stacklevel=2,
             )
-
     if uvd_pol_convention not in ["sum", "avg", None]:
         raise ValueError(
             f"uvd_pol_convention must be 'sum' or 'avg'. Got {uvd_pol_convention}"
@@ -192,7 +197,6 @@ def uvcalibrate(
     uvc_pol_convention, uvd_pol_convention = _get_pol_conventions(
         uvdata, uvcal, undo, uvc_pol_convention, uvd_pol_convention
     )
-
     if not inplace:
         uvdata = uvdata.copy()
 
