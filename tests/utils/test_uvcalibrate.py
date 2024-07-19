@@ -751,6 +751,15 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_uvdata_oldfiles):
         uvcalibrate(uvd, uvc, inplace=False)
 
 
+@pytest.mark.filterwarnings(
+    "ignore:pol_convention is not specified on the UVCal object"
+)
+@pytest.mark.filterwarnings(
+    "ignore:pol_convention is not specified on the UVData object"
+)
+@pytest.mark.filterwarnings(
+    "ignore:Neither uvd_pol_convention nor uvc_pol_convention are specified"
+)
 @pytest.mark.parametrize("convention_on_object", [True, False])
 @pytest.mark.parametrize("uvc_pol_convention", ["sum", "avg", None])
 @pytest.mark.parametrize("uvd_pol_convention", ["sum", "avg", None])
