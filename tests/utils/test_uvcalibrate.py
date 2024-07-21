@@ -763,8 +763,13 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_uvdata_oldfiles):
 @pytest.mark.parametrize("convention_on_object", [True, False])
 @pytest.mark.parametrize("uvc_pol_convention", ["sum", "avg", None])
 @pytest.mark.parametrize("uvd_pol_convention", ["sum", "avg", None])
+@pytest.mark.parametrize("polkind", ["linear", "circular"])  # stokes not possible yet?
 def test_uvcalibrate_pol_conventions(
-    uvcalibrate_data, convention_on_object, uvc_pol_convention, uvd_pol_convention
+    uvcalibrate_data,
+    convention_on_object,
+    uvc_pol_convention,
+    uvd_pol_convention,
+    polkind,
 ):
     uvd, uvc = uvcalibrate_data
 
@@ -773,6 +778,16 @@ def test_uvcalibrate_pol_conventions(
     uvc.pol_convention = None
     uvc.gain_array[:] = 1.0
     uvd.data_array[:] = 1.0
+
+    # if polkind=='stokes':
+    #     uvd.polarization_array = np.array([1,2])
+    #     uvc.jones_array = -np.array([5,6])
+    if polkind == "circular":
+        uvd.polarization_array = -np.array([1, 2])
+        uvc.jones_array = -np.array([1, 2])
+    else:
+        uvd.polarization_array = -np.array([5, 6])
+        uvc.jones_array = -np.array([5, 6])
 
     uvdpol = uvd_pol_convention
 

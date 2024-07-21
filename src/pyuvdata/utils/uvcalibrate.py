@@ -63,7 +63,7 @@ def _get_pol_conventions(
             and uvd_pol_convention != uvdata.pol_convention
         ):
             raise ValueError(
-                "Both uvd_pol_convention and uvdata.pol_convention were specified with"
+                "Both uvd_pol_convention and uvdata.pol_convention were specified with "
                 f"different values: {uvd_pol_convention} and {uvdata.pol_convention}."
             )
     else:
@@ -93,6 +93,57 @@ def _get_pol_conventions(
         )
 
     return uvc_pol_convention, uvd_pol_convention
+
+
+def _apply_pol_convention_corrections(
+    uvdata,
+    undo: bool,
+    uvc_pol_convention: Literal["sum", "avg"] | None,
+    uvd_pol_convention: Literal["sum", "avg"] | None,
+):
+    r"""
+    Apply corrections to calibration/de-calibration from differences in convention.
+
+    This function corrects the UVData ``data_array`` in-place, when the polarization
+    convention desired for the UVData is different from the convention that was used
+    for the calibration. It also sets the corresponding ``pol_convention`` attribute
+    on the UVData object.
+
+    The logic is as follows. If the convention of the calibration and UVData object
+    are the same, no correction is applied. If they are different, the correction
+    applied is either to multiply or divide by two. Let's start with a default case:
+    let's say that the calibration solutions assume that instrumental polarizations
+    are related to the stokes-I sky by the ``avg`` convention, in which case
+    :math:`XX \sim I`, and we are calibrating data where we want the result to have
+    the ``sum`` convention, i.e. :math:`XX \sim I/2`. Then, for data that is in
+    instrumental polarizations (i.e. XX) we would need to *divide* the result by 2.
+    This is flipped (i.e. flips between multiply and divide) for every difference from
+    the above scenario, i.e.
+
+    * If we are de-calibrated rather than calibrating
+    * If the UVData is in stokes polarizations rather than instrumental
+    * If the conventions are swapped between the calibration solutions and the UVData.
+
+    To be clear, if two of these are true, the resulting correction will be "flipped
+    twice" (i.e. remain as *divide* by two), but if only one or all three are true,
+    then the correction will be flipped to be multiply by two.
+    """
+    if uvd_pol_convention != uvc_pol_convention:
+        correction = np.ones(uvdata.Npols)
+        correction[uvdata.polarization_array > 0] *= 2  # data in stokes pols
+        correction[uvdata.polarization_array < 0] /= 2  # data in instrumental pols
+
+        if undo:
+            # We are de-calibrating
+            correction = 1 / correction
+
+        if uvc_pol_convention == "sum":
+            # pol convention difference is the other way around
+            correction = 1 / correction
+
+        uvdata.data_array *= correction
+
+    uvdata.pol_convention = None if undo else uvd_pol_convention
 
 
 def uvcalibrate(
@@ -406,8 +457,10 @@ def uvcalibrate(
     uvdata_feed_pols = {
         feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
     }
+    print("ALL", uvdata_feed_pols)
     for feed in uvdata_feed_pols:
         # get diagonal jones str
+        print("FEED", feed)
         jones_str = parse_jpolstr(feed, x_orientation=uvcal.telescope.x_orientation)
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
@@ -538,26 +591,8 @@ def uvcalibrate(
     # Set pol convention properly
     if uvcal.gain_scale is not None:
         _apply_pol_convention_corrections(
-            uvdata, undo, uvd_pol_convention, uvc_pol_convention
+            uvdata, undo, uvc_pol_convention, uvd_pol_convention
         )
 
     if not inplace:
         return uvdata
-
-
-def _apply_pol_convention_corrections(
-    uvdata, undo, uvd_pol_convention, uvc_pol_convention
-):
-    if uvd_pol_convention != uvc_pol_convention:
-        correction = np.ones(uvdata.Npols)
-        correction[uvdata.polarization_array > 0] *= 2
-        correction[uvdata.polarization_array < 0] /= 2
-
-        if (undo and uvd_pol_convention == "sum") or (
-            not undo and uvd_pol_convention == "avg"
-        ):
-            correction = 1 / correction
-
-        uvdata.data_array *= correction
-
-    uvdata.pol_convention = None if undo else uvd_pol_convention
