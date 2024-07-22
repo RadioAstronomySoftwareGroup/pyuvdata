@@ -457,10 +457,8 @@ def uvcalibrate(
     uvdata_feed_pols = {
         feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
     }
-    print("ALL", uvdata_feed_pols)
     for feed in uvdata_feed_pols:
         # get diagonal jones str
-        print("FEED", feed)
         jones_str = parse_jpolstr(feed, x_orientation=uvcal.telescope.x_orientation)
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
