@@ -121,7 +121,8 @@ def _apply_pol_convention_corrections(
     the above scenario, i.e.
 
     * If we are de-calibrated rather than calibrating
-    * If the UVData is in stokes polarizations rather than instrumental
+    * If the UVData is in stokes polarizations rather than instrumental (note that this
+      is not currently possible anyway, so we do not provide the ability here).
     * If the conventions are swapped between the calibration solutions and the UVData.
 
     To be clear, if two of these are true, the resulting correction will be "flipped
@@ -129,9 +130,7 @@ def _apply_pol_convention_corrections(
     then the correction will be flipped to be multiply by two.
     """
     if uvd_pol_convention != uvc_pol_convention:
-        correction = np.ones(uvdata.Npols)
-        correction[uvdata.polarization_array > 0] *= 2  # data in stokes pols
-        correction[uvdata.polarization_array < 0] /= 2  # data in instrumental pols
+        correction = np.ones(uvdata.Npols) / 2
 
         if undo:
             # We are de-calibrating
@@ -228,6 +227,15 @@ def uvcalibrate(
         raise ValueError(
             "uvcalibrate currently does not support multi spectral window delay "
             "calibrations"
+        )
+
+    if np.any(uvdata.polarization_array) > 0:
+        raise NotImplementedError(
+            "It is currently not possible to calibrate or de-calibrate data with "
+            "stokes polarizations, since it is impossible to define UVCal objects with "
+            "these polarizations. If you require this functionality, please submit an "
+            "issue at "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues/new"
         )
 
     if uvcal.gain_scale is None:

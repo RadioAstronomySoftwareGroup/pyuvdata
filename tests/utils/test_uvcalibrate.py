@@ -763,7 +763,7 @@ def test_uvcalibrate_delay_multispw(uvcalibrate_uvdata_oldfiles):
 @pytest.mark.parametrize("convention_on_object", [True, False])
 @pytest.mark.parametrize("uvc_pol_convention", ["sum", "avg", None])
 @pytest.mark.parametrize("uvd_pol_convention", ["sum", "avg", None])
-@pytest.mark.parametrize("polkind", ["linear", "circular"])  # stokes not possible yet?
+@pytest.mark.parametrize("polkind", ["linear", "circular"])  # stokes not possible yet
 def test_uvcalibrate_pol_conventions(
     uvcalibrate_data,
     convention_on_object,
@@ -848,3 +848,19 @@ def test_gain_scale_wrong(uvcalibrate_data):
         ValueError, match="Cannot undo calibration if gain_scale is not the same"
     ):
         uvcalibrate(uvd, uvc, undo=True)
+
+
+def test_uvdata_pol_array_in_stokes(uvcalibrate_data):
+    uvd, uvc = uvcalibrate_data
+
+    # Set polarization_array to be in Stokes I, Q, U, V
+    uvd.polarization_array = np.array([1, 2, 3, 4])
+
+    with pytest.raises(
+        NotImplementedError,
+        match=(
+            "It is currently not possible to calibrate or de-calibrate data with "
+            "stokes polarizations",
+        ),
+    ):
+        uvcalibrate(uvd, uvc)
