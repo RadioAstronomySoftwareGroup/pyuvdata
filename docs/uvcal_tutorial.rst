@@ -49,8 +49,9 @@ linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be map
 convention). This choice is generally encoded in the sky model to which the visibilities
 are calibrated. Different tools and simulators make different choices, generally following
 a standard choice for the field. For example,  tasks in ``CASA`` (e.g., ``tclean``) and
-``MIRIAD``, along with ``WSClean``, all assume the ``avg`` convention. In ``pyuvdata``
-either of these choices are OK, but the
+``MIRIAD``, along with ``WSClean``, all assume the ``avg`` convention. FHD and the HERA
+analysis stack use the ``sum`` convention. In ``pyuvdata`` either of these choices are
+OK, but the
 choice should be recorded as the ``pol_convention`` parameter in both ``UVCal`` and
 ``UVData`` objects. Since the ``pol_convention`` has always (at least implicitly) been
 chosen for calibration solutions, we suggest *always* specifying this parameter on the

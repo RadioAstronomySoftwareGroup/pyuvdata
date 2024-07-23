@@ -19,7 +19,7 @@ from pyuvdata.utils.uvcalibrate import _get_pol_conventions
 class TestGetPolConventions:
     def tets_nothing_specified(self):
         with check_warnings(
-            DeprecationWarning,
+            UserWarning,
             match=[
                 "pol_convention is not specified on the UVCal object",
                 "Neither uvd_pol_convention not uvc_pol_convention are specified",
@@ -60,8 +60,7 @@ class TestGetPolConventions:
 
     def test_uvd_nor_uvdata_set(self):
         with pytest.warns(
-            DeprecationWarning,
-            match="pol_convention is not specified on the UVData object",
+            UserWarning, match="pol_convention is not specified on the UVData object"
         ):
             uvc, uvd = _get_pol_conventions(
                 uvdata=SimpleNamespace(pol_convention=None),
@@ -261,7 +260,7 @@ def test_uvcalibrate(uvcalibrate_data, flip_gain_conj, gain_convention, time_ran
             "gain_scale is not set, so there is no way to know",
             "gain_scale should be set if pol_convention is set",
         ]
-        undo_warn_type = [DeprecationWarning, UserWarning, UserWarning]
+        undo_warn_type = [UserWarning, UserWarning, UserWarning]
     else:
         cal_warn_msg = ""
         cal_warn_type = None
@@ -860,7 +859,7 @@ def test_uvdata_pol_array_in_stokes(uvcalibrate_data):
         NotImplementedError,
         match=(
             "It is currently not possible to calibrate or de-calibrate data with "
-            "stokes polarizations",
+            "stokes polarizations"
         ),
     ):
         uvcalibrate(uvd, uvc)
