@@ -1,0 +1,486 @@
+\documentclass[11pt, oneside]{article}
+\usepackage{geometry}
+\geometry{letterpaper}
+\usepackage{graphicx}
+\usepackage[titletoc,toc,title]{appendix}
+\usepackage{amssymb}
+\usepackage{physics}
+\usepackage{array}
+\usepackage{makecell}
+
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks = true
+}
+
+\usepackage{cleveref}
+
+\title{Memo: CalH5 file format}
+\author{Bryna Hazelton, and the pyuvdata team}
+\date{October 5, 2023}
+
+\begin{document}
+\maketitle
+\section{Introduction}
+\label{sec:intro}
+
+This memo introduces a new HDF5\footnote{\url{https://www.hdfgroup.org/}} based
+file format of a \texttt{UVCal} object in
+\texttt{pyuvdata}\footnote{\url{https://github.com/RadioAstronomySoftwareGroup/pyuvdata}}
+a python package that provides package that provides an interface to interferometric data.
+UVCal is an object that supports calibration solutions and metadata for interferometric telescopes.
+Here, we describe the required and optional elements and the structure of this file format, called
+\textit{CalH5}.
+
+We assume that the user has a working knowledge of HDF5 and the associated
+python bindings in the package \texttt{h5py}\footnote{\url{https://www.h5py.org/}}, as
+well as \texttt{UVCal} objects in \texttt{pyuvdata}. For more information about
+HDF5, please visit \url{https://portal.hdfgroup.org/display/HDF5/HDF5}. For more
+information about the parameters present in a \texttt{UVCal} object, please visit
+\url{https://pyuvdata.readthedocs.io/en/latest/uvcal.html}.
+Examples of how to interact with \texttt{UVCal} objects in \texttt{pyuvdata} are
+available at \url{https://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
+
+Note that throughout the documentation, we assume a row-major convention (i.e.,
+C-ordering) for the dimension specification of multi-dimensional arrays. For
+example, for a two-dimensional array with shape ($N$, $M$), the $M$-dimension is
+varying fastest, and is contiguous in memory. This convention is the same as
+Python and the underlying C-based HDF5 library. Users of languages with the
+opposite column-major convention (i.e., Fortran-ordering, seen also in MATLAB
+and Julia) must transpose these axes.
+
+\section{Overview}
+\label{sec:overview}
+A CalH5 file contains calibration solutions for a radio telescope, as well
+as the associated metadata necessary to interpret it. A CalH5 file contains two
+primary HDF5 groups: the \texttt{Header} group, which contains the metadata, and
+the \texttt{Data} group, which contains the gains or delays as well as flags and
+measures of calibration quality (optional). Datasets in the \texttt{Data} group are
+also typically passed through HDF5's compression pipeline, to reduce the amount
+of on-disk space required to store the data. However, because HDF5 is aware of
+any compression applied to a dataset, there is little that the user has to explicitly
+do when reading data. For users interested in creating new files, the use of
+compression is not strictly required by the CalH5 format, again because the
+HDF5 file is self-documenting in this regard, but compression is quite common.
+
+In the discussion below, we discuss required and optional datasets in the
+various groups. We note in parenthesis the corresponding attribute of a UVCal
+object. Note that in nearly all cases, the names are coincident, to make things
+as transparent as possible to the user.
+
+\section{Header}
+\label{sec:header}
+The \texttt{Header} group of the file contains the metadata necessary to interpret
+the data. We begin with the required parameters, then continue to optional
+ones. Unless otherwise noted, all datasets are scalars (i.e., not arrays). The
+precision of the data type is also not specified as part of the format, because
+in general the user is free to set it according to the desired use case (and
+HDF5 records the precision and endianness when generating datasets). When using
+the standard \texttt{h5py}-based implementation in pyuvdata, this typically
+results in 32-bit integers and double precision floating point numbers. Each
+entry in the list contains \textbf{(1)} the exact name of the dataset in the
+HDF5 file, in boldface, \textbf{(2)} the expected datatype of the dataset, in
+italics, \textbf{(3)} a brief description of the data, and \textbf{(4)} the name
+of the corresponding attribute on a UVCal object. Note that unlike in other
+formats, names of HDF5 datasets can be quite long, and so in most cases the name
+of the dataset corresponds to the name of the UVCal attribute.
+
+Note that string datatypes should be handled with care. See
+Appendix A in the UVH5 memo\footnote{\url{https://github.com/RadioAstronomySoftwareGroup/pyuvdata/blob/main/docs/references/uvh5_memo.pdf}}
+for appropriately defining them for interoperability between different HDF5
+implementations.
+
+
+\subsection{Required Parameters}
+\label{sec:req_params}
+\begin{itemize}
+
+\item \textbf{cal\_type}: \textit{string} The calibration type, supported options are
+  ``gain'' or ``delay''. (\textit{cal\_type})
+\item \textbf{cal\_style}: \textit{string} The calibration style, supported options are
+  ``sky'' or ``redundant''. (\textit{cal\_style})
+\item \textbf{gain\_convention}: \textit{string} The convention for applying the
+  calibration solutions to data. Supported options are  ``divide'' or ``multiply'',
+  indicating that to calibrate one should divide or multiply uncalibrated data by
+  gains. Mathematically this indicates the $\alpha$ exponent in the equation:
+  \begin{equation}
+     v_{ij,\ calibrated} =  g_{i}^\alpha g_{j}^\alpha * v_{ij,\ uncalibrated}
+  \end{equation}
+   A value of ``divide'' represents $\alpha=-1$ and ``multiply'' represents $\alpha=1$ .
+  (\textit{gain\_convention})
+\item \textbf{wide\_band}: \textit{python bool}\footnote{Note that this is
+    \textit{not} the same as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, it
+    is an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and
+    \texttt{FALSE} value. Such a type is created automatically when using
+    \texttt{h5py}, both for Python \texttt{bool} and numpy \texttt{np.bool\_}
+    types. See the UVH5 memo, Appendix C for an example of how to define
+    this in C. Such a definition should follow analogously in other languages.}
+  Indicates whether this is a wide band calibration solutions with gains or delays
+  that apply over a range of frequencies rather than having distinct values at each
+  frequency. Delay type calibration solutions are always wide band. If it is True
+  several other header items and data sets are affected: the data-like arrays have
+  a spectral window axis that is Nspws long rather than a frequency axis that is
+  Nfreqs long; the  freq\_range header item is required and the freq\_array and
+  channel\_width header options should not be present. (\textit{wide\_band})
+
+\item \textbf{latitude}: \textit{float} The latitude of the telescope site, in
+  degrees. (\textit{latitude})
+\item \textbf{longitude}: \textit{float} The longitude of the telescope site, in
+  degrees. (\textit{longitude})
+\item \textbf{altitude}: \textit{float} The altitude of the telescope site, in
+  meters. (\textit{altitude})
+\item \textbf{telescope\_name}: \textit{string} The name of the telescope used
+  to take the data. The value is used to check that metadata is self-consistent
+  for known telescopes in pyuvdata. (\textit{telescope\_name})
+\item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
+  dipole antenna. It is assumed to be the same for all antennas in the
+  dataset. Supported options are ``east'' or ``north''. (\textit{x\_orientation}).
+
+\item \textbf{Nants\_telescope}: \textit{int} The number of antennas in the
+  array. May be larger than the number of antennas with data corresponding to
+  them. (\textit{Nants\_telescope})
+\item \textbf{antenna\_numbers}: \textit{int} An array of the numbers of the antennas
+  present in the radio telescope (note that these are not indices, they do not need to start at zero
+  or be continuous). This is a one-dimensional array of size
+  Nants\_telescope. Note there must be one entry for every antenna in
+  ant\_array, but there may be additional entries. (\textit{antenna\_names})
+\item \textbf{antenna\_names}: \textit{string} An array of the names of antennas
+  present in the radio telescope. This is a one-dimensional array of size
+  Nants\_telescope. Note there must be one entry for every antenna in
+  ant\_array, but there may be additional entries. (\textit{antenna\_names})
+
+\item \textbf{Nants\_data}: \textit{int} The number of antennas that have
+  calibration data in the file. May be smaller than the number of antennas in the
+  array. (\textit{Nants\_data})
+\item \textbf{ant\_array}: \textit{int} An array of the antenna numbers
+  corresponding to calibration solutions present in the file. All entries in this
+  array must exist in the antenna\_numbers array. This is a one-dimensional
+  array of size Nants\_data. (\textit{ant\_array})
+
+\item \textbf{Nspws}: \textit{int} The number of spectral windows present in the
+  data. (\textit{Nspws})
+\item \textbf{Nfreqs}: \textit{int} The total number of frequency channels in
+  the data across all spectral windows. Should be 1 for wide band
+  calibration solutions. (\textit{Nfreqs})
+\item \textbf{spw\_array}: \textit{int} An array of the spectral windows in the
+  file. This is a one-dimensional array of size Nspws. (\textit{spw\_array})
+
+\item \textbf{Njones}: \textit{int} Number of Jones calibration parameters in
+  data. (\textit{Njones})
+\item \textbf{jones\_array}: \textit{int} An array giving the Jones calibration
+  parameters contained in the file. This is a one-dimensional array of size Njones.
+  Note that the Jones parameters should be stored as an integer with the following
+  mapping:
+	\begin{itemize}
+  	\item linear pols: -5 to -8 denoting: jxx, jyy, jxy, jyx
+        \item circular pols: -1 to -4 denoting: jrr, jll. jrl, jlr
+        \item unknown: 0
+	\end{itemize}
+  (\textit{jones\_array})
+
+
+\item \textbf{Ntimes}: \textit{int} The number of time samples present in the
+  data. (\textit{Ntimes})
+\item \textbf{integration\_time}: \textit{float} Integration time of a calibration
+  solution, units seconds. This is a one-dimensional array of size Ntimes.
+  Should be the total integration time of the  data that went into calculating
+  the calibration solution (i.e. the visibility integration time for calibration
+  solutions that are calculated per visibility integration, the sum of the
+  integration times that go into a calibration solution that was calculated
+  over a range of integration times). (\textit{integration\_time})
+
+
+\item \textbf{history}: \textit{string} The history of the data
+  file. (\textit{history})
+
+\end{itemize}
+
+
+
+
+
+\subsection{Optional Parameters}
+\label{sec:opt_params}
+\begin{itemize}
+\item \textbf{telescope\_frame}: \textit{string}  The coordinate frame for the telescope.
+  Supported options are ``itrs'' for telescopes on earth or ``mcmf'' for telescopes
+  on the moon. Not required but encouraged, assumed to be ``itrs'' if not specified.
+  (\textit{telescope\_frame})
+\item \textbf{instrument}: \textit{string} The name of the instrument, typically
+  the telescope name. (\textit{instrument})
+\item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
+  the antennas in meters. This is a one-dimensional array of size
+  (Nants\_telescope,). (\textit{Nants\_telescope})
+
+\item \textbf{gain\_scale}: \textit{string}  The gain scale of the calibration, which
+  indicates the units of the calibrated visibilities. For example, Jy or K str.
+  (\textit{gain\_scale})
+\item \textbf{pol\_convention}: \textit{string} The convention for how instrumental
+  polarizations (e.g. XX and YY) are converted to Stokes parameters. Options are
+  ``sum'' and ``avg'', corresponding to I=XX+YY and I=(XX+YY)/2 (for linear
+  instrumental polarizations) respectively. This header item is not required, but is
+  highly recommended. If pol\_convention is present, gain\_scale should also be
+  present. (\textit{pol\_convention})
+
+\item \textbf{freq\_array}: \textit{float} An array of all the frequencies (centers
+  of the channel, for all spectral windows) stored in the file in Hertz. This is a
+  one-dimensional array of size (Nfreqs,). Required for per-frequency calibration
+  solutions, should not be present for wide band calibration solutions. (\textit{freq\_array})
+\item \textbf{channel\_width}: \textit{float} The width of frequency channels in
+  the file in Hertz. This is a one-dimensional array of size (Nfreqs,).
+  Required for per-frequency calibration solutions, should not be present for wide band
+  calibration solutions. (\textit{channel\_width})
+\item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
+  channels along the frequency axis to individual spectral windows, as listed in
+  the \textit{spw\_array}. This is a one-dimensional array of size (Nfreqs,).
+  Required for per-frequency calibration solutions, should not be present for wide band
+  calibration solutions. (\textit{flex\_spw\_id\_array})
+\item \textbf{freq\_range}: \textit{float} Frequency range that the calibration solutions
+  are valid for. This should be an array with shape (Nspws, 2) where
+  the second axis gives the start frequency and end frequency (in that order) in Hertz.
+  Required for wide band calibration solutions, should not be present for per-frequency
+  calibration solutions. (\textit{freq\_range})
+\item \textbf{flex\_jones\_array}: \textit{int} Optional array that allows for
+  labeling individual spectral windows with different polarizations. This is a
+  one-dimensional array of size Nspws. If present, Njones must be set to 1
+  (i.e., only  one Jones vector per spectral window is allowed). (\textit{flex\_jones\_array})
+
+\item \textbf{time\_array}: \textit{float} An array of the Julian Date
+  corresponding to the temporal midpoint of the calibration solution.
+  This is a one-dimensional array of size Ntimes. Should be present
+  for calibration solutions calculated per visibility integration.
+  Only one of time\_range and time\_array should be present.  (\textit{time\_array})
+\item \textbf{lst\_array}: \textit{float} An array corresponding to the local
+  sidereal time of the temporal midpoint of each solution in units of
+  radians. If it is not specified, it is calculated from the latitude/longitude
+  and the time\_array. Saving it in the file can be useful for files with many
+  values in the time\_array, which would expensive to
+  recompute. This is a one-dimensional array of size Ntimes. Should only
+  be present for calibration solutions calculated per visibility integration.
+  Only one of lst\_range and lst\_array should be present.  (\textit{time\_array})
+\item \textbf{time\_range}: \textit{float} Time range in Julian Date that calibration
+  solutions are valid for. This should be an array with shape (Ntimes, 2) where
+  the second axis gives the start time and end time (in that order) in JD. Should
+  be present if the calibration solutions apply over a range of times.
+  Only one of time\_range and time\_array should be present. (\textit{time\_range})
+\item \textbf{lst\_range}: \textit{float} Local sidereal time range in radians corresponding
+  to the time\_range. This should be an array with shape (Ntimes, 2) where
+  the second axis gives the start LST and end LST (in that order). Should only
+  be present if the calibration solutions apply over a range of times.
+  Only one of lst\_range and lst\_array should be present. (\textit{time\_range})
+
+\item \textbf{ref\_antenna\_name}: \textit{string}  Phase reference antenna name.
+  If there are different reference antennas for different times, this will be ``various''
+  and the ref\_antenna\_array will be present. Required for sky based calibrations. 
+  (\textit{ref\_antenna\_name})
+\item \textbf{ref\_antenna\_array}: \textit{int} Reference antenna number array,
+  only used for sky-based calibration solutions if the reference antenna varies
+  by time.  This is a one-dimensional array of size Ntimes. 
+  (\textit{ref\_antenna\_array})
+\item \textbf{sky\_catalog}: \textit{string}  Name of the sky catalog used in calibration,
+  Required for sky based calibration solutions. (\textit{sky\_catalog})
+\item \textbf{diffuse\_model}: \textit{string}  The name of the diffuse model used
+  in the calibration, only used for sky based calibration solutions.
+  (\textit{diffuse\_model})
+\item \textbf{Nsources}: \textit{int} The number of sources used in the calibration,
+  only used for sky based calibration solutions. (\textit{Nsources})
+\item \textbf{baseline\_range}: \textit{float} Range of baseline lengths used for calibration.
+  This is a array of length 2 giving the shortest and longest baselines used in calculating
+  the calibrations solutions. Only used for sky based calibration solutions. 
+  (\textit{baseline\_range})
+\item \textbf{Nphase}: \textit{int} The number of phase centers present in the
+  phase\_center\_catalog. (\textit{Nphase})
+\item \textbf{phase\_center\_catalog}: A way to specify where the data where
+phased to when the calibration solutions were calculated (most commonly
+seen with calibration solutions derived from measurement sets). This is nearly
+identical to the dataset with the same name in UVH5 files. A series of nested
+datasets, similar to a dict in python (\textit{phase\_center\_catalog}).
+The top level keys are integers giving the phase center catalog IDs which are
+used to identify which times are phased to which phase center via the
+\textit{phase\_center\_id\_array}.
+The next level keys must include:
+	\begin{itemize}
+	\item \textbf{cat\_name}: \textit{string} The phase center catalog name. This
+	  does not have to be unique, non-unique values can be used to indicate sets
+	  of phase centers that make up a mosaic observation.
+	\item \textbf{cat\_type}: \textit{string} One of four allowed values:
+	  \textbf{(1)} sidereal, \textbf{(2)} ephem, \textbf{(3)} driftscan,
+	  \textbf{(4)} unprojected.
+  	  Sidereal means a phase center that is fixed in RA and Dec in a given
+	  celestial frame.
+	  Ephem means a phase center that has an RA and Dec that
+	  moves with time.
+	  Driftscan means a phase center with a fixed azimuth and
+	  elevation (note that this includes w-projection, even at zenith).
+	  Unprojected means no phasing, including w-projection, has been applied.
+  	\item \textbf{cat\_lon}: \textit{float}
+	  The longitudinal coordinate of the phase center, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	  This is commonly RA, but can also be galactic longitude. It is azimuth for
+	  driftscan phase centers.
+  	\item \textbf{cat\_lat}: \textit{float}
+	  The latitudinal coordinate of the phase center, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	  This is commonly Dec, but can also be galactic latitude. It is elevation (altitude)
+	  for driftscan phase centers.
+	\item \textbf{cat\_frame}: \textit{string} The coordinate frame that the
+	  phase center coordinates are defined in. It must be an astropy
+	  supported frame (e.g. fk4, fk5, icrs, gcrs, cirs, galactic).
+	\end{itemize}
+And may include:
+	\begin{itemize}
+	\item \textbf{cat\_epoch}: \textit{float} The epoch in years for the phase
+	  center coordinate. For most frames this is the Julian epoch
+	  (e.g. 2000.0 for j2000) but for the FK4 frame this will be treated as the
+	  Bessel-Newcomb epoch (e.g. 1950.0 for B1950). This parameter is
+	  not used for frames without an epoch (e.g. ICRS) unless the there
+	  is proper motion (specified in the cat\_pm\_ra and cat\_pm\_dec keys).
+	\item \textbf{cat\_times}: \textit{float}
+	  Time in Julian Date for ephemeris points, a one dimensional array of
+	  length Npts (the number of ephemeris data points).
+	  Only used for ephem type phase centers.
+	\item \textbf{cat\_pm\_ra}: \textit{float} (sidereal only)
+	  Proper motion in RA in milliarcseconds per year for the source.
+	\item \textbf{cat\_pm\_dec}: \textit{float} (sidereal only)
+	  Proper motion in Dec in milliarcseconds per year for the source
+	\item \textbf{cat\_dist}: \textit{float}
+	  Distance to the source in parsec (useful if parallax is important), either a
+	  single value or a one dimensional array of length Npts
+	  (the number of ephemeris data points) for ephem type phase centers.
+	\item \textbf{cat\_vrad}: \textit{float }
+	  Radial velocity of the source in km/sec, either a single value or a
+	  one dimensional array of length Npts (the number of ephemeris data points)
+	  for ephem type phase centers.
+	\item \textbf{info\_source}: \textit{string} Information about provenance of the source details.
+	  Typically this is set either to ``file'' if it originates from a file read operation, and ``user'' if
+	  it was added because of a call to the \texttt{phase()} method in \texttt{pyuvdata}. But it
+	  can also be set to contain more detailed information.
+	\end{itemize} (\textit{phase\_center\_catalog})
+\item \textbf{phase\_center\_id\_array}: \textit{int}
+A one dimensional array of length Ntimes containing the cat\_id from the phase\_center\_catalog
+that the data were phased to for each calibration time. \\(\textit{phase\_center\_id\_array})
+
+\item \textbf{observer}: \textit{string}  Name of observer who calculated solutions in this file.
+  (\textit{observer})
+\item \textbf{git\_origin\_cal}: \textit{string}  Origin (e.g. on github) of calibration software.
+  Url and branch. (\textit{git\_origin\_cal})
+\item \textbf{git\_hash\_cal}: \textit{string}  Commit hash of calibration software
+  (from git\_origin\_cal) used to generate solutions.
+  (\textit{git\_hash\_cal})
+
+\item \textbf{scan\_number\_array}: \textit{int} Measurement set scan numbers.
+  This is a one-dimensional array of size Ntimes.  May be present if the calibration
+  solutions derive from measurement sets.
+  (\textit{scan\_number\_array})
+
+ \end{itemize}
+
+\subsection{Extra Keywords}
+\label{sec:extra_keywords}
+UVData objects support ``extra keywords'', which are additional bits of
+arbitrary metadata useful to carry around with the data but which are not
+formally supported as a reserved keyword in the \texttt{Header}. In a UVH5 file,
+extra keywords are handled by creating a datagroup called \verb+extra_keywords+
+inside the \texttt{Header} datagroup. In a UVData object, extra keywords are
+expected to be scalars, but UVH5 makes no formal restriction on this. Also, when
+possible, these quantities should be HDF5 datatypes, to support interoperability
+between UVH5 readers. Inside of the extra\_keywords datagroup, each extra
+keyword is saved as a key-value pair using a dataset, where the name of the
+extra keyword is the name of the dataset and its corresponding value is saved in
+the dataset. Though the use of HDF5 attributes can also be used to save
+additional metadata, it is not recommended, due to the lack of support inside of
+pyuvdata for ensuring the attributes are properly saved when writing out.
+
+
+
+\section{Data}
+\label{sec:data}
+In addition to the \texttt{Header} datagroup in the root namespace, there must be
+one called \texttt{Data}. This datagroup saves the gain or delay calibration solutions,
+flags, and optionally, quality measure arrays. Either a delay or gain datasets and
+a flag dataset must be present in a valid CalH5 file. Per-frequency calibration
+solutions have arrays of shape: (Nants\_data, Nfreqs, Ntimes, Njones) while
+wide band solutions have arrays of shape: (Nants\_data, Nspws, Ntimes, Njones)
+(see the wide\_band header item for more details). 
+There can also be a total quality dataset that provides a quality across the
+entire telescope (so drops the Nants\_data axis).
+
+\subsection{Gain Dataset}
+\label{sec:gaindata}
+Gain data is saved as a dataset named \texttt{gains}, which must be present in the
+cal\_type header item is ``gain''. It should be a 4-dimensional, complex-type dataset
+with shape (Nants\_data, Nfreqs, Nfreqs, Npols) for a per-frequency solution
+(i.e. the wide\_band header item is False) or shape (Nants\_data, Nspws, Ntimes, Njones)
+for a wide band solution (i.e. the wide\_band header item is True).
+Commonly this is saved as an 8-byte complex number (a 4-byte float for the real
+and imaginary parts), though some flexibility is possible and 16-byte complex
+floating point numbers (composed of two 8-byte floats) are also common. In all cases, a
+compound datatype is defined, with an \texttt{`r'} field and an \texttt{`i'} field,
+corresponding to the real and imaginary parts, respectively. The real and
+imaginary types must also be the same datatype. For instance, they should both
+be 8-byte floating point numbers. Mixing datatypes between the real and imaginary
+parts is not allowed.
+
+Using \texttt{h5py}, the datatype for \texttt{gains} can be specified as
+\texttt{`c8'} (8-byte complex numbers, corresponding to the \texttt{np.complex64}
+datatype) or \texttt{`c16'} (16-byte complex numbers, corresponding to the
+\texttt{np.complex128} datatype) out-of-the-box, with no special handling by the
+user. \texttt{h5py} transparently handles the definition of the compound
+datatype.
+
+\subsection{Delay Dataset}
+\label{sec:delaydata}
+Delay data is saved as a dataset named \texttt{delays}, which must be present in the
+cal\_type header item is ``delay''. It should be a 4-dimensional, float-type dataset
+with shape (Nants\_data, Nspws, Ntimes, Njones).
+
+\subsection{Flags Dataset}
+\label{sec:flags}
+The flags corresponding to the calibration solutions are saved as a dataset named \texttt{flags}.
+It is a 4-dimensional, boolean-type dataset with shape (Nants\_data, Nfreqs, Nfreqs, Npols)
+for a per-frequency solution (i.e. the wide\_band header item is False) or shape
+(Nants\_data, Nspws, Ntimes, Njones) for a wide band solution (i.e. the
+wide\_band header item is True). Values of True correspond to instances of flagged data, and
+False is non-flagged. Note that the boolean type of the data is \textit{not} the
+HDF5-provided \texttt{H5T\_NATIVE\_HBOOL}, and instead is defined to conform to the
+\texttt{h5py} implementation of the numpy boolean type. When creating this dataset
+from \texttt{h5py}, one can specify the datatype as \texttt{np.bool}. Behind the
+scenes, this defines an HDF5 enum datatype. See the UVH5 memo, Appendix C
+for an example of how to write a compatible dataset from C.
+
+Compression is typically applied to the flags dataset. The LZF filter (included in all
+HDF5 libraries) provides a good compromise between speed and compression,
+and is the default for CalH5 files written with pyuvdata. Note that HDF5 supports
+many other types of filters, such as ZLIB, SZIP, and BZIP2.\footnote{For more information, see
+ \href{https://portal.hdfgroup.org/display/HDF5/Using+Compression+in+HDF5}{the
+documentation on using compression filters in HDF5}.} In the special cases
+of single-valued arrays, the dataset occupies virtually no disk space.
+
+\subsection{Quality Dataset}
+\label{sec:qualities}
+The quality measure corresponding to the calibration solutions can optionally be saved as a
+dataset named \texttt{qualities}. It is a 4-dimensional, float-type dataset with shape
+(Nants\_data, Nfreqs, Nfreqs, Npols) for a per-frequency solution (i.e. the wide\_band
+header item is False) or shape (Nants\_data, Nspws, Ntimes, Njones) for a wide band solution
+(i.e. the wide\_band header item is True). The definition of the calibration quality measure
+depends on the calibration software, but $\chi^2$ values are a common choice.
+
+As with the flags dataset described above, it is common to apply compression to
+the qualities dataset. 
+
+\subsection{Total Quality Dataset}
+\label{sec:totalqualities}
+A telescope array-wide quality measure corresponding to the calibration solutions can
+optionally be saved as a dataset named \texttt{total\_qualities}. It is a 3-dimensional,
+float-type dataset with shape (Nfreqs, Nfreqs, Npols) for a per-frequency solution (i.e. the wide\_band
+header item is False) or shape (Nspws, Ntimes, Njones) for a wide band solution
+(i.e. the wide\_band header item is True). The definition of the calibration total quality measure
+depends on the calibration software, but array-averaged $\chi^2$ values are a common choice.
+
+As with the flags dataset described above, it is common to apply compression to
+the total\_qualities dataset. 
+
+\end{document}
+
