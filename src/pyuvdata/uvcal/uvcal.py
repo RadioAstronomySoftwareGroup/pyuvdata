@@ -119,7 +119,7 @@ class UVCal(UVBase):
             "is True several other parameters are affected: the data-like arrays have "
             "a spw axis that is Nspws long rather than a frequency axis that is Nfreqs "
             "long; the `freq_range` parameter is required and the `freq_array` and "
-            "`channel_width` parameters are not required."
+            "`channel_width` parameters should not be set."
         )
         self._wide_band = uvp.UVParameter(
             "wide_band", description=desc, expected_type=bool, value=False
@@ -251,7 +251,13 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "Integration time of a time bin, units seconds. Shape (Ntimes), type float."
+            "Integration time of a calibration solution, units seconds. Shape "
+            "(Ntimes), type float. Should be the total integration time of the "
+            "data that went into calculating the calibration solution (i.e. the "
+            "visibility integration time for calibration solutions that are "
+            "calculated per visibility integration, the sum of the integration "
+            "times that go into a calibration solution that was calculated over "
+            "a range of integration times)."
         )
         self._integration_time = uvp.UVParameter(
             "integration_time",
@@ -291,12 +297,9 @@ class UVCal(UVBase):
         )
 
         desc = (
-            "Array of qualities of calibration solutions. "
-            "The shape depends on cal_type, if the cal_type is 'gain', the shape is: "
-            "(Nants_data, Nfreqs, Ntimes, Njones) if ide_band=False or "
-            "(Nants_data, Nspws, Ntimes, Njones) if wide_band=True, "
-            "if the cal_type is 'delay', the shape is "
-            "(Nants_data, Nspws, Ntimes, Njones). The type is float."
+            "Array of qualities of calibration solutions."
+            "Shape: (Nants_data, Nfreqs, Ntimes, Njones) if wide_band=False or "
+            "(Nants_data, Nspws, Ntimes, Njones) if wide_band=True, type = float."
         )
         self._quality_array = uvp.UVParameter(
             "quality_array",
@@ -385,6 +388,7 @@ class UVCal(UVBase):
             acceptable_vals=["sky", "redundant"],
         )
 
+        # --- sky based calibration parameters ---
         desc = 'Required if cal_style = "sky". Name of calibration catalog.'
         self._sky_catalog = uvp.UVParameter(
             "sky_catalog",
@@ -421,14 +425,6 @@ class UVCal(UVBase):
             "Nsources", required=False, expected_type=int, description=desc
         )
 
-        desc = (
-            "Specifies the number of phase centers contained within the calibration "
-            "solution catalog."
-        )
-        self._Nphase = uvp.UVParameter(
-            "Nphase", required=False, expected_type=int, description=desc
-        )
-
         desc = "Range of baselines used for calibration."
         self._baseline_range = uvp.UVParameter(
             "baseline_range",
@@ -445,6 +441,73 @@ class UVCal(UVBase):
             required=False,
             expected_type=str,
             description=desc,
+        )
+
+        desc = (
+            "Specifies the number of phase centers contained within the calibration "
+            "solution catalog."
+        )
+        self._Nphase = uvp.UVParameter(
+            "Nphase", required=False, expected_type=int, description=desc
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Dictionary that acts as a catalog, containing information on individual "
+            "phase centers. Keys are the catalog IDs of the different phase centers in "
+            "the object (matched to the parameter ``phase_center_id_array``). At a "
+            "minimum, each dictionary must contain the keys: "
+            "'cat_name' giving the phase center name (this does not have to be unique, "
+            "non-unique values can be used to indicate sets of phase centers that make "
+            "up a mosaic observation), "
+            "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
+            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
+            "Az/El, NOT the same as the old ``phase_type`` = 'drift') or 'unprojected' "
+            "(baseline coordinates in ENU, but data are not phased, similar to "
+            "the old ``phase_type`` = 'drift') "
+            "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers), "
+            "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
+            "astropy). "
+            "Other optional keys include "
+            "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
+            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
+            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
+            "'cat_pm_ra' (proper motion in RA), "
+            "'cat_pm_dec' (proper motion in Dec), "
+            "'cat_dist' (physical distance to the source in parsec, useful if parallax "
+            "is important, either a single value or a one dimensional array of length "
+            "Npts --the number of ephemeris data points-- for ephem type phase "
+            "centers.), "
+            "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
+            "dimensional array of length Npts --the number of ephemeris data points-- "
+            "for ephem type phase centers.), and "
+            "'info_source' (describes where catalog info came from). "
+            "Most typically used with MS calibration tables."
+        )
+
+        self._phase_center_catalog = uvp.UVParameter(
+            "phase_center_catalog", description=desc, expected_type=dict, required=False
+        )
+
+        desc = (
+            "Optional parameter, similar to the UVData parameter of the same name. "
+            "Maps individual indices along the Ntimes axis to a key in "
+            "`phase_center_catalog`, which maps to a dict containing the other "
+            "metadata for each phase center. Used to specify where the data were "
+            "phased to when calibration tables were derived. Most typically used when "
+            "reading MS calibration tables. Shape (Nblts), type = int."
+        )
+        self._phase_center_id_array = uvp.UVParameter(
+            "phase_center_id_array",
+            description=desc,
+            form=("Ntimes",),
+            expected_type=int,
+            required=False,
         )
 
         # --- truly optional parameters ---
@@ -529,65 +592,6 @@ class UVCal(UVBase):
         )
         self._scan_number_array = uvp.UVParameter(
             "scan_number_array",
-            description=desc,
-            form=("Ntimes",),
-            expected_type=int,
-            required=False,
-        )
-
-        desc = (
-            "Optional parameter, similar to the UVData parameter of the same name. "
-            "Dictionary that acts as a catalog, containing information on individual "
-            "phase centers. Keys are the catalog IDs of the different phase centers in "
-            "the object (matched to the parameter ``phase_center_id_array``). At a "
-            "minimum, each dictionary must contain the keys: "
-            "'cat_name' giving the phase center name (this does not have to be unique, "
-            "non-unique values can be used to indicate sets of phase centers that make "
-            "up a mosaic observation), "
-            "'cat_type', which can be 'sidereal' (fixed position in RA/Dec), 'ephem' "
-            "(position in RA/Dec which moves with time), 'driftscan' (fixed postion in "
-            "Az/El, NOT the same as the old ``phase_type`` = 'drift') or 'unprojected' "
-            "(baseline coordinates in ENU, but data are not phased, similar to "
-            "the old ``phase_type`` = 'drift') "
-            "'cat_lon' (longitude coord, e.g. RA, either a single value or a one "
-            "dimensional array of length Npts --the number of ephemeris data points-- "
-            "for ephem type phase centers), "
-            "'cat_lat' (latitude coord, e.g. Dec., either a single value or a one "
-            "dimensional array of length Npts --the number of ephemeris data points-- "
-            "for ephem type phase centers), "
-            "'cat_frame' (coordinate frame, e.g. icrs, must be a frame supported by "
-            "astropy). "
-            "Other optional keys include "
-            "'cat_epoch' (epoch and equinox of the coordinate frame, not needed for "
-            "frames without an epoch (e.g. ICRS) unless the there is proper motion), "
-            "'cat_times' (times for the coordinates, only used for 'ephem' types), "
-            "'cat_pm_ra' (proper motion in RA), "
-            "'cat_pm_dec' (proper motion in Dec), "
-            "'cat_dist' (physical distance to the source in parsec, useful if parallax "
-            "is important, either a single value or a one dimensional array of length "
-            "Npts --the number of ephemeris data points-- for ephem type phase "
-            "centers.), "
-            "'cat_vrad' (rest frame velocity in km/s, either a single value or a one "
-            "dimensional array of length Npts --the number of ephemeris data points-- "
-            "for ephem type phase centers.), and "
-            "'info_source' (describes where catalog info came from). "
-            "Most typically used with MS calibration tables."
-        )
-
-        self._phase_center_catalog = uvp.UVParameter(
-            "phase_center_catalog", description=desc, expected_type=dict, required=False
-        )
-
-        desc = (
-            "Optional parameter, similar to the UVData parameter of the same name. "
-            "Maps individual indices along the Ntimes axis to a key in "
-            "`phase_center_catalog`, which maps to a dict containing the other "
-            "metadata for each phase center. Used to specify where the data were "
-            "phased to when calibration tables were derived. Most typically used when "
-            "reading MS calibration tables. Shape (Nblts), type = int."
-        )
-        self._phase_center_id_array = uvp.UVParameter(
-            "phase_center_id_array",
             description=desc,
             form=("Ntimes",),
             expected_type=int,

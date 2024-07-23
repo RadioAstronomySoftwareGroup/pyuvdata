@@ -56,8 +56,8 @@ python bindings in the package \verb+h5py+\footnote{\url{https://www.h5py.org/}}
 well as UVData objects in pyuvdata. For more information about HDF5, please
 visit \url{https://portal.hdfgroup.org/display/HDF5/HDF5}. For more information
 about the parameters present in a UVData object, please visit
-\url{http://pyuvdata.readthedocs.io/en/latest/uvdata_parameters.html}. An
-example for how to interact with UVData objects in pyuvdata is available at
+\url{https://pyuvdata.readthedocs.io/en/latest/uvdata.html}. An
+example for how to interact with UVData objects in \texttt{pyuvdata} is available at
 \url{http://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
 
 Note that throughout the documentation, we assume a row-major convention (i.e.,
@@ -126,8 +126,8 @@ interoperability between different HDF5 implementations.
   the telescope name. (\textit{instrument})
 \item \textbf{history}: \textit{string} The history of the data
   file. (\textit{history})
-\item \textbf{Nants\_data}: \textit{int} The number of antennas that data in the
-  file corresponds to. May be smaller than the number of antennas in the
+\item \textbf{Nants\_data}: \textit{int} The number of antennas that have
+  visibility data in the file. May be smaller than the number of antennas in the
   array. (\textit{Nants\_data})
 \item \textbf{Nants\_telescope}: \textit{int} The number of antennas in the
   array. May be larger than the number of antennas with data corresponding to
@@ -307,6 +307,10 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
 \subsection{Optional Parameters}
 \label{sec:opt_params}
 \begin{itemize}
+\item \textbf{telescope\_frame}: \textit{string}  The coordinate frame for the telescope.
+  Supported options are ``itrs'' for telescopes on earth or ``mcmf'' for telescopes
+  on the moon. Not required but encouraged, assumed to be ``itrs'' if not specified.
+  (\textit{telescope\_frame})
 \item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
   channels along the frequency axis to individual spectral windows, as listed in
   the \textit{spw\_array}. This is a one-dimensional array of size

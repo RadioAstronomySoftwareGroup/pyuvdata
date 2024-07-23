@@ -42,6 +42,23 @@ gives the beginning and end of the time range. The local sidereal times follow a
 pattern, UVCal objects should have either an ``lst_array`` or an ``lst_range`` attribute
 set.
 
+Similarly, calibration solutions can be described as either applying at specific
+frequencies or across a frequency band. This choice is encoded in the boolean
+attribute ``wide_band`` on UVCal objects. Delay style calibrations are always
+wide band, while gain style calibration solutions are most commonly per frequency
+but can also be represented as wide band in some cases. Per-frequency calibration
+solutions will have ``freq_array`` and ``channel_width`` attributes set on the
+object, each with length ``Nfreqs``. The frequencies can each be assigned to a
+spectral window in a similar way as on UVData objects, with the ``flex_spw_id_array``
+attribute giving the mapping from frequencies to spectral windows.
+Wide band calibration solutions will not have a ``freq_array`` defined and will
+have ``Nfreqs`` set to 1. Instead they will have a ``freq_range`` attribute with
+shape (``Nspws``, 2) that specifies the frequency range each solution is valid for
+where the second axis gives the beginning and end of the frequency range.
+The second axis of the ``gain_array`` or ``delay_array`` is always along the
+frequency axis, with a length of ``Nfreqs`` for per-frequency solutions or ``Nspws``
+for wide band solutions.
+
 Generating calibration solutions typically requires choosing a convention concerning how
 polarized sky emission is mapped to the instrumental polarizations. For
 linear polarizations ``XX`` and ``YY``, the stokes ``I`` sky emission can be mapped to
