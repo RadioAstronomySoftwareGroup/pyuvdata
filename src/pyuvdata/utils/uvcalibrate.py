@@ -21,13 +21,10 @@ def _get_pol_conventions(
         warnings.warn(
             message=(
                 "pol_convention is not specified on the UVCal object, and "
-                "uvc_pol_convention was not specified. This is deprecated, and will"
-                " be an error in pyuvdata 3.2, since it is impossible to properly "
-                "infer. For now, we are tentatively assuming "
+                "uvc_pol_convention was not specified. Tentatively assuming "
                 "that the UVCal and UVData objects (implicitly) have the same "
                 "convention."
             ),
-            category=DeprecationWarning,
             stacklevel=2,
         )
         uvc_pol_convention = uvd_pol_convention or uvdata.pol_convention
@@ -46,13 +43,10 @@ def _get_pol_conventions(
             warnings.warn(
                 message=(
                     "pol_convention is not specified on the UVData object, and "
-                    "uvd_pol_convention was not specified. This is deprecated, and will"
-                    " be an error in pyuvdata 3.2, since it is impossible to know how "
-                    "to properly un-calibrate. For now, we are tentatively assuming "
+                    "uvd_pol_convention was not specified. Tentatively assuming "
                     "that the UVCal and UVData objects (implicitly) have the same "
                     "convention."
                 ),
-                category=DeprecationWarning,
                 stacklevel=2,
             )
             uvd_pol_convention = uvc_pol_convention
@@ -78,9 +72,7 @@ def _get_pol_conventions(
                 message=(
                     "Neither uvd_pol_convention nor uvc_pol_convention are specified, "
                     "so the resulting UVData object will have ambiguous convention. "
-                    "This is deprecated and will be an error in pyuvdata v3.2."
                 ),
-                category=DeprecationWarning,
                 stacklevel=2,
             )
     if uvd_pol_convention not in ["sum", "avg", None]:
@@ -229,7 +221,7 @@ def uvcalibrate(
             "calibrations"
         )
 
-    if np.any(uvdata.polarization_array) > 0:
+    if np.any(uvdata.polarization_array > 0):
         raise NotImplementedError(
             "It is currently not possible to calibrate or de-calibrate data with "
             "stokes polarizations, since it is impossible to define UVCal objects with "
