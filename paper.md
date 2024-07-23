@@ -68,10 +68,9 @@ interferometry, including support for reading and writing UVH5 [@uvh5], UVFITS
 [@uvfits], MIRIAD [@miriad], and measurement set [@ms] visibility files; and reading of
 FHD [@fhd] and MIR [@mir] visibility save files. Additionally, pyuvdata supports reading
 and writing measurement set, CalFITS [@calfits], and CalH5 (Hazelton et al., _in prep_)
-calibration tables; and reading of FHD calibration tables. pyuvdata also provides
+calibration solutions; and reading of FHD calibration solutions. pyuvdata also provides
 interfaces for and handling of models of antenna primary beams, including reading and
-writing of BeamFITS [@beamfits] and MWA-formatted beam models, as well as for flags
-tables.
+writing of BeamFITS [@beamfits] and MWA-formatted beam models, as well as for flags.
 
 # Statement of Need
 There are several standard formats for astronomical interferometric data, but
@@ -93,6 +92,6 @@ Originally motivated to support new low frequency instruments (e.g. MWA
 (http://www.mwatelescope.org/), PAPER (http://eor.berkeley.edu/), HERA
 (http://reionization.org/)), the capabilities of pyuvdata have been steadily expanded
 to support handling of data from several telescopes, ranging from meter to submillimeter
-wavelengths.
+wavelengths, including SMA, ALMA, SMA, VLA, ATCA, CARMA, LWA, among others.
 
 # References
