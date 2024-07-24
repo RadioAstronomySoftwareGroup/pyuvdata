@@ -96,7 +96,7 @@ jobs:
           - env_name: pyuvdata_tests
             os: macos-13
             python-version: "3.12"
-          - env_name: pyuvdata_test
+          - env_name: pyuvdata_tests
             os: ubuntu-latest
     steps:
       - uses: actions/checkout@main
