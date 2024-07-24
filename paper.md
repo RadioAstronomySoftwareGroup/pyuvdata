@@ -45,7 +45,7 @@ affiliations:
    index: 2
  - name: University of Washington, Physics Department
    index: 3
- - name: Arizona State University, School of Earth and Space Exploration
+ - name: Scuola Normale Superiore, Italy
    index: 4
  - name: Winona State University, Physics Department
    index: 5
@@ -93,5 +93,26 @@ Originally motivated to support new low frequency instruments (e.g. MWA
 (http://reionization.org/)), the capabilities of pyuvdata have been steadily expanded
 to support handling of data from several telescopes, ranging from meter to submillimeter
 wavelengths, including SMA, ALMA, SMA, VLA, ATCA, CARMA, LWA, among others.
+
+# Major updates in this version
+In the time since it was initially published [@pyuvdata_v1], pyuvdata has undergone a
+significant expansion in capabilities. In addition to general performance improvements
+and restructuring, the newest version of pyuvdata includes several new major features,
+including:
+
+- The addition of the `UVCal` class, which provides a container for handling calibration
+solutions (bandpass, delays, and gains) for interferometric data. Supported data formats
+include MS, FHD, CalFITS, and CalH5.
+- The addition of the `UVBeam` class, which provides a container for handling models
+of the primary beam for antennas within an interferometric array. Supported data formats
+include BeamFITS and MWA.
+- The addition of the `UVFlag` class, which provides a container for handling flags/masking
+of bad data for visibility data.
+- Drastically improved handling of astrometry and increased speed and accuracy of algorithms
+used to ``phase-up'' data (i.e., change the sky position where the interferometer is centered
+up on).
+- Support for several new visibility data formats, including MIR, MS, UVFITS, and MWA/MWAX.
+- Support for data sets containing multiple spectral windows.
+- Support for data sets containing observations of multiple sources/phase centers.
 
 # References
