@@ -154,3 +154,4 @@ jobs:
           summary-always: true
           # Enable commenting
           comment-always: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
