@@ -58,9 +58,7 @@ def test_bls_to_ants_bench(benchmark, bl_start, nbls):
         bls += 65536
     nants_telescope = 2048 if bl_start < 2**16 + 2**22 else 2**16 + 2**22
     antnums = benchmark(
-        bl_utils.baseline_to_antnums,
-        bls,
-        Nants_telescope=nants_telescope,
+        bl_utils.baseline_to_antnums, bls, Nants_telescope=nants_telescope
     )
 
     bls_out = bl_utils.antnums_to_baseline(
