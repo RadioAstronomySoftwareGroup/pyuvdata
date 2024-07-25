@@ -185,13 +185,7 @@ interoperability between different HDF5 implementations.
   (Nfreqs). (\textit{channel\_width})
 \item \textbf{spw\_array}: \textit{int} An array of the spectral windows in the
   file. This is a one-dimensional array of size Nspws. (\textit{spw\_array})
-\item \textbf{flex\_spw}: \textit{python bool}\footnote{Note that this is
-    \textit{not} the same as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, it
-    is an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and
-    \texttt{FALSE} value. Such a type is created automatically when using
-    \texttt{h5py}, both for Python \texttt{bool} and numpy \texttt{np.bool\_}
-    types. See Appendix~\ref{appendix:boolean} for an example of how to define
-    this in C. Such a definition should follow analogously in other languages.}
+\item \textbf{flex\_spw}: \textit{python bool}\footnote{See Appendix~\ref{appendix:boolean}}
   Whether the data are saved using flexible spectral windows. If more than one
   spectral window is present in the data, this must be \texttt{True}. See
   Sec.~\ref{sec:flex_spw} for a discussion of the details. (\textit{flex\_spw})
@@ -307,16 +301,46 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
 \subsection{Optional Parameters}
 \label{sec:opt_params}
 \begin{itemize}
-\item \textbf{telescope\_frame}: \textit{string}  The coordinate frame for the telescope.
-  Supported options are ``itrs'' for telescopes on earth or ``mcmf'' for telescopes
-  on the moon. Not required but encouraged, assumed to be ``itrs'' if not specified.
-  (\textit{telescope\_frame})
+\item \textbf{vis\_units}: \textit{string}  The units of the visibilities.
+  Supported options are ``Jy'', ``K str'' or ``uncalib'' for uncalibrated data.
+  Note that some older files may have ``UNCALIB'' which \texttt{pyuvdata} supports
+  for backwards compatibility, but all future files should use the lower case string.
+  Not required but encouraged, assumed to be ``uncalib'' if not specified.
+  (\textit{vis\_units})
+\item \textbf{pol\_ convention}: \textit{string}  
+  The convention for how instrumental polarizations (e.g. XX and YY) are converted
+  to Stokes parameters. Supported options are ``sum'' and ``avg'', corresponding to
+  $I=XX+YY$ and $I=\frac{XX+YY}{2}$ (for linear instrumental polarizations) respectively.
+  This only makes sense for calibrated data, so should only be present if vis\_units
+  is present and is not ``uncalib''.  (\textit{pol\_ convention})
 \item \textbf{flex\_spw\_id\_array}: \textit{int} The mapping of individual
   channels along the frequency axis to individual spectral windows, as listed in
   the \textit{spw\_array}. This is a one-dimensional array of size
   (Nfreqs). Note this is \textbf{required} if the file uses flexible
-  spectral windows (see
-  Sec.~\ref{sec:flex_spw}). (\textit{flex\_spw\_id\_array})
+  spectral windows (see Sec.~\ref{sec:flex_spw}). (\textit{flex\_spw\_id\_array})
+\item \textbf{flex\_spw\_polarization\_array}: \textit{int} Allows for labeling individual
+  spectral windows with different polarizations. If set, Npols must be 1 (i.e., only one
+  polarization per spectral window allowed). This is a one-dimensional array of
+  size (Nspws,). (\textit{flex\_spw\_polarization\_array})
+\item \textbf{lst\_array}: \textit{float} An array corresponding to the local
+  sidereal time of the center of each observation in the data in units of
+  radians. If it is not specified, it is calculated from the latitude/longitude
+  and the time\_array. Saving it in the file can be useful for files with many
+  values in the \textit{time\_array}, which would expensive to
+  recompute. (\textit{lst\_array})
+
+\item \textbf{telescope\_frame}: \textit{string}  The coordinate frame for the telescope.
+  Supported options are ``itrs'' for telescopes on earth or ``mcmf'' for telescopes
+  on the moon. Not required but encouraged, assumed to be ``itrs'' if not specified.
+  (\textit{telescope\_frame})
+\item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
+  dipole antenna. It is assumed to be the same for all antennas in the
+  dataset. For instance, ``East'' or ``North'' may be used.
+  (\textit{x\_orientation}).
+\item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
+  the antennas in meters. This is a one-dimensional array of size
+  (Nants\_telescope). (\textit{antenna\_diameters})
+  
 \item \textbf{dut1}: \textit{float} difference between UT1 (defined with respect to the
   Earth's angle of rotation, which includes whole and partial ``leap seconds") and UTC
   (which \emph{only} includes whole leap seconds), in seconds, with typical precision of
@@ -336,25 +360,43 @@ baseline-time in this calculation. This is set to zero for unprojected phase typ
   application. (\textit{rdate})
 \item \textbf{timesys}: \textit{string} Time system. pyuvdata currently only
   supports UTC. (\textit{timesys})
-\item \textbf{x\_orientation}: \textit{string} The orientation of the x-arm of a
-  dipole antenna. It is assumed to be the same for all antennas in the
-  dataset. For instance, ``East'' or ``North'' may be
-  used. (\textit{x\_orientation}).
-\item \textbf{antenna\_diameters}: \textit{float} An array of the diameters of
-  the antennas in meters. This is a one-dimensional array of size
-  (Nants\_telescope). (\textit{Nants\_telescope})
 
+\item \textbf{blts\_are\_rectangular}: \textit{python bool}\footnote{See Appendix~\ref{appendix:boolean}}
+    Indicates whether the baseline-time axis is rectangular (i.e. each baseline is
+    present for each time). This can be determined from the other metadata if
+    it is not provided, but that can take time, so providing it can provide code efficiencies. 
+   (\textit{blts\_are\_rectangular})
+\item \textbf{time\_axis\_faster\_than\_bls}: \textit{python bool}\footnote{See Appendix~\ref{appendix:boolean}}
+    If the baseline-time axis is rectangular, this indicates whether the time axis is
+    the fastest-moving virtual axis. Should only be present if blts\_are\_rectangular
+    is present and is True. This can be determined from the other metadata if
+    it is not provided, but that can take time, so providing it can provide code efficiencies. 
+   (\textit{time\_axis\_faster\_than\_bls})
+\item \textbf{blt\_order}: \textit{string} Indicates the ordering of the data along
+  the baseline-time axis. This can either be a single string two comma delimited
+  strings giving the first and optionally second ordering criteria. Supported strings
+  are: ``time'', ``baseline'', ``ant1'', ``ant2'', ``bda''. For example, data that is
+  ordered first by time then by the first antenna number (so times are in order and
+  change slowest and within each time, the first antenna numbers are in order
+  and change next fastest) would be recorded here as ``time, ant1''. The ``bda''
+  option is for data that has been averaged to different integration times
+  depending on baseline length and orientation and should only ever appear as a
+  single string (in this case, the axis is ordered first by integration time, then by
+  baseline number and then by time).
+  Not required, but can allow for code efficiencies if known. 
+ (\textit{blt\_order})
+
+\item \textbf{eq\_coeffs}: \textit{float} An array per-antenna and per-frequency
+  equalization coefficients. This is a two-dimensional array of size
+  (Nants\_telescope, Nfreqs). (\textit{eq\_coeffs})
+\item \textbf{eq\_coeffs\_convention}: \textit{string} The convention for how
+  to remove eq\_coeffs from data. Supported options are ``divide'' and ``multiply''.
+  (\textit{eq\_coeffs\_convention})
 
 \item \textbf{uvplane\_reference\_time}: \textit{int} The time at which the
   phase center is normal to the chosen UV plane for phasing. Used for
   interoperability with the FHD
   package\footnote{\url{https://github.com/EoRImaging/FHD}}. (\textit{uvplane\_reference\_time})
-\item \textbf{lst\_array}: \textit{float} An array corresponding to the local
-  sidereal time of the center of each observation in the data in units of
-  radians. If it is not specified, it is calculated from the latitude/longitude
-  and the time\_array. Saving it in the file can be useful for files with many
-  values in the \textit{time\_array}, which would expensive to
-  recompute. (\textit{lst\_array})
 \end{itemize}
 
 \subsection{Extra Keywords}
@@ -828,10 +870,11 @@ with h5py.File('test_file.uvh5', 'r') as f:
 
 \section{Defining Python Boolean Types in C}
 \label{appendix:boolean}
-As mentioned in Sec.~\ref{sec:flags}, the flags array in a UVH5 file uses an
-HDF5 enum datatype to encode the \verb+h5py+ boolean type. When creating such a
-datatype using \verb+h5py+, the user simply needs to ensure the datatype is
-\verb+np.bool_+. The building of the enum is transparent. When building the enum
+Several header items and the flags array (Sec.~\ref{sec:flags}) are booleans, which
+are \textit{not} encoded as the \texttt{H5T\_NATIVE\_HBOOL} type; instead, they are
+an \texttt{H5Tenum} type, with an explicit \texttt{TRUE} and \texttt{FALSE} value.
+When creating such a datatype using \verb+h5py+, the user simply needs to ensure
+the datatype \verb+np.bool_+. The building of the enum is transparent. When building the enum
 from a different language, the precise specification is necessary to ensure
 compatibility. The following code is a template for how to build the appropriate
 datatype using C. The construction in other languages, such as Fortran, should
