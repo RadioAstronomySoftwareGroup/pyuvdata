@@ -1315,7 +1315,7 @@ class UVBeam(UVBase):
         reuse_spline=False,
         spline_opts=None,
         check_azza_domain: bool = True,
-        interpolator="RectBivariateSpline",
+        spatial_interp_func="RectBivariateSpline",
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1343,6 +1343,9 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
+        spatial_interp_func : str
+            The spatial interpolation function to use. Options are 'RectBivariateSpline'
+            and 'RegularGridInterpolator'.
 
         Returns
         -------
@@ -1397,7 +1400,7 @@ class UVBeam(UVBase):
         assert az_array.ndim == 1
         assert az_array.shape == za_array.shape
 
-        if interpolator not in ["RectBivariateSpline", "RegularGridInterpolator"]:
+        if spatial_interp_func not in ["RectBivariateSpline", "RegularGridInterpolator"]:
             raise ValueError(
                 "interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'"
             )
@@ -1549,13 +1552,13 @@ class UVBeam(UVBase):
                     if do_interp:
                         data_inds = (index0, index2, index3)
 
-                        if interpolator == "RegularGridInterpolator":
-                            lut = interpolate.RegularGridInterpolator(
+                        if spatial_interp_func == "RegularGridInterpolator":
+                            rgi = interpolate.RegularGridInterpolator(
                                 (theta_use, phi_use),
                                 data_use[data_inds],
                                 **spline_opts,
                             )
-                            lut = lambda x, y: lut(np.array([x, y]).T)
+                            lut = lambda za, az: rgi(np.array([za, az]).T)
 
                         else:
                             if np.iscomplexobj(data_use):
@@ -1802,6 +1805,7 @@ class UVBeam(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         check_azza_domain: bool = True,
+        spatial_interp_func="RectBivariateSpline",
     ):
         """
         Interpolate beam to given frequency, az & za locations or Healpix pixel centers.
@@ -1880,6 +1884,9 @@ class UVBeam(UVBase):
             intrinsic data array. Checking them can be quite computationally expensive.
             Conversely, if the passed az/za are outside of the domain, they will be
             silently extrapolated and the behavior is not well-defined.
+        spatial_interp_func : str
+            The spatial interpolation function to use. Options are 'RectBivariateSpline'
+            and 'RegularGridInterpolator'. Only applies for `az_za_simple` interpolation.
 
         Returns
         -------
@@ -1993,6 +2000,7 @@ class UVBeam(UVBase):
             extra_keyword_dict["reuse_spline"] = reuse_spline
             extra_keyword_dict["spline_opts"] = spline_opts
             extra_keyword_dict["check_azza_domain"] = check_azza_domain
+            extra_keyword_dict["spatial_interp_func"] = spatial_interp_func
 
         interp_arrays = getattr(self, interp_func)(
             az_array=az_array_use,
