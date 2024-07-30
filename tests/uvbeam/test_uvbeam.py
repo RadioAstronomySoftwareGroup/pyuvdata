@@ -1174,7 +1174,9 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals, spatial_interp_func="NotSupportedInterpolator"
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            spatial_interp_func="NotSupportedInterpolator",
         )
 
 

@@ -1400,7 +1400,10 @@ class UVBeam(UVBase):
         assert az_array.ndim == 1
         assert az_array.shape == za_array.shape
 
-        if spatial_interp_func not in ["RectBivariateSpline", "RegularGridInterpolator"]:
+        if spatial_interp_func not in [
+            "RectBivariateSpline",
+            "RegularGridInterpolator",
+        ]:
             raise ValueError(
                 "interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'"
             )
@@ -1554,9 +1557,7 @@ class UVBeam(UVBase):
 
                         if spatial_interp_func == "RegularGridInterpolator":
                             rgi = interpolate.RegularGridInterpolator(
-                                (theta_use, phi_use),
-                                data_use[data_inds],
-                                **spline_opts,
+                                (theta_use, phi_use), data_use[data_inds], **spline_opts
                             )
                             lut = lambda za, az: rgi(np.array([za, az]).T)
 
@@ -1578,7 +1579,10 @@ class UVBeam(UVBase):
                                 lut = get_lambda(real_lut, imag_lut, grid=False)
                             else:
                                 lut = interpolate.RectBivariateSpline(
-                                    theta_use, phi_use, data_use[data_inds], **spline_opts
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds],
+                                    **spline_opts,
                                 )
                                 lut = get_lambda(lut, grid=False)
                         if reuse_spline:
