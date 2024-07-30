@@ -1483,14 +1483,19 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
-        def get_lambda(real_lut, imag_lut=None, **kwargs):
-            # Returns function objects for interpolation reuse
-            if imag_lut is None:
-                return lambda za, az: real_lut(za, az, **kwargs)
+        def get_lambda(
+            real_lut, imag_lut=None, spatial_interp_func="RectBivariateSpline", **kwargs
+        ):
+            if spatial_interp_func == "RectBivariateSpline":
+                # Returns function objects for interpolation reuse
+                if imag_lut is None:
+                    return lambda za, az: real_lut(za, az, **kwargs)
+                else:
+                    return lambda za, az: (
+                        real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
+                    )
             else:
-                return lambda za, az: (
-                    real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
-                )
+                return lambda za, az: real_lut(np.array([za, az]).T, **kwargs)
 
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
         if self.beam_type == "power":
