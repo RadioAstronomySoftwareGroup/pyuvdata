@@ -1057,6 +1057,25 @@ def test_spatial_interpolation_everyother(
     assert np.allclose(select_data_array_orig, select_data_array_reused)
     del uvbeam.saved_interp_functions
 
+    # test comparison of different interpolation functions
+    spline_opts = {"kx": 1, "ky": 1}
+    linear_data_array, _ = uvbeam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
+        spline_opts=spline_opts,
+    )
+
+    rgi_data_array, _ = uvbeam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
+        spatial_interp_func="RegularGridInterpolator",
+    )
+    assert np.allclose(linear_data_array, rgi_data_array)
+
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_cut):
@@ -1147,6 +1166,15 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
     ):
         uvbeam.interp(
             az_array=az_interp_vals, za_array=za_interp_vals, return_coupling=True
+        )
+
+    # test error returning coupling matrix for simple antenna_types
+    with pytest.raises(
+        ValueError,
+        match="interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals, za_array=za_interp_vals, spatial_interp_func="NotSupportedInterpolator"
         )
 
 
