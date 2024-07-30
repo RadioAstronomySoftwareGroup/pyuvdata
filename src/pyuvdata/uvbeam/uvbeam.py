@@ -1315,6 +1315,7 @@ class UVBeam(UVBase):
         reuse_spline=False,
         spline_opts=None,
         check_azza_domain: bool = True,
+        interpolator="RectBivariateSpline",
     ):
         """
         Interpolate in az_za coordinate system with a simple spline.
@@ -1396,6 +1397,11 @@ class UVBeam(UVBase):
         assert az_array.ndim == 1
         assert az_array.shape == za_array.shape
 
+        if interpolator not in ["RectBivariateSpline", "RegularGridInterpolator"]:
+            raise ValueError(
+                "interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'"
+            )
+
         npoints = az_array.size
 
         axis1_diff = np.diff(self.axis1_array)[0]
@@ -1461,13 +1467,13 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
-        def get_lambda(real_lut, imag_lut=None):
+        def get_lambda(real_lut, imag_lut=None, **kwargs):
             # Returns function objects for interpolation reuse
             if imag_lut is None:
-                return lambda za, az: real_lut(za, az, grid=False)
+                return lambda za, az: real_lut(za, az, **kwargs)
             else:
                 return lambda za, az: (
-                    real_lut(za, az, grid=False) + 1j * imag_lut(za, az, grid=False)
+                    real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
                 )
 
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
@@ -1542,26 +1548,36 @@ class UVBeam(UVBase):
 
                     if do_interp:
                         data_inds = (index0, index2, index3)
-                        if np.iscomplexobj(data_use):
-                            # interpolate real and imaginary parts separately
-                            real_lut = interpolate.RectBivariateSpline(
-                                theta_use,
-                                phi_use,
-                                data_use[data_inds].real,
+
+                        if interpolator == "RegularGridInterpolator":
+                            lut = interpolate.RegularGridInterpolator(
+                                (theta_use, phi_use),
+                                data_use[data_inds],
                                 **spline_opts,
                             )
-                            imag_lut = interpolate.RectBivariateSpline(
-                                theta_use,
-                                phi_use,
-                                data_use[data_inds].imag,
-                                **spline_opts,
-                            )
-                            lut = get_lambda(real_lut, imag_lut)
+                            lut = lambda x, y: lut(np.array([x, y]).T)
+
                         else:
-                            lut = interpolate.RectBivariateSpline(
-                                theta_use, phi_use, data_use[data_inds], **spline_opts
-                            )
-                            lut = get_lambda(lut)
+                            if np.iscomplexobj(data_use):
+                                # interpolate real and imaginary parts separately
+                                real_lut = interpolate.RectBivariateSpline(
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds].real,
+                                    **spline_opts,
+                                )
+                                imag_lut = interpolate.RectBivariateSpline(
+                                    theta_use,
+                                    phi_use,
+                                    data_use[data_inds].imag,
+                                    **spline_opts,
+                                )
+                                lut = get_lambda(real_lut, imag_lut, grid=False)
+                            else:
+                                lut = interpolate.RectBivariateSpline(
+                                    theta_use, phi_use, data_use[data_inds], **spline_opts
+                                )
+                                lut = get_lambda(lut, grid=False)
                         if reuse_spline:
                             self.saved_interp_functions[key] = lut
 
