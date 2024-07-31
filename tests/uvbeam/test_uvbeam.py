@@ -1067,14 +1067,15 @@ def test_spatial_interpolation_everyother(
         spline_opts=spline_opts,
     )
 
-    rgi_data_array, _ = uvbeam.interp(
+    mp_data_array, _ = uvbeam.interp(
         az_array=az_interp_vals,
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
-        spatial_interp_func="RegularGridInterpolator",
+        spatial_interp_func="map_coordinates",
+        spline_opts={"order": 1},
     )
-    assert np.allclose(linear_data_array, rgi_data_array)
+    assert np.allclose(linear_data_array, mp_data_array)
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -1171,12 +1172,36 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
     # test error returning coupling matrix for simple antenna_types
     with pytest.raises(
         ValueError,
-        match="interpolator must be 'RectBivariateSpline' or 'RegularGridInterpolator'",
+        match="interpolator must be 'RectBivariateSpline' or 'map_coordinates'",
     ):
         uvbeam.interp(
             az_array=az_interp_vals,
             za_array=za_interp_vals,
             spatial_interp_func="NotSupportedInterpolator",
+        )
+
+    # Check that error is raised if the input beam is not on a regular grid
+    # and spatial_interp_func="map_coordinates" is used
+    az_array_uneven = np.array([0.1, 0.5, 0.56, 0.9])
+    new_beam = uvbeam.interp(
+        az_array=az_array_uneven,
+        za_array=uvbeam.axis2_array,
+        new_object=True,
+        az_za_grid=True,
+    )
+
+    # test error returning coupling matrix for simple antenna_types
+    with pytest.raises(
+        ValueError,
+        match=(
+            "axis1_array and axis2_array must be evenly "
+            "spaced for map_coordinates interpolation"
+        ),
+    ):
+        new_beam.interp(
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            spatial_interp_func="map_coordinates",
         )
 
 
