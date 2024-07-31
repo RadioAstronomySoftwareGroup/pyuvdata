@@ -12,7 +12,7 @@ import yaml
 from astropy import units
 from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
-from scipy import interpolate
+from scipy import interpolate, ndimage
 
 from .. import parameter as uvp, utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
@@ -1345,7 +1345,8 @@ class UVBeam(UVBase):
             intrinsic data array. Checking them can be quite computationally expensive.
         spatial_interp_func : str
             The spatial interpolation function to use. Options are 'RectBivariateSpline'
-            and 'RegularGridInterpolator'.
+            and 'map_coordinates'. If 'map_coordinates' is chosen, the input data must
+            be on a regular grid.
 
         Returns
         -------
@@ -1400,13 +1401,9 @@ class UVBeam(UVBase):
         assert az_array.ndim == 1
         assert az_array.shape == za_array.shape
 
-        if spatial_interp_func not in [
-            "RectBivariateSpline",
-            "RegularGridInterpolator",
-        ]:
+        if spatial_interp_func not in ["RectBivariateSpline", "map_coordinates"]:
             raise ValueError(
-                "interpolator must be 'RectBivariateSpline' or"
-                " 'RegularGridInterpolator'"
+                "interpolator must be 'RectBivariateSpline' or" " 'map_coordinates'"
             )
 
         npoints = az_array.size
@@ -1451,6 +1448,18 @@ class UVBeam(UVBase):
         # This is now always true, keeping this here to keep naming convention the same
         theta_use = theta_vals
 
+        if spatial_interp_func == "map_coordinates":
+            axis1_diff = np.diff(phi_use)
+            axis2_diff = np.diff(theta_use)
+
+            if not np.allclose(axis1_diff, axis1_diff[0]) or not np.allclose(
+                axis2_diff, axis2_diff[0]
+            ):
+                raise ValueError(
+                    "axis1_array and axis2_array must be evenly spaced for "
+                    "map_coordinates interpolation"
+                )
+
         if self.basis_vector_array is not None:
             if np.any(self.basis_vector_array[0, 1, :] > 0) or np.any(
                 self.basis_vector_array[1, 0, :] > 0
@@ -1474,19 +1483,14 @@ class UVBeam(UVBase):
         else:
             interp_basis_vector = None
 
-        def get_lambda(
-            real_lut, imag_lut=None, spatial_interp_func="RectBivariateSpline", **kwargs
-        ):
-            if spatial_interp_func == "RectBivariateSpline":
-                # Returns function objects for interpolation reuse
-                if imag_lut is None:
-                    return lambda za, az: real_lut(za, az, **kwargs)
-                else:
-                    return lambda za, az: (
-                        real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
-                    )
+        def get_lambda(real_lut, imag_lut=None, **kwargs):
+            # Returns function objects for interpolation reuse
+            if imag_lut is None:
+                return lambda za, az: real_lut(za, az, **kwargs)
             else:
-                return lambda za, az: real_lut(np.array([za, az]).T, **kwargs)
+                return lambda za, az: (
+                    real_lut(za, az, **kwargs) + 1j * imag_lut(za, az, **kwargs)
+                )
 
         # Npols is only defined for power beams.  For E-field beams need Nfeeds.
         if self.beam_type == "power":
@@ -1548,28 +1552,41 @@ class UVBeam(UVBase):
         if reuse_spline and not hasattr(self, "saved_interp_functions"):
             int_dict = {}
             self.saved_interp_functions = int_dict
+
+        if spatial_interp_func == "map_coordinates":
+            _az_array = (
+                (az_array - phi_use.min())
+                / (phi_use.max() - phi_use.min())
+                * (phi_use.size - 1)
+            )
+            _za_array = (
+                (za_array - theta_use.min())
+                / (theta_use.max() - theta_use.min())
+                * (theta_use.size - 1)
+            )
+
         for index3 in range(input_nfreqs):
             freq = freq_array[index3]
             for index0 in range(self.Naxes_vec):
                 for pol_return_ind, index2 in enumerate(pol_inds):
                     do_interp = True
                     key = (freq, index2, index0)
-                    if reuse_spline and key in self.saved_interp_functions:
-                        do_interp = False
-                        lut = self.saved_interp_functions[key]
-
-                    if do_interp:
-                        data_inds = (index0, index2, index3)
-
-                        if spatial_interp_func == "RegularGridInterpolator":
-                            lut = interpolate.RegularGridInterpolator(
-                                (theta_use, phi_use), data_use[data_inds], **spline_opts
+                    if spatial_interp_func == "map_coordinates":
+                        interp_data[index0, pol_return_ind, index3, :] = (
+                            ndimage.map_coordinates(
+                                data_use[index0, index2, index3],
+                                np.array([_za_array, _az_array]),
+                                **spline_opts,
                             )
-                            lut = get_lambda(
-                                lut, spatial_interp_func="RegularGridInterpolator"
-                            )
+                        )
+                    else:
+                        if reuse_spline and key in self.saved_interp_functions:
+                            do_interp = False
+                            lut = self.saved_interp_functions[key]
 
-                        else:
+                        if do_interp:
+                            data_inds = (index0, index2, index3)
+
                             if np.iscomplexobj(data_use):
                                 # interpolate real and imaginary parts separately
                                 real_lut = interpolate.RectBivariateSpline(
@@ -1593,12 +1610,13 @@ class UVBeam(UVBase):
                                     **spline_opts,
                                 )
                                 lut = get_lambda(lut, grid=False)
-                        if reuse_spline:
-                            self.saved_interp_functions[key] = lut
 
-                    interp_data[index0, pol_return_ind, index3, :] = lut(
-                        za_array, az_array
-                    )
+                            if reuse_spline:
+                                self.saved_interp_functions[key] = lut
+
+                        interp_data[index0, pol_return_ind, index3, :] = lut(
+                            za_array, az_array
+                        )
 
         interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
         if self.antenna_type == "phased_array":
@@ -1898,7 +1916,8 @@ class UVBeam(UVBase):
             silently extrapolated and the behavior is not well-defined.
         spatial_interp_func : str
             The spatial interpolation function to use. Options are 'RectBivariateSpline'
-            and 'RegularGridInterpolator'. Only applies for `az_za_simple`
+            and 'map_coordinates'. If 'map_coordinates' is choosen, input beam must be
+            evenly spaced in theta and phi. Only applies for `az_za_simple`
             interpolation.
 
         Returns
