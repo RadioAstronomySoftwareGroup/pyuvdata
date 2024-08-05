@@ -7,12 +7,13 @@ from copy import deepcopy
 import erfa
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
+from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord, AltAz
 from astropy.time import Time
 from astropy.utils import iers
 
 from . import _phasing
 from .times import get_lst_for_time
+from .tools import Nants_to_Nblts, Ntimes_to_Nblts, get_autocorrelations_mask
 
 try:
     from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord, Time as LTime
@@ -2571,3 +2572,102 @@ def uvw_track_generator(
         "lst": lst_array,
         "site_loc": site_loc,
     }
+
+
+def getFocusXYZ(uvd, focus, ra, dec):
+    """
+    Returns the x,y,z coordinates of the focal point 
+    (ie location of the NEAR-FIELD object of interest)
+    in the MWA-centred ENU frame at each timestep
+    
+    Parameters
+    -------------
+    uvd: UVData object
+    focus: focal distance of the array (km)
+    ra: right ascension of the focal point ie phase center (deg; shape (Ntimes,))
+    dec: declination of the focal point ie phase center (deg; shape (Ntimes,))
+    
+    Returns
+    -------------
+    x, y, z: ENU-frame coordinates of the focal point (meters) (shape (Ntimes,))
+    """
+
+    ## Obtain timesteps
+    timesteps = Time(np.unique(uvd.time_array), format='jd')
+    
+    ## Initialize sky-based coordinates using right ascension and declination
+    obj = SkyCoord(ra*units.deg, dec*units.deg)
+
+    ## The centre of the ENU frame should be located at the MEDIAN position of the array
+    antpos = uvd.antenna_positions + uvd.telescope_location
+    x,y,z = np.median(antpos, axis=0)
+
+    ## Initialize EarthLocation object centred on MWA
+    mwa = EarthLocation(x,y,z,unit=units.m)
+
+    ## Convert sky object to an AltAz frame centred on the MWA
+    obj = obj.transform_to(AltAz(obstime=timesteps, location=mwa))
+
+    ## Obtain altitude and azimuth
+    theta, phi = obj.alt.to(units.rad), obj.az.to(units.rad)
+
+    ## Obtain x,y,z ENU coordinates
+    x = focus * 1e3 * np.cos(theta) * np.sin(phi)
+    y = focus * 1e3 * np.cos(theta) * np.cos(phi)
+    z = focus * 1e3 * np.sin(theta)
+
+    return x, y, z
+
+
+def getPhase(uvd, focus_x, focus_y, focus_z, flipconj):
+    """
+    Calculates near-field phase/delay along the Nblts axis
+    
+    Parameters
+    ------------
+    uvd: UVData object
+    focus_x, focus_y, focus_z: ENU-frame coordinates of focal point (Each of shape (Ntimes,))
+    flipconj: is the uvd conjugation scheme "flipped" compared to what pyuvdata expects?
+    
+    Returns
+    ------------
+    phi: the phase correction to apply to each visibility along the Nblts axis
+    new_w: the calculated near-field delay (or w-term) for each visibility along the Nblts axis
+    """
+    
+    ## Get indices to convert between Nants and Nblts
+    ind1, ind2 = Nants_to_Nblts(uvd)
+    
+    ## Antenna positions in ENU frame
+    antpos, ants = uvd.get_ENU_antpos(center=True)  # Centred on the MEDIAN of the array; antpos has shape (Nants, 3)
+    
+    ## Get tile positions for each baseline
+    tile1 = antpos[ind1]  # Shape (Nblts, 3)
+    tile2 = antpos[ind2]  # Shape (Nblts, 3)
+    
+    ## Focus points have shape (Ntimes,); convert to shape (Nblts,)
+    t_inds = Ntimes_to_Nblts(uvd)
+    focus_x, focus_y, focus_z = focus_x[t_inds], focus_y[t_inds], focus_z[t_inds]
+    
+    ## Calculate distance from antennas to focal point for each visibility along the Nblts axis
+    r1 = np.sqrt((tile1[:,0] - focus_x)**2 + (tile1[:,1] - focus_y)**2 + (tile1[:,2] - focus_z)**2)
+    r2 = np.sqrt((tile2[:,0] - focus_x)**2 + (tile2[:,1] - focus_y)**2 + (tile2[:,2] - focus_z)**2)
+    
+    ## Get the uvw array along the Nblts axis; select only the w's
+    old_w = uvd.uvw_array[:,-1]
+
+    ## Calculate near-field delay
+    if flipconj:
+        new_w = r2 - r1
+    else:
+        new_w = r1 - r2
+    phi = new_w - old_w
+    
+    ## Remove autocorrelations
+    mask = get_autocorrelations_mask(uvd)
+    
+    new_w = new_w*mask + old_w*(1-mask)
+    phi = phi*mask
+
+    return phi, new_w  # Each of shape (Nblts,)
+

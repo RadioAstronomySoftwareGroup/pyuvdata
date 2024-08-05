@@ -26,6 +26,7 @@ from ..utils import phasing as phs_utils
 from ..utils.io import hdf5 as hdf5_utils
 from ..uvbase import UVBase
 from .initializers import new_uvdata
+from ..utils.phasing import getFocusXYZ, getPhase
 
 __all__ = ["UVData"]
 import contextlib
@@ -4653,6 +4654,79 @@ class UVData(UVBase):
 
         return phase_dict
 
+    def _apply_near_field_corrections(
+        self,
+        focus,
+        ra,
+        dec,
+        f_units="km",
+        flipconj=False,
+    ):
+    """
+    Apply near-field corrections by focusing the array to the specified focal point.
+    
+    Parameters
+    ---------------
+    focus : float
+        Focal point of the array (km or pc)
+    ra : float
+        Right ascension of the focal point ie phase center (deg; shape (Ntimes,))
+    dec : float
+        Declination of the focal point ie phase center (deg; shape (Ntimes,))
+    f_units : str
+        Units for the focus parameter. Accepts either "km" or "pc". Defaults to "km".
+    flipconj : bool
+        Is the uvd conjugation scheme "flipped" compared to what pyuvdata expects? (default False)
+
+    Raises
+    ---------------
+    ValueError if f_units not 'km' or 'pc'.
+    
+    Returns
+    ---------------
+    None (performs operations inplace)
+    """
+    # ---------------- Parameters that are independent of frequency -------------------------------
+
+    ## Make sure focus is in km
+    if f_units != "km":
+        if f_units == "pc":
+            focus = focus * 30856775814913.673
+        else:
+            raise ValueError(f"f_units parameter accepts one of 'km' or 'pc'. Entered value: {f_units}.")
+    
+    ## Calculate the x, y, z coordinates of the focal point in ENU frame for each vis along Nblts axis
+    focus_x, focus_y, focus_z = getFocusXYZ(self, focus, ra, dec)
+
+    ## Calculate near-field correction at the specified timestep for each vis along Nblts axis
+    phi, new_w = getPhase(self, focus_x, focus_y, focus_z, flipconj)
+
+    ## Update old w with new w
+    self.uvw_array[:,-1] = new_w
+
+
+    # ---------------- Frequency-dependent calculations -------------------------------------------
+
+    ## Calculate wavelength associate with each frequency
+    wavelengths = 299792458/self.freq_array
+    
+    # Reshape the phi and wavelengths arrays in order to be able to broadcast them together
+    phi = np.reshape(phi, (phi.size,1))  # (Nblts, 1)
+    wavelengths = np.reshape(wavelengths, (1, wavelengths.size))  # (1, Nfreqs)
+    
+    ## Calculate phase corrections at all frequencies -- produces shape (Nblts, Nfreqs)
+    phase_corrections = np.exp(-2j * np.pi * phi/wavelengths)
+
+    ## Set data at each polarization (Npols = 4 usually)
+    for pol in self.polarization_array:
+
+        # For some reason the data need an extra axis?
+        prev = np.reshape(self.get_data(pol), (self.Nblts, self.Nfreqs, 1))
+        corr = np.reshape(phase_corrections, (self.Nblts, self.Nfreqs, 1)) 
+
+        self.set_data(corr*prev, pol)
+
+
     def phase(
         self,
         *,
@@ -4673,6 +4747,7 @@ class UVData(UVBase):
         use_ant_pos=True,
         select_mask=None,
         cleanup_old_sources=True,
+        near_field=False,
     ):
         """
         Phase data to a new direction, supports sidereal, ephemeris and driftscan types.
@@ -4744,6 +4819,9 @@ class UVData(UVBase):
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis.
             Shape is (Nblts,). Ignored if `use_old_proj` is True.
+        near_field : bool
+            Option to apply near-field corrections to the provided ra, dec, and distance.
+            Defaults to False (apply far-field corrections only).
 
         Raises
         ------
@@ -4923,6 +5001,15 @@ class UVData(UVBase):
         # otherwise we'll have no record of source properties.
         if cleanup_old_sources:
             self._clear_unused_phase_centers()
+
+        # Lastly, apply near-field corrections if specified
+        if near_field:
+            self._apply_near_field_corrections(
+                focus=phase_dict["cat_dist"], 
+                ra=phase_dict["cat_lon"], 
+                dec=phase_dict["cat_lat"], 
+                f_units="pc",
+            )
 
     def phase_to_time(
         self, time, *, phase_frame="icrs", use_ant_pos=True, select_mask=None
