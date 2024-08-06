@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for phasing."""
+
 from copy import deepcopy
 
 import erfa
@@ -15,9 +15,7 @@ from . import _phasing
 from .times import get_lst_for_time
 
 try:
-    from lunarsky import MoonLocation
-    from lunarsky import SkyCoord as LunarSkyCoord
-    from lunarsky import Time as LTime
+    from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord, Time as LTime
 
     hasmoon = True
 except ImportError:
@@ -122,9 +120,8 @@ def polar2_to_cart3(*, lon_array, lat_array):
         raise ValueError(
             "lon_array and lat_array must either both be floats or ndarrays."
         )
-    if isinstance(lon_array, np.ndarray):
-        if lon_array.shape != lat_array.shape:
-            raise ValueError("lon_array and lat_array must have the same shape.")
+    if isinstance(lon_array, np.ndarray) and lon_array.shape != lat_array.shape:
+        raise ValueError("lon_array and lat_array must have the same shape.")
 
     # Once we know that lon_array and lat_array are of the same shape,
     # time to create our 3D set of vectors!
@@ -831,7 +828,7 @@ def transform_sidereal_coords(
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
     in_epoch = None
-    if isinstance(in_coord_epoch, str) or isinstance(in_coord_epoch, Time):
+    if isinstance(in_coord_epoch, str | Time):
         # If its a string or a Time object, we don't need to do anything more
         in_epoch = Time(in_coord_epoch)
     elif in_coord_epoch is not None:
@@ -842,7 +839,7 @@ def transform_sidereal_coords(
 
     # Now do the same for the outbound frame
     out_epoch = None
-    if isinstance(out_coord_epoch, str) or isinstance(out_coord_epoch, Time):
+    if isinstance(out_coord_epoch, str | Time):
         # If its a string or a Time object, we don't need to do anything more
         out_epoch = Time(out_coord_epoch)
     elif out_coord_epoch is not None:
@@ -1002,9 +999,11 @@ def transform_icrs_to_app(
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if hasmoon and isinstance(telescope_loc, MoonLocation):
-            astrometry_library = "astropy"
-        elif telescope_frame.upper() == "MCMF":
+        if (
+            hasmoon
+            and isinstance(telescope_loc, MoonLocation)
+            or telescope_frame.upper() == "MCMF"
+        ):
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -1033,10 +1032,9 @@ def transform_icrs_to_app(
     opt_list = [pm_ra_coord, pm_dec_coord, d_coord, v_coord]
     opt_names = ["pm_ra", "pm_dec", "dist", "vrad"]
     # Check the optional inputs, make sure that they're sensible
-    for item, name in zip(opt_list, opt_names):
-        if item is not None:
-            if ra_coord.shape != item.shape:
-                raise ValueError("%s must be the same shape as ra and dec." % name)
+    for item, name in zip(opt_list, opt_names, strict=True):
+        if item is not None and ra_coord.shape != item.shape:
+            raise ValueError(f"{name} must be the same shape as ra and dec.")
 
     if isinstance(telescope_loc, EarthLocation) or (
         hasmoon and isinstance(telescope_loc, MoonLocation)
@@ -1087,7 +1085,7 @@ def transform_icrs_to_app(
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
     coord_epoch = None
-    if isinstance(epoch, str) or isinstance(epoch, Time):
+    if isinstance(epoch, str | Time):
         # If its a string or a Time object, we don't need to do anything more
         coord_epoch = Time(epoch)
     elif epoch is not None:
@@ -1118,7 +1116,7 @@ def transform_icrs_to_app(
         ra_coord.shape += (1,)
         dec_coord.shape += (1,)
         if pm_ra_coord is not None:
-            pm_ra
+            pm_ra_coord.shape += (1,)
         if d_coord is not None:
             d_coord.shape += (1,)
         if v_coord is not None:
@@ -1402,17 +1400,16 @@ def transform_app_to_icrs(
         ICRS declination coordinates, in units of radians, of either shape
         (Ntimes,) if Ntimes >1, otherwise (Ncoord,).
     """
-    if telescope_frame.upper() == "MCMF":
-        if not hasmoon:
-            raise ValueError(
-                "Need to install `lunarsky` package to work with MCMF frame."
-            )
+    if telescope_frame.upper() == "MCMF" and not hasmoon:
+        raise ValueError("Need to install `lunarsky` package to work with MCMF frame.")
 
     # Make sure that the library requested is actually permitted
     if astrometry_library is None:
-        if hasmoon and isinstance(telescope_loc, MoonLocation):
-            astrometry_library = "astropy"
-        elif telescope_frame.upper() == "MCMF":
+        if (
+            hasmoon
+            and isinstance(telescope_loc, MoonLocation)
+            or telescope_frame.upper() == "MCMF"
+        ):
             astrometry_library = "astropy"
         else:
             astrometry_library = "erfa"
@@ -1857,7 +1854,7 @@ def lookup_jplhorizons(
     # JPL-Horizons has a separate catalog with what it calls 'major bodies',
     # and will throw an error if you use the wrong catalog when calling for
     # astrometry. We'll use the dict below to capture this behavior.
-    with open(path_join(DATA_PATH, "jpl_major_bodies.json"), "r") as fhandle:
+    with open(path_join(DATA_PATH, "jpl_major_bodies.json")) as fhandle:
         major_body_dict = json_load(fhandle)
 
     target_id = target_name
@@ -1867,7 +1864,7 @@ def lookup_jplhorizons(
     # on account that id will find multiple partial matches: e.g., "Mars" will be
     # matched with "Mars", "Mars Explorer", "Mars Barycenter"..., and JPL-Horizons will
     # not know which to choose).
-    if target_name in major_body_dict.keys():
+    if target_name in major_body_dict:
         target_id = major_body_dict[target_name]
         id_type = None
 
@@ -2240,7 +2237,7 @@ def calc_app_coords(
         unique_app_ra = unique_lst.copy()
         unique_app_dec = np.zeros_like(unique_app_ra) + site_loc.lat.rad
     else:
-        raise ValueError("Object type %s is not recognized." % coord_type)
+        raise ValueError(f"Object type {coord_type} is not recognized.")
 
     # Now that we've calculated all the unique values, time to backfill through the
     # "redundant" entries in the Nblt axis.
@@ -2317,7 +2314,7 @@ def calc_sidereal_coords(
     # Check to make sure that we have a properly formatted epoch for our in-bound
     # coordinate frame
     epoch = None
-    if isinstance(coord_epoch, str) or isinstance(coord_epoch, Time):
+    if isinstance(coord_epoch, str | Time):
         # If its a string or a Time object, we don't need to do anything more
         epoch = Time(coord_epoch)
     elif coord_epoch is not None:
@@ -2494,25 +2491,26 @@ def uvw_track_generator(
         time_array = time_array.reshape(1)
 
     Ntimes = len(time_array)
-    if uvw_array is None:
-        if all(item is None for item in [antenna_numbers, ant_1_array, ant_2_array]):
-            antenna_numbers = np.arange(1, 1 + len(antenna_positions))
-            ant_1_array = []
-            ant_2_array = []
-            for idx in range(len(antenna_positions)):
-                for jdx in range(idx + 1, len(antenna_positions)):
-                    ant_1_array.append(idx + 1)
-                    ant_2_array.append(jdx + 1)
+    if uvw_array is None and all(
+        item is None for item in [antenna_numbers, ant_1_array, ant_2_array]
+    ):
+        antenna_numbers = np.arange(1, 1 + len(antenna_positions))
+        ant_1_array = []
+        ant_2_array = []
+        for idx in range(len(antenna_positions)):
+            for jdx in range(idx + 1, len(antenna_positions)):
+                ant_1_array.append(idx + 1)
+                ant_2_array.append(jdx + 1)
 
-            Nbase = len(ant_1_array)
+        Nbase = len(ant_1_array)
 
-            ant_1_array = np.tile(ant_1_array, Ntimes)
-            ant_2_array = np.tile(ant_2_array, Ntimes)
-            if len(lon_coord) == len(time_array):
-                lon_coord = np.repeat(lon_coord, Nbase)
-                lat_coord = np.repeat(lat_coord, Nbase)
+        ant_1_array = np.tile(ant_1_array, Ntimes)
+        ant_2_array = np.tile(ant_2_array, Ntimes)
+        if len(lon_coord) == len(time_array):
+            lon_coord = np.repeat(lon_coord, Nbase)
+            lat_coord = np.repeat(lat_coord, Nbase)
 
-            time_array = np.repeat(time_array, Nbase)
+        time_array = np.repeat(time_array, Nbase)
 
     lst_array = get_lst_for_time(jd_array=time_array, telescope_loc=site_loc)
     app_ra, app_dec = calc_app_coords(

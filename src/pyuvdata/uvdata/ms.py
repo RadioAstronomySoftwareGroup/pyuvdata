@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -7,6 +6,8 @@ Class for reading and writing casa measurement sets.
 
 Requires casacore.
 """
+
+import contextlib
 import os
 import warnings
 
@@ -119,7 +120,7 @@ class MS(UVData):
             if clobber:
                 print("File exists; clobbering")
             else:
-                raise IOError("File exists; skipping")
+                raise OSError("File exists; skipping")
 
         # Determine polarization order for writing out in CASA standard order, check
         # if this order can be represented by a single slice.
@@ -182,7 +183,7 @@ class MS(UVData):
         # the weights and noise for all channels in each row in the MAIN table, which
         # we will roughly calculate in temp_weights below.
         temp_weights = np.zeros((self.Nblts * self.Nspws, self.Npols), dtype=float)
-        data_desc_array = np.zeros((self.Nblts * self.Nspws))
+        data_desc_array = np.zeros(self.Nblts * self.Nspws)
 
         # astropys Time has some overheads associated with it, so use unique to run
         # this date conversion as few times as possible. Note that the default for MS
@@ -199,7 +200,7 @@ class MS(UVData):
         if self.Nspws == 1:
             # If we only have one spectral window, there is nothing we need to worry
             # about ordering, so just write the data-related arrays as is to disk
-            for arr, col in zip(arr_list, col_list):
+            for arr, col in zip(arr_list, col_list, strict=True):
                 temp_vals = arr[:, :, pol_order]
 
                 if flip_conj and ("DATA" in col):
@@ -265,7 +266,7 @@ class MS(UVData):
                 # Extract out the relevant data out of our data-like arrays that
                 # belong to this scan number.
                 val_dict = {}
-                for arr, col in zip(arr_list, col_list):
+                for arr, col in zip(arr_list, col_list, strict=True):
                     temp_arr = arr[scan_slice]
 
                     if flip_conj and ("DATA" in col):
@@ -307,9 +308,10 @@ class MS(UVData):
         ms.putcolkeyword("DATA", "QuantumUnits", self.vis_units)
         if self.vis_units != "Jy":
             warnings.warn(
-                "Writing in the MS file that the units of the data are %s, although "
-                "some CASA process will ignore this and assume the units are all in Jy "
-                "(or may not know how to handle data in these units)." % self.vis_units
+                "Writing in the MS file that the units of the data are "
+                f"{self.vis_units}, although some CASA process will ignore this "
+                "and assume the units are all in Jy (or may not know how to "
+                "handle data in these units)."
             )
 
         # TODO: If/when UVData objects can store visibility noise estimates, update
@@ -447,13 +449,13 @@ class MS(UVData):
         tb_main = tables.table(filepath, ack=False)
 
         main_keywords = tb_main.getkeywords()
-        if "pyuvdata_extra" in main_keywords.keys():
+        if "pyuvdata_extra" in main_keywords:
             self.extra_keywords = main_keywords["pyuvdata_extra"]
 
-        if "pyuvdata_xorient" in main_keywords.keys():
+        if "pyuvdata_xorient" in main_keywords:
             self.telescope.x_orientation = main_keywords["pyuvdata_xorient"]
 
-        if "pyuvdata_polconv" in main_keywords.keys():
+        if "pyuvdata_polconv" in main_keywords:
             self.pol_convention = main_keywords["pyuvdata_polconv"]
 
         default_vis_units = {
@@ -464,7 +466,7 @@ class MS(UVData):
         }
 
         # make sure user requests a valid data_column
-        if data_column not in default_vis_units.keys():
+        if data_column not in default_vis_units:
             raise ValueError(
                 "Invalid data_column value supplied. Use 'DATA','MODEL_DATA', or"
                 "'CORRECTED_DATA'."
@@ -564,7 +566,7 @@ class MS(UVData):
 
         use_row = np.zeros_like(time_arr, dtype=bool)
         data_dict = {}
-        for key in data_desc_dict.keys():
+        for key in data_desc_dict:
             sel_mask = data_desc_arr == key
 
             if not np.any(sel_mask):
@@ -584,12 +586,7 @@ class MS(UVData):
         ant_1_arr = ant_1_arr[use_row]
         ant_2_arr = ant_2_arr[use_row]
 
-        unique_blts = sorted(
-            {
-                (time, ant1, ant2)
-                for time, ant1, ant2 in zip(time_arr, ant_1_arr, ant_2_arr)
-            }
-        )
+        unique_blts = sorted(set(zip(time_arr, ant_1_arr, ant_2_arr, strict=True)))
 
         blt_dict = {}
         for idx, blt_tuple in enumerate(unique_blts):
@@ -600,7 +597,7 @@ class MS(UVData):
         # Iterate through this list to handle singleton elements (which numpy doesn't
         # like to combine w/ 1-D arrays).
         pol_list = np.unique(
-            [item for key in data_dict.keys() for item in data_dict[key]["CORR_TYPE"]]
+            [item for key in data_dict for item in data_dict[key]["CORR_TYPE"]]
         )
         npols = len(pol_list)
 
@@ -609,7 +606,7 @@ class MS(UVData):
                 "DATA_DICT_KEY": key,
                 "NUM_CHAN": data_dict[key]["NUM_CHAN"],
             }
-            for key in data_dict.keys()
+            for key in data_dict
         }
         spw_list = sorted(spw_dict.keys())
 
@@ -637,6 +634,7 @@ class MS(UVData):
                     data_dict[key]["TIME"],
                     data_dict[key]["ANTENNA1"],
                     data_dict[key]["ANTENNA2"],
+                    strict=True,
                 )
             ]
 
@@ -663,7 +661,7 @@ class MS(UVData):
             and all_single_pol
             and ((len(pol_list) > 1) and (len(data_desc_dict) == len(spw_dict)))
         ):
-            for key in data_dict.keys():
+            for key in data_dict:
                 spw_dict[data_dict[key]["SPW_ID"]]["POL"] = pol_list[
                     data_dict[key]["POL_IDX"][0]
                 ]
@@ -714,7 +712,7 @@ class MS(UVData):
             "UVW",
         )
         vary_list = []
-        for key in data_dict.keys():
+        for key in data_dict:
             # Get the indexing information for the data array
             blt_idx = data_dict[key]["BLT_IDX"]
             startchan = data_dict[key]["STARTCHAN"]
@@ -727,21 +725,22 @@ class MS(UVData):
             check_idx = blt_idx[check_mask]
 
             # Loop through the metadata fields we intend to populate
-            for arr, name in zip(arr_tuple, name_tuple):
+            for arr, name in zip(arr_tuple, name_tuple, strict=True):
                 if not np.allclose(data_dict[key][name][check_mask], arr[check_idx]):
                     if raise_error:
                         raise ValueError(
-                            "Column %s appears to vary on between windows, which is "
-                            "not permitted for UVData objects. To bypass this error, "
-                            "you can set raise_error=False, which will raise a warning "
-                            "instead and use the first recorded value." % name
+                            f"Column {name} appears to vary on between windows, "
+                            "which is not permitted for UVData objects. To "
+                            "bypass this error, you can set raise_error=False, "
+                            "which will raise a warning instead and use the "
+                            "first recorded value."
                         )
                     elif name not in vary_list:
                         # If not raising an error, then at least warn the user that
                         # discrepant data were detected.
                         warnings.warn(
-                            "Column %s appears to vary on between windows, defaulting "
-                            "to first recorded value." % name
+                            f"Column {name} appears to vary on between windows, "
+                            "defaulting to first recorded value."
                         )
                         # Add to a list so we don't spew multiple warnings for one
                         # column (which could just flood the terminal).
@@ -852,7 +851,7 @@ class MS(UVData):
             raise ImportError(no_casa_message) from casa_error
 
         if not os.path.exists(filepath):
-            raise IOError(filepath + " not found")
+            raise OSError(filepath + " not found")
         # set filename variable
         basename = filepath.rstrip("/")
         self.filename = [os.path.basename(basename)]
@@ -870,14 +869,14 @@ class MS(UVData):
 
         # Polarization array
         pol_dict = ms_utils.read_ms_polarization(filepath)
-        for key in data_desc_dict.keys():
+        for key in data_desc_dict:
             pol_id = data_desc_dict[key]["POLARIZATION_ID"]
             data_desc_dict[key]["CORR_TYPE"] = pol_dict[pol_id]["corr_type"]
             data_desc_dict[key]["NUM_CORR"] = pol_dict[pol_id]["num_corr"]
 
         spw_dict = ms_utils.read_ms_spectral_window(filepath)
         single_chan_list = []
-        for key in data_desc_dict.keys():
+        for key in data_desc_dict:
             spw_id = data_desc_dict[key]["SPECTRAL_WINDOW_ID"]
             data_desc_dict[key]["CHAN_FREQ"] = spw_dict["chan_freq"][spw_id]
             # beware! There are possibly 3 columns here that might be the correct one
@@ -928,7 +927,7 @@ class MS(UVData):
         self.freq_array = np.zeros(self.Nfreqs)
         self.channel_width = np.zeros(self.Nfreqs)
 
-        for key in data_desc_dict.keys():
+        for key in data_desc_dict:
             sel_mask = self.flex_spw_id_array == data_desc_dict[key]["SPW_ID"]
             self.freq_array[sel_mask] = data_desc_dict[key]["CHAN_FREQ"]
             self.channel_width[sel_mask] = data_desc_dict[key]["CHAN_WIDTH"]
@@ -997,13 +996,11 @@ class MS(UVData):
         )
 
         tb_sou_dict = {}
-        try:
+        # The SOURCE table is optional, so if not found a RuntimeError will be
+        # thrown, and we should forgo trying to associate SOURCE table entries with
+        # the FIELD table.
+        with contextlib.suppress(FileNotFoundError):
             tb_sou_dict = ms_utils.read_ms_source(filepath)
-        except FileNotFoundError:
-            # The SOURCE table is optional, so if not found a RuntimeError will be
-            # thrown, and we should forgo trying to associate SOURCE table entries with
-            # the FIELD table.
-            pass
 
         if len(field_id_dict) != 0:
             # Update the catalog if entries are in the SOURCE table dict

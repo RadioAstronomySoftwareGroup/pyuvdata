@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -177,7 +176,7 @@ def test_mwax_metafits_keys(tmp_path):
     uv = UVData()
     uv.read([meta_spoof_file, filelist[1]])
 
-    assert "DELAYMOD" not in uv.extra_keywords.keys()
+    assert "DELAYMOD" not in uv.extra_keywords
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -1162,7 +1161,7 @@ def test_bscale(tmp_path):
     assert uv3.extra_keywords["SCALEFAC"] == 0.25
     # check mwax data
     uv4.read(filelist[11:13])
-    assert "SCALEFAC" not in uv4.extra_keywords.keys()
+    assert "SCALEFAC" not in uv4.extra_keywords
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")

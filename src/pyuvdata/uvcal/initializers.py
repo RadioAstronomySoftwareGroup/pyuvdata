@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """From-memory initializers for UVCal objects."""
+
 from __future__ import annotations
 
 import warnings
@@ -586,7 +586,7 @@ def new_uvcal_from_uvdata(
         "antenna_diameters": "antenna_diameters",
     }
     for param, tele_name in other_tele_params.items():
-        if param in kwargs.keys():
+        if param in kwargs:
             setattr(new_telescope, tele_name, kwargs.pop(param))
 
     if "x_orientation" in kwargs:

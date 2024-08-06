@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -105,9 +104,9 @@ class MSCal(UVCal):
         else:
             # I don't know what this is, so don't proceed any further.
             raise NotImplementedError(  # pragma: no cover
-                "Calibration type %s is not recognized/supported by UVCal. Please file "
-                "an issue in our GitHub issue log so that we can add support for it."
-                % main_info_dict["subType"]
+                f"Calibration type {main_info_dict['subType']} is not "
+                "recognized/supported by UVCal. Please file an issue in our "
+                "GitHub issue log so that we can add support for it."
             )
 
         par_type = tb_main.getkeyword("ParType")
@@ -117,9 +116,9 @@ class MSCal(UVCal):
             cal_column = "FPARAM"
         else:
             raise NotImplementedError(  # pragma: no cover
-                "Parameter type %s is not recognized/supported by UVCal. Please file "
-                "an issue in our GitHub issue log so that we can add support for it."
-                % par_type
+                f"Parameter type {par_type} is not recognized/supported by "
+                "UVCal. Please file an issue in our GitHub issue log so that we "
+                "can add support for it."
             )
 
         main_keywords = tb_main.getkeywords()
@@ -187,6 +186,7 @@ class MSCal(UVCal):
             np.cumsum(spw_info["num_chan"]),
             spw_info["chan_freq"],
             spw_info["chan_width"],
+            strict=True,
         ):
             spw_slice = slice(spw_end_chan - spw_nchan, spw_end_chan)
             spw_slice_dict[spw_idx] = spw_slice
@@ -227,9 +227,9 @@ class MSCal(UVCal):
                     self.jones_array = default_jones_array
         else:
             raise NotImplementedError(  # pragma: no cover
-                "Polarization basis %s is not recognized/supported by UVCal. Please "
+                "Polarization basis {} is not recognized/supported by UVCal. Please "
                 "file an issue in our GitHub issue log so that we can add support for "
-                "it." % main_keywords["PolBasis"]
+                "it.".format(main_keywords["PolBasis"])
             )
 
         self.sky_catalog = main_keywords.get("pyuvdata_sky_catalog", None)
@@ -239,9 +239,9 @@ class MSCal(UVCal):
         if "pyuvdata_cal_style" in main_keywords:
             self.cal_style = main_keywords["pyuvdata_cal_style"]
             if self.cal_style == "sky":
-                self._set_sky
+                self._set_sky()
             elif self.cal_style == "redundant":
-                self._set_redundant
+                self._set_redundant()
         else:
             self.sky_catalog = "CASA (import)"
             self._set_sky()
@@ -388,15 +388,20 @@ class MSCal(UVCal):
             # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
             self.delay_array = ms_cal_soln * 1e-9
 
-        if (self.Njones == 2) and (len(self.jones_array) == 1):
-            if np.all(self.flag_array[..., 1]):
-                # Capture a "corner" case where, because CASA always wants 2-elements
-                # across the Jones-axis, there's extra padding along that axis when
-                # Njones == 1.
-                self.Njones = 1
-                for name, param in zip(self._data_params, self.data_like_parameters):
-                    if param is not None:
-                        setattr(self, name, param[..., :1])
+        if (
+            (self.Njones == 2)
+            and (len(self.jones_array) == 1)
+            and np.all(self.flag_array[..., 1])
+        ):
+            # Capture a "corner" case where, because CASA always wants 2-elements
+            # across the Jones-axis, there's extra padding along that axis when
+            # Njones == 1.
+            self.Njones = 1
+            for name, param in zip(
+                self._data_params, self.data_like_parameters, strict=True
+            ):
+                if param is not None:
+                    setattr(self, name, param[..., :1])
 
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
 

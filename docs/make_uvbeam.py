@@ -1,11 +1,9 @@
-# -*- mode: python; coding: utf-8 -*-
-
 """
 Format the UVBeam object parameters into a sphinx rst file.
 
 """
+
 import inspect
-import io
 import os
 
 from astropy.time import Time
@@ -50,8 +48,8 @@ def write_uvbeam_rst(write_file=None):
     out += "\n\n"
     for thing in beam.required():
         obj = getattr(beam, thing)
-        out += "**{name}**\n".format(name=obj.name)
-        out += "     {desc}\n".format(desc=obj.description)
+        out += f"**{obj.name}**\n"
+        out += f"     {obj.description}\n"
         out += "\n"
 
     out += "Optional\n********\n"
@@ -63,13 +61,13 @@ def write_uvbeam_rst(write_file=None):
     out += "\n\n"
     for thing in beam.extra():
         obj = getattr(beam, thing)
-        out += "**{name}**\n".format(name=obj.name)
-        out += "     {desc}\n".format(desc=obj.description)
+        out += f"**{obj.name}**\n"
+        out += f"     {obj.description}\n"
         out += "\n"
 
     out += "Methods\n-------\n.. autoclass:: pyuvdata.UVBeam\n  :members:\n\n"
 
-    with io.open("cst_settings_yaml.rst", "r", encoding="utf-8") as cst_settings_file:
+    with open("cst_settings_yaml.rst", encoding="utf-8") as cst_settings_file:
         cst_setting_text = cst_settings_file.read()
 
     out += cst_setting_text + "\n\n"
@@ -77,10 +75,10 @@ def write_uvbeam_rst(write_file=None):
     t = Time.now()
     t.format = "iso"
     t.out_subfmt = "date"
-    out += "last updated: {date}".format(date=t.iso)
+    out += f"last updated: {t.iso}"
     if write_file is None:
         write_path = os.path.dirname(os.path.abspath(inspect.stack()[0][1]))
         write_file = os.path.join(write_path, "uvbeam_parameters.rst")
-    F = open(write_file, "w")
-    F.write(out)
+    with open(write_file, "w") as F:
+        F.write(out)
     print("wrote " + write_file)

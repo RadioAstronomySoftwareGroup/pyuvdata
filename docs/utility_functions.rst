@@ -213,7 +213,10 @@ General utility functions
 Applying calibration solutions to data
 **************************************
 
-.. automodule:: pyuvdata.utils.uvcalibrate.uvcalibrate
-  :members:
-  :private-members:
-  :undoc-members:
+..
+   Note: listing all functions here explicitly because using automodule causes
+   a conflict with the earlier pyuvdat.utils.uvcalibrate function.
+
+.. autofunction:: pyuvdata.utils.uvcalibrate.uvcalibrate
+.. autofunction:: pyuvdata.utils.uvcalibrate._get_pol_conventions
+.. autofunction:: pyuvdata.utils.uvcalibrate._apply_pol_convention_corrections

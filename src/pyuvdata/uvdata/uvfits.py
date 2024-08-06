@@ -1,15 +1,14 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing uvfits files."""
+
 import copy
 import os
 import warnings
 
 import numpy as np
-from astropy import constants as const
-from astropy import units
+from astropy import constants as const, units
 from astropy.coordinates import EarthLocation
 from astropy.io import fits
 from astropy.time import Time
@@ -400,7 +399,7 @@ class UVFITS(UVData):
             # check for multi source files. NOW SUPPORTED, W00T!
             read_source = False
             if "SOURCE" in vis_hdu.data.parnames:
-                if "AIPS SU" in hdunames.keys():
+                if "AIPS SU" in hdunames:
                     read_source = True
                 else:
                     warnings.warn(
@@ -446,11 +445,9 @@ class UVFITS(UVData):
                     np.tile(abs(fq_hdu.data["CH WIDTH"]), (uvfits_nchan, 1))
                 ).flatten()
                 self.freq_array = np.transpose(
-                    (
-                        ref_freq
-                        + fq_hdu.data["IF FREQ"]
-                        + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
-                    )
+                    ref_freq
+                    + fq_hdu.data["IF FREQ"]
+                    + np.outer(np.arange(uvfits_nchan), fq_hdu.data["CH WIDTH"])
                 ).flatten()
             else:
                 # If there's only one window, then the UVFITS file may not have an
@@ -556,7 +553,7 @@ class UVFITS(UVData):
             self.rdate = ant_hdu.header["RDATE"]
             self.earth_omega = ant_hdu.header["DEGPDY"]
             self.dut1 = ant_hdu.header["UT1UTC"]
-            if "TIMESYS" in ant_hdu.header.keys():
+            if "TIMESYS" in ant_hdu.header:
                 self.timesys = ant_hdu.header["TIMESYS"]
             else:
                 # CASA misspells this one
@@ -564,7 +561,7 @@ class UVFITS(UVData):
 
             prefer_lat_lon_alt = False
             ellipsoid = None
-            if "FRAME" in ant_hdu.header.keys():
+            if "FRAME" in ant_hdu.header:
                 if ant_hdu.header["FRAME"] == "ITRF":
                     # uvfits uses ITRF, astropy uses itrs. They are the same.
                     telescope_frame = "itrs"
@@ -592,10 +589,7 @@ class UVFITS(UVData):
                                 "MCMF frames."
                             )
 
-                        if "ELLIPSOI" in ant_hdu.header.keys():
-                            ellipsoid = ant_hdu.header["ELLIPSOI"]
-                        else:
-                            ellipsoid = "SPHERE"
+                        ellipsoid = ant_hdu.header.get("ELLIPSOI", "SPHERE")
 
             else:
                 warnings.warn(
@@ -1023,14 +1017,13 @@ class UVFITS(UVData):
         ant_nums_use = copy.copy(self.telescope.antenna_numbers)
         ant1_array_use = copy.copy(self.ant_1_array)
         ant2_array_use = copy.copy(self.ant_2_array)
-        if use_miriad_convention:
-            if np.min(ant_nums_use) == 0:
-                ant_nums_use += 1
-                ant1_array_use += 1
-                ant2_array_use += 1
+        if use_miriad_convention and np.min(ant_nums_use) == 0:
+            ant_nums_use += 1
+            ant1_array_use += 1
+            ant2_array_use += 1
 
         # Generate baseline IDs
-        attempt256 = False if use_miriad_convention else True
+        attempt256 = not use_miriad_convention
         baselines_use = self.antnums_to_baseline(
             ant1_array_use,
             ant2_array_use,
@@ -1270,16 +1263,16 @@ class UVFITS(UVData):
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 as required "
-                    "by the uvfits file format.".format(key=key)
+                    "by the uvfits file format."
                 )
             keyword = key[:8].upper()
-            if isinstance(value, (dict, list, np.ndarray)):
+            if isinstance(value, dict | list | np.ndarray):
                 raise TypeError(
-                    "Extra keyword {keyword} is of {keytype}. "
+                    f"Extra keyword {key} is of {type(value)}. "
                     "Only strings and numbers are "
-                    "supported in uvfits.".format(keyword=key, keytype=type(value))
+                    "supported in uvfits."
                 )
 
             if keyword == "COMMENT":
@@ -1376,8 +1369,8 @@ class UVFITS(UVData):
 
         if not (self.timesys is None or self.timesys == "UTC"):
             raise ValueError(
-                "This file has a time system {tsys}. Only "
-                '"UTC" time system files are supported'.format(tsys=self.timesys)
+                f"This file has a time system {self.timesys}. Only "
+                '"UTC" time system files are supported'
             )
         ant_hdu.header["TIMESYS"] = "UTC"
         ant_hdu.header["ARRNAM"] = self.telescope.name
@@ -1496,11 +1489,7 @@ class UVFITS(UVData):
             ra_arr[idx] = new_ra[0]
             dec_arr[idx] = new_dec[0]
 
-            epo_arr[idx] = (
-                phase_dict["cat_epoch"]
-                if "cat_epoch" in (phase_dict.keys())
-                else 2000.0
-            )
+            epo_arr[idx] = phase_dict.get("cat_epoch", 2000.0)
 
             if any(self.phase_center_id_array == cat_id):
                 # Fill in these values if we calculated them for the phase centers,

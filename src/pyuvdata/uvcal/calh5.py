@@ -1,9 +1,10 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2023 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading and writing calibration HDF5 files."""
+
 from __future__ import annotations
 
+import contextlib
 import os
 from functools import cached_property
 from pathlib import Path
@@ -96,11 +97,10 @@ class FastCalH5Meta(hdf5_utils.HDF5Meta):
 
     def has_key(self, antnum: int | None = None, jpol: str | int | None = None) -> bool:
         """Check if the file has a given antenna number or antenna number-pol key."""
-        if antnum is not None:
-            if antnum not in self.ant_array:
-                return False
+        if antnum is not None and antnum not in self.ant_array:
+            return False
         if jpol is not None:
-            if isinstance(jpol, (str, np.str_)):
+            if isinstance(jpol, str | np.str_):
                 jpol = utils.jstr2num(jpol, x_orientation=self.x_orientation)
             if jpol not in self.jones_array:
                 return False
@@ -276,10 +276,8 @@ class CalH5(UVCal):
 
         # Optional parameters
         for attr in optional_parameters:
-            try:
+            with contextlib.suppress(AttributeError):
                 setattr(self, attr, getattr(meta, attr))
-            except AttributeError:
-                pass
 
         # set any extra telescope params
         self.set_telescope_params()
@@ -354,11 +352,12 @@ class CalH5(UVCal):
             data_name = "gains"
         else:
             data_name = "delays"
-        if "32008" in dgrp[data_name]._filters:
-            if not hdf5plugin_present:  # pragma: no cover
-                raise ImportError(
-                    "hdf5plugin is not installed but is required to read this dataset"
-                ) from hdf5plugin_error
+        if (
+            "32008" in dgrp[data_name]._filters and not hdf5plugin_present
+        ):  # pragma: no cover
+            raise ImportError(
+                "hdf5plugin is not installed but is required to read this dataset"
+            ) from hdf5plugin_error
 
         # figure out what data to read in
         (
@@ -793,7 +792,7 @@ class CalH5(UVCal):
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
             extra_keywords = header.create_group("extra_keywords")
-            for k in self.extra_keywords.keys():
+            for k in self.extra_keywords:
                 if isinstance(self.extra_keywords[k], str):
                     extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                 elif self.extra_keywords[k] is None:
@@ -832,7 +831,7 @@ class CalH5(UVCal):
             if clobber:
                 print("File exists; clobbering")
             else:
-                raise IOError("File exists; skipping")
+                raise OSError("File exists; skipping")
 
         data_compression, data_compression_opts = hdf5_utils._get_compression(
             data_compression

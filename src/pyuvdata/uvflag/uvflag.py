@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -13,9 +12,7 @@ import warnings
 import h5py
 import numpy as np
 
-from .. import Telescope, UVCal, UVData
-from .. import parameter as uvp
-from .. import utils
+from .. import Telescope, UVCal, UVData, parameter as uvp, utils
 from ..uvbase import UVBase
 
 __all__ = ["UVFlag", "flags2waterfall", "and_rows_cols"]
@@ -83,7 +80,7 @@ def flags2waterfall(uv, *, flag_array=None, keep_pol=False):
         Size is (Ntimes, Nfreqs) or (Ntimes, Nfreqs, Npols).
 
     """
-    if not isinstance(uv, (UVData, UVCal)):
+    if not isinstance(uv, UVData | UVCal):
         raise ValueError(
             "flags2waterfall() requires a UVData or UVCal object as "
             "the first argument."
@@ -496,7 +493,7 @@ class UVFlag(UVBase):
         )
 
         # initialize the underlying UVBase properties
-        super(UVFlag, self).__init__()
+        super().__init__()
 
         # Assign attributes to UVParameters after initialization, since UVBase.__init__
         # will link the properties to the underlying UVParameter.value attributes
@@ -512,7 +509,7 @@ class UVFlag(UVBase):
         self.history = ""  # Added to at the end
 
         self.label = ""  # Added to at the end
-        if isinstance(indata, (list, tuple)):
+        if isinstance(indata, list | tuple):
             self.__init__(
                 indata[0],
                 mode=mode,
@@ -545,7 +542,7 @@ class UVFlag(UVBase):
                     )
                 del fobj
 
-        elif issubclass(indata.__class__, (str, pathlib.Path)):
+        elif issubclass(indata.__class__, str | pathlib.Path):
             # Given a path, read indata
             self.read(
                 indata,
@@ -608,9 +605,7 @@ class UVFlag(UVBase):
         else:
             raise ValueError(
                 "Invalid mode. Mode must be one of "
-                + ", ".join(["{}"] * len(self._mode.acceptable_vals)).format(
-                    *self._mode.acceptable_vals
-                )
+                + ", ".join(self._mode.acceptable_vals)
             )
 
     @property
@@ -623,10 +618,7 @@ class UVFlag(UVBase):
     @property
     def pol_collapsed(self):
         """Determine if this object has had pols collapsed."""
-        if isinstance(self.polarization_array.item(0), str):
-            return True
-        else:
-            return False
+        return bool(isinstance(self.polarization_array.item(0), str))
 
     def _check_pol_state(self):
         if self.pol_collapsed:
@@ -885,7 +877,7 @@ class UVFlag(UVBase):
 
         """
         if check_history:
-            return super(UVFlag, self).__eq__(other, check_extra=check_extra)
+            return super().__eq__(other, check_extra=check_extra)
 
         else:
             # initial check that the classes are the same
@@ -897,7 +889,7 @@ class UVFlag(UVBase):
                 _h2 = other.history
                 other.history = None
 
-                truth = super(UVFlag, self).__eq__(other, check_extra=check_extra)
+                truth = super().__eq__(other, check_extra=check_extra)
 
                 self.history = _h1
                 other.history = _h2
@@ -1057,7 +1049,9 @@ class UVFlag(UVBase):
     def get_antpairs(self):
         """Return list of unique antpair tuples (ant1, ant2) in data."""
         assert self.type == "baseline", "Must be 'baseline' type UVFlag object."
-        return list(zip(*self.baseline_to_antnums(self.get_baseline_nums())))
+        return list(
+            zip(*self.baseline_to_antnums(self.get_baseline_nums()), strict=True)
+        )
 
     def get_ants(self):
         """
@@ -1975,7 +1969,7 @@ class UVFlag(UVBase):
             "pol": [2, 2, 3],
             "jones": [2, 2, 3],
         }
-        if axis not in axis_nums.keys():
+        if axis not in axis_nums:
             raise ValueError(f"Axis not recognized, must be one of {axis_nums.keys()}")
 
         ax = axis_nums[axis][type_nums[self.type]]
@@ -2328,7 +2322,7 @@ class UVFlag(UVBase):
         """
         # Ensure others is iterable (in case of single UVFlag object)
         # cannot use utils.tools._get_iterable because the object itself is iterable
-        if not isinstance(others, (list, tuple, np.ndarray)):
+        if not isinstance(others, list | tuple | np.ndarray):
             others = [others]
 
         if np.any([not isinstance(other, UVFlag) for other in others]):
@@ -2511,8 +2505,8 @@ class UVFlag(UVBase):
                             inds2 = np.append(inds2, list(wh2))
                     else:
                         raise ValueError(
-                            "Antenna number {a} is not present in the "
-                            "ant_1_array or ant_2_array".format(a=ant)
+                            f"Antenna number {ant} is not present in the "
+                            "ant_1_array or ant_2_array"
                         )
                 ant_blt_inds = set(inds1).intersection(inds2)
 
@@ -2526,8 +2520,7 @@ class UVFlag(UVBase):
                             ant_inds = np.append(ant_inds, list(wh))
                     else:
                         raise ValueError(
-                            "Antenna number {a} is not present in the "
-                            "ant_array".format(a=ant)
+                            f"Antenna number {ant} is not present in the ant_array"
                         )
 
         else:
@@ -2547,8 +2540,8 @@ class UVFlag(UVBase):
                     "(optionally with polarization)."
                 )
             if not all(
-                [isinstance(item[0], (int, np.integer)) for item in bls]
-                + [isinstance(item[1], (int, np.integer)) for item in bls]
+                [isinstance(item[0], int | np.integer) for item in bls]
+                + [isinstance(item[1], int | np.integer) for item in bls]
             ):
                 raise ValueError(
                     "bls must be a list of tuples of integer antenna numbers "
@@ -2575,13 +2568,13 @@ class UVFlag(UVBase):
             for bl in bls:
                 if not (bl[0] in self.ant_1_array or bl[0] in self.ant_2_array):
                     raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=bl[0])
+                        f"Antenna number {bl[0]} is not present in the "
+                        "ant_1_array or ant_2_array"
                     )
                 if not (bl[1] in self.ant_1_array or bl[1] in self.ant_2_array):
                     raise ValueError(
-                        "Antenna number {a} is not present in the "
-                        "ant_1_array or ant_2_array".format(a=bl[1])
+                        f"Antenna number {bl[1]} is not present in the "
+                        "ant_1_array or ant_2_array"
                     )
                 wh1 = np.where(
                     np.logical_and(self.ant_1_array == bl[0], self.ant_2_array == bl[1])
@@ -2599,8 +2592,8 @@ class UVFlag(UVBase):
                         bl_pols.add(utils.conj_pol(bl[2]))
                 else:
                     raise ValueError(
-                        "Antenna pair {p} does not have any data "
-                        "associated with it.".format(p=bl)
+                        f"Antenna pair {bl} does not have any data "
+                        "associated with it."
                     )
             if len(bl_pols) > 0:
                 polarizations = list(bl_pols)
@@ -2641,9 +2634,7 @@ class UVFlag(UVBase):
                         time_blt_inds, np.where(self.time_array == jd)[0]
                     )
                 else:
-                    raise ValueError(
-                        "Time {t} is not present in the time_array".format(t=jd)
-                    )
+                    raise ValueError(f"Time {jd} is not present in the time_array")
 
             if blt_inds is not None:
                 # Use intesection (and) to join
@@ -2699,9 +2690,7 @@ class UVFlag(UVBase):
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
                 else:
-                    raise ValueError(
-                        "Frequency {f} is not present in the freq_array".format(f=f)
-                    )
+                    raise ValueError(f"Frequency {f} is not present in the freq_array")
 
             freq_inds = sorted(set(freq_inds))
         else:
@@ -2731,8 +2720,7 @@ class UVFlag(UVBase):
                     )
                 else:
                     raise ValueError(
-                        "Polarization {p} is not present in the "
-                        "polarization_array".format(p=p)
+                        f"Polarization {p} is not present in the polarization_array"
                     )
 
             pol_inds = sorted(set(pol_inds))
@@ -2777,10 +2765,9 @@ class UVFlag(UVBase):
             self.lst_array = self.lst_array[blt_inds]
             self.Ntimes = len(np.unique(self.time_array))
 
-        if self.type == "antenna":
-            if ant_inds is not None:
-                self.ant_array = self.ant_array[ant_inds]
-                self.Nants_data = int(len(self.ant_array))
+        if self.type == "antenna" and ant_inds is not None:
+            self.ant_array = self.ant_array[ant_inds]
+            self.Nants_data = int(len(self.ant_array))
 
         if freq_inds is not None:
             self.Nfreqs = len(freq_inds)
@@ -2935,57 +2922,57 @@ class UVFlag(UVBase):
         if blt_inds is not None:
             if self.type == "baseline":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[blt_inds])
             if self.type == "waterfall":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[blt_inds])
             if self.type == "antenna":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, :, blt_inds, :])
 
         if ant_inds is not None and self.type == "antenna":
             for param_name, param in zip(
-                self._data_params, uv_object.data_like_parameters
+                self._data_params, uv_object.data_like_parameters, strict=True
             ):
                 setattr(uv_object, param_name, param[ant_inds])
 
         if freq_inds is not None:
             if self.type == "baseline":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, freq_inds, :])
             if self.type == "waterfall":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, freq_inds, :])
             if self.type == "antenna":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, freq_inds, :, :])
 
         if pol_inds is not None:
             if self.type == "baseline":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, :, pol_inds])
             if self.type == "waterfall":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, :, pol_inds])
             if self.type == "antenna":
                 for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters
+                    self._data_params, uv_object.data_like_parameters, strict=True
                 ):
                     setattr(uv_object, param_name, param[:, :, :, pol_inds])
 
@@ -3047,7 +3034,7 @@ class UVFlag(UVBase):
 
         # make sure we have an empty object.
         self.__init__()
-        if isinstance(filename, (tuple, list)):
+        if isinstance(filename, tuple | list):
             self.read(filename[0])
             if len(filename) > 1:
                 for f in filename[1:]:
@@ -3056,7 +3043,7 @@ class UVFlag(UVBase):
                 del f2
         else:
             if not os.path.exists(filename):
-                raise IOError(filename + " not found.")
+                raise OSError(filename + " not found.")
 
             # update filename attribute
             basename = os.path.basename(filename)
@@ -3076,13 +3063,9 @@ class UVFlag(UVBase):
                     self._set_type_waterfall()
                 else:
                     raise ValueError(
-                        "File cannot be read. Received type "
-                        "parameter: {receive} but "
-                        "must be within acceptable values: "
-                        "{expect}".format(
-                            receive=self.type,
-                            expect=(", ").join(self._type.acceptable_vals),
-                        )
+                        "File cannot be read. Received type parameter: "
+                        f"{self.type} but must be within acceptable values: "
+                        + (", ").join(self._type.acceptable_vals)
                     )
 
                 self.mode = header["mode"][()].decode("utf8")
@@ -3093,17 +3076,13 @@ class UVFlag(UVBase):
                     self._set_mode_flag()
                 else:
                     raise ValueError(
-                        "File cannot be read. Received mode "
-                        "parameter: {receive} but "
-                        "must be within acceptable values: "
-                        "{expect}".format(
-                            receive=self.mode,
-                            expect=(", ").join(self._mode.acceptable_vals),
-                        )
+                        "File cannot be read. Received mode parameter: "
+                        f"{self.mode} but must be within acceptable values: "
+                        + (", ").join(self._type.acceptable_vals)
                     )
 
                 self.time_array = header["time_array"][()]
-                if "Ntimes" in header.keys():
+                if "Ntimes" in header:
                     self.Ntimes = int(header["Ntimes"][()])
                 else:
                     self.Ntimes = np.unique(self.time_array).size
@@ -3132,12 +3111,12 @@ class UVFlag(UVBase):
                 if self.freq_array.ndim > 1:
                     self.freq_array = np.squeeze(self.freq_array)
 
-                if "Nfreqs" in header.keys():
+                if "Nfreqs" in header:
                     self.Nfreqs = int(header["Nfreqs"][()])
                 else:
                     self.Nfreqs = np.unique(self.freq_array).size
 
-                if "channel_width" in header.keys():
+                if "channel_width" in header:
                     self.channel_width = header["channel_width"][()]
                     if self.channel_width.ndim == 0:
                         self.channel_width = np.full(self.Nfreqs, self.channel_width)
@@ -3163,17 +3142,17 @@ class UVFlag(UVBase):
                         )
                     warnings.warn(msg)
 
-                if "spw_array" in header.keys():
+                if "spw_array" in header:
                     self.spw_array = header["spw_array"][()]
                 else:
                     self.spw_array = np.array([0])
 
-                if "Nspws" in header.keys():
+                if "Nspws" in header:
                     self.Nspws = int(header["Nspws"][()])
                 else:
                     self.Nspws = self.spw_array.size
 
-                if "flex_spw_id_array" in header.keys():
+                if "flex_spw_id_array" in header:
                     self.flex_spw_id_array = header["flex_spw_id_array"][()]
                 elif self.Nspws == 1:
                     # set it by default
@@ -3203,15 +3182,15 @@ class UVFlag(UVBase):
                         "antenna_positions",
                     ]
                     for param in params_to_check:
-                        if param in header.keys():
+                        if param in header:
                             override_params.append(param)
                     # older files wrote the 'telescope_location' keys, newer
                     # files write latitude in degrees, longitude in degrees and
                     # altitude
                     if (
-                        "latitude" in header.keys()
-                        and "longitude" in header.keys()
-                        and "altitude" in header.keys()
+                        "latitude" in header
+                        and "longitude" in header
+                        and "altitude" in header
                     ):
                         override_params.append("telescope_location")
 
@@ -3251,9 +3230,9 @@ class UVFlag(UVBase):
                     self.history += self.pyuvdata_version_str
 
                 # get extra_keywords
-                if "extra_keywords" in header.keys():
+                if "extra_keywords" in header:
                     self.extra_keywords = {}
-                    for key in header["extra_keywords"].keys():
+                    for key in header["extra_keywords"]:
                         if header["extra_keywords"][key].dtype.type in (
                             np.bytes_,
                             np.object_,
@@ -3266,7 +3245,7 @@ class UVFlag(UVBase):
                 else:
                     self.extra_keywords = {}
 
-                if "label" in header.keys():
+                if "label" in header:
                     self.label = header["label"][()].decode("utf8")
 
                 polarization_array = header["polarization_array"][()]
@@ -3275,7 +3254,7 @@ class UVFlag(UVBase):
                 self.polarization_array = polarization_array
                 self._check_pol_state()
 
-                if "Npols" in header.keys():
+                if "Npols" in header:
                     self.Npols = int(header["Npols"][()])
                 else:
                     self.Npols = len(self.polarization_array)
@@ -3288,14 +3267,14 @@ class UVFlag(UVBase):
                         self.ant_1_array, self.ant_2_array
                     )
 
-                    if "Nblts" in header.keys():
+                    if "Nblts" in header:
                         self.Nblts = int(header["Nblts"][()])
                     else:
                         self.Nblts = len(self.baseline_array)
 
                     self.Nbls = np.unique(self.baseline_array).size
 
-                    if "Nants_data" in header.keys():
+                    if "Nants_data" in header:
                         self.Nants_data = int(header["Nants_data"][()])
 
                         n_ants_detected = int(
@@ -3314,7 +3293,7 @@ class UVFlag(UVBase):
 
                 elif self.type == "antenna":
                     self.ant_array = header["ant_array"][()]
-                    if "Nants_data" in header.keys():
+                    if "Nants_data" in header:
                         self.Nants_data = int(header["Nants_data"][()])
                     else:
                         self.Nants_data = len(self.ant_array)
@@ -3479,7 +3458,7 @@ class UVFlag(UVBase):
                 extra_keywords = header.create_group(
                     "extra_keywords"
                 )  # create spot in header
-                for k in self.extra_keywords.keys():
+                for k in self.extra_keywords:
                     if isinstance(self.extra_keywords[k], str):
                         extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                     else:
@@ -3586,7 +3565,7 @@ class UVFlag(UVBase):
         else:
             raise ValueError(
                 "Input mode must be within acceptable values: "
-                "{}".format((", ").join(self._mode.acceptable_vals))
+                + (", ").join(self._mode.acceptable_vals)
             )
 
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
@@ -3747,7 +3726,7 @@ class UVFlag(UVBase):
         else:
             raise ValueError(
                 "Input mode must be within acceptable values: "
-                "{}".format((", ").join(self._mode.acceptable_vals))
+                + (", ").join(self._mode.acceptable_vals)
             )
 
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)

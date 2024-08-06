@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2023 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Tests for calh5 object"""
+
 import os
 
 import h5py
@@ -372,7 +372,7 @@ def test_calh5_partial_read(
 
     assert calobj2 == calobj3
 
-    if time_range and "lsts" in param_dict.keys():
+    if time_range and "lsts" in param_dict:
         calobj2 = calobj.copy()
         param_dict["lsts"] = 2
         with pytest.raises(ValueError, match="LST 2 does not fall in any lst_range"):

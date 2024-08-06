@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -20,13 +19,13 @@ open file handles interfering with other tests. The exception to this is if a
 test uses the `uv_in_paper` or `uv_in_uvfits` fixture, as these handle cleanup
 on their own.
 """
+
 import os
 import shutil
 
 import numpy as np
 import pytest
-from astropy import constants as const
-from astropy import units
+from astropy import constants as const, units
 from astropy.coordinates import Angle
 from astropy.time import Time, TimeDelta
 
@@ -76,11 +75,10 @@ warn_dict = {
         "Telescope location will be set using antenna positions."
     ),
     "no_telescope_loc": (
-        "Telescope location is not set, but antenna "
-        "positions are present. Mean antenna latitude "
-        "and longitude values match file values, so "
-        "telescope_position will be set using the mean "
-        "of the antenna altitudes"
+        "Telescope location is not set, but antenna positions are "
+        "present. Mean antenna latitude and longitude values match file "
+        "values, so telescope_position will be set using the mean of the "
+        "antenna altitudes"
     ),
     "unclear_projection": (
         "It is not clear from the file if the data are projected or not."
@@ -105,12 +103,6 @@ warn_dict = {
     "telescope_at_sealevel_foo": (
         "Altitude is not present in Miriad file, and telescope foo is not in"
         " known_telescopes."
-    ),
-    "no_telescope_loc": (
-        "Telescope location is not set, but antenna positions are "
-        "present. Mean antenna latitude and longitude values match file "
-        "values, so telescope_position will be set using the mean of the "
-        "antenna altitudes"
     ),
     "projection_false_offset": (
         "projected is False, but RA, Dec is off from lst, latitude by more than 1.0 deg"
@@ -256,13 +248,7 @@ def test_read_write_read_carma(tmp_path):
     # dataset, so that the writer doesn't run into issues.
     # TODO: Capture these extra keywords
     for item in list(uv_in.extra_keywords.keys()):
-        if isinstance(uv_in.extra_keywords[item], dict):
-            uv_in.extra_keywords.pop(item)
-
-        elif isinstance(uv_in.extra_keywords[item], list):
-            uv_in.extra_keywords.pop(item)
-
-        elif isinstance(uv_in.extra_keywords[item], np.ndarray):
+        if isinstance(uv_in.extra_keywords[item], dict | list | np.ndarray):
             uv_in.extra_keywords.pop(item)
 
     _write_miriad(uv_in, testfile, clobber=True)
@@ -1157,7 +1143,7 @@ def test_miriad_extra_keywords_errors(
 def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
     uv_in, uv_out, testfile = uv_in_paper
 
-    for name, value in zip(kwd_names, kwd_values):
+    for name, value in zip(kwd_names, kwd_values, strict=True):
         uv_in.extra_keywords[name] = value
     _write_miriad(uv_in, testfile, clobber=True)
     uv_out.read(testfile)

@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Primary container for radio interferometer calibration solutions."""
@@ -11,9 +10,7 @@ import warnings
 import numpy as np
 from docstring_parser import DocstringStyle
 
-from .. import Telescope
-from .. import parameter as uvp
-from .. import utils
+from .. import Telescope, parameter as uvp, utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
 from . import initializers
@@ -614,7 +611,7 @@ class UVCal(UVBase):
             acceptable_vals=["sum", "avg"],
         )
 
-        super(UVCal, self).__init__()
+        super().__init__()
 
         # Assign attributes to UVParameters after initialization, since UVBase.__init__
         # will link the properties to the underlying UVParameter.value attributes
@@ -843,17 +840,18 @@ class UVCal(UVBase):
             spw_map = {}
             spw_freqs = {}
             spw_jones_tally = {}
-            for jones1, spw1 in zip(self.flex_jones_array, self.spw_array):
+            for jones1, spw1 in zip(self.flex_jones_array, self.spw_array, strict=True):
                 freqs1 = freq_array_check[index_check == spw1]
                 chwidth1 = chan_width_check[index_check == spw1]
                 # Default to spw1 at the start, so if no match it will correctly link
                 # back to itself.
                 spw_match = spw1
                 for spw2, (freqs2, chwidth2) in spw_freqs.items():
-                    if np.allclose(freqs1, freqs2, rtol=ftol[0], atol=ftol[1]):
-                        if np.allclose(chwidth1, chwidth2, rtol=ctol[0], atol=ctol[1]):
-                            spw_match = spw2
-                            break
+                    if np.allclose(
+                        freqs1, freqs2, rtol=ftol[0], atol=ftol[1]
+                    ) and np.allclose(chwidth1, chwidth2, rtol=ctol[0], atol=ctol[1]):
+                        spw_match = spw2
+                        break
                 # If spw is its own match, save freqs and make an entry in jones dict
                 if spw1 == spw_match:
                     spw_freqs[spw1] = (freqs1, chwidth1)
@@ -882,7 +880,7 @@ class UVCal(UVBase):
         if not combine_spws:
             # If not combining spws, then map everything back to itself
             index_check = self.spw_array if self.wide_band else self.flex_spw_id_array
-            spw_map = dict(zip(self.spw_array, self.spw_array))
+            spw_map = dict(zip(self.spw_array, self.spw_array, strict=True))
 
         # Reverse mapping map for various metadata values
         rev_map = {value: key for key, value in spw_map.items()}
@@ -927,7 +925,9 @@ class UVCal(UVBase):
         # Finally, update data attrs if they exist
         if not self.metadata_only:
             freq_index = self.spw_array if self.wide_band else self.flex_spw_id_array
-            for name, param in zip(self._data_params, self.data_like_parameters):
+            for name, param in zip(
+                self._data_params, self.data_like_parameters, strict=True
+            ):
                 if param is None:
                     continue
                 # Update the parameter shape with
@@ -1004,7 +1004,9 @@ class UVCal(UVBase):
         self.Njones = 1
 
         # Now go through one-by-one with data-like parameters and update
-        for name, param in zip(self._data_params, self.data_like_parameters):
+        for name, param in zip(
+            self._data_params, self.data_like_parameters, strict=True
+        ):
             # Grab the shape and update the Jones (last) axis to be length 1. Note we
             # do it this way since total_quality_array has a different shape
             if param is None:
@@ -1015,7 +1017,7 @@ class UVCal(UVBase):
             # We can use empty here, since we know that we will be filling all values
             new_param = np.empty(new_shape, dtype=param.dtype)
 
-            for spw, jones_idx in zip(self.spw_array, jones_idx_arr):
+            for spw, jones_idx in zip(self.spw_array, jones_idx_arr, strict=True):
                 # Process each window individually, since jones code can vary
                 spw_screen = spw_id_arr == spw
 
@@ -1056,7 +1058,7 @@ class UVCal(UVBase):
                 self.flex_spw_id_array[np.newaxis], self.Njones, axis=0
             )
             for idx in range(1, self.Njones):
-                spw_map = dict(zip(spw_reshape[0], spw_reshape[idx]))
+                spw_map = dict(zip(spw_reshape[0], spw_reshape[idx], strict=True))
                 flex_spw_id_arr[idx] = [spw_map[jdx] for jdx in flex_spw_id_arr[idx]]
             flex_spw_id_arr = flex_spw_id_arr.flatten()
 
@@ -1082,7 +1084,9 @@ class UVCal(UVBase):
 
         # Finally, if we have it, update the metadata.
         if not self.metadata_only:
-            for name, param in zip(self._data_params, self.data_like_parameters):
+            for name, param in zip(
+                self._data_params, self.data_like_parameters, strict=True
+            ):
                 if param is None:
                     continue
                 # Make into a list so that its mutable
@@ -1642,15 +1646,14 @@ class UVCal(UVBase):
         self._set_telescope_requirements()
 
         # if wide_band is True, Nfreqs must be 1.
-        if self.wide_band:
-            if self.Nfreqs != 1:
-                raise ValueError("Nfreqs is required to be 1 for wide_band cals.")
+        if self.wide_band and self.Nfreqs != 1:
+            raise ValueError("Nfreqs is required to be 1 for wide_band cals.")
 
         # call metadata_only to make sure that parameter requirements are set properly
-        self.metadata_only
+        self.metadata_only  # noqa B018
 
         # first run the basic check from UVBase
-        super(UVCal, self).check(
+        super().check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
@@ -1690,9 +1693,10 @@ class UVCal(UVBase):
                 )
 
         # check that time ranges are well formed and do not overlap
-        if self.time_range is not None:
-            if utils.tools._check_range_overlap(self.time_range):
-                raise ValueError("Some time_ranges overlap.")
+        if self.time_range is not None and utils.tools._check_range_overlap(
+            self.time_range
+        ):
+            raise ValueError("Some time_ranges overlap.")
             # note: do not check lst range overlap because of branch cut.
             # Assume they are ok if time_ranges are ok.
 
@@ -1701,21 +1705,21 @@ class UVCal(UVBase):
             raise ValueError("All antennas in ant_array must be in antenna_numbers.")
 
         # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords.keys():
+        for key in self.extra_keywords:
             if len(key) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 if written "
-                    "to a calfits file format.".format(key=key)
+                    "to a calfits file format."
                 )
 
         # issue warning if extra_keywords values are lists, arrays or dicts
         for key, value in self.extra_keywords.items():
-            if isinstance(value, (list, dict, np.ndarray)):
+            if isinstance(value, list | dict | np.ndarray):
                 warnings.warn(
-                    "{key} in extra_keywords is a list, array or dict, "
+                    f"{key} in extra_keywords is a list, array or dict, "
                     "which will raise an error when writing calfits "
-                    "files".format(key=key)
+                    "files"
                 )
 
         if not self.wide_band:
@@ -1785,7 +1789,7 @@ class UVCal(UVBase):
             Copy of self.
         """
         if not metadata_only:
-            return super(UVCal, self).copy()
+            return super().copy()
         else:
             uv = UVCal()
             # include all attributes, not just UVParameter ones.
@@ -1819,11 +1823,10 @@ class UVCal(UVBase):
             Boolean indicator of whether the antenna and/or antenna
             polarization is present on this object.
         """
-        if antnum is not None:
-            if antnum not in self.ant_array:
-                return False
+        if antnum is not None and antnum not in self.ant_array:
+            return False
         if jpol is not None:
-            if isinstance(jpol, (str, np.str_)):
+            if isinstance(jpol, str | np.str_):
                 jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
             if jpol not in self.jones_array:
                 return False
@@ -1845,7 +1848,7 @@ class UVCal(UVBase):
             Antenna index in data arrays.
         """
         if not self._key_exists(antnum=antnum):
-            raise ValueError("{} not found in ant_array".format(antnum))
+            raise ValueError(f"{antnum} not found in ant_array")
 
         return np.argmin(np.abs(self.ant_array - antnum))
 
@@ -1863,11 +1866,11 @@ class UVCal(UVBase):
         int
             Antenna polarization index in data arrays
         """
-        if isinstance(jpol, (str, np.str_)):
+        if isinstance(jpol, str | np.str_):
             jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
 
         if not self._key_exists(jpol=jpol):
-            raise ValueError("{} not found in jones_array".format(jpol))
+            raise ValueError(f"{jpol} not found in jones_array")
 
         return np.argmin(np.abs(self.jones_array - jpol))
 
@@ -1923,10 +1926,10 @@ class UVCal(UVBase):
             Standard key tuple.
 
         """
-        if isinstance(ant, (list, tuple)):
+        if isinstance(ant, list | tuple):
             # interpret ant as (ant,) or (ant, jpol)
             key = tuple(ant)
-        elif isinstance(ant, (int, np.integer)):
+        elif isinstance(ant, int | np.integer):
             # interpret ant as antenna number
             key = (ant,)
             # add jpol if fed
@@ -2085,7 +2088,7 @@ class UVCal(UVBase):
             contain all the required numbers.
 
         """
-        if isinstance(order, (np.ndarray, list, tuple)):
+        if isinstance(order, np.ndarray | list | tuple):
             order = np.array(order)
             if not order.size == self.Nants_data or not np.all(
                 np.sort(order) == np.arange(self.Nants_data)
@@ -2206,7 +2209,7 @@ class UVCal(UVBase):
 
             flip_spws = spw_order[0] == "-"
 
-            if isinstance(spw_order, (np.ndarray, list, tuple)):
+            if isinstance(spw_order, np.ndarray | list | tuple):
                 spw_order = np.asarray(spw_order)
                 if not spw_order.size == self.Nspws or not np.all(
                     np.sort(spw_order) == np.arange(self.Nspws)
@@ -2321,7 +2324,7 @@ class UVCal(UVBase):
             contain all the required indices.
 
         """
-        if isinstance(order, (np.ndarray, list, tuple)):
+        if isinstance(order, np.ndarray | list | tuple):
             order = np.array(order)
             if not order.size == self.Ntimes or not np.all(
                 np.sort(order) == np.arange(self.Ntimes)
@@ -2413,7 +2416,7 @@ class UVCal(UVBase):
             contain all the required indices.
 
         """
-        if isinstance(order, (np.ndarray, list, tuple)):
+        if isinstance(order, np.ndarray | list | tuple):
             order = np.array(order)
             if not order.size == self.Njones or not np.all(
                 np.sort(order) == np.arange(self.Njones)
@@ -2634,12 +2637,13 @@ class UVCal(UVBase):
         this.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
-        if not issubclass(other.__class__, this.__class__):
-            if not issubclass(this.__class__, other.__class__):
-                raise ValueError(
-                    "Only UVCal (or subclass) objects can be added to "
-                    "a UVCal (or subclass) object"
-                )
+        if not issubclass(other.__class__, this.__class__) and not issubclass(
+            this.__class__, other.__class__
+        ):
+            raise ValueError(
+                "Only UVCal (or subclass) objects can be added to "
+                "a UVCal (or subclass) object"
+            )
         other.check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
@@ -2759,14 +2763,15 @@ class UVCal(UVBase):
         both_ants, this_ants_ind, other_ants_ind = np.intersect1d(
             this.ant_array, other.ant_array, return_indices=True
         )
-        if len(both_jones) > 0:
-            if len(both_times) > 0:
-                if len(both_freq) > 0:
-                    if len(both_ants) > 0:
-                        raise ValueError(
-                            "These objects have overlapping data and"
-                            " cannot be combined."
-                        )
+        if (
+            len(both_jones) > 0
+            and len(both_times) > 0
+            and len(both_freq) > 0
+            and len(both_ants) > 0
+        ):
+            raise ValueError(
+                "These objects have overlapping data and" " cannot be combined."
+            )
 
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -2774,27 +2779,33 @@ class UVCal(UVBase):
             this._consolidate_phase_center_catalogs(
                 other=other, ignore_name=ignore_name
             )
-            if (len(both_times) > 0) and (this.phase_center_id_array is not None):
-                if not np.array_equal(
+            if (
+                (len(both_times) > 0)
+                and (this.phase_center_id_array is not None)
+                and not np.array_equal(
                     this.phase_center_id_array[this_times_ind],
                     other.phase_center_id_array[other_times_ind],
-                ):
-                    # TODO: I think this check actually needs to be expanded to other
-                    # attributes, and along other axes
-                    raise ValueError(
-                        "Cannot combine objects due to overlapping times with "
-                        "different phase centers."
-                    )
-
-        if (len(both_times) > 0) and (this.ref_antenna_array is not None):
-            if not np.array_equal(
-                this.ref_antenna_array[this_times_ind],
-                other.ref_antenna_array[other_times_ind],
+                )
             ):
+                # TODO: I think this check actually needs to be expanded to other
+                # attributes, and along other axes
                 raise ValueError(
                     "Cannot combine objects due to overlapping times with "
-                    "different reference antennas."
+                    "different phase centers."
                 )
+
+        if (
+            (len(both_times) > 0)
+            and (this.ref_antenna_array is not None)
+            and not np.array_equal(
+                this.ref_antenna_array[this_times_ind],
+                other.ref_antenna_array[other_times_ind],
+            )
+        ):
+            raise ValueError(
+                "Cannot combine objects due to overlapping times with "
+                "different reference antennas."
+            )
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3267,11 +3278,13 @@ class UVCal(UVBase):
             this.flag_array[np.ix_(ants_t2o, freqs_t2o, times_t2o, jones_t2o)] = (
                 other.flag_array
             )
-            if this.total_quality_array is not None:
-                if other.total_quality_array is not None:
-                    this.total_quality_array[
-                        np.ix_(freqs_t2o, times_t2o, jones_t2o)
-                    ] = other.total_quality_array
+            if (
+                this.total_quality_array is not None
+                and other.total_quality_array is not None
+            ):
+                this.total_quality_array[np.ix_(freqs_t2o, times_t2o, jones_t2o)] = (
+                    other.total_quality_array
+                )
 
             # Fix ordering
             ant_axis_num = 0
@@ -3286,7 +3299,9 @@ class UVCal(UVBase):
                 jaxis_num: {"inds": jnew_inds, "order": j_order},
             }
             for axis, subdict in axis_dict.items():
-                for name, param in zip(this._data_params, this.data_like_parameters):
+                for name, param in zip(
+                    this._data_params, this.data_like_parameters, strict=True
+                ):
                     if param is None:
                         continue
                     axis_delta = 0
@@ -3363,12 +3378,13 @@ class UVCal(UVBase):
                     "out to calfits files."
                 )
 
-        if this.Njones > 2:
-            if not utils.tools._test_array_constant_spacing(this._jones_array):
-                warnings.warn(
-                    "Combined Jones elements are not evenly spaced. This will "
-                    "make it impossible to write this data out to calfits files."
-                )
+        if this.Njones > 2 and not utils.tools._test_array_constant_spacing(
+            this._jones_array
+        ):
+            warnings.warn(
+                "Combined Jones elements are not evenly spaced. This will "
+                "make it impossible to write this data out to calfits files."
+            )
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
@@ -3506,7 +3522,7 @@ class UVCal(UVBase):
             this = self
         else:
             this = self.copy()
-        if not isinstance(other, (list, tuple, np.ndarray)):
+        if not isinstance(other, list | tuple | np.ndarray):
             # if this is a UVCal object already, stick it in a list
             other = [other]
         # Check that both objects are UVCal and valid
@@ -3514,12 +3530,13 @@ class UVCal(UVBase):
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
         for obj in other:
-            if not issubclass(obj.__class__, this.__class__):
-                if not issubclass(this.__class__, obj.__class__):
-                    raise ValueError(
-                        "Only UVCal (or subclass) objects can be "
-                        "added to a UVCal (or subclass) object"
-                    )
+            if not issubclass(obj.__class__, this.__class__) and not issubclass(
+                this.__class__, obj.__class__
+            ):
+                raise ValueError(
+                    "Only UVCal (or subclass) objects can be "
+                    "added to a UVCal (or subclass) object"
+                )
             obj.check(
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
@@ -3677,7 +3694,10 @@ class UVCal(UVBase):
         if this.phase_center_catalog is not None:
             uv_list = [this] + other
             while len(uv_list) > 1:
-                for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                # for an odd number of files, the second argument will be shorter
+                # so the last element in the first list won't be combined, but it
+                # will not be lost, so it's ok.
+                for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=False):
                     uv1._consolidate_phase_center_catalogs(
                         other=uv2, ignore_name=ignore_name
                     )
@@ -4029,13 +4049,14 @@ class UVCal(UVBase):
         if (phase_center_ids is not None) and (catalog_names is not None):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
-        if self.phase_center_id_array is None or self.phase_center_catalog is None:
-            if (phase_center_ids is not None) or (catalog_names is not None):
-                raise ValueError(
-                    "Both phase_center_id_array and phase_center_catalog attributes of "
-                    "the UVCal object must be set in order to select on phase center "
-                    "IDs or catalog names."
-                )
+        if (
+            self.phase_center_id_array is None or self.phase_center_catalog is None
+        ) and (phase_center_ids is not None or catalog_names is not None):
+            raise ValueError(
+                "Both phase_center_id_array and phase_center_catalog attributes of "
+                "the UVCal object must be set in order to select on phase center "
+                "IDs or catalog names."
+            )
 
         if catalog_names is not None:
             phase_center_ids = utils.phase_center_catalog.look_for_name(
@@ -4220,7 +4241,7 @@ class UVCal(UVBase):
                     )
                 else:
                     raise ValueError(
-                        "Jones term {j} is not present in the jones_array".format(j=j)
+                        f"Jones term {j} is not present in the jones_array"
                     )
             if len(jones_spws) > 0:
                 # Since this is a flex-pol data set, we need to filter on the freq
@@ -4606,7 +4627,7 @@ class UVCal(UVBase):
         """
         from . import calfits
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, list | tuple):
             raise ValueError(
                 "Use the generic `UVCal.read` method to read multiple files."
             )
@@ -4721,7 +4742,7 @@ class UVCal(UVBase):
         """
         from . import calh5
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, list | tuple):
             raise ValueError(
                 "Use the generic `UVCal.read` method to read multiple files."
             )
@@ -4781,7 +4802,7 @@ class UVCal(UVBase):
         """
         from . import fhd_cal
 
-        if isinstance(cal_file, (list, tuple)):
+        if isinstance(cal_file, list | tuple):
             raise ValueError(
                 "Use the generic `UVCal.read` method to read multiple files."
             )
@@ -4832,7 +4853,7 @@ class UVCal(UVBase):
         """
         from . import ms_cal
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, list | tuple):
             raise ValueError(
                 "Use the generic `UVCal.read` method to read multiple files."
             )
@@ -5003,9 +5024,9 @@ class UVCal(UVBase):
         # Check for the defunct keyword up front
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if isinstance(filename, list | tuple | np.ndarray):
             for ind in range(len(filename)):
-                if isinstance(filename[ind], (list, tuple, np.ndarray)):
+                if isinstance(filename[ind], list | tuple | np.ndarray):
                     raise ValueError(
                         "If filename is a list, tuple or array it cannot be nested or "
                         "multi dimensional."
@@ -5019,7 +5040,7 @@ class UVCal(UVBase):
         multi = False
         if n_files > 1:
             multi = True
-        elif isinstance(filename, (list, tuple, np.ndarray)):
+        elif isinstance(filename, list | tuple | np.ndarray):
             filename = filename[0]
 
         if file_type is None:
@@ -5036,10 +5057,11 @@ class UVCal(UVBase):
             # is a directory, there's some additional clues for us to look for.
             file_test = filename[0] if multi else filename
 
-            if os.path.isdir(file_test):
-                if os.path.exists(os.path.join(file_test, "OBSERVATION")):
-                    # It's a measurement set.
-                    file_type = "ms"
+            if os.path.isdir(file_test) and os.path.exists(
+                os.path.join(file_test, "OBSERVATION")
+            ):
+                # It's a measurement set.
+                file_type = "ms"
 
         if file_type is None:
             raise ValueError(
@@ -5059,7 +5081,7 @@ class UVCal(UVBase):
             if obs_file is None:
                 raise ValueError("obs_file parameter must be set for FHD files.")
             else:
-                if isinstance(obs_file, (list, tuple)):
+                if isinstance(obs_file, list | tuple):
                     n_obs = len(obs_file)
                     obs_file_use = obs_file[0]
                 else:
@@ -5069,7 +5091,7 @@ class UVCal(UVBase):
                 raise ValueError("Number of obs_files must match number of cal_files")
 
             if layout_file is not None:
-                if isinstance(layout_file, (list, tuple)):
+                if isinstance(layout_file, list | tuple):
                     n_layout = len(layout_file)
                     layout_file_use = layout_file[0]
                 else:
@@ -5081,7 +5103,7 @@ class UVCal(UVBase):
                     )
 
             if settings_file is not None:
-                if isinstance(settings_file, (list, tuple)):
+                if isinstance(settings_file, list | tuple):
                     n_settings = len(settings_file)
                     settings_file_use = settings_file[0]
                 else:
@@ -5183,7 +5205,7 @@ class UVCal(UVBase):
                 # of files, so instead doing a binary tree merge
                 uv_list = [self] + uv_list
                 while len(uv_list) > 1:
-                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=True):
                         uv1.__iadd__(
                             uv2,
                             run_check=run_check,

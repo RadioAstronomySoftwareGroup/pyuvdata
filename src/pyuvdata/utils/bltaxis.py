@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for the baseline-time axis."""
@@ -7,7 +6,13 @@ import numpy as np
 
 
 def determine_blt_order(
-    *, time_array, ant_1_array, ant_2_array, baseline_array, Nbls, Ntimes  # noqa: N803
+    *,
+    time_array,
+    ant_1_array,
+    ant_2_array,
+    baseline_array,
+    Nbls,  # noqa: N803
+    Ntimes,  # noqa: N803
 ) -> tuple[str] | None:
     """Get the blt order from analysing metadata."""
     times = time_array
@@ -30,7 +35,7 @@ def determine_blt_order(
         return ("baseline", "time")  # w.l.o.g.
 
     for i, (t, a, b, bl) in enumerate(
-        zip(times[1:], ant1[1:], ant2[1:], bls[1:]), start=1
+        zip(times[1:], ant1[1:], ant2[1:], bls[1:], strict=True), start=1
     ):
         on_bl_boundary = i % Nbls == 0
         on_time_boundary = i % Ntimes == 0
@@ -193,9 +198,7 @@ def determine_rectangularity(
 
     if time_array.size != nbls * ntimes:
         return False, False
-    elif nbls * ntimes == 1:
-        return True, True
-    elif nbls == 1:
+    elif nbls * ntimes == 1 or nbls == 1:
         return True, True
     elif ntimes == 1:
         return True, False

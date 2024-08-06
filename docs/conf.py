@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 #
 # pyuvdata documentation build configuration file, created by
 # sphinx-quickstart on Wed Aug 17 12:49:35 2016.
@@ -12,13 +11,12 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
-
+import sys
 from io import StringIO
 
-from sphinx.util.docutils import SphinxDirective
 from docutils import nodes, statemachine
+from sphinx.util.docutils import SphinxDirective
 
 import pyuvdata
 
@@ -87,9 +85,9 @@ source_suffix = ".rst"
 main_doc = "index"
 
 # General information about the project.
-project = u"pyuvdata"
-copyright = u"2018, Radio Astronomy Software Group"
-author = u"Radio Astronomy Software Group"
+project = "pyuvdata"
+copyright = "2018, Radio Astronomy Software Group"
+author = "Radio Astronomy Software Group"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -273,8 +271,8 @@ latex_documents = [
     (
         main_doc,
         "pyuvdata.tex",
-        u"pyuvdata Documentation",
-        u"Radio Astronomy Software Group",
+        "pyuvdata Documentation",
+        "Radio Astronomy Software Group",
         "manual",
     ),
 ]
@@ -304,7 +302,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(main_doc, "pyuvdata", u"pyuvdata Documentation", [author], 1)]
+man_pages = [(main_doc, "pyuvdata", "pyuvdata Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -319,7 +317,7 @@ texinfo_documents = [
     (
         main_doc,
         "pyuvdata",
-        u"pyuvdata Documentation",
+        "pyuvdata Documentation",
         author,
         "pyuvdata",
         "One line description of project.",
@@ -343,11 +341,11 @@ texinfo_documents = [
 def build_custom_docs(app):
     sys.path.append(os.getcwd())
     import make_index
-    import make_uvdata
-    import make_uvcal
-    import make_uvbeam
-    import make_uvflag
     import make_telescope
+    import make_uvbeam
+    import make_uvcal
+    import make_uvdata
+    import make_uvflag
 
     make_index.write_index_rst(readme_file=readme_file, write_file=index_file)
     make_uvdata.write_uvdata_rst(write_file=uvdata_file)
@@ -386,9 +384,7 @@ class ExecDirective(SphinxDirective):
                     None,
                     nodes.paragraph(
                         text="Unable to execute python "
-                        "code at {file}:{line}".format(
-                            file=os.path.basename(source), line=self.lineno
-                        )
+                        f"code at {os.path.basename(source)}:{self.lineno}"
                     ),
                     nodes.paragraph(text=str(sys.exc_info()[1])),
                 )

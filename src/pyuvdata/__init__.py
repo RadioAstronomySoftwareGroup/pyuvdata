@@ -1,8 +1,9 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Init file for pyuvdata."""
+
+import contextlib
 import warnings
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -34,12 +35,10 @@ try:  # pragma: nocover
     __version__ = version_str
 
 except (LookupError, ImportError):  # pragma: no cover
-    try:
-        # Set the version automatically from the package details.
+    # Set the version automatically from the package details.
+    # don't set anything if the package is not installed
+    with contextlib.suppress(PackageNotFoundError):
         __version__ = version("pyuvdata")
-    except PackageNotFoundError:  # pragma: nocover
-        # package is not installed
-        pass
 
 # Filter annoying Cython warnings that serve no good purpose. see numpy#432
 # needs to be done before the imports to work properly

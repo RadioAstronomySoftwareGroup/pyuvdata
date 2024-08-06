@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Tests for uvdata object."""
+
 from __future__ import annotations
 
 import copy
@@ -442,7 +442,7 @@ def test_unexpected_parameters(uvdata_props):
     )
     attributes = [
         i
-        for i in uvdata_props.uv_object.__dict__.keys()
+        for i in uvdata_props.uv_object.__dict__
         if (i[0] == "_" and not i.startswith("_UVData__"))
     ]
     for a in attributes:
@@ -458,7 +458,7 @@ def test_unexpected_attributes(uvdata_props):
         + uvdata_props.extra_properties
         + uvdata_props.other_attributes
     )
-    attributes = [i for i in uvdata_props.uv_object.__dict__.keys() if i[0] != "_"]
+    attributes = [i for i in uvdata_props.uv_object.__dict__ if i[0] != "_"]
     for a in attributes:
         assert a in expected_attributes, (
             "unexpected attribute " + a + " found in UVData"
@@ -472,6 +472,7 @@ def test_properties(uvdata_props):
             zip(
                 uvdata_props.required_properties + uvdata_props.extra_properties,
                 uvdata_props.required_parameters + uvdata_props.extra_parameters,
+                strict=True,
             )
         )
     )
@@ -482,7 +483,7 @@ def test_properties(uvdata_props):
         try:
             assert rand_num == this_param.value
         except AssertionError:
-            print("setting {prop_name} to a random number failed".format(prop_name=k))
+            print(f"setting {k} to a random number failed")
             raise
 
 
@@ -761,8 +762,8 @@ def test_antnums_to_baselines(uvdata_baseline):
     with pytest.raises(
         ValueError,
         match=(
-            "cannot convert ant1, ant2 to a baseline index with Nants={Nants}"
-            ">2147483648.".format(Nants=uvdata_baseline.uv_object2.telescope.Nants)
+            "cannot convert ant1, ant2 to a baseline index with "
+            f"Nants={uvdata_baseline.uv_object2.telescope.Nants}>2147483648."
         ),
     ):
         uvdata_baseline.uv_object2.antnums_to_baseline(0, 0)
@@ -1461,7 +1462,7 @@ def test_select_antennas(casa_uvfits):
 
     blts_select = [
         (a1 in ants_to_keep) & (a2 in ants_to_keep)
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     Nblts_selected = np.sum(blts_select)
 
@@ -1586,19 +1587,20 @@ def test_select_bls(casa_uvfits):
     first_ants = [7, 3, 8, 3, 22, 28, 9]
     second_ants = [1, 21, 9, 2, 3, 4, 23]
     new_unique_ants = np.unique(first_ants + second_ants)
-    ant_pairs_to_keep = list(zip(first_ants, second_ants))
+    ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
     blts_select = [
         sort_bl((a1, a2)) in sorted_pairs_to_keep
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     Nblts_selected = np.sum(blts_select)
 
     uv_object2 = uv_object.copy()
     uv_object2.select(bls=ant_pairs_to_keep)
     sorted_pairs_object2 = [
-        sort_bl(p) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
+        sort_bl(p)
+        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
     ]
 
     assert len(new_unique_ants) == uv_object2.Nants_data
@@ -1627,7 +1629,8 @@ def test_select_bls(casa_uvfits):
 
     uv_object3.select(bls=bls_nums_to_keep)
     sorted_pairs_object3 = [
-        sort_bl(p) for p in zip(uv_object3.ant_1_array, uv_object3.ant_2_array)
+        sort_bl(p)
+        for p in zip(uv_object3.ant_1_array, uv_object3.ant_2_array, strict=True)
     ]
 
     assert len(new_unique_ants) == uv_object3.Nants_data
@@ -1653,12 +1656,12 @@ def test_select_bls(casa_uvfits):
     second_ants = [1, 21, 9, 2, 3, 4, 23]
     pols = ["RR", "RR", "RR", "RR", "RR", "RR", "RR"]
     new_unique_ants = np.unique(first_ants + second_ants)
-    bls_to_keep = list(zip(first_ants, second_ants, pols))
+    bls_to_keep = list(zip(first_ants, second_ants, pols, strict=True))
     sorted_bls_to_keep = [sort_bl(p) for p in bls_to_keep]
 
     blts_select = [
         sort_bl((a1, a2, "RR")) in sorted_bls_to_keep
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     Nblts_selected = np.sum(blts_select)
 
@@ -1666,7 +1669,7 @@ def test_select_bls(casa_uvfits):
     uv_object2.select(bls=bls_to_keep)
     sorted_pairs_object2 = [
         sort_bl(p) + ("RR",)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
+        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
     ]
 
     assert len(new_unique_ants) == uv_object2.Nants_data
@@ -1691,11 +1694,12 @@ def test_select_bls(casa_uvfits):
     # check that you can use numpy integers with out errors:
     first_ants = list(map(np.int32, [7, 3, 8, 3, 22, 28, 9]))
     second_ants = list(map(np.int32, [1, 21, 9, 2, 3, 4, 23]))
-    ant_pairs_to_keep = list(zip(first_ants, second_ants))
+    ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
 
     uv_object2 = uv_object.select(bls=ant_pairs_to_keep, inplace=False)
     sorted_pairs_object2 = [
-        sort_bl(p) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
+        sort_bl(p)
+        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
     ]
 
     assert len(new_unique_ants) == uv_object2.Nants_data
@@ -1719,7 +1723,8 @@ def test_select_bls(casa_uvfits):
     # check that you can specify a single pair without errors
     uv_object2.select(bls=(1, 7))
     sorted_pairs_object2 = [
-        sort_bl(p) for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array)
+        sort_bl(p)
+        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
     ]
     assert list(set(sorted_pairs_object2)) == [(1, 7)]
 
@@ -1727,7 +1732,7 @@ def test_select_bls(casa_uvfits):
     with pytest.raises(
         ValueError, match="bls must be a list of tuples of antenna numbers"
     ):
-        uv_object.select(bls=list(zip(first_ants, second_ants)) + [1, 7])
+        uv_object.select(bls=list(zip(first_ants, second_ants, strict=True)) + [1, 7])
 
     with pytest.raises(
         ValueError, match="bls must be a list of tuples of antenna numbers"
@@ -2335,7 +2340,7 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     # check that selecting one frequency works
     uv_object2 = uv_object.copy()
     uv_object2.select(frequencies=freqs_to_keep[0])
-    assert 1 == uv_object2.Nfreqs
+    assert uv_object2.Nfreqs == 1
     assert freqs_to_keep[0] in uv_object2.freq_array
     for f in uv_object2.freq_array:
         assert f in [freqs_to_keep[0]]
@@ -2568,18 +2573,22 @@ def test_select(casa_uvfits):
     blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
     blts_ant_select = [
         (a1 in ants_to_keep) & (a2 in ants_to_keep)
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     blts_pair_select = [
         sort_bl((a1, a2)) in sorted_pairs_to_keep
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     blts_time_select = [t in times_to_keep for t in uv_object.time_array]
     Nblts_select = np.sum(
         [
             bi & (ai & pi) & ti
             for (bi, ai, pi, ti) in zip(
-                blts_blt_select, blts_ant_select, blts_pair_select, blts_time_select
+                blts_blt_select,
+                blts_ant_select,
+                blts_pair_select,
+                blts_time_select,
+                strict=True,
             )
         ]
     )
@@ -2664,18 +2673,22 @@ def test_select_with_lst(casa_uvfits):
     blts_blt_select = [i in blt_inds for i in np.arange(uv_object.Nblts)]
     blts_ant_select = [
         (a1 in ants_to_keep) & (a2 in ants_to_keep)
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     blts_pair_select = [
         sort_bl((a1, a2)) in sorted_pairs_to_keep
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array)
+        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
     blts_lst_select = [lst in lsts_to_keep for lst in uv_object.lst_array]
     Nblts_select = np.sum(
         [
             bi & (ai & pi) & li
             for (bi, ai, pi, li) in zip(
-                blts_blt_select, blts_ant_select, blts_pair_select, blts_lst_select
+                blts_blt_select,
+                blts_ant_select,
+                blts_pair_select,
+                blts_lst_select,
+                strict=True,
             )
         ]
     )
@@ -3335,7 +3348,7 @@ def test_sum_vis_errors(hera_uvh5, attr_to_get, attr_to_set, arg_dict, msg):
     uv2 = hera_uvh5
     for method in attr_to_get:
         getattr(uv2, method)()
-    for attr in attr_to_set.keys():
+    for attr in attr_to_set:
         setattr(uv2, attr, attr_to_set[attr])
 
     with pytest.raises(ValueError, match=re.escape(msg)):
@@ -6220,8 +6233,8 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
 
     blt_inds = []
     missing_inds = []
-    for bl, t in zip(uv0.baseline_array, uv0.time_array):
-        if (bl, t) in zip(uv2.baseline_array, uv2.time_array):
+    for bl, t in zip(uv0.baseline_array, uv0.time_array, strict=True):
+        if (bl, t) in zip(uv2.baseline_array, uv2.time_array, strict=True):
             # get inds for inflated blts that exist on the original object
             this_ind = np.where((uv2.baseline_array == bl) & (uv2.time_array == t))[0]
             blt_inds.append(this_ind[0])
@@ -6631,7 +6644,7 @@ def test_upsample_in_time(hera_uvh5):
     uv_object.phase_to_time(Time(uv_object.time_array[0], format="jd"))
 
     # test that setting the app coords works with extra unused phase centers
-    assert 0 not in uv_object.phase_center_catalog.keys()
+    assert 0 not in uv_object.phase_center_catalog
     uv_object.phase_center_catalog[0] = init_phase_dict
 
     # reorder to make sure we get the right value later
@@ -9164,9 +9177,11 @@ def test_multifile_read_check(hera_uvh5, tmp_path):
 
     # Test when the corrupted file is at the beggining, skip_bad_files=False
     fileList = [testfile, uvh5_file]
-    with pytest.raises(KeyError, match=err_msg):
-        with check_warnings(UserWarning, match="Failed to read"):
-            uv.read(fileList, skip_bad_files=False)
+    with (
+        pytest.raises(KeyError, match=err_msg),
+        check_warnings(UserWarning, match="Failed to read"),
+    ):
+        uv.read(fileList, skip_bad_files=False)
     assert uv != uv_true
 
     # Test when the corrupted file is at the beggining, skip_bad_files=True
@@ -9261,13 +9276,17 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     # Test with corrupted file first in list, but with skip_bad_files=False
     uv_test = UVData()
     if err_type == "KeyError":
-        with pytest.raises(KeyError, match=err_msg):
-            with check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(fileList[0:4], skip_bad_files=False)
+        with (
+            pytest.raises(KeyError, match=err_msg),
+            check_warnings(UserWarning, match="Failed to read"),
+        ):
+            uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
-        with pytest.raises(ValueError, match="Nants_data must be equal to"):
-            with check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(fileList[0:4], skip_bad_files=False)
+        with (
+            pytest.raises(ValueError, match="Nants_data must be equal to"),
+            check_warnings(UserWarning, match="Failed to read"),
+        ):
+            uv_test.read(fileList[0:4], skip_bad_files=False)
     uv_true = UVData()
     uv_true.read([fileList[1], fileList[2], fileList[3]], skip_bad_files=False)
 
@@ -9296,13 +9315,17 @@ def test_multifile_read_check_long_list(hera_uvh5, tmp_path, err_type):
     # Test with corrupted file in middle of list, but with skip_bad_files=False
     uv_test = UVData()
     if err_type == "KeyError":
-        with pytest.raises(KeyError, match=err_msg):
-            with check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(fileList[0:4], skip_bad_files=False)
+        with (
+            pytest.raises(KeyError, match=err_msg),
+            check_warnings(UserWarning, match="Failed to read"),
+        ):
+            uv_test.read(fileList[0:4], skip_bad_files=False)
     elif err_type == "ValueError":
-        with pytest.raises(ValueError, match="Nants_data must be equal to"):
-            with check_warnings(UserWarning, match="Failed to read"):
-                uv_test.read(fileList[0:4], skip_bad_files=False)
+        with (
+            pytest.raises(ValueError, match="Nants_data must be equal to"),
+            check_warnings(UserWarning, match="Failed to read"),
+        ):
+            uv_test.read(fileList[0:4], skip_bad_files=False)
     uv_true = UVData()
     uv_true.read([fileList[0], fileList[2], fileList[3]], skip_bad_files=False)
 
@@ -10286,8 +10309,8 @@ def test_phase_dict_helper_errs(sma_mir, arg_dict, dummy_phase_dict, msg):
 
     from requests import RequestException
 
-    for key in dummy_phase_dict.keys():
-        if key not in arg_dict.keys():
+    for key in dummy_phase_dict:
+        if key not in arg_dict:
             arg_dict[key] = dummy_phase_dict[key]
 
     # We have to handle this piece a bit carefully, since some queries fail due to
@@ -10480,9 +10503,8 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     """
     Test the phase fixing method fix_phase
     """
-    if file_type == "miriad":
-        if not hasmiriad:
-            pytest.skip("MIRIAD not installed.")
+    if file_type == "miriad" and not hasmiriad:
+        pytest.skip("MIRIAD not installed.")
 
     # Make some copies of the data
     uv_in = hera_uvh5.copy()
@@ -10528,17 +10550,14 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
             ):
                 uv_in_bad_copy.write_miriad(outfile, clobber=True)
 
-    with check_warnings(read_warn_type, match=read_warn_msg):
-        with warnings.catch_warnings():
-            warnings.filterwarnings(
-                "ignore", "Fixing auto-correlations to be be real-only"
-            )
-            warnings.filterwarnings(
-                "ignore", "antenna_diameters are not set or are being overwritten."
-            )
-            uv_in_bad2 = UVData.from_file(
-                outfile, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
-            )
+    with check_warnings(read_warn_type, match=read_warn_msg), warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "Fixing auto-correlations to be be real-only")
+        warnings.filterwarnings(
+            "ignore", "antenna_diameters are not set or are being overwritten."
+        )
+        uv_in_bad2 = UVData.from_file(
+            outfile, fix_old_proj=True, fix_use_ant_pos=use_ant_pos
+        )
 
     with check_warnings(UserWarning, match=warn_msg):
         uv_in_bad.fix_phase(use_ant_pos=use_ant_pos)
@@ -10796,7 +10815,9 @@ def test_multi_phase_downselect(hera_uvh5_split, cat_type):
     uv1.reorder_blts()
     uv2.reorder_blts()
 
-    for mask, uvdata in zip([np.arange(10), np.arange(10, 20)], [uv1, uv2]):
+    for mask, uvdata in zip(
+        [np.arange(10), np.arange(10, 20)], [uv1, uv2], strict=True
+    ):
         uvtemp = uvfull.select(times=unique_times[mask], inplace=False)
         uvtemp.reorder_blts()
         # Select does not clear the catalog, so clear the unused source and
@@ -11741,7 +11762,7 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
 
     # set parameters in uvd
     for par in params:
-        if par not in param_dict.keys():
+        if par not in param_dict:
             continue
         uvd.__setattr__(par, param_dict[par])
 
@@ -11876,7 +11897,11 @@ def test_update_antenna_positions(sma_mir, delta_antpos, flip_antpos):
         sma_mir.telescope.antenna_positions += 1
 
     new_positions = dict(
-        zip(sma_copy.telescope.antenna_numbers, sma_copy.telescope.antenna_positions)
+        zip(
+            sma_copy.telescope.antenna_numbers,
+            sma_copy.telescope.antenna_positions,
+            strict=True,
+        )
     )
 
     sma_mir.update_antenna_positions(

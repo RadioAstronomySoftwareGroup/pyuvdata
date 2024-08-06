@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvcal object.
+"""Tests for uvcal object."""
 
-"""
 import copy
 import itertools
 import os
@@ -197,7 +195,7 @@ def test_unexpected_parameters(uvcal_data):
     """Test for extra parameters."""
     (uv_cal_object, required_parameters, _, extra_parameters, _, _) = uvcal_data
     expected_parameters = required_parameters + extra_parameters
-    attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] == "_"]
+    attributes = [i for i in uv_cal_object.__dict__ if i[0] == "_"]
     for a in attributes:
         assert a in expected_parameters, "unexpected parameter " + a + " found in UVCal"
 
@@ -208,7 +206,7 @@ def test_unexpected_attributes(uvcal_data):
         uvcal_data
     )
     expected_attributes = required_properties + extra_properties + other_attributes
-    attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] != "_"]
+    attributes = [i for i in uv_cal_object.__dict__ if i[0] != "_"]
     for a in attributes:
         assert a in expected_attributes, "unexpected attribute " + a + " found in UVCal"
 
@@ -228,6 +226,7 @@ def test_properties(uvcal_data):
             zip(
                 required_properties + extra_properties,
                 required_parameters + extra_parameters,
+                strict=True,
             )
         )
     )
@@ -238,7 +237,7 @@ def test_properties(uvcal_data):
         try:
             assert rand_num == this_param.value
         except AssertionError:
-            print("setting {prop_name} to a random number failed".format(prop_name=k))
+            print(f"setting {k} to a random number failed")
             raise
 
 
@@ -414,14 +413,17 @@ def test_unknown_telescopes(gain_data, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set."
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            ValueError,
+            match="Required UVParameter _antenna_positions has not been set.",
+        ),
+        check_warnings(
             UserWarning,
             match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
-        ):
-            UVCal.from_file(write_file2)
+        ),
+    ):
+        UVCal.from_file(write_file2)
     with check_warnings(
         UserWarning,
         match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
@@ -3302,18 +3304,21 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set."
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            ValueError,
+            match="Required UVParameter _antenna_positions has not been set.",
+        ),
+        check_warnings(
             [UserWarning],
             match=[
                 "Not all antennas have metadata in the known_telescope data. Not "
                 "setting ['antenna_positions'].",
                 "Required UVParameter _antenna_positions has not been set.",
             ],
-        ):
-            gain_data2 = UVCal.from_file(write_file2)
+        ),
+    ):
+        gain_data2 = UVCal.from_file(write_file2)
 
     with check_warnings(
         UserWarning,

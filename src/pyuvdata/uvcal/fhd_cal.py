@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading FHD calibration save files."""
@@ -132,11 +131,12 @@ class FHDCal(UVCal):
             + str(obs_data["ORIG_PHASEDEC"][0])
         )
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope.name.lower() == "mwa":
-            if np.isclose(obs_data["ORIG_PHASERA"][0], 0) and np.isclose(
-                obs_data["ORIG_PHASEDEC"][0], -27
-            ):
-                cat_name = "EoR 0 Field"
+        if (
+            self.telescope.name.lower() == "mwa"
+            and np.isclose(obs_data["ORIG_PHASERA"][0], 0)
+            and np.isclose(obs_data["ORIG_PHASEDEC"][0], -27)
+        ):
+            cat_name = "EoR 0 Field"
 
         cat_id = self._add_phase_center(
             cat_name=cat_name,
@@ -242,11 +242,10 @@ class FHDCal(UVCal):
         self.git_origin_cal = "https://github.com/EoRImaging/FHD"
         self.git_hash_cal = obs_data["code_version"][0].decode("utf8")
 
-        if "DELAYS" in obs_data.dtype.names:
-            if obs_data["delays"][0] is not None:
-                self.extra_keywords["delays"] = (
-                    "[" + ", ".join(str(int(d)) for d in obs_data["delays"][0]) + "]"
-                )
+        if "DELAYS" in obs_data.dtype.names and obs_data["delays"][0] is not None:
+            self.extra_keywords["delays"] = (
+                "[" + ", ".join(str(int(d)) for d in obs_data["delays"][0]) + "]"
+            )
         if settings_file is not None:
             self.history, self.observer = fhd_utils.get_fhd_history(
                 settings_file, return_user=True
@@ -256,7 +255,7 @@ class FHDCal(UVCal):
             self.history = ""
 
         if extra_history is not None:
-            if isinstance(extra_history, (list, tuple)):
+            if isinstance(extra_history, list | tuple):
                 self.history += "\n" + "\n".join(extra_history)
             else:
                 self.history += "\n" + extra_history
@@ -302,7 +301,7 @@ class FHDCal(UVCal):
                 ]
 
             settings_lines = {}
-            with open(settings_file, "r") as read_obj:
+            with open(settings_file) as read_obj:
                 cal_start = False
                 for line in read_obj:
                     if not cal_start:
@@ -469,7 +468,7 @@ class FHDCal(UVCal):
         if not raw:
             self.extra_keywords["polyfit".upper()] = polyfit
             self.extra_keywords["bandpass".upper()] = bandpass
-            if isinstance(mode_fit, (list, tuple, np.ndarray)):
+            if isinstance(mode_fit, list | tuple | np.ndarray):
                 self.extra_keywords["mode_fit".upper()] = (
                     "[" + ", ".join(str(m) for m in mode_fit) + "]"
                 )

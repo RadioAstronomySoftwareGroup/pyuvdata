@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with MeasurementSet files."""
 
+import contextlib
 import os
 import warnings
 
@@ -622,7 +622,11 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             # to specify an additional (optional?) column that defines the reference
             # frame on a per-source basis.
             ref_dir_dict = dict(
-                zip(measinfo_keyword["TabRefCodes"], measinfo_keyword["TabRefTypes"])
+                zip(
+                    measinfo_keyword["TabRefCodes"],
+                    measinfo_keyword["TabRefTypes"],
+                    strict=True,
+                )
             )
             frame_list = []
             epoch_list = []
@@ -654,12 +658,10 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
             field_dict["ra"][idx] = float(phase_dir[0, 0])
             field_dict["dec"][idx] = float(phase_dir[0, 1])
             field_dict["source_id"][idx] = idx
-            try:
+            # If no column named SOURCE_ID exists, or if it does exist but is
+            # completely unfilled, just move on.
+            with contextlib.suppress(RuntimeError):
                 field_dict["alt_id"][idx] = int(tb_field.getcell("SOURCE_ID", idx))
-            except RuntimeError:
-                # Reach here if no column named SOURCE_ID exists, or if it does exist
-                # but is completely unfilled. Nothing to do at this point but move on.
-                pass
 
     if not return_phase_center_catalog:
         return field_dict
@@ -686,7 +688,7 @@ def read_ms_field(filepath, return_phase_center_catalog=False):
         return phase_center_catalog, {}
 
     # Construct the mappings of row number to preferred ID, map back to catalog
-    field_id_map = dict(zip(field_dict["source_id"], field_dict["alt_id"]))
+    field_id_map = dict(zip(field_dict["source_id"], field_dict["alt_id"], strict=True))
     phase_center_catalog = {
         newkey: phase_center_catalog[oldkey] for oldkey, newkey in field_id_map.items()
     }
@@ -758,7 +760,7 @@ def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=Non
                 "DELAY_DIR": "DelayDir_Ref",
                 "REFERENCE_DIR": "RefDir_Ref",
             }
-            for key in col_ref_dict.keys():
+            for key in col_ref_dict:
                 fieldcoldesc = tables.makearrcoldesc(
                     col_ref_dict[key],
                     0,
@@ -813,7 +815,7 @@ def write_ms_field(filepath, uvobj=None, phase_center_catalog=None, time_val=Non
             field_table.putcell("TIME", idx, time_val)
             field_table.putcell("SOURCE_ID", idx, sou_id)
             if var_ref:
-                for key in col_ref_dict.keys():
+                for key in col_ref_dict:
                     field_table.putcell(col_ref_dict[key], idx, var_ref_dict[ref_dir])
 
 
@@ -1542,9 +1544,10 @@ def read_ms_source(filepath):
                 cat_dict[key] = np.array(cat_dict[key])
             else:
                 cat_dict[key] = cat_dict[key][0]
-        if np.allclose(cat_dict["cat_pm_ra"], 0):
-            if np.allclose(cat_dict["cat_pm_dec"], 0):
-                cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
+        if np.allclose(cat_dict["cat_pm_ra"], 0) and np.allclose(
+            cat_dict["cat_pm_dec"], 0
+        ):
+            cat_dict["cat_pm_ra"] = cat_dict["cat_pm_dec"] = None
 
     return tb_sou_dict
 
@@ -1615,7 +1618,7 @@ def write_ms_source(filepath, uvobj=None, time_default=None, phase_center_catalo
             elif pc_dict["cat_type"] == "ephem":
                 # Otherwise for ephem, make time the outer-most axis so that we
                 # can easily iterate through.
-                sou_dir = np.vstack(((pc_dict["cat_lon"], pc_dict["cat_lat"]))).T
+                sou_dir = np.vstack((pc_dict["cat_lon"], pc_dict["cat_lat"])).T
                 time_val = (
                     Time(pc_dict["cat_times"], format="jd", scale="utc").mjd * 86400.0
                 ).flatten()
@@ -2128,15 +2131,14 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
         )
         return telescope_loc
     else:
-        if xyz_telescope_frame == "mcmf":
-            if not hasmoon:
-                # There is a test for this, but it is always skipped with our
-                # current CI setup because it requires that python-casacore is
-                # installed but lunarsky isn't. Doesn't seem worth setting up a
-                # whole separate CI for this.
-                raise ValueError(  # pragma: no cover
-                    "Need to install `lunarsky` package to work with MCMF frames."
-                )
+        if xyz_telescope_frame == "mcmf" and not hasmoon:
+            # There is a test for this, but it is always skipped with our
+            # current CI setup because it requires that python-casacore is
+            # installed but lunarsky isn't. Doesn't seem worth setting up a
+            # whole separate CI for this.
+            raise ValueError(  # pragma: no cover
+                "Need to install `lunarsky` package to work with MCMF frames."
+            )
 
         if "telescope_location" in obs_dict:
             if xyz_telescope_frame == "itrs":

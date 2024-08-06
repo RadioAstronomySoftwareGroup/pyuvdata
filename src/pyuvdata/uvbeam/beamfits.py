@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing beamfits files."""
+
 import os
 import warnings
 
@@ -214,28 +214,24 @@ class BeamFITS(UVBeam):
             ):
                 self.Nfreqs = primary_header.pop("NAXIS" + str(ax_nums["freq"]))
 
-            if n_dimensions > ax_nums["spw"] - 1:
-                if (
-                    primary_header.pop("CTYPE" + str(ax_nums["spw"])).lower().strip()
-                    == "if"
-                ):
-                    file_nspws = primary_header.pop("NAXIS" + str(ax_nums["spw"]), None)
-                    if file_nspws > 1:
-                        raise NotImplementedError(
-                            "UVBeam does not support having a spectral window axis "
-                            "larger than one."
-                        )
-
-            if n_dimensions > ax_nums["basisvec"] - 1:
-                if (
-                    primary_header.pop("CTYPE" + str(ax_nums["basisvec"]))
-                    .lower()
-                    .strip()
-                    == "vecind"
-                ):
-                    self.Naxes_vec = primary_header.pop(
-                        "NAXIS" + str(ax_nums["basisvec"]), None
+            if n_dimensions > ax_nums["spw"] - 1 and (
+                primary_header.pop("CTYPE" + str(ax_nums["spw"])).lower().strip()
+                == "if"
+            ):
+                file_nspws = primary_header.pop("NAXIS" + str(ax_nums["spw"]), None)
+                if file_nspws > 1:
+                    raise NotImplementedError(
+                        "UVBeam does not support having a spectral window axis "
+                        "larger than one."
                     )
+
+            if n_dimensions > ax_nums["basisvec"] - 1 and (
+                primary_header.pop("CTYPE" + str(ax_nums["basisvec"])).lower().strip()
+                == "vecind"
+            ):
+                self.Naxes_vec = primary_header.pop(
+                    "NAXIS" + str(ax_nums["basisvec"]), None
+                )
 
             if self.Naxes_vec is None and self.beam_type == "power":
                 if self.Naxes_vec is None:
@@ -250,7 +246,7 @@ class BeamFITS(UVBeam):
             freq_units = primary_header.pop("CUNIT" + str(ax_nums["freq"]), "Hz")
             if freq_units != "Hz":
                 freq_factor = {"kHz": 1e3, "MHz": 1e6, "GHz": 1e9}
-                if freq_units in freq_factor.keys():
+                if freq_units in freq_factor:
                     self.freq_array = self.freq_array * freq_factor[freq_units]
                 else:
                     raise ValueError("Frequency units not recognized.")
@@ -316,8 +312,8 @@ class BeamFITS(UVBeam):
                     self.feed_array = np.array(feedlist[1:-1].split(", "))
             else:
                 raise ValueError(
-                    "Unknown beam_type: {type}, beam_type should be "
-                    '"efield" or "power".'.format(type=self.beam_type)
+                    f"Unknown beam_type: {self.beam_type}, beam_type should be "
+                    '"efield" or "power".'
                 )
 
             self.data_array = np.squeeze(self.data_array, axis=1)
@@ -696,8 +692,8 @@ class BeamFITS(UVBeam):
             )
         else:
             raise ValueError(
-                "Unknown beam_type: {type}, beam_type should be "
-                '"efield" or "power".'.format(type=self.beam_type)
+                f"Unknown beam_type: {self.beam_type}, beam_type should be "
+                '"efield" or "power".'
             )
 
         # Add a third axis to the data for consistency
@@ -740,16 +736,16 @@ class BeamFITS(UVBeam):
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 as required "
-                    "by the uvfits file format.".format(key=key)
+                    "by the uvfits file format."
                 )
             keyword = key[:8].upper()
-            if isinstance(value, (dict, list, np.ndarray)):
+            if isinstance(value, dict | list | np.ndarray):
                 raise TypeError(
-                    "Extra keyword {keyword} is of {keytype}. "
+                    f"Extra keyword {key} is of {type(value)}. "
                     "Only strings and numbers are "
-                    "supported in uvfits.".format(keyword=key, keytype=type(value))
+                    "supported in uvfits."
                 )
 
             if keyword == "COMMENT":

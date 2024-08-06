@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -39,8 +38,11 @@ def extend_jones_axis(calobj, total_quality=True):
                     )
                     setattr(calobj, attr, attr_value)
 
-    if not calobj.metadata_only:
-        if calobj.total_quality_array is None and total_quality:
-            calobj.total_quality_array = np.ones(
-                calobj._total_quality_array.expected_shape(calobj)
-            )
+    if (
+        not calobj.metadata_only
+        and calobj.total_quality_array is None
+        and total_quality
+    ):
+        calobj.total_quality_array = np.ones(
+            calobj._total_quality_array.expected_shape(calobj)
+        )

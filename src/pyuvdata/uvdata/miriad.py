@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Miriad files."""
+
 import itertools
 import os
 import shutil
@@ -10,8 +10,7 @@ import warnings
 
 import numpy as np
 import scipy
-from astropy import constants as const
-from astropy import units
+from astropy import constants as const, units
 from astropy.coordinates import Angle, EarthLocation, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
@@ -37,15 +36,12 @@ class Miriad(UVData):
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise ValueError(
-                "Can't index polarization {p} because "
-                "polarization_array is not set".format(p=pol)
+                f"Can't index polarization {pol} because "
+                "polarization_array is not set"
             )
         pol_ind = np.argwhere(self.polarization_array == pol)
         if len(pol_ind) != 1:
-            raise ValueError(
-                "multiple matches for pol={pol} in "
-                "polarization_array".format(pol=pol)
-            )
+            raise ValueError(f"multiple matches for pol={pol} in polarization_array")
         return pol_ind
 
     def _load_miriad_variables(self, uv):
@@ -184,7 +180,7 @@ class Miriad(UVData):
             self.channel_width = np.concatenate(
                 tuple(
                     np.full(nchan, 1e9 * np.abs(chan_width), dtype=np.float64)
-                    for chan_width, nchan in zip(uv["sdf"], uv["nschan"])
+                    for chan_width, nchan in zip(uv["sdf"], uv["nschan"], strict=True)
                 )
             )
             # Now setup frequency array
@@ -192,7 +188,7 @@ class Miriad(UVData):
                 tuple(
                     (chan_width * np.arange(nchan, dtype=np.float64) + sfreq) * 1e9
                     for chan_width, nchan, sfreq in zip(
-                        uv["sdf"], uv["nschan"], uv["sfreq"]
+                        uv["sdf"], uv["nschan"], uv["sfreq"], strict=True
                     )
                 )
             )
@@ -200,7 +196,7 @@ class Miriad(UVData):
             self.flex_spw_id_array = np.concatenate(
                 tuple(
                     np.full(nchan, idx, dtype=int)
-                    for idx, nchan in zip(range(self.Nspws), uv["nschan"])
+                    for idx, nchan in zip(range(self.Nspws), uv["nschan"], strict=True)
                 )
             )
         else:
@@ -219,31 +215,31 @@ class Miriad(UVData):
             self.history += self.pyuvdata_version_str
 
         # check for pyuvdata variables that are not recognized miriad variables
-        if "visunits" in uv.vartable.keys():
+        if "visunits" in uv.vartable:
             self.vis_units = uv["visunits"].replace("\x00", "")
         else:
             self.vis_units = "uncalib"  # assume no calibration
-        if "instrume" in uv.vartable.keys():
+        if "instrume" in uv.vartable:
             self.telescope.instrument = uv["instrume"].replace("\x00", "")
         else:
             # set instrument = telescope name
             self.telescope.instrument = self.telescope.name
 
-        if "dut1" in uv.vartable.keys():
+        if "dut1" in uv.vartable:
             self.dut1 = uv["dut1"]
-        if "degpdy" in uv.vartable.keys():
+        if "degpdy" in uv.vartable:
             self.earth_omega = uv["degpdy"]
-        if "gst0" in uv.vartable.keys():
+        if "gst0" in uv.vartable:
             self.gst0 = uv["gst0"]
-        if "rdate" in uv.vartable.keys():
+        if "rdate" in uv.vartable:
             self.rdate = uv["rdate"].replace("\x00", "")
-        if "timesys" in uv.vartable.keys():
+        if "timesys" in uv.vartable:
             self.timesys = uv["timesys"].replace("\x00", "")
-        if "xorient" in uv.vartable.keys():
+        if "xorient" in uv.vartable:
             self.telescope.x_orientation = uv["xorient"].replace("\x00", "")
-        if "polconv" in uv.vartable.keys():
+        if "polconv" in uv.vartable:
             self.pol_convention = uv["polconv"].replace("\x00", "")
-        if "bltorder" in uv.vartable.keys():
+        if "bltorder" in uv.vartable:
             blt_order_str = uv["bltorder"].replace("\x00", "")
             self.blt_order = tuple(blt_order_str.split(", "))
             if self.blt_order == ("bda",):
@@ -570,9 +566,9 @@ class Miriad(UVData):
                 for ai, num in enumerate(self.telescope.antenna_numbers):
                     if antpos_length[num] == 0:
                         warnings.warn(
-                            "antenna number {n} has visibilities "
+                            f"antenna number {num} has visibilities "
                             "associated with it, but it has a position"
-                            " of (0,0,0)".format(n=num)
+                            " of (0,0,0)"
                         )
                     else:
                         # leave bad locations as zeros to make them obvious
@@ -595,13 +591,12 @@ class Miriad(UVData):
                     "are present in the file."
                 )
 
-        if self.telescope.antenna_numbers is None:
+        if self.telescope.antenna_numbers is None and sorted_unique_ants is not None:
             # there are no antenna_numbers or antenna_positions, so just use
             # the antennas present in the visibilities
             # (Nants_data will therefore match Nants_telescope)
-            if sorted_unique_ants is not None:
-                self.telescope.antenna_numbers = np.array(sorted_unique_ants)
-                self.telescope.Nants = len(self.telescope.antenna_numbers)
+            self.telescope.antenna_numbers = np.array(sorted_unique_ants)
+            self.telescope.Nants = len(self.telescope.antenna_numbers)
 
         # antenna names is a foreign concept in miriad but required in other formats.
         try:
@@ -671,7 +666,7 @@ class Miriad(UVData):
             check_variables[extra_variable] = uv[extra_variable]
 
         # keep all single valued extra_variables as extra_keywords
-        for key in check_variables.keys():
+        for key in check_variables:
             if isinstance(check_variables[key], str):
                 value = check_variables[key].replace("\x00", "")
                 # check for booleans encoded as strings
@@ -749,7 +744,7 @@ class Miriad(UVData):
         from . import aipy_extracts
 
         if not os.path.exists(filepath):
-            raise IOError(filepath + " not found")
+            raise OSError(filepath + " not found")
         uv = aipy_extracts.UV(filepath)
 
         # load metadata
@@ -776,7 +771,7 @@ class Miriad(UVData):
         # select on ant_str if provided
         if ant_str is not None:
             # type check
-            if not isinstance(ant_str, (str, np.str_)):
+            if not isinstance(ant_str, str | np.str_):
                 raise ValueError("ant_str must be a string")
             if antenna_nums is not None or bls is not None:
                 raise ValueError("Cannot provide ant_str with antenna_nums or bls")
@@ -792,9 +787,9 @@ class Miriad(UVData):
             if antenna_nums is not None:
                 # type check
                 err_msg = "antenna_nums must be a list of antenna number integers"
-                if not isinstance(antenna_nums, (np.ndarray, list)):
+                if not isinstance(antenna_nums, np.ndarray | list):
                     raise ValueError(err_msg)
-                if not isinstance(antenna_nums[0], (int, np.integer)):
+                if not isinstance(antenna_nums[0], int | np.integer):
                     raise ValueError(err_msg)
                 # get all possible combinations
                 antpairs = list(
@@ -816,8 +811,8 @@ class Miriad(UVData):
                     )
                 if all(len(item) == 2 for item in bls):
                     if not all(
-                        [isinstance(item[0], (int, np.integer)) for item in bls]
-                        + [isinstance(item[1], (int, np.integer)) for item in bls]
+                        [isinstance(item[0], int | np.integer) for item in bls]
+                        + [isinstance(item[1], int | np.integer) for item in bls]
                     ):
                         raise ValueError(
                             "bls must be a list of tuples of antenna numbers "
@@ -877,12 +872,12 @@ class Miriad(UVData):
                 "time_range must be a len-2 list of Julian Date floats, "
                 "Ex: [2458115.2, 2458115.6]"
             )
-            if not isinstance(time_range, (list, np.ndarray)):
+            if not isinstance(time_range, list | np.ndarray):
                 raise ValueError(err_msg)
             if len(time_range) != 2:
                 raise ValueError(err_msg)
             if not np.array(
-                [isinstance(t, (float, np.floating, np.float64)) for t in time_range]
+                [isinstance(t, float | np.floating | np.float64) for t in time_range]
             ).all():
                 raise ValueError(err_msg)
 
@@ -906,17 +901,17 @@ class Miriad(UVData):
                 "pols must be a list of polarization strings or ints, "
                 "Ex: ['xx', ...] or [-5, ...]"
             )
-            if not isinstance(polarizations, (list, np.ndarray)):
+            if not isinstance(polarizations, list | np.ndarray):
                 raise ValueError(err_msg)
             if not np.array(
-                [isinstance(p, (str, np.str_, int, np.integer)) for p in polarizations]
+                [isinstance(p, str | np.str_ | int | np.integer) for p in polarizations]
             ).all():
                 raise ValueError(err_msg)
             # convert to pol integer if string
             polarizations = [
                 (
                     p
-                    if isinstance(p, (int, np.integer))
+                    if isinstance(p, int | np.integer)
                     else utils.polstr2num(p, x_orientation=self.telescope.x_orientation)
                 )
                 for p in polarizations
@@ -950,12 +945,10 @@ class Miriad(UVData):
         phase_frame = None
         sou_dict = {}
         Nphase = 0
-        record_epoch = "epoch" in uv.vartable.keys()
-        record_phase_frame = "phsframe" in uv.vartable.keys()
-        record_app = ("obsra" in uv.vartable.keys()) and (
-            "obsdec" in uv.vartable.keys()
-        )
-        record_pa = "obspa" in uv.vartable.keys()
+        record_epoch = "epoch" in uv.vartable
+        record_phase_frame = "phsframe" in uv.vartable
+        record_app = ("obsra" in uv.vartable) and ("obsdec" in uv.vartable)
+        record_pa = "obspa" in uv.vartable
 
         # dra_list - Stubbing out for later
         # ddec_list - Stubbing out for later
@@ -1070,15 +1063,13 @@ class Miriad(UVData):
             data_accumulator[pol] = np.array(data, dtype="object")
 
         self.polarization_array = np.array(pol_list)
-        if polarizations is None:
+        if polarizations is None and len(self.polarization_array) != self.Npols:
             # A select on read would make the header npols not match the pols
             # in the data
-            if len(self.polarization_array) != self.Npols:
-                warnings.warn(
-                    "npols={npols} but found {n} pols in data file".format(
-                        npols=self.Npols, n=len(self.polarization_array)
-                    )
-                )
+            warnings.warn(
+                f"npols={self.Npols} but found {len(self.polarization_array)} "
+                "pols in data file"
+            )
         self.Npols = len(pol_list)
 
         # makes a data_array (and flag_array) of zeroes to be filled in by
@@ -1128,7 +1119,7 @@ class Miriad(UVData):
                 blts.append(blt)
         unique_blts = np.unique(np.array(blts))
 
-        reverse_inds = dict(zip(unique_blts, range(len(unique_blts))))
+        reverse_inds = dict(zip(unique_blts, range(len(unique_blts)), strict=True))
         self.Nants_data = len(sorted_unique_ants)
 
         # load antennas and antenna positions using sorted unique ants list
@@ -1321,21 +1312,21 @@ class Miriad(UVData):
                     assign_list.append(frame_pa_list)
                     check_names.append("obspa")
 
-                for item, name in zip(check_list, check_names):
+                for item, name in zip(check_list, check_names, strict=True):
                     if name == "phsframe":
                         arr = item[blt_index, good_pol]
                         if np.any(arr != arr[0]):
                             raise ValueError(
-                                "%s values are different by polarization." % name
+                                f"{name} values are different by polarization."
                                 + reporting_request
                             )
                     else:
                         if np.any(np.diff(item[blt_index, good_pol])):
                             raise ValueError(
-                                "%s values are different by polarization." % name
+                                f"{name} values are different by polarization."
                                 + reporting_request
                             )
-                for item, target in zip(check_list, assign_list):
+                for item, target in zip(check_list, assign_list, strict=True):
                     target[blt_index] = item[blt_index, good_pol[0]]
 
         # get unflagged blts
@@ -1380,7 +1371,7 @@ class Miriad(UVData):
                     "It is not clear from the file if the data are projected or not. "
                     "Since the 'epoch' variable is "
                 )
-                if "epoch" in uv.vartable.keys():
+                if "epoch" in uv.vartable:
                     projected = True
                     warn_msg += "present it will be labeled as projected. "
                 else:
@@ -1407,7 +1398,7 @@ class Miriad(UVData):
             # _really_ wanted FK4/Bessel-Newcomb).
             self.phase_center_id_array = sou_id_list.astype(int)
             # Here is where we should package up sources
-            for name in sou_dict.keys():
+            for name in sou_dict:
                 select_mask = sou_id_list == sou_dict[name]
 
                 # test for varying epochs. Unprojected phase centers have nans here
@@ -1452,7 +1443,7 @@ class Miriad(UVData):
                 this_single_dec = utils.tools._test_array_constant(
                     dec_list[select_mask], tols=radian_tols
                 )
-                if not cat_type == "unprojected" and (
+                if cat_type != "unprojected" and (
                     not this_single_ra or not this_single_dec
                 ):
                     cat_type = "ephem"
@@ -1695,14 +1686,14 @@ class Miriad(UVData):
                 print("File exists: clobbering")
                 shutil.rmtree(filepath)
             else:
-                raise IOError("File exists: skipping")
+                raise OSError("File exists: skipping")
 
         uv = aipy_extracts.UV(filepath, status="new")
 
         # initialize header variables
         uv._wrhd("obstype", "mixed-auto-cross")
         # avoid inserting extra \n.
-        if not self.history[-1] == "\n":
+        if self.history[-1] != "\n":
             self.history += "\n"
         uv._wrhd("history", self.history)
 
@@ -1905,21 +1896,21 @@ class Miriad(UVData):
                     raise_type_error = True
             elif isinstance(value, bool):
                 value = str(value)
-            elif type(value) not in types.keys():
+            elif type(value) not in types:
                 raise_type_error = True
 
             if raise_type_error:
                 raise TypeError(
-                    "Extra keyword {keyword} is of {keytype}. "
+                    f"Extra keyword {key} is of {type(value)}. "
                     "Only strings and real numbers are "
-                    "supported in miriad.".format(keyword=key, keytype=type(value))
+                    "supported in miriad."
                 )
 
             if len(str(key)) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 as required "
-                    "by the miriad file format.".format(key=key)
+                    "by the miriad file format."
                 )
 
             uvkeyname = str(key)[:8]  # name must be string, max 8 letters
@@ -1996,7 +1987,7 @@ class Miriad(UVData):
             dec_interp_func = {}
             ra_use = {}
             dec_use = {}
-            for cat_id in self.phase_center_catalog.keys():
+            for cat_id in self.phase_center_catalog:
                 if self.phase_center_catalog[cat_id]["cat_type"] != "ephem":
                     continue
                 npts = self.phase_center_catalog[cat_id]["cat_times"].size
