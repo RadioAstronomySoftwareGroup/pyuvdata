@@ -653,7 +653,7 @@ def get_autocorrelations_mask(uvd):
     autos = []
     for i in uvd.antenna_numbers:
         num = uvd.antpair2ind(i, ant2=i)
-        if not num.size == 0:
+        if num is not None:
             autos.append(num)
 
     # Flatten it to obtain the 1D array of autocorrelation indices
