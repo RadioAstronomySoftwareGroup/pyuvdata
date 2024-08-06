@@ -2634,7 +2634,6 @@ def getPhase(uvd, focus_x, focus_y, focus_z, flipconj):
     phi: the phase correction to apply to each visibility along the Nblts axis
     new_w: the calculated near-field delay (or w-term) for each visibility along the Nblts axis
     """
-    
     ## Get indices to convert between Nants and Nblts
     ind1, ind2 = Nants_to_Nblts(uvd)
     
@@ -2662,7 +2661,7 @@ def getPhase(uvd, focus_x, focus_y, focus_z, flipconj):
     else:
         new_w = r1 - r2
     phi = new_w - old_w
-    
+
     ## Remove autocorrelations
     mask = get_autocorrelations_mask(uvd)
     
