@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvbeam object.
+"""Tests for uvbeam object."""
 
-"""
 import copy
 import os
 import re
@@ -215,7 +213,7 @@ def test_extra_parameter_iter(uvbeam_data):
 def test_unexpected_parameters(uvbeam_data):
     """Test for extra parameters."""
     expected_parameters = uvbeam_data.required_parameters + uvbeam_data.extra_parameters
-    attributes = [i for i in uvbeam_data.beam_obj.__dict__.keys() if i[0] == "_"]
+    attributes = [i for i in uvbeam_data.beam_obj.__dict__ if i[0] == "_"]
     for a in attributes:
         assert a in expected_parameters, (
             "unexpected parameter " + a + " found in UVBeam"
@@ -229,7 +227,7 @@ def test_unexpected_attributes(uvbeam_data):
         + uvbeam_data.extra_properties
         + uvbeam_data.other_properties
     )
-    attributes = [i for i in uvbeam_data.beam_obj.__dict__.keys() if i[0] != "_"]
+    attributes = [i for i in uvbeam_data.beam_obj.__dict__ if i[0] != "_"]
     for a in attributes:
         assert a in expected_attributes, (
             "unexpected attribute " + a + " found in UVBeam"
@@ -243,6 +241,7 @@ def test_properties(uvbeam_data):
             zip(
                 uvbeam_data.required_properties + uvbeam_data.extra_properties,
                 uvbeam_data.required_parameters + uvbeam_data.extra_parameters,
+                strict=True,
             )
         )
     )
@@ -253,7 +252,7 @@ def test_properties(uvbeam_data):
         try:
             assert rand_num == this_param.value
         except AssertionError:
-            print("setting {prop_name} to a random number failed".format(prop_name=k))
+            print(f"setting {k} to a random number failed")
             raise
 
 
@@ -977,7 +976,7 @@ def test_spatial_interpolation_everyother(
         + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
     )
     za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros(18) + np.pi / 36).tolist()
     )
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
@@ -1101,7 +1100,7 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
     )
     za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros((18)) + np.pi / 36).tolist()
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros(18) + np.pi / 36).tolist()
     )
     freq_interp_vals = np.arange(125e6, 145e6, 5e6)
 
@@ -1719,8 +1718,7 @@ def test_select_frequencies(
     freq_select = np.max(beam.freq_array) + 10
     # check for errors associated with frequencies not included in data
     with pytest.raises(
-        ValueError,
-        match="Frequency {f} is not present in the freq_array".format(f=freq_select),
+        ValueError, match=f"Frequency {freq_select} is not present in the freq_array"
     ):
         beam.select(frequencies=[freq_select])
 
@@ -1806,18 +1804,22 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
     assert efield_beam2 == efield_beam3
 
     # check for errors associated with feeds not included in data
-    with pytest.raises(
-        ValueError, match="Feed {f} is not present in the feed_array".format(f="p")
+    with (
+        pytest.raises(
+            ValueError, match="Feed {f} is not present in the feed_array".format(f="p")
+        ),
+        check_warnings(expected_warning, match=warn_msg),
     ):
-        with check_warnings(expected_warning, match=warn_msg):
-            efield_beam.select(feeds=["p"])
+        efield_beam.select(feeds=["p"])
 
     # check for error with selecting polarizations on efield beams
-    with pytest.raises(
-        ValueError, match="polarizations cannot be used with efield beams"
+    with (
+        pytest.raises(
+            ValueError, match="polarizations cannot be used with efield beams"
+        ),
+        check_warnings(expected_warning, match=warn_msg),
     ):
-        with check_warnings(expected_warning, match=warn_msg):
-            efield_beam.select(polarizations=[-5, -6])
+        efield_beam.select(polarizations=[-5, -6])
 
     # Test check basis vectors
     efield_beam.basis_vector_array[0, 1, :, :] = 1.0
@@ -1884,8 +1886,7 @@ def test_select_polarizations_errors(cst_efield_1freq):
 
     # check for errors associated with polarizations not included in data
     with pytest.raises(
-        ValueError,
-        match="polarization {p} is not present in the polarization_array".format(p=-3),
+        ValueError, match=f"polarization {-3} is not present in the polarization_array"
     ):
         power_beam.select(polarizations=[-3, -4])
 
@@ -1904,15 +1905,17 @@ def test_select_polarizations_errors(cst_efield_1freq):
 
     # check for error with complex auto pols
     power_beam.data_array[:, 0] = power_beam.data_array[:, 2]
-    with check_warnings(
-        UserWarning,
-        match="Polarization select should result in a real array but the "
-        "imaginary part is not zero.",
-    ):
-        with pytest.raises(
+    with (
+        check_warnings(
+            UserWarning,
+            match="Polarization select should result in a real array but the "
+            "imaginary part is not zero.",
+        ),
+        pytest.raises(
             ValueError, match="UVParameter _data_array is not the appropriate type"
-        ):
-            power_beam.select(polarizations=[-5, -6])
+        ),
+    ):
+        power_beam.select(polarizations=[-5, -6])
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -2231,7 +2234,7 @@ def test_add_warnings(cross_power_beam_for_adding):
     with check_warnings(UserWarning, "Combined frequencies are not evenly spaced"):
         beam1.__add__(beam2)
 
-    power_beam.receiver_temperature_array = np.ones((8))
+    power_beam.receiver_temperature_array = np.ones(8)
     beam1 = power_beam.select(
         polarizations=power_beam.polarization_array[0:2], inplace=False
     )
@@ -2378,8 +2381,7 @@ def test_select_healpix_pixels(
     # check for errors associated with pixels not included in data
     pixel_select = 12 * beam_healpix.nside**2 + 10
     with pytest.raises(
-        ValueError,
-        match="Pixel {p} is not present in the pixel_array".format(p=pixel_select),
+        ValueError, match=f"Pixel {pixel_select} is not present in the pixel_array"
     ):
         beam_healpix.select(pixels=[pixel_select])
 

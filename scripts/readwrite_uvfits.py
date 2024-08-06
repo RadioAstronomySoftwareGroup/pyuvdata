@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in a uvfits file and write a new one out."""
@@ -17,7 +16,7 @@ args = parser.parse_args()
 
 uvfits_file_in = args.uvfits_read
 if not op.isfile(uvfits_file_in):
-    raise IOError("There is no file named {}".format(args.uvfits_file_in))
+    raise OSError(f"There is no file named {args.uvfits_file_in}")
 
 uvfits_file_out = args.uvfits_write
 

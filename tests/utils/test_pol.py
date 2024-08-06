@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for polarization utility functions."""
@@ -18,8 +17,8 @@ def test_pol_funcs():
     assert pol_nums == utils.polstr2num(pol_str)
     assert pol_str == utils.polnum2str(pol_nums)
     # Check individuals
-    assert -6 == utils.polstr2num("YY")
-    assert "pV" == utils.polnum2str(4)
+    assert utils.polstr2num("YY") == -6
+    assert utils.polnum2str(4) == "pV"
     # Check errors
     pytest.raises(KeyError, utils.polstr2num, "foo")
     pytest.raises(ValueError, utils.polstr2num, 1)
@@ -40,8 +39,8 @@ def test_pol_funcs_x_orientation():
     assert pol_nums == utils.polstr2num(pol_str, x_orientation=x_orient1)
     assert pol_str == utils.polnum2str(pol_nums, x_orientation=x_orient1)
     # Check individuals
-    assert -6 == utils.polstr2num("NN", x_orientation=x_orient1)
-    assert "pV" == utils.polnum2str(4)
+    assert utils.polstr2num("NN", x_orientation=x_orient1) == -6
+    assert utils.polnum2str(4) == "pV"
     # Check errors
     pytest.raises(KeyError, utils.polstr2num, "foo", x_orientation=x_orient1)
     pytest.raises(ValueError, utils.polstr2num, 1, x_orientation=x_orient1)
@@ -58,8 +57,8 @@ def test_pol_funcs_x_orientation():
     assert pol_nums == utils.polstr2num(pol_str, x_orientation=x_orient2)
     assert pol_str == utils.polnum2str(pol_nums, x_orientation=x_orient2)
     # Check individuals
-    assert -6 == utils.polstr2num("EE", x_orientation=x_orient2)
-    assert "pV" == utils.polnum2str(4)
+    assert utils.polstr2num("EE", x_orientation=x_orient2) == -6
+    assert utils.polnum2str(4) == "pV"
     # Check errors
     pytest.raises(KeyError, utils.polstr2num, "foo", x_orientation=x_orient2)
     pytest.raises(ValueError, utils.polstr2num, 1, x_orientation=x_orient2)
@@ -91,8 +90,8 @@ def test_jones_num_funcs():
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
     assert jnums == utils.jstr2num(jstr)
     # Check individuals
-    assert -6 == utils.jstr2num("jyy")
-    assert "Jxy" == utils.jnum2str(-7)
+    assert utils.jstr2num("jyy") == -6
+    assert utils.jnum2str(-7) == "Jxy"
     # Check errors
     pytest.raises(KeyError, utils.jstr2num, "foo")
     pytest.raises(ValueError, utils.jstr2num, 1)
@@ -117,8 +116,8 @@ def test_jones_num_funcs_x_orientation():
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
     assert jnums == utils.jstr2num(jstr, x_orientation=x_orient1)
     # Check individuals
-    assert -6 == utils.jstr2num("jnn", x_orientation=x_orient1)
-    assert "Jen" == utils.jnum2str(-7, x_orientation=x_orient1)
+    assert utils.jstr2num("jnn", x_orientation=x_orient1) == -6
+    assert utils.jnum2str(-7, x_orientation=x_orient1) == "Jen"
     # Check errors
     pytest.raises(KeyError, utils.jstr2num, "foo", x_orientation=x_orient1)
     pytest.raises(ValueError, utils.jstr2num, 1, x_orientation=x_orient1)
@@ -141,8 +140,8 @@ def test_jones_num_funcs_x_orientation():
     jnums = [-8, -7, -6, -6, -5, -5, -4, -3, -2, -2, -1, -1]
     assert jnums == utils.jstr2num(jstr, x_orientation=x_orient2)
     # Check individuals
-    assert -6 == utils.jstr2num("jee", x_orientation=x_orient2)
-    assert "Jne" == utils.jnum2str(-7, x_orientation=x_orient2)
+    assert utils.jstr2num("jee", x_orientation=x_orient2) == -6
+    assert utils.jnum2str(-7, x_orientation=x_orient2) == "Jne"
     # Check errors
     pytest.raises(KeyError, utils.jstr2num, "foo", x_orientation=x_orient2)
     pytest.raises(ValueError, utils.jstr2num, 1, x_orientation=x_orient2)

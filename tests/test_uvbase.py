@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvbase object.
+"""Tests for uvbase object."""
 
-"""
 import re
 
 import numpy as np
@@ -13,8 +11,7 @@ from astropy import units
 from astropy.coordinates import Distance, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 
-from pyuvdata import Telescope
-from pyuvdata import parameter as uvp
+from pyuvdata import Telescope, parameter as uvp
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import UVBase, _warning, old_telescope_metadata_attrs
 
@@ -148,7 +145,10 @@ class UVTest(UVBase):
             description="A recarray object.",
             expected_type=[dtype.type for dtype in dtype_list],
             value=np.rec.fromarrays(
-                values, dtype=np.dtype(list(zip(["foo", "bar", "gah"], dtype_list)))
+                values,
+                dtype=np.dtype(
+                    list(zip(["foo", "bar", "gah"], dtype_list, strict=True))
+                ),
             ),
             form=(35,),
         )
@@ -192,7 +192,7 @@ class UVTest(UVBase):
             expected_type=Telescope,
         )
 
-        super(UVTest, self).__init__()
+        super().__init__()
 
         self.telescope = Telescope.from_known_telescopes("mwa")
 
@@ -247,7 +247,7 @@ def test_inequality_different_extras(capsys):
         "'_optional_int2', '_optional_int3', '_unset_int1']."
     )
 
-    assert not (test_obj == test_obj2)
+    assert test_obj != test_obj2
 
 
 def test_inequality(capsys):
@@ -318,17 +318,19 @@ def test_check_quantity_type():
     """Test check function with wrong array type."""
     test_obj = UVTest()
     test_obj.floatarr = (test_obj.floatarr + 1j * test_obj.floatarr) * units.m
-    with check_warnings(
-        UserWarning,
-        "Parameter _floatarr is a Quantity object, but the expected type "
-        "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
-        "Testing the precision of the value, "
-        "but this check will fail in a future version.",
-    ):
-        with pytest.raises(
+    with (
+        check_warnings(
+            UserWarning,
+            "Parameter _floatarr is a Quantity object, but the expected type "
+            "is a precision identifier: (<class 'float'>, <class 'numpy.floating'>). "
+            "Testing the precision of the value, "
+            "but this check will fail in a future version.",
+        ),
+        pytest.raises(
             ValueError, match="UVParameter _floatarr is not the appropriate type. "
-        ):
-            test_obj.check()
+        ),
+    ):
+        test_obj.check()
 
 
 def test_wrong_quantity_type():

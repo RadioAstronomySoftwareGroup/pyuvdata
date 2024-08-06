@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Tests for testing_utils module."""
+
 import re
 import warnings
 
@@ -126,16 +126,20 @@ from pyuvdata.testing.warning_check import WarningsChecker, check_warnings
 def test_check_warnings_errors(
     true_warn_type, true_warn_msg, exp_warn_type, exp_warn_msg, err_type, err_msg
 ):
-    with pytest.raises(err_type, match=err_msg):
-        with check_warnings(exp_warn_type, match=exp_warn_msg):
-            if true_warn_msg is not None:
-                if isinstance(true_warn_type, list):
-                    for warn_type, warn_msg in zip(true_warn_type, true_warn_msg):
-                        warnings.warn(warn_msg, warn_type)
-                else:
-                    warnings.warn(true_warn_msg, true_warn_type)
+    with (
+        pytest.raises(err_type, match=err_msg),
+        check_warnings(exp_warn_type, match=exp_warn_msg),
+    ):
+        if true_warn_msg is not None:
+            if isinstance(true_warn_type, list):
+                for warn_type, warn_msg in zip(
+                    true_warn_type, true_warn_msg, strict=True
+                ):
+                    warnings.warn(warn_msg, warn_type)
             else:
-                pass
+                warnings.warn(true_warn_msg, true_warn_type)
+        else:
+            pass
 
 
 def test_check_warnings_errors_no_cm():

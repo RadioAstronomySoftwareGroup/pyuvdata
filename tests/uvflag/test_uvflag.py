@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -710,7 +709,7 @@ def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
     meta = hdf5_utils.HDF5Meta(test_outfile)
     msg = "Need to install `lunarsky` package to work with MCMF frame."
     with pytest.raises(ValueError, match=msg):
-        meta.telescope_location_obj
+        meta.telescope_location_obj  # noqa: B018
     del meta
 
     uvf_from_data.write(test_outfile, clobber=True)
@@ -720,7 +719,7 @@ def test_hdf5_meta_no_moon(test_outfile, uvf_from_data):
 
     meta = hdf5_utils.HDF5Meta(test_outfile)
     with pytest.raises(ValueError, match=msg):
-        meta.telescope_location_obj
+        meta.telescope_location_obj  # noqa: B018
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1745,9 +1744,7 @@ def test_add_antenna(uvcal_obj, diameters):
     uv2.telescope.antenna_names = np.array(
         [name + "_new" for name in uv2.telescope.antenna_names]
     )
-    if diameters == "left":
-        uv2.telescope.antenna_diameters = None
-    elif diameters == "right":
+    if diameters == "left" or diameters == "right":
         uv2.telescope.antenna_diameters = None
 
     if diameters == "both":
@@ -2136,7 +2133,7 @@ def test_collapse_pol(test_outfile):
     with h5py.File(test_outfile, "r") as h5:
         assert h5["Header/polarization_array"].dtype.type is np.bytes_
     uvf = UVFlag(test_outfile)
-    assert uvf._polarization_array.expected_type == str
+    assert uvf._polarization_array.expected_type is str
     assert uvf._polarization_array.acceptable_vals is None
     assert uvf == uvf2
     os.remove(test_outfile)
@@ -2416,16 +2413,18 @@ def test_to_baseline_metric_error(uvdata_obj, uvf_from_uvcal):
     uvf.select(
         polarizations=uvf.polarization_array[0], frequencies=np.squeeze(uv.freq_array)
     )
-    with pytest.raises(
-        NotImplementedError,
-        match="Cannot currently convert from antenna type, metric mode",
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            NotImplementedError,
+            match="Cannot currently convert from antenna type, metric mode",
+        ),
+        check_warnings(
             UserWarning,
             match="x_orientation is not the same on this object and on uv. Keeping "
             "the value on this object.",
-        ):
-            uvf.to_baseline(uv, force_pol=True)
+        ),
+    ):
+        uvf.to_baseline(uv, force_pol=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3026,7 +3025,7 @@ def test_get_antpairs():
     for a1, a2 in antpairs:
         ind = np.where((uvf.ant_1_array == a1) & (uvf.ant_2_array == a2))[0]
         assert len(ind) > 0
-    for a1, a2 in zip(uvf.ant_1_array, uvf.ant_2_array):
+    for a1, a2 in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True):
         assert (a1, a2) in antpairs
 
 
@@ -3121,7 +3120,7 @@ def test_super(uvdata_obj):
             label="",
             test_property="prop",
         ):
-            super(TestClass, self).__init__(
+            super().__init__(
                 indata,
                 mode=mode,
                 copy_flags=copy_flags,
@@ -3245,7 +3244,9 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
     uvf1 = uvf.select(blt_inds=blt_inds, inplace=False)
 
     # test the data was extracted correctly for each case
-    for param_name, new_param in zip(uvf._data_params, uvf1.data_like_parameters):
+    for param_name, new_param in zip(
+        uvf._data_params, uvf1.data_like_parameters, strict=True
+    ):
         old_param = getattr(uvf, param_name)
         blt_inds_use = np.atleast_1d(blt_inds.squeeze())
         if uvf.type == "baseline":
@@ -3313,7 +3314,7 @@ def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
 
         blts_select = [
             (a1 in ants_to_keep) & (a2 in ants_to_keep)
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array)
+            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         Nblts_selected = np.sum(blts_select)
     else:
@@ -3400,19 +3401,19 @@ def test_select_bls(input_uvf, uvf_mode):
         )
 
         new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
-        ant_pairs_to_keep = list(zip(first_ants, second_ants))
+        ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
         sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
         blts_select = [
             sort_bl((a1, a2)) in sorted_pairs_to_keep
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array)
+            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         Nblts_selected = np.sum(blts_select)
 
         uvf2 = uvf.copy()
         uvf2.select(bls=ant_pairs_to_keep)
         sorted_pairs_object2 = [
-            sort_bl(p) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array)
+            sort_bl(p) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
         ]
 
         assert len(new_unique_ants) == uvf2.Nants_data
@@ -3442,12 +3443,12 @@ def test_select_bls(input_uvf, uvf_mode):
         pols = ["xx"] * len(first_ants)
 
         new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
-        ant_pairs_to_keep = list(zip(first_ants, second_ants, pols))
+        ant_pairs_to_keep = list(zip(first_ants, second_ants, pols, strict=True))
         sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
         blts_select = [
             sort_bl((a1, a2, "xx")) in sorted_pairs_to_keep
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array)
+            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         Nblts_selected = np.sum(blts_select)
 
@@ -3455,7 +3456,8 @@ def test_select_bls(input_uvf, uvf_mode):
 
         uvf2.select(bls=ant_pairs_to_keep)
         sorted_pairs_object2 = [
-            sort_bl(p) + ("xx",) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array)
+            sort_bl(p) + ("xx",)
+            for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
         ]
 
         assert len(new_unique_ants) == uvf2.Nants_data
@@ -3479,7 +3481,8 @@ def test_select_bls(input_uvf, uvf_mode):
         assert isinstance(ant_pairs_to_keep[0], tuple)
         uvf2.select(bls=ant_pairs_to_keep[0])
         sorted_pairs_object2 = [
-            sort_bl(p) + ("xx",) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array)
+            sort_bl(p) + ("xx",)
+            for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
         ]
         assert list(set(sorted_pairs_object2)) == [ant_pairs_to_keep[0]]
 
@@ -3629,7 +3632,7 @@ def test_select_frequencies(input_uvf, uvf_mode):
     # check that selecting one frequency works
     uvf2 = uvf.copy()
     uvf2.select(frequencies=freqs_to_keep[0])
-    assert 1 == uvf2.Nfreqs
+    assert uvf2.Nfreqs == 1
     assert freqs_to_keep[0] in uvf2.freq_array
     for f in uvf2.freq_array:
         assert f in [freqs_to_keep[0]]
@@ -3804,7 +3807,7 @@ def test_select(input_uvf, uvf_mode):
         # give the conjugate bls for a few baselines
         first_ants[2:4], second_ants[2:4] = second_ants[2:4], first_ants[2:4]
 
-        ant_pairs_to_keep = list(zip(first_ants, second_ants))
+        ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
         sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
     else:
@@ -3824,18 +3827,22 @@ def test_select(input_uvf, uvf_mode):
         blts_blt_select = [i in blt_inds for i in np.arange(uvf.Nblts)]
         blts_ant_select = [
             (a1 in ants_to_keep) & (a2 in ants_to_keep)
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array)
+            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         blts_pair_select = [
             sort_bl((a1, a2)) in sorted_pairs_to_keep
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array)
+            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         blts_time_select = [t in times_to_keep for t in uvf.time_array]
         Nblts_select = np.sum(
             [
                 bi & (ai & pi) & ti
                 for (bi, ai, pi, ti) in zip(
-                    blts_blt_select, blts_ant_select, blts_pair_select, blts_time_select
+                    blts_blt_select,
+                    blts_ant_select,
+                    blts_pair_select,
+                    blts_time_select,
+                    strict=True,
                 )
             ]
         )
@@ -3847,7 +3854,10 @@ def test_select(input_uvf, uvf_mode):
 
         blts_time_select = [t in times_to_keep for t in uvf.time_array]
         Nblts_select = np.sum(
-            [bi & ti for (bi, ti) in zip(blts_blt_select, blts_time_select)]
+            [
+                bi & ti
+                for (bi, ti) in zip(blts_blt_select, blts_time_select, strict=True)
+            ]
         )
 
     uvf2 = uvf.copy()
@@ -3985,7 +3995,7 @@ def test_equality_no_history(uvf_from_data):
 def test_inequality_different_classes(uvf_from_data):
     uvf = uvf_from_data
 
-    class TestClass(object):
+    class TestClass:
         def __init__(self):
             pass
 

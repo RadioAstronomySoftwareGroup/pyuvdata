@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -42,12 +41,11 @@ def is_platform_windows():
 # the version that python was built for. This may be overridden by setting
 # MACOSX_DEPLOYMENT_TARGET before calling setup.py
 # implementation based on pandas, see https://github.com/pandas-dev/pandas/issues/23424
-if is_platform_mac():
-    if "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
-        current_system = parse(platform.mac_ver()[0])
-        python_target = parse(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
-        if python_target < parse("10.9") and current_system >= parse("10.9"):
-            os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
+if is_platform_mac() and "MACOSX_DEPLOYMENT_TARGET" not in os.environ:
+    current_system = parse(platform.mac_ver()[0])
+    python_target = parse(get_config_var("MACOSX_DEPLOYMENT_TARGET"))
+    if python_target < parse("10.9") and current_system >= parse("10.9"):
+        os.environ["MACOSX_DEPLOYMENT_TARGET"] = "10.9"
 
 # define the cython compile args, depending on platform
 if is_platform_windows():

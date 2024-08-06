@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Read in the Sujinto et al. full embedded element MWA Beam."""
+
 import os
 import warnings
 
@@ -17,7 +17,7 @@ from . import UVBeam
 __all__ = ["P1sin", "P1sin_array", "MWABeam"]
 
 
-def P1sin(nmax, theta):
+def P1sin(nmax, theta):  # noqa N802
     """
     Create the Legendre function flavors for FF expansion using spherical waves.
 
@@ -56,8 +56,8 @@ def P1sin(nmax, theta):
 
     """
     # initialize for nmax, we have 2(1+...+nmax)+nmax=nmax^2+2*nmax long array
-    P_sin = np.zeros((nmax**2 + 2 * nmax))
-    P1 = np.zeros((nmax**2 + 2 * nmax))
+    P_sin = np.zeros(nmax**2 + 2 * nmax)
+    P1 = np.zeros(nmax**2 + 2 * nmax)
 
     # theta arguments
     cos_th = np.cos(theta)
@@ -121,7 +121,7 @@ def P1sin(nmax, theta):
     return P_sin, P1
 
 
-def P1sin_array(nmax, theta):
+def P1sin_array(nmax, theta):  # noqa N802
     """
     Calculate P^abs(m)_n(cos(theta))/sin(theta) and P^(abs(m)+1)_n(cos(theta)).
 
@@ -238,7 +238,7 @@ class MWABeam(UVBeam):
         other_names = []
         max_length = {}
         with h5py.File(h5filepath, "r") as h5f:
-            for name in h5f.keys():
+            for name in h5f:
                 if name.startswith("X") or name.startswith("Y"):
                     pol = name[0]
                     dipole, freq = name[1:].split("_")
@@ -251,9 +251,10 @@ class MWABeam(UVBeam):
                         max_length[pol] = {}
 
                     this_length = h5f[name].shape[1] // 2
-                    if freq not in max_length[pol]:
-                        max_length[pol][freq] = this_length
-                    elif this_length > max_length[pol][freq]:
+                    if (
+                        freq not in max_length[pol]
+                        or this_length > max_length[pol][freq]
+                    ):
                         max_length[pol][freq] = this_length
 
                 else:
@@ -468,8 +469,8 @@ class MWABeam(UVBeam):
                     (len(theta_arr), 2 * nmax + 1), dtype=np.complex128
                 )
                 for m in range(-nmax, nmax + 1):
-                    emn_P_sum[:, m + nmax] = np.sum(emn_P[:, M == m], axis=1)
-                    emn_T_sum[:, m + nmax] = np.sum(emn_T[:, M == m], axis=1)
+                    emn_P_sum[:, m + nmax] = np.sum(emn_P[:, m == M], axis=1)
+                    emn_T_sum[:, m + nmax] = np.sum(emn_T[:, m == M], axis=1)
 
                 Sigma_P = np.inner(phi_comp, emn_P_sum)
                 Sigma_T = np.inner(phi_comp, emn_T_sum)
@@ -519,19 +520,13 @@ class MWABeam(UVBeam):
             amplitudes = np.ones([n_pol, n_dp])
 
         if amplitudes.shape != (n_pol, n_dp):
-            raise ValueError(
-                "amplitudes must be shape ({npol}, {nd})".format(npol=n_pol, nd=n_dp)
-            )
+            raise ValueError(f"amplitudes must be shape ({n_pol}, {n_dp})")
 
         if delays.shape != (n_pol, n_dp):
-            raise ValueError(
-                "delays must be shape ({npol}, {nd})".format(npol=n_pol, nd=n_dp)
-            )
+            raise ValueError(f"delays must be shape ({n_pol}, {n_dp})")
 
         if (delays > 32).any():
-            raise ValueError(
-                "There are delays greater than 32: {delays}".format(delays=delays)
-            )
+            raise ValueError(f"There are delays greater than 32: {delays}")
 
         # check for terminated dipoles and reset delays and amplitudes
         terminated = delays == 32
@@ -553,8 +548,8 @@ class MWABeam(UVBeam):
             if freqs_use.size < 1:
                 raise ValueError(
                     "No frequencies available in freq_range. "
-                    "Available frequencies are between {fmin} Hz "
-                    "and {fmax} Hz".format(fmin=np.min(freqs_hz), fmax=np.max(freqs_hz))
+                    f"Available frequencies are between {np.min(freqs_hz)} Hz "
+                    f"and {np.max(freqs_hz)} Hz"
                 )
             if freqs_use.size < 2:
                 warnings.warn("Only one available frequency in freq_range.")

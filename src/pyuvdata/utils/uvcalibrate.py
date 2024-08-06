@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Code to apply calibration solutions to visibility data."""
+
 import warnings
 from typing import Literal
 
@@ -509,11 +509,19 @@ def uvcalibrate(
     else:
         # key is number, value is name
         uvdata_ant_dict = dict(
-            zip(uvdata.telescope.antenna_numbers, uvdata.telescope.antenna_names)
+            zip(
+                uvdata.telescope.antenna_numbers,
+                uvdata.telescope.antenna_names,
+                strict=False,
+            )
         )
         # opposite: key is name, value is number
         uvcal_ant_dict = dict(
-            zip(uvcal.telescope.antenna_names, uvcal.telescope.antenna_numbers)
+            zip(
+                uvcal.telescope.antenna_names,
+                uvcal.telescope.antenna_numbers,
+                strict=False,
+            )
         )
 
         # iterate over keys

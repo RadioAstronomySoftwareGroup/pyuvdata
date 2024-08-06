@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio telescope antenna beams."""
+
 import copy
 import os
 import warnings
@@ -14,8 +14,7 @@ from astropy.coordinates import Angle
 from docstring_parser import DocstringStyle
 from scipy import interpolate
 
-from .. import parameter as uvp
-from .. import utils
+from .. import parameter as uvp, utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..uvbase import UVBase
 from . import _uvbeam, initializers
@@ -559,7 +558,7 @@ class UVBeam(UVBase):
             "filename", required=False, description=desc, expected_type=str
         )
 
-        super(UVBeam, self).__init__()
+        super().__init__()
 
     @staticmethod
     @combine_docstrings(initializers.new_uvbeam, style=DocstringStyle.NUMPYDOC)
@@ -811,31 +810,32 @@ class UVBeam(UVBase):
             self._check_auto_power(fix_auto_power=fix_auto_power)
 
         # first run the basic check from UVBase
-        super(UVBeam, self).check(
+        super().check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
         # check that basis_vector_array are not longer than 1
-        if self.basis_vector_array is not None:
-            if np.max(np.linalg.norm(self.basis_vector_array, axis=1)) > (1 + 1e-15):
-                raise ValueError("basis vectors must have lengths of 1 or less.")
+        if self.basis_vector_array is not None and np.max(
+            np.linalg.norm(self.basis_vector_array, axis=1)
+        ) > (1 + 1e-15):
+            raise ValueError("basis vectors must have lengths of 1 or less.")
 
         # issue warning if extra_keywords keys are longer than 8 characters
         for key in list(self.extra_keywords.keys()):
             if len(key) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 if written "
-                    "to a fits file format.".format(key=key)
+                    "to a fits file format."
                 )
 
         # issue warning if extra_keywords values are lists, arrays or dicts
         for key, value in self.extra_keywords.items():
-            if isinstance(value, (list, dict, np.ndarray)):
+            if isinstance(value, list | dict | np.ndarray):
                 warnings.warn(
-                    "{key} in extra_keywords is a list, array or dict, "
+                    f"{key} in extra_keywords is a list, array or dict, "
                     "which will raise an error when writing fits "
-                    "files".format(key=key)
+                    "files"
                 )
 
         return True
@@ -1266,7 +1266,9 @@ class UVBeam(UVBase):
 
             interp_arrays = []
             for data, ax in zip(
-                [self.data_array, self.bandpass_array], [data_axis, bandpass_axis]
+                [self.data_array, self.bandpass_array],
+                [data_axis, bandpass_axis],
+                strict=True,
             ):
                 if np.iscomplexobj(data):
                     # interpolate real and imaginary parts separately
@@ -1483,8 +1485,8 @@ class UVBeam(UVBase):
                 for pol in pols:
                     if pol not in self.polarization_array:
                         raise ValueError(
-                            "Requested polarization {} not found "
-                            "in self.polarization_array".format(pol)
+                            f"Requested polarization {pol} not found "
+                            "in self.polarization_array"
                         )
                     pol_inds.append(np.where(self.polarization_array == pol)[0][0])
                 pol_inds = np.asarray(pol_inds)
@@ -1534,10 +1536,9 @@ class UVBeam(UVBase):
                 for pol_return_ind, index2 in enumerate(pol_inds):
                     do_interp = True
                     key = (freq, index2, index0)
-                    if reuse_spline:
-                        if key in self.saved_interp_functions.keys():
-                            do_interp = False
-                            lut = self.saved_interp_functions[key]
+                    if reuse_spline and key in self.saved_interp_functions:
+                        do_interp = False
+                        lut = self.saved_interp_functions[key]
 
                     if do_interp:
                         data_inds = (index0, index2, index3)
@@ -1906,13 +1907,12 @@ class UVBeam(UVBase):
                 "return_coupling can only be set if antenna_type is phased_array"
             )
 
-        if new_object:
-            if not az_za_grid and az_array is not None:
-                raise ValueError(
-                    "A new object can only be returned if "
-                    "az_za_grid is True or for Healpix pixels or "
-                    "for frequency only interpolation."
-                )
+        if new_object and not az_za_grid and az_array is not None:
+            raise ValueError(
+                "A new object can only be returned if "
+                "az_za_grid is True or for Healpix pixels or "
+                "for frequency only interpolation."
+            )
 
         allowed_interp_funcs = list(self.interpolation_function_dict.keys())
         if interpolation_function not in allowed_interp_funcs:
@@ -2247,7 +2247,7 @@ class UVBeam(UVBase):
         ), "pixel_coordinate_system must be healpix"
         # assert beam_type is power
         assert self.beam_type == "power", "beam_type must be power"
-        if isinstance(pol, (str, np.str_)):
+        if isinstance(pol, str | np.str_):
             pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         pol_array = self.polarization_array
         if pol in pol_array:
@@ -2280,7 +2280,7 @@ class UVBeam(UVBase):
             Integral of the beam across the sky, units: steradians.
 
         """
-        if isinstance(pol, (str, np.str_)):
+        if isinstance(pol, str | np.str_):
             pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
@@ -2322,7 +2322,7 @@ class UVBeam(UVBase):
             Integral of the beam^2 across the sky, units: steradians.
 
         """
-        if isinstance(pol, (str, np.str_)):
+        if isinstance(pol, str | np.str_):
             pol = utils.polstr2num(pol, x_orientation=self.x_orientation)
         if self.beam_type != "power":
             raise ValueError("beam_type must be power")
@@ -2390,12 +2390,13 @@ class UVBeam(UVBase):
             this = self.copy()
         # Check that both objects are UVBeam and valid
         this.check(check_extra=check_extra, run_check_acceptability=False)
-        if not issubclass(other.__class__, this.__class__):
-            if not issubclass(this.__class__, other.__class__):
-                raise ValueError(
-                    "Only UVBeam (or subclass) objects can be added "
-                    "to a UVBeam (or subclass) object"
-                )
+        if not issubclass(other.__class__, this.__class__) and not issubclass(
+            this.__class__, other.__class__
+        ):
+            raise ValueError(
+                "Only UVBeam (or subclass) objects can be added "
+                "to a UVBeam (or subclass) object"
+            )
         other.check(check_extra=check_extra, run_check_acceptability=False)
 
         # Check objects are compatible
@@ -2445,8 +2446,8 @@ class UVBeam(UVBase):
             ) and this_attr != other_attr:
                 warnings.warn(
                     "Only one of the UVBeam objects being combined "
-                    "has optional parameter {attr}. After the sum the "
-                    "final object will not have {attr}".format(attr=attr)
+                    f"has optional parameter {attr}. After the sum the "
+                    f"final object will not have {attr}"
                 )
                 if this_attr.value is not None:
                     this_attr.value = None
@@ -2470,21 +2471,17 @@ class UVBeam(UVBase):
             both_axis1 = np.intersect1d(this.axis1_array, other.axis1_array)
             both_axis2 = np.intersect1d(this.axis2_array, other.axis2_array)
 
-        if len(both_pol) > 0:
-            if len(both_freq) > 0:
-                if self.pixel_coordinate_system == "healpix":
-                    if len(both_pixels) > 0:
-                        raise ValueError(
-                            "These objects have overlapping data and"
-                            " cannot be combined."
-                        )
-                else:
-                    if len(both_axis1) > 0:
-                        if len(both_axis2) > 0:
-                            raise ValueError(
-                                "These objects have overlapping data and"
-                                " cannot be combined."
-                            )
+        if len(both_pol) > 0 and len(both_freq) > 0:
+            if self.pixel_coordinate_system == "healpix":
+                if len(both_pixels) > 0:
+                    raise ValueError(
+                        "These objects have overlapping data and cannot be combined."
+                    )
+            else:
+                if len(both_axis1) > 0 and len(both_axis2) > 0:
+                    raise ValueError(
+                        "These objects have overlapping data and cannot be combined."
+                    )
 
         # Update filename parameter
         this.filename = utils.tools._combine_filenames(this.filename, other.filename)
@@ -2830,21 +2827,23 @@ class UVBeam(UVBase):
         this.Nfreqs = this.freq_array.size
 
         # Check specific requirements
-        if this.Nfreqs > 1:
-            if not utils.tools._test_array_constant_spacing(
-                this.freq_array, tols=this._freq_array.tols
-            ):
-                warnings.warn(
-                    "Combined frequencies are not evenly spaced. This will "
-                    "make it impossible to write this data out to some file types."
-                )
+        if this.Nfreqs > 1 and not utils.tools._test_array_constant_spacing(
+            this.freq_array, tols=this._freq_array.tols
+        ):
+            warnings.warn(
+                "Combined frequencies are not evenly spaced. This will "
+                "make it impossible to write this data out to some file types."
+            )
 
-        if self.beam_type == "power" and this.Npols > 2:
-            if not utils.tools._test_array_constant_spacing(this._polarization_array):
-                warnings.warn(
-                    "Combined polarizations are not evenly spaced. This will "
-                    "make it impossible to write this data out to some file types."
-                )
+        if (
+            self.beam_type == "power"
+            and this.Npols > 2
+            and not utils.tools._test_array_constant_spacing(this._polarization_array)
+        ):
+            warnings.warn(
+                "Combined polarizations are not evenly spaced. This will "
+                "make it impossible to write this data out to some file types."
+            )
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
@@ -2973,15 +2972,14 @@ class UVBeam(UVBase):
             beam_object.Naxes1 = len(axis1_inds)
             beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
 
-            if beam_object.Naxes1 > 1:
-                if not utils.tools._test_array_constant_spacing(
-                    beam_object._axis1_array
-                ):
-                    warnings.warn(
-                        "Selected values along first image axis are "
-                        "not evenly spaced. This is not supported by "
-                        "the regularly gridded beam fits format"
-                    )
+            if beam_object.Naxes1 > 1 and not utils.tools._test_array_constant_spacing(
+                beam_object._axis1_array
+            ):
+                warnings.warn(
+                    "Selected values along first image axis are "
+                    "not evenly spaced. This is not supported by "
+                    "the regularly gridded beam fits format"
+                )
 
             beam_object.data_array = beam_object.data_array[..., axis1_inds]
             if beam_object.beam_type == "efield":
@@ -3007,15 +3005,14 @@ class UVBeam(UVBase):
             beam_object.Naxes2 = len(axis2_inds)
             beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
 
-            if beam_object.Naxes2 > 1:
-                if not utils.tools._test_array_constant_spacing(
-                    beam_object._axis2_array
-                ):
-                    warnings.warn(
-                        "Selected values along second image axis are "
-                        "not evenly spaced. This is not supported by "
-                        "the regularly gridded beam fits format"
-                    )
+            if beam_object.Naxes2 > 1 and not utils.tools._test_array_constant_spacing(
+                beam_object._axis2_array
+            ):
+                warnings.warn(
+                    "Selected values along second image axis are "
+                    "not evenly spaced. This is not supported by "
+                    "the regularly gridded beam fits format"
+                )
 
             beam_object.data_array = beam_object.data_array[..., axis2_inds, :]
             if beam_object.beam_type == "efield":
@@ -3039,9 +3036,7 @@ class UVBeam(UVBase):
                         pix_inds, np.where(beam_object.pixel_array == p)[0]
                     )
                 else:
-                    raise ValueError(
-                        "Pixel {p} is not present in the pixel_array".format(p=p)
-                    )
+                    raise ValueError(f"Pixel {p} is not present in the pixel_array")
 
             pix_inds = sorted(set(pix_inds))
             beam_object.Npixels = len(pix_inds)
@@ -3077,9 +3072,7 @@ class UVBeam(UVBase):
                 if f in freq_arr_use:
                     freq_inds = np.append(freq_inds, np.where(freq_arr_use == f)[0])
                 else:
-                    raise ValueError(
-                        "Frequency {f} is not present in the freq_array".format(f=f)
-                    )
+                    raise ValueError(f"Frequency {f} is not present in the freq_array")
 
             freq_inds = sorted(set(freq_inds))
             beam_object.Nfreqs = len(freq_inds)
@@ -3153,15 +3146,13 @@ class UVBeam(UVBase):
                     feed_inds = np.append(
                         feed_inds, np.where(beam_object.feed_array == f)[0]
                     )
-                elif f in x_orient_dict.keys():
+                elif f in x_orient_dict:
                     feed_inds = np.append(
                         feed_inds,
                         np.where(beam_object.feed_array == x_orient_dict[f])[0],
                     )
                 else:
-                    raise ValueError(
-                        "Feed {f} is not present in the feed_array".format(f=f)
-                    )
+                    raise ValueError(f"Feed {f} is not present in the feed_array")
 
             feed_inds = sorted(set(feed_inds))
             beam_object.Nfeeds = len(feed_inds)
@@ -3207,8 +3198,7 @@ class UVBeam(UVBase):
                     )
                 else:
                     raise ValueError(
-                        "polarization {p} is not present in the"
-                        " polarization_array".format(p=p)
+                        f"polarization {p} is not present in the polarization_array"
                     )
 
             initial_pols = beam_object.polarization_array.copy()
@@ -3317,7 +3307,7 @@ class UVBeam(UVBase):
         """
         from . import beamfits
 
-        if isinstance(filename, (list, tuple)):
+        if isinstance(filename, list | tuple):
             self.read_beamfits(filename[0], **kwargs)
             if len(filename) > 1:
                 for f in filename[1:]:
@@ -3346,7 +3336,7 @@ class UVBeam(UVBase):
             Containing all the info from the yaml file.
 
         """
-        with open(filename, "r") as file:
+        with open(filename) as file:
             settings_dict = yaml.safe_load(file)
 
         required_keys = [
@@ -3364,8 +3354,8 @@ class UVBeam(UVBase):
         for key in required_keys:
             if key not in settings_dict:
                 raise ValueError(
-                    "{key} is a required key in CST settings files "
-                    "but is not present.".format(key=key)
+                    f"{key} is a required key in CST settings files "
+                    "but is not present."
                 )
 
         return settings_dict
@@ -3492,11 +3482,10 @@ class UVBeam(UVBase):
             if len(filename.shape) > 1:
                 raise ValueError("filename can not be a multi-dimensional array")
             filename = filename.tolist()
-        if isinstance(filename, (list, tuple)):
-            if len(filename) == 1:
-                filename = filename[0]
+        if isinstance(filename, list | tuple) and len(filename) == 1:
+            filename = filename[0]
 
-        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+        if not isinstance(filename, list | tuple) and filename.endswith("yaml"):
             settings_dict = self._read_cst_beam_yaml(filename)
             if not isinstance(settings_dict["filenames"], list):
                 raise ValueError("filenames in yaml file must be a list.")
@@ -3524,8 +3513,8 @@ class UVBeam(UVBase):
             for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn(
-                        "The {key} keyword is set, overriding the "
-                        "value in the settings yaml file.".format(key=key)
+                        f"The {key} keyword is set, overriding the "
+                        "value in the settings yaml file."
                     )
 
             if feed_pol is None:
@@ -3573,7 +3562,7 @@ class UVBeam(UVBase):
             rename_extra_keys_map = {"sim_beam_type": "sim_type"}
             for key, value in settings_dict.items():
                 if key not in known_keys:
-                    if key in rename_extra_keys_map.keys():
+                    if key in rename_extra_keys_map:
                         extra_keywords[rename_extra_keys_map[key]] = value
                     else:
                         extra_keywords[key] = value
@@ -3624,21 +3613,19 @@ class UVBeam(UVBase):
             if len(frequency.shape) > 1:
                 raise ValueError("frequency can not be a multi-dimensional array")
             frequency = frequency.tolist()
-        if isinstance(frequency, (list, tuple)):
-            if len(frequency) == 1:
-                frequency = frequency[0]
+        if isinstance(frequency, list | tuple) and len(frequency) == 1:
+            frequency = frequency[0]
 
         if isinstance(feed_pol, np.ndarray):
             if len(feed_pol.shape) > 1:
                 raise ValueError("feed_pol can not be a multi-dimensional array")
             feed_pol = feed_pol.tolist()
-        if isinstance(feed_pol, (list, tuple)):
-            if len(feed_pol) == 1:
-                feed_pol = feed_pol[0]
+        if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
+            feed_pol = feed_pol[0]
 
-        if isinstance(cst_filename, (list, tuple)):
+        if isinstance(cst_filename, list | tuple):
             if frequency is not None:
-                if isinstance(frequency, (list, tuple)):
+                if isinstance(frequency, list | tuple):
                     if not len(frequency) == len(cst_filename):
                         raise ValueError(
                             "If frequency and filename are both "
@@ -3650,7 +3637,7 @@ class UVBeam(UVBase):
             else:
                 freq = None
 
-            if isinstance(feed_pol, (list, tuple)):
+            if isinstance(feed_pol, list | tuple):
                 if not len(feed_pol) == len(cst_filename):
                     raise ValueError(
                         "If feed_pol and filename are both "
@@ -3667,9 +3654,9 @@ class UVBeam(UVBase):
                 pol = feed_pol
                 if rotate_pol is None:
                     rotate_pol = True
-            if isinstance(freq, (list, tuple)):
+            if isinstance(freq, list | tuple):
                 raise ValueError("frequency can not be a nested list")
-            if isinstance(pol, (list, tuple)):
+            if isinstance(pol, list | tuple):
                 raise ValueError("feed_pol can not be a nested list")
             self.read_cst_beam(
                 cst_filename[0],
@@ -3694,16 +3681,16 @@ class UVBeam(UVBase):
                 fix_auto_power=fix_auto_power,
             )
             for file_i, f in enumerate(cst_filename[1:]):
-                if isinstance(f, (list, tuple)):
+                if isinstance(f, list | tuple):
                     raise ValueError("filename can not be a nested list")
 
-                if isinstance(frequency, (list, tuple)):
+                if isinstance(frequency, list | tuple):
                     freq = frequency[file_i + 1]
                 elif frequency is not None:
                     freq = frequency
                 else:
                     freq = None
-                if isinstance(feed_pol, (list, tuple)):
+                if isinstance(feed_pol, list | tuple):
                     pol = feed_pol[file_i + 1]
                 else:
                     pol = feed_pol
@@ -3734,9 +3721,9 @@ class UVBeam(UVBase):
             if len(cst_filename) > 1:
                 del beam2
         else:
-            if isinstance(frequency, (list, tuple)):
+            if isinstance(frequency, list | tuple):
                 raise ValueError("Too many frequencies specified")
-            if isinstance(feed_pol, (list, tuple)):
+            if isinstance(feed_pol, list | tuple):
                 raise ValueError("Too many feed_pols specified")
             if rotate_pol is None:
                 rotate_pol = True
@@ -3765,7 +3752,7 @@ class UVBeam(UVBase):
             self._convert_from_filetype(cst_beam_obj)
             del cst_beam_obj
 
-        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+        if not isinstance(filename, list | tuple) and filename.endswith("yaml"):
             # update filelist
             basename = os.path.basename(filename)
             self.filename = utils.tools._combine_filenames(self.filename, [basename])
@@ -4031,7 +4018,7 @@ class UVBeam(UVBase):
         """
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if isinstance(filename, list | tuple | np.ndarray):
             multi = True
         else:
             multi = False
@@ -4201,7 +4188,9 @@ class UVBeam(UVBase):
                 # of files, so instead doing a binary tree merge
                 beam_list = [self] + beam_list
                 while len(beam_list) > 1:
-                    for beam1, beam2 in zip(beam_list[0::2], beam_list[1::2]):
+                    for beam1, beam2 in zip(
+                        beam_list[0::2], beam_list[1::2], strict=True
+                    ):
                         beam1.__iadd__(beam2)
                     beam_list = beam_list[0::2]
                 # Because self was at the beginning of the list,

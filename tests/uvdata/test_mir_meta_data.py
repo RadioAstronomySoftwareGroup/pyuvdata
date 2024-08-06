@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2022 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -10,6 +9,7 @@ to probe the functions of the individual class methods and attributes, and not
 necessarily how they interact with each other (inside the `MirParser` class) or with
 pyuvdata at large (via the `UVData` class).
 """
+
 import os
 
 import numpy as np
@@ -123,7 +123,7 @@ def check_meta_init():
         obj_list = [sma_mir_test_file, obj._data, obj._data]
         dtype_list = [obj.dtype, obj.dtype, None]
         err_list = ["filename init", "data init w/ dtype", "data init w/o dtype"]
-        for target, dtype, err_msg in zip(obj_list, dtype_list, err_list):
+        for target, dtype, err_msg in zip(obj_list, dtype_list, err_list, strict=True):
             meta_obj = MirMetaData(
                 target,
                 filetype=obj._filetype,
@@ -138,7 +138,7 @@ def check_meta_init():
             # Plug in the __dict__, which _should_ transfer over all the writable attrs
             new_obj.__dict__ = meta_obj.__dict__
 
-            assert obj == new_obj, "MirMetaData init failed on %s" % err_msg
+            assert obj == new_obj, f"MirMetaData init failed on {err_msg}"
 
     yield check_meta_init_func
 
@@ -150,11 +150,11 @@ def check_init_int():
         new_obj = type(obj)(nvals)
         # Check to make sure that if we pass an int, we get a blank array with the
         # right number of records that contains all zeros (or equiv)
-        assert len(new_obj) == nvals, "zero init for %s failed" % obj._filetype
-        assert all(new_obj._mask), "zero init mask for %s failed" % obj._filetype
-        assert np.array_equal(new_obj._data, np.zeros(nvals, dtype=obj.dtype)), (
-            "zero init data for %s failed" % obj._filetype
-        )
+        assert len(new_obj) == nvals, f"zero init for {obj._filetype} failed"
+        assert all(new_obj._mask), f"zero init mask for {obj._filetype} failed"
+        assert np.array_equal(
+            new_obj._data, np.zeros(nvals, dtype=obj.dtype)
+        ), f"zero init data for {obj._filetype} failed"
 
     yield check_init_int_func
 
@@ -176,7 +176,7 @@ def check_init_data_err():
 def check_init_data():
     def check_init_data_func(obj):
         # If we have a data array, we should be able to instantiate the an equal object
-        assert obj == type(obj)(obj._data), "data init for %s failed" % obj._filetype
+        assert obj == type(obj)(obj._data), f"data init for {obj._filetype} failed"
 
     yield check_init_data_func
 
@@ -276,7 +276,7 @@ def test_mir_meta_copy(mir_in_data):
         other_attr = getattr(other, item)
 
         # Nones str, and tuple can be duplicates, since they're both immutable.
-        if not (isinstance(this_attr, (str, tuple)) or this_attr is None):
+        if not (isinstance(this_attr, str | tuple) or this_attr is None):
             assert this_attr is not other_attr
 
         assert np.all(this_attr == other_attr)
@@ -716,7 +716,7 @@ def test_mir_meta_write_std_roundtrip(
         filepath = os.path.join(tmp_path, "meta_write_std_roundtrip")
         obj.write(filepath)
         new_obj = type(obj)(filepath)
-        assert obj == new_obj, "Failed on %s compare" % obj.filetype
+        assert obj == new_obj, f"Failed on {obj.filetype} compare"
 
 
 def test_mir_meta_write_bdtype_roundtrip(mir_antpos_data, mir_codes_data, tmp_path):
@@ -725,7 +725,7 @@ def test_mir_meta_write_bdtype_roundtrip(mir_antpos_data, mir_codes_data, tmp_pa
     for obj in [mir_antpos_data, mir_codes_data]:
         obj.write(filepath)
         new_obj = type(obj)(filepath)
-        assert obj == new_obj, "Failed on %s compare" % obj.filetype
+        assert obj == new_obj, f"Failed on {obj.filetype} compare"
 
 
 def test_mir_meta_write_synth_roundtrip(mir_ac_data, tmp_path):
@@ -822,7 +822,7 @@ def test_mir_meta_add_check_merge(mir_bl_data, args, cmd, comp_results):
         mir_bl_data._mask[2:4] = False
 
     result_tuple = mir_bl_data._add_check(mir_bl_copy, **args)
-    for item, jtem in zip(result_tuple, comp_results):
+    for item, jtem in zip(result_tuple, comp_results, strict=True):
         assert np.array_equal(item, jtem)
 
 
@@ -851,7 +851,7 @@ def test_mir_meta_add_check_concat(mir_bl_data, cmd, comp_results):
     else:
         result_tuple = mir_bl_data._add_check(mir_bl_copy)
 
-    for item, jtem in zip(result_tuple, comp_results):
+    for item, jtem in zip(result_tuple, comp_results, strict=True):
         assert np.array_equal(item, jtem)
 
 
@@ -981,7 +981,9 @@ def test_mir_meta_generate_recpos_dict(
     }
     for key in int_dict:
         sp_dict = sp_dict[key]
-        for value, dataoff, recsize in zip(sp_dict.values(), dataoff_arr, rec_size_arr):
+        for value, dataoff, recsize in zip(
+            sp_dict.values(), dataoff_arr, rec_size_arr, strict=True
+        ):
             assert value["start_idx"] == dataoff
             assert value["end_idx"] == dataoff + recsize
             assert value["chan_avg"] == 1

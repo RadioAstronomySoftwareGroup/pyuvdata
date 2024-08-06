@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -7,6 +6,7 @@ Base class for objects with UVParameter attributes.
 
 Subclassed by UVData and Telescope.
 """
+
 import copy
 import warnings
 
@@ -14,8 +14,7 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 
-from . import __version__
-from . import parameter as uvp
+from . import __version__, parameter as uvp
 from .utils.tools import _get_iterable
 
 __all__ = ["UVBase"]
@@ -59,7 +58,7 @@ def _warning(msg, *a, **kwargs):
     return str(msg) + "\n"
 
 
-class UVBase(object):
+class UVBase:
     """
     Base class for objects with UVParameter attributes.
 
@@ -185,34 +184,33 @@ class UVBase(object):
 
     def __setattr__(self, __name, __value):
         """Handle old names for telescope metadata."""
-        if __name in old_telescope_metadata_attrs:
-            if hasattr(self, "telescope"):
-                if old_telescope_metadata_attrs[__name] is not None:
-                    tel_param = old_telescope_metadata_attrs[__name]
-                else:
-                    tel_param = "location"
-                warnings.warn(
-                    f"The UVData.{__name} attribute now just points to the "
-                    f"{tel_param} attribute on the telescope object (at "
-                    "UVData.telescope). Accessing it this way is deprecated, "
-                    "please access it via the telescope object. This will "
-                    "become an error in version 3.2.",
-                    DeprecationWarning,
-                )
+        if __name in old_telescope_metadata_attrs and hasattr(self, "telescope"):
+            if old_telescope_metadata_attrs[__name] is not None:
+                tel_param = old_telescope_metadata_attrs[__name]
+            else:
+                tel_param = "location"
+            warnings.warn(
+                f"The UVData.{__name} attribute now just points to the "
+                f"{tel_param} attribute on the telescope object (at "
+                "UVData.telescope). Accessing it this way is deprecated, "
+                "please access it via the telescope object. This will "
+                "become an error in version 3.2.",
+                DeprecationWarning,
+            )
 
-                tel_name = old_telescope_metadata_attrs[__name]
-                if tel_name is not None:
-                    # if it's a simple remapping, just set the value
-                    setattr(self.telescope, tel_name, __value)
-                else:
-                    # handle location related stuff
-                    if __name == "telescope_location":
-                        self.telescope._location.set_xyz(__value)
-                    elif __name == "telescope_location_lat_lon_alt":
-                        self.telescope._location.set_lat_lon_alt(__value)
-                    elif __name == "telescope_location_lat_lon_alt_degrees":
-                        self.telescope._location.set_lat_lon_alt_degrees(__value)
-                return
+            tel_name = old_telescope_metadata_attrs[__name]
+            if tel_name is not None:
+                # if it's a simple remapping, just set the value
+                setattr(self.telescope, tel_name, __value)
+            else:
+                # handle location related stuff
+                if __name == "telescope_location":
+                    self.telescope._location.set_xyz(__value)
+                elif __name == "telescope_location_lat_lon_alt":
+                    self.telescope._location.set_lat_lon_alt(__value)
+                elif __name == "telescope_location_lat_lon_alt_degrees":
+                    self.telescope._location.set_lat_lon_alt_degrees(__value)
+            return
 
         return super().__setattr__(__name, __value)
 
@@ -515,8 +513,8 @@ class UVBase(object):
         if isinstance(other, self.__class__):
             # only check that required parameters are identical
             if hasattr(self, "metadata_only"):
-                self.metadata_only
-                other.metadata_only
+                self.metadata_only  # noqa B018
+                other.metadata_only  # noqa B018
 
             self_required = set(self.required())
             other_required = set(other.required())
@@ -597,13 +595,12 @@ class UVBase(object):
                     if hasattr(self, param):
                         self_param = getattr(self, param)
                         other_param = getattr(other, param)
-                        if self_param.__ne__(other_param, silent=silent):
-                            if not silent:
-                                print(
-                                    f"parameter {param} does not match, but is not "
-                                    "required to for equality. Left is "
-                                    f"{self_param.value}, right is {other_param.value}."
-                                )
+                        if self_param.__ne__(other_param, silent=silent) and not silent:
+                            print(
+                                f"parameter {param} does not match, but is not "
+                                "required to for equality. Left is "
+                                f"{self_param.value}, right is {other_param.value}."
+                            )
 
             return p_equal
         else:
@@ -717,11 +714,9 @@ class UVBase(object):
                     # eshape should do the same.
                     if not np.shape(param.value) == eshape:
                         raise ValueError(
-                            "UVParameter {param} is not expected shape. "
-                            "Parameter shape is {pshape}, expected shape is "
-                            "{eshape}.".format(
-                                param=p, pshape=np.shape(param.value), eshape=eshape
-                            )
+                            f"UVParameter {p} is not expected shape. Parameter "
+                            f"shape is {np.shape(param.value)}, expected shape "
+                            f"is {eshape}."
                         )
                     # Handle UVBase objects (e.g. Telescope) separately
                     if isinstance(param.value, UVBase):
@@ -802,7 +797,7 @@ class UVBase(object):
                         # Single element
                         check_vals = [param.value]
                     else:
-                        if isinstance(param.value, (list, tuple)):
+                        if isinstance(param.value, list | tuple):
                             # List & tuples needs to be handled differently than array
                             # list values may be different types, so they all
                             # need to be checked

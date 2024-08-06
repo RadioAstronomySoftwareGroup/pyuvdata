@@ -19,7 +19,7 @@ from docstring_parser.util import _Func
 
 def combine_docstrings(
     *others: _Func,
-    exclude: tp.Iterable[tp.Type[DocstringMeta]] = (),
+    exclude: tp.Iterable[type[DocstringMeta]] = (),
     style: DocstringStyle = DocstringStyle.AUTO,
     rendering_style: RenderingStyle = RenderingStyle.COMPACT,
 ):

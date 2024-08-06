@@ -1,15 +1,14 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading FHD save files."""
+
 from __future__ import annotations
 
 import warnings
 
 import numpy as np
-from astropy import constants as const
-from astropy import units
+from astropy import constants as const, units
 from astropy.coordinates import EarthLocation
 from docstring_parser import DocstringStyle
 from scipy.io import readsav
@@ -227,11 +226,12 @@ class FHD(UVData):
             + str(obs["ORIG_PHASEDEC"][0])
         )
         # For the MWA, this can sometimes be converted to EoR fields
-        if self.telescope.name.lower() == "mwa":
-            if np.isclose(obs["ORIG_PHASERA"][0], 0) and np.isclose(
-                obs["ORIG_PHASEDEC"][0], -27
-            ):
-                cat_name = "EoR 0 Field"
+        if (
+            self.telescope.name.lower() == "mwa"
+            and np.isclose(obs["ORIG_PHASERA"][0], 0)
+            and np.isclose(obs["ORIG_PHASEDEC"][0], -27)
+        ):
+            cat_name = "EoR 0 Field"
 
         self.telescope.instrument = self.telescope.name
         latitude = np.deg2rad(float(obs["LAT"][0]))
@@ -354,7 +354,7 @@ class FHD(UVData):
         self.uvw_array[:, 2] = (-1) * params["WW"][0] * const.c.to_value("m/s")
 
         lin_pol_order = ["xx", "yy", "xy", "yx"]
-        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1))
+        linear_pol_dict = dict(zip(lin_pol_order, np.arange(5, 9) * -1, strict=True))
         pol_list = []
         if read_data:
             for pol in lin_pol_order:

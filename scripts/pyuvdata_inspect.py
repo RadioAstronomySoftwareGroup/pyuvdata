@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Inspect attributes of pyuvdata objects."""
@@ -75,7 +74,7 @@ exit_clean = True
 for i, f in enumerate(args.files):
     # check file exists
     if os.path.exists(f) is False:
-        print("{0} doesn't exist".format(f))
+        print(f"{f} doesn't exist")
         if i == (Nfiles - 1):
             exit(1)
         else:
@@ -95,11 +94,10 @@ for i, f in enumerate(args.files):
                 filetype = r.split("_")[-1]
                 if args.verbose is True:
                     print(
-                        "opened {0} as a {1} file with the {2} pyuvdata object".format(
-                            f, filetype, ob_names[j]
-                        )
+                        f"opened {f} as a {filetype} file with the {ob_names[j]} "
+                        "pyuvdata object"
                     )
-            except (IOError, KeyError, ValueError, RuntimeError):
+            except (OSError, KeyError, ValueError, RuntimeError):
                 continue
             # exit loop if opened
             if opened is True:
@@ -109,9 +107,7 @@ for i, f in enumerate(args.files):
 
     # if object isn't opened continue
     if opened is False:
-        print(
-            "couldn't open {0} with any of the pyuvdata objects {1}".format(f, ob_names)
-        )
+        print(f"couldn't open {f} with any of the pyuvdata objects {ob_names}")
         continue
 
     # print out desired attribute(s) of data object
@@ -124,10 +120,10 @@ for i, f in enumerate(args.files):
             for k in range(Nnest - 1):
                 this_attr = getattr(this_attr, attr[k + 1])
             # print to stdout
-            print("{0} of {1} is: {2}".format(".".join(attr), f, this_attr))
+            print("{} of {} is: {}".format(".".join(attr), f, this_attr))
             exit_clean = True
         except AttributeError:
-            print("Couldn't access '{0}' from {1}".format(".".join(attr), f))
+            print("Couldn't access '{}' from {}".format(".".join(attr), f))
             exit_clean = False
 
 if args.interactive:

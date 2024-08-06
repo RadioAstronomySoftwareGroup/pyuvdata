@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -1352,9 +1351,8 @@ class MWACorrFITS(UVData):
                 "nsample_array_dtype must be one of: np.float64, np.float32, np.float16"
             )
         # do start_flag check
-        if not isinstance(start_flag, (int, float)):
-            if start_flag != "goodtime":
-                raise ValueError("start_flag must be int or float or 'goodtime'")
+        if not isinstance(start_flag, int | float) and start_flag != "goodtime":
+            raise ValueError("start_flag must be int or float or 'goodtime'")
 
         # iterate through files and organize
         # create a list of included file numbers
@@ -1373,7 +1371,7 @@ class MWACorrFITS(UVData):
             elif filename.lower().endswith(".fits"):
                 with fits.open(filename, memmap=True) as hdu_list:
                     hdunames = fits_utils._indexhdus(hdu_list)
-                    if "PPDS" in hdunames.keys():
+                    if "PPDS" in hdunames:
                         ppds_file = filename
                         ppd_meta_header = hdu_list[0].header
                         ppd_extra_keywords = fits_utils._get_extra_keywords(
@@ -1393,7 +1391,7 @@ class MWACorrFITS(UVData):
                                 )
                         # check if mwax
                         if mwax is None:
-                            if "CORR_VER" in head0.keys():
+                            if "CORR_VER" in head0:
                                 mwax = True
                                 # save mwax version #s into extra_keywords
                                 self.extra_keywords["U2S_VER"] = head0["U2S_VER"]
@@ -1450,7 +1448,7 @@ class MWACorrFITS(UVData):
                         if file_num not in included_file_nums:
                             included_file_nums.append(file_num)
                         # organize files
-                        if "data" not in file_dict.keys():
+                        if "data" not in file_dict:
                             file_dict["data"] = [filename]
                         else:
                             file_dict["data"].append(filename)
@@ -1458,15 +1456,12 @@ class MWACorrFITS(UVData):
                         # save bscale keyword
                         # look for bscale in the first hdu, as some data does not
                         # record it in the zeroth hdu
-                        if not mwax:
-                            if "SCALEFAC" not in self.extra_keywords.keys():
-                                if "BSCALE" in headstart.keys():
-                                    self.extra_keywords["SCALEFAC"] = headstart[
-                                        "BSCALE"
-                                    ]
-                                else:
-                                    # correlator did a divide by 4 before october 2014
-                                    self.extra_keywords["SCALEFAC"] = 0.25
+                        if not mwax and "SCALEFAC" not in self.extra_keywords:
+                            if "BSCALE" in headstart:
+                                self.extra_keywords["SCALEFAC"] = headstart["BSCALE"]
+                            else:
+                                # correlator did a divide by 4 before october 2014
+                                self.extra_keywords["SCALEFAC"] = 0.25
 
             # look for flag files
             elif filename.lower().endswith(".mwaf"):
@@ -1477,7 +1472,7 @@ class MWACorrFITS(UVData):
                 if use_aoflagger_flags is False and aoflagger_warning is False:
                     warnings.warn("mwaf files submitted with use_aoflagger_flags=False")
                     aoflagger_warning = True
-                elif "flags" not in file_dict.keys():
+                elif "flags" not in file_dict:
                     file_dict["flags"] = [filename]
                 else:
                     file_dict["flags"].append(filename)
@@ -1489,9 +1484,9 @@ class MWACorrFITS(UVData):
             raise ValueError("no metafits file submitted")
         elif metafits_file is None:
             metafits_file = ppds_file
-        if "data" not in file_dict.keys():
+        if "data" not in file_dict:
             raise ValueError("no data files submitted")
-        if "flags" not in file_dict.keys() and use_aoflagger_flags:
+        if "flags" not in file_dict and use_aoflagger_flags:
             raise ValueError(
                 "no flag files submitted. Rerun with flag files or "
                 "use_aoflagger_flags=False"
@@ -1533,7 +1528,7 @@ class MWACorrFITS(UVData):
         if ppds_file is not None:
             # get any unique ones from ppd file
             for key, value in ppd_extra_keywords.items():
-                if key not in self.extra_keywords.keys():
+                if key not in self.extra_keywords:
                     self.extra_keywords[key] = value
 
         # set parameters from other parameters

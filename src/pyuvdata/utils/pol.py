@@ -1,12 +1,11 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with polarizations."""
+
 import warnings
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterable as IterableType
 from copy import deepcopy
 from functools import lru_cache, wraps
-from typing import Iterable as IterableType
 
 import numpy as np
 
@@ -243,7 +242,7 @@ def polnum2str(num, *, x_orientation=None):
         except ValueError:
             warnings.warn("x_orientation not recognized.")
 
-    if isinstance(num, (int, np.int32, np.int64)):
+    if isinstance(num, int | np.int32 | np.int64):
         out = dict_use[num]
     elif isinstance(num, Iterable):
         out = [dict_use[i] for i in num]
@@ -344,7 +343,7 @@ def jnum2str(jnum, *, x_orientation=None):
         except ValueError:
             warnings.warn("x_orientation not recognized.")
 
-    if isinstance(jnum, (int, np.int32, np.int64)):
+    if isinstance(jnum, int | np.int32 | np.int64):
         out = dict_use[jnum]
     elif isinstance(jnum, Iterable):
         out = [dict_use[i] for i in jnum]
@@ -452,7 +451,7 @@ def conj_pol(pol):
         cpol = cpol_dict[pol.lower()]
     elif isinstance(pol, Iterable):
         cpol = [conj_pol(p) for p in pol]
-    elif isinstance(pol, (int, np.int32, np.int64)):
+    elif isinstance(pol, int | np.int32 | np.int64):
         cpol = polstr2num(cpol_dict[polnum2str(pol).lower()])
     else:
         raise ValueError("Polarization not recognized, cannot be conjugated.")

@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """pytest fixtures for utils tests."""
+
 import numpy as np
 import pytest
 from astropy.coordinates import SkyCoord

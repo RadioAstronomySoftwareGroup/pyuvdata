@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Frequency related utilities."""
+
 import warnings
 
 import numpy as np
@@ -200,7 +200,7 @@ def _sort_freq_helper(
         return
 
     # Check to see if there are arguments we should be ignoring
-    if isinstance(channel_order, (np.ndarray, list, tuple)):
+    if isinstance(channel_order, np.ndarray | list | tuple):
         if select_spw is not None:
             warnings.warn(
                 "The select_spw argument is ignored when providing an "
@@ -241,12 +241,12 @@ def _sort_freq_helper(
                     "no sorting actions to be applied. Returning object unchanged."
                 )
                 return
-            if isinstance(select_spw, (np.ndarray, list, tuple)):
+            if isinstance(select_spw, np.ndarray | list | tuple):
                 sort_spw = {idx: idx in select_spw for idx in spw_array}
             else:
                 sort_spw = {idx: idx == select_spw for idx in spw_array}
         elif spw_order is not None:
-            if isinstance(spw_order, (np.ndarray, list, tuple)):
+            if isinstance(spw_order, np.ndarray | list | tuple):
                 spw_order = np.asarray(spw_order)
                 if not spw_order.size == Nspws or not np.all(
                     np.sort(spw_order) == np.arange(Nspws)

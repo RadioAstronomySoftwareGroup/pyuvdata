@@ -1,8 +1,9 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Class for reading and writing Mir files."""
+
+import contextlib
 import os
 import warnings
 
@@ -246,7 +247,9 @@ class Mir(UVData):
             )
 
         # Go through the data record-by-record to fill things in
-        for sp_rec, sphid in zip(mir_data.sp_data, mir_data.sp_data.get_header_keys()):
+        for sp_rec, sphid in zip(
+            mir_data.sp_data, mir_data.sp_data.get_header_keys(), strict=True
+        ):
             # sphid_dict is a 3-element tuple, containing the sideband, receiver, and
             # corrchunk for the spectral record (whose header key is sphid)
             window = sphid_dict[sphid]
@@ -316,17 +319,19 @@ class Mir(UVData):
 
         # Construct an indexing list, that we'll use later to figure out what data
         # goes where, based on spw, sideband, and pol code.
-        spdx_list = [
-            (winid, sbid, polid)
-            for winid, sbid, polid in zip(
+        spdx_list = list(
+            zip(
                 mir_data.sp_data["corrchunk"],
                 mir_data.bl_data.get_value("isb", index=sp_bl_idx),
                 pol_arr,
+                strict=True,
             )
-        ]
+        )
 
         # We'll also use this later
-        sphid_dict = dict(zip(mir_data.sp_data.get_header_keys(), spdx_list))
+        sphid_dict = dict(
+            zip(mir_data.sp_data.get_header_keys(), spdx_list, strict=True)
+        )
 
         # Create a dict with the ordering of the pols
         pol_dict = {key: idx for idx, key in enumerate(np.unique(pol_arr))}
@@ -346,8 +351,12 @@ class Mir(UVData):
                 # a pol-split data set.
                 fsky_vals = mir_data.sp_data["fsky"]
                 chunk_vals = mir_data.sp_data["corrchunk"]
-                loa_chunks = set(zip(fsky_vals[rxa_mask], chunk_vals[rxa_mask]))
-                lob_chunks = set(zip(fsky_vals[rxb_mask], chunk_vals[rxb_mask]))
+                loa_chunks = set(
+                    zip(fsky_vals[rxa_mask], chunk_vals[rxa_mask], strict=True)
+                )
+                lob_chunks = set(
+                    zip(fsky_vals[rxb_mask], chunk_vals[rxb_mask], strict=True)
+                )
                 pol_split_tuning = not (
                     loa_chunks.issubset(lob_chunks) or lob_chunks.issubset(loa_chunks)
                 )
@@ -360,10 +369,8 @@ class Mir(UVData):
             # or CASA, although they are rarely used, so we can skip over translating
             # them in the try/except loop here (if present in the data, it will throw
             # an error further downstream).
-            try:
+            with contextlib.suppress(KeyError):
                 pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[code.lower()]
-            except KeyError:
-                pass
         if pol_split_tuning and allow_flex_pol:
             # If we have a split tuning that, that means we can take advantage of
             # the flex-pol feature within UVData
@@ -375,14 +382,13 @@ class Mir(UVData):
             Npols = len(set(pol_dict.values()))
             polarization_array = np.zeros(Npols, dtype=int)
 
-            for key in pol_dict.keys():
+            for key in pol_dict:
                 polarization_array[pol_dict[key]] = pol_code_dict[key]
 
         # Create a list of baseline-time combinations in the data
-        blt_list = [
-            (inhid, ant1, ant2)
-            for inhid, ant1, ant2 in zip(*mir_data.bl_data[["inhid", "iant1", "iant2"]])
-        ]
+        blt_list = list(
+            zip(*mir_data.bl_data[["inhid", "iant1", "iant2"]], strict=True)
+        )
 
         # Use the list above to create a dict that maps baseline-time combo
         # to position along the mouthwatering blt-axis.
@@ -396,7 +402,7 @@ class Mir(UVData):
         # Match blhid in MIR to blt position in UVData
         blhid_blt_order = {
             key: blt_dict[value]
-            for key, value in zip(mir_data.bl_data["blhid"], blt_list)
+            for key, value in zip(mir_data.bl_data["blhid"], blt_list, strict=True)
         }
 
         # The more blts, the better
@@ -428,7 +434,7 @@ class Mir(UVData):
             # Make sure that something weird hasn't happened with the metadata (this
             # really should never happen, only one value should exist per window).
             for val, item in zip(
-                [spw_fsky, spw_fres, spw_nchan], ["fsky", "fres", "nch"]
+                [spw_fsky, spw_fres, spw_nchan], ["fsky", "fres", "nch"], strict=True
             ):
                 if not np.allclose(val, mir_data.sp_data[item][data_mask]):
                     warnings.warn(
@@ -637,7 +643,7 @@ class Mir(UVData):
 
         # Use the per-blt dict that we constructed above to populate the various
         # metadata arrays that we need for constructing the UVData object.
-        for blt_key in blt_temp_dict.keys():
+        for blt_key in blt_temp_dict:
             temp_dict = blt_temp_dict[blt_key]
             integration_time[blt_key] = temp_dict["rinteg"]
             lst_array[blt_key] = temp_dict["lst"] * (np.pi / 12.0)  # Hours -> rad
@@ -733,14 +739,14 @@ class Mir(UVData):
 
             if any(dist_check > ((np.pi / 180.0) / 60)):
                 warnings.warn(
-                    "Position for %s changes by more than an arcminute." % source_name
+                    f"Position for {source_name} changes by more than an arcminute."
                 )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
         self.phase_center_id_array = phase_center_id_array
         for val in np.unique(self.phase_center_id_array):
-            assert val in self.phase_center_catalog.keys()
+            assert val in self.phase_center_catalog
 
         # Fill in the apparent coord calculations
         self.phase_center_app_ra = app_ra

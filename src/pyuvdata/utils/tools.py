@@ -1,11 +1,10 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Basic utility functions."""
+
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Iterable as IterableType
+from collections.abc import Iterable, Iterable as IterableType
 
 import numpy as np
 
@@ -99,7 +98,7 @@ def _convert_to_slices(
     # check for already a slice or a single index position
     if isinstance(indices, slice):
         return [indices], True
-    if isinstance(indices, (int, np.integer)):
+    if isinstance(indices, int | np.integer):
         return [slice(indices, indices + 1, 1)], True
 
     # check for boolean index

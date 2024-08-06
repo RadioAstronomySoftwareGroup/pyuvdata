@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for baseline numbers."""
+
 import re
 import warnings
 
@@ -39,7 +39,7 @@ def baseline_to_antnums(baseline, *, Nants_telescope):  # noqa: N803
     if np.any(np.asarray(baseline) > 4611686018498691072):
         raise ValueError("baseline numbers > 4611686018498691072 are not supported")
 
-    return_array = isinstance(baseline, (np.ndarray, list, tuple))
+    return_array = isinstance(baseline, np.ndarray | list | tuple)
     ant1, ant2 = _bls.baseline_to_antnums(
         np.ascontiguousarray(baseline, dtype=np.uint64)
     )
@@ -106,7 +106,7 @@ def antnums_to_baseline(
     if Nants_telescope is not None and Nants_telescope > 2048:
         nants_less2048 = False
 
-    return_array = isinstance(ant1, (np.ndarray, list, tuple))
+    return_array = isinstance(ant1, np.ndarray | list | tuple)
     baseline = _bls.antnums_to_baseline(
         np.ascontiguousarray(ant1, dtype=np.uint64),
         np.ascontiguousarray(ant2, dtype=np.uint64),
@@ -188,7 +188,7 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
         x_orientation = uv.telescope.x_orientation
 
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
-    bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
+    bl_re = f"(^({ant_re}_{ant_re}|{ant_re}),?)"
     str_pos = 0
     ant_pairs_nums = []
     polarizations = []
@@ -345,11 +345,12 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
                         elif ant_tuple in ant_pairs_nums:
                             ant_pairs_nums.remove(ant_tuple)
 
-    if ant_str.upper() == "ALL":
+    if (
+        ant_str.upper() == "ALL"
+        or len(ant_pairs_nums) == 0
+        and ant_str.upper() not in ["AUTO", "CROSS"]
+    ):
         ant_pairs_nums = None
-    elif len(ant_pairs_nums) == 0:
-        if not ant_str.upper() in ["AUTO", "CROSS"]:
-            ant_pairs_nums = None
 
     if len(polarizations) == 0:
         polarizations = None
