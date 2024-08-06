@@ -70,7 +70,7 @@ FHD [@fhd] and MIR [@mir] visibility save files. Additionally, pyuvdata supports
 and writing measurement set, CalFITS [@calfits], and CalH5 (Hazelton et al., _in prep_)
 calibration solutions; and reading of FHD calibration solutions. pyuvdata also provides
 interfaces for and handling of models of antenna primary beams, including reading and
-writing of BeamFITS [@beamfits] and MWA-formatted beam models, as well as for flags.
+writing of BeamFITS [@beamfits], and reading CST and MWA beam formats, as well as for flags.
 
 # Statement of Need
 There are several standard formats for astronomical interferometric data, but
@@ -105,14 +105,15 @@ solutions (bandpass, delays, and gains) for interferometric data. Supported data
 include MS, FHD, CalFITS, and CalH5.
 - The addition of the `UVBeam` class, which provides a container for handling models
 of the primary beam for antennas within an interferometric array. Supported data formats
-include BeamFITS and MWA.
+include BeamFITS, MWA, and CST.
 - The addition of the `UVFlag` class, which provides a container for handling flags/masking
 of bad data for visibility data.
 - Drastically improved handling of astrometry and increased speed and accuracy of algorithms
 used to ``phase-up'' data (i.e., change the sky position where the interferometer is centered
 up on).
-- Support for several new visibility data formats, including MIR, MS, UVFITS, and MWA/MWAX.
+- Support for several new visibility data formats, including MIR, MS, and MWA/MWAX.
 - Support for data sets containing multiple spectral windows.
 - Support for data sets containing observations of multiple sources/phase centers.
+-Many new convenience methods for working with interferometric data, including splitting and combining data sets, averaging in time and frequency and applying calibration solutions and flags.
 
 # References
