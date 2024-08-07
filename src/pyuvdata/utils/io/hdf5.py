@@ -674,7 +674,9 @@ class HDF5Meta:
     @cached_property
     def antenna_names(self) -> list[str]:
         """The antenna names in the file."""
-        return np.char.decode(self.header["antenna_names"][:], encoding="utf8")
+        return np.char.decode(
+            self.header["antenna_names"][:].astype("|S"), encoding="utf8"
+        )
 
     @cached_property
     def extra_keywords(self) -> dict:
