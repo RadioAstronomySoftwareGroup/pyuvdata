@@ -4188,8 +4188,11 @@ class UVBeam(UVBase):
                 # of files, so instead doing a binary tree merge
                 beam_list = [self] + beam_list
                 while len(beam_list) > 1:
+                    # for an odd number of files, the second argument will be shorter
+                    # so the last element in the first list won't be combined, but it
+                    # will not be lost, so it's ok.
                     for beam1, beam2 in zip(
-                        beam_list[0::2], beam_list[1::2], strict=True
+                        beam_list[0::2], beam_list[1::2], strict=False
                     ):
                         beam1.__iadd__(beam2)
                     beam_list = beam_list[0::2]

@@ -5205,7 +5205,10 @@ class UVCal(UVBase):
                 # of files, so instead doing a binary tree merge
                 uv_list = [self] + uv_list
                 while len(uv_list) > 1:
-                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=True):
+                    # for an odd number of files, the second argument will be shorter
+                    # so the last element in the first list won't be combined, but it
+                    # will not be lost, so it's ok.
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=False):
                         uv1.__iadd__(
                             uv2,
                             run_check=run_check,

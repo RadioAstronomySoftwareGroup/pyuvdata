@@ -2772,20 +2772,34 @@ def test_generic_read_bad_filetype():
         uvb.read("foo")
 
 
-def test_generic_read_multi(tmp_path):
+@pytest.mark.parametrize("nfiles", [3, 4])
+def test_generic_read_multi(tmp_path, nfiles):
     uvb = UVBeam()
     uvb.read(mwa_beam_file, pixels_per_deg=1, freq_range=[100e6, 200e6])
 
-    uvb1 = uvb.select(frequencies=uvb.freq_array[::2], inplace=False)
-    uvb2 = uvb.select(frequencies=uvb.freq_array[1::2], inplace=False)
-    fname1 = str(tmp_path / "test_beam1.beamfits")
-    fname2 = str(tmp_path / "test_beam2.beamfits")
-    uvb1.write_beamfits(fname1)
-    uvb2.write_beamfits(fname2)
+    assert uvb.Naxes2 >= nfiles
+    n_per_files = uvb.Naxes2 // nfiles
+    write_files = []
+    filenames = []
+    # Break up beam object into nfiles objects, divided in zenith angle
+    for filei in range(nfiles):
+        n_start = filei * n_per_files
+        if filei < nfiles - 1:
+            n_end = (filei + 1) * n_per_files
+        else:
+            n_end = uvb.Naxes2
+        this_axis2 = np.arange(n_start, n_end)
+
+        this_obj = uvb.select(axis2_inds=this_axis2, inplace=False)
+        this_fname = f"test_beam{filei}.beamfits"
+        filenames.append(this_fname)
+        this_file = str(tmp_path / this_fname)
+        this_obj.write_beamfits(this_file)
+        write_files.append(this_file)
 
     uvb3 = UVBeam()
-    uvb3.read([fname1, fname2])
-    assert uvb3.filename == ["test_beam1.beamfits", "test_beam2.beamfits"]
+    uvb3.read(write_files)
+    assert uvb3.filename == filenames
     # the histories will be different
     uvb3.history = uvb.history
 
