@@ -14,7 +14,6 @@ warnings for specific telescopes.
 telescope object from the metadata.
 - `UVData.get_enu_data_ants` method to get east, north, up positions only for
 antennas with data.
-- New spatial interpolation method to `UVBeam.interp` that improves that linear interpolation speed of `_interp_az_za_rect_spline`
 
 ### Fixed
 - A bug in reading UVH5 files with antenna names saved as variable length strings
