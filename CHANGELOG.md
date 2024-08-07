@@ -14,6 +14,10 @@ telescope object from the metadata.
 - `UVData.get_enu_data_ants` method to get east, north, up positions only for
 antennas with data.
 
+### Fixed
+- A bug in reading UVH5 files with antenna names saved as variable length strings
+that was introduced in v3.0.0.
+
 ## [3.0.0] - 2024-7-1
 
 ### Added
