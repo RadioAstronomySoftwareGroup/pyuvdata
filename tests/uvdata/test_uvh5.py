@@ -3043,6 +3043,23 @@ def test_antenna_names_not_list(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_antenna_names_variable_length(casa_uvfits, tmp_path):
+    uv_in = casa_uvfits
+    testfile = str(tmp_path / "outtest_ant_names_object.uvh5")
+    uv_in.write_uvh5(testfile, clobber=True)
+
+    with h5py.File(testfile, "r+") as h5f:
+        antenna_names = h5f["Header/antenna_names"][()]
+        var_dt = h5py.string_dtype(encoding="utf-8")
+        del h5f["Header/antenna_names"]
+        h5f.create_dataset("Header/antenna_names", data=antenna_names, dtype=var_dt)
+
+    uv_out = UVData.from_file(testfile)
+
+    assert uv_in == uv_out
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_eq_coeffs_roundtrip(casa_uvfits, tmp_path):
     """Test reading and writing objects with eq_coeffs defined"""
     uv_in = casa_uvfits
