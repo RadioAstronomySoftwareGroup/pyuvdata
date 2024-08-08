@@ -1141,6 +1141,7 @@ class MWACorrFITS(UVData):
                         sig2_arr=sig2,
                         cheby_approx=cheby_approx,
                     )
+                    self.data_array.real[k, :, j, yx] = kap
                     # correct imaginary
                     kap = van_vleck_crosses_int(
                         k_arr=khat.imag,
