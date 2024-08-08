@@ -586,20 +586,22 @@ def _where_combine(mask, inds=None, invert=False, use_and=True):
     return np.nonzero(np.logical_not(mask) if invert else mask)[0]
 
 
-def Nants_to_Nblts(uvd):
+def _nants_to_nblts(uvd):
     """
-    Obtain arrays of indices to convert an array of shape (Nants,) to an array of shape (Nblts,)
-    
+    Obtain indices to convert (Nants,) to (Nblts,).
+
     Parameters
-    ----------------
-    uvd: UVData object
-    
+    ----------
+    uvd : UVData object
+
     Returns
-    ----------------
-    ind1, ind2: index pairs to compose Nblts shaped arrays for each baseline from an Nants shaped array
+    -------
+    ind1, ind2 : ndarray, ndarray
+        index pairs to compose (Nblts,) shaped arrays for each
+        baseline from an (Nants,) shaped array
     """
     antpos, ants = uvd.get_ENU_antpos()
-    
+
     ant1 = uvd.ant_1_array
     ant2 = uvd.ant_2_array
 
@@ -610,50 +612,60 @@ def Nants_to_Nblts(uvd):
         ind1.append(np.where(ants == i)[0][0])
     for i in ant2:
         ind2.append(np.where(ants == i)[0][0])
-        
+
     return np.asarray(ind1), np.asarray(ind2)
 
 
-def Ntimes_to_Nblts(uvd):
+def _ntimes_to_nblts(uvd):
     """
-    Obtain array of indices to convert an array of shape (Ntimes,) to an array of shape (Nblts,)
-    
+    Obtain indices to convert (Ntimes,) to (Nblts,).
+
     Parameters
-    -----------------
-    UVData object
-    
+    ----------
+    uvd : UVData object
+        UVData object
+
     Returns
-    -----------------
-    inds: indices that, when applied to an array of shape (Ntimes,), correctly convert it to shape (Nblts,)
+    -------
+    inds : ndarray
+        Indices that, when applied to an array of shape (Ntimes,),
+        correctly convert it to shape (Nblts,)
     """
-    
     unique_t = np.unique(uvd.time_array)
     t = uvd.time_array
-    
+
     inds = []
     for i in t:
         inds.append(np.where(unique_t == i)[0][0])
-        
+
     return np.asarray(inds)
 
 
-def get_autocorrelations_mask(uvd):
+def _get_autocorrelations_mask(uvd):
     """
-    Get a (Nblts,) shaped array that masks autocorrelations
-    
+    Get a (Nblts,) shaped array that masks autocorrelations.
+
     Parameters
-    ------------------
-    uvd: UVData object
-    
+    ----------
+    uvd : UVData object
+        UVData object
+
     Returns
-    ------------------
-    mask: (Nblts,) array of 1's and 0's, where 0 indicates an autocorrelation
+    -------
+    mask : ndarray
+        array of shape (Nblts,) of 1's and 0's,
+        where 0 indicates an autocorrelation
     """
     # Get indices along the Nblts axis corresponding to autocorrelations
     autos = []
     for i in uvd.antenna_numbers:
         num = uvd.antpair2ind(i, ant2=i)
-        if num is not None:
+
+        if isinstance(num, slice):
+            inds = list(range(num.start, num.stop, num.step))
+            autos.append(inds)
+
+        elif num is not None:
             autos.append(num)
 
     # Flatten it to obtain the 1D array of autocorrelation indices
@@ -663,7 +675,9 @@ def get_autocorrelations_mask(uvd):
     mask = np.ones_like(uvd.baseline_array)
 
     # Populate with zeros (0 = is an autocorrelation)
-    if len(autos) > 0:  # Protect against the case where the uvd is already free of autos
+    if (
+        len(autos) > 0
+    ):  # Protect against the case where the uvd is already free of autos
         mask[autos] = 0
-   
+
     return mask
