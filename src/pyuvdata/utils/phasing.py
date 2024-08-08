@@ -1115,8 +1115,6 @@ def transform_icrs_to_app(
     if ra_coord.ndim == 0:
         ra_coord.shape += (1,)
         dec_coord.shape += (1,)
-        if pm_ra_coord is not None:
-            pm_ra_coord.shape += (1,)
         if d_coord is not None:
             d_coord.shape += (1,)
         if v_coord is not None:
