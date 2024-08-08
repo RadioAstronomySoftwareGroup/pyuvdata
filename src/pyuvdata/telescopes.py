@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Telescope information and known telescope list."""
+
 from __future__ import annotations
 
 import os
@@ -16,11 +16,9 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import Angle, EarthLocation
 
-from . import parameter as uvp
-from . import utils
+from . import parameter as uvp, utils
 from .data import DATA_PATH
-from .utils.io import antpos
-from .utils.io import hdf5 as hdf5_utils
+from .utils.io import antpos, hdf5 as hdf5_utils
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
@@ -29,8 +27,8 @@ try:
     from lunarsky import MoonLocation
 
     # This can be built from utils.allowed_location_types in python >= 3.11
-    # but in 3.10 Union has to be declare with types
-    Locations = Union[EarthLocation, MoonLocation]
+    # but in 3.10 Union has to be declared with types
+    Locations = Union[EarthLocation, MoonLocation]  # noqa UP007
 except ImportError:
     Locations = EarthLocation
 
@@ -419,7 +417,7 @@ class Telescope(UVBase):
             tols=1e-3,  # 1 mm
         )
 
-        super(Telescope, self).__init__()
+        super().__init__()
 
     def __getattr__(self, __name):
         """Handle old names attributes."""
@@ -491,7 +489,7 @@ class Telescope(UVBase):
         """
         # first run the basic check from UVBase
 
-        super(Telescope, self).check(
+        super().check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
 
@@ -579,7 +577,7 @@ class Telescope(UVBase):
         if self.name.lower() in known_telescopes:
             telescope_dict = known_telescopes[self.name.lower()]
 
-            if "antenna_positions_file" in telescope_dict.keys() and (
+            if "antenna_positions_file" in telescope_dict and (
                 overwrite
                 or self.antenna_names is None
                 or self.antenna_numbers is None
@@ -599,7 +597,7 @@ class Telescope(UVBase):
                     "antenna_positions": antenna_positions,
                 }
                 ant_params_missing = []
-                for key in ant_info.keys():
+                for key in ant_info:
                     if getattr(self, key) is None:
                         ant_params_missing.append(key)
                 if overwrite or len(ant_params_missing) == len(ant_info.keys()):
@@ -618,22 +616,21 @@ class Telescope(UVBase):
                                     np.where(ant_info["antenna_names"] == antname)[0][0]
                                 )
                     # next try using numbers
-                    if self.antenna_numbers is not None:
-                        if len(ant_inds) != self.Nants:
-                            for index, antnum in enumerate(self.antenna_numbers):
-                                # only update if not already found
-                                if (
-                                    index not in ant_inds
-                                    and antnum in ant_info["antenna_numbers"]
-                                ):
-                                    this_ant_ind = np.where(
-                                        ant_info["antenna_numbers"] == antnum
-                                    )[0][0]
-                                    # make sure we don't already have this antenna
-                                    #  associated with another antenna
-                                    if this_ant_ind not in telescope_ant_inds:
-                                        ant_inds.append(index)
-                                        telescope_ant_inds.append(this_ant_ind)
+                    if self.antenna_numbers is not None and len(ant_inds) != self.Nants:
+                        for index, antnum in enumerate(self.antenna_numbers):
+                            # only update if not already found
+                            if (
+                                index not in ant_inds
+                                and antnum in ant_info["antenna_numbers"]
+                            ):
+                                this_ant_ind = np.where(
+                                    ant_info["antenna_numbers"] == antnum
+                                )[0][0]
+                                # make sure we don't already have this antenna
+                                #  associated with another antenna
+                                if this_ant_ind not in telescope_ant_inds:
+                                    ant_inds.append(index)
+                                    telescope_ant_inds.append(this_ant_ind)
                     if len(ant_inds) != self.Nants:
                         warnings.warn(
                             "Not all antennas have metadata in the "
@@ -655,7 +652,7 @@ class Telescope(UVBase):
                                 telescope_ant_inds
                             ]
 
-            if "antenna_diameters" in telescope_dict.keys() and (
+            if "antenna_diameters" in telescope_dict and (
                 overwrite or self.antenna_diameters is None
             ):
                 antenna_diameters = np.atleast_1d(telescope_dict["antenna_diameters"])
@@ -676,7 +673,7 @@ class Telescope(UVBase):
                             f"telescope {self.name}."
                         )
 
-            if "x_orientation" in telescope_dict.keys() and (
+            if "x_orientation" in telescope_dict and (
                 overwrite or self.x_orientation is None
             ):
                 known_telescope_list.append("x_orientation")

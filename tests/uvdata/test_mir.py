@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -9,6 +8,7 @@ there is a separate test module for the MirParser class (mir_parser.py), which i
 what is used to read the raw binary data into something that the Mir class can
 manipulate into a UVData object.
 """
+
 import os
 
 import numpy as np
@@ -76,12 +76,14 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
     # we need an extra bit of handling here
     assert len(np.unique(sma_mir.spw_array)) == len(np.unique(uvfits_uv.spw_array))
 
-    spw_dict = dict(zip(uvfits_uv.spw_array, sma_mir.spw_array))
+    spw_dict = dict(zip(uvfits_uv.spw_array, sma_mir.spw_array, strict=True))
 
     assert np.all(
         [
             idx == spw_dict[jdx]
-            for idx, jdx in zip(sma_mir.flex_spw_id_array, uvfits_uv.flex_spw_id_array)
+            for idx, jdx in zip(
+                sma_mir.flex_spw_id_array, uvfits_uv.flex_spw_id_array, strict=True
+            )
         ]
     )
 
@@ -90,8 +92,11 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
     uvfits_uv.flex_spw_id_array = sma_mir.flex_spw_id_array
 
     # Check the history first via find
-    assert 0 == uvfits_uv.history.find(
-        sma_mir.history + "  Read/written with pyuvdata version:"
+    assert (
+        uvfits_uv.history.find(
+            sma_mir.history + "  Read/written with pyuvdata version:"
+        )
+        == 0
     )
     sma_mir.history = uvfits_uv.history
 
@@ -99,7 +104,7 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
     # _very_ small errors (like last bit in the mantissa) creep in when passing through
     # the util function transform_sidereal_coords (for mutli-phase-ctr datasets). Verify
     # the two match up in terms of their coordinates
-    for cat_name in sma_mir.phase_center_catalog.keys():
+    for cat_name in sma_mir.phase_center_catalog:
         assert np.isclose(
             sma_mir.phase_center_catalog[cat_name]["cat_lat"],
             uvfits_uv.phase_center_catalog[cat_name]["cat_lat"],
@@ -211,8 +216,9 @@ def test_read_mir_write_uvh5(sma_mir, tmp_path):
     uvh5_uv.read_uvh5(testfile)
 
     # Check the history first via find
-    assert 0 == uvh5_uv.history.find(
-        sma_mir.history + "  Read/written with pyuvdata version:"
+    assert (
+        uvh5_uv.history.find(sma_mir.history + "  Read/written with pyuvdata version:")
+        == 0
     )
 
     # test fails because of updated history, so this is our workaround for now.
@@ -765,7 +771,9 @@ def test_generate_sma_antpos_dict(use_file, sma_mir):
 
     ant_dict = generate_sma_antpos_dict(filepath)
     for ant_num, xyz_pos in zip(
-        sma_mir.telescope.antenna_numbers, sma_mir.telescope.antenna_positions
+        sma_mir.telescope.antenna_numbers,
+        sma_mir.telescope.antenna_positions,
+        strict=True,
     ):
         assert np.allclose(ant_dict[ant_num], xyz_pos)
 

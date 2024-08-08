@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2022 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -7,6 +6,8 @@
 This module provides a python interface for individual Mir metadata files, e.g.
 "in_read", "bl_read", "sp_read", "we_read", "eng_read", "antennas", and "codes_read".
 """
+
+import contextlib
 import copy
 import os
 import warnings
@@ -516,7 +517,7 @@ class MirMetaError(Exception):
         super().__init__(message)
 
 
-class MirMetaData(object):
+class MirMetaData:
     """
     Class for metadata within Mir datasets.
 
@@ -578,7 +579,7 @@ class MirMetaData(object):
 
         if obj is None:
             return
-        if isinstance(obj, (str, Path)):
+        if isinstance(obj, str | Path):
             self.read(filepath=obj)
             return
 
@@ -666,11 +667,7 @@ class MirMetaData(object):
         name = type(self).__name__
 
         if not isinstance(other, self.__class__):
-            raise ValueError(
-                "Cannot compare {this_type} with {other_type}.".format(
-                    this_type=name, other_type=type(other).__name__
-                )
-            )
+            raise ValueError(f"Cannot compare {name} with {type(other).__name__}.")
 
         verbose_print = print if verbose else lambda *a, **k: None
 
@@ -681,7 +678,7 @@ class MirMetaData(object):
             is_eq &= (self._mask is None) == (other._mask is None)
             if not is_eq:
                 verbose_print(
-                    "%s objects are not both initialized (one is empty)." % name
+                    f"{name} objects are not both initialized (one is empty)."
                 )
             return is_eq
 
@@ -689,7 +686,7 @@ class MirMetaData(object):
         other_keys = other.get_header_keys(use_mask=use_mask)
 
         if set(this_keys) != set(other_keys):
-            verbose_print("%s object header key lists are different." % name)
+            verbose_print(f"{name} object header key lists are different.")
             return False
 
         this_idx = np.array([self._header_key_index_dict[key] for key in this_keys])
@@ -699,10 +696,8 @@ class MirMetaData(object):
         comp_fields = list(self.dtype.fields)
         if ignore_params is not None:
             for item in ignore_params:
-                try:
+                with contextlib.suppress(ValueError):
                     comp_fields.remove(item)
-                except ValueError:
-                    pass
 
         # At this point we are ready to do our field-by-field comparison.
         # I say these objects are the same -- prove me wrong!
@@ -710,7 +705,7 @@ class MirMetaData(object):
 
         # Start with the mask comparison first.
         if comp_mask and not np.array_equal(self._mask, other._mask):
-            verbose_print("%s masks are different." % name)
+            verbose_print(f"{name} masks are different.")
             is_eq = False
 
         # Move on to the data comparisons
@@ -721,8 +716,8 @@ class MirMetaData(object):
             if not np.array_equal(left_vals, right_vals):
                 is_eq = False
                 verbose_print(
-                    "%s of %s is different, left is %s, right is %s."
-                    % (item, name, left_vals, right_vals)
+                    f"{item} of {name} is different, left is {left_vals}, "
+                    f"right is {right_vals}."
                 )
                 if not verbose:
                     break
@@ -990,7 +985,7 @@ class MirMetaData(object):
         """
         if select_field not in self._data.dtype.names:
             raise MirMetaError(
-                "select_field %s not found in structured array." % select_field
+                f"select_field {select_field} not found in structured array."
             )
 
         # Create a simple dict to match operation keywords to a function.
@@ -1005,7 +1000,7 @@ class MirMetaData(object):
             "outside": lambda val, lims: ((val < lims[0]) | (val > lims[1])),
         }
 
-        if isinstance(select_val, (list, set, tuple, str, np.ndarray, np.str_)):
+        if isinstance(select_val, list | set | tuple | str | np.ndarray | np.str_):
             op_dict["eq"] = lambda val, comp: np.isin(val, comp)
             op_dict["ne"] = lambda val, comp: np.isin(val, comp, invert=True)
 
@@ -1018,7 +1013,9 @@ class MirMetaData(object):
 
         # Make sure the inputs look valid
         if select_comp not in op_dict:
-            raise ValueError('select_comp must be one of: "%s"' % '", "'.join(op_dict))
+            raise ValueError(
+                'select_comp must be one of: "{}"'.format('", "'.join(op_dict))
+            )
 
         # Evaluate data_arr now
         data_mask = op_dict[select_comp](self._data[select_field], select_val)
@@ -1034,7 +1031,10 @@ class MirMetaData(object):
 
         if return_header_keys and self._header_key is None:
             return list(
-                zip(*[self._data[key][data_mask] for key in self._pseudo_header_key])
+                zip(
+                    *[self._data[key][data_mask] for key in self._pseudo_header_key],
+                    strict=True,
+                )
             )
         elif return_header_keys:
             return self._data[self._header_key][data_mask]
@@ -1145,7 +1145,7 @@ class MirMetaData(object):
         # that the where argument matches what we expect - either a tuple or a sequence
         # of tuples.
         try:
-            if not (isinstance(where[0], (tuple, list))):
+            if not (isinstance(where[0], tuple | list)):
                 # If where is not indexable, it'll raise a TypeError here.
                 # Force this to be a sequence of tuples here so that the logic below is
                 # simplified.
@@ -1177,7 +1177,9 @@ class MirMetaData(object):
         if not where_success:
             raise MirMetaError(
                 "Argument for where has no match(es) for select_field for this "
-                "MirMetaData object. Must be one of %s." % ", ".join(self.dtype.fields)
+                "MirMetaData object. Must be one of {}.".format(
+                    ", ".join(self.dtype.fields)
+                )
             )
 
         return mask
@@ -1257,7 +1259,7 @@ class MirMetaData(object):
         """
         idx_arr = self._index_query(use_mask, where, and_where_args, header_key, index)
 
-        if isinstance(field_name, (list, set, tuple)):
+        if isinstance(field_name, list | set | tuple):
             if return_tuples is None:
                 return_tuples = True
             metadata = []
@@ -1270,7 +1272,11 @@ class MirMetaData(object):
             metadata = self._data[field_name][idx_arr]
 
         if return_tuples:
-            return list(zip(*metadata) if isinstance(metadata, list) else zip(metadata))
+            return list(
+                zip(*metadata, strict=True)
+                if isinstance(metadata, list)
+                else zip(metadata, strict=True)
+            )
         else:
             return metadata
 
@@ -1718,7 +1724,11 @@ class MirMetaData(object):
 
         index_dict = {
             self._header_key: dict(
-                zip(self.get_header_keys(use_mask=False), range(idx_start, idx_stop))
+                zip(
+                    self.get_header_keys(use_mask=False),
+                    range(idx_start, idx_stop),
+                    strict=True,
+                )
             )
         }
 
@@ -1840,9 +1850,12 @@ class MirMetaData(object):
 
         if assume_unique:
             if len(group_fields) == 1:
-                return dict(zip(group_data[0], index_arr))
+                return dict(zip(group_data[0], index_arr, strict=True))
             else:
-                return {tup[:-1]: tup[-1] for tup in zip(*group_data, index_arr)}
+                return {
+                    tup[:-1]: tup[-1]
+                    for tup in zip(*group_data, index_arr, strict=True)
+                }
 
         # Otherwise, check element-wise for differences, since that will tell us the
         # boundaries for each "group" of data.
@@ -1859,7 +1872,9 @@ class MirMetaData(object):
         if len(group_fields) == 1:
             group_names = list(group_data[0][diff_idx])
         else:
-            group_names = list(zip(*[data[diff_idx] for data in group_data]))
+            group_names = list(
+                zip(*[data[diff_idx] for data in group_data], strict=True)
+            )
 
         # In order to cleanly slice the data, we record the last good index position,
         # which will mark the beginning of the slice, with each subsequent list value
@@ -1869,7 +1884,7 @@ class MirMetaData(object):
 
         # Finally, group together the data.
         group_dict = {}
-        for idx, group in zip(diff_idx, group_names):
+        for idx, group in zip(diff_idx, group_names, strict=True):
             group_dict[group] = index_arr[last_idx:idx]
             last_idx = idx
 
@@ -1902,7 +1917,7 @@ class MirMetaData(object):
                 field_name = [field_name]
             for item in field_name:
                 if item not in self._stored_values:
-                    raise ValueError("No stored values for field %s." % item)
+                    raise ValueError(f"No stored values for field {item}.")
 
         for item in field_name:
             self._data[item] = self._stored_values.pop(item)
@@ -1955,7 +1970,7 @@ class MirMetaData(object):
         """
         rebuild_index = False
         for field, data_dict in update_dict.items():
-            if not isinstance(field, (str, tuple)):
+            if not isinstance(field, str | tuple):
                 raise ValueError(
                     "update_dict must have keys that are type str or tuples of str."
                 )
@@ -1970,7 +1985,7 @@ class MirMetaData(object):
             # If no match, and we want to raise an error, do so now.
             if not has_match:
                 if raise_err:
-                    raise ValueError("Field group %s not found in this object." % field)
+                    raise ValueError(f"Field group {field} not found in this object.")
                 # Otherwise, just move along.
                 continue
 
@@ -1994,7 +2009,9 @@ class MirMetaData(object):
                     if not is_tuple:
                         arr_data[idx] = data_dict[old_vals]
                     else:
-                        for subarr, new_val in zip(arr_data, data_dict[old_vals]):
+                        for subarr, new_val in zip(
+                            arr_data, data_dict[old_vals], strict=True
+                        ):
                             subarr[idx] = new_val
                 except KeyError:
                     # If no matching key, then there is no update to perform
@@ -2148,7 +2165,7 @@ class MirMetaData(object):
                     # If at each position at least one object is flagged, then drop the
                     # key flagged from that object (dropping it from self if both
                     # objects have that index flagged).
-                    for key, arr1_good in zip(key_overlap, arr1_mask):
+                    for key, arr1_good in zip(key_overlap, arr1_mask, strict=True):
                         _ = index_dict2.pop(key) if arr1_good else index_dict1.pop(key)
                 else:
                     # If the previous check fails, we have to do some heavier lifting.
@@ -2171,7 +2188,7 @@ class MirMetaData(object):
                         # keys from this object, and _some_ keys from the other object
                         # from the conflicted list.
                         for key, comp, mask1, mask2 in zip(
-                            key_overlap, comp_mask, arr1_mask, arr2_mask
+                            key_overlap, comp_mask, arr1_mask, arr2_mask, strict=True
                         ):
                             if comp or (not mask1):
                                 # If equal values OR this obj's record is flagged
@@ -2230,7 +2247,7 @@ class MirMetaData(object):
         FileNotFoundError
             If running the check and no file is found (and `invert_check=False`).
         """
-        if not isinstance(filepath, (str, Path)):
+        if not isinstance(filepath, str | Path):
             raise ValueError("filepath must be of type str or Path.")
 
         if os.path.isdir(filepath):
@@ -2240,10 +2257,10 @@ class MirMetaData(object):
             if os.path.exists(filepath) and invert_check:
                 raise FileExistsError(
                     "File already exists, must set overwrite or append_data to True, "
-                    "or delete the file %s in order to proceed." % filepath
+                    f"or delete the file {filepath} in order to proceed."
                 )
             elif not (os.path.exists(filepath) or invert_check):
-                raise FileNotFoundError("No file found with the path %s." % filepath)
+                raise FileNotFoundError(f"No file found with the path {filepath}.")
 
         return filepath
 
@@ -2404,7 +2421,7 @@ class MirMetaData(object):
         TypeError
             If the object is not a MirSpData or MirAcData type.
         """
-        if not isinstance(self, (MirSpData, MirAcData)):
+        if not isinstance(self, MirSpData | MirAcData):
             raise TypeError(
                 "Cannot use this method on objects other than MirSpData"
                 "and MirAcData types."
@@ -2575,7 +2592,9 @@ class MirMetaData(object):
             # Plug in the start/end index positions for each spectral record.
             recpos_dict[inhid] = {
                 hkey: {"start_idx": sidx, "end_idx": eidx, "chan_avg": 1}
-                for hkey, sidx, eidx in zip(hkey_subarr, sidx_arr, eidx_arr)
+                for hkey, sidx, eidx in zip(
+                    hkey_subarr, sidx_arr, eidx_arr, strict=True
+                )
             }
 
             # Record size for int_dict is recorded in bytes, hence the * chan_size here
@@ -2891,7 +2910,7 @@ class MirAntposData(MirMetaData):
         filepath : str or Path
             Path of the folder containing the metadata in question.
         """
-        with open(self._gen_filepath(filepath), "r") as antennas_file:
+        with open(self._gen_filepath(filepath)) as antennas_file:
             temp_list = [
                 item for line in antennas_file.readlines() for item in line.split()
             ]
@@ -3151,7 +3170,7 @@ class MirCodesData(MirMetaData):
             raise MirMetaError(
                 "select_field must either be one of the native fields inside of the "
                 'codes_read array ("v_name", "code", "icode", "ncode") or one of the '
-                "indexing codes (%s)." % ", ".join(list(self._codes_index_dict))
+                "indexing codes ({}).".format(", ".join(list(self._codes_index_dict)))
             )
 
         if select_comp not in ["eq", "==", "ne", "!="]:
@@ -3218,7 +3237,7 @@ class MirCodesData(MirMetaData):
         """
         if code_name not in self.get_code_names():
             raise MirMetaError(
-                "%s does not match any code or field in the metadata." % code_name
+                f"{code_name} does not match any code or field in the metadata."
             )
 
         mask = self.where("v_name", "eq", code_name, return_header_keys=False)
@@ -3228,7 +3247,7 @@ class MirCodesData(MirMetaData):
             return_dict = (np.sum(mask) != 1) or (code_name in self._codes_index_dict)
 
         if return_dict:
-            return dict(zip(codes + index, index + codes))
+            return dict(zip(codes + index, index + codes, strict=True))
         else:
             return codes
 
@@ -3289,24 +3308,28 @@ class MirCodesData(MirMetaData):
                 continue
 
             # If the codes are identical, then also skip processing
-            if vname in other_vnames:
-                if (self[vname] == other[vname]) and (same_skip or (vname != "source")):
-                    continue
+            if (
+                vname in other_vnames
+                and (self[vname] == other[vname])
+                and (same_skip or (vname != "source"))
+            ):
+                continue
 
             if vname in self._immutable_codes:
                 # If the codes are supposed to be identical, then we should have bailed
                 # by this point. Raise an error.
                 raise ValueError(
-                    "The codes for %s in codes_read cannot change between "
-                    "objects if they are to be combined." % vname
+                    f"The codes for {vname} in codes_read cannot change between "
+                    "objects if they are to be combined."
                 )
             elif vname in other_vnames:
-                if not (vname in self._mutable_codes):
+                if vname not in self._mutable_codes:
                     # If the code is not recognized as a mutable code, but not forbidden
                     # from changing, then just raise a warning and proceed.
                     warnings.warn(
-                        "Codes for %s not in the recognized list of mutable codes. "
-                        "Moving ahead anyways since it is not forbidden." % vname
+                        f"Codes for {vname} not in the recognized list of "
+                        "mutable codes. Moving ahead anyways since it is not "
+                        "forbidden."
                     )
                 temp_dict = {}
 

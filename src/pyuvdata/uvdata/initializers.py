@@ -1,13 +1,14 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """A module defining functions for initializing UVData objects from scratch."""
+
 from __future__ import annotations
 
 import warnings
+from collections.abc import Sequence
 from itertools import combinations_with_replacement
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
 
 import numpy as np
 from astropy.coordinates import EarthLocation
@@ -545,9 +546,8 @@ def new_uvdata(
         time_sized_arrays=(lst_array, integration_time),
     )
 
-    if not do_blt_outer:
-        if time_array.size != antpairs.shape[0]:
-            raise ValueError("Length of time array must match the number of antpairs.")
+    if not do_blt_outer and time_array.size != antpairs.shape[0]:
+        raise ValueError("Length of time array must match the number of antpairs.")
 
     if bl_order is not None and blts_are_rectangular:
         if time_axis_faster_than_bls:

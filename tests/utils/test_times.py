@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for time related utility functions."""
@@ -12,8 +11,7 @@ from pyuvdata import utils
 from pyuvdata.utils.times import hasmoon
 
 if hasmoon:
-    from lunarsky import MoonLocation
-    from lunarsky import Time as LTime
+    from lunarsky import MoonLocation, Time as LTime
 
 from .test_coordinates import selenoids
 

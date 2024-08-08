@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -6,6 +5,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import warnings
 from functools import cached_property
@@ -380,21 +380,30 @@ class FastUVH5Meta(hdf5_utils.HDF5Meta):
     def antpairs(self) -> list[tuple[int, int]]:
         """Get the unique antenna pairs in the file."""
         if self.blts_are_rectangular:
-            return list(zip(self.unique_antpair_1_array, self.unique_antpair_2_array))
+            return list(
+                zip(
+                    self.unique_antpair_1_array,
+                    self.unique_antpair_2_array,
+                    strict=True,
+                )
+            )
         else:
-            return list(set(zip(self.ant_1_array, self.ant_2_array)))
+            return list(set(zip(self.ant_1_array, self.ant_2_array, strict=True)))
 
     def has_key(self, key: tuple[int, int] | tuple[int, int, str]) -> bool:
         """Check if the file has a given antpair or antpair-pol key."""
-        if len(key) == 2 and key in self.antpairs or (key[1], key[0]) in self.antpairs:
-            return True
-        elif len(key) == 3 and (
-            (key[:2] in self.antpairs and key[2] in self.pols)
-            or ((key[1], key[0]) in self.antpairs and key[2][::-1] in self.pols)
-        ):
-            return True
-        else:
-            return False
+        return bool(
+            len(key) == 2
+            and key in self.antpairs
+            or (key[1], key[0]) in self.antpairs
+            or len(key) == 3
+            and (
+                key[:2] in self.antpairs
+                and key[2] in self.pols
+                or (key[1], key[0]) in self.antpairs
+                and key[2][::-1] in self.pols
+            )
+        )
 
     @cached_property
     def pols(self) -> list[str]:
@@ -609,10 +618,8 @@ class UVH5(UVData):
             "extra_keywords",
             "pol_convention",
         ]:
-            try:
+            with contextlib.suppress(AttributeError):
                 setattr(self, attr, getattr(obj, attr))
-            except AttributeError:
-                pass
 
         if self.blt_order is not None:
             self._blt_order.form = (len(self.blt_order),)
@@ -731,11 +738,12 @@ class UVH5(UVData):
         """
         # check for bitshuffle data; bitshuffle filter number is 32008
         # TODO should we check for any other filters?
-        if "32008" in dgrp["visdata"]._filters:
-            if not hdf5plugin_present:  # pragma: no cover
-                raise ImportError(
-                    "hdf5plugin is not installed but is required to read this dataset"
-                ) from hdf5plugin_error
+        if (
+            "32008" in dgrp["visdata"]._filters and not hdf5plugin_present
+        ):  # pragma: no cover
+            raise ImportError(
+                "hdf5plugin is not installed but is required to read this dataset"
+            ) from hdf5plugin_error
 
         # figure out what data to read in
         blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
@@ -851,10 +859,12 @@ class UVH5(UVData):
             nsamples_dset = dgrp["nsamples"]
 
             # check that multidim_index is appropriate
-            if multidim_index:
-                # if more than one dim is not sliceable, then not appropriate
-                if sum([blt_sliceable, freq_sliceable, pol_sliceable]) < 2:
-                    multidim_index = False
+            # if more than one dim is not sliceable, then not appropriate
+            if (
+                multidim_index
+                and sum([blt_sliceable, freq_sliceable, pol_sliceable]) < 2
+            ):
+                multidim_index = False
 
             # just read in the right portions of the data and flag arrays
             if blt_frac == min_frac:
@@ -1221,7 +1231,7 @@ class UVH5(UVData):
         # write out extra keywords if it exists and has elements
         if self.extra_keywords:
             extra_keywords = header.create_group("extra_keywords")
-            for k in self.extra_keywords.keys():
+            for k in self.extra_keywords:
                 if isinstance(self.extra_keywords[k], str):
                     extra_keywords[k] = np.bytes_(self.extra_keywords[k])
                 elif self.extra_keywords[k] is None:
@@ -1343,7 +1353,7 @@ class UVH5(UVData):
             if clobber:
                 print("File exists; clobbering")
             else:
-                raise IOError("File exists; skipping")
+                raise OSError("File exists; skipping")
 
         data_compression, data_compression_opts = hdf5_utils._get_compression(
             data_compression
@@ -1478,7 +1488,7 @@ class UVH5(UVData):
             if clobber:
                 print("File exists; clobbering")
             else:
-                raise IOError("File exists; skipping")
+                raise OSError("File exists; skipping")
 
         data_compression, data_compression_opts = hdf5_utils._get_compression(
             data_compression
@@ -1740,8 +1750,8 @@ class UVH5(UVData):
         # check that the file already exists
         if not os.path.exists(filename):
             raise AssertionError(
-                "{0} does not exists; please first initialize it with "
-                "initialize_uvh5_file".format(filename)
+                f"{filename} does not exists; please first initialize it with "
+                "initialize_uvh5_file"
             )
 
         if check_header:
@@ -1839,9 +1849,7 @@ class UVH5(UVData):
         proper_shape = (Nblts, Nfreqs, Npols)
         if data_array.shape != proper_shape:
             raise AssertionError(
-                "data_array has shape {0}; was expecting {1}".format(
-                    data_array.shape, proper_shape
-                )
+                f"data_array has shape {data_array.shape}; was expecting {proper_shape}"
             )
 
         # actually write the data

@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 import copy
@@ -348,7 +347,7 @@ def test_recarray_equality():
     dtype = []
     for val in values:
         dtype.append(val.dtype)
-    dtype_obj = np.dtype(list(zip(names, dtype)))
+    dtype_obj = np.dtype(list(zip(names, dtype, strict=True)))
     recarr1 = np.rec.fromarrays(values, dtype=dtype_obj)
     recarr2 = copy.deepcopy(recarr1)
     param1 = uvp.UVParameter(name="p1", value=recarr1)
@@ -406,7 +405,7 @@ def test_recarray_inequality(capsys, names2, values2, msg):
     dtype = []
     for val in values1:
         dtype.append(val.dtype)
-    dtype_obj1 = np.dtype(list(zip(names1, dtype)))
+    dtype_obj1 = np.dtype(list(zip(names1, dtype, strict=True)))
     recarr1 = np.rec.fromarrays(values1, dtype=dtype_obj1)
     param1 = uvp.UVParameter(name="p1", value=recarr1)
 
@@ -416,7 +415,7 @@ def test_recarray_inequality(capsys, names2, values2, msg):
         dtype = []
         for val in values2:
             dtype.append(val.dtype)
-        dtype_obj2 = np.dtype(list(zip(names2, dtype)))
+        dtype_obj2 = np.dtype(list(zip(names2, dtype, strict=True)))
         recarr2 = np.rec.fromarrays(values2, dtype=dtype_obj2)
 
         param2 = uvp.UVParameter(name="p2", value=recarr2)
@@ -499,7 +498,7 @@ def test_expected_shape():
             self._p1 = uvp.UVParameter(name="p1", required=False)
             self._p2 = uvp.UVParameter(name="p2", form=("p1",))
             self._p3 = uvp.UVParameter(name="p3", form=(2,))
-            super(TestUV, self).__init__()
+            super().__init__()
 
     obj = TestUV()
     obj.p2 = np.array([0, 5, 8])

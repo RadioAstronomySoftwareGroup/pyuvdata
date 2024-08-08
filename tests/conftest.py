@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2019 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Testing environment setup and teardown for pytest."""
+
 import os
 
 import pytest
@@ -27,7 +27,7 @@ def setup_and_teardown_package():
     # Also, the check_warnings function will ignore IERS-related warnings.
     try:
         t1 = Time.now()
-        t1.ut1
+        t1.ut1  # noqa B018
     except Exception:
         iers.conf.auto_max_age = None
 

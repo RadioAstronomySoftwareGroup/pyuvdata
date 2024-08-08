@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -55,18 +54,18 @@ for filename in args.files:
     # check output
     if args.output_filename is None:
         splitext = os.path.splitext(filename)[1]
-        if splitext[1] == ".uvh5":
-            outfilename = splitext[0] + ".uvfits"
-        elif splitext[1] in [".ms", ".MS"]:
-            outfilename = splitext[0] + ".uvfits"
-        elif splitext[1] == ".sav":
+        if (
+            splitext[1] == ".uvh5"
+            or splitext[1] in [".ms", ".MS"]
+            or splitext[1] == ".sav"
+        ):
             outfilename = splitext[0] + ".uvfits"
         else:
             outfilename = filename + ".uvfits"
     else:
         outfilename = args.output_filename
     if os.path.exists(outfilename) and args.overwrite is False:
-        print("{} exists, not overwriting...".format(outfilename))
+        print(f"{outfilename} exists, not overwriting...")
         continue
 
     # read in file
@@ -78,15 +77,15 @@ for filename in args.files:
         if args.phase_time is not None:
             UV.phase_to_time(Time(args.phase_time, format="jd", scale="utc"))
             if args.verbose:
-                print("phasing {} to time {}".format(filename, args.phase_time))
+                print(f"phasing {filename} to time {args.phase_time}")
 
         else:
             UV.phase_to_time(Time(UV.time_array[0], format="jd", scale="utc"))
             if args.verbose:
-                print("phasing {} to time {}".format(filename, UV.time_array[0]))
+                print(f"phasing {filename} to time {UV.time_array[0]}")
 
     # write data
     UV.history += history
     if args.verbose:
-        print("saving {}".format(outfilename))
+        print(f"saving {outfilename}")
     UV.write_uvfits(outfilename, spoof_nonessential=True)

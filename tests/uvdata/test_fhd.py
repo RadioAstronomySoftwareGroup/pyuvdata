@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for FHD object.
+"""Tests for FHD object."""
 
-"""
 import copy
 import glob
 import os
@@ -308,7 +306,6 @@ def test_read_fhd_write_read_uvfits_variant_flag(tmp_path, fhd_data_files):
 
 
 def test_read_fhd_latlonalt_match_xyz(fhd_data_files):
-
     fhd_data_files["layout_file"] = os.path.join(
         DATA_PATH, "fhd_vis_data/", "1061316296_known_match_xyz_layout.sav"
     )
@@ -639,19 +636,22 @@ def test_read_fhd_warnings(fhd_data_files):
 
     fhd_data_files["flags_file"] = broken_flags_file
     fhd_uv = UVData()
-    with check_warnings(
-        UserWarning,
-        match=[
-            "Some FHD input files do not have the expected subfolder so FHD folder "
-            "matching could not be done. The affected file types are: ['vis', 'flags']",
-            "The FHD input files do not all have matching prefixes, so they may not be "
-            "for the same data.",
-        ],
-    ):
-        with pytest.raises(
+    with (
+        check_warnings(
+            UserWarning,
+            match=[
+                "Some FHD input files do not have the expected subfolder so FHD "
+                "folder matching could not be done. The affected file types are: "
+                "['vis', 'flags']",
+                "The FHD input files do not all have matching prefixes, so they "
+                "may not be for the same data.",
+            ],
+        ),
+        pytest.raises(
             ValueError, match="No recognized key for visibility weights in flags_file."
-        ):
-            fhd_uv.read(**fhd_data_files)
+        ),
+    ):
+        fhd_uv.read(**fhd_data_files)
 
 
 @pytest.mark.parametrize(

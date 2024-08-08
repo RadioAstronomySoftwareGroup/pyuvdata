@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for telescope objects and functions.
+"""Tests for telescope objects and functions."""
 
-"""
 import copy
 import os
 import warnings
@@ -132,7 +130,7 @@ def test_unexpected_attributes():
 def test_properties():
     "Test that properties can be get and set properly."
     telescope_obj = pyuvdata.Telescope()
-    prop_dict = dict(list(zip(required_properties, required_parameters)))
+    prop_dict = dict(list(zip(required_properties, required_parameters, strict=True)))
     for k, v in prop_dict.items():
         rand_num = np.random.rand()
         setattr(telescope_obj, k, rand_num)
@@ -140,7 +138,7 @@ def test_properties():
         try:
             assert rand_num == this_param.value
         except AssertionError:
-            print("setting {prop_name} to a random number failed".format(prop_name=k))
+            print(f"setting {k} to a random number failed")
             raise
 
 

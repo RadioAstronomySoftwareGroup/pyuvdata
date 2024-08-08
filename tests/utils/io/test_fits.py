@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for helper utility functions."""
+
 import os
 
 from astropy.io import fits
@@ -16,7 +16,6 @@ casa_tutorial_uvfits = os.path.join(
 
 
 def test_deprecated_utils_import():
-
     with fits.open(casa_tutorial_uvfits, memmap=True) as hdu_list:
         vis_hdu = hdu_list[0]
 

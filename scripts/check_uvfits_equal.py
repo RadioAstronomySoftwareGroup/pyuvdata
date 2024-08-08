@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Test if two UVData compatible files are equal."""
@@ -17,11 +16,11 @@ args = parser.parse_args()
 
 uvfits_file1 = args.uvfits1
 if not op.isfile(uvfits_file1):
-    raise IOError("There is no file named {}".format(args.uvfits_file1))
+    raise OSError(f"There is no file named {args.uvfits_file1}")
 
 uvfits_file2 = args.uvfits2
 if not op.isfile(uvfits_file2):
-    raise IOError("There is no file named {}".format(args.uvfits_file2))
+    raise OSError(f"There is no file named {args.uvfits_file2}")
 
 uv1 = UVData()
 uv1.read_uvfits(uvfits_file1)

@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """History management utilities."""
@@ -6,20 +5,14 @@
 
 def _check_history_version(history, version_string):
     """Check if version_string is present in history string."""
-    if version_string.replace(" ", "") in history.replace("\n", "").replace(" ", ""):
-        return True
-    else:
-        return False
+    return version_string.replace(" ", "") in history.replace("\n", "").replace(" ", "")
 
 
 def _check_histories(history1, history2):
     """Check if two histories are the same."""
-    if history1.replace("\n", "").replace(" ", "") == history2.replace(
+    return history1.replace("\n", "").replace(" ", "") == history2.replace(
         "\n", ""
-    ).replace(" ", ""):
-        return True
-    else:
-        return False
+    ).replace(" ", "")
 
 
 def _combine_history_addition(history1, history2):

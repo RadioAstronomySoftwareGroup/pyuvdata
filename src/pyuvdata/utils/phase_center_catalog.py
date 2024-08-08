@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with phase center catalogs."""
@@ -176,7 +175,7 @@ def look_in_catalog(
         if (cat_name != name) and (not ignore_name):
             continue
         check_dict = phase_center_catalog[cat_id]
-        for key in tol_dict.keys():
+        for key in tol_dict:
             if phase_dict.get(key) is not None:
                 if check_dict.get(key) is None:
                     cat_diffs += 1
@@ -292,10 +291,10 @@ def print_phase_center_info(
     ra_frames = ["icrs", "gcrs", "fk5", "fk4", "topo"]
 
     if catalog_identifier is not None:
-        if isinstance(catalog_identifier, (str, int)):
-            pass
-        elif isinstance(catalog_identifier, list) and all(
-            isinstance(cat, (str, int)) for cat in catalog_identifier
+        if (
+            isinstance(catalog_identifier, str | int)
+            or isinstance(catalog_identifier, list)
+            and all(isinstance(cat, str | int) for cat in catalog_identifier)
         ):
             pass
         else:
@@ -565,8 +564,9 @@ def generate_new_phase_center_id(
     elif cat_id in used_cat_ids:
         if phase_center_catalog is not None and cat_id in phase_center_catalog:
             raise ValueError(
-                "Provided cat_id belongs to another source (%s)."
-                % phase_center_catalog[cat_id]["cat_name"]
+                "Provided cat_id belongs to another source ({}).".format(
+                    phase_center_catalog[cat_id]["cat_name"]
+                )
             )
         else:
             raise ValueError("Provided cat_id was found in reserved_ids.")
@@ -745,7 +745,7 @@ def generate_phase_center_cat_entry(
             "for cat types other than sidereal are not supported."
         )
 
-    if isinstance(cat_epoch, Time) or isinstance(cat_epoch, str):
+    if isinstance(cat_epoch, Time | str):
         if cat_frame in ["fk4", "fk4noeterms"]:
             cat_epoch = Time(cat_epoch).byear
         else:

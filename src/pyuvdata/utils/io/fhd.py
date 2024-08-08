@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with FHD files."""
+
 import os
 import warnings
 
@@ -73,7 +73,7 @@ def fhd_filenames(
     for ftype, fdict in file_types.items():
         if fdict["files"] is None:
             continue
-        if isinstance(fdict["files"], (list, np.ndarray)):
+        if isinstance(fdict["files"], list | np.ndarray):
             these_files = fdict["files"]
         else:
             these_files = [fdict["files"]]
@@ -139,7 +139,7 @@ def get_fhd_history(settings_file, *, return_user=False):
         Only returned if return_user is True
 
     """
-    with open(settings_file, "r") as f:
+    with open(settings_file) as f:
         settings_lines = f.readlines()
     main_loc = None
     command_loc = None
@@ -329,19 +329,17 @@ def get_fhd_layout_info(
     Nants_telescope = int(layout["n_antenna"][0])
     layout_fields.remove("n_antenna")
 
-    if telescope_name.lower() == "mwa":
+    if telescope_name.lower() == "mwa" and [ant.strip() for ant in obs_tile_names] != [
+        ant.strip() for ant in antenna_names
+    ]:
         # check that obs.baseline_info.tile_names match the antenna names
         # (accounting for possible differences in white space)
         # this only applies for MWA because the tile_names come from
         # metafits files. layout["antenna_names"] comes from the antenna table
         # in the uvfits file and will be used if no metafits was submitted
-        if [ant.strip() for ant in obs_tile_names] != [
-            ant.strip() for ant in antenna_names
-        ]:
-            warnings.warn(
-                "tile_names from obs structure does not match "
-                "antenna_names from layout"
-            )
+        warnings.warn(
+            "tile_names from obs structure does not match antenna_names from layout"
+        )
 
     gst0 = float(layout["gst0"][0])
     layout_fields.remove("gst0")

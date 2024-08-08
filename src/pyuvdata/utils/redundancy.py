@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with redundant baselines."""
+
 import warnings
 from copy import deepcopy
 
@@ -59,9 +59,8 @@ def _find_cliques(adj, strict=False):
             loc_gps.append(group)
 
     # Require all adjacency lists to be isolated maximal cliques:
-    if strict:
-        if not all(sorted(st) in loc_gps for st in adj):
-            raise ValueError("Non-isolated cliques found in graph.")
+    if strict and not all(sorted(st) in loc_gps for st in adj):
+        raise ValueError("Non-isolated cliques found in graph.")
 
     return loc_gps
 

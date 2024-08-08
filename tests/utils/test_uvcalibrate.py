@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for uvcalibrate function."""
+
 import os
 import re
 from types import SimpleNamespace
@@ -164,9 +164,11 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
 
     freq_expected = f"Frequency {uvd.freq_array[0]} exists on UVData but not on UVCal."
 
-    with check_warnings(UserWarning, match=ants_expected):
-        with pytest.raises(ValueError, match=time_expected):
-            uvcalibrate(uvd, uvc, prop_flags=True, ant_check=False, inplace=False)
+    with (
+        check_warnings(UserWarning, match=ants_expected),
+        pytest.raises(ValueError, match=time_expected),
+    ):
+        uvcalibrate(uvd, uvc, prop_flags=True, ant_check=False, inplace=False)
 
     uvc.select(times=uvc.time_array[0])
 
@@ -175,9 +177,11 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
         "calibration will be applied anyway."
     ]
 
-    with check_warnings(UserWarning, match=ants_expected + time_expected):
-        with pytest.raises(ValueError, match=freq_expected):
-            uvcalibrate(uvd, uvc, prop_flags=True, ant_check=False, time_check=False)
+    with (
+        check_warnings(UserWarning, match=ants_expected + time_expected),
+        pytest.raises(ValueError, match=freq_expected),
+    ):
+        uvcalibrate(uvd, uvc, prop_flags=True, ant_check=False, time_check=False)
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")

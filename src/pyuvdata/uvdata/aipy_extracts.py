@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright 2018 the HERA Project
 # Licensed under the 2-clause BSD License
 
@@ -10,8 +9,10 @@ routines. It was copied from AIPY commit
 used by pyuvdata are ``uv_selector`` and ``UV``.
 
 """
+
 __all__ = ["uv_selector", "UV"]
 
+import contextlib
 import re
 
 import numpy as np
@@ -94,7 +95,7 @@ def ij2bl(i, j):
 
 
 ant_re = r"(\(((-?\d+[xy]?,?)+)\)|-?\d+[xy]?)"
-bl_re = "(^(%s_%s|%s),?)" % (ant_re, ant_re, ant_re)
+bl_re = f"(^({ant_re}_{ant_re}|{ant_re}),?)"
 
 
 def parse_ants(ant_str, nants):
@@ -129,7 +130,7 @@ def parse_ants(ant_str, nants):
             elif ant_str[cnt:].startswith("cross") or ant_str[cnt:].startswith("-auto"):
                 rv.append(("auto", 0, -1))
             else:
-                raise ValueError('Unparsable ant argument "%s"' % ant_str)
+                raise ValueError(f'Unparsable ant argument "{ant_str}"')
             c = ant_str[cnt:].find(",")
 
             if c >= 0:
@@ -302,15 +303,13 @@ class UV(_miriad.UV):
             self.vartable = self._gen_vartable()
             self.read()
             self.rewind()  # Update variables for the user
-            try:
+            # Karto: it does not seem possible to end up in a situation where nchan
+            # is missing from the vartable -- the basic uvwrite utility checks
+            # that value so that knows if nchan has changes (and can update
+            # accordingly), so you would have to use something _outside_ of the
+            # MIRIAD tools to create such an error.
+            with contextlib.suppress(KeyError):
                 self.nchan = self["nchan"]
-            except KeyError:  # pragma: no cover
-                # Karto: it does not seem possible to end up in a situation where nchan
-                # is missing from the vartable -- the basic uvwrite utility checks
-                # that value so that knows if nchan has changes (and can update
-                # accordingly), so you would have to use something _outside_ of the
-                # MIRIAD tools to create such an error.
-                pass
         else:
             self.vartable = {"corr": corrmode}
 
@@ -359,7 +358,7 @@ class UV(_miriad.UV):
             try:
                 _miriad.hdaccess(self.haccess(i, "read"))
                 items.append(i)
-            except IOError:
+            except OSError:
                 pass
         return items
 
@@ -395,7 +394,7 @@ class UV(_miriad.UV):
             while True:
                 try:
                     c, o = _miriad.hread(h, offset, itype)
-                except IOError:
+                except OSError:
                     break
 
                 if itype == "a":
@@ -450,7 +449,7 @@ class UV(_miriad.UV):
                 offset += _miriad.hwrite(h, offset, v, item_type)
         else:
             offset = _miriad.hwrite_init(h, "b")
-            for v, t in zip(val, item_type):
+            for v, t in zip(val, item_type, strict=True):
                 offset += _miriad.hwrite(h, offset, v, t)
 
         _miriad.hdaccess(h)
@@ -476,7 +475,7 @@ class UV(_miriad.UV):
                     c, o = _miriad.hread(h, offset, "d")
                     rv.append(c)
                     offset += 8
-                except IOError:
+                except OSError:
                     break
 
             _miriad.hdaccess(h)
@@ -574,7 +573,7 @@ class UV(_miriad.UV):
         preamble, data, flags, nread = self.raw_read(self.nchan)
 
         if nread == 0:
-            raise IOError("No data read")
+            raise OSError("No data read")
 
         flags = np.logical_not(flags)
 
@@ -606,7 +605,7 @@ class UV(_miriad.UV):
         while True:
             try:
                 yield self.read(raw=raw)
-            except IOError:
+            except OSError:
                 break
 
     def write(self, preamble, data, flags=None):

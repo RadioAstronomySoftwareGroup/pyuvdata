@@ -92,15 +92,54 @@ script-files = [
 
 [tool.setuptools_scm]
 
-[tool.isort]
- profile = "black"
-
-[darglint]
- docstring_style = "numpy"
-
-[tool.black]
- skip_magic_trailing_comma = true
-
 [tool.pytest.ini_options]
 testpaths = "tests"
 addopts = "--ignore=scripts --ignore=docs"
+
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle
+    "W", # pycodestyle warnings
+    "F", # Pyflakes
+    "D", # pydocstyle
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "A", # flake8-builtins
+    "C4", # flake8-comprehensions
+    "N", # pep8-naming
+    "SIM", # flake8-simplify
+    "I", # isort
+    # "C90", # McCabe complexity. Consider for the future
+]
+ignore = [
+    "N806", # non-lowercase variable (we use N* for axes lengths)
+    "B028", # no-explicit-stacklevel for warnings
+    "SIM108", # prefer ternary opperators. I find them difficult to read.
+    "D203", # one-blank-line-before-class. we use two.
+    "D212", # multi-line-summary-first-line. We put it on the second line.
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"] # Don't require docstrings for tests
+"docs/*.py" = ["D", "A"] # Don't require docstrings or worry about builtins for docs
+"setup.py" = ["D"] # Don't require docstrings for setup.py
+"src/pyuvdata/utils/coordinates.py" = ["N802"] # non-lowercase function names
+"tests/utils/test_coordinates.py" = ["N802"] # non-lowercase function names
+
+[tool.ruff.format]
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 88
+
+# consider setting this in the future
+# [tool.ruff.lint.mccabe]
+# max-complexity = 30
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+known-first-party = ["pyuvdata"]
+split-on-trailing-comma = false
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"

@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for phasing utility functions."""
+
 import os
 import re
 
@@ -19,8 +19,7 @@ from pyuvdata.utils.phasing import hasmoon
 from .test_coordinates import frame_selenoid
 
 if hasmoon:
-    from lunarsky import MoonLocation
-    from lunarsky import Time as LTime
+    from lunarsky import MoonLocation, Time as LTime
 
 
 @pytest.fixture
@@ -118,7 +117,7 @@ def test_cart3_to_polar2_arg_errs(input1, msg):
         [np.zeros((1, 3, 1)), np.zeros((1, 3, 3)), 2, "rot_matrix must be of shape "],
         [np.zeros((1, 2, 1)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected"],
         [np.zeros((2, 1)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected"],
-        [np.zeros((2)), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected shape"],
+        [np.zeros(2), np.zeros((1, 3, 3)), 1, "Misshaped xyz_array - expected shape"],
     ),
 )
 def test_rotate_matmul_wrapper_arg_errs(input1, input2, input3, msg):
@@ -416,7 +415,7 @@ def test_calc_uvw_input_errors(calc_uvw_args, arg_dict, err):
     """
     Check for argument errors with calc_uvw.
     """
-    for key in arg_dict.keys():
+    for key in arg_dict:
         calc_uvw_args[key] = arg_dict[key]
 
     with pytest.raises(err[0], match=err[1]):
@@ -649,7 +648,7 @@ def test_transform_icrs_to_app_arg_errs(astrometry_args, arg_dict, msg):
     """
     pytest.importorskip("novas")
     default_args = astrometry_args.copy()
-    for key in arg_dict.keys():
+    for key in arg_dict:
         default_args[key] = arg_dict[key]
 
     # Start w/ the transform_icrs_to_app block
@@ -683,7 +682,7 @@ def test_transform_app_to_icrs_arg_errs(astrometry_args, arg_dict, msg):
     Check for argument errors with transform_app_to_icrs
     """
     default_args = astrometry_args.copy()
-    for key in arg_dict.keys():
+    for key in arg_dict:
         default_args[key] = arg_dict[key]
 
     with pytest.raises(ValueError, match=msg):
@@ -756,7 +755,7 @@ def test_lookup_jplhorizons_arg_errs(arg_dict, msg):
         "force_lookup": None,
     }
 
-    for key in arg_dict.keys():
+    for key in arg_dict:
         default_args[key] = arg_dict[key]
 
     # We have to handle this piece a bit carefully, since some queries fail due to
@@ -835,11 +834,11 @@ def test_interpolate_ephem_arg_errs(bad_arg, msg):
     with pytest.raises(ValueError, match=msg):
         phs_utils.interpolate_ephem(
             time_array=0.0,
-            ephem_times=0.0 if ("etimes" == bad_arg) else [0.0, 1.0],
-            ephem_ra=0.0 if ("ra" == bad_arg) else [0.0, 1.0],
-            ephem_dec=0.0 if ("dec" == bad_arg) else [0.0, 1.0],
-            ephem_dist=0.0 if ("dist" == bad_arg) else [0.0, 1.0],
-            ephem_vel=0.0 if ("vel" == bad_arg) else [0.0, 1.0],
+            ephem_times=0.0 if (bad_arg == "etimes") else [0.0, 1.0],
+            ephem_ra=0.0 if (bad_arg == "ra") else [0.0, 1.0],
+            ephem_dec=0.0 if (bad_arg == "dec") else [0.0, 1.0],
+            ephem_dist=0.0 if (bad_arg == "dist") else [0.0, 1.0],
+            ephem_vel=0.0 if (bad_arg == "vel") else [0.0, 1.0],
         )
 
 

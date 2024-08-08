@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working LSTs."""
+
 import warnings
 
 import erfa
@@ -11,8 +11,7 @@ from astropy.time import Time
 from astropy.utils import iers
 
 try:
-    from lunarsky import MoonLocation
-    from lunarsky import Time as LTime
+    from lunarsky import MoonLocation, Time as LTime
 
     hasmoon = True
 except ImportError:

@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -11,6 +10,7 @@ UVBase. This module also includes specialized subclasses for particular types
 of metadata.
 
 """
+
 from __future__ import annotations
 
 import builtins
@@ -114,7 +114,7 @@ def _param_dict_equal(this_dict, other_dict):
     else:
         # need to check if values are close,
         # not just equal
-        for key in this_lower.keys():
+        for key in this_lower:
             if isinstance(this_lower[key], dict):
                 # nested dict, use recursion
                 subdict_equal, subdict_message = _param_dict_equal(
@@ -134,8 +134,8 @@ def _param_dict_equal(this_dict, other_dict):
                     message_str = f", key {key} is not equal"
                     return False, message_str
 
-            if isinstance(this_lower[key], (list, np.ndarray, tuple)) and isinstance(
-                other_lower[key], (list, np.ndarray, tuple)
+            if isinstance(this_lower[key], list | np.ndarray | tuple) and isinstance(
+                other_lower[key], list | np.ndarray | tuple
             ):
                 this_array = np.asarray(this_lower[key])
                 other_array = np.asarray(other_lower[key])
@@ -341,27 +341,22 @@ class UVParameter:
                 return False
             else:
                 return True
-        if other.value is None:
-            if self.value is not None:
-                if not silent:
-                    print(f"{self.name} is None on right, but not left")
-                return False
+        if other.value is None and self.value is not None:
+            if not silent:
+                print(f"{self.name} is None on right, but not left")
+            return False
 
-        if isinstance(self.value, tuple(allowed_location_types)):
-            if not isinstance(other.value, tuple(allowed_location_types)):
-                if not silent:
-                    print(
-                        f"{self.name} parameter value is a Location, but other is not"
-                    )
-                return False
+        if isinstance(self.value, tuple(allowed_location_types)) and not isinstance(
+            other.value, tuple(allowed_location_types)
+        ):
+            if not silent:
+                print(f"{self.name} parameter value is a Location, but other is not")
+            return False
 
-        if isinstance(self.value, SkyCoord):
-            if not isinstance(other.value, SkyCoord):
-                if not silent:
-                    print(
-                        f"{self.name} parameter value is a SkyCoord, but other is not"
-                    )
-                return False
+        if isinstance(self.value, SkyCoord) and not isinstance(other.value, SkyCoord):
+            if not silent:
+                print(f"{self.name} parameter value is a SkyCoord, but other is not")
+            return False
 
         if isinstance(self.value, np.recarray):
             # check both recarrays and field names match (order doesn't have to)
@@ -386,7 +381,7 @@ class UVParameter:
             for name in this_names:
                 this_arr = self.value[name]
                 other_arr = other.value[name]
-                if isinstance(this_arr.item(0), (str, np.str_)):
+                if isinstance(this_arr.item(0), str | np.str_):
                     if not np.all(this_arr == other_arr):
                         if not silent:
                             print(
@@ -411,7 +406,7 @@ class UVParameter:
                             )
                         return False
         elif isinstance(self.value, np.ndarray) and not isinstance(
-            self.value.item(0), (str, np.str_)
+            self.value.item(0), str | np.str_
         ):
             if not isinstance(other.value, np.ndarray):
                 if not silent:
@@ -479,16 +474,17 @@ class UVParameter:
                                 f"{other.value.dtype}"
                             )
                         return False
-                elif other.strict_type:
+                elif other.strict_type and not isinstance(
+                    other.value.item(0), self.expected_type
+                ):
                     # types must match in the other direction
-                    if not isinstance(other.value.item(0), self.expected_type):
-                        if not silent:
-                            print(
-                                f"{self.name} parameter has incompatible dtypes. "
-                                f"Left is {self.value.dtype}, right requires "
-                                f"{other.expected_type}"
-                            )
-                        return False
+                    if not silent:
+                        print(
+                            f"{self.name} parameter has incompatible dtypes. "
+                            f"Left is {self.value.dtype}, right requires "
+                            f"{other.expected_type}"
+                        )
+                    return False
                 if not np.allclose(
                     self.value,
                     other.value,
@@ -504,33 +500,32 @@ class UVParameter:
                     return False
         else:
             # check to see if strict types are used
-            if self.strict_type:
+            if self.strict_type and not isinstance(self.value, other.expected_type):
                 # types must match
-                if not isinstance(self.value, other.expected_type):
-                    if not silent:
-                        print(
-                            f"{self.name} parameter has incompatible types. Left "
-                            f"requires {type(self.value)}, right is "
-                            f"{other.expected_type}"
-                        )
-                    return False
-            if other.strict_type:
+                if not silent:
+                    print(
+                        f"{self.name} parameter has incompatible types. Left "
+                        f"requires {type(self.value)}, right is "
+                        f"{other.expected_type}"
+                    )
+                return False
+            if other.strict_type and not isinstance(other.value, self.expected_type):
                 # types must match in the other direction
-                if not isinstance(other.value, self.expected_type):
-                    if not silent:
-                        print(
-                            f"{self.name} parameter has incompatible types. Left "
-                            f"is {self.expected_type}, right requires "
-                            f"{type(other.value)}"
-                        )
-                    return False
+                if not silent:
+                    print(
+                        f"{self.name} parameter has incompatible types. Left "
+                        f"is {self.expected_type}, right requires "
+                        f"{type(other.value)}"
+                    )
+                return False
 
             str_type = False
             if isinstance(self.value, str):
                 str_type = True
-            if isinstance(self.value, (list, np.ndarray, tuple)):
-                if isinstance(self.value[0], str):
-                    str_type = True
+            if isinstance(self.value, list | np.ndarray | tuple) and isinstance(
+                self.value[0], str
+            ):
+                str_type = True
 
             if not str_type:
                 if isinstance(other.value, np.ndarray):
@@ -580,7 +575,7 @@ class UVParameter:
                             return False
 
             else:
-                if isinstance(self.value, (list, np.ndarray, tuple)):
+                if isinstance(self.value, list | np.ndarray | tuple):
                     if [s.strip() for s in self.value] != [
                         s.strip() for s in other.value
                     ]:
@@ -591,16 +586,16 @@ class UVParameter:
                             )
                         return False
                 else:
-                    if self.value.strip() != other.value.strip():
-                        if self.value.replace("\n", "").replace(
-                            " ", ""
-                        ) != other.value.replace("\n", "").replace(" ", ""):
-                            if not silent:
-                                print(
-                                    f"{self.name} parameter value is a string, "
-                                    "values are different"
-                                )
-                            return False
+                    if (self.value.strip() != other.value.strip()) and (
+                        self.value.replace("\n", "").replace(" ", "")
+                        != other.value.replace("\n", "").replace(" ", "")
+                    ):
+                        if not silent:
+                            print(
+                                f"{self.name} parameter value is a string, "
+                                "values are different"
+                            )
+                        return False
 
         return True
 
@@ -639,14 +634,14 @@ class UVParameter:
         """
         if self.form == "str":
             return self.form
-        elif isinstance(self.form, (int, np.integer)):
+        elif isinstance(self.form, int | np.integer):
             # Fixed shape, just return the form
             return (self.form,)
         else:
             # Given by other attributes, look up values
             eshape = ()
             for p in self.form:
-                if isinstance(p, (int, np.integer)):
+                if isinstance(p, int | np.integer):
                     eshape = eshape + (p,)
                 else:
                     val = getattr(uvbase, p)
@@ -675,7 +670,7 @@ class UVParameter:
                         value_set = {x.lower() for x in self.value}
                     acceptable_vals = [x.lower() for x in self.acceptable_vals]
                 else:
-                    if isinstance(self.value, (list, np.ndarray)):
+                    if isinstance(self.value, list | np.ndarray):
                         value_set = set(self.value)
                     else:
                         value_set = {self.value}
@@ -727,18 +722,19 @@ class UVParameter:
             )
 
         # If these are numeric types, handle them via allclose
-        if isinstance(value, (np.ndarray, int, float, complex)):
+        if isinstance(value, np.ndarray | int | float | complex):
             # Check that we either have a number or an ndarray
-            if not isinstance(value, np.ndarray) or value.shape == self.value.shape:
-                if np.allclose(
+            return bool(
+                not isinstance(value, np.ndarray)
+                or value.shape == self.value.shape
+                and np.allclose(
                     value,
                     self.value,
                     rtol=self.tols[0],
                     atol=self.tols[1],
                     equal_nan=True,
-                ):
-                    return True
-            return False
+                )
+            )
         else:
             # Otherwise just default to checking equality
             return value == self.value
@@ -941,7 +937,7 @@ class LocationParameter(UVParameter):
         description="",
         tols=1e-3,
     ):
-        super(LocationParameter, self).__init__(
+        super().__init__(
             name,
             required=required,
             value=value,
@@ -1098,18 +1094,21 @@ class LocationParameter(UVParameter):
             other.value, tuple(allowed_location_types)
         ):
             # one of these is not a proper location type.
-            return super(LocationParameter, self).__eq__(other, silent=silent)
+            return super().__eq__(other, silent=silent)
 
         if not isinstance(other.value, self.value.__class__):
             if not silent:
                 print(f"{self.name} parameter classes do not match")
             return False
 
-        if hasmoon and isinstance(self.value, MoonLocation):
-            if self.value.ellipsoid != other.value.ellipsoid:
-                if not silent:
-                    print(f"{self.name} parameter ellipsoid is not the same. ")
-                return False
+        if (
+            hasmoon
+            and isinstance(self.value, MoonLocation)
+            and self.value.ellipsoid != other.value.ellipsoid
+        ):
+            if not silent:
+                print(f"{self.name} parameter ellipsoid is not the same. ")
+            return False
 
         if not np.allclose(
             self.xyz(), other.xyz(), rtol=self.tols[0], atol=self.tols[1]
@@ -1215,7 +1214,7 @@ class SkyCoordParameter(UVParameter):
         # standard angle tolerance: 1 mas in radians.
         radian_tol=1 * 2 * np.pi * 1e-3 / (60.0 * 60.0 * 360.0),
     ):
-        super(SkyCoordParameter, self).__init__(
+        super().__init__(
             name,
             required=required,
             value=value,
@@ -1242,7 +1241,7 @@ class SkyCoordParameter(UVParameter):
         if not issubclass(self.value.__class__, SkyCoord) or not issubclass(
             other.value.__class__, SkyCoord
         ):
-            return super(SkyCoordParameter, self).__eq__(other, silent=silent)
+            return super().__eq__(other, silent=silent)
 
         if self.value.shape != other.value.shape:
             if not silent:

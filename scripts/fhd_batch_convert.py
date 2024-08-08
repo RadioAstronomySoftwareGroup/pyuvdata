@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Convert multiple FHD datasets to UVFITS format."""
@@ -17,9 +16,7 @@ def parse_range(string):
     m = re.match(r"(\d+)(?:-(\d+))?$", string)
     if not m:
         raise argparse.ArgumentTypeError(
-            "'{}' is not a range of numbers. Expected forms like '0-5' or '2'.".format(
-                string
-            )
+            f"'{string}' is not a range of numbers. Expected forms like '0-5' or '2'."
         )
     start = int(m.group(1))
     end = int(m.group(2)) or start
@@ -57,11 +54,11 @@ args = parser.parse_args()
 
 vis_folder = op.join(args.fhd_run_folder, "vis_data")
 if not op.isdir(vis_folder):
-    raise IOError("There is no vis_data folder in {}".format(args.fhd_run_folder))
+    raise OSError(f"There is no vis_data folder in {args.fhd_run_folder}")
 
 metadata_folder = op.join(args.fhd_run_folder, "metadata")
 if not op.isdir(vis_folder):
-    raise IOError("There is no metadata folder in {}".format(args.fhd_run_folder))
+    raise OSError(f"There is no metadata folder in {args.fhd_run_folder}")
 
 output_folder = op.join(args.fhd_run_folder, "uvfits")
 if not op.exists(output_folder):
@@ -101,9 +98,7 @@ for k in list(file_dict.keys()):
 
 for i, (k, v) in enumerate(file_dict.items()):
     if args.dirty:
-        print(
-            "converting dirty vis for obsid {}, ({} of {})".format(k, i, len(file_dict))
-        )
+        print(f"converting dirty vis for obsid {k}, ({i} of {len(file_dict)})")
         uvfits_file = op.join(output_folder, str(k) + ".uvfits")
         this_uv = UVData()
         this_uv.read_fhd(v)
@@ -113,9 +108,7 @@ for i, (k, v) in enumerate(file_dict.items()):
         del this_uv
 
     if args.model:
-        print(
-            "converting model vis for obsid {}, ({} of {})".format(k, i, len(file_dict))
-        )
+        print(f"converting model vis for obsid {k}, ({i} of {len(file_dict)})")
         uvfits_file = op.join(output_folder, str(k) + "_model.uvfits")
         this_uv = UVData()
         this_uv.read_fhd(v, use_model=True)

@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Tests of in-memory initialization of UVData objects."""
+
 from __future__ import annotations
 
 import copy

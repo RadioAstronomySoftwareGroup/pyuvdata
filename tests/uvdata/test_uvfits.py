@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for UVFITS object.
+"""Tests for UVFITS object."""
 
-"""
 import os
 
 import erfa
@@ -40,7 +38,7 @@ def _fix_uvfits_multi_group_params(vis_hdu):
     for index, name in enumerate(par_names):
         par_value = vis_hdu.data.par(name)
 
-        if name in multi_params.keys():
+        if name in multi_params:
             # these params need to be split in 2 parts to get high enough accuracy
             # (e.g. time and lst arrays)
             if multi_params[name]["ind"] == 0:
@@ -908,10 +906,11 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
         hdulist = fits.HDUList(hdus=[vis_hdu, ant_hdu])
         hdulist.writeto(write_file2, overwrite=True)
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _integration_time has not been set"
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            ValueError, match="Required UVParameter _integration_time has not been set"
+        ),
+        check_warnings(
             [erfa.core.ErfaWarning, erfa.core.ErfaWarning, UserWarning, UserWarning],
             [
                 "ERFA function 'utcut1' yielded 1 of 'dubious year (Note 3)'",
@@ -919,8 +918,9 @@ def test_readwriteread_error_single_time(tmp_path, casa_uvfits):
                 "LST values stored in this file are not self-consistent",
                 "The integration time is not specified and only one time",
             ],
-        ):
-            uv_out.read(write_file2)
+        ),
+    ):
+        uv_out.read(write_file2)
 
     return
 
@@ -1058,7 +1058,7 @@ def test_extra_keywords(casa_uvfits, tmp_path, kwd_names, kwd_values):
     uv_out = UVData()
     testfile = str(tmp_path / "outtest_casa.uvfits")
 
-    for name, value in zip(kwd_names, kwd_values):
+    for name, value in zip(kwd_names, kwd_values, strict=True):
         uv_in.extra_keywords[name] = value
     uv_in.write_uvfits(testfile)
     uv_out.read(testfile)
@@ -1129,12 +1129,12 @@ def test_select_read(casa_uvfits, tmp_path, select_kwargs):
     uvfits_uv2 = UVData()
 
     uvfits_uv2 = casa_uvfits
-    if "time_inds" in select_kwargs.keys():
+    if "time_inds" in select_kwargs:
         time_inds = select_kwargs.pop("time_inds")
         unique_times = np.unique(uvfits_uv2.time_array)
         select_kwargs["time_range"] = unique_times[time_inds]
 
-    if "lst_inds" in select_kwargs.keys():
+    if "lst_inds" in select_kwargs:
         lst_inds = select_kwargs.pop("lst_inds")
         unique_lsts = np.unique(uvfits_uv2.lst_array)
         select_kwargs["lst_range"] = unique_lsts[lst_inds]
@@ -1593,12 +1593,14 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
     # what we expect. Start w/ spectral windows
     assert len(np.unique(sma_mir.spw_array)) == len(np.unique(sma_uvfits.spw_array))
 
-    spw_dict = dict(zip(sma_uvfits.spw_array, sma_mir.spw_array))
+    spw_dict = dict(zip(sma_uvfits.spw_array, sma_mir.spw_array, strict=True))
 
     assert np.all(
         [
             idx == spw_dict[jdx]
-            for idx, jdx in zip(sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array)
+            for idx, jdx in zip(
+                sma_mir.flex_spw_id_array, sma_uvfits.flex_spw_id_array, strict=True
+            )
         ]
     )
     sma_uvfits.spw_array = sma_mir.spw_array
@@ -1610,7 +1612,7 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
 
     # We have to do a bit of special handling for the phase_center_catalog, because
     # _very_ small floating point errors can creep in.
-    for cat_name in sma_mir.phase_center_catalog.keys():
+    for cat_name in sma_mir.phase_center_catalog:
         this_cat = sma_mir.phase_center_catalog[cat_name]
         other_cat = sma_uvfits.phase_center_catalog[cat_name]
 
@@ -1670,7 +1672,7 @@ def test_uvfits_extra_phase_centers(sma_mir, tmp_path):
     }
 
     # Check the entries of the phase center catalog
-    for cat_id in sma_mir.phase_center_catalog.keys():
+    for cat_id in sma_mir.phase_center_catalog:
         name = sma_mir.phase_center_catalog[cat_id]["cat_name"]
         this_cat = sma_mir.phase_center_catalog[this_names[name]]
         other_cat = sma_uvfits.phase_center_catalog[other_names[name]]

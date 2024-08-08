@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -3128,7 +3127,7 @@ def test_old_phase_center_catalog_format(sma_mir, tmp_path):
         header = h5f["/Header"]
 
         phase_dict = header.create_group("phase_center_catalog")
-        for k in sma_mir.phase_center_catalog.keys():
+        for k in sma_mir.phase_center_catalog:
             # Dictionary entries used to be written out as JSON-formatted strings.
             temp_dict = sma_mir.phase_center_catalog[k].copy()
             temp_dict["cat_id"] = k

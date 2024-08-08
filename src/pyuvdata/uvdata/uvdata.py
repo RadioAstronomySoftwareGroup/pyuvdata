@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Primary container for radio interferometer datasets."""
+
 from __future__ import annotations
 
 import copy
@@ -13,17 +13,13 @@ from collections.abc import Iterable
 from typing import Literal
 
 import numpy as np
-from astropy import constants as const
-from astropy import coordinates as coord
-from astropy import units
+from astropy import constants as const, coordinates as coord, units
 from astropy.coordinates import Angle, SkyCoord
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 from scipy import ndimage as nd
 
-from .. import Telescope
-from .. import parameter as uvp
-from .. import utils
+from .. import Telescope, parameter as uvp, utils
 from ..docstrings import combine_docstrings, copy_replace_short_description
 from ..telescopes import known_telescopes
 from ..utils import phasing as phs_utils
@@ -32,6 +28,7 @@ from ..uvbase import UVBase
 from .initializers import new_uvdata
 
 __all__ = ["UVData"]
+import contextlib
 import logging
 
 logger = logging.getLogger(__name__)
@@ -603,7 +600,7 @@ class UVData(UVBase):
         self.__antpair2ind_cache = {}
         self.__key2ind_cache = {}
 
-        super(UVData, self).__init__()
+        super().__init__()
 
         # Assign attributes to UVParameters after initialization, since UVBase.__init__
         # will link the properties to the underlying UVParameter.value attributes
@@ -623,7 +620,7 @@ class UVData(UVBase):
     # eq_coeffs so that we know which antenna each eq_coeff goes with.
     # TODO: do we want a setter on UVData for this?
     @property
-    def Nants_telescope(self):
+    def Nants_telescope(self):  # noqa N802
         """
         The number of antennas in the telescope.
 
@@ -908,7 +905,7 @@ class UVData(UVBase):
             True where not projected, False where projected.
         """
         # Check and see if we have any data with cat_type.
-        if not isinstance(cat_type, (list, tuple, np.ndarray)):
+        if not isinstance(cat_type, list | tuple | np.ndarray):
             cat_type = [cat_type]
         cat_type_list = [
             cat_id
@@ -944,10 +941,10 @@ class UVData(UVBase):
             If `new_name` is not actually a string or if `catalog_identifier` is not a
             string or an integer.
         """
-        if isinstance(catalog_identifier, (str, int)):
-            pass
-        elif isinstance(catalog_identifier, list) and all(
-            isinstance(cat, int) for cat in catalog_identifier
+        if (
+            isinstance(catalog_identifier, str | int)
+            or isinstance(catalog_identifier, list)
+            and all(isinstance(cat, int) for cat in catalog_identifier)
         ):
             pass
         else:
@@ -1040,7 +1037,7 @@ class UVData(UVBase):
             is called instead), or if no valid data was selected.
         """
         # Check to make sure that everything lines up with
-        if not isinstance(catalog_identifier, (str, int)):
+        if not isinstance(catalog_identifier, str | int):
             raise TypeError("catalog_identifier must be a string or an integer.")
 
         if isinstance(catalog_identifier, str):
@@ -1174,10 +1171,10 @@ class UVData(UVBase):
             If forcing the merge of two objects with different properties.
 
         """
-        if isinstance(catalog_identifier, (str, int)):
-            pass
-        elif isinstance(catalog_identifier, list) and all(
-            isinstance(cat, (str, int)) for cat in catalog_identifier
+        if (
+            isinstance(catalog_identifier, str | int)
+            or isinstance(catalog_identifier, list)
+            and all(isinstance(cat, str | int) for cat in catalog_identifier)
         ):
             pass
         else:
@@ -1592,14 +1589,14 @@ class UVData(UVBase):
         # Now that we have the apparent coordinates sorted out, we can figure
         # out what it is we want to do with the position angle
         frame_pa = np.zeros(self.Nblts, dtype=float)
-        for cat_id in self.phase_center_catalog.keys():
+        for cat_id in self.phase_center_catalog:
             temp_dict = self.phase_center_catalog[cat_id]
             select_mask = self.phase_center_id_array == cat_id
             if not np.any(select_mask):
                 continue
             frame = temp_dict.get("cat_frame")
             epoch = temp_dict.get("cat_epoch")
-            if not frame == "altaz":
+            if frame != "altaz":
                 frame_pa[select_mask] = phs_utils.calc_frame_pos_angle(
                     time_array=self.time_array[select_mask],
                     app_ra=app_ra[select_mask],
@@ -1822,7 +1819,7 @@ class UVData(UVBase):
                 spw_inds[these_freq_inds] = spw_ind
                 first_spw_array[these_freq_inds] = first_spw_dict[spw]
             pol_array_check = self.flex_spw_polarization_array[spw_inds]
-            if not np.nonzero(np.diff(pol_array_check))[0].size == n_pols - 1:
+            if np.nonzero(np.diff(pol_array_check))[0].size != n_pols - 1:
                 reorder_spws = True
 
             pol0_spw_order = first_spw_array[pol_array_check == unique_pols[0]]
@@ -1906,7 +1903,9 @@ class UVData(UVBase):
 
         # Otherwise, move through all of the data params
         self.polarization_array = unique_pols
-        for name, param in zip(self._data_params, self.data_like_parameters):
+        for name, param in zip(
+            self._data_params, self.data_like_parameters, strict=True
+        ):
             # We need to construct arrays with the appropriate shape
             new_shape = [self.Nblts, self.Nfreqs, self.Npols]
 
@@ -1915,7 +1914,9 @@ class UVData(UVBase):
             new_param = np.full(new_shape, name == "flag_array", dtype=param.dtype)
 
             # Now we have to iterate through each spectral window
-            for spw, pol in zip(self.spw_array, self.flex_spw_polarization_array):
+            for spw, pol in zip(
+                self.spw_array, self.flex_spw_polarization_array, strict=True
+            ):
                 pol_idx = np.intersect1d(
                     pol, self.polarization_array, return_indices=True
                 )[2][0]
@@ -2015,14 +2016,16 @@ class UVData(UVBase):
         new_shape = [self.Nblts, self.Nfreqs, 1]
 
         # Now go through one-by-one with data-like parameters and update
-        for name, param in zip(self._data_params, self.data_like_parameters):
+        for name, param in zip(
+            self._data_params, self.data_like_parameters, strict=True
+        ):
             # We can use empty here, since we know that we will be filling all
             # values of his array (and empty allows us to forgo the extra overhead
             # of setting all the elements to a particular value).
             new_param = np.empty(new_shape, dtype=param.dtype)
 
             # Now we have to iterate through each spectral window
-            for spw, pol_idx in zip(self.spw_array, flex_pol_idx):
+            for spw, pol_idx in zip(self.spw_array, flex_pol_idx, strict=True):
                 spw_screen = self.flex_spw_id_array == spw
 
                 # Note that this works because pol_idx is an integer, ergo a simple
@@ -2206,12 +2209,12 @@ class UVData(UVBase):
         self._set_telescope_requirements()
 
         # call metadata_only to make sure that parameter requirements are set properly
-        self.metadata_only
+        self.metadata_only  # noqa B018
 
         # first run the basic check from UVBase
 
         logger.debug("Doing UVBase check...")
-        super(UVData, self).check(
+        super().check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
         logger.debug("... Done UVBase Check")
@@ -2240,12 +2243,15 @@ class UVData(UVBase):
                 "time_axis_faster_than_bls is True but blts_are_rectangular is False. "
                 "This is not allowed."
             )
-        if self.time_axis_faster_than_bls:
-            if self.Ntimes > 1 and self.time_array[1] == self.time_array[0]:
-                raise ValueError(
-                    "time_axis_faster_than_bls is True but time_array does not "
-                    "move first"
-                )
+        if (
+            self.time_axis_faster_than_bls
+            and self.Ntimes > 1
+            and self.time_array[1] == self.time_array[0]
+        ):
+            raise ValueError(
+                "time_axis_faster_than_bls is True but time_array does not "
+                "move first"
+            )
 
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
@@ -2270,7 +2276,7 @@ class UVData(UVBase):
             )
 
         for val in np.unique(self.phase_center_id_array):
-            if val not in self.phase_center_catalog.keys():
+            if val not in self.phase_center_catalog:
                 raise ValueError(
                     f"Phase center id {val} is does not have an entry in "
                     "`phase_center_catalog`, which has keys "
@@ -2313,7 +2319,7 @@ class UVData(UVBase):
         logger.debug("... Done Antenna Uniqueness Check")
 
         # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords.keys():
+        for key in self.extra_keywords:
             if len(key) > 8:
                 warnings.warn(
                     f"key {key} in extra_keywords is longer than 8 "
@@ -2323,7 +2329,7 @@ class UVData(UVBase):
 
         # issue warning if extra_keywords values are lists, arrays or dicts
         for key, value in self.extra_keywords.items():
-            if isinstance(value, (list, dict, np.ndarray)):
+            if isinstance(value, list | dict | np.ndarray):
                 warnings.warn(
                     f"{key} in extra_keywords is a list, array or dict, "
                     "which will raise an error when writing uvfits or "
@@ -2502,7 +2508,7 @@ class UVData(UVBase):
             Copy of self.
         """
         if not metadata_only:
-            return super(UVData, self).copy()
+            return super().copy()
         else:
             uv = UVData()
             # include all attributes, not just UVParameter ones.
@@ -2612,11 +2618,11 @@ class UVData(UVBase):
             ant2 = ant1[1]
             ant1 = ant1[0]
         else:
-            if not isinstance(ant1, (int, np.integer)):
+            if not isinstance(ant1, int | np.integer):
                 raise ValueError(
                     "antpair2ind must be fed an antpair tuple or expand it as arguments"
                 )
-        if not isinstance(ordered, (bool, np.bool_)):
+        if not isinstance(ordered, bool | np.bool_):
             raise ValueError("ordered must be a boolean")
 
         # if getting auto-corr, ordered must be True
@@ -2891,10 +2897,9 @@ class UVData(UVBase):
 
         if squeeze == "full":
             out = np.squeeze(out)
-        elif squeeze == "default":
-            if out.shape[2] == 1:
-                # one polarization dimension
-                out = np.squeeze(out, axis=2)
+        elif squeeze == "default" and out.shape[2] == 1:
+            # one polarization dimension
+            out = np.squeeze(out, axis=2)
 
         if force_copy:
             out = np.array(out)
@@ -2951,7 +2956,7 @@ class UVData(UVBase):
             list of unique antpair tuples (ant1, ant2) with data associated with them.
         """
         ant1_arr, ant2_arr = self.baseline_to_antnums(self.get_baseline_nums())
-        return list(zip((ant1_arr).tolist(), (ant2_arr).tolist()))
+        return list(zip((ant1_arr).tolist(), (ant2_arr).tolist(), strict=True))
 
     def get_pols(self):
         """
@@ -3285,7 +3290,7 @@ class UVData(UVBase):
 
         return antpos, ants
 
-    def get_ENU_antpos(self, *, center=False, pick_data_ants=False):
+    def get_ENU_antpos(self, *, center=False, pick_data_ants=False):  # noqa N802
         """
         Get antenna positions in East, North, Up coordinates in units of meters.
 
@@ -3598,7 +3603,7 @@ class UVData(UVBase):
             If convention is not an allowed value or if not all conjugate pols exist.
 
         """
-        if isinstance(convention, (np.ndarray, list, tuple)):
+        if isinstance(convention, np.ndarray | list | tuple):
             convention = np.array(convention)
             if (
                 np.max(convention) >= self.Nblts
@@ -3739,7 +3744,7 @@ class UVData(UVBase):
             If the order is not one of the allowed values.
 
         """
-        if isinstance(order, (np.ndarray, list, tuple)):
+        if isinstance(order, np.ndarray | list | tuple):
             order = np.array(order)
             if (
                 order.size != self.Npols
@@ -3892,7 +3897,7 @@ class UVData(UVBase):
             If parameter values are inappropriate
 
         """
-        if isinstance(order, (np.ndarray, list, tuple)):
+        if isinstance(order, np.ndarray | list | tuple):
             order = np.array(order)
             if order.size != self.Nblts or order.dtype not in [
                 int,
@@ -3930,9 +3935,8 @@ class UVData(UVBase):
                         "minor_order cannot be specified if order is "
                         "'bda' or an index array."
                     )
-                if order == "baseline":
-                    if minor_order in ["ant1", "ant2"]:
-                        raise ValueError("minor_order conflicts with order")
+                if order == "baseline" and minor_order in ["ant1", "ant2"]:
+                    raise ValueError("minor_order conflicts with order")
             else:
                 if order == "time":
                     minor_order = "baseline"
@@ -4205,8 +4209,8 @@ class UVData(UVBase):
             )
         if self.eq_coeffs_convention not in ("multiply", "divide"):
             raise ValueError(
-                "Got unknown convention {}. Must be one of: "
-                '"multiply", "divide"'.format(self.eq_coeffs_convention)
+                f"Got unknown convention {self.eq_coeffs_convention}. Must be one of: "
+                '"multiply", "divide"'
             )
 
         # apply coefficients for each baseline
@@ -4344,7 +4348,7 @@ class UVData(UVBase):
         if select_mask is not None:
             if len(select_mask) != self.Nblts:
                 raise IndexError("Selection mask must be of length Nblts.")
-            if not isinstance(select_mask[0], (bool, np.bool_)):
+            if not isinstance(select_mask[0], bool | np.bool_):
                 raise ValueError("Selection mask must be a boolean array")
             select_mask_use = ~self._check_for_cat_type("unprojected") & select_mask
         else:
@@ -4426,19 +4430,18 @@ class UVData(UVBase):
             for pc_id, pc_dict in self.phase_center_catalog.items()
         }
 
-        if lookup_name:
-            if (
-                len(
-                    utils.phase_center_catalog.look_for_name(
-                        self.phase_center_catalog, cat_name
-                    )
+        if lookup_name and (
+            len(
+                utils.phase_center_catalog.look_for_name(
+                    self.phase_center_catalog, cat_name
                 )
-                > 1
-            ):
-                raise ValueError(
-                    "Name of object has multiple matches in phase center catalog. "
-                    "Set lookup_name=False in order to continue."
-                )
+            )
+            > 1
+        ):
+            raise ValueError(
+                "Name of object has multiple matches in phase center catalog. "
+                "Set lookup_name=False in order to continue."
+            )
 
         if lookup_name and (cat_name not in name_dict):
             if (cat_type is None) or (cat_type == "ephem"):
@@ -4525,7 +4528,7 @@ class UVData(UVBase):
 
         if (cat_epoch is None) and (cat_type != "unprojected"):
             cat_epoch = 1950.0 if (cat_frame in ["fk4", "fk4noeterms"]) else 2000.0
-        if isinstance(cat_epoch, str) or isinstance(cat_epoch, Time):
+        if isinstance(cat_epoch, str | Time):
             cat_epoch = Time(cat_epoch).to_value(
                 "byear" if cat_frame in ["fk4", "fk4noeterms"] else "jyear"
             )
@@ -4582,7 +4585,7 @@ class UVData(UVBase):
         }
 
         # Finally, make sure everything is a float or an ndarray of floats
-        for key in phase_dict.keys():
+        for key in phase_dict:
             if isinstance(phase_dict[key], np.ndarray):
                 phase_dict[key] = phase_dict[key].astype(float)
             elif (key == "cat_id") and (phase_dict[key] is not None):
@@ -4760,7 +4763,7 @@ class UVData(UVBase):
         else:
             if len(select_mask) != self.Nblts:
                 raise IndexError("Selection mask must be of length Nblts.")
-            if not isinstance(select_mask[0], (bool, np.bool_)):
+            if not isinstance(select_mask[0], bool | np.bool_):
                 raise ValueError("Selection mask must be a boolean array")
 
         time_array = time_array[select_mask]
@@ -4788,7 +4791,7 @@ class UVData(UVBase):
         )
 
         # Now calculate position angles.
-        if not phase_frame == "altaz":
+        if phase_frame != "altaz":
             new_frame_pa = phs_utils.calc_frame_pos_angle(
                 time_array=time_array,
                 app_ra=new_app_ra,
@@ -4895,7 +4898,7 @@ class UVData(UVBase):
             If time is not an astropy.time.Time object or Julian Date as a float
 
         """
-        if isinstance(time, (float, np.floating)):
+        if isinstance(time, float | np.floating):
             time = Time(time, format="jd")
 
         if not isinstance(time, Time):
@@ -4933,7 +4936,7 @@ class UVData(UVBase):
             phase_frame=phase_frame,
             use_ant_pos=use_ant_pos,
             select_mask=select_mask,
-            cat_name=("zenith_at_jd%f" % time.jd),
+            cat_name=(f"zenith_at_jd{time.jd:f}"),
         )
 
     def set_uvws_from_antenna_positions(self, *, update_vis=True):
@@ -5013,11 +5016,9 @@ class UVData(UVBase):
         """
         new_antpos = self.telescope.antenna_positions.copy()
         for idx, ant in enumerate(self.telescope.antenna_numbers):
-            try:
+            # If no updated position is found, then just keep going
+            with contextlib.suppress(KeyError):
                 new_antpos[idx] = new_positions[ant]
-            except KeyError:
-                # If no updated position is found, then just keep going
-                pass
 
         if np.array_equal(new_antpos, self.telescope.antenna_positions):
             warnings.warn("No antenna positions appear to have changed, returning.")
@@ -5295,12 +5296,13 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-        if not issubclass(other.__class__, this.__class__):
-            if not issubclass(this.__class__, other.__class__):
-                raise ValueError(
-                    "Only UVData (or subclass) objects can be "
-                    "added to a UVData (or subclass) object"
-                )
+        if not issubclass(other.__class__, this.__class__) and not issubclass(
+            this.__class__, other.__class__
+        ):
+            raise ValueError(
+                "Only UVData (or subclass) objects can be "
+                "added to a UVData (or subclass) object"
+            )
         other.check(
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -5322,7 +5324,7 @@ class UVData(UVBase):
                 "_".join(
                     ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
                 )
-                for blt in zip(this.time_array, this.baseline_array)
+                for blt in zip(this.time_array, this.baseline_array, strict=True)
             ]
         )
         other_blts = np.array(
@@ -5330,7 +5332,7 @@ class UVData(UVBase):
                 "_".join(
                     ["{1:.{0}f}".format(prec_t, blt[0]), str(blt[1]).zfill(prec_b)]
                 )
-                for blt in zip(other.time_array, other.baseline_array)
+                for blt in zip(other.time_array, other.baseline_array, strict=True)
             ]
         )
         # Check we don't have overlapping data
@@ -5440,12 +5442,12 @@ class UVData(UVBase):
             )
         elif this.flex_spw_polarization_array is not None:
             this_flexpol_dict = dict(
-                zip(this.spw_array, this.flex_spw_polarization_array)
+                zip(this.spw_array, this.flex_spw_polarization_array, strict=True)
             )
             other_flexpol_dict = dict(
-                zip(other.spw_array, other.flex_spw_polarization_array)
+                zip(other.spw_array, other.flex_spw_polarization_array, strict=True)
             )
-            for key in other_flexpol_dict.keys():
+            for key in other_flexpol_dict:
                 try:
                     if this_flexpol_dict[key] != other_flexpol_dict[key]:
                         raise ValueError(
@@ -5734,7 +5736,9 @@ class UVData(UVBase):
                 2: {"inds": pnew_inds, "order": p_order},
             }
             for axis, subdict in axis_dict.items():
-                for name, param in zip(this._data_params, this.data_like_parameters):
+                for name, param in zip(
+                    this._data_params, this.data_like_parameters, strict=True
+                ):
                     if len(subdict["inds"]) > 0:
                         unique_order_diffs = np.unique(np.diff(subdict["order"]))
                         if np.array_equal(unique_order_diffs, np.array([1])):
@@ -5962,7 +5966,7 @@ class UVData(UVBase):
             this = self
         else:
             this = self.copy()
-        if not isinstance(other, (list, tuple, np.ndarray)):
+        if not isinstance(other, list | tuple | np.ndarray):
             # if this is a UVData object already, stick it in a list
             other = [other]
 
@@ -5973,12 +5977,13 @@ class UVData(UVBase):
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
         for obj in other:
-            if not issubclass(obj.__class__, this.__class__):
-                if not issubclass(this.__class__, obj.__class__):
-                    raise ValueError(
-                        "Only UVData (or subclass) objects can be "
-                        "added to a UVData (or subclass) object"
-                    )
+            if not issubclass(obj.__class__, this.__class__) and not issubclass(
+                this.__class__, obj.__class__
+            ):
+                raise ValueError(
+                    "Only UVData (or subclass) objects can be "
+                    "added to a UVData (or subclass) object"
+                )
             obj.check(
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -5990,7 +5995,10 @@ class UVData(UVBase):
         # The left object in each loop will have its phase center IDs updated.
         uv_list = [this] + other
         while len(uv_list) > 1:
-            for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+            # for an odd number of files, the second argument will be shorter
+            # so the last element in the first list won't be combined, but it
+            # will not be lost, so it's ok.
+            for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=False):
                 uv1._consolidate_phase_center_catalogs(
                     other=uv2, ignore_name=ignore_name
                 )
@@ -6289,12 +6297,13 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
         )
-        if not issubclass(other.__class__, this.__class__):
-            if not issubclass(this.__class__, other.__class__):
-                raise ValueError(
-                    "Only UVData (or subclass) objects can be "
-                    "added to a UVData (or subclass) object"
-                )
+        if not issubclass(other.__class__, this.__class__) and not issubclass(
+            this.__class__, other.__class__
+        ):
+            raise ValueError(
+                "Only UVData (or subclass) objects can be "
+                "added to a UVData (or subclass) object"
+            )
         other.check(
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -6680,7 +6689,7 @@ class UVData(UVBase):
                     "Only one of antenna_nums and antenna_names can be provided."
                 )
 
-            if not isinstance(antenna_names, (list, tuple, np.ndarray)):
+            if not isinstance(antenna_names, list | tuple | np.ndarray):
                 antenna_names = (antenna_names,)
             if np.array(antenna_names).ndim > 1:
                 antenna_names = np.array(antenna_names).flatten()
@@ -6688,8 +6697,7 @@ class UVData(UVBase):
             for s in antenna_names:
                 if s not in self.telescope.antenna_names:
                     raise ValueError(
-                        "Antenna name {a} is not present in the antenna_names"
-                        " array".format(a=s)
+                        f"Antenna name {s} is not present in the antenna_names array"
                     )
                 antenna_nums.append(
                     self.telescope.antenna_numbers[
@@ -6728,15 +6736,15 @@ class UVData(UVBase):
 
         if bls is not None:
             if isinstance(bls, list) and all(
-                isinstance(bl_ind, (int, np.integer)) for bl_ind in bls
+                isinstance(bl_ind, int | np.integer) for bl_ind in bls
             ):
                 for bl_ind in bls:
-                    if not (bl_ind in self.baseline_array):
+                    if bl_ind not in self.baseline_array:
                         raise ValueError(
-                            "Baseline number {i} is not present in the "
-                            "baseline_array".format(i=bl_ind)
+                            f"Baseline number {bl_ind} is not present in the "
+                            "baseline_array"
                         )
-                bls = list(zip(*self.baseline_to_antnums(bls)))
+                bls = list(zip(*self.baseline_to_antnums(bls), strict=True))
             elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
                 bls = [bls]
             if len(bls) == 0 or not all(isinstance(item, tuple) for item in bls):
@@ -6745,8 +6753,8 @@ class UVData(UVBase):
                     "(optionally with polarization) or a list of baseline numbers."
                 )
             if not all(
-                [isinstance(item[0], (int, np.integer)) for item in bls]
-                + [isinstance(item[1], (int, np.integer)) for item in bls]
+                [isinstance(item[0], int | np.integer) for item in bls]
+                + [isinstance(item[1], int | np.integer) for item in bls]
             ):
                 raise ValueError(
                     "bls must be a list of tuples of antenna numbers "
@@ -6794,8 +6802,8 @@ class UVData(UVBase):
                             bl_pols.add(utils.conj_pol(bl[2]))
                     else:
                         raise ValueError(
-                            "Antenna pair {p} does not have any data "
-                            "associated with it.".format(p=bl)
+                            f"Antenna pair {bl} does not have any data "
+                            "associated with it."
                         )
             if len(bl_pols) > 0:
                 polarizations = list(bl_pols)
@@ -6900,8 +6908,8 @@ class UVData(UVBase):
             freq_check = np.isin(frequencies, freq_arr_use)
             if not np.all(freq_check):
                 raise ValueError(
-                    "Frequency %g is not present in the freq_array"
-                    % frequencies[np.where(~freq_check)[0][0]]
+                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]:g} "
+                    "is not present in the freq_array"
                 )
             freq_inds = np.where(np.isin(freq_arr_use, frequencies))[0]
 
@@ -6960,8 +6968,7 @@ class UVData(UVBase):
                     )
                 else:
                     raise ValueError(
-                        "Polarization {p} is not present in the "
-                        "polarization_array".format(p=p)
+                        f"Polarization {p} is not present in the polarization_array"
                     )
 
             if len(spw_inds) > 0:
@@ -6999,13 +7006,14 @@ class UVData(UVBase):
                     )
             else:
                 pol_inds = np.unique(pol_inds)
-                if len(pol_inds) > 2:
-                    if not utils.tools._test_array_constant_spacing(pol_inds):
-                        warnings.warn(
-                            "Selected polarization values are not evenly spaced. This "
-                            "will make it impossible to write this data out to "
-                            "some file types"
-                        )
+                if len(pol_inds) > 2 and not utils.tools._test_array_constant_spacing(
+                    pol_inds
+                ):
+                    warnings.warn(
+                        "Selected polarization values are not evenly spaced. This "
+                        "will make it impossible to write this data out to "
+                        "some file types"
+                    )
                 pol_inds = pol_inds.tolist()
         else:
             pol_inds = None
@@ -7309,9 +7317,11 @@ class UVData(UVBase):
 
         # If we have a flex-pol data set, but we only have one pol, then this doesn't
         # need to be flex-pol anymore, and we can drop it here
-        if uv_obj.flex_spw_polarization_array is not None:
-            if len(np.unique(uv_obj.flex_spw_polarization_array)) == 1:
-                uv_obj.remove_flex_pol()
+        if (
+            uv_obj.flex_spw_polarization_array is not None
+            and len(np.unique(uv_obj.flex_spw_polarization_array)) == 1
+        ):
+            uv_obj.remove_flex_pol()
 
         # check if object is uv_object-consistent
         if run_check:
@@ -7625,9 +7635,8 @@ class UVData(UVBase):
 
         # add to the history
         history_update_string = (
-            " Upsampled data to {:f} second integration time using pyuvdata.".format(
-                max_int_time
-            )
+            f" Upsampled data to {max_int_time:f} second integration time using "
+            "pyuvdata."
         )
         self.history = self.history + history_update_string
 
@@ -7748,7 +7757,7 @@ class UVData(UVBase):
                 )
                 return
         else:
-            if not isinstance(n_times_to_avg, (int, np.integer)):
+            if not isinstance(n_times_to_avg, int | np.integer):
                 raise ValueError("n_times_to_avg must be an integer.")
         # If we're going to do actual work, reorder the baselines to ensure time is
         # monotonically increasing.
@@ -7815,9 +7824,9 @@ class UVData(UVBase):
                     dtime, tols=self._integration_time.tols
                 ):
                     warnings.warn(
-                        "There is a gap in the times of baseline {bl}. "
-                        "The output may include averages across long "
-                        "time gaps.".format(bl=self.baseline_to_antnums(bl))
+                        "There is a gap in the times of baseline "
+                        f"{self.baseline_to_antnums(bl)}. "
+                        "The output may include averages across long time gaps."
                     )
                 elif not np.isclose(
                     dtime[0],
@@ -7826,11 +7835,10 @@ class UVData(UVBase):
                     atol=self._integration_time.tols[1],
                 ):
                     warnings.warn(
-                        "The time difference between integrations is "
-                        "not the same as the integration time for "
-                        "baseline {bl}. The output may average across "
-                        "longer time intervals than "
-                        "expected".format(bl=self.baseline_to_antnums(bl))
+                        "The time difference between integrations is not the "
+                        "same as the integration time for "
+                        f"baseline {self.baseline_to_antnums(bl)}. The output "
+                        "may average across longer time intervals than expected"
                     )
 
             else:
@@ -7839,11 +7847,10 @@ class UVData(UVBase):
                 wh_diff = np.nonzero(~np.isclose(dtime, expected_dtimes))
                 if wh_diff[0].size > 1:
                     warnings.warn(
-                        "The time difference between integrations is "
-                        "different than the expected given the "
-                        "integration times for baseline {bl}. The "
-                        "output may include averages across long time "
-                        "gaps.".format(bl=self.baseline_to_antnums(bl))
+                        "The time difference between integrations is different "
+                        "than the expected given the integration times for "
+                        f"baseline {self.baseline_to_antnums(bl)}. The output "
+                        "may include averages across long time gaps."
                     )
 
         temp_Nblts = n_new_samples
@@ -8028,9 +8035,9 @@ class UVData(UVBase):
 
         # make sure we've populated the right number of baseline-times
         assert temp_idx == temp_Nblts, (
-            "Wrong number of baselines. Got {:d},  expected {:d}. This is a bug, "
-            "please make an issue at https://github.com/RadioAstronomySoftwareGroup/"
-            "pyuvdata/issues".format(temp_idx, temp_Nblts)
+            f"Wrong number of baselines. Got {temp_idx:d},  "
+            f"expected {temp_Nblts:d}. This is a bug, please make an issue at "
+            "https://github.com/RadioAstronomySoftwareGroup/pyuvdata/issues"
         )
 
         # harmonize temporary arrays with existing ones
@@ -8095,14 +8102,13 @@ class UVData(UVBase):
         # add to the history
         if min_int_time is not None:
             history_update_string = (
-                " Downsampled data to {:f} second integration "
-                "time using pyuvdata.".format(min_int_time)
+                f" Downsampled data to {min_int_time:f} second integration "
+                "time using pyuvdata."
             )
         else:
             history_update_string = (
-                " Downsampled data by a factor of {} in time using pyuvdata.".format(
-                    n_times_to_avg
-                )
+                f" Downsampled data by a factor of {n_times_to_avg} in time "
+                "using pyuvdata."
             )
         self.history = self.history + history_update_string
 
@@ -8907,7 +8913,7 @@ class UVData(UVBase):
 
         # Stack redundant groups into one array.
         group_index, bl_array_full = zip(
-            *[(i, bl) for i, gp in enumerate(red_gps) for bl in gp]
+            *[(i, bl) for i, gp in enumerate(red_gps) for bl in gp], strict=True
         )
 
         # TODO should be an assert that each baseline only ends up in one group
@@ -8932,7 +8938,7 @@ class UVData(UVBase):
         full_baselines = np.zeros(Nblts_full, dtype=int)
         missing = []
         counter = 0
-        for bl, gi in zip(bl_array_full, group_index):
+        for bl, gi in zip(bl_array_full, group_index, strict=True):
             try:
                 # this makes the time the fastest axis
                 blt_map[counter : counter + group_blti[gi].size] = group_blti[gi]
@@ -9105,8 +9111,8 @@ class UVData(UVBase):
         """
         from . import fhd
 
-        if isinstance(vis_files, (list, tuple, np.ndarray)) and isinstance(
-            vis_files[0], (list, tuple, np.ndarray)
+        if isinstance(vis_files, list | tuple | np.ndarray) and isinstance(
+            vis_files[0], list | tuple | np.ndarray
         ):
             raise ValueError(
                 "Reading multiple files from class specific "
@@ -9339,7 +9345,7 @@ class UVData(UVBase):
         """
         from . import miriad
 
-        if isinstance(filepath, (list, tuple, np.ndarray)):
+        if isinstance(filepath, list | tuple | np.ndarray):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -9435,7 +9441,7 @@ class UVData(UVBase):
             If the data have multiple data description ID values.
 
         """
-        if isinstance(filepath, (list, tuple, np.ndarray)):
+        if isinstance(filepath, list | tuple | np.ndarray):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -9575,7 +9581,7 @@ class UVData(UVBase):
         """
         from . import mwa_corr_fits
 
-        if isinstance(filelist[0], (list, tuple, np.ndarray)):
+        if isinstance(filelist[0], list | tuple | np.ndarray):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -9725,7 +9731,7 @@ class UVData(UVBase):
         """
         from . import uvfits
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if isinstance(filename, list | tuple | np.ndarray):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -9922,7 +9928,7 @@ class UVData(UVBase):
         """
         from . import uvh5
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if isinstance(filename, list | tuple | np.ndarray):
             raise ValueError(
                 "Reading multiple files from class specific "
                 "read functions is no longer supported. "
@@ -10451,10 +10457,10 @@ class UVData(UVBase):
         # Check for defunct option
         self._set_future_array_shapes(use_future_array_shapes=use_future_array_shapes)
 
-        if isinstance(filename, (list, tuple, np.ndarray)):
+        if isinstance(filename, list | tuple | np.ndarray):
             # this is either a list of separate files to read or a list of
             # FHD files or MWA correlator FITS files
-            if isinstance(filename[0], (list, tuple, np.ndarray)):
+            if isinstance(filename[0], list | tuple | np.ndarray):
                 if file_type is None:
                     # this must be a list of lists of FHD or MWA correlator FITS
                     _, extension = os.path.splitext(filename[0][0])
@@ -10521,9 +10527,8 @@ class UVData(UVBase):
         if file_type == "fhd" and params_file is None:
             raise ValueError("The params_file must be passed for FHD files.")
 
-        if time_range is not None:
-            if times is not None:
-                raise ValueError("Only one of times and time_range can be provided.")
+        if time_range is not None and times is not None:
+            raise ValueError("Only one of times and time_range can be provided.")
 
         if antenna_names is not None and antenna_nums is not None:
             raise ValueError(
@@ -10543,7 +10548,7 @@ class UVData(UVBase):
             if file_type == "fhd":
                 n_files = len(filename)
                 if (
-                    not isinstance(params_file, (list, tuple, np.ndarray))
+                    not isinstance(params_file, list | tuple | np.ndarray)
                     or len(params_file) != n_files
                 ):
                     raise ValueError(
@@ -10552,7 +10557,7 @@ class UVData(UVBase):
                     )
                 if obs_file is not None:
                     if (
-                        not isinstance(obs_file, (list, tuple, np.ndarray))
+                        not isinstance(obs_file, list | tuple | np.ndarray)
                         or len(obs_file) != n_files
                     ):
                         raise ValueError(
@@ -10565,7 +10570,7 @@ class UVData(UVBase):
 
                 if flags_file is not None:
                     if (
-                        not isinstance(flags_file, (list, tuple, np.ndarray))
+                        not isinstance(flags_file, list | tuple | np.ndarray)
                         or len(flags_file) != n_files
                     ):
                         raise ValueError(
@@ -10578,7 +10583,7 @@ class UVData(UVBase):
 
                 if layout_file is not None:
                     if (
-                        not isinstance(layout_file, (list, tuple, np.ndarray))
+                        not isinstance(layout_file, list | tuple | np.ndarray)
                         or len(layout_file) != n_files
                     ):
                         raise ValueError(
@@ -10591,7 +10596,7 @@ class UVData(UVBase):
 
                 if settings_file is not None:
                     if (
-                        not isinstance(settings_file, (list, tuple, np.ndarray))
+                        not isinstance(settings_file, list | tuple | np.ndarray)
                         or len(settings_file) != n_files
                     ):
                         raise ValueError(
@@ -10881,7 +10886,10 @@ class UVData(UVBase):
                 # of files, so instead doing a binary tree merge
                 uv_list = [self] + uv_list
                 while len(uv_list) > 1:
-                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2]):
+                    # for an odd number of files, the second argument will be shorter
+                    # so the last element in the first list won't be combined, but it
+                    # will not be lost, so it's ok.
+                    for uv1, uv2 in zip(uv_list[0::2], uv_list[1::2], strict=False):
                         uv1.__iadd__(
                             uv2,
                             run_check=run_check,
@@ -10913,9 +10921,9 @@ class UVData(UVBase):
                     select = True
                     warnings.warn(
                         "Warning: select on read keyword set, but "
-                        'file_type is "{ftype}" which does not support select '
+                        f'file_type is "{file_type}" which does not support select '
                         "on read. Entire file will be read and then select "
-                        "will be performed".format(ftype=file_type)
+                        "will be performed"
                     )
                     # these file types do not have select on read, so set all
                     # select parameters
@@ -11931,9 +11939,8 @@ class UVData(UVBase):
                 # If we have an value error, it means that the pol that _would_ be the
                 # auto is not found in the data, in which case we  throw an error.
                 raise ValueError(
-                    "Cannot normalize {pol}, matching pols for autos not found.".format(
-                        pol=utils.POL_NUM2STR_DICT[pol]
-                    )
+                    f"Cannot normalize {utils.POL_NUM2STR_DICT[pol]}, matching "
+                    "pols for autos not found."
                 ) from err
 
         # Each pol group contains the index positions for the "auto" polarizations,
@@ -11974,7 +11981,7 @@ class UVData(UVBase):
             ant_2_arr = self.ant_2_array[group]
             norm_dict = {}
             flag_dict = {}
-            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
+            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr, strict=True):
                 # Tabulate up front the normalization for each auto-correlation
                 # spectrum, which will save some work downstream
                 if ant1 != ant2:
@@ -11999,7 +12006,7 @@ class UVData(UVBase):
 
             # Now that we have the autos "normalization-ready", we can get to
             # actually normalizing the crosses.
-            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr):
+            for grp_idx, ant1, ant2 in zip(group, ant_1_arr, ant_2_arr, strict=True):
                 try:
                     for jdx, (pol1, pol2) in enumerate(pol_groups):
                         # Proceed pol by pol

@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading beam CST files."""
+
 import os
 import re
 import warnings
@@ -46,7 +46,7 @@ class CSTBeam(UVBeam):
 
         si_prefix = fname[fi - 1]
         si_dict = {"k": 1e3, "M": 1e6, "G": 1e9}
-        if si_prefix in si_dict.keys():
+        if si_prefix in si_dict:
             frequency = frequency * si_dict[si_prefix]
 
         return frequency
@@ -209,11 +209,11 @@ class CSTBeam(UVBeam):
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 
-        out_file = open(filename, "r")
-        line = out_file.readline().strip()  # Get the first line
-        out_file.close()
+        with open(filename) as out_file:
+            line = out_file.readline().strip()  # Get the first line
+            out_file.close()
         raw_names = line.split("]")
-        raw_names = [raw_name for raw_name in raw_names if not raw_name == ""]
+        raw_names = [raw_name for raw_name in raw_names if raw_name != ""]
         column_names = []
         units = []
         for raw_name in raw_names:
@@ -302,10 +302,10 @@ class CSTBeam(UVBeam):
                 if this_col.size > 0:
                     data_col = data_col + this_col.tolist()
             if len(data_col) == 0:
-                raise ValueError("No power column found in file: {}".format(filename))
+                raise ValueError(f"No power column found in file: {filename}")
             elif len(data_col) > 1:
                 raise ValueError(
-                    "Multiple possible power columns found in file: {}".format(filename)
+                    f"Multiple possible power columns found in file: {filename}"
                 )
             data_col = data_col[0]
             power_beam1 = (
@@ -367,8 +367,7 @@ class CSTBeam(UVBeam):
 
         if frequency is None:
             warnings.warn(
-                "No frequency provided. Detected frequency is: "
-                "{freqs} Hz".format(freqs=self.freq_array)
+                f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
             )
 
         if run_check:

@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for aipy_extracts
+"""Tests for aipy_extracts"""
 
-"""
 import os
 import shutil
 
@@ -265,7 +263,7 @@ def test_init_from_uv_override(tmp_path, var_dict):
     aipy_uv2 = aipy_extracts.UV(test_file)
 
     for item in aipy_uv.variables():
-        if item in var_dict.keys():
+        if item in var_dict:
             assert aipy_uv2[item] == var_dict[item]
         else:
             assert np.all(aipy_uv[item] == aipy_uv2[item])

@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for MS object.
+"""Tests for MS object."""
 
-"""
 import os
 import shutil
 
@@ -735,7 +733,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
 
     # The scan numbers should match the phase center IDs, offset by 1
     # so that the scan numbers start with 1, not 0.
-    assert ((miriad_uv.phase_center_id_array == (ms_uv.scan_number_array - 1))).all()
+    assert (miriad_uv.phase_center_id_array == (ms_uv.scan_number_array - 1)).all()
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")

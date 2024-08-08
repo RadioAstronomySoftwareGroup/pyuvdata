@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2023 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Utilities for working with HDF5 files."""
+
 from __future__ import annotations
 
 import json
@@ -20,6 +20,8 @@ try:
     hasmoon = True
 except ImportError:
     hasmoon = False
+
+import contextlib
 
 from ..coordinates import ENU_from_ECEF, LatLonAlt_from_XYZ
 
@@ -133,7 +135,7 @@ def _get_dset_shape(dset, indices):
 
     for i, inds in enumerate(indices):
         # check for integer
-        if isinstance(inds, (int, np.integer)):
+        if isinstance(inds, int | np.integer):
             dset_shape[i] = 1
         # check for slice object
         if isinstance(inds, slice):
@@ -141,10 +143,10 @@ def _get_dset_shape(dset, indices):
         # check for list
         if isinstance(inds, list):
             # check for list of integers
-            if isinstance(inds[0], (int, np.integer)):
+            if isinstance(inds[0], int | np.integer):
                 dset_shape[i] = len(inds)
             elif isinstance(inds[0], slice):
-                dset_shape[i] = sum((_get_slice_len(s, dset_shape[i]) for s in inds))
+                dset_shape[i] = sum(_get_slice_len(s, dset_shape[i]) for s in inds)
 
     return dset_shape, indices
 
@@ -203,7 +205,7 @@ def _index_dset(dset, indices, *, input_array=None):
     arr_indices = []
     nselects_per_dim = []
     for i, dset_inds in enumerate(indices):
-        if isinstance(dset_inds, (int, np.integer)):
+        if isinstance(dset_inds, int | np.integer):
             # this dimension is len 1, so slice is fine
             arr_indices.append([slice(None)])
             dset_indices.append([[dset_inds]])
@@ -215,8 +217,8 @@ def _index_dset(dset, indices, *, input_array=None):
             dset_indices.append([dset_inds])
             nselects_per_dim.append(1)
 
-        elif isinstance(dset_inds, (list, np.ndarray)):
-            if isinstance(dset_inds[0], (int, np.integer)):
+        elif isinstance(dset_inds, list | np.ndarray):
+            if isinstance(dset_inds[0], int | np.integer):
                 # this is a list of integers, append slice
                 arr_indices.append([slice(None)])
                 dset_indices.append([dset_inds])
@@ -225,7 +227,10 @@ def _index_dset(dset, indices, *, input_array=None):
                 # this is a list of slices, need list of slice lens
                 slens = [_get_slice_len(s, dset_shape[i]) for s in dset_inds]
                 ssums = [sum(slens[:j]) for j in range(len(slens))]
-                arr_inds = [slice(s, s + l) for s, l in zip(ssums, slens)]
+                arr_inds = [
+                    slice(ssum, ssum + slen)
+                    for ssum, slen in zip(ssums, slens, strict=True)
+                ]
                 arr_indices.append(arr_inds)
                 dset_indices.append(dset_inds)
                 nselects_per_dim.append(len(dset_inds))
@@ -427,7 +432,7 @@ class HDF5Meta:
             self.__file = path.file
             self.__header = path
             self.__datagrp = self.__file["/Data"]
-        elif isinstance(path, (str, Path)):
+        elif isinstance(path, str | Path):
             self.path = Path(path).resolve()
 
     def is_open(self) -> bool:
@@ -475,15 +480,12 @@ class HDF5Meta:
         self.__header = None
         self.__datagrp = None
 
-        try:
-            del self.header  # need to refresh these
-        except AttributeError:
-            pass
+        # need to refresh these
+        with contextlib.suppress(AttributeError):
+            del self.header
 
-        try:
+        with contextlib.suppress(AttributeError):
             del self.datagrp
-        except AttributeError:
-            pass
 
         if self.__file:
             self.__file.close()
@@ -529,9 +531,8 @@ class HDF5Meta:
         finally:
             self.close()
 
-            if not cache:
-                if item in self.__dict__:
-                    del self.__dict__[item]
+            if not cache and item in self.__dict__:
+                del self.__dict__[item]
 
         return val
 
@@ -686,7 +687,7 @@ class HDF5Meta:
             return {}
 
         extra_keywords = {}
-        for key in header["extra_keywords"].keys():
+        for key in header["extra_keywords"]:
             if header["extra_keywords"][key].dtype.type in (np.bytes_, np.object_):
                 extra_keywords[key] = bytes(header["extra_keywords"][key][()]).decode(
                     "utf8"
@@ -723,7 +724,7 @@ class HDF5Meta:
                         phase_center_catalog[pc_id][key] = dset[()]
         else:
             # This is the old way this was written
-            for key in header["phase_center_catalog"].keys():
+            for key in header["phase_center_catalog"]:
                 pc_dict = json.loads(
                     bytes(header["phase_center_catalog"][key][()]).decode("utf8")
                 )

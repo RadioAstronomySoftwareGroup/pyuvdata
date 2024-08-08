@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -15,6 +14,7 @@ This only works if the number of antennas (Nants_telescope) is less than 255.
 Antenna names are not changed, so they reflect the original names of the antennas.
 
 """
+
 import argparse
 import os
 import sys
@@ -50,7 +50,7 @@ a.add_argument(
 args = a.parse_args()
 
 if os.path.exists(args.file_out) and args.overwrite is False:
-    print("{} exists. Use --overwrite to overwrite the file.".format(args.file_out))
+    print(f"{args.file_out} exists. Use --overwrite to overwrite the file.")
     sys.exit(0)
 
 uv_obj = UVData()
@@ -59,7 +59,7 @@ if args.filetype == "uvfits":
 elif args.filetype == "miriad":
     uv_obj.read_miriad(args.file_in)
 else:
-    raise IOError("didn't recognize filetype {}".format(args.filetype))
+    raise OSError(f"didn't recognize filetype {args.filetype}")
 
 large_ant_nums = sorted(
     uv_obj.antenna_numbers[np.where(uv_obj.antenna_numbers > 254)[0]]
@@ -69,11 +69,11 @@ new_nums = sorted(set(range(255)) - set(uv_obj.antenna_numbers))
 if len(new_nums) < len(large_ant_nums):
     raise ValueError("too many antennas in dataset, cannot renumber all below 255")
 new_nums = new_nums[-1 * len(large_ant_nums) :]
-renumber_dict = dict(list(zip(large_ant_nums, new_nums)))
+renumber_dict = dict(list(zip(large_ant_nums, new_nums, strict=True)))
 
 for ant_in, ant_out in renumber_dict.items():
     if args.verbose:
-        print("renumbering {a1} to {a2}".format(a1=ant_in, a2=ant_out))
+        print(f"renumbering {ant_in} to {ant_out}")
 
     wh_ant_num = np.where(uv_obj.antenna_numbers == ant_in)[0]
     wh_ant1_arr = np.where(uv_obj.ant_1_array == ant_in)[0]

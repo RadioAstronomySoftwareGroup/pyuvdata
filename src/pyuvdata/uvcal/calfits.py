@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading and writing calibration FITS files."""
+
 import os
 import warnings
 
@@ -298,16 +298,16 @@ class CALFITS(UVCal):
             # header keywords have to be 8 characters or less
             if len(str(key)) > 8:
                 warnings.warn(
-                    "key {key} in extra_keywords is longer than 8 "
+                    f"key {key} in extra_keywords is longer than 8 "
                     "characters. It will be truncated to 8 as required "
-                    "by the calfits file format.".format(key=key)
+                    "by the calfits file format."
                 )
             keyword = key[:8].upper()
-            if isinstance(value, (dict, list, np.ndarray)):
+            if isinstance(value, dict | list | np.ndarray):
                 raise TypeError(
-                    "Extra keyword {keyword} is of {keytype}. "
+                    f"Extra keyword {key} is of {type(value)}. "
                     "Only strings and numbers are "
-                    "supported in calfits.".format(keyword=key, keytype=type(value))
+                    "supported in calfits."
                 )
 
             if keyword == "COMMENT":
@@ -746,9 +746,7 @@ class CALFITS(UVCal):
                         raise ValueError(
                             "Spectral window values are different in "
                             "TOTQLTY HDU than in primary HDU. primary HDU "
-                            "has {pspw}, TOTQLTY has {tspw}".format(
-                                pspw=self.spw_array, tspw=spw_array
-                            )
+                            f"has {self.spw_array}, TOTQLTY has {spw_array}"
                         )
 
                     if self.cal_type != "delay":

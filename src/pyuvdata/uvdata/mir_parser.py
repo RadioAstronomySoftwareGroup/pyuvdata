@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -7,6 +6,8 @@
 This module provides a python interface with Mir datasets, including both metadata
 and the visibility data itself.
 """
+
+import contextlib
 import copy
 import os
 import warnings
@@ -56,7 +57,7 @@ class MirPackdataError(Exception):
         super().__init__(message)
 
 
-class MirParser(object):
+class MirParser:
     """
     General class for reading Mir datasets.
 
@@ -218,7 +219,7 @@ class MirParser(object):
             Whether or not the two objects are equal.
         """
         if not isinstance(other, self.__class__):
-            raise ValueError("Cannot compare MirParser with %s." % type(other).__name__)
+            raise ValueError(f"Cannot compare MirParser with {type(other).__name__}.")
 
         data_comp_dict = {
             "raw_data": ["data", "scale_fac"],
@@ -265,7 +266,7 @@ class MirParser(object):
                 target = "left"
             if target is not None:
                 is_eq = False
-                verbose_print("%s does not exist in %s." % (item, target))
+                verbose_print(f"{item} does not exist in {target}.")
 
         if metadata_only:
             for item in ["vis_data", "raw_data", "auto_data"]:
@@ -281,8 +282,8 @@ class MirParser(object):
             if not isinstance(this_attr, type(other_attr)):
                 is_eq = False
                 verbose_print(
-                    "%s is of different types, left is %s, right is %s."
-                    % (item, type(this_attr), type(other_attr))
+                    f"{item} is of different types, left is {type(this_attr)}, "
+                    f"right is {type(other_attr)}."
                 )
                 continue
             elif this_attr is None:
@@ -342,7 +343,7 @@ class MirParser(object):
                     if not is_same:
                         is_eq = False
                         verbose_print(
-                            "%s has the same keys, but different values." % item
+                            f"{item} has the same keys, but different values."
                         )
                         break
                 # We are done processing the data dicts at this point, so we can skip
@@ -411,9 +412,10 @@ class MirParser(object):
         for attr in vars(self):
             if issubclass(getattr(self, attr).__class__, MirMetaData):
                 setattr(new_obj, attr, getattr(self, attr).copy())
-            elif not (metadata_only and attr in ["vis_data", "raw_data", "auto_data"]):
-                if attr not in ["_metadata_attrs", "_sp_dict", "_ac_dict"]:
-                    setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
+            elif not (
+                metadata_only and attr in ["vis_data", "raw_data", "auto_data"]
+            ) and attr not in ["_metadata_attrs", "_sp_dict", "_ac_dict"]:
+                setattr(new_obj, attr, copy.deepcopy(getattr(self, attr)))
 
         rec_dict_list = []
         if self._has_auto:
@@ -767,7 +769,9 @@ class MirParser(object):
                                 ),
                                 read_dict["data_dtype"],
                                 read_dict["common_scale"],
+                                strict=True,
                             ),
+                            strict=True,
                         )
                     )
             else:
@@ -787,7 +791,9 @@ class MirParser(object):
                                     ),
                                     read_dict["data_dtype"],
                                     read_dict["common_scale"],
+                                    strict=True,
                                 ),
+                                strict=True,
                             )
                         )
 
@@ -813,12 +819,12 @@ class MirParser(object):
                     if raise_err:
                         raise MirPackdataError(
                             "File indexing information differs from that found in in "
-                            "file_dict. Cannot read in %s data." % data_type
+                            f"file_dict. Cannot read in {data_type} data."
                         )
                     elif raise_err is None:
                         warnings.warn(
                             "File indexing information differs from that found in in "
-                            "file_dict. The %s data may be corrupted." % data_type
+                            f"file_dict. The {data_type} data may be corrupted."
                         )
         if len(key_check) != 0:
             if raise_err:
@@ -1048,7 +1054,7 @@ class MirParser(object):
                 .view(dtype=np.float32)
                 .astype(np.int16),
             }
-            for sfac, (sphid, sp_vis) in zip(scale_fac, vis_dict.items())
+            for sfac, (sphid, sp_vis) in zip(scale_fac, vis_dict.items(), strict=True)
         }
 
         return raw_dict
@@ -1155,7 +1161,7 @@ class MirParser(object):
             # not match that in _file_dict, and attempt to fix the problem.
             warnings.warn(
                 "Values in int_dict do not match that recorded inside the "
-                "file for %s data. Attempting to fix this automatically." % data_type
+                f"file for {data_type} data. Attempting to fix this automatically."
             )
             self._fix_int_dict(data_type)
             packdata_dict = self._read_packdata(
@@ -1253,16 +1259,15 @@ class MirParser(object):
                 warnings.warn("No cross data loaded, skipping writing it to disk.")
                 return
 
-        if (self.vis_data is not None) and self._tsys_applied:
+        if (self.vis_data is not None) and self._tsys_applied and self._tsys_applied:
             # If using vis_data, we want to alert the user if tsys corrections are
             # applied, so that we mitigate the chance of a double-correction.
-            if self._tsys_applied:
-                warnings.warn(
-                    "Writing out raw data with tsys applied. Be aware that you will "
-                    "need to use set apply_tsys=True when calling load_data."
-                    "Otherwise, call apply_tsys(invert=True) prior to writing out "
-                    "the data set."
-                )
+            warnings.warn(
+                "Writing out raw data with tsys applied. Be aware that you will "
+                "need to use set apply_tsys=True when calling load_data."
+                "Otherwise, call apply_tsys(invert=True) prior to writing out "
+                "the data set."
+            )
 
         if not os.path.isdir(filepath):
             os.makedirs(filepath)
@@ -1407,13 +1412,15 @@ class MirParser(object):
             # temperatures are stored.
             tsys_dict = {
                 (idx, jdx, 0): tsys**0.5 if (tsys > 0 and tsys < 1e5) else 0.0
-                for idx, jdx, tsys in zip(*self.eng_data[("inhid", "antenna", "tsys")])
+                for idx, jdx, tsys in zip(
+                    *self.eng_data[("inhid", "antenna", "tsys")], strict=True
+                )
             }
             tsys_dict.update(
                 {
                     (idx, jdx, 1): tsys**0.5 if (tsys > 0 and tsys < 1e5) else 0.0
                     for idx, jdx, tsys in zip(
-                        *self.eng_data[("inhid", "antenna", "tsys_rx2")]
+                        *self.eng_data[("inhid", "antenna", "tsys_rx2")], strict=True
                     )
                 }
             )
@@ -1422,7 +1429,8 @@ class MirParser(object):
             # time step, and receiver pairing.
             normal_dict = {}
             for blhid, idx, jdx, kdx, ldx, mdx in zip(
-                *self.bl_data[("blhid", "inhid", "iant1", "ant1rx", "iant2", "ant2rx")]
+                *self.bl_data[("blhid", "inhid", "iant1", "ant1rx", "iant2", "ant2rx")],
+                strict=True,
             ):
                 try:
                     normal_dict[blhid] = (2.0 * self.jypk) * (
@@ -1489,7 +1497,9 @@ class MirParser(object):
                 for arr in [norm_arr, wt_arr]:
                     arr = np.reciprocal(arr, where=(arr != 0), out=arr)
 
-            for sphid, norm_val, wt_val in zip(self.sp_data["sphid"], norm_arr, wt_arr):
+            for sphid, norm_val, wt_val in zip(
+                self.sp_data["sphid"], norm_arr, wt_arr, strict=True
+            ):
                 vis_dict = self.vis_data[sphid]
                 if norm_val == 0.0:
                     vis_dict["flags"][:] = True
@@ -1515,7 +1525,9 @@ class MirParser(object):
         if self.vis_data is None:
             raise ValueError("Cannot apply flags if vis_data are not loaded.")
 
-        for sphid, flagval in zip(self.sp_data["sphid"], self.sp_data["flags"]):
+        for sphid, flagval in zip(
+            self.sp_data["sphid"], self.sp_data["flags"], strict=True
+        ):
             if bool(flagval):
                 self.vis_data[sphid]["flags"][:] = True
 
@@ -2006,8 +2018,8 @@ class MirParser(object):
         """
         if (mask_name in self._stored_masks) and not overwrite:
             raise ValueError(
-                "There already exists a stored set of masks with the name %s, "
-                "either change the name or set overwrite=True" % mask_name
+                "There already exists a stored set of masks with the name "
+                f"{mask_name}, either change the name or set overwrite=True"
             )
 
         if not isinstance(mask_name, str):
@@ -2040,8 +2052,8 @@ class MirParser(object):
 
         if mask_name not in self._stored_masks:
             raise ValueError(
-                "No stored set of masks with the name %s (options: %s)."
-                % (mask_name, list(self._stored_masks))
+                f"No stored set of masks with the name {mask_name} (options: "
+                f"{list(self._stored_masks)})."
             )
 
         mask_dict = self._stored_masks[mask_name]
@@ -2163,7 +2175,9 @@ class MirParser(object):
                     continue
 
                 # Otherwise, if the value varies, then handle it on a per-inhid basis.
-                for ac_idx, sp_idx in zip(idx_groups["ac_idx"], idx_groups["sp_idx"]):
+                for ac_idx, sp_idx in zip(
+                    idx_groups["ac_idx"], idx_groups["sp_idx"], strict=True
+                ):
                     self.ac_data.set_value(
                         field,
                         np.median(self.sp_data.get_value(field, index=sp_idx)),
@@ -2483,7 +2497,7 @@ class MirParser(object):
 
         new_data_dict = data_dict if inplace else {}
 
-        for chan_avg, hkey in zip(chan_avg_arr, data_dict):
+        for chan_avg, hkey in zip(chan_avg_arr, data_dict, strict=True):
             # Pull out the dict that we need.
             vis_data = data_dict[hkey]
 
@@ -2594,7 +2608,9 @@ class MirParser(object):
         # an empty dict to plug values into.
         data_dict = raw_dict if inplace else {}
 
-        for chan_avg, (sphid, sp_raw) in zip(chan_avg_arr, raw_dict.items()):
+        for chan_avg, (sphid, sp_raw) in zip(
+            chan_avg_arr, raw_dict.items(), strict=True
+        ):
             # If the number of channels to average is 1, then we just need to make
             # a deep copy of the old data and plug it in to the new dict.
             if chan_avg == 1:
@@ -2647,10 +2663,10 @@ class MirParser(object):
         # Start of by doing some argument checking.
         arg_dict = {"chan_avg": chan_avg}
         for key, value in arg_dict.items():
-            if not (isinstance(value, int) or isinstance(value, np.int_)):
-                raise ValueError("%s must be of type int." % key)
+            if not (isinstance(value, int | np.int_)):
+                raise ValueError(f"{key} must be of type int.")
             elif value < 1:
-                raise ValueError("%s cannot be a number less than one." % key)
+                raise ValueError(f"{key} cannot be a number less than one.")
 
         if chan_avg == 1:
             # This is a no-op, so we can actually bail at this point.
@@ -2833,10 +2849,10 @@ class MirParser(object):
             # If we failed to add any objects, raise an error now.
             if len(bad_attr) != 0:
                 raise ValueError(
-                    "Cannot merge objects due to conflicts in %s. This can be bypassed "
-                    "by setting overwrite=True, which will force the metadata from the "
-                    "right-hand object in the add sequence to overwrite that from the "
-                    "left." % bad_attr
+                    f"Cannot merge objects due to conflicts in {bad_attr}. This "
+                    "can be bypassed by setting overwrite=True, which will "
+                    "force the metadata from the right-hand object in the add "
+                    "sequence to overwrite that from the left."
                 )
 
             # At this point, we know that we can merge the two objects, so begin the
@@ -2880,13 +2896,15 @@ class MirParser(object):
                 if not force:
                     raise ValueError(
                         "Duplicate metadata found for the following attributes: "
-                        "%s. You can bypass this error by setting force=True, though "
+                        "{}. You can bypass this error by setting force=True, though "
                         " be advised that doing so may result in duplicate data being "
-                        "exported downstream." % ", ".join(bad_attr)
+                        "exported downstream.".format(", ".join(bad_attr))
                     )
                 warnings.warn(
                     "Duplicate metadata found for the following attributes: "
-                    "%s. Proceeding anyways since force=True." % ", ".join(bad_attr)
+                    "{}. Proceeding anyways since force=True.".format(
+                        ", ".join(bad_attr)
+                    )
                 )
 
             # Final check - see if the MJD lines up exactly, since that _shouldn't_
@@ -2933,7 +2951,9 @@ class MirParser(object):
             other_auto = {} if (other.auto_data is None) else other.auto_data.copy()
 
             for hid, data_dict in zip(
-                ["sphid", "sphid", "achid"], [other_vis, other_raw, other_auto]
+                ["sphid", "sphid", "achid"],
+                [other_vis, other_raw, other_auto],
+                strict=True,
             ):
                 try:
                     key_dict = update_dict[hid]
@@ -3194,16 +3214,14 @@ class MirParser(object):
             search_dict["ac_data"] = None
 
         for attr in search_dict:
-            try:
-                # Attempt to generate a mask based on the supplied search criteria
+            # Attempt to generate a mask based on the supplied search criteria
+            # If no field listed in the sequence of tuples is identified
+            # in the attribute, it'll throw the above error. That just means we
+            # aren't searching on anything relevant to this attr, so move along.
+            with contextlib.suppress(MirMetaError):
                 search_dict[attr] = self._metadata_attrs[attr]._generate_mask(
                     where=where, and_where_args=and_where_args
                 )
-            except MirMetaError:
-                # If no field listed in the sequence of tuples is identified
-                # in the attribute, it'll throw the above error. That just means we
-                # aren't searching on anything relevant to this attr, so move along.
-                pass
 
         for attr, mask in search_dict.items():
             self._metadata_attrs[attr].set_mask(
@@ -3260,6 +3278,7 @@ class MirParser(object):
             self.bl_data.get_value("ant2rx", index=sp_bl_map),
             self.bl_data.get_value("isb", index=sp_bl_map),
             self.sp_data["corrchunk"],
+            strict=True,
         ):
             sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)] = sphid
 
@@ -3288,15 +3307,15 @@ class MirParser(object):
             chunk_arr = np.array(file["winArr"][0]).astype(int)  # Spectral win #
             bp_arr = (
                 np.array(file["reBandpassArr"]) + (1j * np.array(file["imBandpassArr"]))
-            ).astype(
-                np.complex64
-            )  # BP gains (3D array)
+            ).astype(np.complex64)  # BP gains (3D array)
             sefd_arr = np.array(file["sefdArr"]) ** 2.0
 
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
             for idx, ant in enumerate(ant_arr):
-                for jdx, (rx, sb, chunk) in enumerate(zip(rx_arr, sb_arr, chunk_arr)):
+                for jdx, (rx, sb, chunk) in enumerate(
+                    zip(rx_arr, sb_arr, chunk_arr, strict=True)
+                ):
                     cal_data = bp_arr[idx, jdx]
                     cal_flags = (cal_data == 0.0) | ~np.isfinite(cal_data)
                     sefd_data = sefd_arr[idx, jdx]
@@ -3400,7 +3419,9 @@ class MirParser(object):
             # on the outer-most axis of the array).
             temp_flags = {}
             for idx, ant in enumerate(ant_arr):
-                for jdx, (rx, sb, chunk) in enumerate(zip(rx1_arr, sb_arr, chunk_arr)):
+                for jdx, (rx, sb, chunk) in enumerate(
+                    zip(rx1_arr, sb_arr, chunk_arr, strict=True)
+                ):
                     temp_flags[(ant, rx, sb, chunk)] = sflags_arr[idx, jdx]
 
             # Expand out the flags to produce baseline-based masks, which will be what
@@ -3429,9 +3450,11 @@ class MirParser(object):
                     # has no flags for this integration. Skip it (on apply, it will
                     # use the wide flags instead).
                     continue
-                for jdx, (ant1, ant2) in enumerate(zip(ant1_arr, ant2_arr)):
+                for jdx, (ant1, ant2) in enumerate(
+                    zip(ant1_arr, ant2_arr, strict=True)
+                ):
                     for kdx, (rx1, rx2, sb, chunk) in enumerate(
-                        zip(rx1_arr, rx2_arr, sb_arr, chunk_arr)
+                        zip(rx1_arr, rx2_arr, sb_arr, chunk_arr, strict=True)
                     ):
                         try:
                             sphid = sphid_dict[(inhid, ant1, rx1, ant2, rx2, sb, chunk)]
@@ -3550,7 +3573,14 @@ class MirParser(object):
             bp_soln = self._compass_bp_soln
 
             for sphid, sb, ant1, rx1, ant2, rx2, chunk in zip(
-                sphid_arr, sb_arr, ant1_arr, rx1_arr, ant2_arr, rx2_arr, chunk_arr
+                sphid_arr,
+                sb_arr,
+                ant1_arr,
+                rx1_arr,
+                ant2_arr,
+                rx2_arr,
+                chunk_arr,
+                strict=True,
             ):
                 try:
                     # If we have calculated the bandpass soln before, grab it now.
@@ -3596,7 +3626,10 @@ class MirParser(object):
                     # flags to mask out the data that's associated with the given
                     # antenna-receiver combination (for that sideband and spec window).
                     # Note that if we do not have an entry here, something is amiss.
-                    try:
+                    # If we _still_ have no key, that means that this data was
+                    # not evaluated by COMPASS, and for now we will default to
+                    # not touching the flags.
+                    with contextlib.suppress(KeyError):
                         vis_data[sphid]["flags"] |= np.unpackbits(
                             static_flags[
                                 (
@@ -3609,11 +3642,6 @@ class MirParser(object):
                                 )
                             ]
                         ).view(bool)
-                    except KeyError:
-                        # If we _still_ have no key, that means that this data was
-                        # not evaluated by COMPASS, and for now we will default to
-                        # not touching the flags.
-                        pass
         return vis_data
 
     @staticmethod
@@ -3730,8 +3758,8 @@ class MirParser(object):
             )
         else:
             raise ValueError(
-                'Kernel type of "%s" not recognized, must be either "nearest", '
-                '"linear" or "cubic"' % kernel_type
+                f"Kernel type of '{kernel_type}' not recognized, must be one of: "
+                "'nearest', 'linear' or 'cubic'"
             )
 
         return shift_tuple
@@ -3779,7 +3807,7 @@ class MirParser(object):
         new_vis_dict = vis_dict if inplace else {}
 
         for (coarse_shift, kernel_size, shift_kernel), (sphid, sp_vis) in zip(
-            shift_tuple_list, vis_dict.items()
+            shift_tuple_list, vis_dict.items(), strict=True
         ):
             # If there is no channel shift, and no convolution kernel, then there is
             # literally nothing else left to do.
@@ -3943,7 +3971,9 @@ class MirParser(object):
         data_dict = raw_dict if inplace else {}
         return_vis = (not inplace) and return_vis
 
-        for shift_tuple, (sphid, sp_raw) in zip(shift_tuple_list, raw_dict.items()):
+        for shift_tuple, (sphid, sp_raw) in zip(
+            shift_tuple_list, raw_dict.items(), strict=True
+        ):
             # If we are not actually shifting the data (which is what the tuple
             # (0,0,0,None) signifies), then we can bypass most of the rest of the
             # code and simply return a copy of the data if needed.
@@ -4121,10 +4151,12 @@ class MirParser(object):
         with what the Mir.read method needs for populating a UVData object. Only data
         sets recorded prior to 2020 need these modifications.
         """
-        if "filever" in self.codes_data.get_code_names():
-            if self.codes_data["filever"][0] != "2":
-                # If the file version is already >= 3.0, then this is basically a no-op
-                return
+        if (
+            "filever" in self.codes_data.get_code_names()
+            and self.codes_data["filever"][0] != "2"
+        ):
+            # If the file version is already >= 3.0, then this is basically a no-op
+            return
 
         warnings.warn(
             "Pre v.3 MIR file format detected, modifying metadata to make in minimally "
@@ -4219,14 +4251,19 @@ class MirParser(object):
         # total distance between antennas. Note that we have to do this b/c of some
         # ambiguity of which frequency exactly the uvw values are calculated at.
         ant_dict = {}
-        for ant1, pos1 in zip(*self.antpos_data[("antenna", "xyz_pos")]):
+        for ant1, pos1 in zip(*self.antpos_data[("antenna", "xyz_pos")], strict=True):
             temp_dict = {}
-            for ant2, pos2 in zip(*self.antpos_data[("antenna", "xyz_pos")]):
+            for ant2, pos2 in zip(
+                *self.antpos_data[("antenna", "xyz_pos")], strict=True
+            ):
                 temp_dict[ant2] = ((pos1 - pos2) ** 2.0).sum() ** 0.5
             ant_dict[ant1] = temp_dict
 
         exp_bl_length = np.array(
-            [ant_dict[idx][jdx] for idx, jdx in zip(*self.bl_data[["iant1", "iant2"]])]
+            [
+                ant_dict[idx][jdx]
+                for idx, jdx in zip(*self.bl_data[["iant1", "iant2"]], strict=True)
+            ]
         )
         meas_bl_length = ((u_vals**2) + (v_vals**2) + (w_vals**2)) ** 0.5
 

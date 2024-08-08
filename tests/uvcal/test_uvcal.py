@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
-"""Tests for uvcal object.
+"""Tests for uvcal object."""
 
-"""
 import copy
 import itertools
 import os
@@ -197,7 +195,7 @@ def test_unexpected_parameters(uvcal_data):
     """Test for extra parameters."""
     (uv_cal_object, required_parameters, _, extra_parameters, _, _) = uvcal_data
     expected_parameters = required_parameters + extra_parameters
-    attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] == "_"]
+    attributes = [i for i in uv_cal_object.__dict__ if i[0] == "_"]
     for a in attributes:
         assert a in expected_parameters, "unexpected parameter " + a + " found in UVCal"
 
@@ -208,7 +206,7 @@ def test_unexpected_attributes(uvcal_data):
         uvcal_data
     )
     expected_attributes = required_properties + extra_properties + other_attributes
-    attributes = [i for i in uv_cal_object.__dict__.keys() if i[0] != "_"]
+    attributes = [i for i in uv_cal_object.__dict__ if i[0] != "_"]
     for a in attributes:
         assert a in expected_attributes, "unexpected attribute " + a + " found in UVCal"
 
@@ -228,6 +226,7 @@ def test_properties(uvcal_data):
             zip(
                 required_properties + extra_properties,
                 required_parameters + extra_parameters,
+                strict=True,
             )
         )
     )
@@ -238,7 +237,7 @@ def test_properties(uvcal_data):
         try:
             assert rand_num == this_param.value
         except AssertionError:
-            print("setting {prop_name} to a random number failed".format(prop_name=k))
+            print(f"setting {k} to a random number failed")
             raise
 
 
@@ -414,14 +413,17 @@ def test_unknown_telescopes(gain_data, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set."
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            ValueError,
+            match="Required UVParameter _antenna_positions has not been set.",
+        ),
+        check_warnings(
             UserWarning,
             match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
-        ):
-            UVCal.from_file(write_file2)
+        ),
+    ):
+        UVCal.from_file(write_file2)
     with check_warnings(
         UserWarning,
         match="Telescope foo is not in astropy_sites or known_telescopes_dict.",
@@ -3015,63 +3017,56 @@ def test_multi_files_errors(method):
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-@pytest.mark.parametrize("file_type", ["calfits", "calh5"])
-def test_multi_files(caltype, method, gain_data, delay_data, tmp_path, file_type):
+@pytest.mark.parametrize("nfiles", [3, 4])
+def test_multi_files(caltype, method, gain_data, delay_data, tmp_path, nfiles):
     """Test read function when multiple files are included"""
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data
 
-    calobj2 = calobj.copy()
-
     calobj_full = calobj.copy()
-    n_times2 = calobj.Ntimes // 2
-    # Break up delay object into two objects, divided in time
-    times1 = calobj.time_array[:n_times2]
-    times2 = calobj.time_array[n_times2:]
-    calobj.select(times=times1)
-    calobj2.select(times=times2)
-    # Write those objects to files
-    f1 = str(tmp_path / ("read_multi1." + file_type))
-    f2 = str(tmp_path / ("read_multi2." + file_type))
-
-    write_method = "write_" + file_type
-    getattr(calobj, write_method)(f1, clobber=True)
-    getattr(calobj2, write_method)(f2, clobber=True)
-    # Read both files together
-    if method == "fast_concat":
-        calobj = UVCal.from_file([f1, f2], axis="time")
-    else:
-        if file_type == "calfits":
-            with pytest.raises(
-                ValueError,
-                match="Use the generic `UVCal.read` method to read multiple files.",
-            ):
-                calobj.read_calfits([f1, f2])
-            with check_warnings(None):
-                calobj.read([f1, f2])
+    assert calobj.Ntimes >= nfiles
+    nt_per_files = calobj.Ntimes // nfiles
+    write_files = []
+    filenames = []
+    # Break up cal object into nfiles objects, divided in time
+    for filei in range(nfiles):
+        nt_start = filei * nt_per_files
+        if filei < nfiles - 1:
+            nt_end = (filei + 1) * nt_per_files
         else:
-            with pytest.raises(
-                ValueError,
-                match="Use the generic `UVCal.read` method to read multiple files.",
-            ):
-                calobj.read_calh5([f1, f2])
+            nt_end = calobj.Ntimes
+        this_times = calobj.time_array[nt_start:nt_end]
 
-            calobj.read([f1, f2])
+        this_obj = calobj.select(times=this_times, inplace=False)
+        this_fname = f"read_multi{filei}.calh5"
+        filenames.append(this_fname)
+        this_file = str(tmp_path / this_fname)
+        this_obj.write_calh5(this_file)
+        write_files.append(this_file)
+
+    # Read all files together
+    if method == "fast_concat":
+        calobj = UVCal.from_file(write_files, axis="time")
+        nrep = 1
+    else:
+        with check_warnings(None):
+            calobj.read(write_files)
+        nrep = 2
 
     assert utils.history._check_histories(
-        calobj_full.history + "  Downselected to specific times"
-        " using pyuvdata. Combined data "
-        "along time axis using pyuvdata.",
+        calobj_full.history
+        + "  Downselected to specific times using pyuvdata."
+        + " Combined data along time axis using pyuvdata." * nrep,
         calobj.history,
     )
-    assert calobj.filename == ["read_multi1." + file_type, "read_multi2." + file_type]
+    assert calobj.filename == filenames
     calobj.history = calobj_full.history
     assert calobj == calobj_full
 
     # check metadata only read
-    calobj = UVCal.from_file([f1, f2], read_data=False)
+    calobj = UVCal.from_file(write_files, read_data=False)
     calobj_full_metadata_only = calobj_full.copy(metadata_only=True)
 
     calobj.history = calobj_full_metadata_only.history
@@ -3302,18 +3297,21 @@ def test_set_antpos_from_telescope_errors(gain_data, modtype, tmp_path):
         hdulist.writeto(write_file2)
         hdulist.close()
 
-    with pytest.raises(
-        ValueError, match="Required UVParameter _antenna_positions has not been set."
-    ):
-        with check_warnings(
+    with (
+        pytest.raises(
+            ValueError,
+            match="Required UVParameter _antenna_positions has not been set.",
+        ),
+        check_warnings(
             [UserWarning],
             match=[
                 "Not all antennas have metadata in the known_telescope data. Not "
                 "setting ['antenna_positions'].",
                 "Required UVParameter _antenna_positions has not been set.",
             ],
-        ):
-            gain_data2 = UVCal.from_file(write_file2)
+        ),
+    ):
+        gain_data2 = UVCal.from_file(write_file2)
 
     with check_warnings(
         UserWarning,

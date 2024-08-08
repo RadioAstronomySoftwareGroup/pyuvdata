@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2020 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -9,6 +8,7 @@ data in pyuvdata. Tests in this module are specific to the way that MIR is read 
 python, not necessarily how pyuvdata (by way of the UVData class) interacts with that
 data.
 """
+
 import copy
 import os
 
@@ -171,7 +171,7 @@ def test_mir_write_item(mir_data, attr, tmp_path):
 
     Test writing out individual components of the metadata of a MIR dataset.
     """
-    filepath = os.path.join(tmp_path, "test_write%s" % attr)
+    filepath = os.path.join(tmp_path, f"test_write{attr}")
     orig_attr = getattr(mir_data, attr)
     orig_attr.write(filepath)
     check_attr = orig_attr.copy(skip_data=True)
@@ -199,7 +199,7 @@ def test_mir_raw_data(mir_data, tmp_path):
 
     assert raw_data.keys() == mir_data.raw_data.keys()
 
-    for key in raw_data.keys():
+    for key in raw_data:
         for subkey in ["data", "scale_fac"]:
             assert np.array_equal(raw_data[key][subkey], mir_data.raw_data[key][subkey])
 
@@ -235,7 +235,7 @@ def test_mir_auto_data(mir_data: MirParser, tmp_path):
 
     assert auto_data.keys() == mir_data.auto_data.keys()
 
-    for key in auto_data.keys():
+    for key in auto_data:
         for subkey in ["data", "flags"]:
             assert np.array_equal(
                 auto_data[key][subkey], mir_data.auto_data[key][subkey]
@@ -259,7 +259,7 @@ def test_mir_write_full(mir_data, tmp_path, data_type):
         mir_data.load_data(load_raw=(data_type == "raw"), apply_tsys=False)
 
     # Write out our test dataset
-    filepath = os.path.join(tmp_path, "test_write_full_%s.mir" % data_type)
+    filepath = os.path.join(tmp_path, f"test_write_full_{data_type}.mir")
 
     mir_data.write(filepath, load_data=(data_type == "load"))
     with check_warnings(
@@ -509,23 +509,23 @@ def test_eq(mir_data, metadata_only, mod_attr, mod_val, exp_state, flip):
     mir_copy = mir_data.copy()
 
     target_obj = mir_copy if flip else mir_data
-    if "zero_data" == mod_attr:
+    if mod_attr == "zero_data":
         for attr in ["vis_data", "auto_data"]:
-            for key in getattr(target_obj, attr).keys():
+            for key in getattr(target_obj, attr):
                 if isinstance(getattr(target_obj, attr)[key], dict):
-                    for subkey in getattr(target_obj, attr)[key].keys():
+                    for subkey in getattr(target_obj, attr)[key]:
                         if subkey == "scale_fac":
                             getattr(target_obj, attr)[key][subkey] = 0
                         else:
                             getattr(target_obj, attr)[key][subkey][:] = 0
                 else:
                     getattr(target_obj, attr)[key][:] = 0
-    elif "unload_data" == mod_attr:
+    elif mod_attr == "unload_data":
         mir_data.unload_data()
         mir_copy.unload_data()
-    elif "meta_attr" == mod_attr:
+    elif mod_attr == "meta_attr":
         del mir_copy._metadata_attrs["ac_data"]
-    elif "_compass_solns" == mod_attr:
+    elif mod_attr == "_compass_solns":
         mir_data._compass_solns = {1: {1: {1: {1: 1}}}}
         mir_copy._compass_solns = {}
     else:
@@ -670,7 +670,7 @@ def test_read_packdata_mmap(mir_data):
     )
 
     assert mmap_data.keys() == reg_data.keys()
-    for key in mmap_data.keys():
+    for key in mmap_data:
         assert np.array_equal(mmap_data[key], reg_data[key])
 
 
@@ -709,7 +709,7 @@ def test_read_packdata__make_packdata(mir_data: MirParser):
     )
 
     assert _read_data.keys() == make_data.keys()
-    for key in _read_data.keys():
+    for key in _read_data:
         assert np.array_equal(_read_data[key][0], make_data[key])
 
 
@@ -809,7 +809,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
     mir_copy.unload_data()
     mir_copy.load_data(load_cross=True, apply_tsys=True)
 
-    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list):
+    for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list, strict=True):
         assert np.allclose(
             norm_fac * mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
@@ -818,7 +818,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
         )
 
     mir_copy.apply_tsys(invert=True)
-    for key in mir_data.vis_data.keys():
+    for key in mir_data.vis_data:
         assert np.allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
@@ -1307,7 +1307,7 @@ def test_add_errs(mir_data, muck_data, kwargs, err_type, err_msg):
 
     with pytest.raises(err_type) as err:
         mir_data.__add__(mir_copy, **kwargs)
-    if not ("all" in muck_data):
+    if "all" not in muck_data:
         assert str(err.value).startswith(err_msg)
 
     with pytest.raises(err_type, match=err_msg):
@@ -1575,11 +1575,11 @@ def test_add_concat(mir_data, tmp_path):
     "kern_type,tol,err_type,err_msg",
     [
         ["cubic", -1, ValueError, "tol must be between 0 and 0.5."],
-        ["abc", 0.5, ValueError, 'Kernel type of "abc" not recognized,'],
+        ["abc", 0.5, ValueError, "Kernel type of 'abc' not recognized,"],
     ],
 )
 def test_generate_chanshift_kernel_errs(kern_type, tol, err_type, err_msg):
-    """ "Verify that _generate_chanshift_kernel throws errors as expected."""
+    """Verify that _generate_chanshift_kernel throws errors as expected."""
     with pytest.raises(err_type, match=err_msg):
         MirParser._generate_chanshift_kernel(1.5, kern_type, tol=tol)
 
@@ -1845,7 +1845,9 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
     assert mir_data == mir_copy
 
     # Alright, let's tweak the data now to give us something to compare
-    for sphid, nch in zip(mir_data.sp_data["sphid"], mir_data.sp_data["nch"]):
+    for sphid, nch in zip(
+        mir_data.sp_data["sphid"], mir_data.sp_data["nch"], strict=True
+    ):
         if use_raw:
             mir_data.raw_data[sphid]["data"][:] = np.arange(int(nch * 2.0))
             mir_data.raw_data[sphid]["scale_fac"] = np.int16(0)
@@ -1901,7 +1903,7 @@ def test_redoppler_data(mir_data, plug_vals, diff_rx, use_raw):
             else:
                 assert np.all(
                     mir_data.vis_data[sphid]["data"][chan_shift:]
-                    == np.arange((nch - chan_shift))
+                    == np.arange(nch - chan_shift)
                 )
 
 

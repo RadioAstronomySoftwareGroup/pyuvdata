@@ -1,7 +1,7 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Tests for baseline redundancy utility functions."""
+
 import copy
 import os
 import re
@@ -49,13 +49,15 @@ def test_redundancy_finder(grid_alg):
         warn_type = None
         warn_str = ""
 
-    with pytest.raises(
-        ValueError, match=re.escape("Baseline vectors must be shape (Nbls, 3)")
+    with (
+        pytest.raises(
+            ValueError, match=re.escape("Baseline vectors must be shape (Nbls, 3)")
+        ),
+        check_warnings(warn_type, match=warn_str),
     ):
-        with check_warnings(warn_type, match=warn_str):
-            red_utils.get_baseline_redundancies(
-                uvd.baseline_array, bl_positions[0:2, 0:1], use_grid_alg=grid_alg
-            )
+        red_utils.get_baseline_redundancies(
+            uvd.baseline_array, bl_positions[0:2, 0:1], use_grid_alg=grid_alg
+        )
 
     with check_warnings(warn_type, match=warn_str):
         baseline_groups, vec_bin_centers, lens = red_utils.get_baseline_redundancies(

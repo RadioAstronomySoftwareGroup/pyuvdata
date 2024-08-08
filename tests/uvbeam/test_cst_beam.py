@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 import os
@@ -140,7 +139,7 @@ def test_read_yaml_onefile(cst_efield_1freq_mod, tmp_path):
         shutil.copy2(src=fname, dst=tmp_path)
 
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["filenames"] = [settings_dict["filenames"][0]]
@@ -219,7 +218,7 @@ def test_read_yaml_feed_pol_list(cst_efield_2freq_mod, cst_efield_1freq_mod):
     # make yaml with a list of (the same) feed_pols
 
     test_yaml_file = os.path.join(DATA_PATH, cst_folder, "test_cst_settings.yaml")
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["feed_pol"] = ["x", "x"]
@@ -263,7 +262,7 @@ def test_read_yaml_multi_pol(tmp_path):
         shutil.copy2(src=fname, dst=tmp_path)
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
 
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict["feed_pol"] = ["x", "y"]
@@ -319,7 +318,7 @@ def test_read_yaml_errors(tmp_path):
     # test error if required key is not present in yaml file
 
     test_yaml_file = os.path.join(tmp_path, "test_cst_settings.yaml")
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
 
     settings_dict.pop("telescope_name")
@@ -337,7 +336,7 @@ def test_read_yaml_errors(tmp_path):
     ):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
     settings_dict["filenames"] = settings_dict["filenames"][0]
 
@@ -348,7 +347,7 @@ def test_read_yaml_errors(tmp_path):
     with pytest.raises(ValueError, match=("filenames in yaml file must be a list.")):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")
 
-    with open(cst_yaml_file, "r") as file:
+    with open(cst_yaml_file) as file:
         settings_dict = yaml.safe_load(file)
     settings_dict["frequencies"] = settings_dict["frequencies"][0]
 
@@ -606,7 +605,7 @@ def test_read_efield(cst_efield_2freq):
 def test_no_deg_units(tmp_path):
     # need to write a modified file to test headers not in degrees
     testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
-    with open(cst_files[0], "r") as file:
+    with open(cst_files[0]) as file:
         line1 = file.readline()
         line2 = file.readline()
 
@@ -632,7 +631,7 @@ def test_no_deg_units(tmp_path):
 
     new_header = ""
     for col in new_column_headers:
-        new_header += "{:12}".format(col)
+        new_header += f"{col:12}"
 
     beam1 = UVBeam()
     beam2 = UVBeam()
@@ -797,7 +796,7 @@ def test_no_deg_units(tmp_path):
 def test_wrong_column_names(tmp_path):
     # need to write modified files to test headers with wrong column names
     testfile = os.path.join(tmp_path, "HERA_NicCST_150MHz_modified.txt")
-    with open(cst_files[0], "r") as file:
+    with open(cst_files[0]) as file:
         line1 = file.readline()
         line2 = file.readline()
 
@@ -834,7 +833,7 @@ def test_wrong_column_names(tmp_path):
 
     missing_power_header = ""
     for col in missing_power_column_headers:
-        missing_power_header += "{:12}".format(col)
+        missing_power_header += f"{col:12}"
 
     beam1 = UVBeam()
 
@@ -871,7 +870,7 @@ def test_wrong_column_names(tmp_path):
 
     extra_power_header = ""
     for col in extra_power_column_headers:
-        extra_power_header += "{:12}".format(col)
+        extra_power_header += f"{col:12}"
     np.savetxt(
         testfile,
         data,

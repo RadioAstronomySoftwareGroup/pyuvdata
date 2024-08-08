@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Commonly utility functions for testing."""
+
 import inspect
 import re
 import warnings
@@ -94,7 +94,7 @@ class WarningsChecker(warnings.catch_warnings):
             if issubclass(w.category, cls):
                 return self._list.pop(i)
         __tracebackhide__ = True
-        raise AssertionError("%r not found in warning list" % cls)
+        raise AssertionError(f"{cls!r} not found in warning list")
 
     def clear(self) -> None:
         """Clear the list of recorded warnings."""
@@ -103,7 +103,7 @@ class WarningsChecker(warnings.catch_warnings):
     def __enter__(self):
         if self._entered:
             __tracebackhide__ = True
-            raise RuntimeError("Cannot enter %r twice" % self)
+            raise RuntimeError(f"Cannot enter {self!r} twice")
         _list = super().__enter__()
         # record=True means it's None.
         assert _list is not None
@@ -138,7 +138,7 @@ class WarningsChecker(warnings.catch_warnings):
     def __exit__(self, exc_type=None, exc_val=None, exc_tb=None):
         if not self._entered:
             __tracebackhide__ = True
-            raise RuntimeError("Cannot exit %r without entering first" % self)
+            raise RuntimeError(f"Cannot exit {self!r} without entering first")
 
         super().__exit__(exc_type, exc_val, exc_tb)
 
@@ -174,22 +174,21 @@ class WarningsChecker(warnings.catch_warnings):
                     if not any(issubclass(r.category, exp_warn) for r in self):
                         __tracebackhide__ = True
                         raise AssertionError(
-                            "DID NOT WARN. No warnings of type {} was emitted. "
-                            "The list of emitted warnings is: {}.".format(
-                                self.expected_warning, [each.message for each in self]
-                            )
+                            "DID NOT WARN. No warnings of type "
+                            f"{self.expected_warning} was emitted. The list of "
+                            f"emitted warnings is: {[each.message for each in self]}."
                         )
                     elif self.match is not None:
                         for record in self:
-                            if str(record.message).startswith(
-                                self.match[warn_i]
-                            ) or re.compile(self.match[warn_i]).search(
-                                str(record.message)
+                            if (
+                                str(record.message).startswith(self.match[warn_i])
+                                or re.compile(self.match[warn_i]).search(
+                                    str(record.message)
+                                )
+                            ) and issubclass(
+                                record.category, self.expected_warning[warn_i]
                             ):
-                                if issubclass(
-                                    record.category, self.expected_warning[warn_i]
-                                ):
-                                    break
+                                break
                         else:
                             raise AssertionError(
                                 f"No warnings of type {self.expected_warning[warn_i]} "
@@ -237,7 +236,7 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
         or (inspect.isclass(expected_warning) and issubclass(expected_warning, Warning))
     ):
         raise TypeError("expected_warning must be a list or be derived from Warning")
-    if match is not None and not isinstance(match, (list, str)):
+    if match is not None and not isinstance(match, list | str):
         raise TypeError("match must be a list or a string.")
 
     if expected_warning is not None and not isinstance(expected_warning, list):
@@ -280,8 +279,6 @@ def check_warnings(expected_warning, match=None, nwarnings=None, *args, **kwargs
     else:
         func = args[0]
         if not callable(func):
-            raise TypeError(
-                "{!r} object (type: {}) must be callable".format(func, type(func))
-            )
+            raise TypeError(f"{func!r} object (type: {type(func)}) must be callable")
         with WarningsChecker(expected_warning_list, match_list):
             return func(*args[1:], **kwargs)
