@@ -1058,6 +1058,26 @@ def test_spatial_interpolation_everyother(
     assert np.allclose(select_data_array_orig, select_data_array_reused)
     del uvbeam.saved_interp_functions
 
+    # test comparison of different interpolation functions
+    spline_opts = {"kx": 1, "ky": 1}
+    linear_data_array, _ = uvbeam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
+        spline_opts=spline_opts,
+    )
+
+    mp_data_array, _ = uvbeam.interp(
+        az_array=az_interp_vals,
+        za_array=za_interp_vals,
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
+        spatial_interp_func="map_coordinates",
+        spline_opts={"order": 1},
+    )
+    assert np.allclose(linear_data_array, mp_data_array)
+
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_cut):
@@ -1148,6 +1168,41 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
     ):
         uvbeam.interp(
             az_array=az_interp_vals, za_array=za_interp_vals, return_coupling=True
+        )
+
+    # test error returning coupling matrix for simple antenna_types
+    with pytest.raises(
+        ValueError,
+        match="interpolator must be 'RectBivariateSpline' or 'map_coordinates'",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            spatial_interp_func="NotSupportedInterpolator",
+        )
+
+    # Check that error is raised if the input beam is not on a regular grid
+    # and spatial_interp_func="map_coordinates" is used
+    az_array_uneven = np.array([0.1, 0.5, 0.56, 0.9])
+    new_beam = uvbeam.interp(
+        az_array=az_array_uneven,
+        za_array=uvbeam.axis2_array,
+        new_object=True,
+        az_za_grid=True,
+    )
+
+    # test error returning coupling matrix for simple antenna_types
+    with pytest.raises(
+        ValueError,
+        match=(
+            "axis1_array and axis2_array must be evenly "
+            "spaced for map_coordinates interpolation"
+        ),
+    ):
+        new_beam.interp(
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            spatial_interp_func="map_coordinates",
         )
 
 
