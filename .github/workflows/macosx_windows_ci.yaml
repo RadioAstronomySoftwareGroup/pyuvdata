@@ -154,4 +154,6 @@ jobs:
           summary-always: true
           # Enable commenting
           comment-always: true
+          # Comment on the PR if the branch is not a fork
+          comment-on-alert: ${{ github.event.pull_request.head.repo.fork == false }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
