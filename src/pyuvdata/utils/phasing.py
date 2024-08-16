@@ -1115,12 +1115,14 @@ def transform_icrs_to_app(
     if ra_coord.ndim == 0:
         ra_coord.shape += (1,)
         dec_coord.shape += (1,)
+        if pm_ra_coord is not None:
+            pm_ra_coord.shape += (1,)
+        if pm_dec_coord is not None:
+            pm_dec_coord.shape += (1,)
         if d_coord is not None:
             d_coord.shape += (1,)
         if v_coord is not None:
             v_coord.shape += (1,)
-
-    # If there is an epoch and a proper motion, apply that motion now
 
     if astrometry_library == "astropy":
         # Astropy doesn't have (oddly enough) a way of getting at the apparent RA/Dec
@@ -1238,14 +1240,14 @@ def transform_icrs_to_app(
                 if pm_ra is None:
                     pm_ra_use = 0.0
                 else:
-                    pm_ra_use = pm_ra_coord.to_value("mas/yr") * np.cos(
+                    pm_ra_use = pm_ra_coord[idx].to_value("mas/yr") * np.cos(
                         dec_coord[idx].to_value("rad")
                     )
 
                 if pm_dec is None:
                     pm_dec_use = 0.0
                 else:
-                    pm_dec_use = pm_dec_coord.to_value("mas/yr")
+                    pm_dec_use = pm_dec_coord[idx].to_value("mas/yr")
 
                 if dist is None or np.any(dist == 0.0):
                     parallax = 0.0
