@@ -137,11 +137,17 @@ def test_beam_interface(
         az_za_grid = False
 
     analytic_data = bi_analytic.compute_response(
-        az_array, za_array, freq_array, az_za_grid=az_za_grid
+        az_array=az_array,
+        za_array=za_array,
+        freq_array=freq_array,
+        az_za_grid=az_za_grid,
     )
 
     uvb_data = bi_uvbeam.compute_response(
-        az_array, za_array, freq_array, az_za_grid=az_za_grid
+        az_array=az_array,
+        za_array=za_array,
+        freq_array=freq_array,
+        az_za_grid=az_za_grid,
     )
 
     np.testing.assert_allclose(analytic_data, uvb_data, rtol=0, atol=1e-14)
@@ -150,9 +156,11 @@ def test_beam_interface(
     # larger differences of course
     az_vals, za_vals, freqs = xy_grid_coarse
     analytic_data = bi_analytic.compute_response(
-        az_vals, za_vals, freqs, az_za_grid=True
+        az_array=az_vals, za_array=za_vals, freq_array=freqs, az_za_grid=True
     )
-    uvb_data = bi_uvbeam.compute_response(az_vals, za_vals, freqs, az_za_grid=True)
+    uvb_data = bi_uvbeam.compute_response(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs, az_za_grid=True
+    )
 
     if not (coord_sys == "healpix" and "dipole" in beam_obj.name.lower()):
         np.testing.assert_allclose(analytic_data, uvb_data, rtol=0, atol=1e-1)
@@ -169,6 +177,44 @@ def test_beam_interface(
             rtol=0,
             atol=1e-1,
         )
+
+
+@pytest.mark.parametrize(
+    ["bi1", "bi2", "equality"],
+    [
+        [
+            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
+            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
+            True,
+        ],
+        [
+            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
+            BeamInterface(ShortDipoleBeam(), beam_type="power"),
+            False,
+        ],
+        [
+            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
+            BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
+            False,
+        ],
+        [
+            BeamInterface(AiryBeam(diameter=12.0), beam_type="efield"),
+            BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
+            False,
+        ],
+        [
+            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
+            ShortDipoleBeam(),
+            False,
+        ],
+    ],
+)
+def test_beam_interface_equality(bi1, bi2, equality):
+    if equality:
+        assert bi1 == bi2
+    else:
+        assert bi1 != bi2
+        assert not bi1 == bi2  # noqa SIM201
 
 
 def test_beam_interface_errors():

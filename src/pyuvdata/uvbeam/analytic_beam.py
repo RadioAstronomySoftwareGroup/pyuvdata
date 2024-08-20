@@ -17,7 +17,7 @@ from .. import utils
 from ..docstrings import combine_docstrings
 from .uvbeam import UVBeam, _convert_feeds_to_pols
 
-__all__ = ["AnalyticBeam", "GaussianBeam"]
+__all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 
 
 class AnalyticBeam(ABC):
@@ -184,8 +184,29 @@ class AnalyticBeam(ABC):
                 print("Classes do not match")
             return False
 
+    def __ne__(self, other, *, check_extra=True, silent=True):
+        """
+        Test if classes match and parameters are not equal.
+
+        Parameters
+        ----------
+        other : class
+            Other class instance to check
+        silent : bool
+            Option to turn off printing explanations of why equality fails. Useful to
+            prevent __ne__ from printing lots of messages.
+
+        Returns
+        -------
+        bool
+            True if the two instances are equivalent.
+
+        """
+        return not self.__eq__(other, silent=silent)
+
     def _check_eval_inputs(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -211,6 +232,7 @@ class AnalyticBeam(ABC):
     @abstractmethod
     def _efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -242,6 +264,7 @@ class AnalyticBeam(ABC):
 
     def efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -267,13 +290,18 @@ class AnalyticBeam(ABC):
             (Naxes_vec, Nfeeds, freq_array.size, az_array.size)
 
         """
-        self._check_eval_inputs(az_array, za_array, freq_array)
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
 
-        return self._efield_eval(az_array, za_array, freq_array).astype(complex)
+        return self._efield_eval(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        ).astype(complex)
 
     @abstractmethod
     def _power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -305,6 +333,7 @@ class AnalyticBeam(ABC):
 
     def power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -332,7 +361,9 @@ class AnalyticBeam(ABC):
             float type.
 
         """
-        self._check_eval_inputs(az_array, za_array, freq_array)
+        self._check_eval_inputs(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
 
         if self.Npols > self.Nfeeds:
             # cross pols are included
@@ -340,7 +371,9 @@ class AnalyticBeam(ABC):
         else:
             expected_type = float
 
-        return self._power_eval(az_array, za_array, freq_array).astype(expected_type)
+        return self._power_eval(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        ).astype(expected_type)
 
     @combine_docstrings(UVBeam.new)
     def to_uvbeam(
@@ -434,7 +467,9 @@ class AnalyticBeam(ABC):
         else:
             eval_function = "power_eval"
 
-        data_array = getattr(self, eval_function)(az_array, za_array, freq_array)
+        data_array = getattr(self, eval_function)(
+            az_array=az_array, za_array=za_array, freq_array=freq_array
+        )
 
         if uvb.pixel_coordinate_system == "az_za":
             data_array = data_array.reshape(uvb.data_array.shape)
@@ -495,8 +530,8 @@ class GaussianBeam(AnalyticBeam):
     spectral_index : float
         Option to scale the gaussian beam width as a power law with frequency. If set
         to anything other than zero, the beam will be frequency dependent and the
-        `reference_freq` must be set. Ignored if `sigma` is None.
-    reference_freq : float
+        `reference_frequency` must be set. Ignored if `sigma` is None.
+    reference_frequency : float
         The reference frequency for the beam width power law, required if `sigma` is not
         None and `spectral_index` is not zero. Ignored if `sigma` is None.
     feed_array : np.ndarray of str
@@ -517,14 +552,17 @@ class GaussianBeam(AnalyticBeam):
         sigma_type: Literal["efield", "power"] = "efield",
         diameter: float | None = None,
         spectral_index: float = 0.0,
-        reference_freq: float = None,
+        reference_frequency: float = None,
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
         if (diameter is None and sigma is None) or (
             diameter is not None and sigma is not None
         ):
-            raise ValueError("One of diameter or sigma must be set but not both.")
+            if diameter is None:
+                raise ValueError("Either diameter or sigma must be set.")
+            else:
+                raise ValueError("Only one of diameter or sigma can be set.")
 
         self.diameter = diameter
 
@@ -536,18 +574,19 @@ class GaussianBeam(AnalyticBeam):
             description_str = f", E-field sigma={self.sigma}"
 
             if spectral_index != 0.0:
-                if reference_freq is None:
+                if reference_frequency is None:
                     raise ValueError(
-                        "reference_freq must be set if `spectral_index` is not zero."
+                        "reference_frequency must be set if `spectral_index` "
+                        "is not zero."
                     )
                 description_str += (
                     f", spectral index={spectral_index}, "
-                    f"reference freq={reference_freq} Hz"
+                    f"reference freq={reference_frequency} Hz"
                 )
-            if reference_freq is None:
-                reference_freq = 1.0
+            if reference_frequency is None:
+                reference_frequency = 1.0
             self.spectral_index = spectral_index
-            self.reference_freq = reference_freq
+            self.reference_frequency = reference_frequency
         else:
             description_str = f", equivalent diameter={self.diameter} m"
 
@@ -575,12 +614,14 @@ class GaussianBeam(AnalyticBeam):
             sigmas = diameter_to_sigma(self.diameter, freq_array)
         elif self.sigma is not None:
             sigmas = (
-                self.sigma * (freq_array / self.reference_freq) ** self.spectral_index
+                self.sigma
+                * (freq_array / self.reference_frequency) ** self.spectral_index
             )
         return sigmas
 
     def _efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -604,6 +645,7 @@ class GaussianBeam(AnalyticBeam):
 
     def _power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -659,6 +701,7 @@ class AiryBeam(AnalyticBeam):
 
     def _efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -687,6 +730,7 @@ class AiryBeam(AnalyticBeam):
 
     def _power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -748,6 +792,7 @@ class ShortDipoleBeam(AnalyticBeam):
 
     def _efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -769,6 +814,7 @@ class ShortDipoleBeam(AnalyticBeam):
 
     def _power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -821,6 +867,7 @@ class UniformBeam(AnalyticBeam):
 
     def _efield_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],
@@ -838,6 +885,7 @@ class UniformBeam(AnalyticBeam):
 
     def _power_eval(
         self,
+        *,
         az_array: npt.NDArray[np.float],
         za_array: npt.NDArray[np.float],
         freq_array: npt.NDArray[np.float],

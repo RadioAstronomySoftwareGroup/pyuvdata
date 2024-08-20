@@ -115,15 +115,16 @@ def test_chromatic_gaussian():
 
     # Error if trying to define chromatic beam without a reference frequency
     with pytest.raises(
-        ValueError, match="reference_freq must be set if `spectral_index` is not zero."
+        ValueError,
+        match="reference_frequency must be set if `spectral_index` is not zero.",
     ):
         GaussianBeam(sigma=sigma, spectral_index=alpha)
 
-    beam = GaussianBeam(sigma=sigma, reference_freq=freqs[0], spectral_index=alpha)
+    beam = GaussianBeam(sigma=sigma, reference_frequency=freqs[0], spectral_index=alpha)
 
     # Get the widths at each frequency.
 
-    vals = beam.efield_eval(az, za, freqs)
+    vals = beam.efield_eval(az_array=az, za_array=za, freq_array=freqs)
     # pick out a single polarization direction and feed
     vals = vals[0, 0]
 
@@ -241,8 +242,8 @@ def test_power_analytic_beam(beam_obj, kwargs, xy_grid):
 
     beam = beam_obj(**kwargs)
 
-    efield_vals = beam.efield_eval(az_vals, za_vals, freqs)
-    power_vals = beam.power_eval(az_vals, za_vals, freqs)
+    efield_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
+    power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
 
     # check power beams are peak normalized
     assert np.max(power_vals) == 1.0
@@ -297,7 +298,7 @@ def test_eval_errors(az_za_deg_grid):
         [UniformBeam(), False, None],
         [GaussianBeam(sigma=0.05), False, None],
         [
-            GaussianBeam(sigma=0.02, reference_freq=100e8, spectral_index=-1.5),
+            GaussianBeam(sigma=0.02, reference_frequency=100e8, spectral_index=-1.5),
             False,
             None,
         ],
@@ -339,11 +340,8 @@ def test_comparison(compare_beam, equality, operation):
             {"feed_array": "w", "diameter": 5},
             re.escape("Feeds must be one of: ['n', 'e', 'x', 'y', 'r', 'l']"),
         ],
-        [{}, "One of diameter or sigma must be set but not both."],
-        [
-            {"diameter": 5, "sigma": 0.2},
-            "One of diameter or sigma must be set but not both.",
-        ],
+        [{}, "Either diameter or sigma must be set."],
+        [{"diameter": 5, "sigma": 0.2}, "Only one of diameter or sigma can be set."],
     ],
 )
 def test_beamerrs(beam_kwargs, err_msg):

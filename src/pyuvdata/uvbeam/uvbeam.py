@@ -2060,7 +2060,8 @@ class UVBeam(UVBase):
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
             Conversely, if the passed az/za are outside of the domain, they will be
-            silently extrapolated and the behavior is not well-defined.
+            silently extrapolated and the behavior is not well-defined. Only
+            applies for `az_za_simple` interpolation.
 
         Returns
         -------
