@@ -47,12 +47,12 @@ except:  # noqa
 
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 @pytest.mark.parametrize(
-    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"nbls={x:}"
+    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"len={x:}"
 )
 @pytest.mark.parametrize(
-    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"start={x:}"
+    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"min={x:}"
 )
-def test_bls_to_ants_bench(benchmark, bl_start, nbls):
+def test_bls_to_ant(benchmark, bl_start, nbls):
     bls = np.arange(bl_start, bl_start + nbls)
     if nbls > 65535:
         bls += 65536
@@ -74,12 +74,12 @@ def test_bls_to_ants_bench(benchmark, bl_start, nbls):
 
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 @pytest.mark.parametrize(
-    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"nbls={x:}"
+    "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"len={x:}"
 )
 @pytest.mark.parametrize(
-    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"start={x:}"
+    "bl_start", [0, 2**16, 2**16 + 2**22], ids=lambda x: f"min={x:}"
 )
-def test_ants_to_bls_bench(benchmark, bl_start, nbls):
+def test_ants_to_bls(benchmark, bl_start, nbls):
     bls = np.arange(bl_start, bl_start + nbls)
     nants_telescope = 2048 if bl_start < 2**16 + 2**22 else 2**16 + 2**22
     if nbls > 65535:
