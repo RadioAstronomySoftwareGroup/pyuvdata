@@ -211,7 +211,6 @@ class CSTBeam(UVBeam):
 
         with open(filename) as out_file:
             line = out_file.readline().strip()  # Get the first line
-            out_file.close()
         raw_names = line.split("]")
         raw_names = [raw_name for raw_name in raw_names if raw_name != ""]
         column_names = []
