@@ -2,10 +2,14 @@
 # Licensed under the 2-clause BSD License
 """Tests for baseline number utility functions."""
 
+import importlib
+
 import numpy as np
 import pytest
 
 import pyuvdata.utils.bls as bl_utils
+
+hasbench = importlib.util.find_spec("pytest_benchmark") is not None
 
 
 class FakeClass:
@@ -35,14 +39,6 @@ def test_antnums_to_baseline_miriad_convention():
         ant1, ant2, Nants_telescope=n_ant, use_miriad_convention=True
     )
     np.testing.assert_allclose(bl, bl_gold)
-
-
-try:
-    import pytest_benchmark  # noqa
-
-    hasbench = True
-except:  # noqa
-    hasbench = False
 
 
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
