@@ -131,7 +131,7 @@ jobs:
 
       - name: Run benchmark
         run: |
-          pytest --benchmark-only --benchmark-json output.json
+          pytest --benchmark-only --benchmark-name=short --benchmark-json output.json
 
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
