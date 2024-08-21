@@ -3306,9 +3306,10 @@ class MirParser:
             sb_arr = np.array(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
             chunk_arr = np.array(file["winArr"][0]).astype(int)  # Spectral win #
             bp_arr = (
-                np.array(file["reBandpassArr"]) + (1j * np.array(file["imBandpassArr"]))
+                np.asarray(file["reBandpassArr"])
+                + (1j * np.asarray(file["imBandpassArr"]))
             ).astype(np.complex64)  # BP gains (3D array)
-            sefd_arr = np.array(file["sefdArr"]) ** 2.0
+            sefd_arr = np.asarray(file["sefdArr"]) ** 2.0
 
             # Parse out the bandpass solutions for each antenna, pol/receiver, and
             # sideband-chunk combination.
@@ -3404,14 +3405,18 @@ class MirParser:
                 index_dict[idx] = None if (len(check) == 0) else inhid_arr[check[0]]
 
             # Pull out some metadata here for parsing the individual solutions
-            flags_arr = np.array(file["flagArr"])  # Per-sphid flags
-            sflags_arr = np.array(file["staticFlagArr"])  # "For all time" flags
-            ant1_arr = np.array(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
-            rx1_arr = np.array(file["rx1Arr"][0]).astype(int)  # Receiver/pol of 1st ant
-            ant2_arr = np.array(file["ant2Arr"][0]).astype(int)  # 2nd ant in baseline
-            rx2_arr = np.array(file["rx2Arr"][0]).astype(int)  # Receiver/pol of 2nd ant
-            sb_arr = np.array(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
-            chunk_arr = np.array(file["winArr"][0]).astype(int)  # Spectral win number
+            flags_arr = np.asarray(file["flagArr"])  # Per-sphid flags
+            sflags_arr = np.asarray(file["staticFlagArr"])  # "For all time" flags
+            ant1_arr = np.asarray(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
+            rx1_arr = np.asarray(file["rx1Arr"][0]).astype(
+                int
+            )  # Receiver/pol of 1st ant
+            ant2_arr = np.asarray(file["ant2Arr"][0]).astype(int)  # 2nd ant in baseline
+            rx2_arr = np.asarray(file["rx2Arr"][0]).astype(
+                int
+            )  # Receiver/pol of 2nd ant
+            sb_arr = np.asarray(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
+            chunk_arr = np.asarray(file["winArr"][0]).astype(int)  # Spectral win number
 
             # Begin unpacking the "static" flags, which are antenna based and are
             # persistent across the entire track. Note that the two loops here are used
