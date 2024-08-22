@@ -3,8 +3,10 @@
 
 """Tests for MWACorrFITS object."""
 
+import importlib
 import itertools
 import os
+import warnings
 
 import h5py
 import numpy as np
@@ -15,6 +17,8 @@ from pyuvdata import UVData
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mwa_corr_fits import input_output_mapping
+
+hasbench = importlib.util.find_spec("pytest_benchmark") is not None
 
 # set up MWA correlator file list
 testdir = os.path.join(DATA_PATH, "mwa_corr_fits_testfiles/")
@@ -1181,3 +1185,55 @@ def test_default_corrections(tmp_path):
     assert "Divided out pfb coarse channel bandpass" in uv2.history
     assert "Applied cable length correction" in uv1.history
     assert "Applied cable length correction" in uv2.history
+
+
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+def test_corr_fits_select_on_read(benchmark):
+    mwa_uv = UVData()
+    mwa_uv2 = UVData()
+    mwa_uv.read(filelist[0:2], correct_cable_len=True)
+    unique_times = np.unique(mwa_uv.time_array)
+    select_times = unique_times[
+        np.where(
+            (unique_times >= np.min(mwa_uv.time_array))
+            & (unique_times <= np.mean(mwa_uv.time_array))
+        )
+    ]
+    mwa_uv.select(times=select_times)
+    # we check warnings earlier here we care about performance.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        benchmark(
+            mwa_uv2.read,
+            filelist[0:2],
+            correct_cable_len=True,
+            time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
+        )
+    assert mwa_uv == mwa_uv2
+
+
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+@pytest.mark.parametrize("cheby", [True, False], ids=lambda x: f"cheby={x:}")
+def test_van_vleck(benchmark, cheby):
+    uv1 = UVData()
+    benchmark(
+        uv1.read,
+        filelist[8:10],
+        flag_init=False,
+        correct_van_vleck=True,
+        cheby_approx=cheby,
+        remove_coarse_band=False,
+        remove_dig_gains=False,
+        remove_flagged_ants=cheby,
+        correct_cable_len=False,
+    )
+    # read in file corrected using integrate.quad with 1e-10 precision
+    uv2 = UVData()
+    uv2.read(filelist[10])
+
+    if cheby:
+        # select only good ants
+        good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
+        uv2.select(antenna_nums=good_ants)
+
+    assert np.allclose(uv1.data_array, uv2.data_array)
