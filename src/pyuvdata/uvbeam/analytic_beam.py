@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2022 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Analytic beam class definitions."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -113,8 +113,7 @@ class AnalyticBeam(ABC):
             for a in dir(self)
             if not a.startswith("_") and not callable(getattr(self, a))
         ]
-        for a in attribute_list:
-            yield a
+        yield from attribute_list
 
     def __eq__(self, other: Any, silent: bool = False) -> bool:
         """Equality method."""
@@ -834,7 +833,7 @@ class ShortDipoleBeam(AnalyticBeam):
 
         if self.Npols > self.Nfeeds:
             # cross pols are included
-            data_array[0, 2] = -np.sin(za_fgrid) ** 2 * np.sin(2.0 * az_fgrid) / 2.0
+            data_array[0, 2] = -(np.sin(za_fgrid) ** 2) * np.sin(2.0 * az_fgrid) / 2.0
             data_array[0, 3] = data_array[0, 2]
 
         return data_array
