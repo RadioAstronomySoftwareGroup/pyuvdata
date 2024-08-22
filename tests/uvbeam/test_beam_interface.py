@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 import copy
@@ -93,10 +92,7 @@ def test_beam_interface(
     nfreqs = 20
     freq_array = np.linspace(100e6, 150e6, nfreqs)
 
-    if "include_cross_pols" in kwargs.keys():
-        include_cross_pols = kwargs["include_cross_pols"]
-    else:
-        include_cross_pols = True
+    include_cross_pols = kwargs.get("include_cross_pols", True)
 
     analytic = beam_obj(**kwargs)
 

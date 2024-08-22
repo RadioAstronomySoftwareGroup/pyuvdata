@@ -1,4 +1,3 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2024 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
@@ -202,8 +201,8 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     expected_data[0, 0] = 1 - np.sin(za_vals) ** 2 * np.cos(az_vals) ** 2
     expected_data[0, 1] = 1 - np.sin(za_vals) ** 2 * np.sin(az_vals) ** 2
-    expected_data[0, 2] = -np.sin(za_vals) ** 2 * np.sin(2.0 * az_vals) / 2.0
-    expected_data[0, 3] = -np.sin(za_vals) ** 2 * np.sin(2.0 * az_vals) / 2.0
+    expected_data[0, 2] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
+    expected_data[0, 3] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
 
     np.testing.assert_allclose(power_vals, expected_data)
 

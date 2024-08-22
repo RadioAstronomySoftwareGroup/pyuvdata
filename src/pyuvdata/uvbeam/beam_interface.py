@@ -1,8 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2022 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 
 """Definition for BeamInterface object."""
+
 from __future__ import annotations
 
 import copy
