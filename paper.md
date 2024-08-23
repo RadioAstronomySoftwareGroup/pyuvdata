@@ -36,8 +36,7 @@ authors:
    orcid: 0000-0002-3492-0433
    affiliation: 9
  - name: Pyxie Star
-   orcid: XXXX-XXXX-XXXX-XXXX
-   affiliation: 2
+   affiliation: 3
 affiliations:
  - name: Center for Astrophysics | Harvard & Smithsonian
    index: 1
@@ -67,10 +66,10 @@ feature-rich interface for many of the different data formats that exist within 
 interferometry, including support for reading and writing UVH5 [@uvh5], UVFITS
 [@uvfits], MIRIAD [@miriad], and measurement set [@ms] visibility files; and reading of
 FHD [@fhd] and MIR [@mir] visibility save files. Additionally, pyuvdata supports reading
-and writing measurement set, CalFITS [@calfits], and CalH5 (Hazelton et al., _in prep_)
-calibration solutions; and reading of FHD calibration solutions. pyuvdata also provides
-interfaces for and handling of models of antenna primary beams, including reading and
-writing of BeamFITS [@beamfits], and reading CST and MWA beam formats, as well as for flags.
+and writing measurement set, CalFITS [@calfits], and CalH5 [@calh5] calibration
+solutions; and reading of FHD calibration solutions. pyuvdata also provides interfaces
+for and handling of models of antenna primary beams, including reading and writing of
+BeamFITS [@beamfits], and reading CST and MWA beam formats, as well as for flags.
 
 # Statement of Need
 There are several standard formats for astronomical interferometric data, but
