@@ -176,41 +176,53 @@ def test_beam_interface(
 
 
 @pytest.mark.parametrize(
-    ["bi1", "bi2", "equality"],
+    ["bi1", "bi2", "equality", "msg"],
     [
         [
             BeamInterface(ShortDipoleBeam(), beam_type="efield"),
             BeamInterface(ShortDipoleBeam(), beam_type="efield"),
             True,
+            None,
         ],
         [
             BeamInterface(ShortDipoleBeam(), beam_type="efield"),
             BeamInterface(ShortDipoleBeam(), beam_type="power"),
             False,
+            "Beam types do not match. Left is efield, right is power.",
         ],
         [
             BeamInterface(ShortDipoleBeam(), beam_type="efield"),
             BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
             False,
+            "Classes do not match",
         ],
         [
             BeamInterface(AiryBeam(diameter=12.0), beam_type="efield"),
             BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
             False,
+            "attribute diameter does not match. Left is 12.0, right is 14.0.\n"
+            "Beams do not match.",
         ],
         [
             BeamInterface(ShortDipoleBeam(), beam_type="efield"),
             ShortDipoleBeam(),
             False,
+            "Classes do not match",
         ],
     ],
 )
-def test_beam_interface_equality(bi1, bi2, equality):
+def test_beam_interface_equality(capsys, bi1, bi2, equality, msg):
+    if isinstance(bi1, BeamInterface) and isinstance(bi1.beam, AiryBeam):
+        bi1.beam.name = "Analytic Airy"
+    if isinstance(bi2, BeamInterface) and isinstance(bi2.beam, AiryBeam):
+        bi2.beam.name = "Analytic Airy"
     if equality:
         assert bi1 == bi2
     else:
         assert bi1 != bi2
         assert not bi1 == bi2  # noqa SIM201
+        captured = capsys.readouterr()
+        assert captured.out.startswith(msg)
 
 
 def test_beam_interface_errors():

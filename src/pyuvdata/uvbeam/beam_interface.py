@@ -99,7 +99,7 @@ class BeamInterface:
             # If analytic, also check that the beam_type is the same
             if self.beam.__ne__(other.beam, silent=silent):
                 if not silent:
-                    print("Beams do not match. ")
+                    print("Beams do not match.")
                 return False
             if not self._isuvbeam and self.beam_type != other.beam_type:
                 if not silent:
