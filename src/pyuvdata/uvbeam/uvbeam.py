@@ -1307,14 +1307,18 @@ class UVBeam(UVBase):
 
         return tuple(interp_arrays)
 
-    def _prepare_freq_interpolation(
+    def _handle_input_for_freq_interpolation(
         self, freq_array, *, freq_interp_kind="cubic", freq_interp_tol=1.0
     ):
         """
-        Perform frequency interpolation of the beam.
+        Handle "interp" inputs prior to calling "_interp_freq".
 
-        This helper function handles the frequency interpolation prior to performing
-        interpolation along the azimuth/zenith angle axes.
+        This helper function that is used by the az_za and healpix beam
+        interpolation methods. Prior to performing interpolation along the
+        azimuth/zenith angle axes, this function checks if the provided frequency
+        array is not None. If it is not None, it performs frequency interpolation
+        using "_interp_freq". If the frequency array is None, it returns the
+        intrinsic data array and bandpass array.
         """
         if freq_array is not None:
             assert isinstance(freq_array, np.ndarray)
@@ -1534,7 +1538,7 @@ class UVBeam(UVBase):
             interp_coupling_matrix,
             input_nfreqs,
             freq_array,
-        ) = self._prepare_freq_interpolation(
+        ) = self._handle_input_for_freq_interpolation(
             freq_array=freq_array,
             freq_interp_kind=freq_interp_kind,
             freq_interp_tol=freq_interp_tol,
@@ -1565,7 +1569,7 @@ class UVBeam(UVBase):
         # Prepare the data for interpolation
         data_use, phi_use, theta_use = self._prepare_coordinate_data(input_data_array)
 
-        # Prepate basis functions
+        # Prepare basis functions
         interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
 
         # Get number of polarizations and indices
@@ -1655,7 +1659,7 @@ class UVBeam(UVBase):
         reuse_spline: bool = False,
     ):
         """
-        Interpolate in az_za coordinate system using RectBivariateSpline.
+        Interpolate in az_za coordinate system using map_coordinates.
 
         Uses the :func:`scipy.ndimage.map_coordinates` function to perform
         interpolation in the azimuth-zenith angle coordinate system.
@@ -1713,7 +1717,7 @@ class UVBeam(UVBase):
             interp_coupling_matrix,
             input_nfreqs,
             freq_array,
-        ) = self._prepare_freq_interpolation(
+        ) = self._handle_input_for_freq_interpolation(
             freq_array=freq_array,
             freq_interp_kind=freq_interp_kind,
             freq_interp_tol=freq_interp_tol,
@@ -1876,7 +1880,7 @@ class UVBeam(UVBase):
             interp_coupling_matrix,
             input_nfreqs,
             freq_array,
-        ) = self._prepare_freq_interpolation(
+        ) = self._handle_input_for_freq_interpolation(
             freq_array=freq_array,
             freq_interp_kind=freq_interp_kind,
             freq_interp_tol=freq_interp_tol,
