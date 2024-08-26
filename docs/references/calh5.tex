@@ -41,6 +41,33 @@ information about the parameters present in a \texttt{UVCal} object, please visi
 Examples of how to interact with \texttt{UVCal} objects in \texttt{pyuvdata} are
 available at \url{https://pyuvdata.readthedocs.io/en/latest/tutorial.html}.
 
+Calibration solutions for radio interferometers can be quite diverse in terms of how
+they are calculated and represented and, as a result, there are several different flavors
+of \texttt{UVCal} objects which can vary in the shapes of data and metadata arrays
+and/or by which metadata are required to present. These variations are discussed for
+each of the affected datasets below, but we give a high-level description here to
+help orient the reader. The biggest difference in terms of array shapes is whether the
+calibration solution is calculated per frequency or over a wider bandwidth, which is
+encoded in the \textbf{wide\_band} parameter. All delay style calibration solutions
+(encoded in the \textbf{cal\_type} parameter) are wide band (since the calibration
+is calculated as a single time delay per antenna across a wide band) but gain style
+calibration solutions can also be wide band in some cases. For wide band calibration
+solutions, the frequency axis is replaced with a spectral window axis. The name of the
+primary calibration data array also depend on the \textbf{cal\_type}, it is complex-valued
+and called the \textbf{gain\_array} for gain style calibrations and is real valued and
+called the \textbf{delay\_array} for delay style calibrations. Another important difference
+is whether the calibration solutions are calculated per time integration or over a range
+of times. If the solutions are calculated per integration, the solution times are stored in the
+\textbf{time\_array} parameter, otherwise they are stored in the \textbf{time\_range}
+parameter, which has a second axis of length 2 to record the beginning and ending
+time for each time range. Finally, there are some metadata parameters that are
+only required if the calibration solutions were calculated using a sky model to predict
+model visibilities as opposed to using redundant calibration only (this difference is
+encoded in the \textbf{cal\_style} parameter). There are also a few parameters that
+do not affect the shapes or presence of data or metadata but are very important for
+how the data are interpreted. These include the \textbf{gain\_convention},
+\textbf{x\_orientation}, \textbf{gain\_scale} and \textbf{pol\_convention} parameters.
+
 Note that throughout the documentation, we assume a row-major convention (i.e.,
 C-ordering) for the dimension specification of multi-dimensional arrays. For
 example, for a two-dimensional array with shape ($N$, $M$), the $M$-dimension is
@@ -194,10 +221,6 @@ implementations.
   file. (\textit{history})
 
 \end{itemize}
-
-
-
-
 
 \subsection{Optional Parameters}
 \label{sec:opt_params}
