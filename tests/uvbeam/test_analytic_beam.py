@@ -291,29 +291,65 @@ def test_eval_errors(az_za_deg_grid):
 
 
 @pytest.mark.parametrize(
-    ["compare_beam", "equality", "operation"],
+    ["compare_beam", "equality", "operation", "msg"],
     [
-        [UVBeam(), False, None],
-        [UniformBeam(), False, None],
-        [GaussianBeam(sigma=0.05), False, None],
+        [UVBeam(), False, None, "Classes do not match"],
+        [UniformBeam(), False, None, "Classes do not match"],
+        [
+            GaussianBeam(sigma=0.05),
+            False,
+            None,
+            "attribute sigma does not match. Left is 0.02, right is 0.05.",
+        ],
         [
             GaussianBeam(sigma=0.02, reference_frequency=100e8, spectral_index=-1.5),
             False,
             None,
+            "attribute",
         ],
-        [GaussianBeam(sigma=0.02), True, None],
-        [GaussianBeam(sigma=0.02), False, "del_attr"],
-        [GaussianBeam(sigma=0.02), False, "change_attr_type"],
-        [GaussianBeam(sigma=0.02), False, "change_array_shape"],
-        [GaussianBeam(sigma=0.02), False, "change_num_array_vals"],
-        [GaussianBeam(sigma=0.02), False, "change_str_array_vals"],
+        [GaussianBeam(sigma=0.02), True, None, None],
+        [
+            GaussianBeam(sigma=0.02),
+            False,
+            "del_attr",
+            "Sets of parameters do not match",
+        ],
+        [
+            GaussianBeam(sigma=0.02),
+            False,
+            "change_attr_type",
+            "attribute feed_array are not the same types",
+        ],
+        [
+            GaussianBeam(sigma=0.02),
+            False,
+            "change_array_shape",
+            "attribute polarization_array do not have the same shapes",
+        ],
+        [
+            GaussianBeam(sigma=0.02),
+            False,
+            "change_num_array_vals",
+            "attribute polarization_array does not match",
+        ],
+        [
+            GaussianBeam(sigma=0.02),
+            False,
+            "change_str_array_vals",
+            "attribute feed_array does not match after converting string numpy "
+            "array to list",
+        ],
     ],
 )
-def test_comparison(compare_beam, equality, operation):
+def test_comparison(capsys, compare_beam, equality, operation, msg):
     """
     Beam __eq__ method
     """
     beam = GaussianBeam(sigma=0.02)
+    beam.name = "Analytic Gaussian"
+
+    if isinstance(compare_beam, GaussianBeam):
+        compare_beam.name = "Analytic Gaussian"
 
     if operation == "del_attr":
         del compare_beam.spectral_index
@@ -330,6 +366,9 @@ def test_comparison(compare_beam, equality, operation):
         assert beam == compare_beam
     else:
         assert beam != compare_beam
+        assert not beam == compare_beam  # noqa SIM201
+        captured = capsys.readouterr()
+        assert captured.out.startswith(msg)
 
 
 @pytest.mark.parametrize(
