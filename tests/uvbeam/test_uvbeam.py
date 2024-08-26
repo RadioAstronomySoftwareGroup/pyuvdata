@@ -1112,7 +1112,10 @@ def test_spatial_interp_cutsky(beam_type, cst_power_2freq_cut, cst_efield_2freq_
     assert select_beam == interp_beam
 
 
-def test_spatial_interpolation_errors(cst_power_2freq_cut):
+@pytest.mark.parametrize(
+    "interpolation_function", ["az_za_simple", "az_za_map_coordinates"]
+)
+def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cut):
     uvbeam = cst_power_2freq_cut
 
     az_interp_vals = np.array(
@@ -1131,7 +1134,10 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         "the UVBeam freq_array range.",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals, freq_array=np.array([100])
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            freq_array=np.array([100]),
+            interpolation_function=interpolation_function,
         )
 
     # test errors if frequency interp values outside range
@@ -1139,17 +1145,29 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         ValueError,
         match="If az_za_grid is set to True, az_array and za_array must be provided.",
     ):
-        uvbeam.interp(az_za_grid=True, freq_array=freq_interp_vals)
+        uvbeam.interp(
+            az_za_grid=True,
+            freq_array=freq_interp_vals,
+            interpolation_function=interpolation_function,
+        )
     # test errors if positions outside range
     with pytest.raises(
         ValueError,
         match="at least one interpolation location "
         "is outside of the UVBeam pixel coverage.",
     ):
-        uvbeam.interp(az_array=az_interp_vals, za_array=za_interp_vals + np.pi / 2)
+        uvbeam.interp(
+            az_array=az_interp_vals,
+            za_array=za_interp_vals + np.pi / 2,
+            interpolation_function=interpolation_function,
+        )
 
     # test no errors only frequency interpolation
-    _, _ = uvbeam.interp(freq_array=freq_interp_vals, freq_interp_kind="linear")
+    _, _ = uvbeam.interp(
+        freq_array=freq_interp_vals,
+        freq_interp_kind="linear",
+        interpolation_function=interpolation_function,
+    )
 
     # assert polarization value error
     with pytest.raises(
@@ -1157,7 +1175,10 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="Requested polarization 1 not found in self.polarization_array",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals, polarizations=["pI"]
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            polarizations=["pI"],
+            interpolation_function=interpolation_function,
         )
 
     # test error returning coupling matrix for simple antenna_types
@@ -1166,8 +1187,15 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         match="return_coupling can only be set if antenna_type is phased_array",
     ):
         uvbeam.interp(
-            az_array=az_interp_vals, za_array=za_interp_vals, return_coupling=True
+            az_array=az_interp_vals,
+            za_array=za_interp_vals,
+            return_coupling=True,
+            interpolation_function=interpolation_function,
         )
+
+
+def test_spatial_interpolation_map_coordinates_errors(cst_power_2freq_cut):
+    uvbeam = cst_power_2freq_cut
 
     # Check that error is raised if the input beam is not on a regular grid
     # and spatial_interp_func="map_coordinates" is used
@@ -1177,6 +1205,14 @@ def test_spatial_interpolation_errors(cst_power_2freq_cut):
         za_array=uvbeam.axis2_array,
         new_object=True,
         az_za_grid=True,
+    )
+
+    az_interp_vals = np.array(
+        np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+        + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
+    )
+    za_interp_vals = np.array(
+        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros(18) + np.pi / 36).tolist()
     )
 
     # test error returning coupling matrix for simple antenna_types
