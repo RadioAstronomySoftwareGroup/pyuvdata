@@ -847,16 +847,16 @@ def test_spatial_interpolation_samepoints(
     interp_data_array, interp_basis_vector = uvbeam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
     )
-
-    interp_data_array2, interp_basis_vector2 = uvbeam.interp(
-        az_array=az_orig_vals,
-        za_array=za_orig_vals,
-        freq_array=freq_orig_vals,
-        interpolation_function="az_za_simple",
-    )
-    assert np.allclose(interp_data_array, interp_data_array2)
-    if beam_type == "efield":
-        assert np.allclose(interp_basis_vector, interp_basis_vector2)
+    for interpolation_function in ["az_za_simple", "az_za_map_coordinates"]:
+        interp_data_array2, interp_basis_vector2 = uvbeam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            interpolation_function=interpolation_function,
+        )
+        assert np.allclose(interp_data_array, interp_data_array2)
+        if beam_type == "efield":
+            assert np.allclose(interp_basis_vector, interp_basis_vector2)
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
     assert np.allclose(uvbeam.data_array, interp_data_array)
