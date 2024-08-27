@@ -606,7 +606,12 @@ def test_efield_to_power_errors(cst_efield_2freq_cut, cst_power_2freq_cut):
 
 
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2freq):
+@pytest.mark.parametrize(
+    "interpolation_function", ["az_za_simple", "az_za_map_coordinates"]
+)
+def test_freq_interpolation(
+    antenna_type, interpolation_function, cst_power_2freq, phased_array_beam_2freq
+):
     if antenna_type == "simple":
         beam = cst_power_2freq
     else:
@@ -623,6 +628,7 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
         freq_interp_kind="linear",
         return_bandpass=True,
         return_coupling=need_coupling,
+        interpolation_function=interpolation_function,
     )
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
@@ -650,6 +656,7 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
         freq_interp_kind="cubic",
         return_bandpass=True,
         return_coupling=need_coupling,
+        interpolation_function=interpolation_function,
     )
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
@@ -692,6 +699,7 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
             freq_interp_tol=0.0,
             new_object=True,
             freq_interp_kind="linear",
+            interpolation_function=interpolation_function,
         )
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
     assert not hasattr(new_beam_obj, "saved_interp_functions")
@@ -709,6 +717,7 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
             freq_interp_tol=1.0,
             freq_interp_kind="cubic",
             new_object=True,
+            interpolation_function=interpolation_function,
         )
     assert isinstance(new_beam_obj, UVBeam)
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
@@ -731,6 +740,7 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
             freq_interp_tol=0.0,
             freq_interp_kind="linear",
             new_object=True,
+            interpolation_function=interpolation_function,
         )
 
     assert isinstance(new_beam_obj, UVBeam)
@@ -770,7 +780,9 @@ def test_freq_interpolation(antenna_type, cst_power_2freq, phased_array_beam_2fr
     with pytest.raises(
         ValueError, match="Only one frequency in UVBeam so cannot interpolate."
     ):
-        beam_singlef.interp(freq_array=np.array([150e6]))
+        beam_singlef.interp(
+            freq_array=np.array([150e6]), interpolation_function=interpolation_function
+        )
 
 
 def test_freq_interp_real_and_complex(cst_power_2freq):
@@ -1352,6 +1364,21 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             interpolation_function="az_za_simple",
+        )
+
+    # test error with using an incompatible interpolation function
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "pixel_coordinate_system must be 'az_za' to use this interpolation "
+            "function"
+        ),
+    ):
+        interp_data_array, _ = hpx_efield_beam.interp(
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            freq_array=freq_orig_vals,
+            interpolation_function="az_za_map_coordinates",
         )
 
     # test that interp to every other point returns an object that matches a select
