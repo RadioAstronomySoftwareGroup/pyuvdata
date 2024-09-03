@@ -2285,24 +2285,25 @@ class MirMetaData:
         )
 
         if self._binary_dtype is not None:
-            try:
-                self._data = self._data.astype(self.dtype)
-            except UnicodeDecodeError:
-                # If we get a unicode error, that means that we have chars that are not
-                # in the 'normal' ascii range. This is a not uncommon occurrence in the
-                # codes_read, where char arrays contained uninitialized memory values.
-                # We only need to do this check for string-like fields.
-                check_fields = [
-                    idx
-                    for idx in range(len(codes_dtype))
-                    if np.issubdtype(codes_dtype[idx], np.str_)
-                ]
-                for idx in range(len(self._data)):
-                    for jdx in check_fields:
-                        marker = self._data[idx][jdx].find(b"\x00")
-                        if marker > 0:
-                            self._data[idx][jdx] = self._data[idx][jdx][:marker]
-                self._data = self._data.astype(self.dtype)
+            # In MIR data, strings are null terminated, and in older data the memory
+            # after the null was often not cleared (such that you could see fragments
+            # of older data). Since this can sometimes produce unicode errors, we do
+            # some special handling for strings in order to lop off any garbage values.
+            # This is a semi-common occurrence in the codes_read, particular in older
+            # data, where char arrays contained uninitialized memory values.
+
+            # We only need to do this check for string-like fields.
+            check_fields = [
+                idx
+                for idx in range(len(codes_dtype))
+                if np.issubdtype(codes_dtype[idx], np.str_)
+            ]
+            for idx in range(len(self._data)):
+                for jdx in check_fields:
+                    marker = self._data[idx][jdx].find(b"\x00")
+                    if marker >= 0:
+                        self._data[idx][jdx] = self._data[idx][jdx][:marker]
+            self._data = self._data.astype(self.dtype)
 
         self._mask = np.ones(self._size, dtype=bool)
         self._set_header_key_index_dict()
