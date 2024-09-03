@@ -2146,13 +2146,14 @@ class MirParser:
                 for iband in unique_bands:
                     try:
                         ac_idx = ac_groups[(inhid, ant1rx, isb, iband)]
+                        # Pull together all the sphid entries that are in this group,
+                        # then add it to a list for handling later.
+                        sp_idx = [sp_groups[(blhid, iband)] for blhid in blhid_arr]
                     except KeyError:
                         # If we have a key error, it means there are no entries with
                         # this receiver, sideband, band at this inhid, so just skip it.
                         continue
-                    # Pull together all the sphid entries that are in this group, then
-                    # add it to a list for handling later.
-                    sp_idx = [sp_groups[(blhid, iband)] for blhid in blhid_arr]
+
                     try:
                         metablock_dict[(ant1rx, isb, iband)]["ac_idx"].append(ac_idx)
                         metablock_dict[(ant1rx, isb, iband)]["sp_idx"].append(sp_idx)
