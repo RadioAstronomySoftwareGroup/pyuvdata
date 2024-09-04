@@ -1206,42 +1206,6 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
         )
 
 
-def test_spatial_interpolation_map_coordinates_errors(cst_power_2freq_cut):
-    uvbeam = cst_power_2freq_cut
-
-    # Check that error is raised if the input beam is not on a regular grid
-    # and spatial_interp_func="map_coordinates" is used
-    az_array_uneven = np.array([0.1, 0.5, 0.56, 0.9])
-    new_beam = uvbeam.interp(
-        az_array=az_array_uneven,
-        za_array=uvbeam.axis2_array,
-        new_object=True,
-        az_za_grid=True,
-    )
-
-    az_interp_vals = np.array(
-        np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
-        + np.arange(0, 2 * np.pi, np.pi / 9.0).tolist()
-    )
-    za_interp_vals = np.array(
-        (np.zeros((18)) + np.pi / 18).tolist() + (np.zeros(18) + np.pi / 36).tolist()
-    )
-
-    # test error returning coupling matrix for simple antenna_types
-    with pytest.raises(
-        ValueError,
-        match=(
-            "axis1_array and axis2_array must be evenly "
-            "spaced for map_coordinates interpolation"
-        ),
-    ):
-        new_beam.interp(
-            az_array=az_interp_vals,
-            za_array=za_interp_vals,
-            interpolation_function="az_za_map_coordinates",
-        )
-
-
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2freq):
     if beam_type == "power":
@@ -1728,16 +1692,8 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    with check_warnings(
-        UserWarning, "Selected values along first image axis are not evenly spaced"
-    ):
-        power_beam2.select(axis1_inds=[0, 5, 6])
-    with pytest.raises(
-        ValueError,
-        match="The pixels are not evenly spaced along first axis. "
-        "The beam fits format does not support unevenly spaced pixels.",
-    ):
-        power_beam2.write_beamfits(write_file_beamfits)
+    with pytest.raises(ValueError, match="axis1_array must be evenly spaced"):
+        power_beam2.select(axis1_inds=[0, 5, 6], inplace=False)
 
     # Test selecting on axis2
     inds2_to_keep = np.arange(5, 14)
@@ -1770,16 +1726,8 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    with check_warnings(
-        UserWarning, "Selected values along second image axis are not evenly spaced"
-    ):
+    with pytest.raises(ValueError, match="axis2_array must be evenly spaced in az_za"):
         power_beam2.select(axis2_inds=[0, 5, 6])
-    with pytest.raises(
-        ValueError,
-        match="The pixels are not evenly spaced along second axis. "
-        "The beam fits format does not support unevenly spaced pixels.",
-    ):
-        power_beam2.write_beamfits(write_file_beamfits)
 
 
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])

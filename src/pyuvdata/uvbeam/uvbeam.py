@@ -845,6 +845,9 @@ class UVBeam(UVBase):
         # Check if the interpolation points are evenly-spaced
         if self.pixel_coordinate_system == "az_za":
             for i, ax in enumerate((self.axis1_array, self.axis2_array)):
+                if len(ax) < 3:
+                    continue
+
                 diff = np.diff(ax)
                 if not np.allclose(diff, diff[0]):
                     raise ValueError(
