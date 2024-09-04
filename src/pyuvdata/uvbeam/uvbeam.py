@@ -844,12 +844,12 @@ class UVBeam(UVBase):
 
         # Check if the interpolation points are evenly-spaced
         if self.pixel_coordinate_system == "az_za":
-            for i, ax in enumerate((self.axis1_array, self.axis2_array)):
+            for i, ax_param in enumerate((self._axis1_array, self._axis2_array)):
+                ax = ax_param.value
                 if len(ax) < 3:
                     continue
 
-                diff = np.diff(ax)
-                if not np.allclose(diff, diff[0]):
+                if not utils.tools._test_array_constant_spacing(ax, tols=ax_param.tols):
                     raise ValueError(
                         f"axis{i+1}_array must be evenly spaced in az_za coordinates."
                     )
@@ -3156,17 +3156,16 @@ class UVBeam(UVBase):
             axis1_inds = sorted(set(axis1_inds))
             if min(axis1_inds) < 0 or max(axis1_inds) > beam_object.Naxes1 - 1:
                 raise ValueError("axis1_inds must be > 0 and < Naxes1")
+
+            if len(axis1_inds) > 1 and not utils.tools._test_array_constant_spacing(
+                beam_object.axis1_array[axis1_inds], tols=beam_object._axis1_array.tols
+            ):
+                raise ValueError(
+                    "Selected values along first image axis must be evenly spaced."
+                )
+
             beam_object.Naxes1 = len(axis1_inds)
             beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
-
-            if beam_object.Naxes1 > 1 and not utils.tools._test_array_constant_spacing(
-                beam_object._axis1_array
-            ):
-                warnings.warn(
-                    "Selected values along first image axis are "
-                    "not evenly spaced. This is not supported by "
-                    "the regularly gridded beam fits format"
-                )
 
             beam_object.data_array = beam_object.data_array[..., axis1_inds]
             if beam_object.beam_type == "efield":
@@ -3189,17 +3188,16 @@ class UVBeam(UVBase):
             axis2_inds = sorted(set(axis2_inds))
             if min(axis2_inds) < 0 or max(axis2_inds) > beam_object.Naxes2 - 1:
                 raise ValueError("axis2_inds must be > 0 and < Naxes2")
+
+            if len(axis2_inds) > 1 and not utils.tools._test_array_constant_spacing(
+                beam_object.axis2_array[axis2_inds], tols=beam_object._axis2_array.tols
+            ):
+                raise ValueError(
+                    "Selected values along second image axis must be evenly spaced."
+                )
+
             beam_object.Naxes2 = len(axis2_inds)
             beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
-
-            if beam_object.Naxes2 > 1 and not utils.tools._test_array_constant_spacing(
-                beam_object._axis2_array
-            ):
-                warnings.warn(
-                    "Selected values along second image axis are "
-                    "not evenly spaced. This is not supported by "
-                    "the regularly gridded beam fits format"
-                )
 
             beam_object.data_array = beam_object.data_array[..., axis2_inds, :]
             if beam_object.beam_type == "efield":

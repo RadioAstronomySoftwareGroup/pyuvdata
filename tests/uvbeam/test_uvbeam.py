@@ -1692,7 +1692,10 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    with pytest.raises(ValueError, match="axis1_array must be evenly spaced"):
+    with pytest.raises(
+        ValueError,
+        match="Selected values along first image axis must be evenly spaced.",
+    ):
         power_beam2.select(axis1_inds=[0, 5, 6], inplace=False)
 
     # Test selecting on axis2
@@ -1726,7 +1729,10 @@ def test_select_axis(cst_power_1freq, tmp_path):
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
-    with pytest.raises(ValueError, match="axis2_array must be evenly spaced in az_za"):
+    with pytest.raises(
+        ValueError,
+        match="Selected values along second image axis must be evenly spaced.",
+    ):
         power_beam2.select(axis2_inds=[0, 5, 6])
 
 
