@@ -359,6 +359,20 @@ def test_check_auto_power_errors(cst_efield_2freq_cut):
         cst_efield_2freq_cut._fix_auto_power()
 
 
+def test_check_irregular_grid_az_za_errors(cst_efield_2freq_cut):
+    for param_name in ("axis1_array", "axis2_array"):
+        uvb = cst_efield_2freq_cut.copy()
+        arr_val = getattr(uvb, param_name)
+        arr_val[0] += 0.01
+        setattr(uvb, param_name, arr_val)
+
+        with pytest.raises(
+            ValueError,
+            match=f"{param_name} must be evenly spaced in az_za coordinates.",
+        ):
+            uvb.check()
+
+
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
 def test_peak_normalize(beam_type, cst_efield_2freq, cst_power_2freq):
     if beam_type == "efield":
