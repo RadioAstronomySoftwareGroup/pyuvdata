@@ -839,8 +839,15 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power", "phased_array"])
+@pytest.mark.parametrize(
+    "interpolation_function", ["az_za_simple", "az_za_map_coordinates", None]
+)
 def test_spatial_interpolation_samepoints(
-    beam_type, cst_power_2freq_cut, cst_efield_2freq_cut, phased_array_beam_2freq
+    cst_power_2freq_cut,
+    cst_efield_2freq_cut,
+    phased_array_beam_2freq,
+    beam_type,
+    interpolation_function,
 ):
     """
     check that interpolating to existing points gives the same answer
@@ -857,20 +864,12 @@ def test_spatial_interpolation_samepoints(
     za_orig_vals = za_orig_vals.ravel(order="C")
     freq_orig_vals = np.array([123e6, 150e6])
 
-    # test defaulting works if no interpolation function is set
     interp_data_array, interp_basis_vector = uvbeam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        freq_array=freq_orig_vals,
+        interpolation_function=interpolation_function,
     )
-    for interpolation_function in ["az_za_simple", "az_za_map_coordinates"]:
-        interp_data_array2, interp_basis_vector2 = uvbeam.interp(
-            az_array=az_orig_vals,
-            za_array=za_orig_vals,
-            freq_array=freq_orig_vals,
-            interpolation_function=interpolation_function,
-        )
-        assert np.allclose(interp_data_array, interp_data_array2)
-        if beam_type == "efield":
-            assert np.allclose(interp_basis_vector, interp_basis_vector2)
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
     assert np.allclose(uvbeam.data_array, interp_data_array)
@@ -895,8 +894,7 @@ def test_spatial_interpolation_samepoints(
             interpolation_function="healpix_simple",
         )
 
-    # test warning if interpolation_function is set differently on object and in
-    # function call and error if not set to known function
+    # test error if not set to known function
     with pytest.raises(
         ValueError, match="interpolation_function not recognized, must be one of "
     ):
@@ -928,12 +926,14 @@ def test_spatial_interpolation_samepoints(
             az_za_grid=True,
             freq_array=freq_orig_vals,
             new_object=True,
+            interpolation_function=interpolation_function,
         )
+    interp_fn_str = interpolation_function
+    if interpolation_function is None:
+        interp_fn_str = "az_za_simple"
     assert new_beam.history == (
-        uvbeam.history + " Interpolated in "
-        "frequency and to a new azimuth/zenith "
-        "angle grid using pyuvdata with "
-        "interpolation_function = az_za_simple "
+        uvbeam.history + " Interpolated in frequency and to a new azimuth/zenith "
+        f"angle grid using pyuvdata with interpolation_function = {interp_fn_str} "
         "and freq_interp_kind = nearest."
     )
     # make histories & freq_interp_kind equal
@@ -950,6 +950,7 @@ def test_spatial_interpolation_samepoints(
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             new_object=True,
+            interpolation_function=interpolation_function,
         )
 
     if beam_type == "power":
@@ -959,6 +960,7 @@ def test_spatial_interpolation_samepoints(
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             polarizations=["xx"],
+            interpolation_function=interpolation_function,
         )
 
         data_array_compare = uvbeam.data_array[:, :1]
