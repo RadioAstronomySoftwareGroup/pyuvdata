@@ -842,6 +842,15 @@ class UVBeam(UVBase):
                     "files"
                 )
 
+        # Check if the interpolation points are evenly-spaced
+        if self.pixel_coordinate_system == "az_za":
+            for i, ax in enumerate((self.axis1_array, self.axis2_array)):
+                diff = np.diff(ax)
+                if not np.allclose(diff, diff[0]):
+                    raise ValueError(
+                        f"axis{i+1}_array must be evenly spaced in az_za coordinates."
+                    )
+
         return True
 
     def peak_normalize(self):
@@ -1746,17 +1755,6 @@ class UVBeam(UVBase):
 
         # Prepare the data for interpolation
         data_use, phi_use, theta_use = self._prepare_coordinate_data(input_data_array)
-
-        # Check if the interpolation points are evenly-spaced
-        axis1_diff = np.diff(phi_use)
-        axis2_diff = np.diff(theta_use)
-        if not np.allclose(axis1_diff, axis1_diff[0]) or not np.allclose(
-            axis2_diff, axis2_diff[0]
-        ):
-            raise ValueError(
-                "axis1_array and axis2_array must be evenly spaced for "
-                "map_coordinates interpolation"
-            )
 
         # Prepare basis functions
         interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
