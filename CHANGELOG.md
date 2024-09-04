@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- New spatial interpolation method to `UVBeam.interp` that improves that linear interpolation speed of `_interp_az_za_rect_spline`
+- New optional spatial interpolation method, ``interpolation_function="az_za_map_coordinates"`` that improves the linear
+interpolation speed for data in ``az_za`` coordinates.
 - New UVParameter `pol_convention` on `UVData` and `UVCal`. This specifies the convention
 assumed for converting linear to stokes polarizations -- either "sum" or "avg". Also
 added to `uvcalibrate` to apply from the `UVCal` to the `UVData`.
