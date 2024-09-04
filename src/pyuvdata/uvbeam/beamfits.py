@@ -547,23 +547,11 @@ class BeamFITS(UVBeam):
         else:
             ax_nums = reg_primary_ax_nums
             if self.Naxes1 > 1:
-                if not utils.tools._test_array_constant_spacing(self._axis1_array):
-                    raise ValueError(
-                        "The pixels are not evenly spaced along first axis. "
-                        "The beam fits format does not support "
-                        "unevenly spaced pixels."
-                    )
                 axis1_spacing = self.axis1_array[1] - self.axis1_array[0]
             else:
                 axis1_spacing = 1
 
             if self.Naxes2 > 1:
-                if not utils.tools._test_array_constant_spacing(self._axis2_array):
-                    raise ValueError(
-                        "The pixels are not evenly spaced along second axis. "
-                        "The beam fits format does not support "
-                        "unevenly spaced pixels."
-                    )
                 axis2_spacing = self.axis2_array[1] - self.axis2_array[0]
             else:
                 axis2_spacing = 1
