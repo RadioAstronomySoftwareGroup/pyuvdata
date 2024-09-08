@@ -158,7 +158,7 @@ def test_beam_interface(
         az_array=az_vals, za_array=za_vals, freq_array=freqs, az_za_grid=True
     )
 
-    if not (coord_sys == "healpix" and "dipole" in beam_obj.name.lower()):
+    if not (coord_sys == "healpix" and isinstance(analytic, ShortDipoleBeam)):
         np.testing.assert_allclose(analytic_data, uvb_data, rtol=0, atol=1e-1)
     else:
         # the comparison falls apart at zenith because there's no healpix
@@ -173,56 +173,6 @@ def test_beam_interface(
             rtol=0,
             atol=1e-1,
         )
-
-
-@pytest.mark.parametrize(
-    ["bi1", "bi2", "equality", "msg"],
-    [
-        [
-            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
-            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
-            True,
-            None,
-        ],
-        [
-            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
-            BeamInterface(ShortDipoleBeam(), beam_type="power"),
-            False,
-            "Beam types do not match. Left is efield, right is power.",
-        ],
-        [
-            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
-            BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
-            False,
-            "Classes do not match",
-        ],
-        [
-            BeamInterface(AiryBeam(diameter=12.0), beam_type="efield"),
-            BeamInterface(AiryBeam(diameter=14.0), beam_type="efield"),
-            False,
-            "attribute diameter does not match. Left is 12.0, right is 14.0.\n"
-            "Beams do not match.",
-        ],
-        [
-            BeamInterface(ShortDipoleBeam(), beam_type="efield"),
-            ShortDipoleBeam(),
-            False,
-            "Classes do not match",
-        ],
-    ],
-)
-def test_beam_interface_equality(capsys, bi1, bi2, equality, msg):
-    if isinstance(bi1, BeamInterface) and isinstance(bi1.beam, AiryBeam):
-        bi1.beam.name = "Analytic Airy"
-    if isinstance(bi2, BeamInterface) and isinstance(bi2.beam, AiryBeam):
-        bi2.beam.name = "Analytic Airy"
-    if equality:
-        assert bi1 == bi2
-    else:
-        assert bi1 != bi2
-        assert not bi1 == bi2  # noqa SIM201
-        captured = capsys.readouterr()
-        assert captured.out.startswith(msg)
 
 
 def test_beam_interface_errors():

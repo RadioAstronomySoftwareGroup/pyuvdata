@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import copy
 import warnings
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -21,6 +22,7 @@ from .uvbeam import UVBeam
 #  - efield_to_pstokes
 
 
+@dataclass
 class BeamInterface:
     """
     Definition for a unified beam interface.
@@ -41,6 +43,9 @@ class BeamInterface:
         Ignored otherwise (the cross pol inclusion is set by the beam object.)
 
     """
+
+    beam: AnalyticBeam | UVBeam
+    beam_type: Literal["efield", "power"] | None = None
 
     def __init__(
         self,
@@ -75,66 +80,6 @@ class BeamInterface:
             # AnalyticBeam
             self._isuvbeam = False
             self.beam_type = beam_type
-
-    def __eq__(self, other: Any, silent: bool = False) -> bool:
-        """
-        Test if classes match and parameters are equal.
-
-        Parameters
-        ----------
-        other : class
-            Other class instance to check
-        silent : bool
-            Option to turn off printing explanations of why equality fails. Useful to
-            prevent __ne__ from printing lots of messages.
-
-        Returns
-        -------
-        bool
-            True if the two instances are equivalent.
-
-        """
-        if isinstance(other, self.__class__):
-            # First check that the beam is the same
-            # If analytic, also check that the beam_type is the same
-            if self.beam.__ne__(other.beam, silent=silent):
-                if not silent:
-                    print("Beams do not match.")
-                return False
-            if not self._isuvbeam and self.beam_type != other.beam_type:
-                if not silent:
-                    print(
-                        "Beam types do not match. "
-                        f"Left is {self.beam_type},"
-                        f" right is {other.beam_type}."
-                    )
-                return False
-        else:
-            if not silent:
-                print("Classes do not match")
-            return False
-
-        return True
-
-    def __ne__(self, other, *, check_extra=True, silent=True):
-        """
-        Test if classes match and parameters are not equal.
-
-        Parameters
-        ----------
-        other : class
-            Other class instance to check
-        silent : bool
-            Option to turn off printing explanations of why equality fails. Useful to
-            prevent __ne__ from printing lots of messages.
-
-        Returns
-        -------
-        bool
-            True if the two instances are equivalent.
-
-        """
-        return not self.__eq__(other, silent=silent)
 
     def compute_response(
         self,

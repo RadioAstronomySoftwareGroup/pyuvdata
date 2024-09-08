@@ -6,7 +6,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -20,6 +21,7 @@ from .uvbeam import UVBeam, _convert_feeds_to_pols
 __all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 
 
+@dataclass
 class AnalyticBeam(ABC):
     """
     Define an analytic beam base class.
@@ -55,17 +57,12 @@ class AnalyticBeam(ABC):
 
     # In the future, this might allow for cartesian basis vectors in some orientation.
     # In that case, the Naxes_vec would be 3 rather than 2
-    basis_vec_dict = {"az_za": 2}
+    _basis_vec_dict = {"az_za": 2}
 
     @property
     @abstractmethod
     def basis_vector_type(self):
         """Require that a basis_vector_type is defined in concrete classes."""
-
-    @property
-    @abstractmethod
-    def name(self):
-        """Require that a name is defined in concrete classes."""
 
     def __init__(
         self,
@@ -74,12 +71,12 @@ class AnalyticBeam(ABC):
         include_cross_pols: bool = True,
         x_orientation: Literal["east", "north"] = "east",
     ):
-        if self.basis_vector_type not in self.basis_vec_dict:
+        if self.basis_vector_type not in self._basis_vec_dict:
             raise ValueError(
                 f"basis_vector_type is {self.basis_vector_type}, must be one of "
-                f"{list(self.basis_vec_dict.keys())}"
+                f"{list(self._basis_vec_dict.keys())}"
             )
-        self.Naxes_vec = self.basis_vec_dict[self.basis_vector_type]
+        self.Naxes_vec = self._basis_vec_dict[self.basis_vector_type]
 
         if feed_array is not None:
             for feed in feed_array:
@@ -97,111 +94,6 @@ class AnalyticBeam(ABC):
             self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
         self.Npols = self.polarization_array.size
-
-    def __iter__(self) -> str:
-        """
-        Iterate over all attributes.
-
-        Yields
-        ------
-        attribute
-            Object attributes.
-
-        """
-        attribute_list = [
-            a
-            for a in dir(self)
-            if not a.startswith("_") and not callable(getattr(self, a))
-        ]
-        yield from attribute_list
-
-    def __eq__(self, other: Any, silent: bool = False) -> bool:
-        """Equality method."""
-        if isinstance(other, self.__class__):
-            # First check that the set of attrs is the same
-            self_attrs = set(self.__iter__())
-            other_attrs = set(other.__iter__())
-            if self_attrs != other_attrs:
-                if not silent:
-                    print(
-                        "Sets of parameters do not match. "
-                        f"Left is {self_attrs},"
-                        f" right is {other_attrs}. Left has "
-                        f"{self_attrs.difference(other_attrs)} extra."
-                        f" Right has {other_attrs.difference(self_attrs)} extra."
-                    )
-                return False
-
-            # Now check that attributes are equal
-            a_equal = True
-            for attr in self_attrs:
-                self_attr = getattr(self, attr)
-                other_attr = getattr(other, attr)
-                if not isinstance(other_attr, self_attr.__class__):
-                    if not silent:
-                        print(
-                            f"attribute {attr} are not the same types. "
-                            f"Left is {type(self_attr)}, right is {type(other_attr)}."
-                        )
-                    a_equal = False
-                elif isinstance(self_attr, np.ndarray):
-                    if not self_attr.shape == other_attr.shape:
-                        if not silent:
-                            print(
-                                f"attribute {attr} do not have the same shapes. "
-                                f"Left is {self_attr}, right is {other_attr}."
-                            )
-                        a_equal = False
-                    elif np.issubdtype(self_attr.dtype, np.number) and not np.allclose(
-                        self_attr, other_attr
-                    ):
-                        if not silent:
-                            print(
-                                f"attribute {attr} does not match using np.allclose. "
-                                f"Left is {self_attr}, right is {other_attr}."
-                            )
-                        a_equal = False
-                    elif self_attr.tolist() != other_attr.tolist():
-                        if not silent:
-                            print(
-                                f"attribute {attr} does not match after "
-                                "converting string numpy array to list. "
-                                f"Left is {self_attr}, right is {other_attr}."
-                            )
-                        a_equal = False
-                elif self_attr != other_attr:
-                    if not silent:
-                        print(
-                            f"attribute {attr} does not match. Left is "
-                            f"{self_attr}, right is {other_attr}."
-                        )
-                    a_equal = False
-
-            return a_equal
-        else:
-            if not silent:
-                print("Classes do not match")
-            return False
-
-    def __ne__(self, other, *, check_extra=True, silent=True):
-        """
-        Test if classes match and parameters are not equal.
-
-        Parameters
-        ----------
-        other : class
-            Other class instance to check
-        silent : bool
-            Option to turn off printing explanations of why equality fails. Useful to
-            prevent __ne__ from printing lots of messages.
-
-        Returns
-        -------
-        bool
-            True if the two instances are equivalent.
-
-        """
-        return not self.__eq__(other, silent=silent)
 
     def _check_eval_inputs(
         self,
@@ -224,9 +116,14 @@ class AnalyticBeam(ABC):
     ) -> npt.NDArray[np.float]:
         """Get the empty data to fill in the eval methods."""
         if beam_type == "efield":
-            return np.zeros((self.Naxes_vec, self.Nfeeds, nfreqs, npts), dtype=float)
+            return np.zeros((self.Naxes_vec, self.Nfeeds, nfreqs, npts), dtype=complex)
         else:
-            return np.zeros((1, self.Npols, nfreqs, npts), dtype=float)
+            if self.Npols > self.Nfeeds:
+                # crosspols are included
+                dtype_use = complex
+            else:
+                dtype_use = float
+            return np.zeros((1, self.Npols, nfreqs, npts), dtype=dtype_use)
 
     @abstractmethod
     def _efield_eval(
@@ -430,9 +327,9 @@ class AnalyticBeam(ABC):
         uvb = UVBeam.new(
             telescope_name="Analytic Beam",
             data_normalization="physical",
-            feed_name=self.name,
+            feed_name=self.__repr__(),
             feed_version="1.0",
-            model_name=self.name,
+            model_name=self.__repr__(),
             model_version="1.0",
             freq_array=freq_array,
             feed_array=feed_array,
@@ -510,6 +407,7 @@ def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[np.float]) -> flo
     return sigma
 
 
+@dataclass
 class GaussianBeam(AnalyticBeam):
     """
     Define a Gaussian beam, optionally with frequency dependent size.
@@ -541,8 +439,13 @@ class GaussianBeam(AnalyticBeam):
 
     """
 
+    sigma: float | None = None
+    sigma_type: Literal["efield", "power"] = "efield"
+    diameter: float | None = None
+    spectral_index: float = 0.0
+    reference_frequency: float = None
+
     basis_vector_type = "az_za"
-    name = "Analytic Gaussian"
 
     def __init__(
         self,
@@ -570,26 +473,15 @@ class GaussianBeam(AnalyticBeam):
                 self.sigma = sigma
             else:
                 self.sigma = np.sqrt(2) * sigma
-            description_str = f", E-field sigma={self.sigma}"
 
-            if spectral_index != 0.0:
-                if reference_frequency is None:
-                    raise ValueError(
-                        "reference_frequency must be set if `spectral_index` "
-                        "is not zero."
-                    )
-                description_str += (
-                    f", spectral index={spectral_index}, "
-                    f"reference freq={reference_frequency} Hz"
+            if spectral_index != 0.0 and reference_frequency is None:
+                raise ValueError(
+                    "reference_frequency must be set if `spectral_index` is not zero."
                 )
             if reference_frequency is None:
                 reference_frequency = 1.0
             self.spectral_index = spectral_index
             self.reference_frequency = reference_frequency
-        else:
-            description_str = f", equivalent diameter={self.diameter} m"
-
-        self.name += description_str
 
         super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
@@ -666,6 +558,7 @@ class GaussianBeam(AnalyticBeam):
         return data_array
 
 
+@dataclass
 class AiryBeam(AnalyticBeam):
     """
     Define an Airy beam.
@@ -682,8 +575,9 @@ class AiryBeam(AnalyticBeam):
 
     """
 
+    diameter: float
+
     basis_vector_type = "az_za"
-    name = "Analytic Airy"
 
     def __init__(
         self,
@@ -692,8 +586,6 @@ class AiryBeam(AnalyticBeam):
         feed_array: npt.NDArray[np.str] | None = None,
         include_cross_pols: bool = True,
     ):
-        self.name += f", diameter={diameter} m"
-
         super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
         self.diameter = diameter
@@ -756,6 +648,7 @@ class AiryBeam(AnalyticBeam):
         return data_array
 
 
+@dataclass
 class ShortDipoleBeam(AnalyticBeam):
     """
     Define an analytic short (Hertzian) dipole beam for two crossed dipoles.
@@ -772,8 +665,9 @@ class ShortDipoleBeam(AnalyticBeam):
 
     """
 
+    x_orientation: Literal["east", "north"] = "east"
+
     basis_vector_type = "az_za"
-    name = "Analytic Short Dipole"
 
     def __init__(
         self,
@@ -839,6 +733,7 @@ class ShortDipoleBeam(AnalyticBeam):
         return data_array
 
 
+@dataclass
 class UniformBeam(AnalyticBeam):
     """
     Define a uniform beam.
@@ -854,7 +749,6 @@ class UniformBeam(AnalyticBeam):
     """
 
     basis_vector_type = "az_za"
-    name = "Analytic Uniform"
 
     def __init__(
         self,
