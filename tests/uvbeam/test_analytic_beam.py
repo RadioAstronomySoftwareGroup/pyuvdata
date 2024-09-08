@@ -37,7 +37,7 @@ def test_airy_beam_values(az_za_deg_grid):
 
     np.testing.assert_allclose(beam_vals, expected_data)
 
-    assert beam.name == f"Analytic Airy, diameter={diameter_m} m"
+    assert beam.__repr__() == f"AiryBeam(diameter={diameter_m})"
 
 
 def test_airy_uv_beam_widths(xy_grid):
@@ -96,7 +96,11 @@ def test_achromatic_gaussian_beam(az_za_deg_grid, sigma_type):
 
     np.testing.assert_allclose(beam_vals, expected_data)
 
-    assert beam.name == f"Analytic Gaussian, E-field sigma={sigma_use}"
+    assert (
+        beam.__repr__()
+        == f"GaussianBeam(sigma={sigma_use.__repr__()}, sigma_type='efield', "
+        "diameter=None, spectral_index=0.0, reference_frequency=1.0)"
+    )
 
 
 def test_chromatic_gaussian():
@@ -133,9 +137,11 @@ def test_chromatic_gaussian():
     sig_f = sigma * (freqs / freqs[0]) ** alpha
     np.testing.assert_allclose(sig_f, 2 * hwhm / 2.355, atol=1e-3)
 
-    assert beam.name == (
-        f"Analytic Gaussian, E-field sigma={sigma}, spectral index={alpha}, "
-        f"reference freq={freqs[0]} Hz"
+    assert (
+        beam.__repr__()
+        == f"GaussianBeam(sigma={sigma.__repr__()}, sigma_type='efield', "
+        "diameter=None, spectral_index={alpha}, "
+        "reference_frequency={freqs[0].__repr__()})"
     )
 
 
@@ -147,7 +153,11 @@ def test_diameter_to_sigma(az_za_deg_grid):
     abm = AiryBeam(diameter=diameter_m)
     gbm = GaussianBeam(diameter=diameter_m)
 
-    assert gbm.name == f"Analytic Gaussian, equivalent diameter={diameter_m} m"
+    assert (
+        gbm.__repr__()
+        == f"GaussianBeam(sigma=None, sigma_type='efield', diameter={diameter_m}, "
+        "spectral_index=0.0, reference_frequency=None)"
+    )
 
     az_array, za_array, freqs = az_za_deg_grid
 
@@ -206,7 +216,7 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     np.testing.assert_allclose(power_vals, expected_data)
 
-    assert beam.name == "Analytic Short Dipole"
+    assert beam.__repr__() == "ShortDipoleBeam(x_orientation='east')"
 
 
 def test_uniform_beam(az_za_deg_grid):
@@ -222,7 +232,7 @@ def test_uniform_beam(az_za_deg_grid):
     expected_data = np.ones((2, 2, n_freqs, nsrcs), dtype=float) / np.sqrt(2.0)
     np.testing.assert_allclose(beam_vals, expected_data)
 
-    assert beam.name == "Analytic Uniform"
+    assert beam.__repr__() == "UniformBeam()"
 
 
 @pytest.mark.parametrize(
@@ -288,87 +298,6 @@ def test_eval_errors(az_za_deg_grid):
         ValueError, match="az_array and za_array must have the same shape."
     ):
         beam.efield_eval(az_array=az_vals, za_array=za_vals[0:-1], freq_array=freqs)
-
-
-@pytest.mark.parametrize(
-    ["compare_beam", "equality", "operation", "msg"],
-    [
-        [UVBeam(), False, None, "Classes do not match"],
-        [UniformBeam(), False, None, "Classes do not match"],
-        [
-            GaussianBeam(sigma=0.05),
-            False,
-            None,
-            "attribute sigma does not match. Left is 0.02, right is 0.05.",
-        ],
-        [
-            GaussianBeam(sigma=0.02, reference_frequency=100e8, spectral_index=-1.5),
-            False,
-            None,
-            "attribute",
-        ],
-        [GaussianBeam(sigma=0.02), True, None, None],
-        [
-            GaussianBeam(sigma=0.02),
-            False,
-            "del_attr",
-            "Sets of parameters do not match",
-        ],
-        [
-            GaussianBeam(sigma=0.02),
-            False,
-            "change_attr_type",
-            "attribute feed_array are not the same types",
-        ],
-        [
-            GaussianBeam(sigma=0.02),
-            False,
-            "change_array_shape",
-            "attribute polarization_array do not have the same shapes",
-        ],
-        [
-            GaussianBeam(sigma=0.02),
-            False,
-            "change_num_array_vals",
-            "attribute polarization_array does not match",
-        ],
-        [
-            GaussianBeam(sigma=0.02),
-            False,
-            "change_str_array_vals",
-            "attribute feed_array does not match after converting string numpy "
-            "array to list",
-        ],
-    ],
-)
-def test_comparison(capsys, compare_beam, equality, operation, msg):
-    """
-    Beam __eq__ method
-    """
-    beam = GaussianBeam(sigma=0.02)
-    beam.name = "Analytic Gaussian"
-
-    if isinstance(compare_beam, GaussianBeam):
-        compare_beam.name = "Analytic Gaussian"
-
-    if operation == "del_attr":
-        del compare_beam.spectral_index
-    elif operation == "change_attr_type":
-        compare_beam.feed_array = compare_beam.feed_array.tolist()
-    elif operation == "change_array_shape":
-        compare_beam.polarization_array = compare_beam.polarization_array[0:2]
-    elif operation == "change_num_array_vals":
-        compare_beam.polarization_array[0] = 0
-    elif operation == "change_str_array_vals":
-        compare_beam.feed_array[0] = "n"
-
-    if equality:
-        assert beam == compare_beam
-    else:
-        assert beam != compare_beam
-        assert not beam == compare_beam  # noqa SIM201
-        captured = capsys.readouterr()
-        assert captured.out.startswith(msg)
 
 
 @pytest.mark.parametrize(
