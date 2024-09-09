@@ -2156,7 +2156,7 @@ class UVBeam(UVBase):
             az_array_use = hpx_lon.radian
 
         extra_keyword_dict = {}
-        if interp_func == "_interp_az_za_rect_spline":
+        if interp_func in ["_interp_az_za_rect_spline", "_interp_az_za_map_coordinates"]:
             extra_keyword_dict["reuse_spline"] = reuse_spline
             extra_keyword_dict["spline_opts"] = spline_opts
             extra_keyword_dict["check_azza_domain"] = check_azza_domain
