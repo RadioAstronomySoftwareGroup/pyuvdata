@@ -140,8 +140,8 @@ def test_chromatic_gaussian():
     assert (
         beam.__repr__()
         == f"GaussianBeam(sigma={sigma.__repr__()}, sigma_type='efield', "
-        "diameter=None, spectral_index={alpha}, "
-        "reference_frequency={freqs[0].__repr__()})"
+        f"diameter=None, spectral_index={alpha}, "
+        f"reference_frequency={freqs[0].__repr__()})"
     )
 
 

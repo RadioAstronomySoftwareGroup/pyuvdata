@@ -55,10 +55,12 @@ def test_beam_interface(
     xy_grid_coarse,
     coord_sys,
 ):
-    if coord_sys == "healpix":
-        pytest.importorskip("astropy_healpix")
-        from astropy_healpix import HEALPix
+    analytic = beam_obj(**kwargs)
 
+    nfreqs = 20
+    freq_array = np.linspace(100e6, 150e6, nfreqs)
+
+    if coord_sys == "healpix":
         nside = 64
         if init_beam_type == "efield":
             ordering = "ring"
@@ -66,18 +68,32 @@ def test_beam_interface(
             ordering = "nested"
         healpix_pixel_array = np.arange(12 * nside**2, dtype=int)
 
+        to_uvbeam_kwargs = {
+            "nside": nside,
+            "ordering": ordering,
+            "healpix_pixel_array": healpix_pixel_array,
+        }
+
+        try:
+            from astropy_healpix import HEALPix
+
+        except ImportError:
+            with pytest.raises(
+                ImportError,
+                match="astropy_healpix is not installed but is "
+                "required for healpix functionality. ",
+            ):
+                uvb = analytic.to_uvbeam(
+                    beam_type=init_beam_type, freq_array=freq_array, **to_uvbeam_kwargs
+                )
+            pytest.importorskip("astropy_healpix")
+
         hp_obj = HEALPix(nside=nside, order=ordering)
         hpx_lon, hpx_lat = hp_obj.healpix_to_lonlat(healpix_pixel_array)
 
         za_array, az_array = utils.coordinates.hpx_latlon_to_zenithangle_azimuth(
             hpx_lat.radian, hpx_lon.radian
         )
-
-        to_uvbeam_kwargs = {
-            "nside": nside,
-            "ordering": ordering,
-            "healpix_pixel_array": healpix_pixel_array,
-        }
 
         # downselect places to check
         above_horizon = np.nonzero(za_array <= (np.pi / 2.0))
@@ -89,12 +105,7 @@ def test_beam_interface(
         az_array, za_array = az_za_coords
         to_uvbeam_kwargs = {"axis1_array": az_array, "axis2_array": za_array}
 
-    nfreqs = 20
-    freq_array = np.linspace(100e6, 150e6, nfreqs)
-
     include_cross_pols = kwargs.get("include_cross_pols", True)
-
-    analytic = beam_obj(**kwargs)
 
     uvb = analytic.to_uvbeam(
         beam_type=init_beam_type, freq_array=freq_array, **to_uvbeam_kwargs

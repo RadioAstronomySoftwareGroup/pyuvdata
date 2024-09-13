@@ -89,10 +89,12 @@ def new_uvbeam(
         "az_za" if not.
     axis1_array : ndarray of float
         Coordinates along first pixel axis (e.g. azimuth for an azimuth/zenith
-        angle coordinate system). Should not provided for healpix coordinates.
+        angle coordinate system). Must be regularly spaced. Should not provided
+        for healpix coordinates.
     axis2_array : ndarray of float
         Coordinates along second pixel axis (e.g. zenith angle for an azimuth/zenith
-        angle coordinate system). Should not provided for healpix coordinates.
+        angle coordinate system). Must be regularly spaced. Should not provided
+        for healpix coordinates.
     nside : int
         Healpix nside parameter, should only be provided for healpix coordinates.
     healpix_pixel_array : ndarray of int
@@ -199,6 +201,13 @@ def new_uvbeam(
         uvb.Naxes_vec = 2
         uvb.Ncomponents_vec = 2
     elif axis1_array is not None and axis2_array is not None:
+        for ind, arr in enumerate([axis1_array, axis2_array]):
+            # both axes arrays have the same same tols since we just made this
+            # object and haven't modified the tols
+            if not utils.tools._test_array_constant_spacing(
+                arr, tols=uvb._axis1_array.tols
+            ):
+                raise ValueError(f"axis{ind+1}_array must be regularly spaced")
         uvb.axis1_array = axis1_array
         uvb.axis2_array = axis2_array
 
