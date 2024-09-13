@@ -274,6 +274,12 @@ def test_freq_array_errors(uvb_azza_efield_kw):
         UVBeam.new(**uvb_azza_efield_kw)
 
 
+def test_axis_array_errors(uvb_azza_efield_kw):
+    uvb_azza_efield_kw["axis1_array"][0] += 0.1
+    with pytest.raises(ValueError, match="axis1_array must be regularly spaced"):
+        UVBeam.new(**uvb_azza_efield_kw)
+
+
 def test_data_array_errors(uvb_azza_efield_kw):
     uvb_azza_efield_kw["data_array"] = (2, 2, 10, 360, 181)
     with pytest.raises(ValueError, match="data_array must be a numpy ndarray"):

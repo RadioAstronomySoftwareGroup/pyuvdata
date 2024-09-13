@@ -279,13 +279,17 @@ class AnalyticBeam(ABC):
         pixel_coordinate_system: (
             Literal["az_za", "orthoslant_zenith", "healpix"] | None
         ) = None,
-        **kwargs,
+        axis1_array: npt.NDArray[np.float] | None = None,
+        axis2_array: npt.NDArray[np.float] | None = None,
+        nside: int | None = None,
+        healpix_pixel_array: npt.NDArray[np.int] | None = None,
+        ordering: Literal["ring", "nested"] | None = None,
     ):
         """Generate a UVBeam object from an AnalyticBeam object.
 
-        This method evaluates the analytic beam at a set of locations to
-        create a UVBeam object. This can be useful for testing and some other
-        operations, but it is of course an approximation.
+        This method evaluates the analytic beam at a set of locations and
+        frequencies to create a UVBeam object. This can be useful for testing
+        and some other operations, but it is of course an approximation.
 
         Parameters
         ----------
@@ -298,6 +302,21 @@ class AnalyticBeam(ABC):
             "healpix". Forced to be "healpix" if ``nside`` is given and by
             *default* set to "az_za" if not. Currently, only "az_za" and "healpix"
             are implemented.
+        axis1_array : ndarray of float
+            Coordinates along first pixel axis (e.g. azimuth for an azimuth/zenith
+            angle coordinate system) to evaluate the beam at. Must be regularly
+            spaced. Should not provided for healpix coordinates.
+        axis2_array : ndarray of float
+            Coordinates along second pixel axis (e.g. zenith angle for an
+            azimuth/zenith angle coordinate system) to evaluate the beam at. Must
+            be regularly spaced. Should not provided for healpix coordinates.
+        nside : int
+            Healpix nside parameter, should only be provided for healpix coordinates.
+        healpix_pixel_array : ndarray of int
+            Healpix pixels to include. If nside is provided, defaults to all the
+            pixels in the Healpix map.
+        ordering : str
+            Healpix ordering parameter, defaults to "ring" if nside is provided.
 
         """
         if beam_type not in ["efield", "power"]:
@@ -335,13 +354,19 @@ class AnalyticBeam(ABC):
             feed_array=feed_array,
             polarization_array=polarization_array,
             x_orientation=self.x_orientation,
-            **kwargs,
+            pixel_coordinate_system=pixel_coordinate_system,
+            axis1_array=axis1_array,
+            axis2_array=axis2_array,
+            nside=nside,
+            healpix_pixel_array=healpix_pixel_array,
+            ordering=ordering,
+            history=f"created from a pyuvdata analytic beam: {self.__repr__()}",
         )
 
         if uvb.pixel_coordinate_system == "healpix":
             try:
                 from astropy_healpix import HEALPix
-            except ImportError as e:  # pragma: no cover
+            except ImportError as e:
                 raise ImportError(
                     "astropy_healpix is not installed but is "
                     "required for healpix functionality. "
