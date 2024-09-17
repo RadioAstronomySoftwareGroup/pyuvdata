@@ -316,33 +316,34 @@ def test_beamerrs(beam_kwargs, err_msg):
 
 
 def test_bad_basis_vector_type():
-    class BadBeam(AnalyticBeam):
-        basis_vector_type = "healpix"
-        name = "bad beam"
-
-        def _efield_eval(
-            self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
-        ):
-            """Evaluate the efield at the given coordinates."""
-            data_array = self._get_empty_data_array(az_array, za_array, freq_array)
-            data_array = data_array + 1.0 / np.sqrt(2.0)
-            return data_array
-
-        def _power_eval(
-            self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
-        ):
-            """Evaluate the efield at the given coordinates."""
-            data_array = self._get_empty_data_array(
-                az_array, za_array, freq_array, beam_type="power"
-            )
-            data_array = data_array + 1.0
-            return data_array
-
     with pytest.raises(
         ValueError,
-        match=re.escape("basis_vector_type is healpix, must be one of ['az_za']"),
+        match=re.escape(
+            "basis_vector_type for BadBeam is healpix, must be one of ['az_za']"
+        ),
     ):
-        BadBeam()
+
+        class BadBeam(AnalyticBeam):
+            basis_vector_type = "healpix"
+            name = "bad beam"
+
+            def _efield_eval(
+                self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
+            ):
+                """Evaluate the efield at the given coordinates."""
+                data_array = self._get_empty_data_array(az_array, za_array, freq_array)
+                data_array = data_array + 1.0 / np.sqrt(2.0)
+                return data_array
+
+            def _power_eval(
+                self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
+            ):
+                """Evaluate the efield at the given coordinates."""
+                data_array = self._get_empty_data_array(
+                    az_array, za_array, freq_array, beam_type="power"
+                )
+                data_array = data_array + 1.0
+                return data_array
 
 
 def test_to_uvbeam_errors():
