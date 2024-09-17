@@ -435,6 +435,21 @@ def test_yaml_constructor(input_yaml, beam):
     assert new_beam_from_yaml == beam_from_yaml
 
 
+def test_yaml_constructor_new():
+    input_yaml = """
+        beam: !AnalyticBeam
+            class: pyuvdata.data.test_analytic_beam.AnalyticTest
+            radius: 10
+        """
+    beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
+
+    from pyuvdata.data.test_analytic_beam import AnalyticTest
+
+    beam = AnalyticTest(radius=10)
+
+    assert beam_from_yaml == beam
+
+
 def test_yaml_constructor_errors():
     input_yaml = """
         beam: !AnalyticBeam
@@ -443,5 +458,22 @@ def test_yaml_constructor_errors():
 
     with pytest.raises(
         ValueError, match="yaml entries for AnalyticBeam must specify a class"
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = """
+        beam: !AnalyticBeam
+            class: FakeBeam
+            diameter: 10
+        """
+
+    with pytest.raises(
+        NameError,
+        match=re.escape(
+            "FakeBeam is not a known AnalyticBeam. Available options are: "
+            f"{list(AnalyticBeam.__types__.keys())}. If it is a custom beam, "
+            "either ensure the module is imported, or specify the beam with "
+            "dot-pathed modules included (i.e. `my_module.MyAnalyticBeam`)"
+        ),
     ):
         yaml.safe_load(input_yaml)["beam"]

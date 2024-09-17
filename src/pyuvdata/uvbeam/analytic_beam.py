@@ -9,7 +9,7 @@ import dataclasses
 import importlib
 from abc import ABC, abstractmethod
 from dataclasses import InitVar, dataclass, field
-from typing import Literal
+from typing import ClassVar, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -63,6 +63,12 @@ class AnalyticBeam(ABC):
     # In the future, this might allow for cartesian basis vectors in some orientation.
     # In that case, the Naxes_vec would be 3 rather than 2
     _basis_vec_dict = {"az_za": 2}
+
+    __types__: ClassVar[dict] = {}
+
+    def __init_subclass__(cls):
+        """Initialize any imported subclass."""
+        cls.__types__[cls.__name__] = cls
 
     @property
     @abstractmethod
@@ -463,13 +469,20 @@ def _analytic_beam_constructor(loader, node):
     class_parts = (values.pop("class")).split(".")
     class_name = class_parts[-1]
 
-    if len(class_parts) == 1:
-        # no module specified, assume pyuvdata
-        module = importlib.import_module("pyuvdata")
-    else:
+    if class_name in AnalyticBeam.__types__:
+        beam_class = AnalyticBeam.__types__[class_name]
+    elif len(class_parts) > 1:
         module = (".").join(class_parts[:-1])
         module = importlib.import_module(module)
-    beam_class = getattr(module, class_name)
+        beam_class = getattr(module, class_name)
+
+    if class_name not in AnalyticBeam.__types__:
+        raise NameError(
+            f"{class_name} is not a known AnalyticBeam. Available options are: "
+            f"{list(AnalyticBeam.__types__.keys())}. If it is a custom beam, "
+            "either ensure the module is imported, or specify the beam with "
+            "dot-pathed modules included (i.e. `my_module.MyAnalyticBeam`)"
+        )
 
     beam = beam_class(**values)
 
