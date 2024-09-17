@@ -435,3 +435,15 @@ def test_yaml_constructor(input_yaml, beam):
     new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]
 
     assert new_beam_from_yaml == beam_from_yaml
+
+
+def test_yaml_constructor_errors():
+    input_yaml = """
+        beam: !AnalyticBeam
+            diameter: 10
+        """
+
+    with pytest.raises(
+        ValueError, match="yaml entries for AnalyticBeam must specify a class"
+    ):
+        yaml.safe_load(input_yaml)["beam"]
