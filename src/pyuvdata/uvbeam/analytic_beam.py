@@ -5,12 +5,15 @@
 
 from __future__ import annotations
 
+import dataclasses
+import importlib
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
+import yaml
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
@@ -18,7 +21,8 @@ from .. import utils
 from ..docstrings import combine_docstrings
 from .uvbeam import UVBeam, _convert_feeds_to_pols
 
-__all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
+analytic_beam_classes = ["AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
+__all__ = ["AnalyticBeam"] + analytic_beam_classes
 
 
 @dataclass
@@ -67,7 +71,7 @@ class AnalyticBeam(ABC):
     def __init__(
         self,
         *,
-        feed_array: npt.NDArray[np.str] | None = None,
+        feed_array: npt.NDArray[str] | None = None,
         include_cross_pols: bool = True,
         x_orientation: Literal["east", "north"] = "east",
     ):
@@ -98,9 +102,9 @@ class AnalyticBeam(ABC):
     def _check_eval_inputs(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
     ):
         """Check the inputs for the eval methods."""
         if az_array.ndim > 1 or za_array.ndim > 1 or freq_array.ndim > 1:
@@ -113,7 +117,7 @@ class AnalyticBeam(ABC):
 
     def _get_empty_data_array(
         self, npts: int, nfreqs: int, beam_type: str = "efield"
-    ) -> npt.NDArray[np.float]:
+    ) -> npt.NDArray[float]:
         """Get the empty data to fill in the eval methods."""
         if beam_type == "efield":
             return np.zeros((self.Naxes_vec, self.Nfeeds, nfreqs, npts), dtype=complex)
@@ -129,10 +133,10 @@ class AnalyticBeam(ABC):
     def _efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """
         Evaluate the efield at the given coordinates.
 
@@ -161,10 +165,10 @@ class AnalyticBeam(ABC):
     def efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """
         Evaluate the efield at the given coordinates.
 
@@ -198,10 +202,10 @@ class AnalyticBeam(ABC):
     def _power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """
         Evaluate the power at the given coordinates.
 
@@ -230,10 +234,10 @@ class AnalyticBeam(ABC):
     def power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """
         Evaluate the power at the given coordinates.
 
@@ -274,15 +278,15 @@ class AnalyticBeam(ABC):
     @combine_docstrings(UVBeam.new)
     def to_uvbeam(
         self,
-        freq_array: npt.NDArray[np.float],
+        freq_array: npt.NDArray[float],
         beam_type: Literal["efield", "power"] = "efield",
         pixel_coordinate_system: (
             Literal["az_za", "orthoslant_zenith", "healpix"] | None
         ) = None,
-        axis1_array: npt.NDArray[np.float] | None = None,
-        axis2_array: npt.NDArray[np.float] | None = None,
+        axis1_array: npt.NDArray[float] | None = None,
+        axis2_array: npt.NDArray[float] | None = None,
         nside: int | None = None,
-        healpix_pixel_array: npt.NDArray[np.int] | None = None,
+        healpix_pixel_array: npt.NDArray[int] | None = None,
         ordering: Literal["ring", "nested"] | None = None,
     ):
         """Generate a UVBeam object from an AnalyticBeam object.
@@ -401,7 +405,78 @@ class AnalyticBeam(ABC):
         return uvb
 
 
-def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[np.float]) -> float:
+def analytic_beam_constructor(loader, node):
+    """
+    Define a yaml constructor for analytic beams.
+
+    The yaml must specify a "class" field with an importable class and any
+    required inputs to that class's constructor.
+
+    Parameters
+    ----------
+    loader: yaml.Loader
+        An instance of a yaml Loader object.
+    node: yaml.Node
+        A yaml node object.
+
+    Returns
+    -------
+    beam
+        An instance of an AnalyticBeam subclass.
+
+    """
+    values = loader.construct_mapping(node)
+    if "class" not in values:
+        raise ValueError("yaml entries for AnalyticBeam must specify a class")
+    class_parts = (values.pop("class")).split(".")
+    class_name = class_parts[-1]
+    if len(class_parts) == 1:
+        # no module specified, assume pyuvdata
+        module = importlib.import_module("pyuvdata")
+    else:
+        module = (".").join(class_parts[:-1])
+        module = importlib.import_module(module)
+    beam_class = getattr(module, class_name)
+
+    beam = beam_class(**values)
+
+    return beam
+
+
+yaml.add_constructor("!AnalyticBeam", analytic_beam_constructor, Loader=yaml.SafeLoader)
+
+
+def analytic_beam_representer(dumper, beam):
+    """
+    Define a yaml representer for analytic beams.
+
+    Parameters
+    ----------
+    dumper: yaml.Dumper
+        An instance of a yaml Loader object.
+    beam: AnalyticBeam subclass
+        An analytic beam object.
+
+    Returns
+    -------
+    str
+        The yaml representation of the analytic beam.
+
+    """
+    mapping = {
+        "class": beam.__module__ + "." + beam.__class__.__name__,
+        **dataclasses.asdict(beam),
+    }
+
+    return dumper.represent_mapping("!AnalyticBeam", mapping)
+
+
+yaml.add_multi_representer(
+    AnalyticBeam, analytic_beam_representer, Dumper=yaml.SafeDumper
+)
+
+
+def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
     """
     Find the sigma that gives a beam width similar to an Airy disk.
 
@@ -480,7 +555,7 @@ class GaussianBeam(AnalyticBeam):
         diameter: float | None = None,
         spectral_index: float = 0.0,
         reference_frequency: float = None,
-        feed_array: npt.NDArray[np.str] | None = None,
+        feed_array: npt.NDArray[str] | None = None,
         include_cross_pols: bool = True,
     ):
         if (diameter is None and sigma is None) or (
@@ -510,7 +585,7 @@ class GaussianBeam(AnalyticBeam):
 
         super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
 
-    def get_sigmas(self, freq_array: npt.NDArray[np.float]) -> npt.NDArray[np.float]:
+    def get_sigmas(self, freq_array: npt.NDArray[float]) -> npt.NDArray[float]:
         """
         Get the sigmas for the gaussian beam using the diameter (if defined).
 
@@ -538,10 +613,10 @@ class GaussianBeam(AnalyticBeam):
     def _efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the efield at the given coordinates."""
         sigmas = self.get_sigmas(freq_array)
 
@@ -562,10 +637,10 @@ class GaussianBeam(AnalyticBeam):
     def _power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the power at the given coordinates."""
         sigmas = self.get_sigmas(freq_array)
 
@@ -608,7 +683,7 @@ class AiryBeam(AnalyticBeam):
         self,
         diameter: float,
         *,
-        feed_array: npt.NDArray[np.str] | None = None,
+        feed_array: npt.NDArray[str] | None = None,
         include_cross_pols: bool = True,
     ):
         super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
@@ -618,10 +693,10 @@ class AiryBeam(AnalyticBeam):
     def _efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -647,10 +722,10 @@ class AiryBeam(AnalyticBeam):
     def _power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"
@@ -711,10 +786,10 @@ class ShortDipoleBeam(AnalyticBeam):
     def _efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -733,10 +808,10 @@ class ShortDipoleBeam(AnalyticBeam):
     def _power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"
@@ -778,7 +853,7 @@ class UniformBeam(AnalyticBeam):
     def __init__(
         self,
         *,
-        feed_array: npt.NDArray[np.str] | None = None,
+        feed_array: npt.NDArray[str] | None = None,
         include_cross_pols: bool = True,
     ):
         super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
@@ -786,10 +861,10 @@ class UniformBeam(AnalyticBeam):
     def _efield_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the efield at the given coordinates."""
         data_array = self._get_empty_data_array(az_array.size, freq_array.size)
 
@@ -804,10 +879,10 @@ class UniformBeam(AnalyticBeam):
     def _power_eval(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float],
-    ) -> npt.NDArray[np.float]:
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
         """Evaluate the power at the given coordinates."""
         data_array = self._get_empty_data_array(
             az_array.size, freq_array.size, beam_type="power"

@@ -5,6 +5,7 @@ import re
 
 import numpy as np
 import pytest
+import yaml
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
@@ -385,3 +386,52 @@ def test_to_uvbeam_errors():
             axis2_array=np.deg2rad(np.linspace(0, 90, 10)),
             pixel_coordinate_system="foo",
         )
+
+
+@pytest.mark.parametrize(
+    ["input_yaml", "beam"],
+    [
+        [
+            """
+        beam: !AnalyticBeam
+            class: pyuvdata.UniformBeam
+        """,
+            UniformBeam(),
+        ],
+        [
+            """
+        beam: !AnalyticBeam
+            class: AiryBeam
+            diameter: 10
+        """,
+            AiryBeam(diameter=10),
+        ],
+        [
+            """
+        beam: !AnalyticBeam
+            class: pyuvdata.uvbeam.analytic_beam.ShortDipoleBeam
+        """,
+            ShortDipoleBeam(),
+        ],
+        [
+            """
+        beam: !AnalyticBeam
+            class: GaussianBeam
+            reference_frequency: 120000000.
+            spectral_index: -1.5
+            sigma: 0.26
+        """,
+            GaussianBeam(sigma=0.26, spectral_index=-1.5, reference_frequency=120e6),
+        ],
+    ],
+)
+def test_yaml_constructor(input_yaml, beam):
+    beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
+
+    assert beam_from_yaml == beam
+
+    output_yaml = yaml.safe_dump({"beam": beam})
+
+    new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]
+
+    assert new_beam_from_yaml == beam_from_yaml

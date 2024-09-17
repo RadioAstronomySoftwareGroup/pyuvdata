@@ -11,6 +11,7 @@ from collections import namedtuple
 
 import numpy as np
 import pytest
+import yaml
 from astropy import units
 from astropy.io import fits
 
@@ -2967,3 +2968,63 @@ def test_from_file(filename):
     assert uvb.check()
     assert uvb2.check()
     assert uvb == uvb2
+
+
+@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
+def test_yaml_constructor(filename):
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {filename}
+            run_check: False
+        """
+
+    beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
+
+    # don't run checks because of casa_beamfits, we'll do that later
+    uvb = UVBeam.from_file(filename, run_check=False)
+    # hera casa beam is missing some parameters but we just want to check
+    # that reading is going okay
+    if filename == casa_beamfits:
+        # fill in missing parameters
+        for _uvb in [uvb, beam_from_yaml]:
+            _uvb.data_normalization = "peak"
+            _uvb.feed_name = "casa_ideal"
+            _uvb.feed_version = "v0"
+            _uvb.model_name = "casa_airy"
+            _uvb.model_version = "v0"
+
+            # this file is actually in an orthoslant projection RA/DEC at zenith at a
+            # particular time.
+            # For now pretend it's in a zenith orthoslant projection
+            _uvb.pixel_coordinate_system = "orthoslant_zenith"
+    # double check the files are valid
+    assert uvb.check()
+    assert beam_from_yaml.check()
+    assert uvb == beam_from_yaml
+
+    if isinstance(uvb.filename, list):
+        err_msg = "beam.filename must be a string to be able to represent it in a yaml."
+    elif not os.path.exists(uvb.filename):
+        err_msg = (
+            "beam.filename must be an existing file to be able to represent it "
+            "in a yaml."
+        )
+    with pytest.raises(ValueError, match=err_msg):
+        output_yaml = yaml.safe_dump({"beam": uvb})
+
+    uvb.filename = filename
+    output_yaml = yaml.safe_dump({"beam": uvb})
+    try:
+        new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]
+
+        assert new_beam_from_yaml == beam_from_yaml
+    except ValueError:
+        # get here for the ill-defined casa beam. just test the null filename case
+
+        uvb.filename = None
+        with pytest.raises(
+            ValueError,
+            match="beam must have a filename defined to be able to represent it "
+            "in a yaml.",
+        ):
+            output_yaml = yaml.safe_dump({"beam": uvb})
