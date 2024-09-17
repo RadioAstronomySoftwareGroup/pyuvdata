@@ -98,8 +98,8 @@ def test_achromatic_gaussian_beam(az_za_deg_grid, sigma_type):
     np.testing.assert_allclose(beam_vals, expected_data)
 
     assert (
-        beam.__repr__()
-        == f"GaussianBeam(sigma={sigma_use.__repr__()}, sigma_type='efield', "
+        beam.__repr__() == f"GaussianBeam(sigma={sigma_use.__repr__()}, "
+        f"sigma_type={sigma_type.__repr__()}, "
         "diameter=None, spectral_index=0.0, reference_frequency=1.0)"
     )
 
@@ -206,9 +206,7 @@ def test_short_dipole_beam(az_za_deg_grid):
     np.testing.assert_allclose(efield_vals, expected_data)
 
     power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
-    print(power_vals.shape)
     expected_data = np.zeros((1, 4, n_freqs, nsrcs), dtype=float)
-    print(expected_data.shape)
 
     expected_data[0, 0] = 1 - np.sin(za_vals) ** 2 * np.cos(az_vals) ** 2
     expected_data[0, 1] = 1 - np.sin(za_vals) ** 2 * np.sin(az_vals) ** 2
@@ -430,7 +428,7 @@ def test_yaml_constructor(input_yaml, beam):
 
     assert beam_from_yaml == beam
 
-    output_yaml = yaml.safe_dump({"beam": beam})
+    output_yaml = yaml.safe_dump({"beam": beam}, default_flow_style=False)
 
     new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]
 
