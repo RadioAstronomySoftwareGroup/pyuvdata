@@ -152,8 +152,4 @@ jobs:
           fail-on-alert: true
           # Enable Job Summary for PRs
           summary-always: true
-          # Enable commenting
-          comment-always: true
-          # Comment on the PR if the branch is not a fork
-          comment-on-alert: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
