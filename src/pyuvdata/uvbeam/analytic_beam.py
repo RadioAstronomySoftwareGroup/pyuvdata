@@ -68,6 +68,12 @@ class AnalyticBeam(ABC):
 
     def __init_subclass__(cls):
         """Initialize any imported subclass."""
+        if cls.basis_vector_type not in cls._basis_vec_dict:
+            raise ValueError(
+                f"basis_vector_type for {cls.__name__} is {cls.basis_vector_type}, "
+                f"must be one of {list(cls._basis_vec_dict.keys())}"
+            )
+
         cls.__types__[cls.__name__] = cls
 
     @property
@@ -86,12 +92,6 @@ class AnalyticBeam(ABC):
             for the power beam.
 
         """
-        if self.basis_vector_type not in self._basis_vec_dict:
-            raise ValueError(
-                f"basis_vector_type is {self.basis_vector_type}, must be one of "
-                f"{list(self._basis_vec_dict.keys())}"
-            )
-
         if self.feed_array is not None:
             for feed in self.feed_array:
                 allowed_feeds = ["n", "e", "x", "y", "r", "l"]
