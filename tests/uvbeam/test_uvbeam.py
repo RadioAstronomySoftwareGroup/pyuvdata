@@ -2971,12 +2971,22 @@ def test_from_file(filename):
 
 
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-def test_yaml_constructor(filename):
-    input_yaml = f"""
-        beam: !UVBeam
-            filename: {filename}
-            run_check: False
-        """
+@pytest.mark.parametrize("path_var", [True, False])
+def test_yaml_constructor(filename, path_var):
+    if path_var:
+        input_yaml = f"""
+            beam: !UVBeam
+                filename: {filename}
+                run_check: False
+            """
+    else:
+        fname_use = filename[len(DATA_PATH) + 1 :]
+        input_yaml = f"""
+            beam: !UVBeam
+                filename: {fname_use}
+                path_variable: pyuvdata.data.DATA_PATH
+                run_check: False
+            """
 
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
 
@@ -3002,17 +3012,14 @@ def test_yaml_constructor(filename):
     assert beam_from_yaml.check()
     assert uvb == beam_from_yaml
 
-    if isinstance(uvb.filename, list):
-        err_msg = "beam.filename must be a string to be able to represent it in a yaml."
-    elif not os.path.exists(uvb.filename):
-        err_msg = (
-            "beam.filename must be an existing file to be able to represent it "
-            "in a yaml."
-        )
+    err_msg = (
+        "all entries in the filename parameter must be existing files to be "
+        "able to represent it in a yaml."
+    )
     with pytest.raises(ValueError, match=err_msg):
         output_yaml = yaml.safe_dump({"beam": uvb})
 
-    uvb.filename = filename
+    uvb.filename = [filename]
     output_yaml = yaml.safe_dump({"beam": uvb})
     try:
         new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]
@@ -3028,3 +3035,32 @@ def test_yaml_constructor(filename):
             "in a yaml.",
         ):
             output_yaml = yaml.safe_dump({"beam": uvb})
+
+
+def test_yaml_constructor_errors():
+    fname_use = cst_yaml_file[len(DATA_PATH) + 1 :]
+    input_yaml = f"""
+        beam: !UVBeam
+            filename: {fname_use}
+            path_variable: DATA_PATH
+            run_check: False
+        """
+
+    with pytest.raises(
+        ValueError,
+        match="If 'path_variable' is specified, it should take the form of a "
+        "module.variable_name where the variable name can be imported "
+        "from the module.",
+    ):
+        yaml.safe_load(input_yaml)["beam"]
+
+    input_yaml = """
+        beam: !UVBeam
+            path_variable: DATA_PATH
+            run_check: False
+        """
+
+    with pytest.raises(
+        ValueError, match="yaml entries for UVBeam must specify a filename."
+    ):
+        yaml.safe_load(input_yaml)["beam"]

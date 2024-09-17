@@ -4497,17 +4497,30 @@ def uvbeam_constructor(loader, node):
     values = loader.construct_mapping(node)
     if "filename" not in values:
         raise ValueError("yaml entries for UVBeam must specify a filename.")
+
+    files_use = values["filename"]
+    if isinstance(values["filename"], str):
+        files_use = [values["filename"]]
+
     if "path_variable" in values:
         path_parts = (values.pop("path_variable")).split(".")
         var_name = path_parts[-1]
         if len(path_parts) == 1:
-            # no module specified, assume pyuvdata
-            module = importlib.import_module("pyuvdata")
+            raise ValueError(
+                "If 'path_variable' is specified, it should take the form of a "
+                "module.variable_name where the variable name can be imported "
+                "from the module."
+            )
         else:
             module = (".").join(path_parts[:-1])
             module = importlib.import_module(module)
         path_var = getattr(module, var_name)
-        values["filename"] = os.path.join(path_var, values["filename"])
+        for f_i in range(len(files_use)):
+            files_use[f_i] = os.path.join(path_var, files_use[f_i])
+
+    if len(files_use) == 1:
+        files_use = files_use[0]
+    values["filename"] = files_use
 
     beam = UVBeam.from_file(**values)
 
@@ -4540,22 +4553,21 @@ def uvbeam_beam_representer(dumper, beam):
         The yaml representation of the UVbeam.
 
     """
-    print(beam.filename)
-    print(isinstance(beam.filename, str))
     if beam.filename is None:
         raise ValueError(
             "beam must have a filename defined to be able to represent it in a yaml."
         )
-    elif not isinstance(beam.filename, str):
-        raise ValueError(
-            "beam.filename must be a string to be able to represent it in a yaml."
-        )
-    elif not os.path.exists(beam.filename):
-        raise ValueError(
-            "beam.filename must be an existing file to be able to represent it "
-            "in a yaml."
-        )
-    mapping = {"filename": beam.filename}
+    files_use = beam.filename
+    for file in files_use:
+        if not os.path.exists(file):
+            raise ValueError(
+                "all entries in the filename parameter must be existing files "
+                f"to be able to represent it in a yaml. {file} does not exist"
+            )
+    if len(files_use) == 1:
+        files_use = files_use[0]
+
+    mapping = {"filename": files_use}
 
     return dumper.represent_mapping("!UVBeam", mapping)
 
