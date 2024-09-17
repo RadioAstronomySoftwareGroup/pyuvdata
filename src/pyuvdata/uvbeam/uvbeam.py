@@ -4,6 +4,7 @@
 """Primary container for radio telescope antenna beams."""
 
 import copy
+import importlib
 import os
 import warnings
 
@@ -4471,3 +4472,92 @@ class UVBeam(UVBase):
         beamfits_obj = self._convert_to_filetype("beamfits")
         beamfits_obj.write_beamfits(filename, **kwargs)
         del beamfits_obj
+
+
+def uvbeam_constructor(loader, node):
+    """
+    Define a yaml constructor for UVBeam objects.
+
+    The yaml must specify a "filename" field pointing to the UVBeam readable file
+    and any desired arguments to the UVBeam.from_file method.
+
+    Parameters
+    ----------
+    loader: yaml.Loader
+        An instance of a yaml Loader object.
+    node: yaml.Node
+        A yaml node object.
+
+    Returns
+    -------
+    UVBeam
+        An instance of a UVBeam.
+
+    """
+    values = loader.construct_mapping(node)
+    if "filename" not in values:
+        raise ValueError("yaml entries for UVBeam must specify a filename.")
+    if "path_variable" in values:
+        path_parts = (values.pop("path_variable")).split(".")
+        var_name = path_parts[-1]
+        if len(path_parts) == 1:
+            # no module specified, assume pyuvdata
+            module = importlib.import_module("pyuvdata")
+        else:
+            module = (".").join(path_parts[:-1])
+            module = importlib.import_module(module)
+        path_var = getattr(module, var_name)
+        values["filename"] = os.path.join(path_var, values["filename"])
+
+    beam = UVBeam.from_file(**values)
+
+    return beam
+
+
+yaml.add_constructor("!UVBeam", uvbeam_constructor, Loader=yaml.SafeLoader)
+
+
+def uvbeam_beam_representer(dumper, beam):
+    """
+    Define a yaml representer for UVbeams.
+
+    Note: since all the possible selects cannot be extracted from the object,
+    the object generated from this yaml may not be an exact match for the object
+    in memory. Also note that the filename parameter must not be None and must
+    point to an existing file. It's likely that the user will need to update
+    the filename parameter to include the full path.
+
+    Parameters
+    ----------
+    dumper: yaml.Dumper
+        An instance of a yaml Loader object.
+    beam: UVBeam
+        A UVbeam object, which must have a filename defined on it.
+
+    Returns
+    -------
+    str
+        The yaml representation of the UVbeam.
+
+    """
+    print(beam.filename)
+    print(isinstance(beam.filename, str))
+    if beam.filename is None:
+        raise ValueError(
+            "beam must have a filename defined to be able to represent it in a yaml."
+        )
+    elif not isinstance(beam.filename, str):
+        raise ValueError(
+            "beam.filename must be a string to be able to represent it in a yaml."
+        )
+    elif not os.path.exists(beam.filename):
+        raise ValueError(
+            "beam.filename must be an existing file to be able to represent it "
+            "in a yaml."
+        )
+    mapping = {"filename": beam.filename}
+
+    return dumper.represent_mapping("!UVBeam", mapping)
+
+
+yaml.add_multi_representer(UVBeam, uvbeam_beam_representer, Dumper=yaml.SafeDumper)
