@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from typing import Literal
 
 import numpy as np
@@ -21,43 +21,44 @@ from .. import utils
 from ..docstrings import combine_docstrings
 from .uvbeam import UVBeam, _convert_feeds_to_pols
 
-analytic_beam_classes = ["AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
-__all__ = ["AnalyticBeam"] + analytic_beam_classes
+__all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AnalyticBeam(ABC):
     """
     Define an analytic beam base class.
 
     Attributes
     ----------
-    basis_vec_dict : dict
-        Allowed basis vector types (keys) with their number of axes (which will be set
-        on the object as Naxes_vec).
-    basis_vector_type : str
-        The type of basis vectors this beam is defined with. Must be a key in
-        `basis_vec_dict`. Currently, only "az_za" is supported, which means basis
-        vectors aligned with the zenith angle and azimuth.
-    Naxes_vec : int
-        Number of basis vectors. This is set based on the `basis_vector_type`.
-    Nfeeds : int
-        Number of feeds. This is set based on the `feed_array`.
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
 
     Parameters
     ----------
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l.
-    include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
-        the power beam.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
         unpolarized analytic beams, but clarifies the orientation of the dipole
         for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
+        the power beam.
 
     """
+
+    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
+    x_orientation: Literal["east", "north"] = field(
+        default="east", repr=False, compare=False
+    )
+    include_cross_pols: InitVar[bool] = True
 
     # In the future, this might allow for cartesian basis vectors in some orientation.
     # In that case, the Naxes_vec would be 3 rather than 2
@@ -68,36 +69,50 @@ class AnalyticBeam(ABC):
     def basis_vector_type(self):
         """Require that a basis_vector_type is defined in concrete classes."""
 
-    def __init__(
-        self,
-        *,
-        feed_array: npt.NDArray[str] | None = None,
-        include_cross_pols: bool = True,
-        x_orientation: Literal["east", "north"] = "east",
-    ):
+    def __post_init__(self, include_cross_pols):
+        """
+        Post-initialization validation and conversions.
+
+        Parameters
+        ----------
+        include_cross_pols : bool
+            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+            for the power beam.
+
+        """
         if self.basis_vector_type not in self._basis_vec_dict:
             raise ValueError(
                 f"basis_vector_type is {self.basis_vector_type}, must be one of "
                 f"{list(self._basis_vec_dict.keys())}"
             )
-        self.Naxes_vec = self._basis_vec_dict[self.basis_vector_type]
 
-        if feed_array is not None:
-            for feed in feed_array:
+        if self.feed_array is not None:
+            for feed in self.feed_array:
                 allowed_feeds = ["n", "e", "x", "y", "r", "l"]
                 if feed not in allowed_feeds:
                     raise ValueError(f"Feeds must be one of: {allowed_feeds}")
+            self.feed_array = np.asarray(self.feed_array)
         else:
-            feed_array = ["x", "y"]
-        self.feed_array = np.asarray(feed_array)
-
-        self.Nfeeds = self.feed_array.size
-        self.x_orientation = x_orientation
+            self.feed_array = np.asarray(["x", "y"])
 
         self.polarization_array, _ = _convert_feeds_to_pols(
             self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
-        self.Npols = self.polarization_array.size
+
+    @property
+    def Naxes_vec(self):  # noqa N802
+        """The number of vector axes."""
+        return self._basis_vec_dict[self.basis_vector_type]
+
+    @property
+    def Nfeeds(self):  # noqa N802
+        """The number of feeds."""
+        return self.feed_array.size
+
+    @property
+    def Npols(self):  # noqa N802
+        """The number of polarizations."""
+        return self.polarization_array.size
 
     def _check_eval_inputs(
         self,
@@ -405,12 +420,29 @@ class AnalyticBeam(ABC):
         return uvb
 
 
-def analytic_beam_constructor(loader, node):
+def _analytic_beam_constructor(loader, node):
     """
     Define a yaml constructor for analytic beams.
 
     The yaml must specify a "class" field with an importable class and any
     required inputs to that class's constructor.
+
+    Example yamls (note that the node key can be anything, it does not need to
+    be 'beam'):
+
+    * beam: !AnalyticBeam
+       class: AiryBeam
+       diameter: 4.0
+
+    * beam: !AnalyticBeam
+        class: GaussianBeam
+        reference_frequency: 120000000.
+        spectral_index: -1.5
+        sigma: 0.26
+
+    * beam: !AnalyticBeam
+       class: ShortDipoleBeam
+
 
     Parameters
     ----------
@@ -425,11 +457,12 @@ def analytic_beam_constructor(loader, node):
         An instance of an AnalyticBeam subclass.
 
     """
-    values = loader.construct_mapping(node)
+    values = loader.construct_mapping(node, deep=True)
     if "class" not in values:
         raise ValueError("yaml entries for AnalyticBeam must specify a class")
     class_parts = (values.pop("class")).split(".")
     class_name = class_parts[-1]
+
     if len(class_parts) == 1:
         # no module specified, assume pyuvdata
         module = importlib.import_module("pyuvdata")
@@ -443,10 +476,15 @@ def analytic_beam_constructor(loader, node):
     return beam
 
 
-yaml.add_constructor("!AnalyticBeam", analytic_beam_constructor, Loader=yaml.SafeLoader)
+yaml.add_constructor(
+    "!AnalyticBeam", _analytic_beam_constructor, Loader=yaml.SafeLoader
+)
+yaml.add_constructor(
+    "!AnalyticBeam", _analytic_beam_constructor, Loader=yaml.FullLoader
+)
 
 
-def analytic_beam_representer(dumper, beam):
+def _analytic_beam_representer(dumper, beam):
     """
     Define a yaml representer for analytic beams.
 
@@ -467,13 +505,15 @@ def analytic_beam_representer(dumper, beam):
         "class": beam.__module__ + "." + beam.__class__.__name__,
         **dataclasses.asdict(beam),
     }
+    mapping["feed_array"] = mapping["feed_array"].tolist()
 
     return dumper.represent_mapping("!AnalyticBeam", mapping)
 
 
 yaml.add_multi_representer(
-    AnalyticBeam, analytic_beam_representer, Dumper=yaml.SafeDumper
+    AnalyticBeam, _analytic_beam_representer, Dumper=yaml.SafeDumper
 )
+yaml.add_multi_representer(AnalyticBeam, _analytic_beam_representer, Dumper=yaml.Dumper)
 
 
 def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
@@ -507,10 +547,37 @@ def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
     return sigma
 
 
-@dataclass
+@dataclass(kw_only=True)
 class GaussianBeam(AnalyticBeam):
     """
     Define a Gaussian beam, optionally with frequency dependent size.
+
+    Attributes
+    ----------
+    sigma : float
+        Standard deviation in radians for the gaussian beam. Only one of sigma
+        and diameter should be set.
+    sigma_type : str
+        Either "efield" or "power" to indicate whether the sigma specifies the size of
+        the efield or power beam. Ignored if `sigma` is None.
+    diameter : float
+        Dish diameter in meters to use to define the size of the gaussian beam, by
+        matching the FWHM of the gaussian to the FWHM of an Airy disk. This will result
+        in a frequency dependent beam.  Only one of sigma and diameter should be set.
+    spectral_index : float
+        Option to scale the gaussian beam width as a power law with frequency. If set
+        to anything other than zero, the beam will be frequency dependent and the
+        `reference_frequency` must be set. Ignored if `sigma` is None.
+    reference_frequency : float
+        The reference frequency for the beam width power law, required if `sigma` is not
+        None and `spectral_index` is not zero. Ignored if `sigma` is None.
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
 
     Parameters
     ----------
@@ -533,6 +600,10 @@ class GaussianBeam(AnalyticBeam):
         None and `spectral_index` is not zero. Ignored if `sigma` is None.
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. n & e or x & y or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
@@ -545,45 +616,46 @@ class GaussianBeam(AnalyticBeam):
     spectral_index: float = 0.0
     reference_frequency: float = None
 
+    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
+    x_orientation: Literal["east", "north"] = field(
+        default="east", repr=False, compare=False
+    )
+
+    include_cross_pols: InitVar[bool] = True
+
     basis_vector_type = "az_za"
 
-    def __init__(
-        self,
-        *,
-        sigma: float | None = None,
-        sigma_type: Literal["efield", "power"] = "efield",
-        diameter: float | None = None,
-        spectral_index: float = 0.0,
-        reference_frequency: float = None,
-        feed_array: npt.NDArray[str] | None = None,
-        include_cross_pols: bool = True,
-    ):
-        if (diameter is None and sigma is None) or (
-            diameter is not None and sigma is not None
+    def __post_init__(self, include_cross_pols):
+        """
+        Post-initialization validation and conversions.
+
+        Parameters
+        ----------
+        include_cross_pols : bool
+            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+            for the power beam.
+
+        """
+        if (self.diameter is None and self.sigma is None) or (
+            self.diameter is not None and self.sigma is not None
         ):
-            if diameter is None:
+            if self.diameter is None:
                 raise ValueError("Either diameter or sigma must be set.")
             else:
                 raise ValueError("Only one of diameter or sigma can be set.")
 
-        self.diameter = diameter
+        if self.sigma is not None:
+            if self.sigma_type != "efield":
+                self.sigma = np.sqrt(2) * self.sigma
 
-        if sigma is not None:
-            if sigma_type == "efield":
-                self.sigma = sigma
-            else:
-                self.sigma = np.sqrt(2) * sigma
-
-            if spectral_index != 0.0 and reference_frequency is None:
+            if self.spectral_index != 0.0 and self.reference_frequency is None:
                 raise ValueError(
                     "reference_frequency must be set if `spectral_index` is not zero."
                 )
-            if reference_frequency is None:
-                reference_frequency = 1.0
-            self.spectral_index = spectral_index
-            self.reference_frequency = reference_frequency
+            if self.reference_frequency is None:
+                self.reference_frequency = 1.0
 
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
+        super().__post_init__(include_cross_pols=include_cross_pols)
 
     def get_sigmas(self, freq_array: npt.NDArray[float]) -> npt.NDArray[float]:
         """
@@ -658,10 +730,22 @@ class GaussianBeam(AnalyticBeam):
         return data_array
 
 
-@dataclass
+@dataclass(kw_only=True)
 class AiryBeam(AnalyticBeam):
     """
     Define an Airy beam.
+
+    Attributes
+    ----------
+    diameter : float
+        Dish diameter in meters.
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
 
     Parameters
     ----------
@@ -669,6 +753,10 @@ class AiryBeam(AnalyticBeam):
         Dish diameter in meters.
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. n & e or x & y or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
@@ -676,19 +764,14 @@ class AiryBeam(AnalyticBeam):
     """
 
     diameter: float
+    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
+    x_orientation: Literal["east", "north"] = field(
+        default="east", repr=False, compare=False
+    )
+
+    include_cross_pols: InitVar[bool] = True
 
     basis_vector_type = "az_za"
-
-    def __init__(
-        self,
-        diameter: float,
-        *,
-        feed_array: npt.NDArray[str] | None = None,
-        include_cross_pols: bool = True,
-    ):
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
-
-        self.diameter = diameter
 
     def _efield_eval(
         self,
@@ -748,40 +831,40 @@ class AiryBeam(AnalyticBeam):
         return data_array
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ShortDipoleBeam(AnalyticBeam):
     """
     Define an analytic short (Hertzian) dipole beam for two crossed dipoles.
 
+    Attributes
+    ----------
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+
     Parameters
     ----------
-    include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-        for the power beam.
     x_orientation : str
         The orientation of the dipole labeled 'x'. The default ("east") means
         that the x dipole is aligned east-west and that the y dipole is aligned
         north-south.
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+        for the power beam.
 
     """
 
     x_orientation: Literal["east", "north"] = "east"
 
+    feed_array = ["e", "n"]
+
+    include_cross_pols: InitVar[bool] = True
+
     basis_vector_type = "az_za"
-
-    def __init__(
-        self,
-        *,
-        x_orientation: Literal["east", "north"] = "east",
-        include_cross_pols: bool = True,
-    ):
-        feed_array = ["e", "n"]
-
-        super().__init__(
-            feed_array=feed_array,
-            include_cross_pols=include_cross_pols,
-            x_orientation=x_orientation,
-        )
 
     def _efield_eval(
         self,
@@ -833,30 +916,43 @@ class ShortDipoleBeam(AnalyticBeam):
         return data_array
 
 
-@dataclass
+@dataclass(kw_only=True)
 class UniformBeam(AnalyticBeam):
     """
     Define a uniform beam.
+
+    Attributes
+    ----------
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        unpolarized analytic beams, but clarifies the orientation of the dipole
+        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
 
     Parameters
     ----------
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. n & e or x & y or r & l.
+    x_orientation : str
+        The orientation of the dipole labeled 'x'. The default ("east") means
+        that the x dipole is aligned east-west and that the y dipole is aligned
+        north-south.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
 
     """
 
-    basis_vector_type = "az_za"
+    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
+    x_orientation: Literal["east", "north"] = field(
+        default="east", repr=False, compare=False
+    )
 
-    def __init__(
-        self,
-        *,
-        feed_array: npt.NDArray[str] | None = None,
-        include_cross_pols: bool = True,
-    ):
-        super().__init__(feed_array=feed_array, include_cross_pols=include_cross_pols)
+    include_cross_pols: InitVar[bool] = True
+
+    basis_vector_type = "az_za"
 
     def _efield_eval(
         self,

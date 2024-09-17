@@ -4474,7 +4474,7 @@ class UVBeam(UVBase):
         del beamfits_obj
 
 
-def uvbeam_constructor(loader, node):
+def _uvbeam_constructor(loader, node):
     """
     Define a yaml constructor for UVBeam objects.
 
@@ -4527,10 +4527,11 @@ def uvbeam_constructor(loader, node):
     return beam
 
 
-yaml.add_constructor("!UVBeam", uvbeam_constructor, Loader=yaml.SafeLoader)
+yaml.add_constructor("!UVBeam", _uvbeam_constructor, Loader=yaml.SafeLoader)
+yaml.add_constructor("!UVBeam", _uvbeam_constructor, Loader=yaml.FullLoader)
 
 
-def uvbeam_beam_representer(dumper, beam):
+def _uvbeam_representer(dumper, beam):
     """
     Define a yaml representer for UVbeams.
 
@@ -4558,6 +4559,8 @@ def uvbeam_beam_representer(dumper, beam):
             "beam must have a filename defined to be able to represent it in a yaml."
         )
     files_use = beam.filename
+    if isinstance(files_use, str):
+        files_use = [files_use]
     for file in files_use:
         if not os.path.exists(file):
             raise ValueError(
@@ -4572,4 +4575,5 @@ def uvbeam_beam_representer(dumper, beam):
     return dumper.represent_mapping("!UVBeam", mapping)
 
 
-yaml.add_multi_representer(UVBeam, uvbeam_beam_representer, Dumper=yaml.SafeDumper)
+yaml.add_representer(UVBeam, _uvbeam_representer, Dumper=yaml.SafeDumper)
+yaml.add_representer(UVBeam, _uvbeam_representer, Dumper=yaml.Dumper)

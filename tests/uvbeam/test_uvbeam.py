@@ -2970,9 +2970,15 @@ def test_from_file(filename):
     assert uvb == uvb2
 
 
-@pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
-@pytest.mark.parametrize("path_var", [True, False])
-def test_yaml_constructor(filename, path_var):
+@pytest.mark.parametrize(
+    ["filename", "path_var", "file_list"],
+    [
+        [cst_yaml_file, True, True],
+        [mwa_beam_file, False, False],
+        [casa_beamfits, False, True],
+    ],
+)
+def test_yaml_constructor(filename, path_var, file_list):
     if path_var:
         input_yaml = f"""
             beam: !UVBeam
@@ -3019,7 +3025,10 @@ def test_yaml_constructor(filename, path_var):
     with pytest.raises(ValueError, match=err_msg):
         output_yaml = yaml.safe_dump({"beam": uvb})
 
-    uvb.filename = [filename]
+    if file_list:
+        uvb.filename = [filename]
+    else:
+        uvb.filename = filename
     output_yaml = yaml.safe_dump({"beam": uvb})
     try:
         new_beam_from_yaml = yaml.safe_load(output_yaml)["beam"]

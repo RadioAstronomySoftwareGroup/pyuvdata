@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 import warnings
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from typing import Literal
 
 import numpy as np
@@ -46,24 +46,31 @@ class BeamInterface:
 
     beam: AnalyticBeam | UVBeam
     beam_type: Literal["efield", "power"] | None = None
+    include_cross_pols: InitVar[bool] = True
 
-    def __init__(
-        self,
-        beam: AnalyticBeam | UVBeam,
-        beam_type: Literal["efield", "power"] | None = None,
-        include_cross_pols: bool = True,
-    ):
-        if not isinstance(beam, UVBeam) and not issubclass(type(beam), AnalyticBeam):
+    def __post_init__(self, include_cross_pols):
+        """
+        Post-initialization validation and conversions.
+
+        Parameters
+        ----------
+        include_cross_pols : bool
+            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+            for the power beam.
+
+        """
+        if not isinstance(self.beam, UVBeam) and not issubclass(
+            type(self.beam), AnalyticBeam
+        ):
             raise ValueError(
                 "beam must be a UVBeam or an AnalyticBeam instance, not a "
-                f"{type(beam)}."
+                f"{type(self.beam)}."
             )
-        self.beam = beam
-        if isinstance(beam, UVBeam):
+        if isinstance(self.beam, UVBeam):
             self._isuvbeam = True
-            if beam_type is None or beam_type == beam.beam_type:
-                self.beam_type = beam.beam_type
-            elif beam_type == "power":
+            if self.beam_type is None or self.beam_type == self.beam.beam_type:
+                self.beam_type = self.beam.beam_type
+            elif self.beam_type == "power":
                 warnings.warn(
                     "Input beam is an efield UVBeam but beam_type is specified as "
                     "'power'. Converting efield beam to power."
@@ -79,7 +86,6 @@ class BeamInterface:
         else:
             # AnalyticBeam
             self._isuvbeam = False
-            self.beam_type = beam_type
 
     def compute_response(
         self,
