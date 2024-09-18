@@ -45,16 +45,11 @@ except (LookupError, ImportError):  # pragma: no cover
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
 warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
+from .analytic_beam import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam  # noqa
+from .beam_interface import BeamInterface  # noqa
 from .telescopes import Telescope  # noqa
 from .telescopes import get_telescope  # noqa  # NB: get_telescopes is deprecated
-from .uvbeam import (  # noqa
-    AiryBeam,
-    BeamInterface,
-    GaussianBeam,
-    ShortDipoleBeam,
-    UniformBeam,
-    UVBeam,
-)
+from .uvbeam import UVBeam  # noqa
 from .uvcal import UVCal  # noqa
 from .uvdata import FastUVH5Meta  # noqa
 from .uvdata import UVData  # noqa

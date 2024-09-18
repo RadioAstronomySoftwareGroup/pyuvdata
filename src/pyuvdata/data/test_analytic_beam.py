@@ -7,7 +7,7 @@ from typing import Literal
 
 import numpy.typing as npt
 
-from ..uvbeam.analytic_beam import AnalyticBeam
+from ..analytic_beam import AnalyticBeam
 
 
 @dataclass(kw_only=True)
