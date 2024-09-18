@@ -17,9 +17,9 @@ import yaml
 from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
-from .. import utils
-from ..docstrings import combine_docstrings
-from .uvbeam import UVBeam, _convert_feeds_to_pols
+from . import utils
+from .docstrings import combine_docstrings
+from .uvbeam.uvbeam import UVBeam, _convert_feeds_to_pols
 
 __all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 

@@ -10,7 +10,7 @@ from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
 from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
-from pyuvdata.uvbeam.analytic_beam import AnalyticBeam
+from pyuvdata.analytic_beam import AnalyticBeam
 
 
 def test_airy_beam_values(az_za_deg_grid):
