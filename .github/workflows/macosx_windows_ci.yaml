@@ -40,12 +40,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Minimamba
+      - name: Setup Miniforge
         uses: conda-incubator/setup-miniconda@v3
         with:
-          miniforge-variant: Mambaforge
           miniforge-version: latest
-          use-mamba: true
           python-version: ${{ matrix.python-version }}
           environment-file: ci/${{ matrix.env_name }}.yml
           activate-environment: ${{ matrix.env_name }}
