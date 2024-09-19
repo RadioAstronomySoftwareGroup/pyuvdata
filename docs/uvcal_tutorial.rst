@@ -324,6 +324,7 @@ that should be noted:
   on the object itself).
 * Regardless of the value of ``undo``, the convention that is inferred for the
   calibration solutions is determined as follows:
+
   * If neither ``uvc_pol_convention`` nor ``uvcal.pol_convention`` are specified, a
     a warning is raised (since the resulting calibrated data is not well-determined),
     and it is *assumed* that the solutions have the same convention as the ``UVData``
@@ -332,7 +333,9 @@ that should be noted:
     corrections are applied, and the result is ambiguous.
   * If both ``uvc_pol_convention`` and ``uvcal.pol_convention`` are specified and are
     different, an error is raised.
+
 * When **calibrating** in :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=False``):
+
   * If ``uvdata.pol_convention`` is specified, an error is raised, because you are
     trying to calibrate already-calibrated data.
   * The convention applied to the resulting ``UVData`` object is inferred in the
@@ -341,7 +344,9 @@ that should be noted:
     or ``uvcal.pol_convention``, see above), (iii) if still unspecified, no convention
     will be used and a warning will be raised. This was always the behaviour in earlier
     versions of ``pyuvdata`` (pre-v3).
+
 * When **un-calibrating** with :func:`pyuvdata.utils.uvcalibrate` (i.e. ``undo=True``):
+
   * If both ``uvd_pol_convention`` and ``uvdata.pol_convention`` are defined and
     are different, an error is raised.
   * If neither are set, a warning is raised, since the resulting un-calibrated values
@@ -349,6 +354,7 @@ that should be noted:
     convention could have been used to calibrate originally than is being used to
     de-calibrate). However, calibration will continue, assuming that the ``UVData``
     object has the same convention as the ``UVCal`` object used to de-calibrate.
+
 * It is not supported to have ``pol_convention`` set on ``UVCal``, but *not*
   ``gain_scale``. A ``pol_convention`` only makes sense in the context of having a
   scale for the gains.

@@ -7,8 +7,7 @@ via keywords when the files are read in, but it is better for the metadata to be
 specified once and carried with the data files. To that end, we developed a yaml
 settings file specification to carry all the metadata. This format is very human
 readable and writeable and we encourage using such a file as the best way to
-ensure the metadata is preserved. Note that reading a yaml settings file into
-UVBeam requires that pyyaml is installed.
+ensure the metadata is preserved.
 
 Required Fields
 ***************
