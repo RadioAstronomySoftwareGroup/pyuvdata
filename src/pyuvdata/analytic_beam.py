@@ -27,7 +27,7 @@ __all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "Unifo
 @dataclass(kw_only=True)
 class AnalyticBeam(ABC):
     """
-    Define an analytic beam base class.
+    Analytic beam base class.
 
     Attributes
     ----------
@@ -37,7 +37,8 @@ class AnalyticBeam(ABC):
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
         unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        for polarized beams like the ShortDipoleBeam and matches with the meaning
+        on UVBeam objects.
 
     Parameters
     ----------
@@ -47,7 +48,8 @@ class AnalyticBeam(ABC):
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
         unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        for for polarized beams like the ShortDipoleBeam and matches with the
+        meaning on UVBeam objects
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
@@ -529,6 +531,114 @@ yaml.add_multi_representer(
 yaml.add_multi_representer(AnalyticBeam, _analytic_beam_representer, Dumper=yaml.Dumper)
 
 
+@dataclass(kw_only=True)
+class AiryBeam(AnalyticBeam):
+    """
+    A zenith pointed Airy beam.
+
+    Airy beams are the diffraction pattern of a circular aperture, so represent
+    an idealized dish. Requires a dish diameter in meters and is inherently
+    chromatic and unpolarized.
+
+    The unpolarized nature leads to some results that may be surprising to radio
+    astronomers: if two feeds are specified they will have identical responses
+    and the cross power beam between the two feeds will be identical to the
+    spower beam for a single feed.
+
+    Attributes
+    ----------
+    diameter : float
+        Dish diameter in meters.
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
+        or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        AiryBeams, which are unpolarized.
+
+    Parameters
+    ----------
+    diameter : float
+        Dish diameter in meters.
+    feed_array : np.ndarray of str
+        Feeds to define this beam for, e.g. n & e or x & y or r & l.
+    x_orientation : str
+        Physical orientation of the feed for the x feed. Not meaningful for
+        AiryBeams, which are unpolarized.
+    include_cross_pols : bool
+        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
+        the power beam.
+
+    """
+
+    diameter: float
+    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
+    x_orientation: Literal["east", "north"] = field(
+        default="east", repr=False, compare=False
+    )
+
+    include_cross_pols: InitVar[bool] = True
+
+    basis_vector_type = "az_za"
+
+    def _efield_eval(
+        self,
+        *,
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
+        """Evaluate the efield at the given coordinates."""
+        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
+
+        za_grid, f_grid = np.meshgrid(za_array, freq_array)
+        kvals = (2.0 * np.pi) * f_grid / speed_of_light.to("m/s").value
+        xvals = (self.diameter / 2.0) * np.sin(za_grid) * kvals
+        values = np.zeros_like(xvals)
+        nz = xvals != 0.0
+        ze = xvals == 0.0
+        values[nz] = 2.0 * j1(xvals[nz]) / xvals[nz]
+        values[ze] = 1.0
+
+        # This is different than what is in pyuvsim because it means that we have the
+        # same response to any polarized source in both feeds. We think this is correct
+        # for an azimuthally symmetric analytic beam but it is a change.
+        # On pyuvsim we essentially have each basis vector go into only one feed.
+        for fn in np.arange(self.Nfeeds):
+            data_array[0, fn, :, :] = values / np.sqrt(2.0)
+            data_array[1, fn, :, :] = values / np.sqrt(2.0)
+
+        return data_array
+
+    def _power_eval(
+        self,
+        *,
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float],
+    ) -> npt.NDArray[float]:
+        """Evaluate the power at the given coordinates."""
+        data_array = self._get_empty_data_array(
+            az_array.size, freq_array.size, beam_type="power"
+        )
+
+        za_grid, f_grid = np.meshgrid(za_array, freq_array)
+        kvals = (2.0 * np.pi) * f_grid / speed_of_light.to("m/s").value
+        xvals = (self.diameter / 2.0) * np.sin(za_grid) * kvals
+        values = np.zeros_like(xvals)
+        nz = xvals != 0.0
+        ze = xvals == 0.0
+        values[nz] = (2.0 * j1(xvals[nz]) / xvals[nz]) ** 2
+        values[ze] = 1.0
+
+        for fn in np.arange(self.Npols):
+            # For power beams the first axis is shallow because we don't have to worry
+            # about polarization.
+            data_array[0, fn, :, :] = values
+
+        return data_array
+
+
 def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
     """
     Find the sigma that gives a beam width similar to an Airy disk.
@@ -563,7 +673,24 @@ def diameter_to_sigma(diameter: float, freq_array: npt.NDArray[float]) -> float:
 @dataclass(kw_only=True)
 class GaussianBeam(AnalyticBeam):
     """
-    Define a Gaussian beam, optionally with frequency dependent size.
+    A circular, zenith pointed Gaussian beam.
+
+    Requires either a dish diameter in meters or a standard deviation sigma in
+    radians. Gaussian beams specified by a diameter will have their width
+    matched to an Airy beam at each simulated frequency, so are inherently
+    chromatic. For Gaussian beams specified with sigma, the sigma_type defines
+    whether the width specified by sigma specifies the width of the E-Field beam
+    (default) or power beam in zenith angle. If only sigma is specified, the
+    beam is achromatic, optionally both the spectral_index and reference_frequency
+    parameters can be set to generate a chromatic beam with standard deviation
+    defined by a power law:
+
+    stddev(f) = sigma * (f/ref_freq)**(spectral_index)
+
+    The unpolarized nature leads to some results that may be
+    surprising to radio astronomers: if two feeds are specified they will have
+    identical responses and the cross power beam between the two feeds will be
+    identical to the power beam for a single feed.
 
     Attributes
     ----------
@@ -589,8 +716,7 @@ class GaussianBeam(AnalyticBeam):
         or r & l.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        GaussianBeams, which are unpolarized.
 
     Parameters
     ----------
@@ -615,8 +741,7 @@ class GaussianBeam(AnalyticBeam):
         Feeds to define this beam for, e.g. n & e or x & y or r & l.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        GaussianBeams, which are unpolarized.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.
@@ -744,110 +869,16 @@ class GaussianBeam(AnalyticBeam):
 
 
 @dataclass(kw_only=True)
-class AiryBeam(AnalyticBeam):
-    """
-    Define an Airy beam.
-
-    Attributes
-    ----------
-    diameter : float
-        Dish diameter in meters.
-    feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
-        or r & l.
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
-
-    Parameters
-    ----------
-    diameter : float
-        Dish diameter in meters.
-    feed_array : np.ndarray of str
-        Feeds to define this beam for, e.g. n & e or x & y or r & l.
-    x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
-    include_cross_pols : bool
-        Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
-        the power beam.
-
-    """
-
-    diameter: float
-    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-    x_orientation: Literal["east", "north"] = field(
-        default="east", repr=False, compare=False
-    )
-
-    include_cross_pols: InitVar[bool] = True
-
-    basis_vector_type = "az_za"
-
-    def _efield_eval(
-        self,
-        *,
-        az_array: npt.NDArray[float],
-        za_array: npt.NDArray[float],
-        freq_array: npt.NDArray[float],
-    ) -> npt.NDArray[float]:
-        """Evaluate the efield at the given coordinates."""
-        data_array = self._get_empty_data_array(az_array.size, freq_array.size)
-
-        za_grid, f_grid = np.meshgrid(za_array, freq_array)
-        kvals = (2.0 * np.pi) * f_grid / speed_of_light.to("m/s").value
-        xvals = (self.diameter / 2.0) * np.sin(za_grid) * kvals
-        values = np.zeros_like(xvals)
-        nz = xvals != 0.0
-        ze = xvals == 0.0
-        values[nz] = 2.0 * j1(xvals[nz]) / xvals[nz]
-        values[ze] = 1.0
-
-        # This is different than what is in pyuvsim because it means that we have the
-        # same response to any polarized source in both feeds. We think this is correct
-        # for an azimuthally symmetric analytic beam but it is a change.
-        # On pyuvsim we essentially have each basis vector go into only one feed.
-        for fn in np.arange(self.Nfeeds):
-            data_array[0, fn, :, :] = values / np.sqrt(2.0)
-            data_array[1, fn, :, :] = values / np.sqrt(2.0)
-
-        return data_array
-
-    def _power_eval(
-        self,
-        *,
-        az_array: npt.NDArray[float],
-        za_array: npt.NDArray[float],
-        freq_array: npt.NDArray[float],
-    ) -> npt.NDArray[float]:
-        """Evaluate the power at the given coordinates."""
-        data_array = self._get_empty_data_array(
-            az_array.size, freq_array.size, beam_type="power"
-        )
-
-        za_grid, f_grid = np.meshgrid(za_array, freq_array)
-        kvals = (2.0 * np.pi) * f_grid / speed_of_light.to("m/s").value
-        xvals = (self.diameter / 2.0) * np.sin(za_grid) * kvals
-        values = np.zeros_like(xvals)
-        nz = xvals != 0.0
-        ze = xvals == 0.0
-        values[nz] = (2.0 * j1(xvals[nz]) / xvals[nz]) ** 2
-        values[ze] = 1.0
-
-        for fn in np.arange(self.Npols):
-            # For power beams the first axis is shallow because we don't have to worry
-            # about polarization.
-            data_array[0, fn, :, :] = values
-
-        return data_array
-
-
-@dataclass(kw_only=True)
 class ShortDipoleBeam(AnalyticBeam):
     """
-    Define an analytic short (Hertzian) dipole beam for two crossed dipoles.
+    A zenith pointed analytic short dipole beam with two crossed feeds.
+
+    A classical short (Hertzian) dipole beam with two crossed feeds aligned east
+    and north. Short dipole beams are intrinsically polarized but achromatic.
+    Does not require any parameters, but the orientation of the dipole labelled
+    as "x" can be specified to align "north" or "east" via the x_orientation
+    parameter (matching the parameter of the same name on UVBeam and UVData
+    objects).
 
     Attributes
     ----------
@@ -855,9 +886,9 @@ class ShortDipoleBeam(AnalyticBeam):
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l.
     x_orientation : str
-        Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        The orientation of the dipole labeled 'x'. The default ("east") means
+        that the x dipole is aligned east-west and that the y dipole is aligned
+        north-south.
 
     Parameters
     ----------
@@ -932,7 +963,16 @@ class ShortDipoleBeam(AnalyticBeam):
 @dataclass(kw_only=True)
 class UniformBeam(AnalyticBeam):
     """
-    Define a uniform beam.
+    A uniform beam.
+
+    Uniform beams have identical responses in all directions, so are quite
+    unphysical but can be useful for testing other aspects of simulators. They
+    are unpolarized and achromatic and do not take any parameters.
+
+    The unpolarized nature leads to some results that may be surprising to radio
+    astronomers: if two feeds are specified they will have identical responses
+    and the cross power beam between the two feeds will be identical to the
+    power beam for a single feed.
 
     Attributes
     ----------
@@ -941,17 +981,15 @@ class UniformBeam(AnalyticBeam):
         or r & l.
     x_orientation : str
         Physical orientation of the feed for the x feed. Not meaningful for
-        unpolarized analytic beams, but clarifies the orientation of the dipole
-        for the ShortDipoleBeam and matches with the meaning on UVBeam objects.
+        UniformBeams, which are unpolarized.
 
     Parameters
     ----------
     feed_array : np.ndarray of str
         Feeds to define this beam for, e.g. n & e or x & y or r & l.
     x_orientation : str
-        The orientation of the dipole labeled 'x'. The default ("east") means
-        that the x dipole is aligned east-west and that the y dipole is aligned
-        north-south.
+        Physical orientation of the feed for the x feed. Not meaningful for
+        UniformBeams, which are unpolarized.
     include_cross_pols : bool
         Option to include the cross polarized beams (e.g. xy and yx or en and ne) for
         the power beam.

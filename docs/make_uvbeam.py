@@ -21,7 +21,9 @@ def write_uvbeam_rst(write_file=None):
         "transforming the data (interpolating/regridding, selecting, converting\n"
         "types) and can be interacted with directly.\n\n"
         "Note that there are some tricks that can help with reading in CST beam\n"
-        "simulation files in `CST Settings Files`_.\n\n"
+        "simulation files in `CST Settings Files`_.\n"
+        "UVBeam also provides a yaml constructor that can enable beams to be\n"
+        "instantiated directly from yaml files (see: `UVbeam yaml constructor`_)\n\n"
         "Attributes\n----------\n"
         "The attributes on UVBeam hold all of the metadata and data required to\n"
         "describe primary beam models. Under the hood, the attributes are implemented\n"
@@ -66,6 +68,33 @@ def write_uvbeam_rst(write_file=None):
         out += "\n"
 
     out += "Methods\n-------\n.. autoclass:: pyuvdata.UVBeam\n  :members:\n\n"
+
+    out += """
+UVBeam yaml constructor
+-----------------------
+
+UVbeams can be instantiated directly from yaml files using the
+``!UVBeam`` tag. The ``filename`` parameter must be specified and and
+any other parameter that can be passed to the :meth:`pyuvdata.UVBeam.read`
+method can also be specified.
+
+Some examples are provided below, note that the node key can be anything,
+it does not need to be ``beam``:
+
+A simple UVBeam specification::
+
+    beam: !UVBeam
+        filename: hera.beamfits
+
+An UVbeam specification with some with some keywords to pass to ``UVBeam.read``::
+
+    beam: !UVBeam
+        filename: mwa_full_EE_test.h5
+        pixels_per_deg: 1
+        freq_range: [100.e+6, 200.e+6]
+
+\n\n
+"""
 
     with open("cst_settings_yaml.rst", encoding="utf-8") as cst_settings_file:
         cst_setting_text = cst_settings_file.read()
