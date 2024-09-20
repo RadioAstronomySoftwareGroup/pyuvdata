@@ -74,7 +74,7 @@ UVBeam yaml constructor
 -----------------------
 
 UVbeams can be instantiated directly from yaml files using the
-``!UVBeam`` tag. The ``filename`` parameter must be specified and and
+``!UVBeam`` tag. The ``filename`` parameter must be specified and
 any other parameter that can be passed to the :meth:`pyuvdata.UVBeam.read`
 method can also be specified.
 
@@ -86,7 +86,7 @@ A simple UVBeam specification::
     beam: !UVBeam
         filename: hera.beamfits
 
-An UVbeam specification with some with some keywords to pass to ``UVBeam.read``::
+An UVbeam specification with some keywords to pass to ``UVBeam.read``::
 
     beam: !UVBeam
         filename: mwa_full_EE_test.h5
