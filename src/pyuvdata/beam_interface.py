@@ -48,7 +48,7 @@ class BeamInterface:
     beam_type: Literal["efield", "power"] | None = None
     include_cross_pols: InitVar[bool] = True
 
-    def __post_init__(self, include_cross_pols):
+    def __post_init__(self, include_cross_pols: bool):
         """
         Post-initialization validation and conversions.
 
@@ -67,7 +67,6 @@ class BeamInterface:
                 f"{type(self.beam)}."
             )
         if isinstance(self.beam, UVBeam):
-            self._isuvbeam = True
             if self.beam_type is None or self.beam_type == self.beam.beam_type:
                 self.beam_type = self.beam.beam_type
             elif self.beam_type == "power":
@@ -83,9 +82,10 @@ class BeamInterface:
                     "efield beam, either provide an efield UVBeam or do not "
                     "specify `beam_type`."
                 )
-        else:
-            # AnalyticBeam
-            self._isuvbeam = False
+
+    @property
+    def _isuvbeam(self):
+        return isinstance(self.beam, UVBeam)
 
     def compute_response(
         self,

@@ -98,7 +98,10 @@ class AnalyticBeam(ABC):
             for feed in self.feed_array:
                 allowed_feeds = ["n", "e", "x", "y", "r", "l"]
                 if feed not in allowed_feeds:
-                    raise ValueError(f"Feeds must be one of: {allowed_feeds}")
+                    raise ValueError(
+                        f"Feeds must be one of: {allowed_feeds}, "
+                        f"got feeds: {self.feed_array}"
+                    )
             self.feed_array = np.asarray(self.feed_array)
         else:
             self.feed_array = np.asarray(["x", "y"])
@@ -471,12 +474,9 @@ def _analytic_beam_constructor(loader, node):
     class_parts = (values.pop("class")).split(".")
     class_name = class_parts[-1]
 
-    if class_name in AnalyticBeam.__types__:
-        beam_class = AnalyticBeam.__types__[class_name]
-    elif len(class_parts) > 1:
+    if class_name not in AnalyticBeam.__types__ and len(class_parts) > 1:
         module = (".").join(class_parts[:-1])
         module = importlib.import_module(module)
-        beam_class = getattr(module, class_name)
 
     if class_name not in AnalyticBeam.__types__:
         raise NameError(
@@ -485,6 +485,8 @@ def _analytic_beam_constructor(loader, node):
             "either ensure the module is imported, or specify the beam with "
             "dot-pathed modules included (i.e. `my_module.MyAnalyticBeam`)"
         )
+
+    beam_class = AnalyticBeam.__types__[class_name]
 
     beam = beam_class(**values)
 
