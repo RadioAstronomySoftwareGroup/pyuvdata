@@ -17,13 +17,13 @@ repos:
           args: ['--fix=no']
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.6.5
+    rev: v0.6.7
     hooks:
       - id: ruff
       - id: ruff-format
 
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.7.9
+    rev: 1.7.10
     hooks:
       - id: bandit
         args: [--skip, "B101", --recursive, pyuvdata]
