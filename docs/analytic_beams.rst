@@ -8,10 +8,11 @@ lightweight and fast to evaluate (as opposed to having to interpolate).
 
 The analytic beams defined in pyuvdata are based on an abstract base class,
 :class:`pyuvdata.analytic_beam.AnalyticBeam`, which ensures a standard interface
-and can be used to define other analytic beams in a consistent way. To evaluate
-analytic beams in particular directions at particular frequencies, use the
-:meth:`pyuvdata.analytic_beam.AnalyticBeam.efield_eval` or
-:meth:`pyuvdata.analytic_beam.AnalyticBeam.power_eval` methods as appropriate.
+and can be used to define other analytic beams in a consistent way (see the
+:ref:`analytic beam tutorial <analytic_beam_tutorial>`). To evaluate analytic
+beams in particular directions at particular frequencies, use the
+:meth:`pyuvdata.analytic_beam.AnalyticBeam.efield_eval`
+or :meth:`pyuvdata.analytic_beam.AnalyticBeam.power_eval` methods as appropriate.
 
 The ``AnalyticBeam`` base class also provides a yaml constructor that can enable
 analytic beams to be instantiated directly from yaml files (see
