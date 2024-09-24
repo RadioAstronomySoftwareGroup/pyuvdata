@@ -136,7 +136,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./cache
-          key: ${{ runner.os }}-benchmark
+          key: ${{ matrix.os }}-benchmark
 
       # Run `github-action-benchmark` action
       - name: Store benchmark result
