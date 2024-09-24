@@ -2605,7 +2605,8 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     obj = SkyCoord(ra * units.deg, dec * units.deg)
 
     # The centre of the ENU frame should be located at the MEDIAN position of the array
-    antpos = uvd.antenna_positions + uvd.telescope_location
+    loc = uvd.telescope.location.itrs.cartesian.xyz.value
+    antpos = uvd.telescope.antenna_positions + loc
     x, y, z = np.median(antpos, axis=0)
 
     # Initialize EarthLocation object centred on MWA
@@ -2650,9 +2651,7 @@ def _get_delay(uvd, focus_x, focus_y, focus_z, flipconj):
     ind1, ind2 = _nants_to_nblts(uvd)
 
     # Antenna positions in ENU frame
-    antpos, ants = uvd.get_ENU_antpos(
-        center=True
-    )  # Centred on the MEDIAN of the array; antpos has shape (Nants, 3)
+    antpos = uvd.telescope.get_enu_antpos()
 
     # Get tile positions for each baseline
     tile1 = antpos[ind1]  # Shape (Nblts, 3)
