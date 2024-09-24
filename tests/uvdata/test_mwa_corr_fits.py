@@ -1289,6 +1289,9 @@ def test_corr_fits_select_on_read(benchmark):
             correct_cable_len=True,
             time_range=[np.min(mwa_uv.time_array), np.mean(mwa_uv.time_array)],
         )
+
+    # histories are slightly different in the ordering of content. Not a concern
+    mwa_uv2.history = mwa_uv.history
     assert mwa_uv == mwa_uv2
 
 
