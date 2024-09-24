@@ -135,13 +135,15 @@ jobs:
 
       # Download previous benchmark result from cache (if exists)
       - name: Download previous benchmark data
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ./cache
           key: ${{ matrix.os }}-benchmark
 
       # Run `github-action-benchmark` action
-      - name: Store benchmark result
+      # this step also EDITS the ./cache/benchmark-data.json file
+      # We do not need to add output.json to the cache directory
+      - name: Compare benchmarks
         uses: benchmark-action/github-action-benchmark@v1
         with:
           # What benchmark tool the output.txt came from
@@ -157,3 +159,12 @@ jobs:
           # Enable Job Summary for PRs
           summary-always: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Store benchmark results
+        uses: actions/cache/save@v4
+        # only store the cache if being run on main
+        if: github.ref == 'refs/heads/main'
+        with:
+          path: ./cache
+          key: ${{ matrix.os }}-benchmark
