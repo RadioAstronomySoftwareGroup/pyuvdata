@@ -1188,6 +1188,107 @@ def test_default_corrections(tmp_path):
 
 
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+def test_read_mwa(benchmark, tmp_path):
+    """
+    MWA correlator fits to uvfits loopback test.
+
+    Read in MWA correlator files, write out as uvfits, read back in and check
+    for object equality.
+    """
+    mwa_uv = UVData()
+    uvfits_uv = UVData()
+    # we check warnings earlier here we care about performance.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        benchmark(
+            mwa_uv.read,
+            filelist[0:2],
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
+        )
+
+    testfile = str(tmp_path / "outtest_MWAcorr.uvfits")
+    mwa_uv.write_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile)
+
+    # make sure filenames are what we expect
+    assert set(mwa_uv.filename) == {
+        "1131733552.metafits",
+        "1131733552_20151116182537_mini_gpubox01_00.fits",
+    }
+    assert uvfits_uv.filename == ["outtest_MWAcorr.uvfits"]
+    mwa_uv.filename = uvfits_uv.filename
+    mwa_uv._filename.form = (1,)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwa_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
+
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwa_uv.phase_center_catalog
+    )
+    assert mwa_uv == uvfits_uv
+
+
+@pytest.mark.filterwarnings("ignore:antnums_to_baseline")
+@pytest.mark.filterwarnings("ignore:Found antenna numbers > 255 in this data")
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
+def test_read_mwax(benchmark, tmp_path):
+    """
+    MWAX correlator fits to uvfits loopback test.
+
+    Read in MWAX correlator files, write out as uvfits, read back in and check
+    for object equality.
+    """
+    # spoof testfile to contain 2 times and 2 freqs
+    spoof_file = str(tmp_path / "mwax_spoof_ch137_000.fits")
+    with fits.open(filelist[12]) as mini1:
+        mini1[1].data = np.repeat(mini1[1].data, 2, axis=1)
+        mini1[2].data = np.repeat(mini1[2].data, 2, axis=1)
+        extra_dat = np.copy(mini1[1].data)
+        extra_samps = np.copy(mini1[2].data)
+        mini1.append(fits.ImageHDU(extra_dat))
+        mini1.append(fits.ImageHDU(extra_samps))
+        mini1[3].header["TIME"] = 1636374472
+        mini1[4].header["TIME"] = 1636374472
+        mini1[3].header["MILLITIM"] = 0
+        mini1[4].header["MILLITIM"] = 0
+        mini1.writeto(spoof_file)
+    mwax_uv = UVData()
+    uvfits_uv = UVData()
+
+    # we check warnings earlier here we care about performance.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        benchmark(
+            mwax_uv.read,
+            [spoof_file, filelist[11]],
+            correct_cable_len=True,
+            phase_to_pointing_center=True,
+        )
+    testfile = str(tmp_path / "outtest_MWAXcorr.uvfits")
+    mwax_uv.write_uvfits(testfile)
+    uvfits_uv.read_uvfits(testfile)
+
+    for item in ["dut1", "earth_omega", "gst0", "rdate", "timesys"]:
+        # Check to make sure that the UVFITS-specific paramters are set on the
+        # UVFITS-based obj, and not on our original object. Then set it to None for the
+        # UVFITS-based obj.
+        assert getattr(mwax_uv, item) is None
+        assert getattr(uvfits_uv, item) is not None
+        setattr(uvfits_uv, item, None)
+
+    uvfits_uv._consolidate_phase_center_catalogs(
+        reference_catalog=mwax_uv.phase_center_catalog, ignore_name=True
+    )
+    assert mwax_uv == uvfits_uv
+
+
+@pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 def test_corr_fits_select_on_read(benchmark):
     mwa_uv = UVData()
     mwa_uv2 = UVData()
