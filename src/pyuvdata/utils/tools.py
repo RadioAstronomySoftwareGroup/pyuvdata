@@ -600,7 +600,7 @@ def _nants_to_nblts(uvd):
         index pairs to compose (Nblts,) shaped arrays for each
         baseline from an (Nants,) shaped array
     """
-    antpos, ants = uvd.get_ENU_antpos()
+    ants = uvd.telescope.antenna_numbers
 
     ant1 = uvd.ant_1_array
     ant2 = uvd.ant_2_array
@@ -658,7 +658,7 @@ def _get_autocorrelations_mask(uvd):
     """
     # Get indices along the Nblts axis corresponding to autocorrelations
     autos = []
-    for i in uvd.antenna_numbers:
+    for i in uvd.telescope.antenna_numbers:
         num = uvd.antpair2ind(i, ant2=i)
 
         if isinstance(num, slice):
