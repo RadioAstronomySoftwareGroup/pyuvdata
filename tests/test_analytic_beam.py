@@ -117,13 +117,6 @@ def test_chromatic_gaussian():
     az = np.zeros(Npix)
     za = np.linspace(0, np.pi / 2.0, Npix)
 
-    # Error if trying to define chromatic beam without a reference frequency
-    with pytest.raises(
-        ValueError,
-        match="reference_frequency must be set if `spectral_index` is not zero.",
-    ):
-        GaussianBeam(sigma=sigma, spectral_index=alpha)
-
     beam = GaussianBeam(sigma=sigma, reference_frequency=freqs[0], spectral_index=alpha)
 
     # Get the widths at each frequency.
@@ -308,9 +301,17 @@ def test_eval_errors(az_za_deg_grid):
         ],
         [{}, "Either diameter or sigma must be set."],
         [{"diameter": 5, "sigma": 0.2}, "Only one of diameter or sigma can be set."],
+        [
+            {"sigma": 0.2, "sigma_type": "foo"},
+            "sigma_type must be 'efield' or 'power'.",
+        ],
+        [
+            {"sigma": 0.2, "spectral_index": -0.4},
+            "reference_frequency must be set if `spectral_index` is not zero.",
+        ],
     ],
 )
-def test_beamerrs(beam_kwargs, err_msg):
+def test_gaussian_beam_errors(beam_kwargs, err_msg):
     with pytest.raises(ValueError, match=err_msg):
         GaussianBeam(**beam_kwargs)
 

@@ -545,7 +545,7 @@ class AiryBeam(AnalyticBeam):
     The unpolarized nature leads to some results that may be surprising to radio
     astronomers: if two feeds are specified they will have identical responses
     and the cross power beam between the two feeds will be identical to the
-    spower beam for a single feed.
+    power beam for a single feed.
 
     Attributes
     ----------
@@ -785,7 +785,10 @@ class GaussianBeam(AnalyticBeam):
                 raise ValueError("Only one of diameter or sigma can be set.")
 
         if self.sigma is not None:
-            if self.sigma_type != "efield":
+            if self.sigma_type not in ["efield", "power"]:
+                raise ValueError("sigma_type must be 'efield' or 'power'.")
+
+            if self.sigma_type == "power":
                 self.sigma = np.sqrt(2) * self.sigma
 
             if self.spectral_index != 0.0 and self.reference_frequency is None:
