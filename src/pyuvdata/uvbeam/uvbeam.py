@@ -1392,9 +1392,14 @@ class UVBeam(UVBase):
                 az_sq_dist = np.where(az_sq_dist > temp_arr, temp_arr, az_sq_dist)
 
         if np.any(np.sqrt(az_sq_dist + za_sq_dist) > (max_axis_diff * 2.0)):
+            if np.any(np.sqrt(za_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The zenith angles values are outside UVBeam coverage."
+            elif np.any(np.sqrt(az_sq_dist) > (max_axis_diff * 2.0)):
+                msg = " The azimuth values are outside UVBeam coverage."
+
             raise ValueError(
                 "at least one interpolation location "
-                "is outside of the UVBeam pixel coverage."
+                "is outside of the UVBeam pixel coverage." + msg
             )
 
     def _prepare_coordinate_data(self, input_data_array):

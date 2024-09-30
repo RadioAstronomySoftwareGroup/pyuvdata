@@ -1182,15 +1182,26 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             freq_array=freq_interp_vals,
             interpolation_function=interpolation_function,
         )
-    # test errors if positions outside range
+    # test errors if positions outside range (zenith angle)
     with pytest.raises(
         ValueError,
-        match="at least one interpolation location "
-        "is outside of the UVBeam pixel coverage.",
+        match="at least one interpolation location is outside of the UVBeam "
+        "pixel coverage. The zenith angles values are outside UVBeam coverage.",
     ):
         uvbeam.interp(
             az_array=az_interp_vals,
             za_array=za_interp_vals + np.pi / 2,
+            interpolation_function=interpolation_function,
+        )
+
+    with pytest.raises(
+        ValueError,
+        match="at least one interpolation location is outside of the UVBeam "
+        "pixel coverage. The azimuth values are outside UVBeam coverage.",
+    ):
+        uvbeam.interp(
+            az_array=az_interp_vals + np.pi / 2,
+            za_array=za_interp_vals,
             interpolation_function=interpolation_function,
         )
 

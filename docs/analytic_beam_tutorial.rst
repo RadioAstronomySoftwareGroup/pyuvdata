@@ -45,16 +45,23 @@ are included the array returned from the ``power_eval`` method will be complex.
   >>> za_array = radius * zmax
   >>> az_array = np.arctan2(m_arr, l_arr)
 
+  >>> az_array = az_array.flatten()
+  >>> za_array = za_array.flatten()
+
   >>> Nfreqs = 11
   >>> freqs = np.linspace(100, 200, 11) * 1e6
 
-  >>> beam_vals = airy_beam.power_eval(
-  ...     az_array=az_array.flatten(), za_array=za_array.flatten(), freq_array=freqs
+  >>> # find the values above the horizon so we don't evaluate beyond the horizon
+  >>> above_hor = np.nonzero(za_array <= np.pi / 2.)[0]
+
+  >>> # set up an output array that matches the expected shape, except that it
+  >>> # includes the points beyond the horizon, and fill it with infinity.
+  >>> # Then we will set the points above the horizon to the output of power_eval.
+  >>> beam_vals = np.full((1, airy_beam.Npols, Nfreqs, n_vals * n_vals), np.inf, dtype=float)
+
+  >>> beam_vals[:, :, :, above_hor] = airy_beam.power_eval(
+  ...     az_array=az_array[above_hor], za_array=za_array[above_hor], freq_array=freqs
   ... )
-  >>> # Note that the returned array for the power response has shape
-  >>> # (1, Npols, number_of_frequencies, number_of_directions)
-  >>> beam_vals.shape
-  (1, 2, 11, 10000)
 
   >>> beam_vals = np.reshape(beam_vals, (1, airy_beam.Npols, Nfreqs, n_vals, n_vals))
 
@@ -109,48 +116,54 @@ part, but in general E-Field beams can be complex, so a complex array is returne
   >>> # set up zenith angle, azimuth and frequency arrays to evaluate with
   >>> # make a regular grid in direction cosines for nice plots
   >>> n_vals = 100
-  >>> zmax = np.radians(10)  # Degrees
+  >>> zmax = np.radians(90)  # Degrees
   >>> axis_arr = np.arange(-n_vals/2., n_vals/2.) / float(n_vals/2.)
   >>> l_arr, m_arr = np.meshgrid(axis_arr, axis_arr)
   >>> radius = np.sqrt(l_arr**2 + m_arr**2)
   >>> za_array = radius * zmax
   >>> az_array = np.arctan2(m_arr, l_arr)
 
+  >>> az_array = az_array.flatten()
+  >>> za_array = za_array.flatten()
+
   >>> Nfreqs = 11
   >>> freqs = np.linspace(100, 200, 11) * 1e8
 
-  >>> beam_vals = dipole_beam.efield_eval(
-  ...     az_array=az_array.flatten(), za_array=za_array.flatten(), freq_array=freqs
-  ... )
-  >>> # Note that the returned array for the E-field response has shape
-  >>> # (Naxes_vec, Nfeeds, number_of_frequencies, number_of_directions)
-  >>> beam_vals.shape
-  (2, 2, 11, 10000)
+  >>> # find the values above the horizon so we don't evaluate beyond the horizon
+  >>> above_hor = np.nonzero(za_array <= np.pi / 2.)[0]
 
-  >>> # reshape to get l/m grid back.
+  >>> # set up an output array that matches the expected shape except, that it
+  >>> # includes the points beyond the horizon, and fill it with infinity.
+  >>> # Then we will set the points above the horizon to the output of efield_eval.
+  >>> beam_vals = np.full((dipole_beam.Naxes_vec, dipole_beam.Nfeeds, Nfreqs, n_vals * n_vals), np.inf, dtype=complex)
+
+  >>> beam_vals[:, :, :, above_hor] = dipole_beam.efield_eval(
+  ...     az_array=az_array[above_hor], za_array=za_array[above_hor], freq_array=freqs
+  ... )
+
   >>> beam_vals = np.reshape(beam_vals, (dipole_beam.Naxes_vec, dipole_beam.Nfeeds, Nfreqs, n_vals, n_vals))
 
   >>> fig, ax = plt.subplots(2, 2)
 
-  >>> be00 = ax[0,0].imshow(np.real(beam_vals[0,0,0]), extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be00 = ax[0,0].imshow(beam_vals[0,0,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
   >>> _ = ax[0,0].set_title("E/W dipole azimuth response")
   >>> _ = ax[0,0].set_xlabel("direction cosine l")
   >>> _ = ax[0,0].set_ylabel("direction cosine m")
   >>> _ = fig.colorbar(be00, ax=ax[0,0])
 
-  >>> be10 = ax[1,0].imshow(np.real(beam_vals[1,0,0]), extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be10 = ax[1,0].imshow(beam_vals[1,0,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
   >>> _ = ax[1,0].set_title("E/W dipole zenith angle response")
   >>> _ = ax[1,0].set_xlabel("direction cosine l")
   >>> _ = ax[1,0].set_ylabel("direction cosine m")
   >>> _ = fig.colorbar(be00, ax=ax[1,0])
 
-  >>> be01 = ax[0,1].imshow(np.real(beam_vals[0,1,0]), extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be01 = ax[0,1].imshow(beam_vals[0,1,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
   >>> _ = ax[0,1].set_title("N/S dipole azimuth response")
   >>> _ = ax[0,1].set_xlabel("direction cosine l")
   >>> _ = ax[0,1].set_ylabel("direction cosine m")
   >>> _ = fig.colorbar(be00, ax=ax[0,1])
 
-  >>> be11 = ax[1,1].imshow(np.real(beam_vals[1,1,0]), extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be11 = ax[1,1].imshow(beam_vals[1,1,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
   >>> _ = ax[1,1].set_title("N/S dipole zenith angle response")
   >>> _ = ax[1,1].set_xlabel("direction cosine l")
   >>> _ = ax[1,1].set_ylabel("direction cosine m")
