@@ -574,12 +574,6 @@ class AiryBeam(AnalyticBeam):
     """
 
     diameter: float
-    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-    x_orientation: Literal["east", "north"] = field(
-        default="east", repr=False, compare=False
-    )
-
-    include_cross_pols: InitVar[bool] = True
 
     basis_vector_type = "az_za"
 
@@ -756,13 +750,6 @@ class GaussianBeam(AnalyticBeam):
     spectral_index: float = 0.0
     reference_frequency: float = None
 
-    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-    x_orientation: Literal["east", "north"] = field(
-        default="east", repr=False, compare=False
-    )
-
-    include_cross_pols: InitVar[bool] = True
-
     basis_vector_type = "az_za"
 
     def __post_init__(self, include_cross_pols):
@@ -911,8 +898,6 @@ class ShortDipoleBeam(AnalyticBeam):
 
     feed_array = ["e", "n"]
 
-    include_cross_pols: InitVar[bool] = True
-
     basis_vector_type = "az_za"
 
     def _efield_eval(
@@ -1000,13 +985,6 @@ class UniformBeam(AnalyticBeam):
         the power beam.
 
     """
-
-    feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-    x_orientation: Literal["east", "north"] = field(
-        default="east", repr=False, compare=False
-    )
-
-    include_cross_pols: InitVar[bool] = True
 
     basis_vector_type = "az_za"
 

@@ -186,52 +186,24 @@ to be defined as a `dataclass <https://docs.python.org/3/library/dataclasses.htm
 that inherits from :class:`pyuvdata.analytic_beam.AnalyticBeam`, which is an
 abstract base class that specifies what needs to be defined on the new class.
 
-First any parameters that control the beam response (e.g. diameter) must be
-listed with type annotations and optionally defaults to be picked up by the
-dataclass constructor (these are called ``fields`` in the dataclass). In addition
-to any fields specific to this new beam, the following fields must be specified:
+Any parameters that control the beam response (e.g. diameter) must be listed
+with type annotations and optionally defaults to be picked up by the
+dataclass constructor (these are called ``fields`` in the dataclass).
 
-  - ``feed_array``: this is an array of feed strings.
+In addition to any fields specific to this new beam, the following fields should
+be specified for polarized beams:
 
-    - For unpolarized beams, this should be specified as::
-
-          feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-
-      This specifies that the feed array can be either an array of strings or ``None``,
-      that the default is ``None`` (which will be converted to the canonical
-      ``[x, y]`` by the AnalyticBeam initialization) and that it shouldn't be
-      included when representing or comparing beams of this class (which makes
-      sense for unpolarized beams).
-
-    - For polarized beams, this should be specified as required or hardcoded. For
-      example, on the :class:`pyuvdata.ShortDipoleBeam` it is hardcoded as::
+  - ``feed_array``: this is an array of feed strings. For polarized beams, this
+    should be specified as required or hardcoded. For example, on the
+    :class:`pyuvdata.ShortDipoleBeam` it is hardcoded as::
 
         feed_array = ["e", "n"]
 
   - ``x_orientation``: This species what the ``x`` feed polarization corresponds
-    to, allowed values are ``"east"`` or ``"north"``.
-
-    - For unpolarized beams, this should be specied as::
-
-          x_orientation: Literal["east", "north"] = field(default="east", repr=False, compare=False)
-
-      This specifies the allowed values for the x_orientation and also specifies
-      that it shouldn't be included when representing or comparing beams of this
-      class, which makes sense for unpolarized beams. The defaulting can be set
-      to either "east" or "north" as you prefer.
-
-    - For polarized beams, this should be specified as (again the choice of default
-      is up to you)::
+    to, allowed values are ``"east"`` or ``"north"``. For example, on the
+    :class:`pyuvdata.ShortDipoleBeam` it is specified with a default as:
 
         x_orientation: Literal["east", "north"] = "east"
-
-  - ``include_cross_pols``: This specifies whether or not the cross polarizations
-    should be included when calculating the power response (essentially whether
-    ``Npols`` is equal to ``Nfeeds`` squared or just ``Nfeeds``). It should only
-    be used in the initialization, not set as a field on the object, so it should
-    be specified using ``InitVar`` as (defaulting is your choice)::
-
-      include_cross_pols: InitVar[bool] = True
 
 
 Then there are three things that are requred to be defined on the new class to
@@ -343,12 +315,6 @@ the dish diameter in meters.
         """
 
         diameter: float
-        feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-        x_orientation: Literal["east", "north"] = field(
-            default="east", repr=False, compare=False
-        )
-
-        include_cross_pols: InitVar[bool] = True
 
         basis_vector_type = "az_za"
 
@@ -466,8 +432,6 @@ labeled as ``"x"`` and ``"y"`` for linear polarization feeds).
         x_orientation: Literal["east", "north"] = "east"
 
         feed_array = ["e", "n"]
-
-        include_cross_pols: InitVar[bool] = True
 
         basis_vector_type = "az_za"
 
@@ -655,13 +619,6 @@ within that method to ensure that all the normal AnalyticBeam setup has been don
         diameter: float | None = None
         spectral_index: float = 0.0
         reference_frequency: float = None
-
-        feed_array: npt.NDArray[str] | None = field(default=None, repr=False, compare=False)
-        x_orientation: Literal["east", "north"] = field(
-            default="east", repr=False, compare=False
-        )
-
-        include_cross_pols: InitVar[bool] = True
 
         basis_vector_type = "az_za"
 
