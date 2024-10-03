@@ -471,7 +471,7 @@ def new_uvcal_from_uvdata(
             freq_array = uvdata.freq_array
             channel_width = uvdata.channel_width
             flex_spw_id_array = getattr(
-                uvdata, "flex_spw_id_array", kwargs.get("flex_spw_id_array", None)
+                uvdata, "flex_spw_id_array", kwargs.get("flex_spw_id_array")
             )
         freq_range = None
         if "freq_range" in kwargs:
