@@ -4320,6 +4320,36 @@ class UVData(UVBase):
             (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
         )
 
+    def unproject_near_field(self, flipconj=False):
+        """
+        Undo near-field phasing.
+
+        Works by near-field projecting to a distance of infinity.
+
+        Parameters
+        ----------
+        flipconj : bool
+            Is the conjugation scheme "flipped" compared to
+            what pyuvdata expects? (Default False)
+
+        Returns
+        -------
+        None (performs operations inplace)
+        """
+        # Keep the far-field Ra and Dec
+        key = list(self.phase_center_catalog.keys())[-1]
+        ra = self.phase_center_catalog[key]["cat_lon"]
+        dec = self.phase_center_catalog[key]["cat_lat"]
+
+        self._apply_near_field_corrections(
+            focus=1e19 * units.km,  # TODO: Is there a better way to do this?
+            ra=ra,
+            dec=dec,
+            flipconj=flipconj,
+        )
+
+        return
+
     def unproject_phase(
         self, *, use_ant_pos=True, select_mask=None, cat_name="unprojected"
     ):
@@ -4345,7 +4375,7 @@ class UVData(UVBase):
             If the object is alread unprojected.
         """
         # Start by undoing the near-field phasing
-        self.unproject_near_field()
+        # self.unproject_near_field()
 
         # select_mask_use is length Nblts, True means should be unprojected
         # only select blts that are actually phased.
@@ -4605,10 +4635,11 @@ class UVData(UVBase):
             elif (key == "cat_id") and (phase_dict[key] is not None):
                 # If this is the cat_id, make it an int
                 phase_dict[key] = int(phase_dict[key])
-            elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
-                # cat_dist_units should be str and cat_near_field should be bool
-                if (key != "cat_dist_units") and (key != "cat_near_field"):
-                    phase_dict[key] = float(phase_dict[key])
+            elif phase_dict[key] not in (None, str) and key not in (
+                "cat_dist_units",
+                "cat_near_field",
+            ):
+                phase_dict[key] = float(phase_dict[key])
 
         return phase_dict
 
@@ -4667,40 +4698,11 @@ class UVData(UVBase):
 
         # Set data at each polarization (Npols = 4 usually)
         for pol in self.polarization_array:
-
             # For some reason the data need an extra axis?
             prev = np.reshape(self.get_data(pol), (self.Nblts, self.Nfreqs, 1))
             corr = np.reshape(phase_corrections, (self.Nblts, self.Nfreqs, 1))
 
             self.set_data(corr * prev, pol)
-
-    def unproject_near_field(self, flipconj=False):
-        """
-        Undo near-field phasing.
-
-        Works by near-field projecting to a distance of infinity.
-
-        Parameters
-        ----------
-        flipconj : bool
-            Is the conjugation scheme "flipped" compared to
-            what pyuvdata expects? (Default False)
-
-        Returns
-        -------
-        None (performs operations inplace)
-        """
-        # Keep the far-field Ra and Dec
-        key = list(self.phase_center_catalog.keys())[-1]
-        ra = self.phase_center_catalog[key]["cat_lon"]
-        dec = self.phase_center_catalog[key]["cat_lat"]
-
-        self._apply_near_field_corrections(
-            focus=1e19 * units.km,  # TODO: Is there a better way to do this?
-            ra=ra,
-            dec=dec,
-            flipconj=flipconj,
-        )
 
     def phase(
         self,
@@ -4808,9 +4810,9 @@ class UVData(UVBase):
             If the `cat_name` is None.
 
         """
-        key = list(self.phase_center_catalog.keys())[-1]
-        if self.phase_center_catalog[key]["cat_name"] != "":
-            self.unproject_near_field()
+        # key = list(self.phase_center_catalog.keys())[-1]
+        # if self.phase_center_catalog[key]["cat_name"] != "":
+        #     self.unproject_near_field()
 
         if cat_type != "unprojected":
             if lon is None:
