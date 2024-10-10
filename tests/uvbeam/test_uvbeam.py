@@ -1305,6 +1305,38 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
     )
 
 
+@pytest.mark.parametrize(
+    "interp_func", ["az_za_simple", "az_za_map_coordinates", "healpix_simple"]
+)
+def test_interp_no_basis_vector(cst_efield_2freq, interp_func):
+    beam = cst_efield_2freq
+
+    if interp_func == "healpix_simple":
+        beam.to_healpix()
+
+    az = np.linspace(0, 2 * np.pi, 100)
+    za = np.linspace(0, np.pi / 2, 100)
+    _, bv = beam.interp(
+        az_array=az,
+        za_array=za,
+        return_basis_vector=False,
+        interpolation_function=interp_func,
+    )
+    assert bv is None
+
+    with pytest.raises(
+        ValueError, match="if returning a new object, you must compute the basis vector"
+    ):
+        beam.interp(
+            az_array=az,
+            za_array=za,
+            return_basis_vector=False,
+            interpolation_function=interp_func,
+            new_object=True,
+            az_za_grid=True,
+        )
+
+
 def test_interp_healpix_nside(cst_efield_2freq, cst_efield_2freq_cut_healpix):
     efield_beam = cst_efield_2freq
 
