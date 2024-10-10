@@ -82,7 +82,7 @@ def test_mwa_orientation(mwa_beam_1ppd):
         < power_beam.data_array[0, east_ind, 0, za_val, north_az]
     )
 
-    # check that the e/w dipole is more sensitive n/s
+    # check that the n/s dipole is more sensitive e/w
     assert (
         power_beam.data_array[0, north_ind, 0, za_val, north_az]
         < power_beam.data_array[0, north_ind, 0, za_val, east_az]
@@ -90,6 +90,7 @@ def test_mwa_orientation(mwa_beam_1ppd):
 
     # check that for a single dipole (all others turned off) there is higher
     # azimuth-aligned response near the horizon than zenith angle-aligned response
+    # for both feed orientations
     # this is true with all dipoles on too, but the difference is bigger for a
     # single dipole
     delays = np.full((2, 16), 32, dtype=int)
