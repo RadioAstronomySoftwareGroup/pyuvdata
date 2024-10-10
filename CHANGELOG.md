@@ -22,6 +22,8 @@ telescope object from the metadata.
 antennas with data.
 
 ### Fixed
+- A bug in the MWA beam reader that resulted in the wrong polarization response
+(the azimuthal-aligned response was swapped with the zenith angle-aligned response).
 - A bug in reading UVH5 files with antenna names saved as variable length strings
 that was introduced in v3.0.0.
 
