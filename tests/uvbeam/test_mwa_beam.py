@@ -59,6 +59,54 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     assert beam1 == beam2
 
 
+def test_mwa_orientation(mwa_beam_1ppd):
+    power_beam = mwa_beam_1ppd.efield_to_power(inplace=False)
+
+    za_val = np.nonzero(np.isclose(power_beam.axis2_array, 15.0 * np.pi / 180))
+
+    east_az = np.nonzero(np.isclose(power_beam.axis1_array, 0))
+    north_az = np.nonzero(np.isclose(power_beam.axis1_array, np.pi / 2))
+
+    east_ind = np.nonzero(
+        power_beam.polarization_array
+        == utils.polstr2num("ee", x_orientation=power_beam.x_orientation)
+    )
+    north_ind = np.nonzero(
+        power_beam.polarization_array
+        == utils.polstr2num("nn", x_orientation=power_beam.x_orientation)
+    )
+
+    # check that the e/w dipole is more sensitive n/s
+    assert (
+        power_beam.data_array[0, east_ind, 0, za_val, east_az]
+        < power_beam.data_array[0, east_ind, 0, za_val, north_az]
+    )
+
+    # check that the e/w dipole is more sensitive n/s
+    assert (
+        power_beam.data_array[0, north_ind, 0, za_val, north_az]
+        < power_beam.data_array[0, north_ind, 0, za_val, east_az]
+    )
+
+    # check that for a single dipole (all others turned off) there is higher
+    # azimuth-aligned response near the horizon than zenith angle-aligned response
+    # this is true with all dipoles on too, but the difference is bigger for a
+    # single dipole
+    delays = np.full((2, 16), 32, dtype=int)
+    delays[:, 5] = 0
+    efield_beam = UVBeam.from_file(filename, pixels_per_deg=1, delays=delays)
+
+    za_val = np.nonzero(np.isclose(efield_beam.axis2_array, 80.0 * np.pi / 180))
+
+    max_az_response = np.max(np.abs(efield_beam.data_array[0, east_ind, 0, za_val, :]))
+    max_za_response = np.max(np.abs(efield_beam.data_array[1, east_ind, 0, za_val, :]))
+    assert max_az_response > max_za_response
+
+    max_az_response = np.max(np.abs(efield_beam.data_array[0, north_ind, 0, za_val, :]))
+    max_za_response = np.max(np.abs(efield_beam.data_array[1, north_ind, 0, za_val, :]))
+    assert max_az_response > max_za_response
+
+
 def test_freq_range(mwa_beam_1ppd):
     beam1 = mwa_beam_1ppd
     beam2 = UVBeam()

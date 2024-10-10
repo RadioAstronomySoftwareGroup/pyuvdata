@@ -475,8 +475,8 @@ class MWABeam(UVBeam):
                 Sigma_P = np.inner(phi_comp, emn_P_sum)
                 Sigma_T = np.inner(phi_comp, emn_T_sum)
 
-                jones[pol_i, 0, freq_i] = Sigma_T
-                jones[pol_i, 1, freq_i] = -Sigma_P
+                jones[pol_i, 0, freq_i] = -Sigma_P
+                jones[pol_i, 1, freq_i] = Sigma_T
 
         return jones
 
