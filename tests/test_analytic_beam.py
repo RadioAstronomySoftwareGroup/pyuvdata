@@ -10,7 +10,8 @@ from astropy.constants import c as speed_of_light
 from scipy.special import j1
 
 from pyuvdata import AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam, UVBeam
-from pyuvdata.analytic_beam import AnalyticBeam
+from pyuvdata.analytic_beam import AnalyticBeam, UnpolarizedAnalyticBeam
+from pyuvdata.testing import check_warnings
 
 
 def test_airy_beam_values(az_za_deg_grid):
@@ -157,11 +158,11 @@ def test_diameter_to_sigma(az_za_deg_grid):
 
     wavelengths = speed_of_light.to("m/s").value / freqs
 
-    airy_vals = abm._power_eval(
+    airy_vals = abm.power_eval(
         az_array=az_array.flatten(), za_array=za_array.flatten(), freq_array=freqs
     )
 
-    gauss_vals = gbm._power_eval(
+    gauss_vals = gbm.power_eval(
         az_array=az_array.flatten(), za_array=za_array.flatten(), freq_array=freqs
     )
 
@@ -206,13 +207,27 @@ def test_short_dipole_beam(az_za_deg_grid):
     expected_data[0, 2] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
     expected_data[0, 3] = -(np.sin(za_vals) ** 2) * np.sin(2.0 * az_vals) / 2.0
 
-    np.testing.assert_allclose(power_vals, expected_data)
+    np.testing.assert_allclose(power_vals, expected_data, atol=1e-15, rtol=0)
 
-    assert beam.__repr__() == "ShortDipoleBeam(x_orientation='east')"
+    assert beam.__repr__() == "ShortDipoleBeam(feeds=['e', 'n'], x_orientation='east')"
 
 
-def test_uniform_beam(az_za_deg_grid):
-    beam = UniformBeam()
+def test_shortdipole_feed_error():
+    with pytest.raises(
+        ValueError,
+        match=re.escape(
+            "Feeds must be one of: ['n', 'e', 'x', 'y'], got feeds: ['r', 'l']"
+        ),
+    ):
+        ShortDipoleBeam(feeds=["r", "l"])
+
+
+@pytest.mark.parametrize(
+    ("feeds", "x_orientation"),
+    [(None, "east"), (["y", "x"], "north"), (["e", "n"], "east"), (["r", "l"], None)],
+)
+def test_uniform_beam(az_za_deg_grid, feeds, x_orientation):
+    beam = UniformBeam(feeds=feeds, x_orientation=x_orientation)
 
     az_vals, za_vals, freqs = az_za_deg_grid
 
@@ -225,6 +240,13 @@ def test_uniform_beam(az_za_deg_grid):
     np.testing.assert_allclose(beam_vals, expected_data)
 
     assert beam.__repr__() == "UniformBeam()"
+
+    if feeds is not None and "r" in feeds:
+        assert beam.east_ind is None
+        assert beam.north_ind is None
+    else:
+        assert beam.east_ind == 0
+        assert beam.north_ind == 1
 
 
 @pytest.mark.parametrize(
@@ -246,10 +268,11 @@ def test_power_analytic_beam(beam_obj, kwargs, xy_grid):
     efield_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
     power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
 
-    # check power beams are peak normalized
-    assert np.max(power_vals) == 1.0
-
     atol = 2e-15
+
+    # check power beams are peak normalized
+    assert np.isclose(np.max(power_vals), 1.0, rtol=0, atol=atol)
+
     np.testing.assert_allclose(
         efield_vals[0, 0] ** 2 + efield_vals[1, 0] ** 2,
         power_vals[0, 0],
@@ -296,7 +319,7 @@ def test_eval_errors(az_za_deg_grid):
     ["beam_kwargs", "err_msg"],
     [
         [
-            {"feed_array": "w", "diameter": 5},
+            {"feeds": "w", "diameter": 5},
             re.escape("Feeds must be one of: ['n', 'e', 'x', 'y', 'r', 'l']"),
         ],
         [{}, "Either diameter or sigma must be set."],
@@ -326,15 +349,6 @@ def test_bad_basis_vector_type():
 
         class BadBeam(AnalyticBeam):
             basis_vector_type = "healpix"
-            name = "bad beam"
-
-            def _efield_eval(
-                self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
-            ):
-                """Evaluate the efield at the given coordinates."""
-                data_array = self._get_empty_data_array(az_array, za_array, freq_array)
-                data_array = data_array + 1.0 / np.sqrt(2.0)
-                return data_array
 
             def _power_eval(
                 self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
@@ -345,6 +359,42 @@ def test_bad_basis_vector_type():
                 )
                 data_array = data_array + 1.0
                 return data_array
+
+
+def test_missing_basis_vector_type():
+    with check_warnings(
+        UserWarning,
+        match="basis_vector_type was not defined, defaulting to azimuth and "
+        "zenith_angle.",
+    ):
+
+        class BadBeam(AnalyticBeam):
+            def _power_eval(
+                self, az_array: np.ndarray, za_array: np.ndarray, freq_array: np.ndarray
+            ):
+                """Evaluate the efield at the given coordinates."""
+                data_array = self._get_empty_data_array(
+                    az_array, za_array, freq_array, beam_type="power"
+                )
+                data_array = data_array + 1.0
+                return data_array
+
+
+def test_missing_req_methods():
+    with pytest.raises(
+        TypeError, match="Either _efield_eval or _power_eval method must be defined"
+    ):
+
+        class BadBeam(UnpolarizedAnalyticBeam):
+            foo = 2
+
+
+def test_missing_x_orientation():
+    with pytest.raises(
+        ValueError,
+        match="x_orientation must be specified for linear polarization feeds",
+    ):
+        UniformBeam(x_orientation=None)
 
 
 def test_to_uvbeam_errors():
@@ -437,19 +487,32 @@ def test_yaml_constructor(input_yaml, beam):
     assert new_beam_from_yaml == beam_from_yaml
 
 
-def test_yaml_constructor_new():
+def test_yaml_constructor_new(az_za_deg_grid):
     input_yaml = """
         beam: !AnalyticBeam
-            class: pyuvdata.data.test_analytic_beam.AnalyticTest
-            radius: 10
+            class: pyuvdata.data.test_analytic_beam.CosPowerTest
+            width: 2.
         """
     beam_from_yaml = yaml.safe_load(input_yaml)["beam"]
 
-    from pyuvdata.data.test_analytic_beam import AnalyticTest
+    from pyuvdata.data.test_analytic_beam import CosEfieldTest, CosPowerTest
 
-    beam = AnalyticTest(radius=10)
+    beam_from_power = CosPowerTest(width=2.0)
 
-    assert beam_from_yaml == beam
+    assert beam_from_yaml == beam_from_power
+
+    beam_from_efield = CosEfieldTest(width=2.0)
+
+    az_vals, za_vals, freqs = az_za_deg_grid
+
+    from_power_eval = beam_from_power.power_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+    from_efield_eval = beam_from_efield.power_eval(
+        az_array=az_vals, za_array=za_vals, freq_array=freqs
+    )
+
+    np.testing.assert_allclose(from_efield_eval, from_power_eval)
 
 
 def test_yaml_constructor_errors():
