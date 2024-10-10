@@ -181,7 +181,7 @@ Defining new analytic beams
 ---------------------------
 
 We have worked to make defining new analytic beams as straight forward as possible.
-The new beam needs inherit from either the :class:`pyuvdata.analytic_beam.AnalyticBeam`,
+The new beam needs to inherit from either the :class:`pyuvdata.analytic_beam.AnalyticBeam`,
 or the :class:`pyuvdata.analytic_beam.UnpolarizedAnalyticBeam`, which are base
 classes that specify what needs to be defined on the new class. Unpolarized
 beams (based on the ``UnpolarizedAnalyticBeam`` class) have fewer things that
@@ -216,15 +216,15 @@ may be specified, the defaults on the ``AnalyticBeam`` class are noted:
 
   - ``feeds``: This an list of feed strings. The default is ``["x", "y"]``.
     This is a a dataclass field, so the the class must have  ``@dataclass``
-    decorator and it should be specied with type annotations and optionally a
+    decorator and it should be specified with type annotations and optionally a
     default (see examples below).
 
-  - ``x_orientation``: For linear polarization feeds, this species what the
+  - ``x_orientation``: For linear polarization feeds, this specifies what the
     ``x`` feed polarization correspond to, allowed values are ``"east"`` or
     ``"north"``, the default is ``"east"``. Should be set to ``None`` for
     circularly polarized feeds.
     This is a a dataclass field, so the the class must have  ``@dataclass``
-    decorator and it should be specied with type annotations and optionally a
+    decorator and it should be specified with type annotations and optionally a
     default (see examples below).
 
   - ``basis_vector_type``: This defines the coordinate system for the
@@ -253,33 +253,33 @@ length of the number of directions (these are essentially the output of an
 ``np.meshgrid`` on the direction and frequency vectors). The inputs are:
 
     - ``az_grid``: an array of azimuthal values in radians for the directions
-    to evaluate the beam. Shape: (number of frequencies, number of directions)
+      to evaluate the beam. Shape: (number of frequencies, number of directions)
     - ``za_array``: an array of zenith angle values in radians for the directions
-    to evaluate the beam. Shape: (number of frequencies, number of directions)
+      to evaluate the beam. Shape: (number of frequencies, number of directions)
     - ``freq_array``: an array of frequencies in Hz at which to evaluate the beam.
-    Shape: (number of frequencies, number of directions)
+      Shape: (number of frequencies, number of directions)
 
 The ``_efield_eval`` and ``_power_eval`` methods must return arrays with the beam
 response. The shapes and types of the returned arrays are:
 
     - _efield_eval: a complex array of beam responses with shape:
-    (``Naxes_vec``, ``Nfeeds``, ``freq_array.size``, ``az_array.size``).
-    ``Naxes_vec`` is 2 for the ``"az_za"`` basis, and ``Nfeeds`` is typically 2.
+      (``Naxes_vec``, ``Nfeeds``, ``freq_array.size``, ``az_array.size``).
+      ``Naxes_vec`` is 2 for the ``"az_za"`` basis, and ``Nfeeds`` is typically 2.
 
     - ``_power_eval``: an array with shape: (1, ``Npols``, ``freq_array.size``,
-    ``az_array.size``). ``Npols`` is equal to either ``Nfeeds`` squared if
-    ``include_cross_pols`` was set to True (the default) when the beam was
-    instantiated or ``Nfeeds`` if ``include_cross_pols`` was set to False. The
-    array should be real if ``include_cross_pols`` was set to False and it can
-    be complex if ``include_cross_pols`` was set to True (it will be cast to
-    complex when it is called via the ``power_eval`` method on the base class).
+      ``az_array.size``). ``Npols`` is equal to either ``Nfeeds`` squared if
+      ``include_cross_pols`` was set to True (the default) when the beam was
+      instantiated or ``Nfeeds`` if ``include_cross_pols`` was set to False. The
+      array should be real if ``include_cross_pols`` was set to False and it can
+      be complex if ``include_cross_pols`` was set to True (it will be cast to
+      complex when it is called via the ``power_eval`` method on the base class).
 
 
 Below we provide some examples of beams defined in pyuvdata to make this more
 concrete.
 
-Defining simple unpolarized beams
-*********************************
+Example: Defining simple unpolarized beams
+******************************************
 
 Airy beams are unpolarized but frequency dependent and require one parameter,
 the dish diameter in meters. Since the Airy beam E-field response goes negative,
@@ -442,8 +442,8 @@ Defining a cosine beam with no free parameters is even simpler:
             return data_array
 
 
-Defining a simple polarized beam
-++++++++++++++++++++++++++++++++
+Example: Defining a simple polarized beam
+*****************************************
 
 Short (Hertzian) dipole beams are polarized but frequency independent and do not
 require any extra parameters. We just inherit the default values of ``feeds``
@@ -540,8 +540,8 @@ method was not defined (we have tests verifying this).
             return data_array
 
 
-Defining a beam with post init validation
-*****************************************
+Example: Defining a beam with post init validation
+**************************************************
 
 The gaussian beam defined in pyuvdata is an unpolarized beam that has several
 optional configurations that require some validation, which we do using the
