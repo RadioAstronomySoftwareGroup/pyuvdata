@@ -59,6 +59,7 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     assert beam1 == beam2
 
 
+@pytest.mark.filterwarnings("ignore:There are some terminated dipoles")
 def test_mwa_orientation(mwa_beam_1ppd):
     power_beam = mwa_beam_1ppd.efield_to_power(inplace=False)
 
