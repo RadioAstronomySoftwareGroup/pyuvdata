@@ -19,9 +19,9 @@ Evaluating an Airy Beam power response
 **************************************
 
 This code evaluates and plots an Airy beam power response. Note that we exclude
-the cross polarizations, since this is an unpolarized the cross polarizations
+the cross polarizations, since this is an unpolarized beam, the cross polarizations
 are identical to the auto polarization power beams. If the cross polarizations
-are included the array returned from the ``power_eval`` method will be complex.
+are included, the array returned from the ``power_eval`` method will be complex.
 
 .. code-block:: python
 
@@ -214,7 +214,8 @@ Polarized beams
 For polarized beams (based on the ``AnalyticBeam`` class), the following items
 may be specified, the defaults on the ``AnalyticBeam`` class are noted:
 
-  - ``feeds``: This an list of feed strings. The default is ``["x", "y"]``.
+  - ``feed_array``: This an array of feed strings (a list can also be passed,
+    it will be converted to an array). The default is ``["x", "y"]``.
     This is a a dataclass field, so the the class must have  ``@dataclass``
     decorator and it should be specified with type annotations and optionally a
     default (see examples below).
@@ -446,7 +447,7 @@ Example: Defining a simple polarized beam
 *****************************************
 
 Short (Hertzian) dipole beams are polarized but frequency independent and do not
-require any extra parameters. We just inherit the default values of ``feeds``
+require any extra parameters. We just inherit the default values of ``feed_array``
 and ``x_orientation`` from the ``AnalyticBeam`` class, so do not list them here.
 
 Note that we define both the ``_efield_eval`` and ``_power_eval`` methods because
@@ -475,7 +476,7 @@ method was not defined (we have tests verifying this).
 
         Attributes
         ----------
-        feeds : list of str
+        feed_array : list of str
             Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
         x_orientation : str
             The orientation of the dipole labeled 'x'. The default ("east") means
@@ -484,7 +485,7 @@ method was not defined (we have tests verifying this).
 
         Parameters
         ----------
-        feeds : list of str
+        feed_array : list of str
             Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
         x_orientation : str
             The orientation of the dipole labeled 'x'. The default ("east") means
