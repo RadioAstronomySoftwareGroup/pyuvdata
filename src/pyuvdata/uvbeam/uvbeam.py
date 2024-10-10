@@ -1501,6 +1501,7 @@ class UVBeam(UVBase):
         reuse_spline=False,
         spline_opts=None,
         check_azza_domain: bool = True,
+        return_basis_vector: bool = True,
     ):
         """
         Interpolate in az_za coordinate system using RectBivariateSpline.
@@ -1593,7 +1594,10 @@ class UVBeam(UVBase):
         data_use, phi_use, theta_use = self._prepare_coordinate_data(input_data_array)
 
         # Prepare basis functions
-        interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        if return_basis_vector:
+            interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        else:
+            interp_basis_vector = None
 
         # Get number of polarizations and indices
         Npol_feeds, pol_inds = self._prepare_polarized_inputs(polarizations)
@@ -1680,6 +1684,7 @@ class UVBeam(UVBase):
         spline_opts=None,
         check_azza_domain: bool = True,
         reuse_spline: bool = False,
+        return_basis_vector: bool = True,
     ):
         """
         Interpolate in az_za coordinate system using map_coordinates.
@@ -1771,7 +1776,10 @@ class UVBeam(UVBase):
         data_use, phi_use, theta_use = self._prepare_coordinate_data(input_data_array)
 
         # Prepare basis functions
-        interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        if return_basis_vector:
+            interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        else:
+            interp_basis_vector = None
 
         # Get number of polarizations and indices
         Npol_feeds, pol_inds = self._prepare_polarized_inputs(polarizations)
@@ -1787,26 +1795,20 @@ class UVBeam(UVBase):
         if spline_opts is None or not isinstance(spline_opts, dict):
             spline_opts = {}
 
-        _az_array = (
-            (az_array - phi_use.min())
-            / (phi_use.max() - phi_use.min())
-            * (phi_use.size - 1)
-        )
-        _za_array = (
-            (za_array - theta_use.min())
-            / (theta_use.max() - theta_use.min())
-            * (theta_use.size - 1)
-        )
+        az_array -= phi_use.min()
+        az_array /= (phi_use.max() - phi_use.min()) / (phi_use.size - 1)
+
+        za_array -= theta_use.min()
+        za_array /= (theta_use.max() - theta_use.min()) / (theta_use.size - 1)
 
         for index3 in range(input_nfreqs):
             for index0 in range(self.Naxes_vec):
                 for pol_return_ind, index2 in enumerate(pol_inds):
-                    interp_data[index0, pol_return_ind, index3, :] = (
-                        ndimage.map_coordinates(
-                            data_use[index0, index2, index3],
-                            np.array([_za_array, _az_array]),
-                            **spline_opts,
-                        )
+                    ndimage.map_coordinates(
+                        data_use[index0, index2, index3],
+                        [za_array, az_array],
+                        output=interp_data[index0, pol_return_ind, index3],
+                        **spline_opts,
                     )
 
         interp_arrays = [interp_data, interp_basis_vector, interp_bandpass]
@@ -1824,6 +1826,7 @@ class UVBeam(UVBase):
         freq_interp_tol=1.0,
         polarizations=None,
         reuse_spline=False,
+        return_basis_vector: bool = True,
     ):
         """
         Interpolate in Healpix coordinate system with a simple bilinear function.
@@ -1923,7 +1926,10 @@ class UVBeam(UVBase):
         )
 
         # Prepare basis functions
-        interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        if return_basis_vector:
+            interp_basis_vector = self._prepare_basis_vector_array(az_array.size)
+        else:
+            interp_basis_vector = None
 
         hp_obj = HEALPix(nside=self.nside, order=self.ordering)
         lat_array, lon_array = utils.coordinates.zenithangle_azimuth_to_hpx_latlon(
@@ -1974,6 +1980,7 @@ class UVBeam(UVBase):
         polarizations=None,
         return_bandpass=False,
         return_coupling=False,
+        return_basis_vector: bool = True,
         reuse_spline=False,
         spline_opts=None,
         new_object=False,
@@ -2196,6 +2203,7 @@ class UVBeam(UVBase):
             freq_array=freq_array,
             freq_interp_kind=freq_interp_kind,
             polarizations=polarizations,
+            return_basis_vector=return_basis_vector,
             **extra_keyword_dict,
         )
 
@@ -2219,6 +2227,11 @@ class UVBeam(UVBase):
 
         # return a new UVBeam object with interpolated data
         else:
+            if not return_basis_vector:
+                raise ValueError(
+                    "if returning a new object, you must compute the basis vector"
+                )
+
             # make a new object
             new_uvb = self.copy()
 
