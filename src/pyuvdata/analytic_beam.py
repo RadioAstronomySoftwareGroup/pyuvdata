@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import warnings
-from dataclasses import InitVar, dataclass, field
+from dataclasses import InitVar, astuple, dataclass, field
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -24,6 +24,29 @@ from .uvbeam.uvbeam import UVBeam, _convert_feeds_to_pols
 __all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 
 
+def array_safe_eq(a, b) -> bool:
+    """Check if a and b are equal, even if they are numpy arrays."""
+    if a is b:
+        return True
+    if isinstance(a, np.ndarray) and isinstance(b, np.ndarray):
+        return a.shape == b.shape and (a == b).all()
+    try:
+        return a == b
+    except TypeError:  # pragma: no cover
+        return NotImplemented
+
+
+def dc_eq(dc1, dc2) -> bool:
+    """Check if two dataclasses which hold numpy arrays are equal."""
+    if dc1 is dc2:
+        return True
+    if dc1.__class__ is not dc2.__class__:
+        return NotImplemented  # better than False
+    t1 = astuple(dc1)
+    t2 = astuple(dc2)
+    return all(array_safe_eq(a1, a2) for a1, a2 in zip(t1, t2, strict=True))
+
+
 @dataclass(kw_only=True)
 class AnalyticBeam:
     """
@@ -31,7 +54,7 @@ class AnalyticBeam:
 
     Attributes
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l.
     x_orientation : str
@@ -42,7 +65,7 @@ class AnalyticBeam:
 
     Parameters
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l. Default is ["x", "y"].
     x_orientation : str
@@ -56,7 +79,7 @@ class AnalyticBeam:
 
     """
 
-    feeds: list[str] | None = None
+    feed_array: npt.ArrayLike[str] | None = None
     x_orientation: Literal["east", "north"] | None = "east"
 
     include_cross_pols: InitVar[bool] = True
@@ -110,20 +133,21 @@ class AnalyticBeam:
             for the power beam.
 
         """
-        if self.feeds is not None:
+        if self.feed_array is not None:
             allowed_feeds = ["n", "e", "x", "y", "r", "l"]
-            for feed in self.feeds:
+            for feed in self.feed_array:
                 if feed not in allowed_feeds:
                     raise ValueError(
                         f"Feeds must be one of: {allowed_feeds}, "
-                        f"got feeds: {self.feeds}"
+                        f"got feeds: {self.feed_array}"
                     )
+            self.feed_array = np.asarray(self.feed_array)
         else:
-            self.feeds = ["x", "y"]
+            self.feed_array = np.asarray(["x", "y"])
 
         linear_pol = False
         for feed_name in ["x", "y", "e", "n"]:
-            if feed_name in self.feeds:
+            if feed_name in self.feed_array:
                 linear_pol = True
 
         if self.x_orientation is None and linear_pol:
@@ -132,8 +156,14 @@ class AnalyticBeam:
             )
 
         self.polarization_array, _ = _convert_feeds_to_pols(
-            self.feeds, include_cross_pols, x_orientation=self.x_orientation
+            self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
+
+    def __eq__(self, other):
+        """Define equality."""
+        # have to define this because feed_array is a numpy array, so equality
+        # needs to be checked with all_close not `==`
+        return dc_eq(self, other)
 
     @property
     def Naxes_vec(self):  # noqa N802
@@ -143,7 +173,7 @@ class AnalyticBeam:
     @property
     def Nfeeds(self):  # noqa N802
         """The number of feeds."""
-        return len(self.feeds)
+        return len(self.feed_array)
 
     @property
     def Npols(self):  # noqa N802
@@ -153,30 +183,30 @@ class AnalyticBeam:
     @property
     def east_ind(self):
         """The index of the east feed in the feed array."""
-        if "e" in self.feeds:
+        if "e" in self.feed_array:
             east_name = "e"
-        elif self.x_orientation == "east" and "x" in self.feeds:
+        elif self.x_orientation == "east" and "x" in self.feed_array:
             east_name = "x"
-        elif self.x_orientation == "north" and "y" in self.feeds:
+        elif self.x_orientation == "north" and "y" in self.feed_array:
             east_name = "y"
         else:
             # this is not a linearly polarized feed
             return None
-        return np.nonzero(np.asarray(self.feeds) == east_name)[0][0]
+        return np.nonzero(np.asarray(self.feed_array) == east_name)[0][0]
 
     @property
     def north_ind(self):
         """The index of the north feed in the feed array."""
-        if "n" in self.feeds:
+        if "n" in self.feed_array:
             north_name = "n"
-        elif self.x_orientation == "north" and "x" in self.feeds:
+        elif self.x_orientation == "north" and "x" in self.feed_array:
             north_name = "x"
-        elif self.x_orientation == "east" and "y" in self.feeds:
+        elif self.x_orientation == "east" and "y" in self.feed_array:
             north_name = "y"
         else:
             # this is not a linearly polarized feed
             return None
-        return np.nonzero(np.asarray(self.feeds) == north_name)[0][0]
+        return np.nonzero(np.asarray(self.feed_array) == north_name)[0][0]
 
     def _check_eval_inputs(
         self,
@@ -385,7 +415,7 @@ class AnalyticBeam:
             raise ValueError("Beam type must be 'efield' or 'power'")
 
         if beam_type == "efield":
-            feed_array = np.asarray(self.feeds)
+            feed_array = self.feed_array
             polarization_array = None
         else:
             feed_array = None
@@ -554,6 +584,8 @@ def _analytic_beam_representer(dumper, beam):
         "class": beam.__module__ + "." + beam.__class__.__name__,
         **dataclasses.asdict(beam),
     }
+    if "feed_array" in mapping:
+        mapping["feed_array"] = mapping["feed_array"].tolist()
 
     return dumper.represent_mapping("!AnalyticBeam", mapping)
 
@@ -571,7 +603,7 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
 
     Attributes
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l.
     x_orientation : str
@@ -582,7 +614,7 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
 
     Parameters
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l. Default is ["x", "y"].
     x_orientation : str
@@ -596,7 +628,9 @@ class UnpolarizedAnalyticBeam(AnalyticBeam):
 
     """
 
-    feeds: list[str] | None = field(default=None, repr=False, compare=False)
+    feed_array: npt.npt.ArrayLike[str] | None = field(
+        default=None, repr=False, compare=False
+    )
     x_orientation: Literal["east", "north"] = field(
         default="east", repr=False, compare=False
     )
@@ -861,7 +895,7 @@ class ShortDipoleBeam(AnalyticBeam):
 
     Attributes
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
     x_orientation : str
         The orientation of the dipole labeled 'x'. The default ("east") means
@@ -870,7 +904,7 @@ class ShortDipoleBeam(AnalyticBeam):
 
     Parameters
     ----------
-    feeds : list of str
+    feed_array : list of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l. Default is ["e", "n"].
     x_orientation : str
@@ -896,15 +930,15 @@ class ShortDipoleBeam(AnalyticBeam):
             for the power beam.
 
         """
-        if self.feeds is None:
-            self.feeds = ["e", "n"]
+        if self.feed_array is None:
+            self.feed_array = ["e", "n"]
 
         allowed_feeds = ["n", "e", "x", "y"]
-        for feed in self.feeds:
+        for feed in self.feed_array:
             if feed not in allowed_feeds:
                 raise ValueError(
                     f"Feeds must be one of: {allowed_feeds}, "
-                    f"got feeds: {self.feeds}"
+                    f"got feeds: {self.feed_array}"
                 )
 
         super().__post_init__(include_cross_pols=include_cross_pols)
@@ -967,7 +1001,7 @@ class UniformBeam(UnpolarizedAnalyticBeam):
 
     Attributes
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l.
     x_orientation : str
@@ -976,7 +1010,7 @@ class UniformBeam(UnpolarizedAnalyticBeam):
 
     Parameters
     ----------
-    feeds : list of str
+    feed_array : array-like of str
         Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east")
         or r & l. Default is ["x", "y"].
     x_orientation : str

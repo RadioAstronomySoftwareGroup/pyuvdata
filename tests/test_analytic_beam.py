@@ -209,7 +209,10 @@ def test_short_dipole_beam(az_za_deg_grid):
 
     np.testing.assert_allclose(power_vals, expected_data, atol=1e-15, rtol=0)
 
-    assert beam.__repr__() == "ShortDipoleBeam(feeds=['e', 'n'], x_orientation='east')"
+    assert (
+        beam.__repr__() == "ShortDipoleBeam(feed_array=array(['e', 'n'], dtype='<U1'), "
+        "x_orientation='east')"
+    )
 
 
 def test_shortdipole_feed_error():
@@ -219,15 +222,15 @@ def test_shortdipole_feed_error():
             "Feeds must be one of: ['n', 'e', 'x', 'y'], got feeds: ['r', 'l']"
         ),
     ):
-        ShortDipoleBeam(feeds=["r", "l"])
+        ShortDipoleBeam(feed_array=["r", "l"])
 
 
 @pytest.mark.parametrize(
-    ("feeds", "x_orientation"),
+    ("feed_array", "x_orientation"),
     [(None, "east"), (["y", "x"], "north"), (["e", "n"], "east"), (["r", "l"], None)],
 )
-def test_uniform_beam(az_za_deg_grid, feeds, x_orientation):
-    beam = UniformBeam(feeds=feeds, x_orientation=x_orientation)
+def test_uniform_beam(az_za_deg_grid, feed_array, x_orientation):
+    beam = UniformBeam(feed_array=feed_array, x_orientation=x_orientation)
 
     az_vals, za_vals, freqs = az_za_deg_grid
 
@@ -241,7 +244,7 @@ def test_uniform_beam(az_za_deg_grid, feeds, x_orientation):
 
     assert beam.__repr__() == "UniformBeam()"
 
-    if feeds is not None and "r" in feeds:
+    if feed_array is not None and "r" in feed_array:
         assert beam.east_ind is None
         assert beam.north_ind is None
     else:
@@ -319,7 +322,7 @@ def test_eval_errors(az_za_deg_grid):
     ["beam_kwargs", "err_msg"],
     [
         [
-            {"feeds": "w", "diameter": 5},
+            {"feed_array": "w", "diameter": 5},
             re.escape("Feeds must be one of: ['n', 'e', 'x', 'y', 'r', 'l']"),
         ],
         [{}, "Either diameter or sigma must be set."],
@@ -395,6 +398,23 @@ def test_missing_x_orientation():
         match="x_orientation must be specified for linear polarization feeds",
     ):
         UniformBeam(x_orientation=None)
+
+
+@pytest.mark.parametrize(
+    ("beam1", "beam2", "equal"),
+    [
+        (UniformBeam(), UniformBeam(feed_array=["r", "l"]), True),
+        (ShortDipoleBeam(), ShortDipoleBeam(x_orientation="north"), False),
+        (UniformBeam(), ShortDipoleBeam(), False),
+    ],
+)
+def test_beam_equality(beam1, beam2, equal):
+    if equal:
+        assert beam1 == beam2
+    else:
+        assert beam1 != beam2
+
+    assert beam1 == beam1
 
 
 def test_to_uvbeam_errors():
