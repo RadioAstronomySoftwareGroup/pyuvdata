@@ -6,7 +6,7 @@ are not realistic models for true antennas (like those represented in
 :class:`pyuvdata.UVBeam`), they can be useful in simulation because they are
 lightweight and fast to evaluate (as opposed to having to interpolate).
 
-The analytic beams defined in pyuvdata are based on an abstract base class,
+The analytic beams defined in pyuvdata are based on a base class,
 :class:`pyuvdata.analytic_beam.AnalyticBeam`, which ensures a standard interface
 and can be used to define other analytic beams in a consistent way (see the
 :ref:`analytic beam tutorial <analytic_beam_tutorial>`). To evaluate analytic
