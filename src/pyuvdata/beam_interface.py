@@ -90,9 +90,9 @@ class BeamInterface:
     def compute_response(
         self,
         *,
-        az_array: npt.NDArray[np.float],
-        za_array: npt.NDArray[np.float],
-        freq_array: npt.NDArray[np.float] | None,
+        az_array: npt.NDArray[float],
+        za_array: npt.NDArray[float],
+        freq_array: npt.NDArray[float] | None,
         az_za_grid: bool = False,
         interpolation_function=None,
         freq_interp_kind=None,

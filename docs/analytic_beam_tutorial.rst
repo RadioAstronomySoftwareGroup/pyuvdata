@@ -216,17 +216,17 @@ may be specified, the defaults on the ``AnalyticBeam`` class are noted:
 
   - ``feed_array``: This an array of feed strings (a list can also be passed,
     it will be converted to an array). The default is ``["x", "y"]``.
-    This is a a dataclass field, so the the class must have  ``@dataclass``
-    decorator and it should be specified with type annotations and optionally a
-    default (see examples below).
+    This is a a dataclass field, so if it is specified, the class must have
+    ``@dataclass`` decorator and it should be specified with type annotations
+    and optionally a default (see examples below).
 
   - ``x_orientation``: For linear polarization feeds, this specifies what the
     ``x`` feed polarization correspond to, allowed values are ``"east"`` or
     ``"north"``, the default is ``"east"``. Should be set to ``None`` for
     circularly polarized feeds.
-    This is a a dataclass field, so the the class must have  ``@dataclass``
-    decorator and it should be specified with type annotations and optionally a
-    default (see examples below).
+    This is a a dataclass field, so if it is specified, the class must have
+    ``@dataclass`` decorator and it should be specified with type annotations
+    and optionally a default (see examples below).
 
   - ``basis_vector_type``: This defines the coordinate system for the
     polarization basis vectors, the default is ``"az_za"``. Currently only
@@ -240,11 +240,11 @@ Defining the beam response
 At least one of the ``_efield_eval`` or ``_power_eval`` methods must be
 defined to specify the response of the new beam. Defining ``_efield_eval`` is
 the most general approach because it can represent complex and negative going
-E-field beams (in this case, power beams will be calculated from the E-field beams).
-If only ``_power_eval`` is defined, the E-field beam is defined as the square
-root of the auto polarization power beam (so will be real and positive definite).
-Both methods can be specified, which may allow for computational efficiencies in
-some cases.
+E-field beams (if only ``_efield_eval`` defined, power beams will be calculated
+from the E-field beams). If only ``_power_eval`` is defined, the E-field beam is
+defined as the square root of the auto polarization power beam, so the E-field
+beam will be real and positive definite. Both methods can be specified, which
+may allow for computational efficiencies in some cases.
 
 The inputs to the ``_efield_eval`` and ``_power_eval`` methods are the same and
 give the directions (azimuth and zenith angle) and frequencies to evaluate the
@@ -438,7 +438,7 @@ Defining a cosine beam with no free parameters is even simpler:
             data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
 
             for pol_i in np.arange(self.Npols):
-                data_array[0, pol_i, :, :] = np.cos(self.width * za_grid) ** 2
+                data_array[0, pol_i, :, :] = np.cos(za_grid) ** 2
 
             return data_array
 
@@ -539,6 +539,129 @@ method was not defined (we have tests verifying this).
                 data_array[0, 3] = data_array[0, 2]
 
             return data_array
+
+If we wanted to specify the default feed_array to be ``["e", "n"]`` and that the
+default x_orientation was ``"north"`` we would define it as shown below. We
+handle the defaulting of the feed_array in the ``__post_init__`` because dataclass
+fields cannot have mutable defaults. We also do some validation in the
+``__post_init__``.  Note that we call the ``super().__post_init__`` within that
+method to ensure that all the normal AnalyticBeam setup has been done.
+
+.. code-block:: python
+  :linenos:
+
+    from typing import Literal
+    from dataclasses import dataclass
+
+    import numpy as np
+    import numpy.typing as npt
+    from pyuvdata.analytic_beam import AnalyticBeam
+
+    @dataclass(kw_only=True)
+    class ShortDipoleBeam(AnalyticBeam):
+        """
+        A zenith pointed analytic short dipole beam with two crossed feeds.
+
+        A classical short (Hertzian) dipole beam with two crossed feeds aligned east
+        and north. Short dipole beams are intrinsically polarized but achromatic.
+        Does not require any parameters, but the orientation of the dipole labelled
+        as "x" can be specified to align "north" or "east" via the x_orientation
+        parameter (matching the parameter of the same name on UVBeam and UVData
+        objects).
+
+        Attributes
+        ----------
+        feed_array : list of str
+            Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
+        x_orientation : str
+            The orientation of the dipole labeled 'x'. The default ("east") means
+            that the x dipole is aligned east-west and that the y dipole is aligned
+            north-south.
+
+        Parameters
+        ----------
+        feed_array : list of str
+            Feeds to define this beam for, e.g. x & y or n & e (for "north" and "east").
+        x_orientation : str
+            The orientation of the dipole labeled 'x'. The default ("east") means
+            that the x dipole is aligned east-west and that the y dipole is aligned
+            north-south.
+        include_cross_pols : bool
+            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+            for the power beam.
+
+        """
+
+        feed_array: npt.NDArray[str] | list[str] | None = None
+        x_orientation: Literal["east", "north"] | None = "north"
+
+        basis_vector_type = "az_za"
+
+        def __post_init__(self, include_cross_pols):
+            """
+            Post-initialization validation and conversions.
+
+            Parameters
+            ----------
+            include_cross_pols : bool
+                Option to include the cross polarized beams (e.g. xy and yx or en and ne)
+                for the power beam.
+
+            """
+            if self.feed_array is None:
+                self.feed_array = ["e", "n"]
+
+            allowed_feeds = ["n", "e", "x", "y"]
+            for feed in self.feed_array:
+                if feed not in allowed_feeds:
+                    raise ValueError(
+                        f"Feeds must be one of: {allowed_feeds}, "
+                        f"got feeds: {self.feed_array}"
+                    )
+
+            super().__post_init__(include_cross_pols=include_cross_pols)
+
+        def _efield_eval(
+            self,
+            *,
+            az_grid: npt.NDArray[float],
+            za_grid: npt.NDArray[float],
+            f_grid: npt.NDArray[float],
+        ) -> npt.NDArray[float]:
+            """Evaluate the efield at the given coordinates."""
+            data_array = self._get_empty_data_array(az_grid.shape)
+
+            # The first dimension is for [azimuth, zenith angle] in that order
+            # the second dimension is for feed [e, n] in that order
+            data_array[0, self.east_ind] = -np.sin(az_grid)
+            data_array[0, self.north_ind] = np.cos(az_grid)
+            data_array[1, self.east_ind] = np.cos(za_grid) * np.cos(az_grid)
+            data_array[1, self.north_ind] = np.cos(za_grid) * np.sin(az_grid)
+
+            return data_array
+
+        def _power_eval(
+            self,
+            *,
+            az_grid: npt.NDArray[float],
+            za_grid: npt.NDArray[float],
+            f_grid: npt.NDArray[float],
+        ) -> npt.NDArray[float]:
+            """Evaluate the power at the given coordinates."""
+            data_array = self._get_empty_data_array(az_grid.shape, beam_type="power")
+
+            # these are just the sum in quadrature of the efield components.
+            # some trig work is done to reduce the number of cos/sin evaluations
+            data_array[0, 0] = 1 - (np.sin(za_grid) * np.cos(az_grid)) ** 2
+            data_array[0, 1] = 1 - (np.sin(za_grid) * np.sin(az_grid)) ** 2
+
+            if self.Npols > self.Nfeeds:
+                # cross pols are included
+                data_array[0, 2] = -(np.sin(za_grid) ** 2) * np.sin(2.0 * az_grid) / 2.0
+                data_array[0, 3] = data_array[0, 2]
+
+            return data_array
+
 
 
 Example: Defining a beam with post init validation
