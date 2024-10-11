@@ -370,6 +370,13 @@ def _select_times_helper(
     lst_tols : tuple of float
         Length 2 tuple giving (rtol, atol) to use for lst matching.
 
+    Returns
+    -------
+    time_inds : np.ndarray of int
+        Indices of times to keep on the object.
+    selections : list of str
+        list of selections done.
+
     """
     have_times = times is not None
     have_time_range = time_range is not None
@@ -384,7 +391,12 @@ def _select_times_helper(
             "specified per selection operation."
         )
     if n_time_params == 0:
-        return None
+        return None, []
+
+    if times is not None or time_range is not None:
+        selections = ["times"]
+    else:
+        selections = ["lsts"]
 
     time_inds = np.zeros(0, dtype=np.int64)
     if times is not None:
@@ -530,4 +542,4 @@ def _select_times_helper(
                 f"No elements in {attr_str} between {lst_range[0]} and "
                 f"{lst_range[1]}."
             )
-    return time_inds
+    return time_inds, selections

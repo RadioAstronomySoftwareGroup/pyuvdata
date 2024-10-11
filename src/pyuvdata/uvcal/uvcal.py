@@ -4012,44 +4012,7 @@ class UVCal(UVBase):
             string to append to the end of the history.
 
         """
-        # build up history string as we go
-        history_update_string = "  Downselected to specific "
-        n_selects = 0
-
-        if antenna_names is not None:
-            if antenna_nums is not None:
-                raise ValueError(
-                    "Only one of antenna_nums and antenna_names can be provided."
-                )
-
-            antenna_names = utils.tools._get_iterable(antenna_names)
-            antenna_nums = []
-            for s in antenna_names:
-                if s not in self.telescope.antenna_names:
-                    raise ValueError(
-                        f"Antenna name {s} is not present in the antenna_names array"
-                    )
-                ind = np.where(np.array(self.telescope.antenna_names) == s)[0][0]
-                antenna_nums.append(self.telescope.antenna_numbers[ind])
-
-        if antenna_nums is not None:
-            antenna_nums = utils.tools._get_iterable(antenna_nums)
-            history_update_string += "antennas"
-            n_selects += 1
-
-            ant_inds = np.zeros(0, dtype=np.int64)
-            for ant in antenna_nums:
-                if ant in self.ant_array:
-                    ant_inds = np.append(ant_inds, np.where(self.ant_array == ant)[0])
-                else:
-                    raise ValueError(
-                        f"Antenna number {ant} is not present in the array"
-                    )
-
-            ant_inds = sorted(set(ant_inds))
-        else:
-            ant_inds = None
-
+        selections = []
         if (phase_center_ids is not None) and (catalog_names is not None):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
 
@@ -4062,12 +4025,17 @@ class UVCal(UVBase):
                 "IDs or catalog names."
             )
 
-        if catalog_names is not None:
-            phase_center_ids = utils.phase_center_catalog.look_for_name(
-                self.phase_center_catalog, catalog_names
-            )
+        ant_inds, ant_selections = utils.antenna._select_antenna_helper(
+            antenna_names=antenna_names,
+            antenna_nums=antenna_nums,
+            tel_ant_names=self.telescope.antenna_names,
+            tel_ant_nums=self.telescope.antenna_numbers,
+            obj_ant_array=self.ant_array,
+        )
+        if ant_inds is not None:
+            selections.extend(ant_selections)
 
-        time_inds = utils.times._select_times_helper(
+        time_inds, time_selections = utils.times._select_times_helper(
             times=times,
             time_range=time_range,
             lsts=lsts,
@@ -4080,21 +4048,13 @@ class UVCal(UVBase):
             lst_tols=self._lst_array.tols,
         )
         if time_inds is not None:
+            selections.extend(time_selections)
             time_inds = sorted(set(time_inds.tolist()))
 
-        if times is not None or time_range is not None:
-            if n_selects > 0:
-                history_update_string += ", times"
-            else:
-                history_update_string += "times"
-            n_selects += 1
-
-        if lsts is not None or lst_range is not None:
-            if n_selects > 0:
-                history_update_string += ", lsts"
-            else:
-                history_update_string += "lsts"
-            n_selects += 1
+        if catalog_names is not None:
+            phase_center_ids = utils.phase_center_catalog.look_for_name(
+                self.phase_center_catalog, catalog_names
+            )
 
         if phase_center_ids is not None:
             pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
@@ -4102,14 +4062,10 @@ class UVCal(UVBase):
                 np.where(pc_check)[0], time_inds
             )
 
-            update_substring = (
+            pc_selection = (
                 "phase center IDs" if (catalog_names is None) else "catalog names"
             )
-            if n_selects > 0:
-                history_update_string += ", " + update_substring
-            else:
-                history_update_string += update_substring
-            n_selects += 1
+            selections.append(pc_selection)
 
         if time_inds is not None and self.time_range is None:
             # don't warn if time_range is not None because calfits does not support
@@ -4137,11 +4093,7 @@ class UVCal(UVBase):
                     )
                     spw_inds = None
                 else:
-                    if n_selects > 0:
-                        history_update_string += ", spectral windows"
-                    else:
-                        history_update_string += "spectral windows"
-                    n_selects += 1
+                    selections.append("spectral windows")
 
                     # Check and see that all requested spws are available
                     spw_check = np.isin(spws, self.spw_array)
@@ -4163,66 +4115,25 @@ class UVCal(UVBase):
                 "no freq_array."
             )
 
-        if frequencies is not None:
-            frequencies = utils.tools._get_iterable(frequencies)
-            freq_arr_use = self.freq_array
+        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            obj_freq_array=self.freq_array,
+            freq_tols=self._freq_array.tols,
+            obj_channel_width=self.channel_width,
+            channel_width_tols=self._channel_width.tols,
+            obj_spw_id_array=self.flex_spw_id_array,
+        )
 
-            freq_check = np.isin(frequencies, freq_arr_use)
-            if not np.all(freq_check):
-                raise ValueError(
-                    f"Frequency {frequencies[np.where(~freq_check)[0][0]]} is not "
-                    "present in the freq_array"
-                )
-
-            freq_chans = utils.tools._sorted_unique_union(
-                np.where(np.isin(freq_arr_use, frequencies))[0], freq_chans
-            )
-
-        if freq_chans is not None:
-            if n_selects > 0:
-                history_update_string += ", frequencies"
-            else:
-                history_update_string += "frequencies"
-            n_selects += 1
-
-            # Check and see that all requested freqs are available
-            if frequencies is not None:
-                pass
-
-            freq_inds = np.array(sorted(utils.tools._get_iterable(freq_chans)))
-
-            if len(freq_inds) > 1:
-                freq_ind_separation = freq_inds[1:] - freq_inds[:-1]
-                if self.flex_spw_id_array is not None:
-                    freq_ind_separation = freq_ind_separation[
-                        np.diff(self.flex_spw_id_array[freq_inds]) == 0
-                    ]
-                if not utils.tools._test_array_constant(freq_ind_separation):
-                    warnings.warn(
-                        "Selected frequencies are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "calfits files"
-                    )
-                elif np.max(freq_ind_separation) > 1:
-                    warnings.warn(
-                        "Selected frequencies are not contiguous. This "
-                        "will make it impossible to write this data out to "
-                        "calfits files."
-                    )
-
-            freq_inds = sorted(set(freq_inds))
-        else:
-            freq_inds = None
+        if freq_inds is not None:
+            freq_inds = sorted(freq_inds.tolist())
+            selections.extend(freq_selections)
 
         if jones is not None:
             jones = utils.tools._get_iterable(jones)
             if np.array(jones).ndim > 1:
                 jones = np.array(jones).flatten()
-            if n_selects > 0:
-                history_update_string += ", jones polarization terms"
-            else:
-                history_update_string += "jones polarization terms"
-            n_selects += 1
+            selections.append("jones polarization terms")
 
             jones_inds = np.zeros(0, dtype=np.int64)
             jones_spws = np.zeros(0, dtype=np.int64)
@@ -4284,10 +4195,14 @@ class UVCal(UVBase):
         else:
             jones_inds = None
 
-        history_update_string += " using pyuvdata."
-
-        if n_selects == 0:
-            history_update_string = ""
+        # build up history string from selections
+        history_update_string = ""
+        if len(selections) > 0:
+            history_update_string = (
+                "  Downselected to specific "
+                + ", ".join(selections)
+                + " using pyuvdata."
+            )
 
         return (
             ant_inds,
