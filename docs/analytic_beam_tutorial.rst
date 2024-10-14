@@ -204,8 +204,10 @@ are called ``fields`` in the dataclass, see the examples below and
 `dataclass <https://docs.python.org/3/library/dataclasses.html>`_ for more details).
 
 If you need to do some manipulation or validation of the parameters after they
-are specified by the user, you can use the dataclass's ``__post_init__`` method
-to do that, being sure to call the super class ``__post_init__`` as well.
+are specified by the user, you can use the ``validation`` method to do that
+(under the hood the validation method is called by the base object's dataclass
+``__post_init__`` method, so the ``validation`` method will always be called
+when the class is instantiated).
 The gaussian beam example below shows how this can be done.
 
 Polarized beams
@@ -542,10 +544,8 @@ method was not defined (we have tests verifying this).
 
 If we wanted to specify the default feed_array to be ``["e", "n"]`` and that the
 default x_orientation was ``"north"`` we would define it as shown below. We
-handle the defaulting of the feed_array in the ``__post_init__`` because dataclass
-fields cannot have mutable defaults. We also do some validation in the
-``__post_init__``.  Note that we call the ``super().__post_init__`` within that
-method to ensure that all the normal AnalyticBeam setup has been done.
+handle the defaulting of the feed_array in the ``validation`` because dataclass
+fields cannot have mutable defaults. We also do some other validation in that method.
 
 .. code-block:: python
   :linenos:
@@ -597,17 +597,8 @@ method to ensure that all the normal AnalyticBeam setup has been done.
 
         basis_vector_type = "az_za"
 
-        def __post_init__(self, include_cross_pols):
-            """
-            Post-initialization validation and conversions.
-
-            Parameters
-            ----------
-            include_cross_pols : bool
-                Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-                for the power beam.
-
-            """
+        def validation(self):
+            """Post-initialization validation and conversions."""
             if self.feed_array is None:
                 self.feed_array = ["e", "n"]
 
@@ -618,8 +609,6 @@ method to ensure that all the normal AnalyticBeam setup has been done.
                         f"Feeds must be one of: {allowed_feeds}, "
                         f"got feeds: {self.feed_array}"
                     )
-
-            super().__post_init__(include_cross_pols=include_cross_pols)
 
         def _efield_eval(
             self,
@@ -669,8 +658,7 @@ Example: Defining a beam with post init validation
 
 The gaussian beam defined in pyuvdata is an unpolarized beam that has several
 optional configurations that require some validation, which we do using the
-dataclass ``__post_init__`` method. Note that we call the ``super().__post_init__``
-within that method to ensure that all the normal AnalyticBeam setup has been done.
+``validation`` method.
 
 .. code-block:: python
   :linenos:
@@ -782,17 +770,8 @@ within that method to ensure that all the normal AnalyticBeam setup has been don
         spectral_index: float = 0.0
         reference_frequency: float = None
 
-        def __post_init__(self, include_cross_pols):
-            """
-            Post-initialization validation and conversions.
-
-            Parameters
-            ----------
-            include_cross_pols : bool
-                Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-                for the power beam.
-
-            """
+        def validation(self):
+            """Post-initialization validation and conversions."""
             if (self.diameter is None and self.sigma is None) or (
                 self.diameter is not None and self.sigma is not None
             ):
@@ -814,8 +793,6 @@ within that method to ensure that all the normal AnalyticBeam setup has been don
                     )
                 if self.reference_frequency is None:
                     self.reference_frequency = 1.0
-
-            super().__post_init__(include_cross_pols=include_cross_pols)
 
         def get_sigmas(self, freq_array: npt.NDArray[float]) -> npt.NDArray[float]:
             """
