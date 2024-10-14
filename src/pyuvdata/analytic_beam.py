@@ -122,6 +122,10 @@ class AnalyticBeam:
 
         cls.__types__[cls.__name__] = cls
 
+    def validate(self):
+        """Validate inputs, placeholder for subclasses."""
+        pass
+
     def __post_init__(self, include_cross_pols):
         """
         Post-initialization validation and conversions.
@@ -133,6 +137,8 @@ class AnalyticBeam:
             for the power beam.
 
         """
+        self.validate()
+
         if self.feed_array is not None:
             allowed_feeds = ["n", "e", "x", "y", "r", "l"]
             for feed in self.feed_array:
@@ -802,17 +808,8 @@ class GaussianBeam(UnpolarizedAnalyticBeam):
     spectral_index: float = 0.0
     reference_frequency: float = None
 
-    def __post_init__(self, include_cross_pols):
-        """
-        Post-initialization validation and conversions.
-
-        Parameters
-        ----------
-        include_cross_pols : bool
-            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-            for the power beam.
-
-        """
+    def validate(self):
+        """Post-initialization validation and conversions."""
         if (self.diameter is None and self.sigma is None) or (
             self.diameter is not None and self.sigma is not None
         ):
@@ -834,8 +831,6 @@ class GaussianBeam(UnpolarizedAnalyticBeam):
                 )
             if self.reference_frequency is None:
                 self.reference_frequency = 1.0
-
-        super().__post_init__(include_cross_pols=include_cross_pols)
 
     def get_sigmas(self, freq_array: npt.NDArray[float]) -> npt.NDArray[float]:
         """
@@ -919,17 +914,8 @@ class ShortDipoleBeam(AnalyticBeam):
 
     basis_vector_type = "az_za"
 
-    def __post_init__(self, include_cross_pols):
-        """
-        Post-initialization validation and conversions.
-
-        Parameters
-        ----------
-        include_cross_pols : bool
-            Option to include the cross polarized beams (e.g. xy and yx or en and ne)
-            for the power beam.
-
-        """
+    def validate(self):
+        """Post-initialization validation and conversions."""
         if self.feed_array is None:
             self.feed_array = ["e", "n"]
 
@@ -940,8 +926,6 @@ class ShortDipoleBeam(AnalyticBeam):
                     f"Feeds must be one of: {allowed_feeds}, "
                     f"got feeds: {self.feed_array}"
                 )
-
-        super().__post_init__(include_cross_pols=include_cross_pols)
 
     def _efield_eval(
         self,
