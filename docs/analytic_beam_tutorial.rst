@@ -204,9 +204,9 @@ are called ``fields`` in the dataclass, see the examples below and
 `dataclass <https://docs.python.org/3/library/dataclasses.html>`_ for more details).
 
 If you need to do some manipulation or validation of the parameters after they
-are specified by the user, you can use the ``validation`` method to do that
-(under the hood the validation method is called by the base object's dataclass
-``__post_init__`` method, so the ``validation`` method will always be called
+are specified by the user, you can use the ``validate`` method to do that
+(under the hood the ``validate`` method is called by the base object's dataclass
+``__post_init__`` method, so the ``validate`` method will always be called
 when the class is instantiated).
 The gaussian beam example below shows how this can be done.
 
@@ -544,7 +544,7 @@ method was not defined (we have tests verifying this).
 
 If we wanted to specify the default feed_array to be ``["e", "n"]`` and that the
 default x_orientation was ``"north"`` we would define it as shown below. We
-handle the defaulting of the feed_array in the ``validation`` because dataclass
+handle the defaulting of the feed_array in the ``validate`` because dataclass
 fields cannot have mutable defaults. We also do some other validation in that method.
 
 .. code-block:: python
@@ -597,7 +597,7 @@ fields cannot have mutable defaults. We also do some other validation in that me
 
         basis_vector_type = "az_za"
 
-        def validation(self):
+        def validate(self):
             """Post-initialization validation and conversions."""
             if self.feed_array is None:
                 self.feed_array = ["e", "n"]
@@ -658,7 +658,7 @@ Example: Defining a beam with post init validation
 
 The gaussian beam defined in pyuvdata is an unpolarized beam that has several
 optional configurations that require some validation, which we do using the
-``validation`` method.
+``validate`` method.
 
 .. code-block:: python
   :linenos:
@@ -770,7 +770,7 @@ optional configurations that require some validation, which we do using the
         spectral_index: float = 0.0
         reference_frequency: float = None
 
-        def validation(self):
+        def validate(self):
             """Post-initialization validation and conversions."""
             if (self.diameter is None and self.sigma is None) or (
                 self.diameter is not None and self.sigma is not None
