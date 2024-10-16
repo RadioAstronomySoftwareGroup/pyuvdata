@@ -4453,10 +4453,10 @@ class UVBeam(UVBase):
                         "lists they need to be the same length"
                     )
                 pol = feed_pol[0]
-                
+
             else:
                 pol = feed_pol
-                
+
             if isinstance(freq, (list, tuple)):
                 raise ValueError("frequency can not be a nested list")
             if isinstance(pol, (list, tuple)):
