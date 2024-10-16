@@ -1,10 +1,8 @@
-# -*- mode: python; coding: utf-8 -*-
 # Copyright (c) 2018 Radio Astronomy Software Group
 # Licensed under the 2-clause BSD License
 """Class for reading beam FEKO files."""
 
 import os
-import re
 import warnings
 
 import numpy as np
@@ -27,7 +25,6 @@ class FEKOBeam(UVBeam):
     def nametopol(self, fname):
         """
         Get name of the y file  from the main filename.
-
 
         Parameters
         ----------
@@ -120,9 +117,7 @@ class FEKOBeam(UVBeam):
         fix_auto_power : bool
             For power beams, if auto polarization beams with imaginary values are found,
             fix those values so that they are real-only in data_array.
-
         """
-
         basename = os.path.basename(filename)
         self.filename = [basename]
         self._filename.form = (1,)
@@ -175,32 +170,27 @@ class FEKOBeam(UVBeam):
         self.pixel_coordinate_system = "az_za"
         self._set_cs_params()
 
-        out_file = open(filename, "r")
-        line = out_file.readlines()[9].strip()  # Get the line with column names
-        out_file.close()
-        column_names = line.split('"')[1::2]
+        with open(filename) as out_file:
+            line = out_file.readlines()[9].strip()  # Get the line with column names
+            column_names = line.split('"')[1::2]
 
         theta_col = np.where(np.array(column_names) == "Theta")[0][0]
         phi_col = np.where(np.array(column_names) == "Phi")[0][0]
 
-        with open(filename, "r") as fh:
-            data_chunks = fh.read()[
-                1:
-            ].split(
+        with open(filename) as fh:
+            data_chunks = fh.read()[1:].split(
                 "\n\n"
-            )  ## avoiding the first row since there is a blank row at the start of every file
+            )  ## avoiding the row=1; there is a blank row at the start of every file
         data_all = [
             i.splitlines()[9:] for i in data_chunks
         ]  ## skips the 9 lines of text in each chunk
 
         if beam_type == "efield":
             filename2 = self.nametopol(filename)
-            with open(filename2, "r") as fh:
-                data_chunks = fh.read()[
-                    1:
-                ].split(
+            with open(filename2) as fh:
+                data_chunks = fh.read()[1:].split(
                     "\n\n"
-                )  ## avoiding the first row since there is a blank row at the start of every file
+                )  ## avoiding the row=1;there is a blank row at the start of every file
             data_all2 = [
                 i.splitlines()[9:] for i in data_chunks
             ]  ## skips the 9 lines of text in each chunk
@@ -259,7 +249,6 @@ class FEKOBeam(UVBeam):
                     raise ValueError(
                         "Data does not appear to be regularly gridded in azimuth angle"
                     )
-                delta_phi = phi_axis[1] - phi_axis[0]
                 self.axis1_array = phi_axis
                 self.Naxes1 = self.axis1_array.size
                 self.axis2_array = theta_axis
@@ -368,9 +357,7 @@ class FEKOBeam(UVBeam):
 
         if frequency is None:
             warnings.warn(
-                "No frequency provided. Detected frequency is: " "{freqs} Hz".format(
-                    freqs=self.freq_array
-                )
+                f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
             )
 
         if use_future_array_shapes:
