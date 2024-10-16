@@ -4554,23 +4554,10 @@ class UVBeam(UVBase):
         if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
             # update filelist
             basename = os.path.basename(filename)
-            self.filename = uvutils._combine_filenames(self.filename, [basename])
+            self.filename = utils._combine_filenames(self.filename, [basename])
             self._filename.form = (len(self.filename),)
 
-    def read_mwa_beam(
-        self,
-        h5filepath,
-        use_future_array_shapes=False,
-        delays=None,
-        amplitudes=None,
-        pixels_per_deg=5,
-        freq_range=None,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        check_auto_power=True,
-        fix_auto_power=True,
-    ):
+    def read_mwa_beam(self, h5filepath, **kwargs):
         """
         Read in the full embedded element MWA beam.
 
