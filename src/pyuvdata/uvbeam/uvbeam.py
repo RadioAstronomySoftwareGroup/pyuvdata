@@ -4294,7 +4294,7 @@ class UVBeam(UVBase):
         """
         from . import feko_beam
 
-        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+        if not isinstance(filename, list | tuple) and filename.endswith("yaml"):
             settings_dict = self._read_feko_beam_yaml(filename)
             if not isinstance(settings_dict["frequencies"], list):
                 raise ValueError("frequencies in yaml file must be a list.")
@@ -4320,8 +4320,8 @@ class UVBeam(UVBase):
             for key, val in overriding_keywords.items():
                 if val is not None:
                     warnings.warn(
-                        "The {key} keyword is set, overriding the "
-                        "value in the settings yaml file.".format(key=key)
+                        f"The {key} keyword is set, overriding the "
+                        "value in the settings yaml file."
                     )
 
             if feed_pol is None:
@@ -4369,7 +4369,7 @@ class UVBeam(UVBase):
             rename_extra_keys_map = {"sim_beam_type": "sim_type"}
             for key, value in settings_dict.items():
                 if key not in known_keys:
-                    if key in rename_extra_keys_map.keys():
+                    if key in rename_extra_keys_map:
                         extra_keywords[rename_extra_keys_map[key]] = value
                     else:
                         extra_keywords[key] = value
@@ -4393,9 +4393,9 @@ class UVBeam(UVBase):
                         raise ValueError(f"frequency {freq} not in frequency list")
                 freq_inds = np.array(freq_inds)
                 frequency = freq_array[freq_inds].tolist()
-                cst_filename = np.array(cst_filename)[freq_inds].tolist()
-                if len(cst_filename) == 1:
-                    cst_filename = cst_filename[0]
+                feko_filename = np.array(feko_filename)[freq_inds].tolist()
+                if len(feko_filename) == 1:
+                    feko_filename = feko_filename[0]
                 if isinstance(feed_pol, list):
                     if rotate_pol is None:
                         # if a mix of feed pols, don't rotate by default
@@ -4420,21 +4420,19 @@ class UVBeam(UVBase):
             if len(frequency.shape) > 1:
                 raise ValueError("frequency can not be a multi-dimensional array")
             frequency = frequency.tolist()
-        if isinstance(frequency, (list, tuple)):
-            if len(frequency) == 1:
-                frequency = frequency[0]
+        if isinstance(frequency, list | tuple) and len(frequency) == 1:
+            frequency = frequency[0]
 
         if isinstance(feed_pol, np.ndarray):
             if len(feed_pol.shape) > 1:
                 raise ValueError("feed_pol can not be a multi-dimensional array")
             feed_pol = feed_pol.tolist()
-        if isinstance(feed_pol, (list, tuple)):
-            if len(feed_pol) == 1:
-                feed_pol = feed_pol[0]
+        if isinstance(feed_pol, list | tuple) and len(feed_pol) == 1:
+            feed_pol = feed_pol[0]
 
-        if isinstance(feko_filename, (list, tuple)):
+        if isinstance(feko_filename, list | tuple):
             if frequency is not None:
-                if isinstance(frequency, (list, tuple)):
+                if isinstance(frequency, list | tuple):
                     if not len(frequency) == len(feko_filename):
                         raise ValueError(
                             "If frequency and filename are both "
@@ -4446,7 +4444,7 @@ class UVBeam(UVBase):
             else:
                 freq = None
 
-            if isinstance(feed_pol, (list, tuple)):
+            if isinstance(feed_pol, list | tuple):
                 if not len(feed_pol) == len(feko_filename):
                     raise ValueError(
                         "If feed_pol and filename are both "
@@ -4457,9 +4455,9 @@ class UVBeam(UVBase):
             else:
                 pol = feed_pol
 
-            if isinstance(freq, (list, tuple)):
+            if isinstance(freq, list | tuple):
                 raise ValueError("frequency can not be a nested list")
-            if isinstance(pol, (list, tuple)):
+            if isinstance(pol, list | tuple):
                 raise ValueError("feed_pol can not be a nested list")
             self.read_feko_beam(
                 feko_filename[0],
@@ -4483,16 +4481,16 @@ class UVBeam(UVBase):
                 fix_auto_power=fix_auto_power,
             )
             for file_i, f in enumerate(feko_filename[1:]):
-                if isinstance(f, (list, tuple)):
+                if isinstance(f, list | tuple):
                     raise ValueError("filename can not be a nested list")
 
-                if isinstance(frequency, (list, tuple)):
+                if isinstance(frequency, list | tuple):
                     freq = frequency[file_i + 1]
                 elif frequency is not None:
                     freq = frequency
                 else:
                     freq = None
-                if isinstance(feed_pol, (list, tuple)):
+                if isinstance(feed_pol, list | tuple):
                     pol = feed_pol[file_i + 1]
                 else:
                     pol = feed_pol
@@ -4522,9 +4520,9 @@ class UVBeam(UVBase):
             if len(feko_filename) > 1:
                 del beam2
         else:
-            if isinstance(frequency, (list, tuple)):
+            if isinstance(frequency, list | tuple):
                 raise ValueError("Too many frequencies specified")
-            if isinstance(feed_pol, (list, tuple)):
+            if isinstance(feed_pol, list | tuple):
                 raise ValueError("Too many feed_pols specified")
             feko_beam_obj = feko_beam.FEKOBeam()
             feko_beam_obj.read_feko_beam(
@@ -4551,7 +4549,7 @@ class UVBeam(UVBase):
             self._convert_from_filetype(feko_beam_obj)
             del feko_beam_obj
 
-        if not isinstance(filename, (list, tuple)) and filename.endswith("yaml"):
+        if not isinstance(filename, list | tuple) and filename.endswith("yaml"):
             # update filelist
             basename = os.path.basename(filename)
             self.filename = utils._combine_filenames(self.filename, [basename])
