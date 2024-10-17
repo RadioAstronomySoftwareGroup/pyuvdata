@@ -536,6 +536,7 @@ class MWACorrFITS(UVData):
     def flag_init(
         self,
         num_fine_chan,
+        *,
         edge_width=80e3,
         start_flag=2.0,
         end_flag=0.0,
@@ -551,6 +552,9 @@ class MWACorrFITS(UVData):
 
         Parameters
         ----------
+        num_fine_chans : int
+            Number of fine channels in each data file (number of fine channels
+            per coarse channel).
         edge_width: float
             The width to flag on the edge of each coarse channel, in hz. Set to
             0 for no edge flagging.
@@ -565,7 +569,8 @@ class MWACorrFITS(UVData):
         freq_inds : array_like of int, optional
             Frequency indices that were kept if frequency selection was done.
         n_orig_freq : int, optional
-            Number of original frequencies if frequency selection was done.
+            Number of original frequencies if frequency selection was done. Must
+            be passed if freq_inds is not None.
 
         Raises
         ------
@@ -576,6 +581,8 @@ class MWACorrFITS(UVData):
             (0 also acceptable).
             If end_flag is not an integer multiple of the integration time
             (0 also acceptable).
+        AssertionError
+            If freq_inds is not None and n_orig_freq is None.
 
         """
         if (edge_width % self.channel_width[0]) > 0:
@@ -592,6 +599,11 @@ class MWACorrFITS(UVData):
             raise ValueError(
                 "The end_flag must be an integer multiple of the "
                 "integration_time of the data or zero."
+            )
+
+        if freq_inds is not None and n_orig_freq is None:
+            raise AssertionError(
+                "If freq_inds is not None, n_orig_freq must be passed."
             )
 
         num_ch_flag = int(edge_width / self.channel_width[0])
@@ -680,7 +692,8 @@ class MWACorrFITS(UVData):
         file_nums : array
             List of included file numbers ordered by coarse channel
         num_fine_chans : int
-            Number of fine channels in each data file
+            Number of fine channels in each data file (number of fine channels
+            per coarse channel).
         int_time : float
             The integration time of each observation.
         map_inds : array
