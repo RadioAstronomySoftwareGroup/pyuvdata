@@ -652,6 +652,22 @@ def test_flag_init_errors(flag_file_init, err_type, read_kwargs, err_msg):
         uv.read(flag_file_init, **read_kwargs)
 
 
+@pytest.mark.filterwarnings(
+    "ignore:coarse channels are not contiguous for this observation"
+)
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
+def test_flag_init_error_freq_sel(flag_file_init):
+    from pyuvdata.uvdata.mwa_corr_fits import MWACorrFITS
+
+    mwa_obj = MWACorrFITS()
+    mwa_obj.read_mwa_corr_fits(flag_file_init, flag_init=False)
+
+    with pytest.raises(
+        AssertionError, match="If freq_inds is not None, n_orig_freq must be passed."
+    ):
+        mwa_obj.flag_init(32, freq_inds=np.arange(10), n_orig_freq=None)
+
+
 def test_read_metadata_only(tmp_path):
     """Test reading an MWA corr fits file as metadata only."""
     uvd = UVData()
