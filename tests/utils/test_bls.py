@@ -53,9 +53,10 @@ def test_bls_to_ant(benchmark, bl_start, nbls):
     if nbls > 65535:
         bls += 65536
     nants_telescope = 2048 if bl_start < 2**16 + 2**22 else 2**16 + 2**22
-    antnums = benchmark(
-        bl_utils.baseline_to_antnums, bls, Nants_telescope=nants_telescope
-    )
+
+    bls = np.ascontiguousarray(bls, dtype=np.uint64)
+
+    antnums = benchmark(bl_utils._bls.baseline_to_antnums, bls)
 
     bls_out = bl_utils.antnums_to_baseline(
         antnums[0],
@@ -82,12 +83,15 @@ def test_ants_to_bls(benchmark, bl_start, nbls):
         bls += 65536
     a1, a2 = bl_utils.baseline_to_antnums(bls, Nants_telescope=nants_telescope)
 
+    a1 = np.ascontiguousarray(a1, dtype=np.uint64)
+    a2 = np.ascontiguousarray(a2, dtype=np.uint64)
+
     bls_out = benchmark(
-        bl_utils.antnums_to_baseline,
+        bl_utils._bls.antnums_to_baseline,
         a1,
         a2,
-        Nants_telescope=nants_telescope,
         attempt256=bl_start < 2**16,
+        nants_less2048=nants_telescope <= 2048,
         use_miriad_convention=False,
     )
     a1_out, a2_out = bl_utils.baseline_to_antnums(
