@@ -2052,6 +2052,7 @@ def calc_app_coords(
     pm_dec=None,
     vrad=None,
     dist=None,
+    all_times_unique=None,
 ):
     """
     Calculate apparent coordinates for several different coordinate types.
@@ -2159,7 +2160,11 @@ def calc_app_coords(
     if isinstance(time_array, Time):
         time_array = time_array.utc.jd
 
-    unique_time_array, unique_mask = np.unique(time_array, return_index=True)
+    if not all_times_unique:
+        unique_time_array, unique_mask = np.unique(time_array, return_index=True)
+    else:
+        unique_time_array = time_array
+        unique_mask = slice(None)
 
     if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
@@ -2245,7 +2250,10 @@ def calc_app_coords(
     app_dec = np.zeros(np.array(time_array).shape)
 
     for idx, unique_time in enumerate(unique_time_array):
-        select_mask = time_array == unique_time
+        if not all_times_unique:
+            select_mask = time_array == unique_time
+        else:
+            select_mask = idx
         app_ra[select_mask] = unique_app_ra[idx]
         app_dec[select_mask] = unique_app_dec[idx]
 
