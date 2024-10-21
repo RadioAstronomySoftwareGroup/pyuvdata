@@ -11,7 +11,9 @@ import pytest
 
 from pyuvdata.data import DATA_PATH
 
-aipy_extracts = pytest.importorskip("pyuvdata.uvdata.aipy_extracts")
+aipy_extracts = pytest.importorskip(
+    "pyuvdata.uvdata.aipy_extracts", exc_type=ImportError
+)
 
 
 def test_bl2ij():
