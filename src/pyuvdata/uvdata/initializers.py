@@ -604,9 +604,9 @@ def new_uvdata(
     obj.vis_units = vis_units
     if blts_are_rectangular:
         if time_axis_faster_than_bls:
-            obj.Nants_data = len(set(antpairs[::ntimes]))
+            obj.Nants_data = len(np.unique(antpairs[::ntimes]))
         else:
-            obj.Nants_data = len(set(antpairs[:nbls]))
+            obj.Nants_data = len(np.unique(antpairs[:nbls].flatten()))
     else:
         obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
     obj.Nbls = nbls
