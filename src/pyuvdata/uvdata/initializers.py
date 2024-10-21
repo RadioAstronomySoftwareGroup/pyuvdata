@@ -612,6 +612,8 @@ def new_uvdata(
     obj.flex_spw_id_array = flex_spw_id_array
     obj.integration_time = integration_time
     obj.blt_order = blt_order
+    obj.blts_are_rectangular = blts_are_rectangular
+    obj.time_axis_faster_than_bls = time_axis_faster_than_bls
 
     set_phase_params(
         obj,
