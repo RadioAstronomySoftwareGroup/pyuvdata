@@ -602,7 +602,13 @@ def new_uvdata(
     obj.channel_width = channel_width
     obj.history = history
     obj.vis_units = vis_units
-    obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
+    if blts_are_rectangular:
+        if time_axis_faster_than_bls:
+            obj.Nants_data = len(set(antpairs[::ntimes]))
+        else:
+            obj.Nants_data = len(set(antpairs[:nbls]))
+    else:
+        obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
     obj.Nbls = nbls
     obj.Nblts = len(baseline_array)
     obj.Nfreqs = len(freq_array)
