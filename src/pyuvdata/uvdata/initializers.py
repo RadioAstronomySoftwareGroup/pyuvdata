@@ -309,6 +309,7 @@ def new_uvdata(
     phase_center_id_array: np.ndarray | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     astrometry_library: str | None = None,
+    check_kw: dict | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -667,5 +668,5 @@ def new_uvdata(
         else:
             obj.nsample_array = np.ones(shape, dtype=float)
 
-    obj.check()
+    obj.check(**(check_kw or {}))
     return obj
