@@ -2086,9 +2086,9 @@ def calc_app_coords(
             "driftscan" (fixed az/el position),
             "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
     time_array : float or ndarray of float or Time object
-        Times for which the apparent coordinates were calculated, in UTC JD. If more
-        than a single element, must be the same shape as lon_coord and lat_coord if
-        both of those are arrays (instead of single floats).
+        Times for which the apparent coordinates are to be calculated, in UTC JD.
+        If more than a single element, must be the same shape as lon_coord and
+        lat_coord if both of those are arrays (instead of single floats).
     telescope_loc : array-like of floats or EarthLocation or MoonLocation
         ITRF latitude, longitude, and altitude (rel to sea-level) of the phase center
         of the array. Can either be provided as an astropy EarthLocation, a lunarsky
