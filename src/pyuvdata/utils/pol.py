@@ -92,7 +92,8 @@ def _x_orientation_rep_dict(x_orientation):
     """
     warnings.warn(
         "This function (_x_orientation_rep_dict) is deprecated, use "
-        "pyuvdata.utils.pol.x_orientation_pol_map instead.",
+        "pyuvdata.utils.pol.x_orientation_pol_map instead."
+        " This will become an error in version 3.2",
         DeprecationWarning,
     )
 

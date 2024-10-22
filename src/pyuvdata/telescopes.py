@@ -133,7 +133,7 @@ class TelMapping(Mapping):
             "Directly accessing the KNOWN_TELESCOPES dict is deprecated. If you "
             "need a telescope location, use the known_telescope_location function. "
             "For a full Telescope object use the classmethod "
-            "Telescope.from_known_telescopes.",
+            "Telescope.from_known_telescopes. This will become an error in version 3.2",
             DeprecationWarning,
         )
         if key in ["latitude", "longitude", "altitude", "center_xyz"]:
