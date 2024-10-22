@@ -23,6 +23,9 @@ telescope object from the metadata.
 - `UVData.get_enu_data_ants` method to get east, north, up positions only for
 antennas with data.
 
+### Changed
+- Updated minimum optional dependency versions: pytest>=8.2.0
+
 ### Fixed
 - A bug in the MWA beam reader that resulted in the wrong polarization response
 (the azimuthal-aligned response was swapped with the zenith angle-aligned response).
