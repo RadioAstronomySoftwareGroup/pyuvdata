@@ -1,6 +1,6 @@
 coverage
 packaging
-pytest>=6.2.5
+pytest>=8.2.0
 pytest-cov
 pytest-cases>=3.8.3
 pytest-xdist
