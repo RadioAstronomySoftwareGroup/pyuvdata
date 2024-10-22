@@ -24,7 +24,7 @@ telescope object from the metadata.
 antennas with data.
 
 ### Changed
-- Updated minimum optional dependency versions: pytest>=8.2.0
+- Updated minimum optional dependency versions: lunarsky>=0.2.5, pytest>=8.2.0
 
 ### Fixed
 - A bug in the MWA beam reader that resulted in the wrong polarization response

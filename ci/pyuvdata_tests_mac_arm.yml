@@ -23,4 +23,4 @@ dependencies:
   - setuptools_scm>=8.1
   - pip
   - pip:
-      - lunarsky>=0.2.4
+      - lunarsky>=0.2.5
