@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.0.1] - 2024-7-1
+
 ### Added
 - New analytic beam classes: AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam
 that support evaluating either the efield or power beam in any direction and frequency.
