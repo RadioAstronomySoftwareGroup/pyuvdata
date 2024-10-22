@@ -84,7 +84,6 @@ a) Reading a CST power beam file
   >>> import os
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
 
   # you can pass several filenames and the objects from each file will be
   # combined across the appropriate axis -- in this case frequency
@@ -130,12 +129,6 @@ a) Reading a CST power beam file
   >>> print(beam.data_array.shape)
   (1, 2, 2, 181, 360)
 
-  >>> # plot zenith angle cut through beam
-  >>> plt.plot(beam.axis2_array, beam.data_array[0, 0, 0, 0, :, 0]) # doctest: +SKIP
-  >>> plt.xscale('log') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
-  >>> plt.ylabel('Power') # doctest: +SKIP
-  >>> plt.show() # doctest: +SKIP
 
 b) Reading a CST E-field beam file
 **********************************
@@ -297,10 +290,10 @@ a) Selecting a range of Zenith Angles
   >>> _ = ax.set_ylabel('Power')
   >>> _ = fig.legend(loc="upper right", bbox_to_anchor=[0.9,0.88])
   >>> plt.show()  # doctest: +SKIP
-  >>> plt.savefig("Images/beam_cut.png", bbox_inches='tight')
+  >>> plt.savefig("Images/select_beam_cut.png", bbox_inches='tight')
   >>> plt.clf()
 
-.. image:: Images/beam_cut.png
+.. image:: Images/select_beam_cut.png
   :width: 600
 
 a) Selecting Feeds or Polarizations
@@ -401,23 +394,55 @@ extra interpolation errors.
   >>> import os
   >>> import numpy as np
   >>> from astropy_healpix import HEALPix
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
-  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
+  >>> import matplotlib.pyplot as plt
+  >>> from matplotlib.colors import LogNorm
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
+  >>> import pyuvdata.utils as uvutils
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
   >>> beam = UVBeam.from_file(settings_file, beam_type='power')
 
-  >>> # this beam file is very large. Let's cut down the size to ease the computation
-  >>> za_max = np.deg2rad(10.0)
+  >>> # Let's cut down to a small area near zenith so we can see the pixelization
+  >>> za_max = np.deg2rad(20.0)
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
   >>> # Optionally specify which interpolation function to use.
   >>> hpx_beam = beam.to_healpix(inplace=False, interpolation_function="az_za_simple")
+
+  >>> # Now plot the pixels on an polar projection with zenith in the center
+  >>> radial_ticks_deg = [5, 10, 20]
+
+  >>> az_array, za_array = np.meshgrid(beam.axis1_array, beam.axis2_array)
+  >>> az_za_radial_val = np.sin(za_array)
+  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection='polar'), figsize=(15, 15))
+  >>> ax1.grid(True)
+  >>> img1 = ax1.scatter(az_array, az_za_radial_val, c=beam.data_array[0,0,0,:], cmap="plasma", norm=LogNorm())
+  >>> cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
+  >>> _ = ax1.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
+  >>> _ = ax1.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
+  >>> _ = ax1.set_title("Az/ZA Beam")
+
   >>> hpx_obj = HEALPix(nside=hpx_beam.nside, order=hpx_beam.ordering)
-  >>> lon, lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
-  >>> plt.scatter(lon, lat, c=hpx_beam.data_array[0,0,0,0,:], norm=LogNorm()) # doctest: +SKIP
+  >>> hpx_lon, hpx_lat = hpx_obj.healpix_to_lonlat(hpx_beam.pixel_array)
+  >>> za, az = uvutils.coordinates.hpx_latlon_to_zenithangle_azimuth(hpx_lat.rad, hpx_lon.rad)
+  >>> hpx_radial_val = np.sin(za)
+
+  >>> ax2.grid(True)
+  >>> img2 = ax2.scatter(az, hpx_radial_val, c=hpx_beam.data_array[0,0,0,:], cmap="plasma", norm=LogNorm())
+  >>> cbar=plt.colorbar(img2, ax=ax2, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
+
+  >>> _ = ax2.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
+  >>> _ = ax2.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
+  >>> _ = ax2.set_title("Healpix Beam")
+
+  >>> fig.tight_layout()
+  >>> plt.show() # doctest: +SKIP
+  >>> plt.savefig("Images/hera_orig_healpix.png", bbox_inches='tight', dpi=80)
+  >>> plt.clf()
+
+.. image:: Images/hera_orig_healpix.png
+  :width: 600
 
 
 UVBeam: Converting from E-Field beams to Power Beams
@@ -429,7 +454,7 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
 
   >>> import os
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
+  >>> import matplotlib.pyplot as plt
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> settings_file = os.path.join(DATA_PATH, 'NicCSTbeams/NicCSTbeams.yaml')
@@ -437,13 +462,18 @@ a) Convert a regularly gridded efield beam to a power beam (leaving original int
   >>> new_beam = beam.efield_to_power(inplace=False)
 
   >>> # plot zenith angle cut through the beams
-  >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].real, label='E-field real') # doctest: +SKIP
-  >>> plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, 0, :, 0].imag, 'r', label='E-field imaginary') # doctest: +SKIP
-  >>> plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, 0, :, 0]), 'black', label='sqrt Power') # doctest: +SKIP
-  >>> plt.xlabel('Zenith Angle (radians)') # doctest: +SKIP
-  >>> plt.ylabel('Magnitude') # doctest: +SKIP
-  >>> plt.legend() # doctest: +SKIP
+  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].real, label='E-field real')
+  >>> _ = plt.plot(beam.axis2_array, beam.data_array[1, 0, 0, :, 0].imag, 'r', label='E-field imaginary')
+  >>> _ = plt.plot(new_beam.axis2_array, np.sqrt(new_beam.data_array[0, 0, 0, :, 0]), 'black', label='sqrt Power')
+  >>> _ = plt.xlabel('Zenith Angle (radians)')
+  >>> _ = plt.ylabel('Magnitude')
+  >>> _ = plt.legend()
   >>> plt.show() # doctest: +SKIP
+  >>> plt.savefig("Images/efield_power_beam_cut.png", bbox_inches='tight')
+  >>> plt.clf()
+
+.. image:: Images/efield_power_beam_cut.png
+  :width: 600
 
 b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 **********************************************************
@@ -451,8 +481,8 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
 
   >>> import os
   >>> import numpy as np
-  >>> import matplotlib.pyplot as plt # doctest: +SKIP
-  >>> from matplotlib.colors import LogNorm # doctest: +SKIP
+  >>> import matplotlib.pyplot as plt
+  >>> from matplotlib.colors import LogNorm
   >>> from pyuvdata import UVBeam
   >>> from pyuvdata.data import DATA_PATH
   >>> from pyuvdata import utils
@@ -460,19 +490,43 @@ b) Generating pseudo Stokes ('pI', 'pQ', 'pU', 'pV') beams
   >>> beam = UVBeam.from_file(settings_file, beam_type='efield')
 
   >>> # this beam file is very large. Let's cut down the size to ease the computation
-  >>> za_max = np.deg2rad(10.0)
+  >>> za_max = np.deg2rad(90.0)
   >>> za_inds_use = np.nonzero(beam.axis2_array <= za_max)[0]
   >>> beam.select(axis2_inds=za_inds_use)
 
   >>> pstokes_beam = beam.efield_to_pstokes(inplace=False)
 
-  >>> # plotting pseudo-stokes I
+  >>> # plotting pseudo-stokes
   >>> pol_array = pstokes_beam.polarization_array
-  >>> pstokes = utils.polstr2num('pI')
-  >>> pstokes_ind = np.where(np.isin(pol_array, pstokes))[0][0]
-  >>> azimuth, za = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
-  >>> plt.scatter(azimuth, 1-za, c=np.abs(pstokes_beam.data_array[0, 0, pstokes_ind, 0, :]), norm=LogNorm()) # doctest: +SKIP
+  >>> pI_ind = np.where(np.isin(pol_array, utils.polstr2num('pI')))[0][0]
+  >>> pQ_ind = np.where(np.isin(pol_array, utils.polstr2num('pQ')))[0][0]
 
+  >>> # Now plot the pixels on an polar projection with zenith in the center
+  >>> radial_ticks_deg = [10, 30, 50, 90]
+  >>> az_array, za_array = np.meshgrid(pstokes_beam.axis1_array, pstokes_beam.axis2_array)
+  >>> az_za_radial_val = np.sin(za_array)
+  >>> fig, (ax1, ax2) = plt.subplots(1, 2, subplot_kw=dict(projection='polar'), figsize=(15, 15))
+  >>> ax1.grid(True)
+  >>> img1 = ax1.scatter(az_array, az_za_radial_val, c=pstokes_beam.data_array[0,  pI_ind, 0], cmap="plasma", norm=LogNorm())
+  >>> cbar=plt.colorbar(img1, ax=ax1, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
+  >>> _ = ax1.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
+  >>> _ = ax1.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
+  >>> _ = ax1.set_title("pI")
+
+  >>> ax2.grid(True)
+  >>> img2 = ax2.scatter(az_array, az_za_radial_val, c=pstokes_beam.data_array[0,  pQ_ind, 0], cmap="plasma", norm=LogNorm())
+  >>> cbar=plt.colorbar(img2, ax=ax2, label="Beam power", orientation="vertical",shrink=.5, format="%4.1e")
+  >>> _ = ax2.set_yticks(np.sin(np.deg2rad(radial_ticks_deg)))
+  >>> _ = ax2.set_yticklabels([f"{rt}" + r"$\degree$" for rt in radial_ticks_deg])
+  >>> _ = ax2.set_title("pQ")
+
+  >>> fig.tight_layout()
+  >>> plt.show() # doctest: +SKIP
+  >>> plt.savefig("Images/hera_pstokes.png", bbox_inches='tight')
+  >>> plt.clf()
+
+.. image:: Images/hera_pstokes.png
+  :width: 600
 
 UVBeam: Calculating beam areas
 ------------------------------
