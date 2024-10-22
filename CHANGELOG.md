@@ -3,7 +3,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [3.0.1] - 2024-7-1
+## [3.1.0] - 2024-10-22
 
 ### Added
 - New analytic beam classes: AiryBeam, GaussianBeam, ShortDipoleBeam, UniformBeam
