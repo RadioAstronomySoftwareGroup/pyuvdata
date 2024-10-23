@@ -1556,7 +1556,8 @@ class UVData(UVBase):
         else:
             app_ra = np.zeros(self.Nblts, dtype=float)
             app_dec = np.zeros(self.Nblts, dtype=float)
-            for cat_id in np.unique(self.phase_center_id_array):
+            cat_ids = np.unique(self.phase_center_id_array)
+            for cat_id in cat_ids:
                 temp_dict = self.phase_center_catalog[cat_id]
                 select_mask = self.phase_center_id_array == cat_id
                 cat_type = temp_dict["cat_type"]
@@ -1570,21 +1571,52 @@ class UVData(UVBase):
                 vrad = temp_dict.get("vrad")
                 dist = temp_dict.get("cat_dist")
 
-                app_ra[select_mask], app_dec[select_mask] = phs_utils.calc_app_coords(
-                    lon_coord=lon_val,
-                    lat_coord=lat_val,
-                    coord_frame=frame,
-                    coord_epoch=epoch,
-                    coord_times=time_val,
-                    pm_ra=pm_ra,
-                    pm_dec=pm_dec,
-                    vrad=vrad,
-                    dist=dist,
-                    time_array=self.time_array[select_mask],
-                    lst_array=self.lst_array[select_mask],
-                    telescope_loc=self.telescope.location,
-                    coord_type=cat_type,
-                )
+                if self.blts_are_rectangular and len(cat_ids) == 1:
+                    slc = (
+                        slice(None, self.Ntimes)
+                        if self.time_axis_faster_than_bls
+                        else slice(None, None, self.Nbls)
+                    )
+                    _app_ra, _app_dec = phs_utils.calc_app_coords(
+                        lon_coord=lon_val,
+                        lat_coord=lat_val,
+                        coord_frame=frame,
+                        coord_epoch=epoch,
+                        coord_times=time_val,
+                        pm_ra=pm_ra,
+                        pm_dec=pm_dec,
+                        vrad=vrad,
+                        dist=dist,
+                        time_array=self.time_array[slc],
+                        lst_array=self.lst_array[slc],
+                        telescope_loc=self.telescope.location,
+                        coord_type=cat_type,
+                        all_times_unique=True,
+                    )
+                    if self.time_axis_faster_than_bls:
+                        app_ra = np.tile(_app_ra, self.Nbls)
+                        app_dec = np.tile(_app_dec, self.Nbls)
+                    else:
+                        app_ra = np.repeat(_app_ra, self.Nbls)
+                        app_dec = np.repeat(_app_dec, self.Nbls)
+                else:
+                    app_ra[select_mask], app_dec[select_mask] = (
+                        phs_utils.calc_app_coords(
+                            lon_coord=lon_val,
+                            lat_coord=lat_val,
+                            coord_frame=frame,
+                            coord_epoch=epoch,
+                            coord_times=time_val,
+                            pm_ra=pm_ra,
+                            pm_dec=pm_dec,
+                            vrad=vrad,
+                            dist=dist,
+                            time_array=self.time_array[select_mask],
+                            lst_array=self.lst_array[select_mask],
+                            telescope_loc=self.telescope.location,
+                            coord_type=cat_type,
+                        )
+                    )
 
         # Now that we have the apparent coordinates sorted out, we can figure
         # out what it is we want to do with the position angle
@@ -4954,19 +4986,44 @@ class UVData(UVBase):
         """
         unprojected_blts = self._check_for_cat_type("unprojected")
 
-        new_uvw = phs_utils.calc_uvw(
-            app_ra=self.phase_center_app_ra,
-            app_dec=self.phase_center_app_dec,
-            frame_pa=self.phase_center_frame_pa,
-            lst_array=self.lst_array,
-            use_ant_pos=True,
-            antenna_positions=self.telescope.antenna_positions,
-            antenna_numbers=self.telescope.antenna_numbers,
-            ant_1_array=self.ant_1_array,
-            ant_2_array=self.ant_2_array,
-            telescope_lat=self.telescope.location.lat.rad,
-            telescope_lon=self.telescope.location.lon.rad,
-        )
+        if self.blts_are_rectangular and np.all(unprojected_blts):
+            # The calculation is much more simple. We get a significant speed boost
+            # by only sending one times-worth of data in.
+            slc = (
+                slice(None, None, self.Ntimes)
+                if self.time_axis_faster_than_bls
+                else slice(None, self.Nbls)
+            )
+            new_uvw = phs_utils.calc_uvw(
+                lst_array=self.lst_array[slc],
+                use_ant_pos=True,
+                to_enu=True,
+                antenna_positions=self.telescope.antenna_positions,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=self.ant_1_array[slc],
+                ant_2_array=self.ant_2_array[slc],
+                telescope_lat=self.telescope.location.lat.rad,
+                telescope_lon=self.telescope.location.lon.rad,
+            )
+            if self.time_axis_faster_than_bls:
+                new_uvw = np.repeat(new_uvw, self.Ntimes, axis=0)
+            else:
+                new_uvw = np.tile(new_uvw, (self.Ntimes, 1))
+        else:
+            new_uvw = phs_utils.calc_uvw(
+                app_ra=self.phase_center_app_ra,
+                app_dec=self.phase_center_app_dec,
+                frame_pa=self.phase_center_frame_pa,
+                lst_array=self.lst_array,
+                use_ant_pos=True,
+                antenna_positions=self.telescope.antenna_positions,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                telescope_lat=self.telescope.location.lat.rad,
+                telescope_lon=self.telescope.location.lon.rad,
+                to_enu=np.all(unprojected_blts),
+            )
         if np.any(~unprojected_blts):
             # At least some are phased
             if update_vis:

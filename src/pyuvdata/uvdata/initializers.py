@@ -309,6 +309,7 @@ def new_uvdata(
     phase_center_id_array: np.ndarray | None = None,
     x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
     astrometry_library: str | None = None,
+    check_kw: dict | None = None,
     **kwargs,
 ):
     """Initialize a new UVData object from keyword arguments.
@@ -601,7 +602,13 @@ def new_uvdata(
     obj.channel_width = channel_width
     obj.history = history
     obj.vis_units = vis_units
-    obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
+    if blts_are_rectangular:
+        if time_axis_faster_than_bls:
+            obj.Nants_data = len(np.unique(antpairs[::ntimes]))
+        else:
+            obj.Nants_data = len(np.unique(antpairs[:nbls].flatten()))
+    else:
+        obj.Nants_data = len(set(np.concatenate([ant_1_array, ant_2_array])))
     obj.Nbls = nbls
     obj.Nblts = len(baseline_array)
     obj.Nfreqs = len(freq_array)
@@ -612,6 +619,8 @@ def new_uvdata(
     obj.flex_spw_id_array = flex_spw_id_array
     obj.integration_time = integration_time
     obj.blt_order = blt_order
+    obj.blts_are_rectangular = blts_are_rectangular
+    obj.time_axis_faster_than_bls = time_axis_faster_than_bls
 
     set_phase_params(
         obj,
@@ -665,5 +674,5 @@ def new_uvdata(
         else:
             obj.nsample_array = np.ones(shape, dtype=float)
 
-    obj.check()
+    obj.check(**(check_kw or {}))
     return obj
