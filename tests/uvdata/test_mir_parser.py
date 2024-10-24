@@ -813,7 +813,9 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
 
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list, strict=True):
         np.testing.assert_allclose(
-            norm_fac * mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
+            norm_fac * mir_data.vis_data[key]["data"],
+            mir_copy.vis_data[key]["data"],
+            rtol=5e-7,
         )
         assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
@@ -822,7 +824,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
     mir_copy.apply_tsys(invert=True)
     for key in mir_data.vis_data:
         np.testing.assert_allclose(
-            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"], rtol=5e-6
+            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"], rtol=5e-7
         )
         assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
