@@ -2131,9 +2131,20 @@ def calc_app_coords(
 
     if not all_times_unique:
         unique_time_array, unique_mask = np.unique(time_array, return_index=True)
+        if isinstance(lat_coord, np.ndarray) and len(lat_coord) != 1:
+            # Check for unique positions using complex values w/ ra-dec pairs
+            _, check_mask = np.unique((lat_coord + 1j * lon_coord), return_index=True)
+            if all(np.isin(check_mask, unique_mask)):
+                # If all ra-dec pairs are within unique time stamps, then downselect
+                lat_coord = lat_coord[unique_mask]
+                lon_coord = lon_coord[unique_mask]
+            else:
+                # Otherwise, reset the time_array, don't try to play efficiency games
+                unique_time_array = time_array
+                unique_mask = ...
     else:
         unique_time_array = time_array
-        unique_mask = slice(None)
+        unique_mask = ...
 
     if coord_type in ["driftscan", "unprojected"]:
         if lst_array is None:
@@ -2213,18 +2224,18 @@ def calc_app_coords(
     else:
         raise ValueError(f"Object type {coord_type} is not recognized.")
 
-    # Now that we've calculated all the unique values, time to backfill through the
-    # "redundant" entries in the Nblt axis.
-    app_ra = np.zeros(np.array(time_array).shape)
-    app_dec = np.zeros(np.array(time_array).shape)
-
-    for idx, unique_time in enumerate(unique_time_array):
-        if not all_times_unique:
+    if unique_mask is Ellipsis:
+        app_ra = unique_app_ra
+        app_dec = unique_app_dec
+    else:
+        # Now that we've calculated all the unique values, time to backfill through the
+        # "redundant" entries in the Nblt axis.
+        app_ra = np.zeros(np.array(time_array).shape)
+        app_dec = np.zeros(np.array(time_array).shape)
+        for idx, unique_time in enumerate(unique_time_array):
             select_mask = time_array == unique_time
-        else:
-            select_mask = idx
-        app_ra[select_mask] = unique_app_ra[idx]
-        app_dec[select_mask] = unique_app_dec[idx]
+            app_ra[select_mask] = unique_app_ra[idx]
+            app_dec[select_mask] = unique_app_dec[idx]
 
     return app_ra, app_dec
 
