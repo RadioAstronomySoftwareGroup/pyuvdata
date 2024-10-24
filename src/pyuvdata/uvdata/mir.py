@@ -7,8 +7,9 @@ import contextlib
 import os
 import warnings
 
+import astropy.units as u
 import numpy as np
-from astropy.coordinates import angular_separation
+from astropy.coordinates import SkyCoord, angular_separation
 from astropy.time import Time
 from docstring_parser import DocstringStyle
 
@@ -17,7 +18,7 @@ from ..docstrings import copy_replace_short_description
 from ..telescopes import known_telescope_location
 from . import UVData, mir_parser
 
-__all__ = ["generate_sma_antpos_dict", "Mir"]
+__all__ = ["Mir", "generate_sma_antpos_dict"]
 
 
 def generate_sma_antpos_dict(filepath):
@@ -614,7 +615,20 @@ class Mir(UVData):
         # Note that these are entries that vary per-integration record (inhid), but
         # we include them here so that we can easily expand the per-integration data
         # to the per-baseline-time length arrays that UVData expects.
-        in_to_blt = ["lst", "mjd", "ara", "adec", "isource", "rinteg"]
+        in_to_blt = [
+            "lst",
+            "mjd",
+            "ara",
+            "adec",
+            "isource",
+            "rinteg",
+            "rar",
+            "decr",
+            "offx",
+            "offy",
+            "inhid",
+            "obsmode",
+        ]
         blt_temp_dict = {}
         suppress_warning = False
         for idx, bl_rec in enumerate(mir_data.bl_data):
@@ -654,6 +668,12 @@ class Mir(UVData):
         ant_2_array = np.zeros(Nblts, dtype=int)
         uvw_array = np.zeros((Nblts, 3), dtype=float)
         phase_center_id_array = np.zeros(Nblts, dtype=int)
+        cat_ra = np.zeros(Nblts, dtype=float)
+        cat_dec = np.zeros(Nblts, dtype=float)
+        off_ra = np.zeros(Nblts, dtype=float)
+        off_dec = np.zeros(Nblts, dtype=float)
+        obs_mode = np.zeros(Nblts, dtype=float)
+        inhid_array = np.zeros(Nblts, dtype=float)
         app_ra = np.zeros(Nblts, dtype=float)
         app_dec = np.zeros(Nblts, dtype=float)
 
@@ -672,6 +692,12 @@ class Mir(UVData):
             phase_center_id_array[blt_key] = temp_dict["isource"]
             app_ra[blt_key] = temp_dict["ara"]
             app_dec[blt_key] = temp_dict["adec"]
+            cat_ra[blt_key] = temp_dict["rar"]
+            cat_dec[blt_key] = temp_dict["decr"]
+            off_ra[blt_key] = temp_dict["offx"]
+            off_dec[blt_key] = temp_dict["offy"]
+            inhid_array[blt_key] = temp_dict["inhid"]
+            obs_mode[blt_key] = temp_dict["obsmode"]
 
         # Finally, assign arrays to attributed
         self.ant_1_array = ant_1_array
@@ -719,10 +745,9 @@ class Mir(UVData):
         isource = np.unique(mir_data.in_data["isource"])
         for sou_id in isource:
             source_mask = mir_data.in_data["isource"] == sou_id
-            source_ra = mir_data.in_data["rar"][source_mask].astype(float)
-            source_dec = mir_data.in_data["decr"][source_mask].astype(float)
             source_epoch = np.mean(mir_data.in_data["epoch"][source_mask]).astype(float)
             source_name = mir_data.codes_data["source"][sou_id]
+
             if source_epoch != 2000.0:
                 # When fed a non-J2000 coordinate, we want to convert that so that it
                 # can easily be written into CASA MS format. In this case, we take the
@@ -736,6 +761,13 @@ class Mir(UVData):
                     app_dec=mir_data.in_data["adec"][source_mask],
                     telescope_loc=self.telescope.location,
                 )
+            else:
+                source_ra = source_dec = 0.0
+                source_mask &= mir_data.in_data["obsmode"] != 3
+                if any(source_mask):
+                    source_ra = mir_data.in_data["rar"][source_mask].astype(float)
+                    source_dec = mir_data.in_data["decr"][source_mask].astype(float)
+
             self._add_phase_center(
                 source_name,
                 cat_type="sidereal",
@@ -747,16 +779,18 @@ class Mir(UVData):
                 cat_id=int(sou_id),
             )
 
-            # See if the ra/dec positions change by more than an arcminute, and if so,
-            # raise a warning to the user since this isn't common.
-            dist_check = angular_separation(
-                source_ra[0], source_dec[0], source_ra, source_dec
-            )
-
-            if any(dist_check > ((np.pi / 180.0) / 60)):
-                warnings.warn(
-                    f"Position for {source_name} changes by more than an arcminute."
+            if all(mir_data.in_data["obsmode"][source_mask] == 0):
+                # See if the ra/dec positions change by more than an arcminute, and if
+                # so, raise a warning to the user since this isn't common (assuming
+                # single pointing data, which `obs_mode == 0` signifies)
+                dist_check = angular_separation(
+                    source_ra[0], source_dec[0], source_ra, source_dec
                 )
+
+                if any(dist_check > ((np.pi / 180.0) / 60)):
+                    warnings.warn(
+                        f"Position for {source_name} changes by more than an arcminute."
+                    )
 
         # Regenerate the sou_id_array thats native to MIR into a zero-indexed per-blt
         # entry for UVData, then grab ra/dec/position data.
@@ -845,6 +879,105 @@ class Mir(UVData):
         self.data_array = np.transpose(self.data_array, (0, 2, 1))
         self.flag_array = np.transpose(self.flag_array, (0, 2, 1))
         self.nsample_array = np.transpose(self.nsample_array, (0, 2, 1))
+
+        if any(obs_mode == 3):
+            # One final step -- there is a special mode for SMA known as "on-the-fly"
+            # mapping, which has to be specially handled due to how observations are
+            # conducted (namely that the phase center remains static).
+            otf_mask = obs_mode == 3
+
+            # Derive the UVWs for the center position
+            old_uvw = utils.phasing.calc_uvw(
+                app_ra=self.phase_center_app_ra,
+                app_dec=self.phase_center_app_dec,
+                frame_pa=self.phase_center_frame_pa,
+                lst_array=self.lst_array,
+                use_ant_pos=True,
+                antenna_positions=self.telescope.antenna_positions,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                telescope_lat=self.telescope.location.lat.rad,
+                telescope_lon=self.telescope.location.lon.rad,
+            )
+
+            # Translate offset RA/Dec to apparent coords, long with frame PA
+            icrs_ra, icrs_dec = utils.phasing.transform_app_to_icrs(
+                app_ra=app_ra,
+                app_dec=app_dec,
+                time_array=self.time_array,
+                telescope_loc=self.telescope.location,
+            )
+
+            self.phase_center_catalog[1]["cat_lon"] = icrs_ra[0]
+            self.phase_center_catalog[1]["cat_lat"] = icrs_dec[0]
+            off_coord = SkyCoord(
+                icrs_ra, icrs_dec, unit="rad", frame="icrs"
+            ).spherical_offsets_by(off_ra * u.arcsec, off_dec * u.arcsec)
+            new_ra = off_coord.ra.rad
+            new_dec = off_coord.dec.rad
+
+            new_app_ra, new_app_dec = utils.phasing.transform_icrs_to_app(
+                time_array=self.time_array,
+                ra=new_ra,
+                dec=new_dec,
+                telescope_loc=self.telescope.location,
+            )
+
+            new_frame_pa = utils.phasing.calc_frame_pos_angle(
+                time_array=self.time_array,
+                app_ra=new_app_ra,
+                app_dec=new_app_dec,
+                telescope_loc=self.telescope.location,
+                ref_frame="icrs",
+            )
+
+            # Calculate new UVWs
+            new_uvw = utils.phasing.calc_uvw(
+                app_ra=new_app_ra,
+                app_dec=new_app_dec,
+                frame_pa=new_frame_pa,
+                lst_array=self.lst_array,
+                use_ant_pos=True,
+                antenna_positions=self.telescope.antenna_positions,
+                antenna_numbers=self.telescope.antenna_numbers,
+                ant_1_array=self.ant_1_array,
+                ant_2_array=self.ant_2_array,
+                telescope_lat=self.telescope.location.lat.rad,
+                telescope_lon=self.telescope.location.lon.rad,
+            )
+
+            self._apply_w_proj(
+                new_w_vals=new_uvw[:, 2], old_w_vals=old_uvw[:, 2], select_mask=otf_mask
+            )
+            self.uvw_array[otf_mask] += new_uvw[otf_mask] - old_uvw[otf_mask]
+
+            # Update apparent coords and frame PA where OTF was used
+            self.phase_center_app_ra[otf_mask] = new_app_ra[otf_mask]
+            self.phase_center_app_dec[otf_mask] = new_app_dec[otf_mask]
+            self.phase_center_frame_pa[otf_mask] = new_frame_pa[otf_mask]
+
+            # Final task - we need to create a new phase center for each position, which
+            # is done on a per-integration basis since the offsets are time-defined
+            for inhid in np.unique(inhid_array[obs_mode == 3]):
+                # Each inhid has to be handled separately
+                inhid_mask = inhid_array == inhid
+                cat_id = self.phase_center_id_array[inhid_mask][0]
+                cat_dict = self.phase_center_catalog[cat_id]
+
+                # Add a new phase center, reclassify the cat_id
+                cat_id = self._add_phase_center(
+                    cat_name=cat_dict["cat_name"],
+                    cat_type=cat_dict["cat_type"],
+                    cat_lon=np.median(new_ra[inhid_mask]),
+                    cat_lat=np.median(new_dec[inhid_mask]),
+                    cat_frame="icrs",
+                    info_source="pyuvdata-generated (OTF)",
+                    raise_warning=False,
+                )
+
+                # Plug in the new cat_id into the phase_center_id_array
+                self.phase_center_id_array[inhid_mask] = cat_id
 
     def write_mir(self, filename):
         """
