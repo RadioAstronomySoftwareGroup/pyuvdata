@@ -342,7 +342,7 @@ class MS(UVData):
         ms_utils.write_ms_field(filepath, uvobj=self)
         ms_utils.write_ms_history(filepath, uvobj=self)
         ms_utils.write_ms_observation(filepath, uvobj=self)
-        ms_utils.write_ms_pointing(filepath, uvobj=self)
+        # ms_utils.write_ms_pointing(filepath, uvobj=self)
         ms_utils.write_ms_polarization(filepath, pol_order=pol_order, uvobj=self)
         ms_utils.write_ms_source(filepath, uvobj=self)
         ms_utils.write_ms_spectral_window(filepath, uvobj=self)
