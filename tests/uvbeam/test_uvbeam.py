@@ -427,7 +427,7 @@ def test_efield_to_pstokes(cst_efield_2freq_cut, cst_efield_2freq_cut_healpix):
     # peak_normalized again.
     # This seems to be the fault of interpolation
     np.testing.assert_allclose(
-        pstokes_beam.data_array, beam_return.data_array, atol=1e-2
+        pstokes_beam.data_array, beam_return.data_array, atol=1e-2, rtol=0
     )
 
 
@@ -602,7 +602,10 @@ def test_efield_to_power_crosspol(cst_efield_2freq_cut, tmp_path):
         calc_cross_pols=False, keep_basis_vector=True, inplace=False
     )
     np.testing.assert_allclose(
-        new_power_beam.data_array, np.abs(efield_beam.data_array) ** 2
+        new_power_beam.data_array,
+        np.abs(efield_beam.data_array) ** 2,
+        rtol=new_power_beam._data_array.tols[0],
+        atol=new_power_beam._data_array.tols[1],
     )
 
 
@@ -876,12 +879,23 @@ def test_spatial_interpolation_samepoints(
     )
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
-    np.testing.assert_allclose(uvbeam.data_array, interp_data_array)
+    np.testing.assert_allclose(
+        uvbeam.data_array,
+        interp_data_array,
+        rtol=uvbeam._data_array.tols[0],
+        atol=uvbeam._data_array.tols[1],
+    )
+
     if beam_type == "efield":
         interp_basis_vector = interp_basis_vector.reshape(
             uvbeam.basis_vector_array.shape, order="F"
         )
-        np.testing.assert_allclose(uvbeam.basis_vector_array, interp_basis_vector)
+        np.testing.assert_allclose(
+            uvbeam.basis_vector_array,
+            interp_basis_vector,
+            rtol=uvbeam._basis_vector_array.tols[0],
+            atol=uvbeam._basis_vector_array.tols[1],
+        )
 
     # test error with using an incompatible interpolation function
     with pytest.raises(
@@ -971,7 +985,12 @@ def test_spatial_interpolation_samepoints(
         interp_data_array = interp_data_array.reshape(
             data_array_compare.shape, order="F"
         )
-        np.testing.assert_allclose(data_array_compare, interp_data_array)
+        np.testing.assert_allclose(
+            data_array_compare,
+            interp_data_array,
+            rtol=uvbeam._data_array.tols[0],
+            atol=uvbeam._data_array.tols[1],
+        )
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -1069,7 +1088,7 @@ def test_spatial_interpolation_everyother(
     )
 
     # slightly different interpolation, so not identical.
-    np.testing.assert_allclose(quartic_data_array, orig_data_array, atol=1e-10)
+    np.testing.assert_allclose(quartic_data_array, orig_data_array, atol=1e-10, rtol=0)
     assert not np.all(quartic_data_array == orig_data_array)
 
     select_data_array_orig, _ = uvbeam.interp(
@@ -1086,7 +1105,13 @@ def test_spatial_interpolation_everyother(
         freq_interp_kind="linear",
         reuse_spline=True,
     )
-    np.testing.assert_allclose(select_data_array_orig, select_data_array_reused)
+    np.testing.assert_allclose(
+        select_data_array_orig,
+        select_data_array_reused,
+        rtol=uvbeam._data_array.tols[0],
+        atol=uvbeam._data_array.tols[1],
+    )
+
     del uvbeam.saved_interp_functions
 
     # test comparison of different interpolation functions
@@ -1107,7 +1132,12 @@ def test_spatial_interpolation_everyother(
         interpolation_function="az_za_map_coordinates",
         spline_opts={"order": 1},
     )
-    assert np.allclose(linear_data_array, mp_data_array)
+    np.testing.assert_allclose(
+        linear_data_array,
+        mp_data_array,
+        rtol=uvbeam._data_array.tols[0],
+        atol=uvbeam._data_array.tols[1],
+    )
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
@@ -1346,7 +1376,12 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     data_array_compare = hpx_efield_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
 
-    np.testing.assert_allclose(data_array_compare, interp_data_array)
+    np.testing.assert_allclose(
+        data_array_compare,
+        interp_data_array,
+        rtol=hpx_efield_beam._data_array.tols[0],
+        atol=hpx_efield_beam._data_array.tols[1],
+    )
 
     # test error with using an incompatible interpolation function
     with pytest.raises(
@@ -1435,7 +1470,12 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
 
     # test no inputs equals same answer
     interp_data_array2, _ = hpx_efield_beam.interp()
-    np.testing.assert_allclose(interp_data_array, interp_data_array2)
+    np.testing.assert_allclose(
+        interp_data_array,
+        interp_data_array2,
+        rtol=hpx_efield_beam._data_array.tols[0],
+        atol=hpx_efield_beam._data_array.tols[1],
+    )
 
     # test errors with specifying healpix_inds without healpix_nside
     hp_obj = HEALPix(nside=hpx_efield_beam.nside)
@@ -1484,7 +1524,12 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     )
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
-    np.testing.assert_allclose(data_array_compare, interp_data_array)
+    np.testing.assert_allclose(
+        data_array_compare,
+        interp_data_array,
+        rtol=power_beam._data_array.tols[0],
+        atol=power_beam._data_array.tols[1],
+    )
 
     # test that interp to every other point returns an object that matches a select
     pixel_inds = np.arange(0, power_beam.Npixels, 2)
@@ -1502,13 +1547,23 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     interp_data_array2, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals
     )
-    np.testing.assert_allclose(interp_data_array, interp_data_array2)
+    np.testing.assert_allclose(
+        interp_data_array,
+        interp_data_array2,
+        rtol=power_beam._data_array.tols[0],
+        atol=power_beam._data_array.tols[1],
+    )
 
     # assert not feeding az_array gives same answer
     interp_data_array2, _ = power_beam.interp(
         az_array=az_orig_vals, za_array=za_orig_vals
     )
-    np.testing.assert_allclose(interp_data_array, interp_data_array2)
+    np.testing.assert_allclose(
+        interp_data_array,
+        interp_data_array2,
+        rtol=power_beam._data_array.tols[0],
+        atol=power_beam._data_array.tols[1],
+    )
 
     # test requesting polarization gives the same answer
     interp_data_array2, _ = power_beam.interp(
@@ -1516,7 +1571,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     )
 
     np.testing.assert_allclose(
-        interp_data_array[..., 1:2, :, :], interp_data_array2[..., :1, :, :]
+        interp_data_array[..., 1:2, :, :],
+        interp_data_array2[..., :1, :, :],
+        rtol=power_beam._data_array.tols[0],
+        atol=power_beam._data_array.tols[1],
     )
 
     # change complex data_array to real data_array and test again
@@ -1527,7 +1585,12 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     )
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
-    np.testing.assert_allclose(data_array_compare, interp_data_array)
+    np.testing.assert_allclose(
+        data_array_compare,
+        interp_data_array,
+        rtol=power_beam._data_array.tols[0],
+        atol=power_beam._data_array.tols[1],
+    )
 
     # assert polarization value error
     with pytest.raises(
@@ -2692,22 +2755,46 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     npix = healpix_norm.Npixels
     healpix_norm.data_array = np.ones_like(healpix_norm.data_array)
     np.testing.assert_allclose(
-        np.sum(healpix_norm.get_beam_area(pol="xx")), numfreqs * npix * d_omega
+        np.sum(healpix_norm.get_beam_area(pol="xx")),
+        numfreqs * npix * d_omega,
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
     )
+
     healpix_norm.data_array = 2.0 * np.ones_like(healpix_norm.data_array)
     np.testing.assert_allclose(
-        np.sum(healpix_norm.get_beam_sq_area(pol="xx")), numfreqs * 4.0 * npix * d_omega
+        np.sum(healpix_norm.get_beam_sq_area(pol="xx")),
+        numfreqs * 4.0 * npix * d_omega,
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
     )
 
     # check XX and YY beam areas work and match to within 5 sigfigs
     xx_area = healpix_norm.get_beam_area("XX")
     xx_area = healpix_norm.get_beam_area("xx")
-    np.testing.assert_allclose(xx_area, xx_area)
+    np.testing.assert_allclose(
+        xx_area,
+        xx_area,
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
+    )
+
     yy_area = healpix_norm.get_beam_area("YY")
-    np.testing.assert_allclose(yy_area / xx_area, np.ones(numfreqs))
+    np.testing.assert_allclose(
+        yy_area / xx_area,
+        np.ones(numfreqs),
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
+    )
+
     xx_area = healpix_norm.get_beam_sq_area("XX")
     yy_area = healpix_norm.get_beam_sq_area("YY")
-    np.testing.assert_allclose(yy_area / xx_area, np.ones(numfreqs))
+    np.testing.assert_allclose(
+        yy_area / xx_area,
+        np.ones(numfreqs),
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
+    )
 
     # Check that if pseudo-Stokes I (pI) is in the beam polarization_array it
     # just uses it
@@ -2783,8 +2870,19 @@ def test_beam_area_healpix(cst_power_1freq_cut_healpix, cst_efield_1freq_cut_hea
     I_area = efield_beam.get_beam_area("I")
     pI_area = efield_beam.get_beam_area("pI")
     area1 = efield_beam.get_beam_area(1)
-    np.testing.assert_allclose(I_area, pI_area)
-    np.testing.assert_allclose(I_area, area1)
+    np.testing.assert_allclose(
+        I_area,
+        pI_area,
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
+    )
+
+    np.testing.assert_allclose(
+        I_area,
+        area1,
+        rtol=healpix_norm._data_array.tols[0],
+        atol=healpix_norm._data_array.tols[1],
+    )
 
     # check efield beam type is accepted for pseudo-stokes and power for
     # linear polarizations

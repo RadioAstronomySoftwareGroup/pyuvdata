@@ -37,7 +37,7 @@ def test_airy_beam_values(az_za_deg_grid):
         for feed in range(2):
             expected_data[pol, feed, :, :] = airy_values / np.sqrt(2.0)
 
-    np.testing.assert_allclose(beam_vals, expected_data)
+    np.testing.assert_allclose(beam_vals, expected_data, atol=1e-15, rtol=0)
 
     assert beam.__repr__() == f"AiryBeam(diameter={diameter_m})"
 
@@ -96,7 +96,7 @@ def test_achromatic_gaussian_beam(az_za_deg_grid, sigma_type):
         for feed in range(2):
             expected_data[pol, feed, :, :] = gaussian_vals / np.sqrt(2.0)
 
-    np.testing.assert_allclose(beam_vals, expected_data)
+    np.testing.assert_allclose(beam_vals, expected_data, atol=1e-15, rtol=0)
 
     assert (
         beam.__repr__() == f"GaussianBeam(sigma={sigma_use.__repr__()}, "
@@ -197,7 +197,7 @@ def test_short_dipole_beam(az_za_deg_grid):
     expected_data[1, 0] = np.cos(za_vals) * np.cos(az_vals)
     expected_data[1, 1] = np.cos(za_vals) * np.sin(az_vals)
 
-    np.testing.assert_allclose(efield_vals, expected_data)
+    np.testing.assert_allclose(efield_vals, expected_data, atol=1e-15, rtol=0)
 
     power_vals = beam.power_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
     expected_data = np.zeros((1, 4, n_freqs, nsrcs), dtype=float)
@@ -240,7 +240,7 @@ def test_uniform_beam(az_za_deg_grid, feed_array, x_orientation):
     beam_vals = beam.efield_eval(az_array=az_vals, za_array=za_vals, freq_array=freqs)
 
     expected_data = np.ones((2, 2, n_freqs, nsrcs), dtype=float) / np.sqrt(2.0)
-    np.testing.assert_allclose(beam_vals, expected_data)
+    np.testing.assert_allclose(beam_vals, expected_data, atol=1e-15, rtol=0)
 
     assert beam.__repr__() == "UniformBeam()"
 
@@ -532,7 +532,7 @@ def test_yaml_constructor_new(az_za_deg_grid):
         az_array=az_vals, za_array=za_vals, freq_array=freqs
     )
 
-    np.testing.assert_allclose(from_efield_eval, from_power_eval)
+    np.testing.assert_allclose(from_efield_eval, from_power_eval, atol=1e-15, rtol=0)
 
 
 def test_yaml_constructor_errors():

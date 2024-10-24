@@ -962,7 +962,9 @@ def test_phase_unphase_hera_antpos(hera_uvh5):
     uv_phase2.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo")
 
     # The uvw's only agree to ~1mm. should they be better?
-    assert np.allclose(uv_phase2.uvw_array, uv_phase.uvw_array, atol=1e-3)
+    np.testing.assert_allclose(
+        uv_phase2.uvw_array, uv_phase.uvw_array, atol=1e-3, rtol=0
+    )
     # the data array are just multiplied by the w's for phasing, so a difference
     # at the 1e-3 level makes the data array different at that level too.
     # -> change the tolerance on data_array for this test
@@ -988,8 +990,8 @@ def test_phase_hera_zenith_timestamp_minimal_changes(hera_uvh5):
     )
 
     # it's unclear to me how close this should be...
-    assert np.allclose(
-        uv_phase_simple_small.uvw_array, uv_raw_small.uvw_array, atol=1e-1
+    np.testing.assert_allclose(
+        uv_phase_simple_small.uvw_array, uv_raw_small.uvw_array, atol=1e-1, rtol=0
     )
 
 
@@ -1055,11 +1057,21 @@ def test_phase_to_time(casa_uvfits, telescope_frame, selenoid):
 
     uv_in.phase_to_time(uv_in.time_array[0])
 
-    assert np.isclose(uv_in.phase_center_catalog[1]["cat_lat"], zen_icrs.dec.rad)
-    assert np.isclose(uv_in.phase_center_catalog[1]["cat_lon"], zen_icrs.ra.rad)
+    assert np.isclose(
+        uv_in.phase_center_catalog[1]["cat_lat"],
+        zen_icrs.dec.rad,
+        rtol=0,
+        atol=utils.RADIAN_TOL,
+    )
+    assert np.isclose(
+        uv_in.phase_center_catalog[1]["cat_lon"],
+        zen_icrs.ra.rad,
+        rtol=0,
+        atol=utils.RADIAN_TOL,
+    )
 
     assert np.isclose(
-        uv_in.phase_center_catalog[1]["cat_lon"], uv_in.lst_array[0], 1e-3
+        uv_in.phase_center_catalog[1]["cat_lon"], uv_in.lst_array[0], rtol=1e-3
     )
 
     if telescope_frame == "itrs":
@@ -1128,7 +1140,7 @@ def test_unphasing(uv_phase_comp, use_ant_pos1, use_ant_pos2):
     # the tolerances here are empirical -- based on what was seen in the
     # external phasing test. See the phasing memo in docs/references for
     # details.
-    assert np.allclose(uvd1.uvw_array, uvd2.uvw_array, atol=atol)
+    np.testing.assert_allclose(uvd1.uvw_array, uvd2.uvw_array, atol=atol, rtol=0)
 
 
 @pytest.mark.parametrize("use_ant_pos", [True, False])
@@ -1177,7 +1189,7 @@ def test_phasing(uv_phase_comp, unphase_first, use_ant_pos):
     # the tolerances here are empirical -- based on what was seen in the
     # external phasing test. See the phasing memo in docs/references for
     # details.
-    assert np.allclose(uvd1.uvw_array, uvd2.uvw_array, atol=atol)
+    np.testing.assert_allclose(uvd1.uvw_array, uvd2.uvw_array, atol=atol, rtol=0)
 
 
 @pytest.mark.parametrize(
@@ -1216,10 +1228,17 @@ def test_cotter_phasing(uv_phase_comp):
     uvd2_drift = uvd2.copy()
     uvd2_drift.unproject_phase()
 
-    assert np.allclose(uvd1_drift.uvw_array, uvd2_drift.uvw_array)
+    np.testing.assert_allclose(
+        uvd1_drift.uvw_array,
+        uvd2_drift.uvw_array,
+        rtol=uvd1_drift._uvw_array.tols[0],
+        atol=uvd1_drift._uvw_array.tols[1],
+    )
     # the tolerances here are empirical -- this just makes sure they don't get worse.
     # TODO: more investigation here needed!
-    assert np.allclose(uvd1_drift.data_array, uvd2_drift.data_array, atol=3e-2)
+    np.testing.assert_allclose(
+        uvd1_drift.data_array, uvd2_drift.data_array, atol=3e-2, rtol=0
+    )
 
     uvd1_phase_dict = list(uvd1.phase_center_catalog.values())[0]
     uvd2_rephase = uvd2.copy()
@@ -1235,7 +1254,9 @@ def test_cotter_phasing(uv_phase_comp):
 
     # the tolerances here are empirical -- this just makes sure they don't get worse.
     # TODO: more investigation here needed!
-    assert np.allclose(uvd1.uvw_array, uvd2_rephase.uvw_array, atol=5e-2)
+    np.testing.assert_allclose(
+        uvd1.uvw_array, uvd2_rephase.uvw_array, atol=5e-2, rtol=0
+    )
 
     # rephase the drift objects to the original pointing and verify that they
     # match
@@ -1250,8 +1271,8 @@ def test_cotter_phasing(uv_phase_comp):
 
     # the tolerances here are empirical -- this just makes sure they don't get worse.
     # TODO: more investigation here needed!
-    assert np.allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=5e-2)
-    assert np.allclose(uvd1.data_array, uvd1_drift.data_array, atol=4)
+    np.testing.assert_allclose(uvd1.uvw_array, uvd1_drift.uvw_array, atol=5e-2, rtol=0)
+    np.testing.assert_allclose(uvd1.data_array, uvd1_drift.data_array, atol=4, rtol=0)
 
     uvd2_phase_dict = list(uvd2.phase_center_catalog.values())[0]
     uvd2_drift.phase(
@@ -1264,8 +1285,8 @@ def test_cotter_phasing(uv_phase_comp):
 
     # the tolerances here are empirical -- this just makes sure they don't get worse.
     # TODO: more investigation here needed!
-    assert np.allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=5e-3)
-    assert np.allclose(uvd2.data_array, uvd2_drift.data_array, atol=5)
+    np.testing.assert_allclose(uvd2.uvw_array, uvd2_drift.uvw_array, atol=5e-3, rtol=0)
+    np.testing.assert_allclose(uvd2.data_array, uvd2_drift.data_array, atol=5, rtol=0)
 
     # TODO: not sure the rest of this is useful...
     uvd1_drift = uvd1.copy()
@@ -1543,9 +1564,11 @@ def test_select_antennas(casa_uvfits):
             uv_object.telescope.antenna_names[idx1]
             == uv_object4.telescope.antenna_names[idx2]
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv_object.telescope.antenna_positions[idx1, :],
             uv_object4.telescope.antenna_positions[idx2, :],
+            rtol=uv_object.telescope._antenna_positions.tols[0],
+            atol=uv_object.telescope._antenna_positions.tols[1],
         )
         assert uv_object.telescope.antenna_diameters[
             idx1
@@ -2782,9 +2805,9 @@ def test_conjugate_bls(casa_uvfits, metadata_only):
     uv2.conjugate_bls("ant2<ant1")
     assert np.min(uv2.ant_1_array - uv2.ant_2_array) >= 0
 
-    assert np.allclose(uv1.ant_1_array, uv2.ant_2_array)
-    assert np.allclose(uv1.ant_2_array, uv2.ant_1_array)
-    assert np.allclose(
+    np.testing.assert_allclose(uv1.ant_1_array, uv2.ant_2_array)
+    np.testing.assert_allclose(uv1.ant_2_array, uv2.ant_1_array)
+    np.testing.assert_allclose(
         uv1.uvw_array,
         -1 * uv2.uvw_array,
         rtol=uv1._uvw_array.tols[0],
@@ -2794,21 +2817,21 @@ def test_conjugate_bls(casa_uvfits, metadata_only):
     if not metadata_only:
         # complicated because of the polarization swaps
         # polarization_array = [-1 -2 -3 -4]
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[:, :, :2],
             np.conj(uv2.data_array[:, :, :2]),
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[:, :, 2],
             np.conj(uv2.data_array[:, :, 3]),
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[:, :, 3],
             np.conj(uv2.data_array[:, :, 2]),
             rtol=uv1._data_array.tols[0],
@@ -2824,26 +2847,26 @@ def test_conjugate_bls(casa_uvfits, metadata_only):
     blts_not_conjugated = np.arange(uv2.Nblts // 2, uv2.Nblts)
     uv2.conjugate_bls(blts_to_conjugate)
 
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.ant_1_array[blts_to_conjugate], uv2.ant_2_array[blts_to_conjugate]
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.ant_2_array[blts_to_conjugate], uv2.ant_1_array[blts_to_conjugate]
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.ant_1_array[blts_not_conjugated], uv2.ant_1_array[blts_not_conjugated]
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.ant_2_array[blts_not_conjugated], uv2.ant_2_array[blts_not_conjugated]
     )
 
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.uvw_array[blts_to_conjugate],
         -1 * uv2.uvw_array[blts_to_conjugate],
         rtol=uv1._uvw_array.tols[0],
         atol=uv1._uvw_array.tols[1],
     )
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv1.uvw_array[blts_not_conjugated],
         uv2.uvw_array[blts_not_conjugated],
         rtol=uv1._uvw_array.tols[0],
@@ -2852,39 +2875,39 @@ def test_conjugate_bls(casa_uvfits, metadata_only):
     if not metadata_only:
         # complicated because of the polarization swaps
         # polarization_array = [-1 -2 -3 -4]
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_to_conjugate, :, :2],
             np.conj(uv2.data_array[blts_to_conjugate, :, :2]),
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_not_conjugated, :, :2],
             uv2.data_array[blts_not_conjugated, :, :2],
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_to_conjugate, :, 2],
             np.conj(uv2.data_array[blts_to_conjugate, :, 3]),
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_not_conjugated, :, 2],
             uv2.data_array[blts_not_conjugated, :, 2],
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
 
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_to_conjugate, :, 3],
             np.conj(uv2.data_array[blts_to_conjugate, :, 2]),
             rtol=uv1._data_array.tols[0],
             atol=uv1._data_array.tols[1],
         )
-        assert np.allclose(
+        np.testing.assert_allclose(
             uv1.data_array[blts_not_conjugated, :, 3],
             uv2.data_array[blts_not_conjugated, :, 3],
             rtol=uv1._data_array.tols[0],
@@ -3019,17 +3042,27 @@ def test_reorder_blts(casa_uvfits):
         assert bls_1.shape == bls_2.shape
         assert np.min(np.diff(bls_2)) >= 0
         bl_inds = [np.where(bls_1 == bl)[0][0] for bl in bls_2]
-        assert np.allclose(bls_1[bl_inds], bls_2)
+        np.testing.assert_allclose(bls_1[bl_inds], bls_2)
 
         uvw_1 = uv1.uvw_array[np.where(uv2.time_array == this_time)[0], :]
         uvw_2 = uv2.uvw_array[np.where(uv2.time_array == this_time)[0], :]
         assert uvw_1.shape == uvw_2.shape
-        assert np.allclose(uvw_1[bl_inds, :], uvw_2)
+        np.testing.assert_allclose(
+            uvw_1[bl_inds, :],
+            uvw_2,
+            rtol=uv1._uvw_array.tols[0],
+            atol=uv1._uvw_array.tols[1],
+        )
 
         data_1 = uv1.data_array[np.where(uv2.time_array == this_time)[0]]
         data_2 = uv2.data_array[np.where(uv2.time_array == this_time)[0]]
         assert data_1.shape == data_2.shape
-        assert np.allclose(data_1[bl_inds], data_2)
+        np.testing.assert_allclose(
+            data_1[bl_inds],
+            data_2,
+            rtol=uv1._data_array.tols[0],
+            atol=uv1._data_array.tols[1],
+        )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
@@ -3327,9 +3360,11 @@ def test_sum_vis(casa_uvfits):
     )
 
     assert uv_overrides_2.timesys == "foo"
-    assert np.allclose(
+    np.testing.assert_allclose(
         uv_overrides_2.telescope._location.xyz(),
         np.array([-1601183.15377712, -5042003.74810822, 3554841.17192104]),
+        rtol=uv_overrides.telescope._location.tols[0],
+        atol=uv_overrides.telescope._location.tols[1],
     )
 
 
@@ -5013,7 +5048,7 @@ def test_get_enu_antpos(hera_uvh5_xx):
     ):
         antpos, ants = uvd.get_ENU_antpos(center=False, pick_data_ants=False)
     assert len(ants) == 113
-    assert np.isclose(antpos[0, 0], 19.340211050751535)
+    assert np.isclose(antpos[0, 0], 19.340211050751535, rtol=0, atol=1e-3)
     assert ants[0] == 0
     # test default behavior
     antpos2, ants = uvd.get_ENU_antpos()
@@ -5021,11 +5056,11 @@ def test_get_enu_antpos(hera_uvh5_xx):
     assert np.all(antpos == antpos2)
     # center
     antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=False)
-    assert np.isclose(antpos[0, 0], 22.472442651767714)
+    assert np.isclose(antpos[0, 0], 22.472442651767714, rtol=0, atol=1e-3)
     # pick data ants
     antpos, ants = uvd.get_ENU_antpos(center=True, pick_data_ants=True)
     assert ants[0] == 9
-    assert np.isclose(antpos[0, 0], -0.0026981323386223721)
+    assert np.isclose(antpos[0, 0], -0.0026981323386223721, rtol=0, atol=1e-3)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -5850,8 +5885,12 @@ def test_get_antenna_redundancies(pyuvsim_redundant, grid_alg):
 
     # all redundancy info is the same
     assert red_gps == new_red_gps
-    assert np.allclose(centers, new_centers)
-    assert np.allclose(lengths, new_lengths)
+    np.testing.assert_allclose(
+        centers, new_centers, rtol=uv0._uvw_array.tols[0], atol=uv0._uvw_array.tols[1]
+    )
+    np.testing.assert_allclose(
+        lengths, new_lengths, rtol=uv0._uvw_array.tols[0], atol=uv0._uvw_array.tols[1]
+    )
 
 
 @pytest.mark.parametrize("grid_alg", [True, False])
@@ -6013,8 +6052,11 @@ def test_redundancy_contract_expand(
                     if method == "select":
                         # use the data values from the original for this baseline
                         uv2_blts = np.nonzero(uv2.baseline_array == bl)[0]
-                        assert np.allclose(
-                            uv2.data_array[uv2_blts], uv0.data_array[orig_blts]
+                        np.testing.assert_allclose(
+                            uv2.data_array[uv2_blts],
+                            uv0.data_array[orig_blts],
+                            rtol=uv0._data_array.tols[0],
+                            atol=uv0._data_array.tols[1],
                         )
                         uv3.data_array[blts] = uv2.data_array[uv2_blts]
                         if flagging_level == "some":
@@ -6661,16 +6703,31 @@ def test_upsample_in_time(hera_uvh5):
     max_integration_time = np.amin(uv_object.integration_time) / 2.0
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
 
-    assert np.allclose(uv_object.integration_time, max_integration_time)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be the same
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6702,11 +6759,22 @@ def test_upsample_in_time_with_flags(hera_uvh5):
 
     # data and nsamples should be changed as normal, but flagged
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+
     out_flags = uv_object.get_flags(0, 1)
     assert np.all(out_flags[:2, 0, 0])
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6733,16 +6801,31 @@ def test_upsample_in_time_noninteger_resampling(hera_uvh5):
     max_integration_time = np.amin(uv_object.integration_time) * 0.75
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
 
-    assert np.allclose(uv_object.integration_time, max_integration_time * 0.5 / 0.75)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time * 0.5 / 0.75,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be different by a factor of 2
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6796,16 +6879,31 @@ def test_upsample_in_time_summing_correlator_mode(hera_uvh5):
         max_integration_time, blt_order="baseline", summing_correlator_mode=True
     )
 
-    assert np.allclose(uv_object.integration_time, max_integration_time)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be the half the input
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0] / 2,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6837,11 +6935,21 @@ def test_upsample_in_time_summing_correlator_mode_with_flags(hera_uvh5):
 
     # data and nsamples should be changed as normal, but flagged
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0] / 2,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
     out_flags = uv_object.get_flags(0, 1)
     assert np.all(out_flags[:2, 0, 0])
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6873,16 +6981,31 @@ def test_upsample_in_time_summing_correlator_mode_nonint_resampling(hera_uvh5):
         max_integration_time, blt_order="baseline", summing_correlator_mode=True
     )
 
-    assert np.allclose(uv_object.integration_time, max_integration_time * 0.5 / 0.75)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time * 0.5 / 0.75,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be half the input
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[0, 0, 0] / 2, out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[0, 0, 0] / 2,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6914,19 +7037,39 @@ def test_partial_upsample_in_time(hera_uvh5):
     max_integration_time = np.amin(uv_object.integration_time)
     uv_object.upsample_in_time(max_integration_time, blt_order="baseline")
 
-    assert np.allclose(uv_object.integration_time, max_integration_time)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # output data should be the same
     out_wf_01 = uv_object.get_data(0, 1)
     out_wf_02 = uv_object.get_data(0, 2)
     assert np.all(init_wf_01 == out_wf_01)
-    assert np.isclose(init_wf_02[0, 0, 0], out_wf_02[0, 0, 0])
+    assert np.isclose(
+        init_wf_02[0, 0, 0],
+        out_wf_02[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
     assert init_wf_02.size * 2 == out_wf_02.size
 
     # this should be true because there are no flags
     out_ns_01 = uv_object.get_nsamples(0, 1)
     out_ns_02 = uv_object.get_nsamples(0, 2)
-    assert np.allclose(out_ns_01, init_ns_01)
-    assert np.isclose(init_ns_02[0, 0, 0], out_ns_02[0, 0, 0])
+    np.testing.assert_allclose(
+        out_ns_01,
+        init_ns_01,
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
+    assert np.isclose(
+        init_ns_02[0, 0, 0],
+        out_ns_02[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -6954,18 +7097,28 @@ def test_upsample_in_time_drift(hera_uvh5):
         max_integration_time, blt_order="baseline", allow_drift=True
     )
 
-    assert np.allclose(uv_object.integration_time, max_integration_time)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be the same
     out_wf = uv_object.get_data(0, 1)
     # we need a "large" tolerance given the "large" data
     new_tol = 1e-2 * np.amax(np.abs(uv_object.data_array))
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol, rtol=0)
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7012,18 +7165,28 @@ def test_upsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase):
         max_integration_time, blt_order="baseline", allow_drift=False
     )
 
-    assert np.allclose(uv_object.integration_time, max_integration_time)
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        max_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     # we should double the size of the data arrays
     assert uv_object.data_array.size == 2 * init_data_size
     # output data should be similar, but somewhat different because of the phasing
     out_wf = uv_object.get_data(0, 1)
     # we need a "large" tolerance given the "large" data
     new_tol = 1e-2 * np.amax(np.abs(uv_object.data_array))
-    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol)
+    assert np.isclose(init_wf[0, 0, 0], out_wf[0, 0, 0], atol=new_tol, rtol=0)
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(init_ns[0, 0, 0], out_ns[0, 0, 0])
+    assert np.isclose(
+        init_ns[0, 0, 0],
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7056,16 +7219,31 @@ def test_downsample_in_time(hera_uvh5):
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[1],
+    )
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # Compare doing it with n_times_to_avg
     uv_object2.downsample_in_time(
@@ -7110,11 +7288,21 @@ def test_downsample_in_time_partial_flags(hera_uvh5):
         min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[1, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that there are still no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -7161,11 +7349,21 @@ def test_downsample_in_time_totally_flagged(hera_uvh5):
         min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that the new sample is flagged
     out_flag = uv_object.get_flags(0, 1)
@@ -7212,19 +7410,38 @@ def test_downsample_in_time_uneven_samples(hera_uvh5):
     # integration time or twice that.
     assert np.all(
         np.logical_or(
-            np.isclose(uv_object.integration_time, original_int_time),
-            np.isclose(uv_object.integration_time, min_integration_time),
+            np.isclose(
+                uv_object.integration_time,
+                original_int_time,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
+            np.isclose(
+                uv_object.integration_time,
+                min_integration_time,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
         )
     )
 
     # make sure integration time is correct
     # in this case, all integration times should be the target one
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
 
     # as usual, the new data should be the average of the input data (3 points now)
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
-
+    assert np.isclose(
+        np.mean(init_wf[0:3, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
     # Compare doing it with n_times_to_avg
     uv_object2.downsample_in_time(
         n_times_to_avg=3, blt_order="baseline", minor_order="time", keep_ragged=False
@@ -7265,7 +7482,12 @@ def test_downsample_in_time_uneven_samples_keep_ragged(hera_uvh5):
 
     # as usual, the new data should be the average of the input data
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(np.mean(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_wf[0:3, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # Compare doing it with n_times_to_avg
     uv_object2.downsample_in_time(
@@ -7305,16 +7527,31 @@ def test_downsample_in_time_summing_correlator_mode(hera_uvh5):
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be the sum
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]), out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7353,11 +7590,21 @@ def test_downsample_in_time_summing_correlator_mode_partial_flags(hera_uvh5):
         summing_correlator_mode=True,
     )
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[1, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that there are still no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -7399,11 +7646,21 @@ def test_downsample_in_time_summing_correlator_mode_totally_flagged(hera_uvh5):
         summing_correlator_mode=True,
     )
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]), out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that the new sample is flagged
     out_flag = uv_object.get_flags(0, 1)
@@ -7447,18 +7704,38 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples(hera_uvh5):
     # integration time or twice that.
     assert np.all(
         np.logical_or(
-            np.isclose(uv_object.integration_time, original_int_time),
-            np.isclose(uv_object.integration_time, min_integration_time),
+            np.isclose(
+                uv_object.integration_time,
+                original_int_time,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
+            np.isclose(
+                uv_object.integration_time,
+                min_integration_time,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
         )
     )
 
     # as usual, the new data should be the average of the input data (3 points now)
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(np.sum(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+    assert np.isclose(
+        np.sum(init_wf[0:3, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(np.mean(init_ns[0:3, 0, 0]), out_ns[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_ns[0:3, 0, 0]),
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7496,15 +7773,30 @@ def test_downsample_in_time_summing_correlator_mode_uneven_samples_drop_ragged(
 
     # make sure integration time is correct
     # in this case, all integration times should be the target one
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
 
     # as usual, the new data should be the average of the input data
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(np.sum(init_wf[0:3, 0, 0]), out_wf[0, 0, 0])
+    assert np.isclose(
+        np.sum(init_wf[0:3, 0, 0]),
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose(np.mean(init_ns[0:3, 0, 0]), out_ns[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_ns[0:3, 0, 0]),
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7540,22 +7832,38 @@ def test_partial_downsample_in_time(hera_uvh5):
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
 
     # output data should be the same
     out_wf_01 = uv_object.get_data(0, 1)
     out_wf_02 = uv_object.get_data(0, 2)
     assert np.all(init_wf_01 == out_wf_01)
     assert np.isclose(
-        (init_wf_02[0, 0, 0] + init_wf_02[1, 0, 0]) / 2.0, out_wf_02[0, 0, 0]
+        (init_wf_02[0, 0, 0] + init_wf_02[1, 0, 0]) / 2.0,
+        out_wf_02[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
     )
 
     # this should be true because there are no flags
     out_ns_01 = uv_object.get_nsamples(0, 1)
     out_ns_02 = uv_object.get_nsamples(0, 2)
-    assert np.allclose(out_ns_01, init_ns_01)
+    np.testing.assert_allclose(
+        out_ns_01,
+        init_ns_01,
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
     assert np.isclose(
-        (init_ns_02[0, 0, 0] + init_ns_02[1, 0, 0]) / 2.0, out_ns_02[0, 0, 0]
+        (init_ns_02[0, 0, 0] + init_ns_02[1, 0, 0]) / 2.0,
+        out_ns_02[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
     )
 
     return
@@ -7588,16 +7896,32 @@ def test_downsample_in_time_drift(hera_uvh5):
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
+
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -7658,7 +7982,12 @@ def test_downsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be similar to the average, but somewhat different
@@ -7666,12 +7995,20 @@ def test_downsample_in_time_drift_no_phasing(hera_uvh5, driftscan, partial_phase
     out_wf = uv_object.get_data(0, 1)
     new_tol = 5e-2 * np.amax(np.abs(uv_object.data_array))
     assert np.isclose(
-        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0], atol=new_tol
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        atol=new_tol,
+        rtol=0,
     )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # check that there are no flags
     assert np.nonzero(uv_object.flag_array)[0].size == 0
@@ -7715,11 +8052,21 @@ def test_downsample_in_time_nsample_precision(hera_uvh5):
         min_int_time=min_integration_time, blt_order="baseline", minor_order="time"
     )
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose(init_wf[1, 0, 0], out_wf[0, 0, 0])
+    assert np.isclose(
+        init_wf[1, 0, 0],
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # make sure nsamples is correct
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     # make sure nsamples has the right dtype
     assert uv_object.nsample_array.dtype.type is np.float16
@@ -7838,16 +8185,31 @@ def test_downsample_in_time_errors(hera_uvh5):
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7882,16 +8244,31 @@ def test_downsample_in_time_int_time_mismatch_warning(hera_uvh5):
 
     # Should have half the size of the data array and all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
     assert uv_object.data_array.size * 2 == init_data_size
 
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -7930,7 +8307,12 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
 
     out_wf = uv_object.get_data(0, 1)
 
@@ -7939,16 +8321,46 @@ def test_downsample_in_time_varying_integration_time(hera_uvh5):
     assert n_times_out == (n_times_in - 2) / 2 + 2
 
     # output data should be the average for the first set
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
     # last 2 time samples should be identical to initial ones
-    assert np.isclose(init_wf[-1, 0, 0], out_wf[-1, 0, 0])
-    assert np.isclose(init_wf[-2, 0, 0], out_wf[-2, 0, 0])
+    assert np.isclose(
+        init_wf[-1, 0, 0],
+        out_wf[-1, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_wf[-2, 0, 0],
+        out_wf[-2, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
-    assert np.isclose(init_ns[-1, 0, 0], out_ns[-1, 0, 0])
-    assert np.isclose(init_ns[-2, 0, 0], out_ns[2, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
+    assert np.isclose(
+        init_ns[-1, 0, 0],
+        out_ns[-1, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
+    assert np.isclose(
+        init_ns[-2, 0, 0],
+        out_ns[2, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -8030,15 +8442,30 @@ def test_downsample_in_time_varying_integration_time_warning(hera_uvh5):
 
     # Should have all the new integration time
     # (for this file with 20 integrations and a factor of 2 downsampling)
-    assert np.all(np.isclose(uv_object.integration_time, min_integration_time))
+    np.testing.assert_allclose(
+        uv_object.integration_time,
+        min_integration_time,
+        rtol=uv_object._integration_time.tols[0],
+        atol=uv_object._integration_time.tols[0],
+    )
 
     # output data should be the average
     out_wf = uv_object.get_data(0, 1)
-    assert np.isclose((init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0, out_wf[0, 0, 0])
+    assert np.isclose(
+        (init_wf[0, 0, 0] + init_wf[1, 0, 0]) / 2.0,
+        out_wf[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     # this should be true because there are no flags
     out_ns = uv_object.get_nsamples(0, 1)
-    assert np.isclose((init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0, out_ns[0, 0, 0])
+    assert np.isclose(
+        (init_ns[0, 0, 0] + init_ns[1, 0, 0]) / 2.0,
+        out_ns[0, 0, 0],
+        rtol=uv_object._nsample_array.tols[0],
+        atol=uv_object._nsample_array.tols[1],
+    )
 
     return
 
@@ -8275,10 +8702,30 @@ def test_resample_in_time(bda_test_file, driftscan, partial_phase):
     assert out_data_136_137.size / 2 == init_data_136_137.size
 
     # check some values
-    assert np.isclose(np.mean(init_data_1_136[0:4, 0, 0]), out_data_1_136[0, 0, 0])
-    assert np.isclose(np.mean(init_data_1_137[0:2, 0, 0]), out_data_1_137[0, 0, 0])
-    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
-    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_data_1_136[0:4, 0, 0]),
+        out_data_1_136[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        np.mean(init_data_1_137[0:2, 0, 0]),
+        out_data_1_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_1_138[0, 0, 0],
+        out_data_1_138[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_136_137[0, 0, 0],
+        out_data_136_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     return
 
@@ -8306,8 +8753,18 @@ def test_resample_in_time_downsample_only(bda_test_file):
     # Should have all less than or equal to the target integration time
     assert np.all(
         np.logical_or(
-            np.isclose(uv_object.integration_time, 8),
-            np.isclose(uv_object.integration_time, 16),
+            np.isclose(
+                uv_object.integration_time,
+                8,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
+            np.isclose(
+                uv_object.integration_time,
+                16,
+                rtol=uv_object._integration_time.tols[0],
+                atol=uv_object._integration_time.tols[0],
+            ),
         )
     )
 
@@ -8327,10 +8784,30 @@ def test_resample_in_time_downsample_only(bda_test_file):
     assert out_data_136_137.size == init_data_136_137.size
 
     # check some values
-    assert np.isclose(np.mean(init_data_1_136[0:4, 0, 0]), out_data_1_136[0, 0, 0])
-    assert np.isclose(np.mean(init_data_1_137[0:2, 0, 0]), out_data_1_137[0, 0, 0])
-    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
-    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_data_1_136[0:4, 0, 0]),
+        out_data_1_136[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        np.mean(init_data_1_137[0:2, 0, 0]),
+        out_data_1_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_1_138[0, 0, 0],
+        out_data_1_138[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_136_137[0, 0, 0],
+        out_data_136_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     return
 
@@ -8356,8 +8833,26 @@ def test_resample_in_time_only_upsample(bda_test_file):
     # again, with only_upsample set
     uv_object.resample_in_time(8, only_upsample=True, allow_drift=True)
     # Should have all greater than or equal to the target integration time
-    tint = uv_object.integration_time
-    assert np.all(np.isclose(tint, 2.0) | np.isclose(tint, 4.0) | np.isclose(tint, 8.0))
+    assert np.all(
+        np.isclose(
+            uv_object.integration_time,
+            2,
+            rtol=uv_object._integration_time.tols[0],
+            atol=uv_object._integration_time.tols[0],
+        )
+        | np.isclose(
+            uv_object.integration_time,
+            4,
+            rtol=uv_object._integration_time.tols[0],
+            atol=uv_object._integration_time.tols[0],
+        )
+        | np.isclose(
+            uv_object.integration_time,
+            8,
+            rtol=uv_object._integration_time.tols[0],
+            atol=uv_object._integration_time.tols[0],
+        )
+    )
 
     # 2s integration time
     out_data_1_136 = uv_object.get_data((1, 136))
@@ -8375,10 +8870,30 @@ def test_resample_in_time_only_upsample(bda_test_file):
     assert out_data_136_137.size / 2 == init_data_136_137.size
 
     # check some values
-    assert np.isclose(init_data_1_136[0, 0, 0], out_data_1_136[0, 0, 0])
-    assert np.isclose(init_data_1_137[0, 0, 0], out_data_1_137[0, 0, 0])
-    assert np.isclose(init_data_1_138[0, 0, 0], out_data_1_138[0, 0, 0])
-    assert np.isclose(init_data_136_137[0, 0, 0], out_data_136_137[0, 0, 0])
+    assert np.isclose(
+        init_data_1_136[0, 0, 0],
+        out_data_1_136[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_1_137[0, 0, 0],
+        out_data_1_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_1_138[0, 0, 0],
+        out_data_1_138[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
+    assert np.isclose(
+        init_data_136_137[0, 0, 0],
+        out_data_136_137[0, 0, 0],
+        rtol=uv_object._data_array.tols[0],
+        atol=uv_object._data_array.tols[1],
+    )
 
     return
 
@@ -8423,7 +8938,7 @@ def test_downsample_in_time_mwa():
     uv_object2 = uv.copy()
 
     # all data within 5 milliseconds of 2 second integrations
-    assert np.allclose(uv.integration_time, 2, atol=5e-3)
+    np.testing.assert_allclose(uv.integration_time, 2, atol=5e-3, rtol=0)
     min_int_time = 4.0
     uv.resample_in_time(min_int_time, only_downsample=True, keep_ragged=False)
 
@@ -8437,7 +8952,12 @@ def test_downsample_in_time_mwa():
 
     out_data = uv_object2.get_data((61, 58))
 
-    assert np.isclose(np.mean(init_data[0:2, 0, 0]), out_data[0, 0, 0])
+    assert np.isclose(
+        np.mean(init_data[0:2, 0, 0]),
+        out_data[0, 0, 0],
+        rtol=uv._data_array.tols[0],
+        atol=uv._data_array.tols[1],
+    )
 
 
 @pytest.mark.filterwarnings("ignore:There is a gap in the times of baseline")
@@ -8526,7 +9046,12 @@ def test_frequency_average(casa_uvfits, multi_spw, sum_corr):
     else:
         expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
 
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -8738,7 +9263,12 @@ def test_frequency_average_uneven(
                     axis=1,
                 )
 
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -8811,7 +9341,12 @@ def test_frequency_average_flagging(casa_uvfits, keep_ragged, fully_flagged):
     if not fully_flagged:
         expected_data[0, 0, :] = uvobj2.data_array[inds01[0], 0, :]
 
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
 
     if fully_flagged:
         assert np.sum(uvobj.flag_array[inds01[0], 0, :]) == 4
@@ -8850,7 +9385,12 @@ def test_frequency_average_flagging_full_and_partial(casa_uvfits):
 
     expected_data[0, 1, :] = uvobj2.data_array[inds01[0], 3, :]
 
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
     assert np.nonzero(uvobj.flag_array)[0].size == uvobj.Npols
 
 
@@ -8950,7 +9490,12 @@ def test_frequency_average_propagate_flags(casa_uvfits, keep_ragged):
             axis=1,
         )
 
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
     # Twice as many flags should exist compared to test of previous name.
     assert np.nonzero(uvobj.flag_array)[0].size == 2 * uvobj.Npols
 
@@ -8989,7 +9534,12 @@ def test_frequency_average_nsample_precision(casa_uvfits):
     expected_data = uvobj2.get_data(1, 2, squeeze="none")
     reshape_tuple = (expected_data.shape[0], int(uvobj2.Nfreqs / 2), 2, uvobj2.Npols)
     expected_data = expected_data.reshape(reshape_tuple).mean(axis=2)
-    assert np.allclose(uvobj.get_data(1, 2, squeeze="none"), expected_data)
+    np.testing.assert_allclose(
+        uvobj.get_data(1, 2, squeeze="none"),
+        expected_data,
+        rtol=uvobj._data_array.tols[0],
+        atol=uvobj._data_array.tols[1],
+    )
 
     assert np.nonzero(uvobj.flag_array)[0].size == 0
 
@@ -9067,7 +9617,12 @@ def test_remove_eq_coeffs_divide(casa_uvfits):
         blt_inds = uvobj.antpair2ind(key)
         norm_data = uvobj.data_array[blt_inds]
         unnorm_data = uvobj2.data_array[blt_inds]
-        assert np.allclose(norm_data, unnorm_data / (eq1 * eq2))
+        np.testing.assert_allclose(
+            norm_data,
+            unnorm_data / (eq1 * eq2),
+            rtol=uvobj._data_array.tols[0],
+            atol=uvobj._data_array.tols[1],
+        )
 
     return
 
@@ -9093,7 +9648,12 @@ def test_remove_eq_coeffs_multiply(casa_uvfits):
         blt_inds = uvobj.antpair2ind(key)
         norm_data = uvobj.data_array[blt_inds]
         unnorm_data = uvobj2.data_array[blt_inds]
-        assert np.allclose(norm_data, unnorm_data * (eq1 * eq2))
+        np.testing.assert_allclose(
+            norm_data,
+            unnorm_data * (eq1 * eq2),
+            rtol=uvobj._data_array.tols[0],
+            atol=uvobj._data_array.tols[1],
+        )
 
     return
 
@@ -10583,8 +11143,10 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
     # unproject_phase was _mostly_ accurate, although it does seem to intoduce errors
     # on the order of a part in 1e5, which translates to about a tenth of a degree phase
     # error in the test data set used here. Check that first, make sure it's good
-    assert np.allclose(uv_in.data_array, uv_in_bad.data_array, rtol=3e-4)
-    assert np.allclose(uv_in_bad2.data_array, uv_in_bad_copy.data_array, rtol=3e-4)
+    np.testing.assert_allclose(uv_in.data_array, uv_in_bad.data_array, rtol=3e-4)
+    np.testing.assert_allclose(
+        uv_in_bad2.data_array, uv_in_bad_copy.data_array, rtol=3e-4
+    )
 
     # Once we know the data are okay, copy over data array and check for equality btw
     # the other attributes of the two objects.
@@ -10912,7 +11474,9 @@ def test_set_data(hera_uvh5):
     uv.set_data(data, ant1, ant2)
     data2 = uv.get_data(ant1, ant2, squeeze="none")
 
-    assert np.allclose(data, data2)
+    np.testing.assert_allclose(
+        data, data2, rtol=uv._data_array.tols[0], atol=uv._data_array.tols[1]
+    )
     return
 
 
@@ -10932,7 +11496,9 @@ def test_set_data_evla():
     uv.set_data(data, ant1, ant2)
     data2 = uv.get_data(ant1, ant2, squeeze="none")
 
-    assert np.allclose(data, data2)
+    np.testing.assert_allclose(
+        data, data2, rtol=uv._data_array.tols[0], atol=uv._data_array.tols[1]
+    )
     return
 
 
@@ -10951,7 +11517,9 @@ def test_set_data_polkey(hera_uvh5):
     uv.set_data(data, ant1, ant2, pol)
     data2 = uv.get_data(ant1, ant2, pol, squeeze="none")
 
-    assert np.allclose(data, data2)
+    np.testing.assert_allclose(
+        data, data2, rtol=uv._data_array.tols[0], atol=uv._data_array.tols[1]
+    )
     return
 
 
@@ -10970,7 +11538,7 @@ def test_set_flags(hera_uvh5):
     uv.set_flags(flags, ant1, ant2)
     flags2 = uv.get_flags(ant1, ant2, squeeze="none")
 
-    assert np.allclose(flags, flags2)
+    np.testing.assert_allclose(flags, flags2)
     assert not np.allclose(uv.flag_array, True)
 
 
@@ -10990,7 +11558,7 @@ def test_set_flags_polkey(hera_uvh5):
     uv.set_flags(flags, ant1, ant2, pol)
     flags2 = uv.get_flags(ant1, ant2, pol, squeeze="none")
 
-    assert np.allclose(flags, flags2)
+    np.testing.assert_allclose(flags, flags2)
     assert not np.allclose(uv.flag_array, True)
     return
 
@@ -11010,7 +11578,12 @@ def test_set_nsamples(hera_uvh5):
     uv.set_nsamples(nsamples, ant1, ant2)
     nsamples2 = uv.get_nsamples(ant1, ant2, squeeze="none")
 
-    assert np.allclose(nsamples, nsamples2)
+    np.testing.assert_allclose(
+        nsamples,
+        nsamples2,
+        rtol=uv._nsample_array.tols[0],
+        atol=uv._nsample_array.tols[1],
+    )
     assert not np.allclose(uv.nsample_array, np.pi)
 
 
@@ -11030,7 +11603,12 @@ def test_set_nsamples_polkey(hera_uvh5):
     uv.set_nsamples(nsamples, ant1, ant2, pol)
     nsamples2 = uv.get_nsamples(ant1, ant2, pol, squeeze="none")
 
-    assert np.allclose(nsamples, nsamples2)
+    np.testing.assert_allclose(
+        nsamples,
+        nsamples2,
+        rtol=uv._nsample_array.tols[0],
+        atol=uv._nsample_array.tols[1],
+    )
     assert not np.allclose(uv.nsample_array, np.pi)
 
 

@@ -2444,7 +2444,7 @@ def test_read_complex_astype(tmp_path):
         dset = h5f["Data/testdata"]
         file_data = hdf5_utils._read_complex_astype(dset, indices, np.complex64)
 
-    assert np.allclose(file_data, test_data)
+    np.testing.assert_allclose(file_data, test_data)
 
     # clean up
     os.remove(test_file)
@@ -2503,7 +2503,7 @@ def test_write_complex_astype(tmp_path):
         file_data.real = dset.astype(uvh5._hera_corr_dtype)["r"][:, :, :, :]
         file_data.imag = dset.astype(uvh5._hera_corr_dtype)["i"][:, :, :, :]
 
-    assert np.allclose(file_data, test_data)
+    np.testing.assert_allclose(file_data, test_data)
 
     return
 
@@ -3384,8 +3384,10 @@ class TestFastUVH5Meta:
             del f["/Header/lst_array"]
 
         meta1 = uvh5.FastUVH5Meta(os.path.join(self.tmp_path.name, "no_lsts.uvh5"))
-        assert np.allclose(meta1.lsts, meta.lsts)
-        assert np.allclose(meta1.lst_array, meta.lst_array)
+        np.testing.assert_allclose(meta1.lsts, meta.lsts, rtol=0, atol=utils.RADIAN_TOL)
+        np.testing.assert_allclose(
+            meta1.lst_array, meta.lst_array, rtol=0, atol=utils.RADIAN_TOL
+        )
 
         # Now test a different ordering.
         uvd = meta.to_uvdata()
@@ -3398,7 +3400,7 @@ class TestFastUVH5Meta:
         meta1 = uvh5.FastUVH5Meta(
             os.path.join(self.tmp_path.name, "time_axis_faster_than_bls.uvh5")
         )
-        assert np.allclose(meta1.lsts, meta.lsts)
+        np.testing.assert_allclose(meta1.lsts, meta.lsts, rtol=0, atol=utils.RADIAN_TOL)
 
     def test_unique_arrays(self):
         def do_asserts(meta):
@@ -3442,7 +3444,9 @@ class TestFastUVH5Meta:
     def test_antpos_enu(self):
         meta = uvh5.FastUVH5Meta(self.fl)
         uvd = meta.to_uvdata()
-        assert np.allclose(meta.antpos_enu, uvd.telescope.get_enu_antpos())
+        np.testing.assert_allclose(
+            meta.antpos_enu, uvd.telescope.get_enu_antpos(), rtol=0, atol=1e-3
+        )
 
     def test_rectangularity_roundtrip(self):
         meta = uvh5.FastUVH5Meta(self.fl)
@@ -3525,7 +3529,7 @@ class TestFastUVH5Meta:
 
         lsts = meta.get_transactional("lsts")
         assert not meta.is_open()
-        assert np.allclose(lsts, meta.lsts)
+        np.testing.assert_allclose(lsts, meta.lsts, rtol=0, atol=utils.RADIAN_TOL)
 
         # This attribute uses __getattr__
         meta.get_transactional("freq_array", cache=False)
@@ -3536,7 +3540,7 @@ class TestFastUVH5Meta:
         chwidth = meta.get_transactional("channel_width", cache=False)
         assert not meta.is_open()
         assert "channel_width" not in meta.__dict__
-        assert np.allclose(chwidth, meta.channel_width)
+        np.testing.assert_allclose(chwidth, meta.channel_width, rtol=0, atol=1e-3)
         assert "channel_width" in meta.__dict__
 
     def test_close_before_open(self):

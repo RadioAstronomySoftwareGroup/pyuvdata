@@ -20,7 +20,7 @@ try:
 except ImportError:
     hasmoon = False
 
-from pyuvdata import parameter as uvp
+from pyuvdata import parameter as uvp, utils
 from pyuvdata.parameter import allowed_location_types
 from pyuvdata.uvbase import UVBase
 
@@ -585,10 +585,12 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
                 height=ref_latlonalt_moon[2] * units.m,
             ),
         )
-        np.testing.assert_allclose(latlonalt_val, param1.lat_lon_alt())
+        np.testing.assert_allclose(
+            latlonalt_val, param1.lat_lon_alt(), rtol=0, atol=utils.RADIAN_TOL
+        )
 
     param2 = uvp.LocationParameter(name="p2", value=loc_detic)
-    np.testing.assert_allclose(xyz_val, param2.xyz())
+    np.testing.assert_allclose(xyz_val, param2.xyz(), rtol=0, atol=1e-3)
 
     param5 = uvp.LocationParameter(name="p2", value=wrong_obj)
     param5.set_lat_lon_alt(latlonalt_val, ellipsoid=selenoid)
@@ -605,7 +607,7 @@ def test_location_xyz_latlonalt_match(frame, selenoid):
     )
     param3.set_lat_lon_alt_degrees(latlonalt_deg_val)
 
-    np.testing.assert_allclose(xyz_val, param3.xyz())
+    np.testing.assert_allclose(xyz_val, param3.xyz(), rtol=0, atol=1e-3)
 
 
 def test_location_acceptability():

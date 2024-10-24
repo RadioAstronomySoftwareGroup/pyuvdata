@@ -45,7 +45,12 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
     # this is entirely empirical, just to prevent unexpected changes.
     # The actual values have been validated through external tests against
     # the mwa_pb repo.
-    assert np.isclose(np.max(np.abs(beam1.data_array)), 0.6823676193472403)
+    assert np.isclose(
+        np.max(np.abs(beam1.data_array)),
+        0.6823676193472403,
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
     assert "x" in beam1.feed_array
     assert "y" in beam1.feed_array
@@ -147,8 +152,8 @@ def test_p1sin_array():
         P_sin_orig[:, theta_i] = P_sin_temp
         P1_orig[:, theta_i] = P1_temp
 
-    assert np.allclose(P1_orig, P1.T)
-    assert np.allclose(P_sin_orig, P_sin.T)
+    np.testing.assert_allclose(P1_orig, P1.T)
+    np.testing.assert_allclose(P_sin_orig, P_sin.T)
 
 
 def test_bad_amps():

@@ -665,14 +665,32 @@ def test_hdf5_meta_telescope_location(test_outfile):
     meta = hdf5_utils.HDF5Meta(test_f_file)
     lat, lon, alt = meta.telescope_location_lat_lon_alt
 
-    assert np.isclose(lat, meta.telescope_location_obj.lat.rad)
-    assert np.isclose(lon, meta.telescope_location_obj.lon.rad)
-    assert np.isclose(alt, meta.telescope_location_obj.height.to_value("m"))
+    assert np.isclose(
+        lat, meta.telescope_location_obj.lat.rad, rtol=0, atol=utils.RADIAN_TOL
+    )
+    assert np.isclose(
+        lon, meta.telescope_location_obj.lon.rad, rtol=0, atol=utils.RADIAN_TOL
+    )
+    assert np.isclose(
+        alt, meta.telescope_location_obj.height.to_value("m"), rtol=0, atol=1e-3
+    )
 
     lat_deg, lon_deg, alt = meta.telescope_location_lat_lon_alt_degrees
-    assert np.isclose(lat_deg, meta.telescope_location_obj.lat.deg)
-    assert np.isclose(lon_deg, meta.telescope_location_obj.lon.deg)
-    assert np.isclose(alt, meta.telescope_location_obj.height.to_value("m"))
+    assert np.isclose(
+        lat_deg,
+        meta.telescope_location_obj.lat.deg,
+        rtol=0,
+        atol=np.rad2deg(utils.RADIAN_TOL),
+    )
+    assert np.isclose(
+        lon_deg,
+        meta.telescope_location_obj.lon.deg,
+        rtol=0,
+        atol=np.rad2deg(utils.RADIAN_TOL),
+    )
+    assert np.isclose(
+        alt, meta.telescope_location_obj.height.to_value("m"), rtol=0, atol=1e-3
+    )
 
     if hasmoon:
         from lunarsky import MoonLocation
@@ -780,9 +798,9 @@ def test_read_write_loop_spw(uvdata_obj, test_outfile, telescope_frame, selenoid
     meta = hdf5_utils.HDF5Meta(test_outfile)
     loc_obj = meta.telescope_location_obj
 
-    assert np.isclose(loc_obj.x, uvf.telescope.location.x)
-    assert np.isclose(loc_obj.y, uvf.telescope.location.y)
-    assert np.isclose(loc_obj.z, uvf.telescope.location.z)
+    assert np.isclose(loc_obj.x, uvf.telescope.location.x, rtol=0, atol=1e-3)
+    assert np.isclose(loc_obj.y, uvf.telescope.location.y, rtol=0, atol=1e-3)
+    assert np.isclose(loc_obj.z, uvf.telescope.location.z, rtol=0, atol=1e-3)
 
 
 def test_read_write_loop_missing_shapes(uvdata_obj, test_outfile):
@@ -2370,7 +2388,10 @@ def test_to_baseline_metric(uvdata_obj):
     nt1 = len(ind)
     assert np.all(uvf.metric_array[ind, 15, 0] == 2.1)
     assert np.isclose(
-        uvf.metric_array.mean(), (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size
+        uvf.metric_array.mean(),
+        (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
     )
 
 
@@ -2475,7 +2496,7 @@ def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
     uvf.check()
 
     uvf2.select(bls=old_baseline, times=old_times)
-    assert np.allclose(or_flags, uvf2.flag_array)
+    np.testing.assert_allclose(or_flags, uvf2.flag_array)
 
     # all new antenna should be completely flagged
     # checks auto correlations
@@ -2631,7 +2652,10 @@ def test_to_baseline_metric_force_pol(uvdata_obj):
     nt1 = len(ind)
     assert np.all(uvf.metric_array[ind, 15, 0] == 2.1)
     assert np.isclose(
-        uvf.metric_array.mean(), (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size
+        uvf.metric_array.mean(),
+        (3.2 * nt0 + 2.1 * nt1) / uvf.metric_array.size,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
     )
 
 
@@ -2711,7 +2735,10 @@ def test_to_antenna_metric(uvcal_obj):
     assert np.all(uvf.metric_array[:, 10, 0, 0] == 3.2)
     assert np.all(uvf.metric_array[:, 15, 1, 0] == 2.1)
     assert np.isclose(
-        uvf.metric_array.mean(), (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size
+        uvf.metric_array.mean(),
+        (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
     )
 
 
@@ -2772,7 +2799,10 @@ def test_to_antenna_metric_force_pol(uvcal_obj):
     assert np.all(uvf.metric_array[:, 10, 0, 0] == 3.2)
     assert np.all(uvf.metric_array[:, 15, 1, 0] == 2.1)
     assert np.isclose(
-        uvf.metric_array.mean(), (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size
+        uvf.metric_array.mean(),
+        (3.2 + 2.1) * uvc.Nants_data / uvf.metric_array.size,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
     )
 
 
@@ -2923,8 +2953,18 @@ def test_to_metric_baseline():
     assert uvf.flag_array is None
     assert uvf.mode == "metric"
     assert 'Converted to mode "metric"' in uvf.history
-    assert np.isclose(uvf.weights_array[1], 0.0).all()
-    assert np.isclose(uvf.weights_array[:, 10], 0.0).all()
+    np.testing.assert_allclose(
+        uvf.weights_array[1],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
+    np.testing.assert_allclose(
+        uvf.weights_array[:, 10],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -2953,8 +2993,18 @@ def test_to_metric_waterfall():
     uvf.flag_array[:, 10] = True
     uvf.flag_array[1, :, :] = True
     uvf.to_metric(convert_wgts=True)
-    assert np.isclose(uvf.weights_array[1], 0.0).all()
-    assert np.isclose(uvf.weights_array[:, 10], 0.0).all()
+    np.testing.assert_allclose(
+        uvf.weights_array[1],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
+    np.testing.assert_allclose(
+        uvf.weights_array[:, 10],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
 
 
 def test_to_metric_antenna(uvcal_obj):
@@ -2963,8 +3013,18 @@ def test_to_metric_antenna(uvcal_obj):
     uvf.flag_array[10, :, 1, :] = True
     uvf.flag_array[15, 3, :, :] = True
     uvf.to_metric(convert_wgts=True)
-    assert np.isclose(uvf.weights_array[10, :, 1, :], 0.0).all()
-    assert np.isclose(uvf.weights_array[15, 3, :, :], 0.0).all()
+    np.testing.assert_allclose(
+        uvf.weights_array[10, :, 1, :],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
+    np.testing.assert_allclose(
+        uvf.weights_array[15, 3, :, :],
+        0.0,
+        rtol=uvf._weights_array.tols[0],
+        atol=uvf._weights_array.tols[1],
+    )
 
 
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
@@ -3040,7 +3100,12 @@ def test_combine_metrics_inplace(uvcal_obj):
     uvf3.metric_array *= 3
     uvf.combine_metrics([uvf2, uvf3])
     factor = np.sqrt((1 + 4 + 9) / 3.0) / 2.0
-    assert np.allclose(uvf.metric_array, np.abs(uvf2.metric_array) * factor)
+    np.testing.assert_allclose(
+        uvf.metric_array,
+        np.abs(uvf2.metric_array) * factor,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
+    )
 
 
 def test_combine_metrics_not_inplace(uvcal_obj):
@@ -3054,7 +3119,12 @@ def test_combine_metrics_not_inplace(uvcal_obj):
     uvf3.metric_array *= 3
     uvf4 = uvf.combine_metrics([uvf2, uvf3], inplace=False)
     factor = np.sqrt((1 + 4 + 9) / 3.0)
-    assert np.allclose(uvf4.metric_array, np.abs(uvf.metric_array) * factor)
+    np.testing.assert_allclose(
+        uvf4.metric_array,
+        np.abs(uvf.metric_array) * factor,
+        rtol=uvf._metric_array.tols[0],
+        atol=uvf._metric_array.tols[1],
+    )
 
 
 def test_combine_metrics_not_uvflag(uvcal_obj):
@@ -3148,7 +3218,7 @@ def test_flags2waterfall_uvdata(uvdata_obj):
     np.random.seed(0)
     uv.flag_array = np.random.randint(0, 2, size=uv.flag_array.shape, dtype=bool)
     wf = flags2waterfall(uv)
-    assert np.allclose(np.mean(wf), np.mean(uv.flag_array))
+    np.testing.assert_allclose(np.mean(wf), np.mean(uv.flag_array))
     assert wf.shape == (uv.Ntimes, uv.Nfreqs)
 
     wf = flags2waterfall(uv, keep_pol=True)
@@ -3158,7 +3228,7 @@ def test_flags2waterfall_uvdata(uvdata_obj):
     uv.flag_array = np.zeros_like(uv.flag_array)
     f = np.random.randint(0, 2, size=uv.flag_array.shape, dtype=bool)
     wf = flags2waterfall(uv, flag_array=f)
-    assert np.allclose(np.mean(wf), np.mean(f))
+    np.testing.assert_allclose(np.mean(wf), np.mean(f))
     assert wf.shape == (uv.Ntimes, uv.Nfreqs)
 
 
@@ -3167,7 +3237,7 @@ def test_flags2waterfall_uvcal(uvcal_obj):
 
     uvc.flag_array = np.random.randint(0, 2, size=uvc.flag_array.shape, dtype=bool)
     wf = flags2waterfall(uvc)
-    assert np.allclose(np.mean(wf), np.mean(uvc.flag_array))
+    np.testing.assert_allclose(np.mean(wf), np.mean(uvc.flag_array))
     assert wf.shape == (uvc.Ntimes, uvc.Nfreqs)
 
     wf = flags2waterfall(uvc, keep_pol=True)
@@ -3248,13 +3318,29 @@ def test_select_blt_inds(input_uvf, uvf_mode, dimension):
         uvf._data_params, uvf1.data_like_parameters, strict=True
     ):
         old_param = getattr(uvf, param_name)
+        old_param_obj = getattr(uvf, "_" + param_name)
         blt_inds_use = np.atleast_1d(blt_inds.squeeze())
         if uvf.type == "baseline":
-            assert np.allclose(old_param[blt_inds_use], new_param)
+            np.testing.assert_allclose(
+                old_param[blt_inds_use],
+                new_param,
+                rtol=old_param_obj.tols[0],
+                atol=old_param_obj.tols[1],
+            )
         if uvf.type == "antenna":
-            assert np.allclose(old_param[:, :, blt_inds_use], new_param)
+            np.testing.assert_allclose(
+                old_param[:, :, blt_inds_use],
+                new_param,
+                rtol=old_param_obj.tols[0],
+                atol=old_param_obj.tols[1],
+            )
         if uvf.type == "waterfall":
-            assert np.allclose(old_param[blt_inds_use], new_param)
+            np.testing.assert_allclose(
+                old_param[blt_inds_use],
+                new_param,
+                rtol=old_param_obj.tols[0],
+                atol=old_param_obj.tols[1],
+            )
 
     if uvf.type == "baseline":
         assert uvf1.Nblts == new_nblts

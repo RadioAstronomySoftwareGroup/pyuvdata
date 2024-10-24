@@ -328,8 +328,9 @@ def test_read_fhd_latlonalt_match_xyz(fhd_data_files):
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
 
+    # TODO: why don't these match better?
     np.testing.assert_allclose(
-        mwa_tel._location.xyz(), fhd_uv.telescope._location.xyz()
+        mwa_tel._location.xyz(), fhd_uv.telescope._location.xyz(), rtol=0, atol=1e-1
     )
 
 

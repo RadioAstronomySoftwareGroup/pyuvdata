@@ -281,19 +281,40 @@ def test_alternate_time_inputs():
         integration_time=integration_time * np.ones_like(time_array),
         telescope_location=loc,
     )
-    assert np.allclose(times, times2)
-    assert np.allclose(ints, ints2)
+
+    uvd = UVData()
+    np.testing.assert_allclose(
+        times, times2, rtol=uvd._time_array.tols[0], atol=uvd._time_array.tols[1]
+    )
+    np.testing.assert_allclose(
+        ints,
+        ints2,
+        rtol=uvd._integration_time.tols[0],
+        atol=uvd._integration_time.tols[1],
+    )
 
     times3, ints3 = get_time_params(time_array=time_array, telescope_location=loc)
-    assert np.allclose(times, times3)
-    assert np.allclose(ints, ints3)
+    np.testing.assert_allclose(
+        times, times3, rtol=uvd._time_array.tols[0], atol=uvd._time_array.tols[1]
+    )
+    np.testing.assert_allclose(
+        ints,
+        ints3,
+        rtol=uvd._integration_time.tols[0],
+        atol=uvd._integration_time.tols[1],
+    )
 
     # Single time
     with pytest.warns(
         UserWarning, match="integration_time not provided, and cannot be inferred"
     ):
         _, ints4 = get_time_params(time_array=time_array[:1], telescope_location=loc)
-    assert np.allclose(ints4, 1.0)
+    np.testing.assert_allclose(
+        ints4,
+        1.0,
+        rtol=uvd._integration_time.tols[0],
+        atol=uvd._integration_time.tols[1],
+    )
 
 
 def test_alternate_freq_inputs():
@@ -305,19 +326,36 @@ def test_alternate_freq_inputs():
     freqs2, widths2 = get_freq_params(
         freq_array=freq_array, channel_width=channel_width * np.ones_like(freq_array)
     )
-    assert np.allclose(freqs, freqs2)
-    assert np.allclose(widths, widths2)
+    uvd = UVData()
+    np.testing.assert_allclose(
+        freqs, freqs2, rtol=uvd._freq_array.tols[0], atol=uvd._freq_array.tols[1]
+    )
+    np.testing.assert_allclose(
+        widths,
+        widths2,
+        rtol=uvd._channel_width.tols[0],
+        atol=uvd._channel_width.tols[1],
+    )
 
     freqs3, widths3 = get_freq_params(freq_array=freq_array)
-    assert np.allclose(freqs, freqs3)
-    assert np.allclose(widths, widths3)
+    np.testing.assert_allclose(
+        freqs, freqs3, rtol=uvd._freq_array.tols[0], atol=uvd._freq_array.tols[1]
+    )
+    np.testing.assert_allclose(
+        widths,
+        widths3,
+        rtol=uvd._channel_width.tols[0],
+        atol=uvd._channel_width.tols[1],
+    )
 
     # Single frequency
     with pytest.warns(
         UserWarning, match="channel_width not provided, and cannot be inferred"
     ):
         _, widths4 = get_freq_params(freq_array=freq_array[:1])
-    assert np.allclose(widths4, 1.0)
+    np.testing.assert_allclose(
+        widths4, 1.0, rtol=uvd._channel_width.tols[0], atol=uvd._channel_width.tols[1]
+    )
 
 
 def test_empty(simplest_working_params: dict[str, Any]):

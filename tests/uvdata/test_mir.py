@@ -14,7 +14,7 @@ import os
 import numpy as np
 import pytest
 
-from pyuvdata import UVData
+from pyuvdata import UVData, utils
 from pyuvdata.data import DATA_PATH
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvdata.mir import Mir, generate_sma_antpos_dict
@@ -108,10 +108,14 @@ def test_read_mir_write_uvfits(sma_mir, tmp_path):
         assert np.isclose(
             sma_mir.phase_center_catalog[cat_name]["cat_lat"],
             uvfits_uv.phase_center_catalog[cat_name]["cat_lat"],
+            rtol=0,
+            atol=utils.RADIAN_TOL,
         )
         assert np.isclose(
             sma_mir.phase_center_catalog[cat_name]["cat_lon"],
             uvfits_uv.phase_center_catalog[cat_name]["cat_lon"],
+            rtol=0,
+            atol=utils.RADIAN_TOL,
         )
     uvfits_uv.phase_center_catalog = sma_mir.phase_center_catalog
 
@@ -688,8 +692,10 @@ def test_non_icrs_coord_read(mir_data):
     # Note that if the test dataset were written perfectly, the apparent coords would
     # perfectly translate back to the original values in the dataset, but there's a
     # defect of ~0.5 arcsec in how the positions were recorded, which we tolerate
-    assert np.allclose(cat_entry["cat_lon"], mir_data.in_data["rar"], atol=4e-6, rtol=0)
-    assert np.allclose(
+    np.testing.assert_allclose(
+        cat_entry["cat_lon"], mir_data.in_data["rar"], atol=4e-6, rtol=0
+    )
+    np.testing.assert_allclose(
         cat_entry["cat_lat"], mir_data.in_data["decr"], atol=4e-6, rtol=0
     )
 
@@ -775,7 +781,7 @@ def test_generate_sma_antpos_dict(use_file, sma_mir):
         sma_mir.telescope.antenna_positions,
         strict=True,
     ):
-        assert np.allclose(ant_dict[ant_num], xyz_pos)
+        np.testing.assert_allclose(ant_dict[ant_num], xyz_pos, rtol=0, atol=1e-3)
 
 
 def test_spw_consistency_warning(mir_data):
