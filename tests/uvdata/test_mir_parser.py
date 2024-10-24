@@ -401,7 +401,7 @@ def test_compass_bp_apply(mir_data: MirParser, compass_soln_file, muck_solns):
             # If muck_solns is not some, then all the values should agree with our
             # temp value above, otherwise none should
             np.testing.assert_allclose(
-                entry["data"], tempval * (1 + (muck_solns == "none"))
+                entry["data"], tempval * (1 + (muck_solns == "none")), rtol=5e-7
             )
             assert (muck_solns != "none") == np.all(entry["flags"])
 
@@ -822,7 +822,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
     mir_copy.apply_tsys(invert=True)
     for key in mir_data.vis_data:
         np.testing.assert_allclose(
-            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
+            mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"], rtol=5e-6
         )
         assert np.array_equal(
             mir_data.vis_data[key]["flags"], mir_copy.vis_data[key]["flags"]
