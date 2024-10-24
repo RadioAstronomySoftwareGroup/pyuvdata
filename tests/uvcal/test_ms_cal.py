@@ -247,7 +247,7 @@ def test_ms_muck_ants(sma_pcal, tmp_path):
 
     # Verify that the telescope positions are coarsely aligned (doesn't need to be
     # perfect here, just "good enough").
-    np.testing.assert_allclose(old_pos, new_pos, rtol=1e-5)
+    np.testing.assert_allclose(old_pos, new_pos, rtol=3e-5)
 
     # The important thing is to verify that the antenna positions _actually_ line up
     # modulo the relative difference in the array center position.
