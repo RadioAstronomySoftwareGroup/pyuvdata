@@ -206,4 +206,6 @@ def test_lst_for_time_moon(astrometry_args, selenoid):
             altitude=alt,
             frame="mcmf",
         )
-        np.testing.assert_allclose(lst_array, lst_array_default)
+        np.testing.assert_allclose(
+            lst_array, lst_array_default, rtol=0, atol=utils.RADIAN_TOL
+        )

@@ -371,9 +371,11 @@ def test_read_power(cst_power_2freq):
     assert beam1.data_array.shape == (1, 2, 2, 181, 360)
     assert np.max(beam1.data_array) == 8275.5409
 
-    assert np.allclose(
+    np.testing.assert_allclose(
         beam1.data_array[:, 0, :, :, np.where(beam1.axis1_array == 0)[0]],
         beam1.data_array[:, 1, :, :, np.where(beam1.axis1_array == np.pi / 2.0)[0]],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
     )
 
     # test passing in other polarization
@@ -389,10 +391,20 @@ def test_read_power(cst_power_2freq):
         model_version="1.0",
     )
 
-    assert np.allclose(beam1.freq_array, beam2.freq_array)
+    np.testing.assert_allclose(
+        beam1.freq_array,
+        beam2.freq_array,
+        rtol=beam1._freq_array.tols[0],
+        atol=beam1._freq_array.tols[1],
+    )
 
-    assert np.allclose(beam2.polarization_array, np.array([-6, -5]))
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
+    np.testing.assert_allclose(beam2.polarization_array, np.array([-6, -5]))
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam2.data_array[:, 0, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
 
 def test_read_power_single_freq(cst_power_1freq):
@@ -424,7 +436,12 @@ def test_read_power_single_freq(cst_power_1freq):
     assert beam2.beam_type == "power"
     assert beam2.polarization_array == np.array([-5])
     assert beam2.data_array.shape == (1, 1, 1, 181, 360)
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array)
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam2.data_array[:, 0, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
 
 def test_read_power_multi_pol():
@@ -444,7 +461,12 @@ def test_read_power_multi_pol():
         model_version="1.0",
     )
     assert beam1.data_array.shape == (1, 2, 1, 181, 360)
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam1.data_array[:, 1, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
     # test reading in cross polarization files
     beam2.read_cst_beam(
@@ -458,9 +480,14 @@ def test_read_power_multi_pol():
         model_name="E-field pattern - Rigging height 4.9m",
         model_version="1.0",
     )
-    assert np.allclose(beam2.polarization_array, np.array([-7, -8]))
+    np.testing.assert_allclose(beam2.polarization_array, np.array([-7, -8]))
     assert beam2.data_array.shape == (1, 2, 1, 181, 360)
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam2.data_array[:, 0, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
 
 @pytest.mark.parametrize(
@@ -564,7 +591,12 @@ def test_read_efield(cst_efield_2freq):
     assert beam2.feed_array[0] == "y"
     assert beam2.feed_array[1] == "x"
     assert beam1.data_array.shape == (2, 2, 2, 181, 360)
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam2.data_array[:, 0, :, :, :])
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam2.data_array[:, 0, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
     # test single frequency and not rotating the polarization
     with check_warnings(UserWarning, "No frequency provided. Detected frequency is"):
@@ -584,7 +616,12 @@ def test_read_efield(cst_efield_2freq):
     assert beam2.feed_array == np.array(["x"])
     assert beam2.data_array.shape == (2, 1, 1, 181, 360)
 
-    assert np.allclose(beam1.data_array[:, 0, 1, :, :], beam2.data_array[:, 0, 0, :, :])
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, 1, :, :],
+        beam2.data_array[:, 0, 0, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
     # test reading in multiple polarization files
     beam1.read_cst_beam(
@@ -599,7 +636,12 @@ def test_read_efield(cst_efield_2freq):
         model_version="1.0",
     )
     assert beam1.data_array.shape == (2, 2, 1, 181, 360)
-    assert np.allclose(beam1.data_array[:, 0, :, :, :], beam1.data_array[:, 1, :, :, :])
+    np.testing.assert_allclose(
+        beam1.data_array[:, 0, :, :, :],
+        beam1.data_array[:, 1, :, :, :],
+        rtol=beam1._data_array.tols[0],
+        atol=beam1._data_array.tols[1],
+    )
 
 
 def test_no_deg_units(tmp_path):

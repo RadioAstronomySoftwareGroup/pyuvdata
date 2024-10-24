@@ -363,11 +363,21 @@ def test_get_time_array(gain_data):
     orig_time_array = copy.copy(calobj.time_array)
 
     time_array = calobj.get_time_array()
-    assert np.allclose(time_array, orig_time_array)
+    np.testing.assert_allclose(
+        time_array,
+        orig_time_array,
+        rtol=calobj._time_array.tols[0],
+        atol=calobj._time_array.tols[1],
+    )
 
     calobj = time_array_to_time_range(calobj)
     time_array = calobj.get_time_array()
-    assert np.allclose(time_array, orig_time_array)
+    np.testing.assert_allclose(
+        time_array,
+        orig_time_array,
+        rtol=calobj._time_array.tols[0],
+        atol=calobj._time_array.tols[1],
+    )
 
 
 def test_lst_array(gain_data):
@@ -375,11 +385,21 @@ def test_lst_array(gain_data):
     orig_lst_array = copy.copy(calobj.lst_array)
 
     lst_array = calobj.get_lst_array()
-    assert np.allclose(lst_array, orig_lst_array)
+    np.testing.assert_allclose(
+        lst_array,
+        orig_lst_array,
+        rtol=calobj._lst_array.tols[0],
+        atol=calobj._lst_array.tols[1],
+    )
 
     calobj = time_array_to_time_range(calobj)
     lst_array = calobj.get_lst_array()
-    assert np.allclose(lst_array, orig_lst_array)
+    np.testing.assert_allclose(
+        lst_array,
+        orig_lst_array,
+        rtol=calobj._lst_array.tols[0],
+        atol=calobj._lst_array.tols[1],
+    )
 
 
 def test_unknown_telescopes(gain_data, tmp_path):
@@ -626,15 +646,15 @@ def test_convert_to_gain(convention, same_freqs, delay_data):
         conv = -1
     else:
         conv = 1
-    assert np.allclose(
+    np.testing.assert_allclose(
         np.angle(new_gain_obj.gain_array[:, 10, :, :]) % (2 * np.pi),
         (conv * 2 * np.pi * delay_obj.delay_array[:, 0, :, :] * freq_array[10])
         % (2 * np.pi),
         rtol=new_gain_obj._gain_array.tols[0],
         atol=new_gain_obj._gain_array.tols[1],
     )
-    assert np.allclose(
-        delay_obj.quality_array,
+    np.testing.assert_allclose(
+        delay_obj.quality_array[:, 0],
         new_gain_obj.quality_array[:, 10, :, :],
         rtol=new_gain_obj._quality_array.tols[0],
         atol=new_gain_obj._quality_array.tols[1],
@@ -1383,7 +1403,12 @@ def test_add_antennas(caltype, gain_data, method, delay_data):
         calobj.quality_array = qa
         calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
         # test for when quality_array is present in second file but not first
         calobj.select(antenna_nums=ants1)
@@ -1393,7 +1418,12 @@ def test_add_antennas(caltype, gain_data, method, delay_data):
         calobj.quality_array = None
         calobj2.quality_array = qa2
         getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
     # Out of order - antennas
     calobj = calobj_full.copy()
@@ -1940,7 +1970,7 @@ def test_add_frequencies(gain_data, method):
 
     with check_warnings(None):
         getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -1957,7 +1987,7 @@ def test_add_frequencies(gain_data, method):
     calobj2.total_quality_array = tqa2
 
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -1973,7 +2003,7 @@ def test_add_frequencies(gain_data, method):
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -1993,7 +2023,12 @@ def test_add_frequencies(gain_data, method):
     calobj.quality_array = qa
     calobj2.quality_array = None
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(calobj.quality_array, tot_qa)
+    np.testing.assert_allclose(
+        calobj.quality_array,
+        tot_qa,
+        rtol=calobj._quality_array.tols[0],
+        atol=calobj._quality_array.tols[1],
+    )
 
     # test for when quality_array is present in second file but not first
     calobj.select(frequencies=freqs1)
@@ -2004,7 +2039,12 @@ def test_add_frequencies(gain_data, method):
     calobj.quality_array = None
     calobj2.quality_array = qa2
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(calobj.quality_array, tot_qa)
+    np.testing.assert_allclose(
+        calobj.quality_array,
+        tot_qa,
+        rtol=calobj._quality_array.tols[0],
+        atol=calobj._quality_array.tols[1],
+    )
 
     # Out of order - freqs
     calobj = calobj_full.copy()
@@ -2281,7 +2321,7 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
     calobj.total_quality_array = tqa
     with check_warnings(add_warn, match=add_msg):
         getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2298,7 +2338,7 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
     calobj2.total_quality_array = tqa2
     with check_warnings(add_warn, match=add_msg):
         getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2316,7 +2356,7 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
     calobj2.total_quality_array = tqa2
     with check_warnings(add_warn, match=add_msg):
         getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2335,7 +2375,12 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
         calobj2.quality_array = None
         with check_warnings(add_warn, match=add_msg):
             getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
         # test for when quality array is present in second file but not first
         with check_warnings(select_warn, match=select_msg):
@@ -2348,7 +2393,12 @@ def test_add_times(caltype, time_range, method, gain_data, delay_data):
         calobj2.quality_array = qa2
         with check_warnings(add_warn, match=add_msg):
             getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
     # Out of order - times
     calobj = calobj_full.copy()
@@ -2436,7 +2486,7 @@ def test_add_jones(caltype, method, gain_data, delay_data):
     tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj.total_quality_array = tqa
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2450,7 +2500,7 @@ def test_add_jones(caltype, method, gain_data, delay_data):
     tot_tqa = np.concatenate([tqa, tqa2], axis=2)
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2466,7 +2516,7 @@ def test_add_jones(caltype, method, gain_data, delay_data):
     calobj.total_quality_array = tqa
     calobj2.total_quality_array = tqa2
     getattr(calobj, method)(calobj2, **kwargs)
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.total_quality_array,
         tot_tqa,
         rtol=calobj._total_quality_array.tols[0],
@@ -2483,7 +2533,12 @@ def test_add_jones(caltype, method, gain_data, delay_data):
         calobj.quality_array = qa
         calobj2.quality_array = None
         getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
         # test for when quality array is present in second file but not first
         calobj = calobj_original.copy()
@@ -2495,7 +2550,12 @@ def test_add_jones(caltype, method, gain_data, delay_data):
         calobj.quality_array = None
         calobj2.quality_array = qa2
         getattr(calobj, method)(calobj2, **kwargs)
-        assert np.allclose(calobj.quality_array, tot_qa)
+        np.testing.assert_allclose(
+            calobj.quality_array,
+            tot_qa,
+            rtol=calobj._quality_array.tols[0],
+            atol=calobj._quality_array.tols[1],
+        )
 
     # Out of order - jones
     calobj = calobj_original.copy()
@@ -2972,7 +3032,7 @@ def test_frequency_warnings(gain_data, method):
     freqs2 *= 10
     freqs = np.concatenate([freqs1, freqs2])
     freq_arr = calobj.freq_array
-    assert np.allclose(
+    np.testing.assert_allclose(
         freq_arr,
         freqs,
         rtol=calobj._freq_array.tols[0],
@@ -2995,7 +3055,7 @@ def test_parameter_warnings(gain_data):
         calobj.__iadd__(calobj2)
 
     freqs = np.concatenate([freqs1, freqs2])
-    assert np.allclose(
+    np.testing.assert_allclose(
         calobj.freq_array,
         freqs,
         rtol=calobj._freq_array.tols[0],
@@ -3372,8 +3432,11 @@ def test_init_from_uvdata(multi_spw, uvcalibrate_data):
         uvd, gain_convention=uvc.gain_convention, cal_style=uvc.cal_style
     )
 
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3447,8 +3510,11 @@ def test_init_from_uvdata_setfreqs(multi_spw, uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3514,9 +3580,13 @@ def test_init_from_uvdata_settimes(metadata_only, uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
+
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
     assert utils.history._check_histories(
@@ -3574,8 +3644,11 @@ def test_init_from_uvdata_setjones(uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3635,8 +3708,11 @@ def test_init_single_pol(uvcalibrate_data, pol):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3690,8 +3766,11 @@ def test_init_from_uvdata_circular_pol(uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3774,8 +3853,11 @@ def test_init_from_uvdata_sky(uvcalibrate_data, fhd_cal_raw):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3872,8 +3954,11 @@ def test_init_from_uvdata_delay(multi_spw, set_frange, uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 
@@ -3970,8 +4055,11 @@ def test_init_from_uvdata_wideband(multi_spw, set_frange, uvcalibrate_data):
     # derive from info on our telescope object while the ones in the uvdata file
     # derive from the HERA correlator. I'm not sure why they're different, but it may be
     # because the data are a little old
-    assert np.allclose(
-        uvc2.telescope.antenna_positions, uvc_new.telescope.antenna_positions, atol=0.1
+    np.testing.assert_allclose(
+        uvc2.telescope.antenna_positions,
+        uvc_new.telescope.antenna_positions,
+        rtol=0,
+        atol=0.1,
     )
     uvc_new.telescope.antenna_positions = uvc2.telescope.antenna_positions
 

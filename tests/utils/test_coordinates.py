@@ -415,9 +415,9 @@ def test_lla_xyz_lla_roundtrip():
     lons *= np.pi / 180.0
     xyz = utils.XYZ_from_LatLonAlt(lats, lons, alts)
     lats_new, lons_new, alts_new = utils.LatLonAlt_from_XYZ(xyz)
-    np.testing.assert_allclose(lats_new, lats)
-    np.testing.assert_allclose(lons_new, lons)
-    np.testing.assert_allclose(alts_new, alts)
+    np.testing.assert_allclose(lats_new, lats, rtol=0, atol=utils.RADIAN_TOL)
+    np.testing.assert_allclose(lons_new, lons, rtol=0, atol=utils.RADIAN_TOL)
+    np.testing.assert_allclose(alts_new, alts, rtol=0, atol=1e-3)
 
 
 def test_xyz_from_latlonalt(enu_ecef_info):
@@ -439,7 +439,9 @@ def test_enu_from_ecef(enu_ecef_info):
     enu = utils.ENU_from_ECEF(
         xyz, latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
-    np.testing.assert_allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+    np.testing.assert_allclose(
+        np.stack((east, north, up), axis=1), enu, rtol=0, atol=1e-3
+    )
 
     enu2 = utils.ENU_from_ECEF(
         xyz,
@@ -449,7 +451,7 @@ def test_enu_from_ecef(enu_ecef_info):
             height=center_alt * units.m,
         ),
     )
-    np.testing.assert_allclose(enu, enu2)
+    np.testing.assert_allclose(enu, enu2, rtol=0, atol=1e-3)
 
 
 @pytest.mark.skipif(not hasmoon, reason="lunarsky not installed")
@@ -470,7 +472,9 @@ def test_enu_from_mcmf(enu_mcmf_info, selenoid):
         ellipsoid=selenoid,
     )
 
-    np.testing.assert_allclose(np.stack((east, north, up), axis=1), enu, atol=1e-3)
+    np.testing.assert_allclose(
+        np.stack((east, north, up), axis=1), enu, rtol=0, atol=1e-3
+    )
 
     enu2 = utils.ENU_from_ECEF(
         xyz,
@@ -481,7 +485,7 @@ def test_enu_from_mcmf(enu_mcmf_info, selenoid):
             ellipsoid=selenoid,
         ),
     )
-    np.testing.assert_allclose(enu, enu2, atol=1e-3)
+    np.testing.assert_allclose(enu, enu2, rtol=0, atol=1e-3)
 
 
 def test_invalid_frame():
@@ -612,10 +616,10 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
         frame=frame,
         ellipsoid=selenoid,
     )
-    np.testing.assert_allclose(xyz, xyz_from_enu, atol=1e-3)
+    np.testing.assert_allclose(xyz, xyz_from_enu, rtol=0, atol=1e-3)
 
     xyz_from_enu2 = utils.ECEF_from_ENU(enu, center_loc=loc_obj)
-    np.testing.assert_allclose(xyz_from_enu, xyz_from_enu2, atol=1e-3)
+    np.testing.assert_allclose(xyz_from_enu, xyz_from_enu2, rtol=0, atol=1e-3)
 
     if selenoid == "SPHERE":
         enu = utils.ENU_from_ECEF(
@@ -633,7 +637,7 @@ def test_ecef_from_enu_roundtrip(enu_ecef_info, enu_mcmf_info, frame, selenoid):
             altitude=center_alt,
             frame=frame,
         )
-        np.testing.assert_allclose(xyz, xyz_from_enu, atol=1e-3)
+        np.testing.assert_allclose(xyz, xyz_from_enu, rtol=0, atol=1e-3)
 
 
 @pytest.mark.parametrize("shape_type", ["transpose", "Nblts,2", "Nblts,1"])
@@ -673,7 +677,7 @@ def test_ecef_from_enu_single(enu_ecef_info):
     )
 
     np.testing.assert_allclose(
-        np.array((east[0], north[0], up[0])), enu_single, atol=1e-3
+        np.array((east[0], north[0], up[0])), enu_single, rtol=0, atol=1e-3
     )
 
 
@@ -692,13 +696,13 @@ def test_ecef_from_enu_single_roundtrip(enu_ecef_info):
         xyz[0, :], latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
     np.testing.assert_allclose(
-        np.array((east[0], north[0], up[0])), enu[0, :], atol=1e-3
+        np.array((east[0], north[0], up[0])), enu[0, :], rtol=0, atol=1e-3
     )
 
     xyz_from_enu = utils.ECEF_from_ENU(
         enu_single, latitude=center_lat, longitude=center_lon, altitude=center_alt
     )
-    np.testing.assert_allclose(xyz[0, :], xyz_from_enu, atol=1e-3)
+    np.testing.assert_allclose(xyz[0, :], xyz_from_enu, rtol=0, atol=1e-3)
 
 
 def test_mwa_ecef_conversion():
@@ -743,11 +747,11 @@ def test_mwa_ecef_conversion():
 
     enu = utils.ENU_from_ECEF(ecef_xyz, latitude=lat, longitude=lon, altitude=alt)
 
-    np.testing.assert_allclose(enu, enh)
+    np.testing.assert_allclose(enu, enh, rtol=0, atol=1e-3)
 
     # test other direction of ECEF rotation
     rot_xyz = utils.rotECEF_from_ECEF(new_xyz, lon)
-    np.testing.assert_allclose(rot_xyz.T, xyz)
+    np.testing.assert_allclose(rot_xyz.T, xyz, rtol=0, atol=1e-3)
 
 
 def test_hpx_latlon_az_za():
@@ -768,10 +772,8 @@ def test_hpx_latlon_az_za():
         za_mesh, az_mesh
     )
 
-    print(np.min(calc_lat), np.max(calc_lat))
-    print(np.min(lat_mesh), np.max(lat_mesh))
-    np.testing.assert_allclose(calc_lat, lat_mesh)
-    np.testing.assert_allclose(calc_lon, lon_mesh)
+    np.testing.assert_allclose(calc_lat, lat_mesh, rtol=0, atol=utils.RADIAN_TOL)
+    np.testing.assert_allclose(calc_lon, lon_mesh, rtol=0, atol=utils.RADIAN_TOL)
 
     with pytest.raises(
         ValueError, match="shapes of hpx_lat and hpx_lon values must match."
@@ -782,8 +784,8 @@ def test_hpx_latlon_az_za():
         lat_mesh, lon_mesh
     )
 
-    np.testing.assert_allclose(calc_za, za_mesh)
-    np.testing.assert_allclose(calc_az, az_mesh)
+    np.testing.assert_allclose(calc_za, za_mesh, rtol=0, atol=utils.RADIAN_TOL)
+    np.testing.assert_allclose(calc_az, az_mesh, rtol=0, atol=utils.RADIAN_TOL)
 
 
 @pytest.mark.parametrize("err_state", ["err", "warn", "none"])

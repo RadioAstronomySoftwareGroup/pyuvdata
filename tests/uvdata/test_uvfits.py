@@ -161,7 +161,7 @@ def test_time_precision(tmp_path):
 
     calc_lst_array = unique_lst_array[inverse_inds]
 
-    assert np.allclose(
+    np.testing.assert_allclose(
         calc_lst_array,
         uvd2.lst_array,
         rtol=uvd2._lst_array.tols[0],
@@ -1616,8 +1616,12 @@ def test_uvfits_extra_params(sma_mir, tmp_path):
         this_cat = sma_mir.phase_center_catalog[cat_name]
         other_cat = sma_uvfits.phase_center_catalog[cat_name]
 
-        assert np.isclose(this_cat["cat_lat"], other_cat["cat_lat"])
-        assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
+        assert np.isclose(
+            this_cat["cat_lat"], other_cat["cat_lat"], rtol=0, atol=utils.RADIAN_TOL
+        )
+        assert np.isclose(
+            this_cat["cat_lon"], other_cat["cat_lon"], rtol=0, atol=utils.RADIAN_TOL
+        )
     sma_uvfits.phase_center_catalog = sma_mir.phase_center_catalog
 
     # Finally, move on to the uvfits extra parameters
@@ -1677,8 +1681,12 @@ def test_uvfits_extra_phase_centers(sma_mir, tmp_path):
         this_cat = sma_mir.phase_center_catalog[this_names[name]]
         other_cat = sma_uvfits.phase_center_catalog[other_names[name]]
 
-        assert np.isclose(this_cat["cat_lat"], other_cat["cat_lat"])
-        assert np.isclose(this_cat["cat_lon"], other_cat["cat_lon"])
+        assert np.isclose(
+            this_cat["cat_lat"], other_cat["cat_lat"], rtol=0, atol=utils.RADIAN_TOL
+        )
+        assert np.isclose(
+            this_cat["cat_lon"], other_cat["cat_lon"], rtol=0, atol=utils.RADIAN_TOL
+        )
         assert this_cat["cat_name"] == other_cat["cat_name"]
         assert this_cat["cat_frame"] == other_cat["cat_frame"]
         assert this_cat["cat_epoch"] == other_cat["cat_epoch"]
@@ -1725,7 +1733,7 @@ def test_miriad_convention(tmp_path):
         uv.ant_1_array, uv.ant_2_array, Nants_telescope=512, use_miriad_convention=True
     )
     with fits.open(testfile1) as hdu:
-        assert np.allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
+        np.testing.assert_allclose(hdu[0].data["BASELINE"], bl_miriad_expected)
 
         # Quick check of other antenna values
         assert hdu[0].data["ANTENNA1"][0] == expected_vals["ANTENNA1_0"]

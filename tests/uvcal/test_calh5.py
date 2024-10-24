@@ -167,9 +167,11 @@ def test_calh5_meta(gain_data, tmp_path):
     assert not cal_meta.has_key(600)
     assert not cal_meta.has_key(ant_nums[5], "ll")
 
-    assert np.allclose(
-        Quantity(list(cal_meta.telescope_location_obj.geocentric)),
-        Quantity(list(calobj.telescope.location.geocentric)),
+    np.testing.assert_allclose(
+        Quantity(list(cal_meta.telescope_location_obj.geocentric)).to("m").value,
+        Quantity(list(calobj.telescope.location.geocentric)).to("m").value,
+        rtol=0,
+        atol=1e-3,
     )
 
     # remove history to test adding pyuvdata version

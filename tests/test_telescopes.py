@@ -241,7 +241,12 @@ def test_old_attr_names():
         "Telescope.location instead (which contains an astropy "
         "EarthLocation object). This will become an error in version 3.2.",
     ):
-        np.testing.assert_allclose(mwa_tel.telescope_location, mwa_tel._location.xyz())
+        np.testing.assert_allclose(
+            mwa_tel.telescope_location,
+            mwa_tel._location.xyz(),
+            rtol=mwa_tel._location.tols[0],
+            atol=mwa_tel._location.tols[1],
+        )
 
     with check_warnings(
         DeprecationWarning,
@@ -290,6 +295,8 @@ def test_old_known_tel_dict_keys():
         np.testing.assert_allclose(
             KNOWN_TELESCOPES["HERA"]["center_xyz"],
             Quantity(hera_tel.location.geocentric).to_value("m"),
+            rtol=hera_tel._location.tols[0],
+            atol=hera_tel._location.tols[1],
         )
     with check_warnings(DeprecationWarning, match=warn_msg):
         assert KNOWN_TELESCOPES["HERA"]["citation"] == hera_tel.citation
@@ -318,7 +325,7 @@ def test_hera_loc():
 
     telescope_obj = Telescope.from_known_telescopes("HERA")
 
-    assert np.allclose(
+    np.testing.assert_allclose(
         telescope_obj._location.xyz(),
         hera_data.telescope._location.xyz(),
         rtol=hera_data.telescope._location.tols[0],
@@ -342,7 +349,7 @@ def test_alternate_antenna_inputs():
         antenna_positions=antpos_array, antenna_numbers=antnum, antenna_names=antname
     )
 
-    assert np.allclose(pos, pos2)
+    np.testing.assert_allclose(pos, pos2, rtol=0, atol=1e-3)
     assert np.all(names == names2)
     assert np.all(nums == nums2)
 
@@ -352,7 +359,7 @@ def test_alternate_antenna_inputs():
         "002": np.array([0, 0, 2]),
     }
     pos, names, nums = get_antenna_params(antenna_positions=antpos_dict)
-    assert np.allclose(pos, pos2)
+    np.testing.assert_allclose(pos, pos2, rtol=0, atol=1e-3)
     assert np.all(names == names2)
     assert np.all(nums == nums2)
 
@@ -480,7 +487,7 @@ def test_get_enu_antpos():
     # no center, no pick data ants
     antpos = tel.get_enu_antpos()
     assert antpos.shape == (tel.Nants, 3)
-    assert np.isclose(antpos[0, 0], 19.340211050751535)
+    assert np.isclose(antpos[0, 0], 19.340211050751535, rtol=0, atol=1e-3)
 
 
 def test_ignore_param_updates_error():

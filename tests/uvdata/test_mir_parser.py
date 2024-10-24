@@ -400,7 +400,9 @@ def test_compass_bp_apply(mir_data: MirParser, compass_soln_file, muck_solns):
         if mir_data.sp_data.get_value("corrchunk", header_key=key) != 0:
             # If muck_solns is not some, then all the values should agree with our
             # temp value above, otherwise none should
-            assert np.allclose(entry["data"], tempval * (1 + (muck_solns == "none")))
+            np.testing.assert_allclose(
+                entry["data"], tempval * (1 + (muck_solns == "none"))
+            )
             assert (muck_solns != "none") == np.all(entry["flags"])
 
 
@@ -766,7 +768,7 @@ def test_apply_tsys_missing_recs(mir_data):
         mir_copy.load_data(load_cross=True, apply_tsys=True)
 
     for key in mir_data.vis_data:
-        assert np.allclose(
+        np.testing.assert_allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
         assert all(mir_copy.vis_data[key]["flags"])
@@ -810,7 +812,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
     mir_copy.load_data(load_cross=True, apply_tsys=True)
 
     for key, norm_fac in zip(mir_data.vis_data.keys(), norm_list, strict=True):
-        assert np.allclose(
+        np.testing.assert_allclose(
             norm_fac * mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
         assert np.array_equal(
@@ -819,7 +821,7 @@ def test_apply_tsys(mir_data, use_cont_det, bad_vals):
 
     mir_copy.apply_tsys(invert=True)
     for key in mir_data.vis_data:
-        assert np.allclose(
+        np.testing.assert_allclose(
             mir_data.vis_data[key]["data"], mir_copy.vis_data[key]["data"]
         )
         assert np.array_equal(
@@ -1617,7 +1619,7 @@ def test_generate_chanshift_kernel(
     if kern is None:
         assert exp_kern == []
     else:
-        assert np.allclose(exp_kern, kern)
+        np.testing.assert_allclose(exp_kern, kern)
 
 
 @pytest.mark.parametrize("check_flags", [True, False])
@@ -2036,7 +2038,7 @@ def test_mir_fix_v3(mir_data, muck_antrx, muck_corrchunk):
     # Check that stuff is within the single precision limit, since that's what the
     # uvw values are stored in.
     for item in ["u", "v", "w"]:
-        assert np.allclose(
+        np.testing.assert_allclose(
             mir_copy.bl_data[item], mir_data.bl_data[item], atol=0, rtol=2e-7
         )
         mir_copy.bl_data[item] = mir_data.bl_data[item]

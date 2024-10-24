@@ -11,7 +11,7 @@ from astropy import units
 from astropy.coordinates import Distance, EarthLocation, Latitude, Longitude, SkyCoord
 from astropy.time import Time
 
-from pyuvdata import Telescope, parameter as uvp
+from pyuvdata import Telescope, parameter as uvp, utils
 from pyuvdata.testing import check_warnings
 from pyuvdata.uvbase import UVBase, _warning, old_telescope_metadata_attrs
 
@@ -533,11 +533,17 @@ def test_getattr_old_telescope():
             ):
                 param_val = getattr(test_obj, param)
             tel_param_val = getattr(test_obj.telescope, tel_param)
+            tel_param_obj = getattr(test_obj.telescope, "_" + tel_param)
             if not isinstance(param_val, np.ndarray):
                 assert param_val == tel_param_val
             else:
                 if not isinstance(param_val.flat[0], str):
-                    np.testing.assert_allclose(param_val, tel_param_val)
+                    np.testing.assert_allclose(
+                        param_val,
+                        tel_param_val,
+                        rtol=tel_param_obj.tols[0],
+                        atol=tel_param_obj.tols[1],
+                    )
                 else:
                     assert param_val.tolist() == tel_param_val.tolist()
         elif param == "telescope_location":
@@ -550,7 +556,12 @@ def test_getattr_old_telescope():
                 "object. This will become an error in version 3.2.",
             ):
                 param_val = getattr(test_obj, param)
-            np.testing.assert_allclose(param_val, test_obj.telescope._location.xyz())
+            np.testing.assert_allclose(
+                param_val,
+                test_obj.telescope._location.xyz(),
+                rtol=tel_param_obj.tols[0],
+                atol=tel_param_obj.tols[1],
+            )
         elif param == "telescope_location_lat_lon_alt":
             with check_warnings(
                 DeprecationWarning,
@@ -562,7 +573,10 @@ def test_getattr_old_telescope():
             ):
                 param_val = getattr(test_obj, param)
             np.testing.assert_allclose(
-                param_val, test_obj.telescope._location.lat_lon_alt()
+                param_val,
+                test_obj.telescope._location.lat_lon_alt(),
+                rtol=0,
+                atol=utils.RADIAN_TOL,
             )
         elif param == "telescope_location_lat_lon_alt_degrees":
             with check_warnings(
@@ -575,7 +589,10 @@ def test_getattr_old_telescope():
             ):
                 param_val = getattr(test_obj, param)
             np.testing.assert_allclose(
-                param_val, test_obj.telescope._location.lat_lon_alt_degrees()
+                param_val,
+                test_obj.telescope._location.lat_lon_alt_degrees(),
+                rtol=0,
+                atol=np.rad2deg(utils.RADIAN_TOL),
             )
 
 
@@ -587,6 +604,7 @@ def test_setattr_old_telescope():
     for param, tel_param in old_telescope_metadata_attrs.items():
         if tel_param is not None:
             tel_val = getattr(new_telescope, tel_param)
+            tel_param_obj = getattr(new_telescope, "_" + tel_param)
             with check_warnings(
                 DeprecationWarning,
                 match=f"The UVData.{param} attribute now just points to the "
@@ -609,7 +627,12 @@ def test_setattr_old_telescope():
                 assert param_val == tel_val
             else:
                 if not isinstance(param_val.flat[0], str):
-                    np.testing.assert_allclose(param_val, tel_val)
+                    np.testing.assert_allclose(
+                        param_val,
+                        tel_val,
+                        rtol=tel_param_obj.tols[0],
+                        atol=tel_param_obj.tols[1],
+                    )
                 else:
                     assert param_val.tolist() == tel_val.tolist()
         elif param == "telescope_location":
@@ -636,7 +659,10 @@ def test_setattr_old_telescope():
             ):
                 test_obj.telescope_location_lat_lon_alt = tel_val
             np.testing.assert_allclose(
-                new_telescope._location.xyz(), test_obj.telescope._location.xyz()
+                new_telescope._location.xyz(),
+                test_obj.telescope._location.xyz(),
+                rtol=tel_param_obj.tols[0],
+                atol=tel_param_obj.tols[1],
             )
         elif param == "telescope_location_lat_lon_alt_degrees":
             tel_val = new_telescope._location.lat_lon_alt_degrees()
@@ -650,7 +676,10 @@ def test_setattr_old_telescope():
             ):
                 test_obj.telescope_location_lat_lon_alt_degrees = tel_val
             np.testing.assert_allclose(
-                new_telescope._location.xyz(), test_obj.telescope._location.xyz()
+                new_telescope._location.xyz(),
+                test_obj.telescope._location.xyz(),
+                rtol=tel_param_obj.tols[0],
+                atol=tel_param_obj.tols[1],
             )
 
 

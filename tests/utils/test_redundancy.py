@@ -69,7 +69,7 @@ def test_redundancy_finder(grid_alg):
             bl_ind = np.where(uvd.baseline_array == bl)
             bl_vec = bl_positions[bl_ind]
             np.testing.assert_allclose(
-                np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol
+                np.sqrt(np.dot(bl_vec, vec_bin_centers[gi])), lens[gi], atol=tol, rtol=0
             )
 
     # Shift the baselines around in a circle. Check that the same baselines are
@@ -115,6 +115,7 @@ def test_redundancy_finder(grid_alg):
                         np.sqrt(np.abs(np.dot(bl_vec, vec_bin_centers[gi]))),
                         lens[gi],
                         atol=tol_use,
+                        rtol=0,
                     )
 
             # Compare baseline groups:

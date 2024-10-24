@@ -236,7 +236,9 @@ def test_read_mwa_read_cotter():
     autos = np.isclose(mwa_uv.ant_1_array - mwa_uv.ant_2_array, 0.0)
     cotter_uv.data_array[autos, :, 2] = cotter_uv.data_array[autos, :, 3]
     cotter_uv.data_array[autos, :, 3] = np.conj(cotter_uv.data_array[autos, :, 3])
-    assert np.allclose(mwa_uv.data_array, cotter_uv.data_array, atol=1e-4, rtol=0)
+    np.testing.assert_allclose(
+        mwa_uv.data_array, cotter_uv.data_array, atol=1e-4, rtol=0
+    )
     assert mwa_uv.freq_array == cotter_uv.freq_array
 
 
@@ -1050,7 +1052,7 @@ def test_van_vleck_int():
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
     uv2.read(filelist[10])
-    assert np.allclose(uv1.data_array, uv2.data_array)
+    assert uv1._data_array == uv2._data_array
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
@@ -1074,7 +1076,7 @@ def test_van_vleck_cheby():
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
     uv2.select(antenna_nums=good_ants)
 
-    assert np.allclose(uv1.data_array, uv2.data_array)
+    assert uv1._data_array == uv2._data_array
 
 
 def test_van_vleck_interp(tmp_path):
@@ -1337,4 +1339,4 @@ def test_van_vleck(benchmark, cheby):
         good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
         uv2.select(antenna_nums=good_ants)
 
-    assert np.allclose(uv1.data_array, uv2.data_array)
+    assert uv1._data_array == uv2._data_array

@@ -183,51 +183,72 @@ def test_rotate_one_axis(vector_list):
     )
 
     # Test some basic equivalencies to make sure rotations are working correctly
-    assert np.allclose(
-        x_vecs, phs_utils._rotate_one_axis(xyz_array=x_vecs, rot_amount=1.0, rot_axis=0)
+    np.testing.assert_allclose(
+        x_vecs[np.newaxis],
+        phs_utils._rotate_one_axis(xyz_array=x_vecs, rot_amount=1.0, rot_axis=0),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        y_vecs, phs_utils._rotate_one_axis(xyz_array=y_vecs, rot_amount=2.0, rot_axis=1)
+    np.testing.assert_allclose(
+        y_vecs[np.newaxis],
+        phs_utils._rotate_one_axis(xyz_array=y_vecs, rot_amount=2.0, rot_axis=1),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        z_vecs, phs_utils._rotate_one_axis(xyz_array=z_vecs, rot_amount=3.0, rot_axis=2)
+    np.testing.assert_allclose(
+        z_vecs[np.newaxis],
+        phs_utils._rotate_one_axis(xyz_array=z_vecs, rot_amount=3.0, rot_axis=2),
+        rtol=0,
+        atol=1e-3,
     )
 
-    assert np.allclose(
-        x_vecs,
+    np.testing.assert_allclose(
+        x_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=y_vecs, rot_amount=-np.pi / 2.0, rot_axis=2
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        y_vecs,
+    np.testing.assert_allclose(
+        y_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=x_vecs, rot_amount=np.pi / 2.0, rot_axis=2
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        x_vecs,
+    np.testing.assert_allclose(
+        x_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=z_vecs, rot_amount=np.pi / 2.0, rot_axis=1
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        z_vecs,
+    np.testing.assert_allclose(
+        z_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=x_vecs, rot_amount=-np.pi / 2.0, rot_axis=1
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        y_vecs,
+    np.testing.assert_allclose(
+        y_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=z_vecs, rot_amount=-np.pi / 2.0, rot_axis=0
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        z_vecs,
+    np.testing.assert_allclose(
+        z_vecs[np.newaxis],
         phs_utils._rotate_one_axis(
             xyz_array=y_vecs, rot_amount=np.pi / 2.0, rot_axis=0
         ),
+        rtol=0,
+        atol=1e-3,
     )
 
     assert np.all(
@@ -256,8 +277,8 @@ def test_rotate_two_axis(vector_list):
 
     # These tests are used to verify the basic functionality of the primary
     # functions used to two-axis rotations
-    assert np.allclose(
-        x_vecs,
+    np.testing.assert_allclose(
+        x_vecs[np.newaxis],
         phs_utils._rotate_two_axis(
             xyz_array=x_vecs,
             rot_amount1=2 * np.pi,
@@ -265,9 +286,11 @@ def test_rotate_two_axis(vector_list):
             rot_axis1=1,
             rot_axis2=0,
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        y_vecs,
+    np.testing.assert_allclose(
+        y_vecs[np.newaxis],
         phs_utils._rotate_two_axis(
             xyz_array=y_vecs,
             rot_amount1=2 * np.pi,
@@ -275,9 +298,11 @@ def test_rotate_two_axis(vector_list):
             rot_axis1=2,
             rot_axis2=1,
         ),
+        rtol=0,
+        atol=1e-3,
     )
-    assert np.allclose(
-        z_vecs,
+    np.testing.assert_allclose(
+        z_vecs[np.newaxis],
         phs_utils._rotate_two_axis(
             xyz_array=z_vecs,
             rot_amount1=2 * np.pi,
@@ -285,12 +310,14 @@ def test_rotate_two_axis(vector_list):
             rot_axis1=0,
             rot_axis2=2,
         ),
+        rtol=0,
+        atol=1e-3,
     )
 
     # Do one more test, which verifies that we can filp our (1,1,1) test vector to
     # the postiion at (-1, -1 , -1)
     mod_vec = test_vecs.T.reshape((2, 3, 1))
-    assert np.allclose(
+    np.testing.assert_allclose(
         phs_utils._rotate_two_axis(
             xyz_array=mod_vec,
             rot_amount1=np.pi,
@@ -299,6 +326,8 @@ def test_rotate_two_axis(vector_list):
             rot_axis2=1,
         ),
         -mod_vec,
+        rtol=0,
+        atol=1e-3,
     )
 
 
@@ -490,8 +519,12 @@ def test_calc_uvw_same_place(calc_uvw_args):
         old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
-    np.testing.assert_allclose(uvw_ant_check, calc_uvw_args["uvw_array"])
-    np.testing.assert_allclose(uvw_base_check, calc_uvw_args["uvw_array"])
+    np.testing.assert_allclose(
+        uvw_ant_check, calc_uvw_args["uvw_array"], rtol=0, atol=1e-3
+    )
+    np.testing.assert_allclose(
+        uvw_base_check, calc_uvw_args["uvw_array"], rtol=0, atol=1e-3
+    )
 
 
 @pytest.mark.parametrize("to_enu", [False, True])
@@ -533,7 +566,7 @@ def test_calc_uvw_base_vs_ants(calc_uvw_args, to_enu):
         to_enu=to_enu,
     )
 
-    np.testing.assert_allclose(uvw_ant_check, uvw_base_check)
+    np.testing.assert_allclose(uvw_ant_check, uvw_base_check, rtol=0, atol=1e-3)
 
 
 def test_calc_uvw_enu_roundtrip(calc_uvw_args):
@@ -611,7 +644,9 @@ def test_calc_uvw_pa_ex_post_facto(calc_uvw_args):
         old_frame_pa=calc_uvw_args["old_frame_pa"],
     )
 
-    np.testing.assert_allclose(uvw_base_check, uvw_base_late_pa_check)
+    np.testing.assert_allclose(
+        uvw_base_check, uvw_base_late_pa_check, rtol=0, atol=1e-3
+    )
 
 
 @pytest.mark.filterwarnings('ignore:ERFA function "pmsafe" yielded')
@@ -1054,7 +1089,7 @@ def test_calc_parallactic_angle():
         telescope_lat=1.0,
     )
     # Make sure things agree to better than ~0.1 uas (as it definitely should)
-    np.testing.assert_allclose(expected_vals, meas_vals, 0.0, 1e-12)
+    np.testing.assert_allclose(expected_vals, meas_vals, rtol=0.0, atol=1e-12)
 
 
 def test_calc_frame_pos_angle():
@@ -1101,8 +1136,10 @@ def test_calc_frame_pos_angle():
     assert np.all(np.abs(frame_pa) < 20 * (50.3 / 3600) * (np.pi / 180.0))
     # Check the PA at a couple of chosen points, which just so happen to be very close
     # in magnitude (as they're basically in the same plane as the motion of the Earth)
-    assert np.isclose(frame_pa[25], 0.001909957544309159)
-    assert np.isclose(frame_pa[-25], -0.0019098101664715339)
+    assert np.isclose(frame_pa[25], 0.001909957544309159, rtol=0, atol=utils.RADIAN_TOL)
+    assert np.isclose(
+        frame_pa[-25], -0.0019098101664715339, rtol=0, atol=utils.RADIAN_TOL
+    )
 
 
 def test_jphl_lookup(astrometry_args):
@@ -1126,10 +1163,14 @@ def test_jphl_lookup(astrometry_args):
         pytest.skip("SSL/Connection error w/ JPL Horizons: " + str(err))
 
     assert np.all(np.equal(ephem_times, 2456789.0))
-    np.testing.assert_allclose(ephem_ra, 0.8393066751804976)
-    np.testing.assert_allclose(ephem_dec, 0.3120687480116649)
-    np.testing.assert_allclose(ephem_dist, 1.00996185750717)
-    np.testing.assert_allclose(ephem_vel, 0.386914)
+    np.testing.assert_allclose(
+        ephem_ra, 0.8393066751804976, rtol=0, atol=utils.RADIAN_TOL
+    )
+    np.testing.assert_allclose(
+        ephem_dec, 0.3120687480116649, rtol=0, atol=utils.RADIAN_TOL
+    )
+    np.testing.assert_allclose(ephem_dist, 1.00996185750717, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(ephem_vel, 0.386914, rtol=0, atol=1e-3)
 
     # check calling lookup_jplhorizons with EarthLocation vs lat/lon/alt passed
     try:
@@ -1805,15 +1846,15 @@ def test_phasing_funcs():
     mwa_tools_calcuvw_v = 50.388281
     mwa_tools_calcuvw_w = -151.27976
 
-    np.testing.assert_allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, atol=1e-3)
-    np.testing.assert_allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, atol=1e-3)
-    np.testing.assert_allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 0], mwa_tools_calcuvw_u, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 1], mwa_tools_calcuvw_v, rtol=0, atol=1e-3)
+    np.testing.assert_allclose(gcrs_uvw[0, 2], mwa_tools_calcuvw_w, rtol=0, atol=1e-3)
 
     # also test unphasing
     temp2 = phs_utils.undo_old_uvw_calc(
         gcrs_coord.ra.rad, gcrs_coord.dec.rad, np.squeeze(gcrs_uvw)
     )
-    np.testing.assert_allclose(gcrs_rel.value, np.squeeze(temp2))
+    np.testing.assert_allclose(gcrs_rel.value, np.squeeze(temp2), rtol=0, atol=1e-3)
 
 
 def test_calc_app_coords_time_obj():
@@ -1851,8 +1892,8 @@ def test_calc_app_coords_time_obj():
         telescope_loc=telescope_location,
     )
 
-    np.testing.assert_allclose(app_ra_to, app_ra_nto)
-    np.testing.assert_allclose(app_dec_to, app_dec_nto)
+    np.testing.assert_allclose(app_ra_to, app_ra_nto, rtol=0, atol=utils.RADIAN_TOL)
+    np.testing.assert_allclose(app_dec_to, app_dec_nto, rtol=0, atol=utils.RADIAN_TOL)
 
 
 @pytest.mark.skipif(hasmoon, reason="lunarsky installed")
@@ -1941,7 +1982,9 @@ def test_uvw_track_generator_moon(selenoid):
         pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
     # Check that the total lengths all match 1
-    np.testing.assert_allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
+    np.testing.assert_allclose(
+        (gen_results["uvw"] ** 2.0).sum(1), 2.0, rtol=0, atol=1e-3
+    )
 
     if selenoid == "SPHERE":
         # check defaults
@@ -1959,4 +2002,6 @@ def test_uvw_track_generator_moon(selenoid):
             pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
 
         # Check that the total lengths all match 1
-        np.testing.assert_allclose((gen_results["uvw"] ** 2.0).sum(1), 2.0)
+        np.testing.assert_allclose(
+            (gen_results["uvw"] ** 2.0).sum(1), 2.0, rtol=0, atol=1e-3
+        )

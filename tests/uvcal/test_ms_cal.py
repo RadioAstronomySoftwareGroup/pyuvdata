@@ -241,9 +241,12 @@ def test_ms_muck_ants(sma_pcal, tmp_path):
 
     assert uvc.telescope.name == "FOO"
     assert uvc.telescope.antenna_names == sma_pcal.telescope.antenna_names
-    assert np.allclose(
-        Quantity(list(uvc.telescope.location.geocentric)),
-        Quantity(list(sma_pcal.telescope.location.geocentric)),
+
+    np.testing.assert_allclose(
+        Quantity(list(uvc.telescope.location.geocentric)).to("m").value,
+        Quantity(list(sma_pcal.telescope.location.geocentric)).to("m").value,
+        rtol=0,
+        atol=1e-03,
     )
 
 
@@ -259,6 +262,9 @@ def test_ms_total_quality(sma_pcal, tmp_path):
     uvc.read(testfile)
 
     assert not np.allclose(sma_pcal.quality_array, uvc.quality_array)
-    assert np.allclose(
-        sma_pcal.quality_array * sma_pcal.total_quality_array, uvc.quality_array
+    np.testing.assert_allclose(
+        sma_pcal.quality_array * sma_pcal.total_quality_array,
+        uvc.quality_array,
+        rtol=uvc._quality_array.tols[0],
+        atol=uvc._quality_array.tols[1],
     )

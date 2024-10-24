@@ -822,7 +822,12 @@ def test_uvcalibrate_pol_conventions(
     assert roundtrip.pol_convention is None
 
     # Check we went around the loop properly.
-    np.testing.assert_allclose(roundtrip.data_array, uvd.data_array)
+    np.testing.assert_allclose(
+        roundtrip.data_array,
+        uvd.data_array,
+        rtol=uvd._data_array.tols[0],
+        atol=uvd._data_array.tols[1],
+    )
 
     if (
         uvc_pol_convention == uvd_pol_convention
@@ -835,10 +840,20 @@ def test_uvcalibrate_pol_conventions(
             # Then uvd pol convention is 'avg', so it has I = (XX+YY)/2, i.e. XX ~ I,
             # but the cal intrinsically assumed that I = (XX+YY), i.e. XX ~ I/2.
             # Therefore, the result should be 2.0
-            np.testing.assert_allclose(calib.data_array, 2.0)
+            np.testing.assert_allclose(
+                calib.data_array,
+                2.0,
+                rtol=uvd._data_array.tols[0],
+                atol=uvd._data_array.tols[1],
+            )
         else:
             # the opposite
-            np.testing.assert_allclose(calib.data_array, 0.5)
+            np.testing.assert_allclose(
+                calib.data_array,
+                0.5,
+                rtol=uvd._data_array.tols[0],
+                atol=uvd._data_array.tols[1],
+            )
 
 
 def test_gain_scale_wrong(uvcalibrate_data):

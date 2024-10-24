@@ -795,7 +795,12 @@ def test_singletimeselect_unprojected(uv_in_paper):
 
     # get unflagged blts
     blt_good = np.where(~np.all(uv_in_copy.flag_array, axis=(1, 2)))
-    assert np.isclose(np.mean(np.diff(uv_in_copy.time_array[blt_good])), 0.0)
+    assert np.isclose(
+        np.mean(np.diff(uv_in_copy.time_array[blt_good])),
+        0.0,
+        rtol=uv_in._time_array.tols[0],
+        atol=uv_in._time_array.tols[1],
+    )
 
     _write_miriad(uv_in_copy, testfile, clobber=True)
     uv_out.read(testfile)
@@ -1489,7 +1494,12 @@ def test_read_write_read_miriad_partial_times(uv_in_paper, select_kwargs, tmp_pa
             & (full.time_array < select_kwargs["time_range"][1])
         ]
     )
-    assert np.isclose(np.unique(uv_in.time_array), full_times).all()
+    np.testing.assert_allclose(
+        np.unique(uv_in.time_array),
+        full_times,
+        rtol=uv_in._time_array.tols[0],
+        atol=uv_in._time_array.tols[1],
+    )
     # The exact time are calculated above, pop out the time range to compare
     # time range with selecting on exact times
     select_kwargs.pop("time_range", None)
@@ -1987,7 +1997,9 @@ def test_antpos_units(casa_uvfits, tmp_path):
         utils.ECEF_from_rotECEF(aantpos, uv.telescope.location.lon.rad)
         - uv.telescope._location.xyz()
     )
-    assert np.allclose(aantpos, uv.telescope.antenna_positions)
+    np.testing.assert_allclose(
+        aantpos, uv.telescope.antenna_positions, rtol=0, atol=1e-3
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only,")
@@ -2016,18 +2028,25 @@ def test_readmiriad_write_miriad_check_time_format(tmp_path):
     uv_l = uv["lst"] + delta_lst
 
     # assert starting time array and lst array are shifted by half integration
-    assert np.isclose(uvd_t, uv_t)
+    assert np.isclose(
+        uvd_t, uv_t, rtol=uvd._time_array.tols[0], atol=uvd._time_array.tols[1]
+    )
 
     # avoid errors if IERS table is too old (if the iers url is down)
-    tolerance = 1e-8
-    assert np.allclose(uvd_l, uv_l, atol=tolerance)
+    lst_tolerance = 1e-8
+    np.testing.assert_allclose(uvd_l, uv_l, atol=lst_tolerance, rtol=0)
     # test write-out
     fout = os.path.join(tmp_path, "ex_miriad")
     _write_miriad(uvd, fout, clobber=True)
     # assert equal to original miriad time
     uv2 = aipy_extracts.UV(fout)
-    assert np.isclose(uv["time"], uv2["time"])
-    assert np.isclose(uv["lst"], uv2["lst"], atol=tolerance)
+    assert np.isclose(
+        uv["time"],
+        uv2["time"],
+        rtol=uvd._time_array.tols[0],
+        atol=uvd._time_array.tols[1],
+    )
+    assert np.isclose(uv["lst"], uv2["lst"], atol=lst_tolerance, rtol=0)
 
 
 def test_file_with_bad_extra_words():

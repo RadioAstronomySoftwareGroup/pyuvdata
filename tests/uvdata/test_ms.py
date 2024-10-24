@@ -579,8 +579,15 @@ def test_ms_phasing(sma_mir, tmp_path):
 
     ms_uv.read(testfile)
 
-    assert np.allclose(ms_uv.phase_center_app_ra, ms_uv.lst_array)
-    assert np.allclose(ms_uv.phase_center_app_dec, ms_uv.telescope.location.lat.rad)
+    np.testing.assert_allclose(
+        ms_uv.phase_center_app_ra, ms_uv.lst_array, rtol=0, atol=utils.RADIAN_TOL
+    )
+    np.testing.assert_allclose(
+        ms_uv.phase_center_app_dec,
+        ms_uv.telescope.location.lat.rad,
+        rtol=0,
+        atol=utils.RADIAN_TOL,
+    )
 
 
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
