@@ -698,6 +698,7 @@ class UVData(UVBase):
         info_source="user",
         force_update=False,
         cat_id=None,
+        raise_warning=True,
     ):
         """
         Add an entry to the internal object/source catalog or find a matching one.
@@ -771,6 +772,9 @@ class UVData(UVBase):
             already, that phase center ID will be returned, which may be different than
             the value specified to this parameter. The default is for the method to
             assign this value automatically.
+        raise_warning : bool
+            Raise a warning if the catalog already contains a field center with the same
+            name as that being added to the catalog. Default is True.
 
         Returns
         -------
@@ -826,11 +830,12 @@ class UVData(UVBase):
                 if cat_diffs == 0:
                     # Everything matches, return the catalog ID of the matching entry
                     return temp_id
-                warnings.warn(
-                    f"The provided name {cat_name} is already used but has different "
-                    "parameters. Adding another entry with the same name but a "
-                    "different ID and parameters."
-                )
+                if raise_warning:
+                    warnings.warn(
+                        f"The provided name {cat_name} is already used but has "
+                        "different parameters. Adding another entry with the same name "
+                        "but a different ID and parameters."
+                    )
 
         # If source is unique, begin creating a dictionary for it
         self.phase_center_catalog[cat_id] = cat_entry
