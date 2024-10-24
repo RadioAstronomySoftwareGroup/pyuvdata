@@ -242,11 +242,20 @@ def test_ms_muck_ants(sma_pcal, tmp_path):
     assert uvc.telescope.name == "FOO"
     assert uvc.telescope.antenna_names == sma_pcal.telescope.antenna_names
 
+    new_pos = Quantity(list(uvc.telescope.location.geocentric)).to("m").value
+    old_pos = Quantity(list(sma_pcal.telescope.location.geocentric)).to("m").value
+
+    # Verify that the telescope positions are coarsely aligned (doesn't need to be
+    # perfect here, just "good enough").
+    np.testing.assert_allclose(old_pos, new_pos, rtol=1e-5, atol=0)
+
+    # The important thing is to verify that the antenna positions _actually_ line up
+    # modulo the relative difference in the array center position.
     np.testing.assert_allclose(
-        Quantity(list(uvc.telescope.location.geocentric)).to("m").value,
-        Quantity(list(sma_pcal.telescope.location.geocentric)).to("m").value,
-        rtol=0,
-        atol=1e-03,
+        uvc.antenna_positions + (new_pos - old_pos),
+        sma_pcal.antenna_positions,
+        rtol=1e-8,
+        atol=1e-3,
     )
 
 
