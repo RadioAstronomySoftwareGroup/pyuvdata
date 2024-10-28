@@ -1312,6 +1312,7 @@ def test_interp_no_basis_vector(cst_efield_2freq, interp_func):
     beam = cst_efield_2freq
 
     if interp_func == "healpix_simple":
+        pytest.importorskip("astropy_healpix")
         beam.to_healpix()
 
     az = np.linspace(0, 2 * np.pi, 100)
