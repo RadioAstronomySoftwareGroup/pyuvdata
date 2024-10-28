@@ -252,8 +252,8 @@ def test_ms_muck_ants(sma_pcal, tmp_path):
     # The important thing is to verify that the antenna positions _actually_ line up
     # modulo the relative difference in the array center position.
     np.testing.assert_allclose(
-        uvc.antenna_positions + (new_pos - old_pos),
-        sma_pcal.antenna_positions,
+        uvc.telescope.antenna_positions + (new_pos - old_pos),
+        sma_pcal.telescope.antenna_positions,
         rtol=1e-8,
         atol=1e-3,
     )
