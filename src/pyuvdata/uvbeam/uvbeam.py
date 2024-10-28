@@ -1501,7 +1501,7 @@ class UVBeam(UVBase):
         reuse_spline=False,
         spline_opts=None,
         check_azza_domain: bool = True,
-        return_basis_vector: bool = True,
+        return_basis_vector: bool = False,
     ):
         """
         Interpolate in az_za coordinate system using RectBivariateSpline.
@@ -1532,6 +1532,9 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
+        return_basis_vector : bool
+            Whether to return the interpolated basis vectors. Prior to v3.1.1 these
+            were always returned. Now they are not by default.
 
         Returns
         -------
@@ -1684,7 +1687,7 @@ class UVBeam(UVBase):
         spline_opts=None,
         check_azza_domain: bool = True,
         reuse_spline: bool = False,
-        return_basis_vector: bool = True,
+        return_basis_vector: bool = False,
     ):
         """
         Interpolate in az_za coordinate system using map_coordinates.
@@ -1715,6 +1718,9 @@ class UVBeam(UVBase):
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
+        return_basis_vector : bool
+            Whether to return the interpolated basis vector. Default is False as of
+            v3.1.1, but was previously True.
 
         Returns
         -------
@@ -1826,7 +1832,7 @@ class UVBeam(UVBase):
         freq_interp_tol=1.0,
         polarizations=None,
         reuse_spline=False,
-        return_basis_vector: bool = True,
+        return_basis_vector: bool = False,
     ):
         """
         Interpolate in Healpix coordinate system with a simple bilinear function.
@@ -1847,6 +1853,9 @@ class UVBeam(UVBase):
         polarizations : list of str
             polarizations to interpolate if beam_type is 'power'.
             Default is all polarizations in self.polarization_array.
+        return_basis_vector : bool
+            Whether to return the interpolated basis vectors. Prior to v3.1.1 these
+            were always returned. Now they are not by default.
 
         Returns
         -------
@@ -1980,7 +1989,7 @@ class UVBeam(UVBase):
         polarizations=None,
         return_bandpass=False,
         return_coupling=False,
-        return_basis_vector: bool = True,
+        return_basis_vector: bool | None = None,
         reuse_spline=False,
         spline_opts=None,
         new_object=False,
@@ -2075,6 +2084,9 @@ class UVBeam(UVBase):
             Conversely, if the passed az/za are outside of the domain, they will be
             silently extrapolated and the behavior is not well-defined. Only
             applies for `az_za_simple` interpolation.
+        return_basis_vector : bool
+            Whether to return the interpolated basis vectors. Prior to v3.1.1 these
+            were always returned. Now they are not by default.
 
         Returns
         -------
@@ -2099,6 +2111,13 @@ class UVBeam(UVBase):
             Shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
+        if return_basis_vector is None:
+            return_basis_vector = False
+            warnings.warn(
+                "No longer returning basis vectors by default. "
+                "Set return_basis_vector to True if you require them."
+            )
+
         if interpolation_function is None:
             if self.pixel_coordinate_system == "az_za":
                 interpolation_function = "az_za_simple"
