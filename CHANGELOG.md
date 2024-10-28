@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.1.1] - 2024-10-28
+
+### Fixed
+- New test failures related to incorrect tolerances for floating point comparisons
+in tests. Floating point comparisons have been updated throughout the code base.
+
 ## [3.1.0] - 2024-10-22
 
 ### Added
