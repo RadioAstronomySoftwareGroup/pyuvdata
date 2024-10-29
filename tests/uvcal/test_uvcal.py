@@ -3145,7 +3145,7 @@ def test_uvcal_get_methods(gain_data):
     quality_arr = uvc.get_quality(key)
 
     # test shapes
-    assert np.all(np.isclose(gain_arr, 0.0))
+    np.testing.assert_allclose(gain_arr, 0.0)
     assert gain_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
     assert flag_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
     assert quality_arr.shape == (uvc.Nfreqs, uvc.Ntimes)
