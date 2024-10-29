@@ -830,7 +830,6 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
             "object will have it set to None."
         )
 
-    exp_warnings.append("The default value for `return_basis_vector` is True")
     with check_warnings(UserWarning, match=exp_warnings):
         pbeam = power_beam.interp(
             freq_array=freqs, freq_interp_kind="linear", new_object=True
@@ -1331,18 +1330,6 @@ def test_interp_no_basis_vector(cst_efield_2freq, interp_func):
         interpolation_function=interp_func,
     )
     assert bv is None
-
-    with pytest.raises(
-        ValueError, match="if returning a new object, you must compute the basis vector"
-    ):
-        beam.interp(
-            az_array=az,
-            za_array=za,
-            return_basis_vector=False,
-            interpolation_function=interp_func,
-            new_object=True,
-            az_za_grid=True,
-        )
 
 
 def test_interp_healpix_nside(cst_efield_2freq, cst_efield_2freq_cut_healpix):
