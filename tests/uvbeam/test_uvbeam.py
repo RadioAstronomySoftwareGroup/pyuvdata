@@ -835,6 +835,7 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
             "object will have it set to None."
         )
 
+    exp_warnings.append("The default value for `return_basis_vector` is True")
     with check_warnings(UserWarning, match=exp_warnings):
         pbeam = power_beam.interp(
             freq_array=freqs, freq_interp_kind="linear", new_object=True
