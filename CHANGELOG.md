@@ -3,6 +3,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- Made it possible to *not* return the `interp_basis_vector` array from beam
+interpolators.
+
 ## [3.1.1] - 2024-10-28
 
 ### Fixed
@@ -37,10 +41,6 @@ antennas with data.
 (the azimuthal-aligned response was swapped with the zenith angle-aligned response).
 - A bug in reading UVH5 files with antenna names saved as variable length strings
 that was introduced in v3.0.0.
-
-### Changed
-- Made it possible to *not* return the `interp_basis_vector` array from beam
-interpolators.
 
 ## [3.0.0] - 2024-7-1
 

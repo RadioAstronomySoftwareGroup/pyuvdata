@@ -2111,11 +2111,16 @@ class UVBeam(UVBase):
             Shape: (Nelements, Nelements, Nfeeds, Nfeeds, freq_array.size)
 
         """
+        if new_object:
+            # To create a new object, we always need the interpolated basis vectors.
+            return_basis_vector = True
+
         if return_basis_vector is None:
-            return_basis_vector = False
+            return_basis_vector = True
             warnings.warn(
-                "No longer returning basis vectors by default. "
-                "Set return_basis_vector to True if you require them."
+                "The default value for `return_basis_vector` is True, but in v3.3 it "
+                "will be set to False. Silence this warning by explicitly setting it "
+                " to either True or False."
             )
 
         if interpolation_function is None:
@@ -2246,11 +2251,6 @@ class UVBeam(UVBase):
 
         # return a new UVBeam object with interpolated data
         else:
-            if not return_basis_vector:
-                raise ValueError(
-                    "if returning a new object, you must compute the basis vector"
-                )
-
             # make a new object
             new_uvb = self.copy()
 
