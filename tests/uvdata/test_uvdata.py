@@ -8684,7 +8684,7 @@ def test_resample_in_time(bda_test_file, driftscan, partial_phase):
 
     uv_object.resample_in_time(8, allow_drift=True)
     # Should have all the target integration time
-    assert np.all(np.isclose(uv_object.integration_time, 8))
+    np.testing.assert_allclose(uv_object.integration_time, 8)
 
     # 2s integration time
     out_data_1_136 = uv_object.get_data((1, 136))

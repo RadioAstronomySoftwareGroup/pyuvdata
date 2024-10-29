@@ -1081,7 +1081,12 @@ def test_van_vleck_cheby():
     good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
     uv2.select(antenna_nums=good_ants)
 
-    assert uv1._data_array == uv2._data_array
+    np.testing.assert_allclose(
+        uv1.data_array,
+        uv2.data_array,
+        rtol=uv1._data_array.tols[0],
+        atol=uv1._data_array.tols[1],
+    )
 
 
 def test_van_vleck_interp(tmp_path):
@@ -1344,4 +1349,9 @@ def test_van_vleck(benchmark, cheby):
         good_ants = np.delete(np.unique(uv2.ant_1_array), 76)
         uv2.select(antenna_nums=good_ants)
 
-    assert uv1._data_array == uv2._data_array
+    np.testing.assert_allclose(
+        uv1.data_array,
+        uv2.data_array,
+        rtol=uv1._data_array.tols[0],
+        atol=uv1._data_array.tols[1],
+    )

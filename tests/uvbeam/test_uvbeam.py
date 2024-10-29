@@ -842,7 +842,7 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
     # interpolate cubic on complex data and compare to ensure they are the same
     pbeam.data_array = pbeam.data_array.astype(np.complex128)
     pb_int2 = pbeam.interp(freq_array=freqs)[0]
-    assert np.all(np.isclose(np.abs(pb_int - pb_int2), 0))
+    np.testing.assert_allclose(np.abs(pb_int - pb_int2), 0)
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power", "phased_array"])
