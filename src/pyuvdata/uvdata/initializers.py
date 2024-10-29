@@ -440,6 +440,9 @@ def new_uvdata(
         (which uses the astropy utilities). Default is erfa unless the
         telescope_location frame is MCMF (on the moon), in which case the default
         is astropy.
+    check_kw
+        A dictionary of keyword arguments to pass to the :func:`uvdata.UVData.check`
+        method after object creation.
 
     Other Parameters
     ----------------

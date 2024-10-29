@@ -2052,7 +2052,7 @@ def calc_app_coords(
     pm_dec=None,
     vrad=None,
     dist=None,
-    all_times_unique=None,
+    all_times_unique: bool | None = None,
 ):
     """
     Calculate apparent coordinates for several different coordinate types.
@@ -2121,6 +2121,10 @@ def calc_app_coords(
         Distance of the source, expressed in milliarcseconds. Can either be a single
         float or array of shape (Ntimes,), although this must be consistent with other
         parameters (namely ra_coord and dec_coord). Not required.
+    all_times_unique
+        Boolean specifying whether all the times that were passed are unique. Default
+        is to determine this within the function, but specifying it here can improve
+        performance.
 
     Returns
     -------
