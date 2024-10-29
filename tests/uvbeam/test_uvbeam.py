@@ -650,6 +650,7 @@ def test_freq_interpolation(
         return_bandpass=True,
         return_coupling=need_coupling,
         interpolation_function=interpolation_function,
+        return_basis_vector=True,
     )
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
@@ -721,6 +722,7 @@ def test_freq_interpolation(
             new_object=True,
             freq_interp_kind="linear",
             interpolation_function=interpolation_function,
+            return_basis_vector=True,
         )
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
     assert not hasattr(new_beam_obj, "saved_interp_functions")
@@ -739,6 +741,7 @@ def test_freq_interpolation(
             freq_interp_kind="cubic",
             new_object=True,
             interpolation_function=interpolation_function,
+            return_basis_vector=True,
         )
     assert isinstance(new_beam_obj, UVBeam)
     np.testing.assert_array_almost_equal(new_beam_obj.freq_array, freq_orig_vals)
@@ -826,6 +829,8 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
             "currently support interpolating it in frequency. Returned "
             "object will have it set to None."
         )
+
+    exp_warnings.append("The default value for `return_basis_vector` is True")
     with check_warnings(UserWarning, match=exp_warnings):
         pbeam = power_beam.interp(
             freq_array=freqs, freq_interp_kind="linear", new_object=True
@@ -876,6 +881,7 @@ def test_spatial_interpolation_samepoints(
         za_array=za_orig_vals,
         freq_array=freq_orig_vals,
         interpolation_function=interpolation_function,
+        return_basis_vector=True,
     )
 
     interp_data_array = interp_data_array.reshape(uvbeam.data_array.shape, order="F")
@@ -945,6 +951,7 @@ def test_spatial_interpolation_samepoints(
             freq_array=freq_orig_vals,
             new_object=True,
             interpolation_function=interpolation_function,
+            return_basis_vector=True,
         )
     interp_fn_str = interpolation_function
     if interpolation_function is None:
@@ -1477,6 +1484,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
             freq_array=np.array([np.mean(freq_orig_vals)]),
             freq_interp_kind="linear",
             new_object=True,
+            return_basis_vector=True,
         )
     assert "Interpolated in frequency and to a new healpix grid" in interp_beam.history
 
