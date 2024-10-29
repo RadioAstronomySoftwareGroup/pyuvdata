@@ -13,6 +13,14 @@ All notable changes to this project will be documented in this file.
 - Made it possible to *not* return the `interp_basis_vector` array from beam
 interpolators.
 
+### Added
+- New keyword `check_kw` to `new_uvdata` that lets the user specify options to the
+checking of the created object.
+- New keyword `all_times_unique` to `calc_app_coords` that short-cuts the calculation
+when it is known that all input times are unique.
+
+
+
 ### Fixed
 - Initialization of analytic beams with single feed.
 
