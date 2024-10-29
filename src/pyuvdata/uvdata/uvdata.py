@@ -7204,6 +7204,7 @@ class UVData(UVBase):
         self.Nblts = self.baseline_array.shape[0]
         self.Ntimes = np.unique(self.time_array).size
         self.uvw_array = np.zeros((self.Nblts, 3))
+        self.set_rectangularity(force=True)
 
         # set lst array
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
