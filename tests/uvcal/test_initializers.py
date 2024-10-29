@@ -213,18 +213,18 @@ def test_new_uvcal_jones_array(uvc_simplest):
 
     circ = new_uvcal(jones_array="circular", **uvc)
     assert circ.Njones == 4
-    assert np.allclose(circ.jones_array, np.array([-1, -2, -3, -4]))
+    np.testing.assert_allclose(circ.jones_array, np.array([-1, -2, -3, -4]))
 
     custom = new_uvcal(jones_array=np.array([-1, -3]), **uvc)
     assert custom.Njones == 2
 
     linear_alt = new_uvcal(jones_array=["xx", "yy"], **uvc)
     assert linear_alt.Njones == 2
-    assert np.allclose(linear_alt.jones_array, np.array([-5, -6]))
+    np.testing.assert_allclose(linear_alt.jones_array, np.array([-5, -6]))
 
     linear_physical = new_uvcal(jones_array=["nn", "ee", "ne", "en"], **uvc)
     assert linear_physical.Njones == 4
-    assert np.allclose(linear_physical.jones_array, np.array([-5, -6, -7, -8]))
+    np.testing.assert_allclose(linear_physical.jones_array, np.array([-5, -6, -7, -8]))
 
 
 def test_new_uvcal_set_sky(uvc_simplest):

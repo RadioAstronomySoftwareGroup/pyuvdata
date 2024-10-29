@@ -1052,7 +1052,12 @@ def test_van_vleck_int():
     # read in file corrected using integrate.quad with 1e-10 precision
     uv2 = UVData()
     uv2.read(filelist[10])
-    assert uv1._data_array == uv2._data_array
+    np.testing.assert_allclose(
+        uv1.data_array,
+        uv2.data_array,
+        rtol=uv1._data_array.tols[0],
+        atol=uv1._data_array.tols[1],
+    )
 
 
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
