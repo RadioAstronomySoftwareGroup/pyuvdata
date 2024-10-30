@@ -171,6 +171,7 @@ class BeamInterface:
                 reuse_spline=reuse_spline,
                 spline_opts=spline_opts,
                 check_azza_domain=check_azza_domain,
+                return_basis_vector=False,
             )
         else:
             if not isinstance(freq_array, np.ndarray) or freq_array.ndim != 1:
