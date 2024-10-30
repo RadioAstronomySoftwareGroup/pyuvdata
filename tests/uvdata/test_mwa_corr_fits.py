@@ -1342,6 +1342,7 @@ def test_van_vleck(benchmark, cheby):
         atol=uv1._data_array.tols[1],
     )
 
+
 @pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.filterwarnings("ignore:Fixing auto-correlations to be be real-only")
 @pytest.mark.parametrize(
