@@ -2086,7 +2086,8 @@ class UVBeam(UVBase):
             applies for `az_za_simple` interpolation.
         return_basis_vector : bool
             Whether to return the interpolated basis vectors. Prior to v3.1.1 these
-            were always returned. Now they are not by default.
+            were always returned. In v3.3+ they will _not_ be returned by default
+            (and not computed by default, unless new_object=True).
 
         Returns
         -------
@@ -2120,7 +2121,8 @@ class UVBeam(UVBase):
             warnings.warn(
                 "The default value for `return_basis_vector` is True, but in v3.3 it "
                 "will be set to False. Silence this warning by explicitly setting it "
-                " to either True or False."
+                " to either True or False.",
+                category=DeprecationWarning,
             )
 
         if interpolation_function is None:
