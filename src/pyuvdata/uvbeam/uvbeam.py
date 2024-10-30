@@ -1802,10 +1802,10 @@ class UVBeam(UVBase):
             spline_opts = {}
 
         az_array -= phi_use.min()
-        az_array /= (phi_use.max() - phi_use.min()) / (phi_use.size - 1)
+        az_array *= (phi_use.size - 1) / (phi_use.max() - phi_use.min())
 
         za_array -= theta_use.min()
-        za_array /= (theta_use.max() - theta_use.min()) / (theta_use.size - 1)
+        za_array *= (theta_use.size - 1) / (theta_use.max() - theta_use.min())
 
         for index3 in range(input_nfreqs):
             for index0 in range(self.Naxes_vec):
