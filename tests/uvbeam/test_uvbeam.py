@@ -679,6 +679,7 @@ def test_freq_interpolation(
         return_bandpass=True,
         return_coupling=need_coupling,
         interpolation_function=interpolation_function,
+        return_basis_vector=True,
     )
     if antenna_type == "simple":
         interp_data, interp_basis_vector, interp_bandpass = interp_arrays
@@ -793,7 +794,9 @@ def test_freq_interpolation(
     _pb = beam.select(frequencies=beam.freq_array[:1], inplace=False)
 
     try:
-        interp_data, interp_basis_vector = _pb.interp(freq_array=_pb.freq_array)
+        interp_data, _ = _pb.interp(
+            freq_array=_pb.freq_array, return_basis_vector=False
+        )
     except ValueError as err:
         raise AssertionError(
             "UVBeam.interp didn't return an array slice as expected"
@@ -805,7 +808,9 @@ def test_freq_interpolation(
         ValueError, match="Only one frequency in UVBeam so cannot interpolate."
     ):
         beam_singlef.interp(
-            freq_array=np.array([150e6]), interpolation_function=interpolation_function
+            freq_array=np.array([150e6]),
+            interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
 
@@ -841,11 +846,11 @@ def test_freq_interp_real_and_complex(cst_power_2freq):
 
     # interpolate cubic on real data
     freqs = np.linspace(123e6, 150e6, 10)
-    pb_int = pbeam.interp(freq_array=freqs)[0]
+    pb_int = pbeam.interp(freq_array=freqs, return_basis_vector=False)[0]
 
     # interpolate cubic on complex data and compare to ensure they are the same
     pbeam.data_array = pbeam.data_array.astype(np.complex128)
-    pb_int2 = pbeam.interp(freq_array=freqs)[0]
+    pb_int2 = pbeam.interp(freq_array=freqs, return_basis_vector=False)[0]
     np.testing.assert_allclose(np.abs(pb_int - pb_int2), 0)
 
 
@@ -910,22 +915,24 @@ def test_spatial_interpolation_samepoints(
             "function"
         ),
     ):
-        interp_data_array, interp_basis_vector = uvbeam.interp(
+        interp_data_array, _ = uvbeam.interp(
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             interpolation_function="healpix_simple",
+            return_basis_vector=False,
         )
 
     # test error if not set to known function
     with pytest.raises(
         ValueError, match="interpolation_function not recognized, must be one of "
     ):
-        interp_data_array, interp_basis_vector = uvbeam.interp(
+        interp_data_array, _ = uvbeam.interp(
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             interpolation_function="foo",
+            return_basis_vector=False,
         )
 
     # test that new object from interpolation is identical
@@ -975,6 +982,7 @@ def test_spatial_interpolation_samepoints(
             freq_array=freq_orig_vals,
             new_object=True,
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
     if beam_type == "power":
@@ -985,6 +993,7 @@ def test_spatial_interpolation_samepoints(
             freq_array=freq_orig_vals,
             polarizations=["xx"],
             interpolation_function=interpolation_function,
+            return_basis_vector=True,
         )
 
         data_array_compare = uvbeam.data_array[:, :1]
@@ -1042,6 +1051,7 @@ def test_spatial_interpolation_everyother(
         za_array=za_interp_vals,
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
+        return_basis_vector=False,
     )
 
     if beam_type == "power":
@@ -1054,6 +1064,7 @@ def test_spatial_interpolation_everyother(
             freq_interp_kind="linear",
             polarizations=["xx"],
             reuse_spline=True,
+            return_basis_vector=False,
         )
 
         _, _ = uvbeam.interp(
@@ -1063,6 +1074,7 @@ def test_spatial_interpolation_everyother(
             freq_interp_kind="linear",
             polarizations=["yy"],
             reuse_spline=True,
+            return_basis_vector=False,
         )
 
     # test reusing the spline fit.
@@ -1072,6 +1084,7 @@ def test_spatial_interpolation_everyother(
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
         reuse_spline=True,
+        return_basis_vector=False,
     )
 
     reused_data_array, _ = uvbeam.interp(
@@ -1080,6 +1093,7 @@ def test_spatial_interpolation_everyother(
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
         reuse_spline=True,
+        return_basis_vector=False,
     )
     assert np.all(reused_data_array == orig_data_array)
 
@@ -1091,6 +1105,7 @@ def test_spatial_interpolation_everyother(
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
         spline_opts=spline_opts,
+        return_basis_vector=False,
     )
 
     # slightly different interpolation, so not identical.
@@ -1102,6 +1117,7 @@ def test_spatial_interpolation_everyother(
         za_array=za_interp_vals[0:1],
         freq_array=np.array([127e6]),
         freq_interp_kind="linear",
+        return_basis_vector=False,
     )
 
     select_data_array_reused, _ = uvbeam.interp(
@@ -1110,6 +1126,7 @@ def test_spatial_interpolation_everyother(
         freq_array=np.array([127e6]),
         freq_interp_kind="linear",
         reuse_spline=True,
+        return_basis_vector=False,
     )
     np.testing.assert_allclose(
         select_data_array_orig,
@@ -1128,6 +1145,7 @@ def test_spatial_interpolation_everyother(
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
         spline_opts=spline_opts,
+        return_basis_vector=False,
     )
 
     mp_data_array, _ = uvbeam.interp(
@@ -1137,6 +1155,7 @@ def test_spatial_interpolation_everyother(
         freq_interp_kind="linear",
         interpolation_function="az_za_map_coordinates",
         spline_opts={"order": 1},
+        return_basis_vector=False,
     )
     np.testing.assert_allclose(
         linear_data_array,
@@ -1206,6 +1225,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             za_array=za_interp_vals,
             freq_array=np.array([100]),
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
     # test errors if frequency interp values outside range
@@ -1217,6 +1237,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             az_za_grid=True,
             freq_array=freq_interp_vals,
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
     # test errors if positions outside range (zenith angle)
     with pytest.raises(
@@ -1228,6 +1249,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             az_array=az_interp_vals,
             za_array=za_interp_vals + np.pi / 2,
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
     with pytest.raises(
@@ -1239,6 +1261,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             az_array=az_interp_vals + np.pi / 2,
             za_array=za_interp_vals,
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
     # test no errors only frequency interpolation
@@ -1246,6 +1269,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
         freq_array=freq_interp_vals,
         freq_interp_kind="linear",
         interpolation_function=interpolation_function,
+        return_basis_vector=False,
     )
 
     # assert polarization value error
@@ -1258,6 +1282,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             za_array=za_interp_vals,
             polarizations=["pI"],
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
     # test error returning coupling matrix for simple antenna_types
@@ -1270,6 +1295,7 @@ def test_spatial_interpolation_errors(interpolation_function, cst_power_2freq_cu
             za_array=za_interp_vals,
             return_coupling=True,
             interpolation_function=interpolation_function,
+            return_basis_vector=False,
         )
 
 
@@ -1285,6 +1311,7 @@ def test_interp_longitude_branch_cut(beam_type, cst_efield_2freq, cst_power_2fre
             np.repeat(np.array([[-1], [359], [0], [360]]), 181, axis=1).flatten()
         ),
         za_array=np.repeat(beam.axis2_array[np.newaxis, :], 4, axis=0).flatten(),
+        return_basis_vector=False,
     )
 
     if beam_type == "power":
@@ -1398,7 +1425,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     freq_orig_vals = np.array([123e6, 150e6])
 
     interp_data_array, _ = hpx_efield_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        freq_array=freq_orig_vals,
+        return_basis_vector=False,
     )
     data_array_compare = hpx_efield_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
@@ -1423,6 +1453,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             interpolation_function="az_za_simple",
+            return_basis_vector=False,
         )
 
     # test error with using an incompatible interpolation function
@@ -1438,6 +1469,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
             interpolation_function="az_za_map_coordinates",
+            return_basis_vector=False,
         )
 
     # test that interp to every other point returns an object that matches a select
@@ -1497,7 +1529,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     assert new_reg_beam == efield_beam
 
     # test no inputs equals same answer
-    interp_data_array2, _ = hpx_efield_beam.interp()
+    interp_data_array2, _ = hpx_efield_beam.interp(return_basis_vector=False)
     np.testing.assert_allclose(
         interp_data_array,
         interp_data_array2,
@@ -1511,7 +1543,9 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
         ValueError, match="healpix_nside must be set if healpix_inds is set"
     ):
         hpx_efield_beam.interp(
-            healpix_inds=np.arange(hp_obj.npix), freq_array=freq_orig_vals
+            healpix_inds=np.arange(hp_obj.npix),
+            freq_array=freq_orig_vals,
+            return_basis_vector=False,
         )
 
     # test error setting both healpix_nside and az_array
@@ -1525,6 +1559,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
             az_array=az_orig_vals,
             za_array=za_orig_vals,
             freq_array=freq_orig_vals,
+            return_basis_vector=False,
         )
 
     # basis_vector exception
@@ -1534,7 +1569,9 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
         match="interpolation for input basis vectors that are not aligned to the "
         "native theta/phi coordinate system is not yet supported",
     ):
-        hpx_efield_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
+        hpx_efield_beam.interp(
+            az_array=az_orig_vals, za_array=za_orig_vals, return_basis_vector=True
+        )
 
     # now convert to power beam
     if antenna_type == "phased_array":
@@ -1548,7 +1585,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     power_beam = hpx_efield_beam.efield_to_power(inplace=False)
     del hpx_efield_beam
     interp_data_array, _ = power_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        freq_array=freq_orig_vals,
+        return_basis_vector=False,
     )
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
@@ -1573,7 +1613,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
 
     # assert not feeding frequencies gives same answer
     interp_data_array2, _ = power_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals
+        az_array=az_orig_vals, za_array=za_orig_vals, return_basis_vector=False
     )
     np.testing.assert_allclose(
         interp_data_array,
@@ -1584,7 +1624,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
 
     # assert not feeding az_array gives same answer
     interp_data_array2, _ = power_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals
+        az_array=az_orig_vals, za_array=za_orig_vals, return_basis_vector=False
     )
     np.testing.assert_allclose(
         interp_data_array,
@@ -1595,7 +1635,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
 
     # test requesting polarization gives the same answer
     interp_data_array2, _ = power_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["yy"]
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        polarizations=["yy"],
+        return_basis_vector=False,
     )
 
     np.testing.assert_allclose(
@@ -1609,7 +1652,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     assert power_beam.data_array.dtype == np.complex128
     power_beam.data_array = np.abs(power_beam.data_array)
     interp_data_array, _ = power_beam.interp(
-        az_array=az_orig_vals, za_array=za_orig_vals, freq_array=freq_orig_vals
+        az_array=az_orig_vals,
+        za_array=za_orig_vals,
+        freq_array=freq_orig_vals,
+        return_basis_vector=False,
     )
     data_array_compare = power_beam.data_array
     interp_data_array = interp_data_array.reshape(data_array_compare.shape, order="F")
@@ -1626,7 +1672,10 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
         match="Requested polarization 1 not found in self.polarization_array",
     ):
         power_beam.interp(
-            az_array=az_orig_vals, za_array=za_orig_vals, polarizations=["pI"]
+            az_array=az_orig_vals,
+            za_array=za_orig_vals,
+            polarizations=["pI"],
+            return_basis_vector=False,
         )
 
     # check error when pixels out of order
@@ -1637,7 +1686,9 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
         ValueError,
         match="simple healpix interpolation requires healpix pixels to be in order.",
     ):
-        power_beam.interp(az_array=az_orig_vals, za_array=za_orig_vals)
+        power_beam.interp(
+            az_array=az_orig_vals, za_array=za_orig_vals, return_basis_vector=False
+        )
 
 
 @pytest.mark.parametrize(
