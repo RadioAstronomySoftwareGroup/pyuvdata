@@ -3261,3 +3261,16 @@ def test_yaml_constructor_errors():
         ValueError, match="yaml entries for UVBeam must specify a filename."
     ):
         yaml.safe_load(input_yaml)["beam"]
+
+
+def test_return_basis_vector_notset(cst_efield_2freq_cut: UVBeam):
+    """Test that a deprecation warning is raised if interp is called with defaults."""
+
+    with pytest.warns(
+        DeprecationWarning, match="The default value for `return_basis_vector` is True"
+    ):
+        _, basis_vector = cst_efield_2freq_cut.interp(
+            freq_array=cst_efield_2freq_cut.freq_array
+        )
+
+    assert basis_vector is not None
