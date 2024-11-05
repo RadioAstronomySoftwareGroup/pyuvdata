@@ -161,6 +161,9 @@ class AnalyticBeam:
                 "x_orientation must be specified for linear polarization feeds"
             )
 
+        if len(self.feed_array) == 1:
+            include_cross_pols = False
+
         self.polarization_array, _ = _convert_feeds_to_pols(
             self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
