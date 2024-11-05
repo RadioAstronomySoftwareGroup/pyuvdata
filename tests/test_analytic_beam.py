@@ -562,3 +562,9 @@ def test_yaml_constructor_errors():
         ),
     ):
         yaml.safe_load(input_yaml)["beam"]
+
+
+def test_single_feed():
+    beam = GaussianBeam(diameter=14.0, feed_array=["x"], include_cross_pols=True)
+    assert beam.feed_array == ["x"]
+    assert beam.polarization_array == [-5]

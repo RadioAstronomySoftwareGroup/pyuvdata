@@ -12,6 +12,9 @@ All notable changes to this project will be documented in this file.
 - Made it possible to *not* return the `interp_basis_vector` array from beam
 interpolators.
 
+### Fixed
+- Initialization of analytic beams with single feed.
+
 ## [3.1.1] - 2024-10-28
 
 ### Fixed
