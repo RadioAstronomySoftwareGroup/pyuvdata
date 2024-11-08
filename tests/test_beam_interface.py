@@ -243,3 +243,69 @@ def test_compute_response_errors(param, value):
     else:
         # this shouldn't error
         bi_uvb.compute_response(**compute_kwargs)
+
+
+@pytest.mark.parametrize(
+    "beam_obj",
+    [
+        AiryBeam(diameter=14.0),
+        GaussianBeam(diameter=14.0),
+        AiryBeam(diameter=14.0).to_uvbeam(
+            freq_array=np.array([1e8]), pixel_coordinate_system="healpix", nside=32
+        ),
+    ],
+)
+def test_idempotent_instantiation(beam_obj):
+    beam = BeamInterface(beam_obj)
+    beam2 = BeamInterface(beam)
+    assert beam == beam2
+
+
+def test_properties():
+    beam = AiryBeam(diameter=14.0)
+    intf = BeamInterface(beam)
+    assert beam.Npols == intf.Npols
+    assert beam.Nfeeds == intf.Nfeeds
+    assert np.all(beam.polarization_array == intf.polarization_array)
+    assert np.all(beam.feed_array == intf.feed_array)
+
+
+def test_clone():
+    beam = AiryBeam(diameter=14.0)
+    intf = BeamInterface(beam)
+    intf_clone = intf.clone(beam_type="power")
+    assert intf != intf_clone
+
+
+@pytest.mark.parametrize("uvbeam", [True, False], ids=["uvbeam", "analytic"])
+@pytest.mark.parametrize("allow_mutation", [True, False], ids=["mutate", "nomutate"])
+@pytest.mark.parametrize("include_cross_pols", [True, False], ids=["incx", "nox"])
+def test_astype(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
+    beam = AiryBeam(diameter=14.0)
+    if uvbeam:
+        beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
+
+    intf = BeamInterface(beam)
+    intf_power = intf.as_power_beam(
+        allow_beam_mutation=allow_mutation, include_cross_pols=include_cross_pols
+    )
+    assert intf_power.beam_type == "power"
+    assert intf_power.Npols == 4 if include_cross_pols else 2
+
+    # Ensure that the original beam is not mutated unless we say it can be.
+    if uvbeam:
+        if allow_mutation:
+            assert intf.beam.beam_type == "power"
+        else:
+            assert intf.beam.beam_type == "efield"
+
+
+@pytest.mark.parametrize("uvbeam", [True, False])
+def test_with_feeds(uvbeam: bool):
+    beam = AiryBeam(diameter=14.0)
+    if uvbeam:
+        beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
+
+    intf = BeamInterface(beam)
+    intf_feedx = intf.with_feeds(["x"])
+    assert intf_feedx.feed_array == ["x"]

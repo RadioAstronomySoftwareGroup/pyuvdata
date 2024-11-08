@@ -8,7 +8,7 @@ from __future__ import annotations
 import dataclasses
 import importlib
 import warnings
-from dataclasses import InitVar, astuple, dataclass, field
+from dataclasses import InitVar, astuple, dataclass, field, replace
 from typing import ClassVar, Literal
 
 import numpy as np
@@ -188,6 +188,10 @@ class AnalyticBeam:
     def Npols(self):  # noqa N802
         """The number of polarizations."""
         return self.polarization_array.size
+
+    def clone(self, **kw):
+        """Create a new instance of the object with updated parameters."""
+        return replace(self, **kw)
 
     @property
     def east_ind(self):
