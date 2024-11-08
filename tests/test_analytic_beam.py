@@ -568,3 +568,9 @@ def test_single_feed():
     beam = GaussianBeam(diameter=14.0, feed_array=["x"], include_cross_pols=True)
     assert beam.feed_array == ["x"]
     assert beam.polarization_array == [-5]
+
+
+def test_clone():
+    beam = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+    new_beam = beam.clone(feed_array=["x"])
+    assert new_beam.feed_array == ["x"]

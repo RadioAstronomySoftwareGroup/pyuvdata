@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 import warnings
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, asdict, dataclass, replace
 from typing import Literal
 
 import numpy as np
@@ -32,8 +32,9 @@ class BeamInterface:
 
     Attributes
     ----------
-    beam : pyuvdata.UVBeam or pyuvdata.AnalyticBeam
-        Beam object to use for computations
+    beam : pyuvdata.UVBeam or pyuvdata.AnalyticBeam or BeamInterface
+        Beam object to use for computations. If a BeamInterface is passed, a new
+        view of the same object is created.
     beam_type : str
         The beam type, either "efield" or "power".
     include_cross_pols : bool
@@ -59,6 +60,11 @@ class BeamInterface:
             for the power beam.
 
         """
+        if isinstance(self.beam, BeamInterface):
+            self.beam = self.beam.beam
+            self.__post_init__(include_cross_pols=include_cross_pols)
+            return
+
         if not isinstance(self.beam, UVBeam) and not issubclass(
             type(self.beam), AnalyticBeam
         ):
@@ -82,6 +88,59 @@ class BeamInterface:
                     "efield beam, either provide an efield UVBeam or do not "
                     "specify `beam_type`."
                 )
+
+    @property
+    def Npols(self):
+        """The number of polarizations in the beam."""
+        return self.beam.Npols
+
+    @property
+    def polarization_array(self):
+        """The polarizations defined on the beam."""
+        return self.beam.polarization_array
+
+    @property
+    def feed_array(self):
+        """The feeds for which the beam is defined."""
+        return self.beam.feed_array
+
+    @property
+    def Nfeeds(self):
+        """The number of feeds defined on the beam."""
+        return self.beam.Nfeeds
+
+    def clone(self, **kw):
+        """Return a new instance with updated parameters."""
+        return replace(self, **kw)
+
+    def as_power_beam(
+        self, include_cross_pols: bool = True, allow_beam_mutation: bool = False
+    ):
+        """Return a new interface instance that is in the power-beam mode.
+
+        Parameters
+        ----------
+        include_cross_pols : bool, optional
+            Whether to include cross-pols in the power beam.
+        allow_beam_mutation : bool, optional
+            Whether to allow the underlying beam to be updated in-place.
+        """
+        beam = self.beam if allow_beam_mutation else copy.deepcopy(self.beam)
+
+        # We cannot simply use .clone() here, because we need to be able to pass
+        # include_cross_pols, which can only be passed to the constructor proper.
+        this = asdict(self)
+        this["beam"] = beam
+        this["beam_type"] = "power"
+        this["include_cross_pols"] = include_cross_pols
+        return BeamInterface(**this)
+
+    def with_feeds(self, feeds):
+        """Return a new interface instance with updated feed_array."""
+        if not self._isuvbeam:
+            return self.clone(beam=self.beam.clone(feed_array=feeds))
+        new_beam = self.beam.select(feeds=feeds, inplace=False)
+        return self.clone(beam=new_beam)
 
     @property
     def _isuvbeam(self):
