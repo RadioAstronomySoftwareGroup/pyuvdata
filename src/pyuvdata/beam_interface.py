@@ -8,12 +8,14 @@ from __future__ import annotations
 import copy
 import warnings
 from dataclasses import InitVar, asdict, dataclass, replace
+from itertools import product
 from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
 
 from .analytic_beam import AnalyticBeam
+from .utils import pol as upol
 from .uvbeam import UVBeam
 
 # Other methods we may want to include:
@@ -75,7 +77,7 @@ class BeamInterface:
         if isinstance(self.beam, UVBeam):
             if self.beam_type is None or self.beam_type == self.beam.beam_type:
                 self.beam_type = self.beam.beam_type
-            elif self.beam_type == "power":
+            elif self.beam_type == "power" and self.beam.beam_type != "power":
                 warnings.warn(
                     "Input beam is an efield UVBeam but beam_type is specified as "
                     "'power'. Converting efield beam to power."
@@ -88,11 +90,13 @@ class BeamInterface:
                     "efield beam, either provide an efield UVBeam or do not "
                     "specify `beam_type`."
                 )
+        elif self.beam_type is None:
+            self.beam_type = "efield"
 
     @property
     def Npols(self):
         """The number of polarizations in the beam."""
-        return self.beam.Npols
+        return self.beam.Npols or len(self.polarization_array)
 
     @property
     def polarization_array(self):
@@ -107,7 +111,7 @@ class BeamInterface:
     @property
     def Nfeeds(self):
         """The number of feeds defined on the beam."""
-        return self.beam.Nfeeds
+        return self.beam.Nfeeds or len(self.feed_array)
 
     def clone(self, **kw):
         """Return a new instance with updated parameters."""
@@ -118,6 +122,10 @@ class BeamInterface:
     ):
         """Return a new interface instance that is in the power-beam mode.
 
+        If already in the power-beam mode, this is a no-op. Note that this might be
+        slighty unexpected, because the effect of `include_cross_pols` is not accounted
+        for in this case.
+
         Parameters
         ----------
         include_cross_pols : bool, optional
@@ -125,6 +133,9 @@ class BeamInterface:
         allow_beam_mutation : bool, optional
             Whether to allow the underlying beam to be updated in-place.
         """
+        if self.beam_type == "power":
+            return self
+
         beam = self.beam if allow_beam_mutation else copy.deepcopy(self.beam)
 
         # We cannot simply use .clone() here, because we need to be able to pass
@@ -133,13 +144,50 @@ class BeamInterface:
         this["beam"] = beam
         this["beam_type"] = "power"
         this["include_cross_pols"] = include_cross_pols
-        return BeamInterface(**this)
+        with warnings.catch_warnings():
+            # Don't emit the warning that we're converting to power, because that is
+            # explicitly desired.
+            warnings.simplefilter("ignore", UserWarning)
+            return BeamInterface(**this)
 
-    def with_feeds(self, feeds):
-        """Return a new interface instance with updated feed_array."""
+    def with_feeds(self, feeds, *, maintain_ordering: bool = True):
+        """Return a new interface instance with updated feed_array.
+
+        Parameters
+        ----------
+        feeds : array_like of str
+            The feeds to keep in the beam. Each value should be a string, e.g. 'n', 'x'.
+        maintain_ordering : bool, optional
+            If True, maintain the same polarization ordering as in the beam currently.
+            If False, change ordering to match the input feeds, which are turned into
+            pols (if a power beam) by using product(feeds, feeds).
+        """
         if not self._isuvbeam:
+            if maintain_ordering:
+                feeds = [fd for fd in self.feed_array if fd in feeds]
             return self.clone(beam=self.beam.clone(feed_array=feeds))
-        new_beam = self.beam.select(feeds=feeds, inplace=False)
+        if self.beam_type == "power":
+            # Down-select polarizations based on the feeds input.
+            possible_pols = [f1 + f2 for f1, f2 in product(feeds, feeds)]
+            possible_pol_ints = upol.polstr2num(
+                possible_pols, x_orientation=self.beam.x_orientation
+            )
+            if maintain_ordering:
+                use_pols = [
+                    p for p in self.beam.polarization_array if p in possible_pol_ints
+                ]
+                print("use_pols: ", use_pols)
+            else:
+                use_pols = [
+                    p for p in possible_pol_ints if p in self.beam.polarization_array
+                ]
+
+            new_beam = self.beam.select(polarizations=use_pols, inplace=False)
+        else:
+            if maintain_ordering:
+                feeds = [fd for fd in self.feed_array if fd in feeds]
+
+            new_beam = self.beam.select(feeds=feeds, inplace=False)
         return self.clone(beam=new_beam)
 
     @property

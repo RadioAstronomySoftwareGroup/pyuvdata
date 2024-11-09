@@ -280,7 +280,7 @@ def test_clone():
 @pytest.mark.parametrize("uvbeam", [True, False], ids=["uvbeam", "analytic"])
 @pytest.mark.parametrize("allow_mutation", [True, False], ids=["mutate", "nomutate"])
 @pytest.mark.parametrize("include_cross_pols", [True, False], ids=["incx", "nox"])
-def test_astype(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
+def test_as_power(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
     beam = AiryBeam(diameter=14.0)
     if uvbeam:
         beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
@@ -300,6 +300,14 @@ def test_astype(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
             assert intf.beam.beam_type == "efield"
 
 
+def test_as_power_noop():
+    """Ensure that calling as_power_beam on a power beam is a no-op."""
+    beam = AiryBeam(diameter=14.0)
+    intf = BeamInterface(beam, beam_type="power")
+    intf2 = intf.as_power_beam()
+    assert intf is intf2
+
+
 @pytest.mark.parametrize("uvbeam", [True, False])
 def test_with_feeds(uvbeam: bool):
     beam = AiryBeam(diameter=14.0)
@@ -307,5 +315,36 @@ def test_with_feeds(uvbeam: bool):
         beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
 
     intf = BeamInterface(beam)
+
     intf_feedx = intf.with_feeds(["x"])
     assert intf_feedx.feed_array == ["x"]
+
+
+def test_with_feeds_ordering():
+    beam = AiryBeam(diameter=14.0)
+    intf = BeamInterface(beam)
+
+    intf_feedx = intf.with_feeds(["y", "x"], maintain_ordering=True)
+    assert np.all(intf_feedx.feed_array == ["x", "y"])
+
+    intf_feedyx = intf.with_feeds(["y", "x"], maintain_ordering=False)
+    assert np.all(intf_feedyx.feed_array == ["y", "x"])
+
+
+@pytest.mark.filterwarnings("ignore:Input beam is an efield UVBeam")
+@pytest.mark.filterwarnings("ignore:Selected polarizations are not evenly spaced")
+def test_with_feeds_ordering_power():
+    beam = AiryBeam(diameter=14.0).to_uvbeam(freq_array=np.array([1e8]), nside=16)
+
+    intf = BeamInterface(beam, beam_type="power")
+    print(intf.polarization_array)
+    intf_feedx = intf.with_feeds(["y", "x"], maintain_ordering=True)
+    assert np.all(intf_feedx.polarization_array == [-5, -6, -7, -8])
+
+    intf_feedyx = intf.with_feeds(["y", "x"], maintain_ordering=False)
+    print(
+        utils.pol.polnum2str(
+            intf_feedyx.polarization_array, x_orientation=intf_feedyx.beam.x_orientation
+        )
+    )
+    assert np.all(intf_feedyx.polarization_array == [-6, -8, -7, -5])
