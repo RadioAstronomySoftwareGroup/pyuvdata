@@ -11,9 +11,20 @@ from pyuvdata import (
     GaussianBeam,
     ShortDipoleBeam,
     UniformBeam,
+    UVBeam,
     utils,
 )
 from pyuvdata.testing import check_warnings
+
+
+@pytest.fixture(scope="function")
+def airy() -> AiryBeam:
+    return AiryBeam(diameter=14.0)
+
+
+@pytest.fixture()
+def gaussian() -> GaussianBeam:
+    return GaussianBeam(diameter=14.0)
 
 
 @pytest.fixture()
@@ -32,6 +43,14 @@ def xy_grid_coarse():
     az_array = np.arctan2(y_arr, x_arr) + np.pi  # convert from -180->180 to 0->360
 
     return az_array, za_array, freqs
+
+
+@pytest.fixture()
+def gaussian_uv(gaussian, az_za_coords) -> UVBeam:
+    az, za = az_za_coords
+    return gaussian.to_uvbeam(
+        axis1_array=az, axis2_array=za, freq_array=np.array([1e8])
+    )
 
 
 @pytest.mark.parametrize(
@@ -245,34 +264,23 @@ def test_compute_response_errors(param, value):
         bi_uvb.compute_response(**compute_kwargs)
 
 
-@pytest.mark.parametrize(
-    "beam_obj",
-    [
-        AiryBeam(diameter=14.0),
-        GaussianBeam(diameter=14.0),
-        AiryBeam(diameter=14.0).to_uvbeam(
-            freq_array=np.array([1e8]), pixel_coordinate_system="healpix", nside=32
-        ),
-    ],
-)
-def test_idempotent_instantiation(beam_obj):
-    beam = BeamInterface(beam_obj)
+@pytest.mark.parametrize("beam_obj", ["airy", "gaussian", "gaussian_uv"])
+def test_idempotent_instantiation(beam_obj, request):
+    beam = BeamInterface(request.getfixturevalue(beam_obj))
     beam2 = BeamInterface(beam)
     assert beam == beam2
 
 
-def test_properties():
-    beam = AiryBeam(diameter=14.0)
-    intf = BeamInterface(beam)
-    assert beam.Npols == intf.Npols
-    assert beam.Nfeeds == intf.Nfeeds
-    assert np.all(beam.polarization_array == intf.polarization_array)
-    assert np.all(beam.feed_array == intf.feed_array)
+def test_properties(airy: AiryBeam):
+    intf = BeamInterface(airy)
+    assert airy.Npols == intf.Npols
+    assert airy.Nfeeds == intf.Nfeeds
+    assert np.all(airy.polarization_array == intf.polarization_array)
+    assert np.all(airy.feed_array == intf.feed_array)
 
 
-def test_clone():
-    beam = AiryBeam(diameter=14.0)
-    intf = BeamInterface(beam)
+def test_clone(airy):
+    intf = BeamInterface(airy)
     intf_clone = intf.clone(beam_type="power")
     assert intf != intf_clone
 
@@ -280,11 +288,10 @@ def test_clone():
 @pytest.mark.parametrize("uvbeam", [True, False], ids=["uvbeam", "analytic"])
 @pytest.mark.parametrize("allow_mutation", [True, False], ids=["mutate", "nomutate"])
 @pytest.mark.parametrize("include_cross_pols", [True, False], ids=["incx", "nox"])
-def test_as_power(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
-    beam = AiryBeam(diameter=14.0)
-    if uvbeam:
-        beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
-
+def test_as_power(
+    uvbeam: bool, allow_mutation: bool, include_cross_pols: bool, gaussian, gaussian_uv
+):
+    beam = gaussian_uv if uvbeam else gaussian
     intf = BeamInterface(beam)
     intf_power = intf.as_power_beam(
         allow_beam_mutation=allow_mutation, include_cross_pols=include_cross_pols
@@ -292,7 +299,6 @@ def test_as_power(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
     assert intf_power.beam_type == "power"
     assert intf_power.Npols == 4 if include_cross_pols else 2
 
-    # Ensure that the original beam is not mutated unless we say it can be.
     if uvbeam:
         if allow_mutation:
             assert intf.beam.beam_type == "power"
@@ -300,19 +306,16 @@ def test_as_power(uvbeam: bool, allow_mutation: bool, include_cross_pols: bool):
             assert intf.beam.beam_type == "efield"
 
 
-def test_as_power_noop():
+def test_as_power_noop(airy):
     """Ensure that calling as_power_beam on a power beam is a no-op."""
-    beam = AiryBeam(diameter=14.0)
-    intf = BeamInterface(beam, beam_type="power")
+    intf = BeamInterface(airy, beam_type="power")
     intf2 = intf.as_power_beam()
     assert intf is intf2
 
 
 @pytest.mark.parametrize("uvbeam", [True, False])
-def test_with_feeds(uvbeam: bool):
-    beam = AiryBeam(diameter=14.0)
-    if uvbeam:
-        beam = beam.to_uvbeam(freq_array=np.array([1e8]), nside=32)
+def test_with_feeds(uvbeam: bool, gaussian, gaussian_uv):
+    beam = gaussian_uv if uvbeam else gaussian
 
     intf = BeamInterface(beam)
 
@@ -320,9 +323,8 @@ def test_with_feeds(uvbeam: bool):
     assert intf_feedx.feed_array == ["x"]
 
 
-def test_with_feeds_ordering():
-    beam = AiryBeam(diameter=14.0)
-    intf = BeamInterface(beam)
+def test_with_feeds_ordering(airy):
+    intf = BeamInterface(airy)
 
     intf_feedx = intf.with_feeds(["y", "x"], maintain_ordering=True)
     assert np.all(intf_feedx.feed_array == ["x", "y"])
@@ -333,18 +335,11 @@ def test_with_feeds_ordering():
 
 @pytest.mark.filterwarnings("ignore:Input beam is an efield UVBeam")
 @pytest.mark.filterwarnings("ignore:Selected polarizations are not evenly spaced")
-def test_with_feeds_ordering_power():
-    beam = AiryBeam(diameter=14.0).to_uvbeam(freq_array=np.array([1e8]), nside=16)
-
-    intf = BeamInterface(beam, beam_type="power")
-    print(intf.polarization_array)
+def test_with_feeds_ordering_power(gaussian_uv):
+    # beam = AiryBeam(diameter=14.0).to_uvbeam(freq_array=np.array([1e8]), nside=16)
+    intf = BeamInterface(gaussian_uv, beam_type="power")
     intf_feedx = intf.with_feeds(["y", "x"], maintain_ordering=True)
     assert np.all(intf_feedx.polarization_array == [-5, -6, -7, -8])
 
     intf_feedyx = intf.with_feeds(["y", "x"], maintain_ordering=False)
-    print(
-        utils.pol.polnum2str(
-            intf_feedyx.polarization_array, x_orientation=intf_feedyx.beam.x_orientation
-        )
-    )
     assert np.all(intf_feedyx.polarization_array == [-6, -8, -7, -5])
