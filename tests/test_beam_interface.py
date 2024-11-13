@@ -287,7 +287,7 @@ def test_clone(airy):
 
 @pytest.mark.parametrize("uvbeam", [True, False], ids=["uvbeam", "analytic"])
 @pytest.mark.parametrize("allow_mutation", [True, False], ids=["mutate", "nomutate"])
-@pytest.mark.parametrize("include_cross_pols", [True, False], ids=["incx", "nox"])
+@pytest.mark.parametrize("include_cross_pols", [True, False, None], ids=["incx", "nox"])
 def test_as_power(
     uvbeam: bool, allow_mutation: bool, include_cross_pols: bool, gaussian, gaussian_uv
 ):
@@ -296,6 +296,9 @@ def test_as_power(
     intf_power = intf.as_power_beam(
         allow_beam_mutation=allow_mutation, include_cross_pols=include_cross_pols
     )
+    if include_cross_pols is None:
+        include_cross_pols = True
+
     assert intf_power.beam_type == "power"
     assert intf_power.Npols == 4 if include_cross_pols else 2
 
@@ -310,6 +313,10 @@ def test_as_power_noop(airy):
     """Ensure that calling as_power_beam on a power beam is a no-op."""
     intf = BeamInterface(airy, beam_type="power")
     intf2 = intf.as_power_beam()
+    assert intf is intf2
+
+    with pytest.warns(UserWarning, match="as_power_beam does not modify cross pols"):
+        intf2 = intf.as_power_beam(include_cross_pols=False)
     assert intf is intf2
 
 
