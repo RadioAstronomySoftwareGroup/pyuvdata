@@ -142,7 +142,7 @@ class BeamInterface:
 
             if self.Npols > 1 and (
                 (include_cross_pols and self.Npols != 4)
-                or (not include_cross_pols and self.Npols != 4)
+                or (not include_cross_pols and self.Npols != 2)
             ):
                 warnings.warn(
                     "as_power_beam does not modify cross pols when the beam is"
