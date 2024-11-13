@@ -77,7 +77,7 @@ class BeamInterface:
         if isinstance(self.beam, UVBeam):
             if self.beam_type is None or self.beam_type == self.beam.beam_type:
                 self.beam_type = self.beam.beam_type
-            elif self.beam_type == "power" and self.beam.beam_type != "power":
+            elif self.beam_type == "power":
                 warnings.warn(
                     "Input beam is an efield UVBeam but beam_type is specified as "
                     "'power'. Converting efield beam to power."
@@ -94,7 +94,7 @@ class BeamInterface:
             self.beam_type = "efield"
 
     @property
-    def Npols(self):
+    def Npols(self):  # noqa N802
         """The number of polarizations in the beam."""
         return self.beam.Npols or len(self.polarization_array)
 
@@ -109,7 +109,7 @@ class BeamInterface:
         return self.beam.feed_array
 
     @property
-    def Nfeeds(self):
+    def Nfeeds(self):  # noqa N802
         """The number of feeds defined on the beam."""
         return self.beam.Nfeeds or len(self.feed_array)
 
@@ -118,7 +118,7 @@ class BeamInterface:
         return replace(self, **kw)
 
     def as_power_beam(
-        self, include_cross_pols: bool = True, allow_beam_mutation: bool = False
+        self, include_cross_pols: bool | None = None, allow_beam_mutation: bool = False
     ):
         """Return a new interface instance that is in the power-beam mode.
 
@@ -129,12 +129,29 @@ class BeamInterface:
         Parameters
         ----------
         include_cross_pols : bool, optional
-            Whether to include cross-pols in the power beam.
+            Whether to include cross-pols in the power beam. By default, this is True
+            for E-field beams, and takes the same value as the existing beam if the
+            existing beam is already a power beam.
         allow_beam_mutation : bool, optional
             Whether to allow the underlying beam to be updated in-place.
         """
         if self.beam_type == "power":
+            if include_cross_pols is None:
+                # By default, keep the value of include_cross_pols the same.
+                include_cross_pols = self.Npols > 2
+
+            if self.Npols > 1 and (
+                (include_cross_pols and self.Npols != 4)
+                or (not include_cross_pols and self.Npols != 4)
+            ):
+                warnings.warn(
+                    "as_power_beam does not modify cross pols when the beam is"
+                    "already in power mode!"
+                )
             return self
+
+        if include_cross_pols is None:
+            include_cross_pols = True
 
         beam = self.beam if allow_beam_mutation else copy.deepcopy(self.beam)
 
@@ -176,7 +193,6 @@ class BeamInterface:
                 use_pols = [
                     p for p in self.beam.polarization_array if p in possible_pol_ints
                 ]
-                print("use_pols: ", use_pols)
             else:
                 use_pols = [
                     p for p in possible_pol_ints if p in self.beam.polarization_array
