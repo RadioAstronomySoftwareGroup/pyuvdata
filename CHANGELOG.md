@@ -4,11 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New convenience methods on `BeamInterface` to simplify the handling of analytic vs UVBeam objects.
 - Added support for partial read for MWA correlator FITS files.
 - Added `antenna_names`, `time_range`, `lsts` and `lst_range` parameters to
 `UVFlag.select` to match UVData and UVCal select methods.
-- New convenience methods on `BeamInterface` to simplify the handling of analytic vs
-UVBeam objects.
 
 ### Changed
 - Made it possible to *not* return the `interp_basis_vector` array from beam

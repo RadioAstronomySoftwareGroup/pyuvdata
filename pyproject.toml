@@ -113,7 +113,6 @@ select = [
 ]
 ignore = [
     "N806", # non-lowercase variable (we use N* for axes lengths)
-    "N802", # non-lowercase function name (we use N* for axes lengths)
     "B028", # no-explicit-stacklevel for warnings
     "SIM108", # prefer ternary opperators. I find them difficult to read.
     "D203", # one-blank-line-before-class. we use two.
