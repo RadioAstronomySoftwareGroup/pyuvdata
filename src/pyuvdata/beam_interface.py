@@ -146,7 +146,10 @@ class BeamInterface:
             ):
                 warnings.warn(
                     "as_power_beam does not modify cross pols when the beam is"
-                    "already in power mode!"
+                    f"already in power mode! You have polarizations: "
+                    f"{self.polarization_array} but asked to "
+                    f"*{'include' if include_cross_pols else 'not include'}* "
+                    "cross-pols."
                 )
             return self
 

@@ -318,7 +318,6 @@ def test_as_power_noop(airy):
     assert intf is intf2
 
     with pytest.warns(UserWarning, match="as_power_beam does not modify cross pols"):
-        print(intf.Npols)
         intf2 = intf.as_power_beam(include_cross_pols=False)
     assert intf is intf2
 
