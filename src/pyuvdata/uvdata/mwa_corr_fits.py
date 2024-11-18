@@ -1141,6 +1141,8 @@ class MWACorrFITS(UVData):
                         sig2_arr=sig2,
                         cheby_approx=cheby_approx,
                     )
+                    # these autos are corrected in-place, but added the data_array
+                    # assignment in case the in-place correction changes/stops working.
                     self.data_array.real[k, :, j, yx] = kap
                     # correct imaginary
                     kap = van_vleck_crosses_int(
@@ -1149,6 +1151,8 @@ class MWACorrFITS(UVData):
                         sig2_arr=sig2,
                         cheby_approx=cheby_approx,
                     )
+                    # these autos are corrected in-place, but added the data_array
+                    # assignment in case the in-place correction changes/stops working.
                     self.data_array.imag[k, :, j, yx] = kap
         # correct xy autos
         self.data_array[good_autos, :, :, xy] = np.conj(
