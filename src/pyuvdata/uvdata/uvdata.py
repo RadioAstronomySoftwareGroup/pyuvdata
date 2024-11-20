@@ -4083,6 +4083,15 @@ class UVData(UVBase):
 
         self.set_rectangularity(force=True)
 
+        print(
+            "blt_ordEr",
+            self.blt_order,
+            self.time_array,
+            self.Ntimes,
+            self.Nbls,
+            self.Nblts,
+            self.blts_are_rectangular,
+        )
         # check if object is self-consistent
         if run_check:
             self.check(
