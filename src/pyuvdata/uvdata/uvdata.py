@@ -5009,6 +5009,7 @@ class UVData(UVBase):
                 new_uvw = np.repeat(new_uvw, self.Ntimes, axis=0)
             else:
                 new_uvw = np.tile(new_uvw, (self.Ntimes, 1))
+
         else:
             new_uvw = phs_utils.calc_uvw(
                 app_ra=self.phase_center_app_ra,
@@ -7869,6 +7870,12 @@ class UVData(UVBase):
             inds_to_keep = np.array(inds_to_keep, dtype=np.int64)
         else:
             inds_to_keep = np.array([], dtype=bool)
+
+        # we don't know the order now (because we just messed with it), and in harmonize
+        # it sets rectangularity, which gets the wrong behavior if blt_order is wrong.
+        # So we set it to None, so that it doesn't say the wrong thing (we reorder
+        # properly below).
+        self.blt_order = None
         self._harmonize_resample_arrays(
             inds_to_keep=inds_to_keep,
             temp_baseline=temp_baseline,
@@ -7880,7 +7887,6 @@ class UVData(UVBase):
             temp_nsample=temp_nsample,
             astrometry_library=astrometry_library,
         )
-
         if phased:
             print("Undoing phasing.")
             if initial_unprojected:
