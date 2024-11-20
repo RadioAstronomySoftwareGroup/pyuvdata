@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- New keyword `check_kw` to `new_uvdata` that lets the user specify options to the
+checking of the created object.
+- New keyword `all_times_unique` to `calc_app_coords` that short-cuts the calculation
+when it is known that all input times are unique.
 - New convenience methods on `BeamInterface` to simplify the handling of analytic vs UVBeam objects.
 - Added support for partial read for MWA correlator FITS files.
 - Added `antenna_names`, `time_range`, `lsts` and `lst_range` parameters to
@@ -12,14 +16,6 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Made it possible to *not* return the `interp_basis_vector` array from beam
 interpolators.
-
-### Added
-- New keyword `check_kw` to `new_uvdata` that lets the user specify options to the
-checking of the created object.
-- New keyword `all_times_unique` to `calc_app_coords` that short-cuts the calculation
-when it is known that all input times are unique.
-
-
 
 ### Fixed
 - Initialization of analytic beams with single feed.
