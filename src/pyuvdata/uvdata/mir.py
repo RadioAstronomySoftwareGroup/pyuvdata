@@ -884,6 +884,7 @@ class Mir(UVData):
             # One final step -- there is a special mode for SMA known as "on-the-fly"
             # mapping, which has to be specially handled due to how observations are
             # conducted (namely that the phase center remains static).
+            warnings.warn("SMA OTF detected, adjusting phase centers.")
             otf_mask = obs_mode == 3
 
             # Derive the UVWs for the center position
