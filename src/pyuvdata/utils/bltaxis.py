@@ -194,11 +194,11 @@ def determine_rectangularity(
     vice versa. This does NOT require that the baselines and times are sorted within
     that structure.
 
-    Note that blt_order being (time, baseline) or vice versa does *not* guarantee
+    Note that blt_order being (time, baseline) does *not* guarantee
     rectangularity, even when Nblts == Nbls * Ntimes, since if `autos_first = True` is
     set on `reorder_blts`, then it will still set the blt_order attribute to
     (time, baseline), but they will not strictly be in that order (since it will
-    actually be in autos first order).
+    actually be in autos-first order).
     """
     # check if the data is rectangular
     time_first = True
@@ -210,13 +210,11 @@ def determine_rectangularity(
         return True, True
     elif ntimes == 1:
         return True, False
-    # Note that the opposite isn't true: time/baseline ordering does not always mean
-    # that we have rectangularity, because of the autos_first keyword to reorder_blts.
     elif blt_order == ("baseline", "time"):
+        # Note that the opposite isn't true: time/baseline ordering does not always mean
+        # that we have rectangularity, because of the autos_first keyword to
+        # reorder_blts.
         return True, True
-
-    # elif blt_order == ("time", "baseline"):
-    #     return True, False
 
     # That's all the easiest checks.
     if time_array[1] == time_array[0]:
