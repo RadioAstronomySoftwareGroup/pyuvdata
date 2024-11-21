@@ -3997,7 +3997,8 @@ class UVBeam(UVBase):
         h5filepath : str
             path to input h5 file containing the MWA full embedded element spherical
             harmonic modes. Download via
-            `wget http://cerberus.mwa128t.org/mwa_full_embedded_element_pattern.h5`
+            `wget http://ws.mwatelescope.org/static/mwa_full_embedded_element_pattern.h5`
+            (This reader is based on https://github.com/MWATelescope/mwa_pb).
         use_future_array_shapes : bool
             Defunct option, will result in an error in version 3.2.
         delays : array of ints
