@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.1.2] - 2024-11-21
+
 ### Added
 - New keyword `check_kw` to `new_uvdata` that lets the user specify options to the
 checking of the created object.
