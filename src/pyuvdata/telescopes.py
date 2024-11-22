@@ -88,6 +88,14 @@ _KNOWN_TELESCOPES = {
         "citation": "OVRO Sharepoint Documentation",
     },
     "MWA": {"antenna_positions_file": "mwa_ant_pos.csv"},
+    "ATA": {
+        "location": EarthLocation.from_geodetic(
+            lat=Angle("40d49m02.75s"),
+            lon=Angle("-121d28m14.65s"),
+            height=1019.222 * units.m,
+        ),
+        "antenna_diameters": 6.1,
+    },
 }
 
 
