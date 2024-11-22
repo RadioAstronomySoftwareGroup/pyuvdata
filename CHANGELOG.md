@@ -3,6 +3,9 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- ATA has been added to the list of known telescopes.
+
 ## [3.1.2] - 2024-11-21
 
 ### Added
