@@ -665,7 +665,7 @@ class Telescope(UVBase):
                 overwrite or self.antenna_diameters is None
             ):
                 antenna_diameters = np.atleast_1d(telescope_dict["antenna_diameters"])
-                if antenna_diameters.size == 1:
+                if antenna_diameters.size == 1 and self.Nants is not None:
                     known_telescope_list.append("antenna_diameters")
                     self.antenna_diameters = (
                         np.zeros(self.Nants, dtype=float) + antenna_diameters[0]
