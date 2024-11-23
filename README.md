@@ -101,6 +101,7 @@ as many telescopes as possible.
 * VLA
 * ATCA
 * SMA
+* ATA
 
 # Versioning
 We use a `generation.major.minor` version number format. We use the `generation`
