@@ -53,7 +53,7 @@ while "" in astropy_sites:
 
 # Using set here is a quick way to drop duplicate entries
 expected_known_telescopes = list(
-    set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA"])
+    set(astropy_sites + ["PAPER", "HERA", "SMA", "SZA", "OVRO-LWA", "ATA"])
 )
 
 
