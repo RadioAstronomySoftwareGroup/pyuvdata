@@ -1438,8 +1438,8 @@ class MirParser:
                     )
                 except KeyError:
                     warnings.warn(
-                        "No tsys for blhid %i found (%i-%i baseline, inhid %i). "
-                        "Baseline record will be flagged." % (blhid, jdx, ldx, idx)
+                        f"No tsys for blhid {blhid} found ({jdx}-{ldx} baseline, "
+                        f"inhid {idx}). Baseline record will be flagged."
                     )
 
             if invert:
@@ -4094,7 +4094,7 @@ class MirParser:
                 rx_code = np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
                 rx_name = self.codes_data["rec"][rx_code]
                 if rx_name not in ("230", "345"):
-                    raise ValueError("Receiver code %i not recognized." % rx_code)
+                    raise ValueError(f"Receiver code {rx_code} not recognized.")
 
                 freq_shift *= 2 if (rx_name == "230") else 3
                 # We have to do a bit of special handling for the so-called "RxB"

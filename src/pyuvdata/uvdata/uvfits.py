@@ -1416,9 +1416,9 @@ class UVFITS(UVData):
         fits_tables = [hdu, ant_hdu]
         # If needed, add the FQ table
         if self.Nspws > 1:
-            fmt_d = "%iD" % self.Nspws
-            fmt_e = "%iE" % self.Nspws
-            fmt_j = "%iJ" % self.Nspws
+            fmt_d = f"{self.Nspws}D"
+            fmt_e = f"{self.Nspws}E"
+            fmt_j = f"{self.Nspws}J"
 
             # TODO Karto: Temp implementation until we fix some other things in UVData
             if_freq = start_freq_array - ref_freq
@@ -1445,9 +1445,9 @@ class UVFITS(UVData):
             fits_tables.append(fq_hdu)
 
         # Always write the SU table
-        fmt_d = "%iD" % self.Nspws
-        fmt_e = "%iE" % self.Nspws
-        fmt_j = "%iJ" % self.Nspws
+        fmt_d = f"{self.Nspws}D"
+        fmt_e = f"{self.Nspws}E"
+        fmt_j = f"{self.Nspws}J"
 
         int_zeros = np.zeros(self.Nphase, dtype=int)
         flt_zeros = np.zeros(self.Nphase, dtype=np.float64)

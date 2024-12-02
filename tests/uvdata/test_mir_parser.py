@@ -744,7 +744,7 @@ def test_apply_tsys_warn(mir_data):
     with check_warnings(
         UserWarning,
         [
-            ("No tsys for blhid %i found (1-4 baseline, inhid 1)." % idx)
+            (f"No tsys for blhid {idx} found (1-4 baseline, inhid 1).")
             for idx in range(1, 5)
         ],
     ):

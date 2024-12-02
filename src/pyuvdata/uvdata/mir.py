@@ -131,9 +131,7 @@ class Mir(UVData):
                 select_where += [("tel1", "eq", antenna_names)]
                 select_where += [("tel2", "eq", antenna_names)]
             if bls is not None:
-                select_where += [
-                    ("blcd", "eq", ["%i-%i" % (tup[0], tup[1]) for tup in bls])
-                ]
+                select_where += [("blcd", "eq", [f"{tup[0]}-{tup[1]}" for tup in bls])]
             if time_range is not None:
                 # Have to convert times from UTC JD -> TT MJD for mIR
                 select_where += [
@@ -438,9 +436,10 @@ class Mir(UVData):
             ):
                 if not np.allclose(val, mir_data.sp_data[item][data_mask]):
                     warnings.warn(
-                        "Discrepancy in %s for win %i sb %i pol %i. Values of "
-                        "`freq_array` and `channel_width` should be checked for "
-                        "channels corresponding to spw_id %i." % (item, *spdx, spw_id)
+                        f"Discrepancy in {item} for win {spdx[0]} sb {spdx[1]} "
+                        f"pol {spdx[2]}. Values of `freq_array` and `channel_width` "
+                        "should be checked for channels corresponding to spw_id "
+                        f"{spw_id}."
                     )
 
             # Get the data in the right units and dtype
@@ -530,7 +529,7 @@ class Mir(UVData):
         self.telescope = Telescope()
         self._set_telescope_requirements()
         self.telescope.Nants = 8
-        self.telescope.antenna_names = ["Ant%i" % idx for idx in range(1, 9)]
+        self.telescope.antenna_names = [f"Ant{idx}" for idx in range(1, 9)]
         self.telescope.antenna_numbers = np.arange(1, 9)
 
         # Prepare the XYZ coordinates of the antenna positions.
