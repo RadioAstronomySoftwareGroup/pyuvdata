@@ -2947,13 +2947,8 @@ class MirAntposData(MirMetaData):
         with open(filepath, "a" if append_data else "w+") as file:
             for antpos in self._data[datamask]:
                 file.write(
-                    "%i %.17e %.17e %.17e\n"
-                    % (
-                        antpos["antenna"],
-                        antpos["xyz_pos"][0],
-                        antpos["xyz_pos"][1],
-                        antpos["xyz_pos"][2],
-                    )
+                    f"{antpos['antenna']} {antpos['xyz_pos'][0]:.17e} "
+                    f"{antpos['xyz_pos'][1]:.17e} {antpos['xyz_pos'][2]:.17e}\n"
                 )
 
 

@@ -213,7 +213,7 @@ def _rotate_matmul_wrapper(*, xyz_array, rot_matrix, n_rot):
     # Do a quick check to make sure that things look sensible
     if rot_matrix.shape != (n_rot, 3, 3):
         raise ValueError(
-            "rot_matrix must be of shape (n_rot, 3, 3), where n_rot=%i." % n_rot
+            f"rot_matrix must be of shape (n_rot, 3, 3), where n_rot={n_rot}."
         )
     if (xyz_array.ndim == 3) and (
         (xyz_array.shape[0] not in [1, n_rot]) or (xyz_array.shape[-2] != 3)

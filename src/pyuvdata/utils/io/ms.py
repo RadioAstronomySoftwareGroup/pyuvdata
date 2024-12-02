@@ -1321,7 +1321,7 @@ def write_ms_spectral_window(
             ch_mask = ... if id_array is None else id_array == spw_id
             sw_table.addrows()
             sw_table.putcell("NUM_CHAN", idx, np.sum(ch_mask))
-            sw_table.putcell("NAME", idx, "SPW%d" % spw_id)
+            sw_table.putcell("NAME", idx, f"SPW{spw_id}")
             sw_table.putcell("ASSOC_SPW_ID", idx, spw_id)
             sw_table.putcell("ASSOC_NATURE", idx, "")  # Blank for now
             sw_table.putcell("CHAN_FREQ", idx, freq_array[ch_mask])
