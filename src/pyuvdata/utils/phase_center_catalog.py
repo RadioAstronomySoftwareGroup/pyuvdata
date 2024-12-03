@@ -161,6 +161,25 @@ def look_in_catalog(
         "cat_vrad": default_tols,
     }
 
+    typenonfields_dict = {
+        "sidereal": [
+            "cat_times",
+        ],
+        "ephem": [
+            "cat_pm_ra",
+            "cat_pm_dec",
+        ],
+        "unprojected": [
+            "cat_frame",
+            "cat_pm_ra",
+            "cat_pm_dec",
+            "cat_times",
+            "cat_dist",
+            "cat_vrad",
+        ],
+    }
+    typenonfields_dict["driftscan"] = typenonfields_dict["unprojected"]
+
     if target_cat_id is not None:
         if target_cat_id not in phase_center_catalog:
             raise ValueError(f"No phase center with ID number {target_cat_id}.")
@@ -196,7 +215,13 @@ def look_in_catalog(
                             tol_dict[key][1],
                         )
             else:
-                cat_diffs += check_dict[key] is not None
+                check_type = check_dict.get("cat_type")
+                check_value = None
+                # if type is known, avoid unrelated fields
+                if (check_type is None) or (key not in typenonfields_dict[check_type]):
+                    check_value = check_dict[key]
+                cat_diffs += check_value is not None
+
         if (cat_diffs == 0) or (cat_name == name):
             if cat_diffs < match_diffs:
                 # If our current match is an improvement on any previous matches,
