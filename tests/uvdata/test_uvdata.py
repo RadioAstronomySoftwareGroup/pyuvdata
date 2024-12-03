@@ -1612,6 +1612,11 @@ def test_select_bls(casa_uvfits, sel_type):
     first_ants = [7, 3, 8, 3, 22, 28, 9]
     second_ants = [1, 21, 9, 2, 3, 4, 23]
     pols = ["RR", "RR", "RR", "RR", "RR", "RR", "RR"]
+
+    if sel_type == "antpairpol":
+        # Also test that reading different pols at the same time works.
+        pols[-1] = "LL"
+
     new_unique_ants = np.unique(first_ants + second_ants)
     ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
     sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
@@ -1675,9 +1680,7 @@ def test_select_bls(casa_uvfits, sel_type):
         assert pair in sorted_pairs_to_keep
 
     if sel_type == "antpairpol":
-        assert uv_object2.Npols == 1
-    if sel_type == "2_3_tuple":
-        assert uv_object2.Npols == 1
+        assert uv_object2.Npols == 2
 
     assert utils.history._check_histories(
         old_history + f"  Downselected to specific {sel_str} using pyuvdata.",
