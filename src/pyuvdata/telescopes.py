@@ -95,7 +95,7 @@ _KNOWN_TELESCOPES = {
             height=1019.222 * units.m,
         ),
         "antenna_diameters": 6.1,
-        "citation": "Private communication (2024)",
+        "citation": "Private communication (D. DeBoer to G. Keating; 2024)",
     },
 }
 
