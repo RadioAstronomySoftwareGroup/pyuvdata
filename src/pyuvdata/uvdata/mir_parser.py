@@ -4091,7 +4091,9 @@ class MirParser:
             # If we need to "fix" the values, do it now.
             if (fix_freq is None and (self.codes_data["filever"] == ["4"])) or fix_freq:
                 # Figure out which receiver this is.
-                rx_code = np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
+                rx_code = int(
+                    np.median(self.bl_data["irec"][self.bl_data["ant1rx"] == 0])
+                )
                 rx_name = self.codes_data["rec"][rx_code]
                 if rx_name not in ("230", "345"):
                     raise ValueError(f"Receiver code {rx_code} not recognized.")
