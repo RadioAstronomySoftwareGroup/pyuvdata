@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 ### Added
 - ATA has been added to the list of known telescopes.
 
+### Fixed
+- Bug in selecting baselines on a UVData object using `bls` keyword with 3-tuples and
+more than one polarization (introduced in 3.1.2).
+
 ## [3.1.2] - 2024-11-21
 
 ### Added
