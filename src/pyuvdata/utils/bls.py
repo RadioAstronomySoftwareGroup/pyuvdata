@@ -423,6 +423,7 @@ def _extract_bls_pol(
             )
 
         bls_2 = copy.deepcopy(bls)
+        bl_pols = set()
         for bl_i, bl in enumerate(bls):
             if len(bl) != 3:
                 raise ValueError("If some bls are 3-tuples, all bls must be 3-tuples.")
@@ -432,7 +433,6 @@ def _extract_bls_pol(
                     "The third element in a bl tuple must be a polarization string"
                 )
 
-            bl_pols = set()
             wh1 = np.where(np.logical_and(ant_1_array == bl[0], ant_2_array == bl[1]))[
                 0
             ]
@@ -454,6 +454,6 @@ def _extract_bls_pol(
                         "associated with it."
                     )
 
-            polarizations = list(bl_pols)
+        polarizations = list(bl_pols)
         bls = bls_2
     return bls, polarizations
