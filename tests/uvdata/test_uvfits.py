@@ -136,10 +136,11 @@ def test_read_nrao(casa_uvfits):
 @pytest.mark.filterwarnings("ignore:ITRF coordinate frame detected")
 @pytest.mark.filterwarnings("ignore:Telescope OVRO_MMA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_time_precision(tmp_path):
+@pytest.mark.parametrize("uvw_double", [True, False])
+def test_group_param_precision(tmp_path, uvw_double):
     """
-    This tests that the times are round-tripped through write/read uvfits to sufficient
-    precision.
+    This tests that the times and uvws are round-tripped through write/read
+    uvfits to sufficient precision.
     """
     pytest.importorskip("casacore")
     lwa_file = os.path.join(
@@ -149,7 +150,7 @@ def test_time_precision(tmp_path):
     uvd.read(lwa_file)
 
     testfile = os.path.join(tmp_path, "lwa_testfile.uvfits")
-    uvd.write_uvfits(testfile)
+    uvd.write_uvfits(testfile, uvw_double=uvw_double)
 
     uvd2 = UVData()
     uvd2.read(testfile)
@@ -167,6 +168,11 @@ def test_time_precision(tmp_path):
         rtol=uvd2._lst_array.tols[0],
         atol=uvd2._lst_array.tols[1],
     )
+
+    if uvw_double:
+        np.testing.assert_allclose(uvd.uvw_array, uvd2.uvw_array, rtol=0, atol=1e-13)
+    else:
+        assert not np.allclose(uvd.uvw_array, uvd2.uvw_array, rtol=0, atol=1e-13)
 
     # The incoming ra is specified as negative, it gets 2pi added to it in the roundtrip
     uvd2.phase_center_catalog[1]["cat_lon"] -= 2 * np.pi
