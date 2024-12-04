@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Option to write the uvw_array as double precision in UVFITS files even when
+the data array are single precision. Default is set to write them as doubles.
 - ATA has been added to the list of known telescopes.
 
 ### Fixed
