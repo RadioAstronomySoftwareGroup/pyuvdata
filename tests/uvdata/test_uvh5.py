@@ -415,6 +415,27 @@ def test_uvh5_compression_options(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_addition(casa_uvfits, tmp_path):
+    testfile = os.path.join(tmp_path, "uv_test_addition.uvh5")
+
+    casa_uvfits.phase(
+        lon=casa_uvfits.phase_center_catalog[0]["cat_lon"],
+        lat=casa_uvfits.phase_center_catalog[0]["cat_lat"],
+        phase_frame="icrs",
+        cat_type="sidereal",
+        cat_name=casa_uvfits.phase_center_catalog[0]["cat_name"],
+    )
+    casa_uvfits.write_uvh5(testfile, clobber=True)
+    uv = UVData()
+    uv.read(testfile)
+    uv + uv.copy()
+
+    os.remove(testfile)
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_read_multiple_files(casa_uvfits, tmp_path):
     """
     Test reading multiple uvh5 files.
