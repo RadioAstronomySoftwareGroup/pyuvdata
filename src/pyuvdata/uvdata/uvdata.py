@@ -11395,20 +11395,7 @@ class UVData(UVBase):
         )
         del ms_obj
 
-    def write_uvfits(
-        self,
-        filename,
-        *,
-        write_lst=True,
-        force_phase=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=False,
-        use_miriad_convention=False,
-    ):
+    def write_uvfits(self, filename: str, **kwargs):
         """
         Write the data to a uvfits file.
 
@@ -11424,29 +11411,16 @@ class UVData(UVBase):
             The uvfits file to write to.
         write_lst : bool
             Option to write the LSTs to the metadata (random group parameters).
-        force_phase:  : bool
+            Default is True.
+        force_phase : bool
             Option to automatically phase unprojected data to zenith of the first
-            timestamp.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            after before writing the file (the default is True,
-            meaning the check will be run).
-        check_extra : bool
-            Option to check optional parameters as well as required ones (the
-            default is True, meaning the optional parameters will be checked).
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file (the default is True, meaning the acceptable
-            range check will be done).
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
+            timestamp. Default is False.
+        uvw_double : bool
+            Option to write uvws at double precision if data array is single
+            precision (if data array is double precision uvws are always written
+            at double precision). This requires writing the uvws out into two
+            identically named parameters to be added together on read (the same
+            mechanism that is used for times in uvfits). Default is True.
         use_miriad_convention : bool
             Option to use the MIRIAD baseline convention, and write to BASELINE column.
             This mode is required for UVFITS files with >256 antennas to be
@@ -11455,16 +11429,35 @@ class UVData(UVBase):
             `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
             `bl = 2048 * ant1 + ant2 + 2**16`.
             Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
+            Default is False.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            before writing the file. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+            Default is True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters before
+            writing the file. Default is True.
+        strict_uvw_antpos_check : bool
+            Option to raise an error rather than a warning if the check that
+            uvws match antenna positions does not pass. Default is False.
+        check_autos : bool
+            Check whether any auto-correlations have non-zero imaginary values in
+            data_array (which should not mathematically exist). Default is True.
+        fix_autos : bool
+            If auto-correlations with imaginary values are found, fix those values so
+            that they are real-only in data_array. Default is False.
 
         Raises
         ------
         ValueError
-            Any blts are unprojected and `force_phase` keyword is not set.
+            The object contains unprojected data and `force_phase` keyword is not set.
             If the frequencies are not evenly spaced or are separated by more
             than their channel width.
             The polarization values are not evenly spaced.
-            If the `timesys` parameter is not set to "UTC".
             If the UVData object is a metadata only object.
+            If the `timesys` parameter is set to anything other than "UTC" or None.
         TypeError
             If any entry in extra_keywords is not a single string or number.
 
@@ -11484,18 +11477,7 @@ class UVData(UVBase):
             uvfits_obj = uvfits_obj.copy()
             uvfits_obj.remove_flex_pol()
 
-        uvfits_obj.write_uvfits(
-            filename,
-            write_lst=write_lst,
-            force_phase=force_phase,
-            run_check=run_check,
-            check_extra=check_extra,
-            run_check_acceptability=run_check_acceptability,
-            strict_uvw_antpos_check=strict_uvw_antpos_check,
-            check_autos=check_autos,
-            fix_autos=fix_autos,
-            use_miriad_convention=use_miriad_convention,
-        )
+        uvfits_obj.write_uvfits(filename, **kwargs)
         del uvfits_obj
 
     def write_uvh5(

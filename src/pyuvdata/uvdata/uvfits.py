@@ -802,76 +802,23 @@ class UVFITS(UVData):
                 fix_autos=fix_autos,
             )
 
+    @copy_replace_short_description(UVData.write_uvfits, style=DocstringStyle.NUMPYDOC)
     def write_uvfits(
         self,
-        filename,
+        filename: str,
         *,
-        write_lst=True,
-        force_phase=False,
-        run_check=True,
-        check_extra=True,
-        run_check_acceptability=True,
-        strict_uvw_antpos_check=False,
-        check_autos=True,
-        fix_autos=False,
-        use_miriad_convention=False,
+        write_lst: bool = True,
+        force_phase: bool = False,
+        uvw_double: bool = True,
+        use_miriad_convention: bool = False,
+        run_check: bool = True,
+        check_extra: bool = True,
+        run_check_acceptability: bool = True,
+        strict_uvw_antpos_check: bool = False,
+        check_autos: bool = True,
+        fix_autos: bool = False,
     ):
-        """
-        Write the data to a uvfits file.
-
-        If using this method to write out a data set for import into CASA, users should
-        be aware that the `importuvifts` task does not currently support reading in
-        data sets where the number of antennas is > 255. If writing out such a data set
-        for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
-        instead.
-
-        Parameters
-        ----------
-        filename : str
-            The uvfits file to write to.
-        write_lst : bool
-            Option to write the LSTs to the metadata (random group parameters).
-        force_phase : bool
-            Option to automatically phase drift scan data to zenith of the first
-            timestamp.
-        run_check : bool
-            Option to check for the existence and proper shapes of parameters
-            before writing the file.
-        check_extra : bool
-            Option to check optional parameters as well as required ones.
-        run_check_acceptability : bool
-            Option to check acceptable range of the values of parameters before
-            writing the file.
-        strict_uvw_antpos_check : bool
-            Option to raise an error rather than a warning if the check that
-            uvws match antenna positions does not pass.
-        check_autos : bool
-            Check whether any auto-correlations have non-zero imaginary values in
-            data_array (which should not mathematically exist). Default is True.
-        fix_autos : bool
-            If auto-correlations with imaginary values are found, fix those values so
-            that they are real-only in data_array. Default is False.
-        use_miriad_convention : bool
-            Option to use the MIRIAD baseline convention, and write to BASELINE column.
-            This mode is required for UVFITS files with >256 antennas to be
-            readable by MIRIAD, and supports up to 2048 antennas.
-            The MIRIAD baseline ID is given by
-            `bl = 256 * ant1 + ant2` if `ant2 < 256`, otherwise
-            `bl = 2048 * ant1 + ant2 + 2**16`.
-            Note MIRIAD uses 1-indexed antenna IDs, but this code accepts 0-based.
-
-        Raises
-        ------
-        ValueError
-            The object contains unprojected data and `force_phase` keyword is not set.
-            If the frequencies are not evenly spaced or are separated by more
-            than their channel width.
-            The polarization values are not evenly spaced.
-            If the `timesys` parameter is set to anything other than "UTC" or None.
-        TypeError
-            If any entry in extra_keywords is not a single string or number.
-
-        """
+        """Write data to a uvfits file."""
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -1108,12 +1055,13 @@ class UVFITS(UVData):
             pscal_dict["DATE2   "] = 1.0
             pzero_dict["DATE2   "] = 0.0
             parnames_use.append("DATE2   ")
-            for ind, name in enumerate(["UU", "VV", "WW"]):
-                keyname = name + "2     "
-                group_parameter_dict[keyname] = uvw_array2[:, ind]
-                pscal_dict[keyname] = 1.0
-                pzero_dict[keyname] = 0.0
-                parnames_use.append(keyname)
+            if uvw_double:
+                for ind, name in enumerate(["UU", "VV", "WW"]):
+                    keyname = name + "2     "
+                    group_parameter_dict[keyname] = uvw_array2[:, ind]
+                    pscal_dict[keyname] = 1.0
+                    pzero_dict[keyname] = 0.0
+                    parnames_use.append(keyname)
 
         if use_miriad_convention or (
             np.max(ant1_array_use) < 255 and np.max(ant2_array_use) < 255
@@ -1144,9 +1092,10 @@ class UVFITS(UVData):
             # add second date part
             parnames_write = copy.deepcopy(parnames_use)
             parnames_write[parnames_write.index("DATE2   ")] = "DATE    "
-            parnames_write[parnames_write.index("UU2     ")] = "UU      "
-            parnames_write[parnames_write.index("VV2     ")] = "VV      "
-            parnames_write[parnames_write.index("WW2     ")] = "WW      "
+            if uvw_double:
+                parnames_write[parnames_write.index("UU2     ")] = "UU      "
+                parnames_write[parnames_write.index("VV2     ")] = "VV      "
+                parnames_write[parnames_write.index("WW2     ")] = "WW      "
             if write_lst:
                 # add second LST array part
                 parnames_use.append("LST2    ")
