@@ -24,6 +24,8 @@ def look_in_catalog(
     cat_pm_dec=None,
     cat_dist=None,
     cat_vrad=None,
+    cat_dist_units="pc",
+    cat_near_field=False,
     ignore_name=False,
     target_cat_id=None,
     phase_dict=None,
@@ -83,6 +85,10 @@ def look_in_catalog(
         Radial velocity of the source, in units of km/s. Only used for sidereal and
         ephem phase centers. Expected to be a float for sidereal and driftscan phase
         centers, and an ndarray of floats of shape (Npts,) for ephem phase centers.
+    cat_dist_units : str
+        Units to interpret the cat_dist parameter in. Defaults to parsecs.
+    cat_near_field : bool
+        Whether or not near-field corrections have been applied. Defaults to False.
     ignore_name : bool
         Nominally, this method will only look at entries where `cat_name`
         matches the name of an entry in the catalog. However, by setting this to
@@ -146,6 +152,8 @@ def look_in_catalog(
             "cat_pm_dec": cat_pm_dec,
             "cat_dist": cat_dist,
             "cat_vrad": cat_vrad,
+            "cat_dist_units": cat_dist_units,
+            "cat_near_field": cat_near_field,
         }
 
     tol_dict = {
@@ -159,6 +167,8 @@ def look_in_catalog(
         "cat_pm_dec": default_tols,
         "cat_dist": default_tols,
         "cat_vrad": default_tols,
+        "cat_dist_units": None,
+        "cat_near_field": None,
     }
 
     if target_cat_id is not None:
