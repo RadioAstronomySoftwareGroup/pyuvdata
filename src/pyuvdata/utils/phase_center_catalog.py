@@ -196,7 +196,8 @@ def look_in_catalog(
                             tol_dict[key][1],
                         )
             else:
-                cat_diffs += check_dict[key] is not None
+                cat_diffs += check_dict.get(key) is not None
+
         if (cat_diffs == 0) or (cat_name == name):
             if cat_diffs < match_diffs:
                 # If our current match is an improvement on any previous matches,
