@@ -7,12 +7,12 @@ All notable changes to this project will be documented in this file.
 - ATA has been added to the list of known telescopes.
 
 ### Fixed
-- Bug in selecting baselines on a UVData object using `bls` keyword with 3-tuples and
-more than one polarization (introduced in 3.1.2).
 - Bug in the `look_in_catalog` utility function that expected keys which could be
 optional for some phase-center catalog-entry types. This was noticed as an issue when
 adding two uvh5 objects that were of type "sidereal" which did not have "cat_times"
 entries in their phase-center catalogs.
+- Bug in selecting baselines on a UVData object using `bls` keyword with 3-tuples and
+more than one polarization (introduced in 3.1.2).
 
 ## [3.1.2] - 2024-11-21
 
