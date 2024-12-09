@@ -23,6 +23,7 @@ def test_generate_new_phase_center_id_errs():
         ps_cat_utils.generate_new_phase_center_id(cat_id=1, reserved_ids=[1, 2, 3])
 
 
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_look_in_catalog_missing_entries():
     casa_uvfits = UVData()
     casa_uvfits.read(casa_tutorial_uvfits)
