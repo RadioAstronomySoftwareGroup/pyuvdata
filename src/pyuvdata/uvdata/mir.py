@@ -910,8 +910,6 @@ class Mir(UVData):
                 telescope_loc=self.telescope.location,
             )
 
-            self.phase_center_catalog[1]["cat_lon"] = icrs_ra[0]
-            self.phase_center_catalog[1]["cat_lat"] = icrs_dec[0]
             off_coord = SkyCoord(
                 icrs_ra, icrs_dec, unit="rad", frame="icrs"
             ).spherical_offsets_by(off_ra * u.arcsec, off_dec * u.arcsec)
@@ -966,7 +964,8 @@ class Mir(UVData):
                 cat_id = self.phase_center_id_array[inhid_mask][0]
                 cat_dict = self.phase_center_catalog[cat_id]
 
-                # Add a new phase center, reclassify the cat_id
+                # Add a new phase center, reclassify the cat_id, and force-generate
+                # a new catalog ID without checking existing entries.
                 cat_id = self._add_phase_center(
                     cat_name=cat_dict["cat_name"],
                     cat_type=cat_dict["cat_type"],
@@ -975,6 +974,7 @@ class Mir(UVData):
                     cat_frame="icrs",
                     info_source="pyuvdata-generated (OTF)",
                     raise_warning=False,
+                    force_update=True,
                 )
 
                 # Plug in the new cat_id into the phase_center_id_array
