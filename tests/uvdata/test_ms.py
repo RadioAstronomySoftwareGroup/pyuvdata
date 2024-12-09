@@ -666,13 +666,7 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
                 select_mask=miriad_uv.phase_center_id_array == cat_id[0],
             )
 
-        with check_warnings(
-            UserWarning,
-            match=[
-                "The entry name NOISE is not unique",
-                "The provided name NOISE is already used",
-            ],
-        ):
+        with check_warnings(UserWarning, match="The entry name NOISE is not unique"):
             miriad_uv.phase(
                 lon=ra_use,
                 lat=dec_use,

@@ -807,14 +807,6 @@ class UVData(UVBase):
             info_source=info_source,
         )
 
-        # We want to create a unique ID for each source, for use in indexing arrays.
-        # The logic below ensures that we pick the lowest positive integer that is
-        # not currently being used by another source
-        if cat_id is None:
-            cat_id = utils.phase_center_catalog.generate_new_phase_center_id(
-                phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
-            )
-
         if self.phase_center_catalog is None:
             # Initialize an empty dict to plug entries into
             self.phase_center_catalog = {}
@@ -836,6 +828,14 @@ class UVData(UVBase):
                         "different parameters. Adding another entry with the same name "
                         "but a different ID and parameters."
                     )
+
+        # We want to create a unique ID for each source, for use in indexing arrays.
+        # The logic below ensures that we pick the lowest positive integer that is
+        # not currently being used by another source
+        if cat_id is None or not force_update:
+            cat_id = utils.phase_center_catalog.generate_new_phase_center_id(
+                phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
+            )
 
         # If source is unique, begin creating a dictionary for it
         self.phase_center_catalog[cat_id] = cat_entry

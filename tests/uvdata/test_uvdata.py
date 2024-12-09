@@ -1142,17 +1142,7 @@ def test_phasing(uv_phase_comp, unphase_first, use_ant_pos):
         warning_str = ""
         exp_warning = None
     else:
-        warning_str = [
-            (
-                "The entry name UVCeti is not unique inside the phase center catalog, "
-                "adding anyways"
-            ),
-            (
-                "The provided name UVCeti is already used but has different parameters."
-                " Adding another entry with the same name but a different ID and"
-                " parameters."
-            ),
-        ]
+        warning_str = "The entry name UVCeti is not unique inside the phase center"
         exp_warning = UserWarning
 
     if use_ant_pos:
