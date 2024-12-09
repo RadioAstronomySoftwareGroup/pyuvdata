@@ -1450,7 +1450,7 @@ class UVCal(UVBase):
         # We want to create a unique ID for each source, for use in indexing arrays.
         # The logic below ensures that we pick the lowest positive integer that is
         # not currently being used by another source
-        if cat_id is None or not force_update:
+        if cat_id is None:
             cat_id = utils.phase_center_catalog.generate_new_phase_center_id(
                 phase_center_catalog=self.phase_center_catalog, cat_id=cat_id
             )
@@ -1458,7 +1458,7 @@ class UVCal(UVBase):
         if self.phase_center_catalog is None:
             # Initialize an empty dict to plug entries into
             self.phase_center_catalog = {}
-        else:
+        elif not force_update:
             # Let's warn if this entry has the same name as an existing one
             temp_id, cat_diffs = utils.phase_center_catalog.look_in_catalog(
                 self.phase_center_catalog, phase_dict=cat_entry
