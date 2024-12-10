@@ -364,7 +364,10 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_addition(casa_uvfits, tmp_path):
-    testfile = os.path.join(tmp_path, "outtest_addition.uvh5")
+    testfiles = [
+        os.path.join(tmp_path, f"outtest_addition_{i}.uvh5")
+        for i in [1, 2]
+    ]
 
     casa_uvfits.phase(
         lon=casa_uvfits.phase_center_catalog[0]["cat_lon"],
@@ -378,15 +381,23 @@ def test_uvh5_addition(casa_uvfits, tmp_path):
             if key in value:
                 del value[key]
 
+    casa_uvfits_second = casa_uvfits.copy().select(
+        frequencies=casa_uvfits.freq_array[0:len(casa_uvfits.freq_array)//2]
+    )
+    casa_uvfits.select(
+        frequencies=casa_uvfits.freq_array[len(casa_uvfits.freq_array)//2:]
+    )
     # write out and read back in
-    casa_uvfits.write_uvh5(testfile, clobber=True)
+    casa_uvfits.write_uvh5(testfiles[0], clobber=True)
+    casa_uvfits_second.write_uvh5(testfiles[1], clobber=True)
     uv1, uv2 = UVData(), UVData()
-    uv1.read(testfile)
-    uv2.read(testfile)
+    uv1.read(testfiles[0])
+    uv2.read(testfiles[1])
 
     uv1 + uv2
     
-    os.remove(testfile)
+    os.remove(testfiles[0])
+    os.remove(testfiles[1])
 
     return
 
