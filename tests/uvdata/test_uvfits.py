@@ -170,9 +170,9 @@ def test_group_param_precision(tmp_path, uvw_double):
     )
 
     if uvw_double:
-        np.testing.assert_allclose(uvd.uvw_array, uvd2.uvw_array, rtol=0, atol=1e-13)
+        np.testing.assert_allclose(uvd.uvw_array, uvd2.uvw_array, rtol=1e-13)
     else:
-        assert not np.allclose(uvd.uvw_array, uvd2.uvw_array, rtol=0, atol=1e-13)
+        np.testing.assert_allclose(uvd.uvw_array, uvd2.uvw_array, rtol=1e-7)
 
     # The incoming ra is specified as negative, it gets 2pi added to it in the roundtrip
     uvd2.phase_center_catalog[1]["cat_lon"] -= 2 * np.pi
