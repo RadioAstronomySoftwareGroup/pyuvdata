@@ -363,6 +363,35 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_uvh5_addition(casa_uvfits, tmp_path):
+    testfile = os.path.join(tmp_path, "outtest_addition.uvh5")
+
+    casa_uvfits.phase(
+        lon=casa_uvfits.phase_center_catalog[0]["cat_lon"],
+        lat=casa_uvfits.phase_center_catalog[0]["cat_lat"],
+        phase_frame="icrs",
+        cat_type="sidereal",
+        cat_name=casa_uvfits.phase_center_catalog[0]["cat_name"],
+    )
+    for value in casa_uvfits.phase_center_catalog.values():
+        for key in ["cat_times", "info_source"]:
+            if key in value:
+                del value[key]
+
+    # write out and read back in
+    casa_uvfits.write_uvh5(testfile, clobber=True)
+    uv1, uv2 = UVData(), UVData()
+    uv1.read(testfile)
+    uv2.read(testfile)
+
+    uv1 + uv2
+    
+    os.remove(testfile)
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_compression_options(casa_uvfits, tmp_path):
     """
     Test writing data with compression filters.
