@@ -199,14 +199,17 @@ class MWABeam(UVBeam):
     This class should not be interacted with directly, instead use the
     read_mwa_beam method on the UVBeam class.
 
-    This is based on https://github.com/MWATelescope/mwa_pb/ but we don’t import
-    that module because it’s not python 3 compatible.
+    This is based on https://github.com/MWATelescope/mwa_pb/ but we don't import
+    that module because it's not python 3 compatible.
 
-    Note that the azimuth convention in for the UVBeam object is different than the
-    azimuth convention in the mwa_pb repo. In that repo, the azimuth convention is
-    changed from the native FEKO convention (the FEKO convention is the same as the
-    UVBeam convention). The convention in the mwa_pb repo has a different zero point
-    and a different direction (so it is in a left handed coordinate system).
+    Note that the azimuth convention for the UVBeam object is different than the
+    azimuth convention in the mwa_pb repo. In that repo, the azimuth convention
+    is changed from the native FEKO convention that the underlying data file is
+    in. The FEKO convention that the data file is in is the same as the UVBeam
+    convention, so we do not need to do a conversion here. The convention in the
+    mwa_pb repo is North through East, so it has a different zero point and a
+    different direction (so it is in a left handed coordinate system looking
+    down at the beam, a right handed coordinate system looking up at the sky).
 
     """
 
@@ -475,7 +478,10 @@ class MWABeam(UVBeam):
                 Sigma_P = np.inner(phi_comp, emn_P_sum)
                 Sigma_T = np.inner(phi_comp, emn_T_sum)
 
-                jones[pol_i, 0, freq_i] = -Sigma_P
+                # we do not want a minus sign on Sigma_P unlike in mwa_pb because
+                # that minus sign is associated with the coordinate conversion
+                # they do that we do not want.
+                jones[pol_i, 0, freq_i] = Sigma_P
                 jones[pol_i, 1, freq_i] = Sigma_T
 
         return jones
