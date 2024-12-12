@@ -79,21 +79,28 @@ that is attached to it is an analytic beam or a UVBeam.
   ...   dipole_beam_vals[0].real,
   ...   norm=LogNorm(vmin = 1e-4, vmax =1),
   ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
   ... )
   >>> _ = ax[0].set_title(f"E/W Dipole power beam")
-  >>> _ = ax[0].set_xlabel("direction cosine l")
-  >>> _ = ax[0].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(bp_dip, ax=ax[0], fraction=0.046, pad=0.04)
+  >>> _ = fig.colorbar(bp_dip, ax=ax[0], fraction=0.046, pad=0.04, location="left")
 
   >>> bp_mwa = ax[1].imshow(
   ...   mwa_beam_vals[0].real,
   ...   norm=LogNorm(vmin = 1e-4, vmax =1),
   ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
   ... )
   >>> _ = ax[1].set_title(f"MWA E/W power beam")
-  >>> _ = ax[1].set_xlabel("direction cosine l")
-  >>> _ = ax[1].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(bp_mwa, ax=ax[1], fraction=0.046, pad=0.04)
+  >>> _ = fig.colorbar(bp_mwa, ax=ax[1], fraction=0.046, pad=0.04, location="left")
+
+  >>> for ind in range(2):
+  ...   _ = ax[ind].set_xticks([0], labels=["North"])
+  ...   _ = ax[ind].set_yticks([0], labels=["East"])
+  ...   _ = ax[ind].yaxis.set_label_position("right")
+  ...   _ = ax[ind].yaxis.tick_right()
+  ...   _ = ax[ind].xaxis.set_label_position("top")
+  ...   _ = ax[ind].xaxis.tick_top()
+
   >>> fig.tight_layout()
   >>> plt.show()  # doctest: +SKIP
   >>> plt.savefig("Images/dipole_mwa_power.png", bbox_inches='tight')

@@ -69,21 +69,28 @@ are included, the array returned from the ``power_eval`` method will be complex.
   ...   beam_vals[0,0,0],
   ...   norm=LogNorm(vmin = 1e-8, vmax =1),
   ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
   ... )
   >>> _ = ax[0].set_title(f"Airy beam {freqs[0]*1e-6} MHz")
-  >>> _ = ax[0].set_xlabel("direction cosine l")
-  >>> _ = ax[0].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(bp_low, ax=ax[0], fraction=0.046, pad=0.04)
+  >>> _ = fig.colorbar(bp_low, ax=ax[0], fraction=0.046, pad=0.04, location="left")
 
   >>> bp_high = ax[1].imshow(
   ...   beam_vals[0,0,-1],
   ...   norm=LogNorm(vmin = 1e-8, vmax =1),
   ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
   ... )
   >>> _ = ax[1].set_title(f"Airy beam {freqs[-1]*1e-6} MHz")
-  >>> _ = ax[1].set_xlabel("direction cosine l")
-  >>> _ = ax[1].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(bp_high, ax=ax[1], fraction=0.046, pad=0.04)
+  >>> _ = fig.colorbar(bp_high, ax=ax[1], fraction=0.046, pad=0.04, location="left")
+
+  >>> for ind in range(2):
+  ...   _ = ax[ind].set_xticks([0], labels=["North"])
+  ...   _ = ax[ind].set_yticks([0], labels=["East"])
+  ...   _ = ax[ind].yaxis.set_label_position("right")
+  ...   _ = ax[ind].yaxis.tick_right()
+  ...   _ = ax[ind].xaxis.set_label_position("top")
+  ...   _ = ax[ind].xaxis.tick_top()
+
   >>> fig.tight_layout()
   >>> plt.show()  # doctest: +SKIP
   >>> plt.savefig("Images/airy_beam.png", bbox_inches='tight')
@@ -144,29 +151,46 @@ part, but in general E-Field beams can be complex, so a complex array is returne
 
   >>> fig, ax = plt.subplots(2, 2)
 
-  >>> be00 = ax[0,0].imshow(beam_vals[0,0,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be00 = ax[0,0].imshow(
+  ...   beam_vals[0,0,0].real,
+  ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
+  ... )
   >>> _ = ax[0,0].set_title("E/W dipole azimuth response")
-  >>> _ = ax[0,0].set_xlabel("direction cosine l")
-  >>> _ = ax[0,0].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(be00, ax=ax[0,0])
+  >>> _ = fig.colorbar(be00, ax=ax[0,0], location="left")
 
-  >>> be10 = ax[1,0].imshow(beam_vals[1,0,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be10 = ax[1,0].imshow(
+  ...   beam_vals[1,0,0].real,
+  ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
+  ... )
   >>> _ = ax[1,0].set_title("E/W dipole zenith angle response")
-  >>> _ = ax[1,0].set_xlabel("direction cosine l")
-  >>> _ = ax[1,0].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(be00, ax=ax[1,0])
+  >>> _ = fig.colorbar(be10, ax=ax[1,0], location="left")
 
-  >>> be01 = ax[0,1].imshow(beam_vals[0,1,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be01 = ax[0,1].imshow(
+  ...   beam_vals[0,1,0].real,
+  ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
+  ... )
   >>> _ = ax[0,1].set_title("N/S dipole azimuth response")
-  >>> _ = ax[0,1].set_xlabel("direction cosine l")
-  >>> _ = ax[0,1].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(be00, ax=ax[0,1])
+  >>> _ = fig.colorbar(be01, ax=ax[0,1], location="left")
 
-  >>> be11 = ax[1,1].imshow(beam_vals[1,1,0].real, extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)])
+  >>> be11 = ax[1,1].imshow(
+  ...   beam_vals[1,1,0].real,
+  ...   extent=[np.min(l_arr), np.max(l_arr), np.min(m_arr), np.max(m_arr)],
+  ...   origin="lower",
+  ... )
   >>> _ = ax[1,1].set_title("N/S dipole zenith angle response")
-  >>> _ = ax[1,1].set_xlabel("direction cosine l")
-  >>> _ = ax[1,1].set_ylabel("direction cosine m")
-  >>> _ = fig.colorbar(be00, ax=ax[1,1])
+  >>> _ = fig.colorbar(be11, ax=ax[1,1], location="left")
+
+  >>> for row_ind in range(2):
+  ...   for col_ind in range(2):
+  ...      _ = ax[row_ind,col_ind].set_xticks([0], labels=["North"])
+  ...      _ = ax[row_ind,col_ind].set_yticks([0], labels=["East"])
+  ...      _ = ax[row_ind,col_ind].yaxis.set_label_position("right")
+  ...      _ = ax[row_ind,col_ind].yaxis.tick_right()
+  ...      _ = ax[row_ind,col_ind].xaxis.set_label_position("top")
+  ...      _ = ax[row_ind,col_ind].xaxis.tick_top()
 
   >>> fig.tight_layout()
   >>> plt.show()  # doctest: +SKIP
