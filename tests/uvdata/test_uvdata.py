@@ -382,6 +382,8 @@ def dummy_phase_dict():
         "cat_vrad": 0.0,
         "info_source": "user",
         "cat_id": None,
+        "cat_dist_units": "pc",
+        "cat_near_field": False,
     }
 
     return dummy_dict
@@ -10841,6 +10843,7 @@ def test_phase_dict_helper_sidereal_lookup(sma_mir, dummy_phase_dict):
         lookup_name=True,
         time_array=None,
     )
+    print(sma_mir.phase_center_catalog)
     assert (
         phase_dict.pop("cat_id")
         == utils.phase_center_catalog.look_for_name(

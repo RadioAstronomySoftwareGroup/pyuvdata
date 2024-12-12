@@ -7,12 +7,13 @@ from copy import deepcopy
 import erfa
 import numpy as np
 from astropy import units
-from astropy.coordinates import Angle, Distance, EarthLocation, SkyCoord
+from astropy.coordinates import AltAz, Angle, Distance, EarthLocation, SkyCoord
 from astropy.time import Time
 from astropy.utils import iers
 
 from . import _phasing
 from .times import get_lst_for_time
+from .tools import _get_autocorrelations_mask, _nants_to_nblts, _ntimes_to_nblts
 
 try:
     from lunarsky import MoonLocation, SkyCoord as LunarSkyCoord, Time as LTime
@@ -2572,3 +2573,122 @@ def uvw_track_generator(
         "lst": lst_array,
         "site_loc": site_loc,
     }
+
+
+def _get_focus_xyz(uvd, focus, ra, dec):
+    """
+    Return the x,y,z coordinates of the focal point.
+
+    The focal point corresponds to the location of
+    the NEAR-FIELD object of interest in the MWA-centred
+    ENU frame at each timestep.
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object
+    focus : float
+        Focal distance of the array (km)
+    ra : float
+        Right ascension of the focal point ie phase center (deg; shape (Ntimes,))
+    dec : float
+        Declination of the focal point ie phase center (deg; shape (Ntimes,))
+
+    Returns
+    -------
+    x, y, z: ndarray, ndarray, ndarray
+        ENU-frame coordinates of the focal point (meters) (shape (Ntimes,))
+    """
+    # Obtain timesteps
+    timesteps = Time(np.unique(uvd.time_array), format="jd")
+
+    # Initialize sky-based coordinates using right ascension and declination
+    obj = SkyCoord(ra * units.deg, dec * units.deg)
+
+    # The centre of the ENU frame should be located at the MEDIAN position of the array
+    loc = uvd.telescope.location.itrs.cartesian.xyz.value
+    antpos = uvd.telescope.antenna_positions + loc
+    x, y, z = np.median(antpos, axis=0)
+
+    # Initialize EarthLocation object centred on MWA
+    mwa = EarthLocation(x, y, z, unit=units.m)
+
+    # Convert sky object to an AltAz frame centred on the MWA
+    obj = obj.transform_to(AltAz(obstime=timesteps, location=mwa))
+
+    # Obtain altitude and azimuth
+    theta, phi = obj.alt.to(units.rad), obj.az.to(units.rad)
+
+    # Obtain x,y,z ENU coordinates
+    x = focus * 1e3 * np.cos(theta) * np.sin(phi)
+    y = focus * 1e3 * np.cos(theta) * np.cos(phi)
+    z = focus * 1e3 * np.sin(theta)
+
+    return x, y, z
+
+
+def _get_delay(uvd, focus_x, focus_y, focus_z, flipconj):
+    """
+    Calculate near-field phase/delay along the Nblts axis.
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object
+    focus_x, focus_y, focus_z : ndarray, ndarray, ndarray
+        ENU-frame coordinates of focal point (Each of shape (Ntimes,))
+    flipconj : bool
+        Is the uvd conjugation scheme "flipped" compared to what pyuvdata expects?
+
+    Returns
+    -------
+    phi : ndarray
+        The phase correction to apply to each visibility along the Nblts axis
+    new_w : ndarray
+        The calculated near-field delay (or w-term) for each visibility along
+        the Nblts axis
+    """
+    # Get indices to convert between Nants and Nblts
+    ind1, ind2 = _nants_to_nblts(uvd)
+
+    # Antenna positions in ENU frame
+    antpos = uvd.telescope.get_enu_antpos()
+
+    # Get tile positions for each baseline
+    tile1 = antpos[ind1]  # Shape (Nblts, 3)
+    tile2 = antpos[ind2]  # Shape (Nblts, 3)
+
+    # Focus points have shape (Ntimes,); convert to shape (Nblts,)
+    t_inds = _ntimes_to_nblts(uvd)
+    (focus_x, focus_y, focus_z) = (focus_x[t_inds], focus_y[t_inds], focus_z[t_inds])
+
+    # Calculate distance from antennas to focal point
+    # for each visibility along the Nblts axis
+    r1 = np.sqrt(
+        (tile1[:, 0] - focus_x) ** 2
+        + (tile1[:, 1] - focus_y) ** 2
+        + (tile1[:, 2] - focus_z) ** 2
+    )
+    r2 = np.sqrt(
+        (tile2[:, 0] - focus_x) ** 2
+        + (tile2[:, 1] - focus_y) ** 2
+        + (tile2[:, 2] - focus_z) ** 2
+    )
+
+    # Get the uvw array along the Nblts axis; select only the w's
+    old_w = uvd.uvw_array[:, -1]
+
+    # Calculate near-field delay
+    if flipconj:
+        new_w = r2 - r1
+    else:
+        new_w = r1 - r2
+    phi = new_w - old_w
+
+    # Remove autocorrelations
+    mask = _get_autocorrelations_mask(uvd)
+
+    new_w = new_w * mask + old_w * (1 - mask)
+    phi = phi * mask
+
+    return phi, new_w  # Each of shape (Nblts,)
