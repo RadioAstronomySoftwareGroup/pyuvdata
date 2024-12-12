@@ -113,6 +113,18 @@ def test_mwa_orientation(mwa_beam_1ppd):
     max_za_response = np.max(np.abs(efield_beam.data_array[1, north_ind, 0, za_val, :]))
     assert max_az_response > max_za_response
 
+    # check the sign of the responses are as expected close to zenith
+    efield_beam = mwa_beam_1ppd
+    za_val = np.nonzero(np.isclose(power_beam.axis2_array, 2.0 * np.pi / 180))
+
+    # first check zenith angle aligned response
+    assert efield_beam.data_array[1, east_ind, 0, za_val, east_az] > 0
+    assert efield_beam.data_array[1, north_ind, 0, za_val, north_az] > 0
+
+    # then check azimuthal aligned response
+    assert efield_beam.data_array[0, north_ind, 0, za_val, east_az] > 0
+    assert efield_beam.data_array[0, east_ind, 0, za_val, north_az] < 0
+
 
 def test_freq_range(mwa_beam_1ppd):
     beam1 = mwa_beam_1ppd
