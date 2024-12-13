@@ -362,43 +362,20 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     return
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_uvh5_addition(casa_uvfits, tmp_path):
-    testfiles = [
-        os.path.join(tmp_path, f"outtest_addition_{i}.uvh5")
-        for i in [1, 2]
+def test_uvh5_addition():
+    inputfiles = [
+        os.path.join(
+            DATA_PATH, f"ata.LoA.C0{subband}.uvh5_60647_62965_9760406_3c286_0001.uvh5"
+        )
+        for subband in ["352", "544"]
     ]
 
-    casa_uvfits.phase(
-        lon=casa_uvfits.phase_center_catalog[0]["cat_lon"],
-        lat=casa_uvfits.phase_center_catalog[0]["cat_lat"],
-        phase_frame="icrs",
-        cat_type="sidereal",
-        cat_name=casa_uvfits.phase_center_catalog[0]["cat_name"],
-    )
-    for value in casa_uvfits.phase_center_catalog.values():
-        for key in ["cat_times", "info_source"]:
-            if key in value:
-                del value[key]
-
-    casa_uvfits_second = casa_uvfits.copy().select(
-        frequencies=casa_uvfits.freq_array[0:len(casa_uvfits.freq_array)//2]
-    )
-    casa_uvfits.select(
-        frequencies=casa_uvfits.freq_array[len(casa_uvfits.freq_array)//2:]
-    )
     # write out and read back in
-    casa_uvfits.write_uvh5(testfiles[0], clobber=True)
-    casa_uvfits_second.write_uvh5(testfiles[1], clobber=True)
     uv1, uv2 = UVData(), UVData()
-    uv1.read(testfiles[0])
-    uv2.read(testfiles[1])
+    uv1.read(inputfiles[0])
+    uv2.read(inputfiles[1])
 
     uv1 + uv2
-    
-    os.remove(testfiles[0])
-    os.remove(testfiles[1])
-
     return
 
 
