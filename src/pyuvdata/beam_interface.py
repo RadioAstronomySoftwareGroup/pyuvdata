@@ -266,13 +266,15 @@ class BeamInterface:
         spline_opts : dict
             Provide options to numpy.RectBivariateSpline. This includes spline
             order parameters `kx` and `ky`, and smoothing parameter `s`. Only
-            applies if beam is a UVBeam and interpolation_function is "az_za_simple".
+            applies if beam is a UVBeam and interpolation_function is "az_za_simple"
+            or "az_za_map_coordinates".
         check_azza_domain : bool
             Whether to check the domain of az/za to ensure that they are covered by the
             intrinsic data array. Checking them can be quite computationally expensive.
             Conversely, if the passed az/za are outside of the domain, they will be
             silently extrapolated and the behavior is not well-defined. Only
-            applies if beam is a UVBeam and interpolation_function is "az_za_simple".
+            applies if beam is a UVBeam and interpolation_function is "az_za_simple"
+            or "az_za_map_coordinates".
 
         Returns
         -------

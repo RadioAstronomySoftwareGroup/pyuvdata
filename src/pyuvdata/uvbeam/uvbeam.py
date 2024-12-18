@@ -2064,7 +2064,7 @@ class UVBeam(UVBase):
             or for frequency only interpolation.
         reuse_spline : bool
             Save the interpolation functions for reuse. Only applies for
-            `az_za_simple` interpolation.
+            `az_za_simple` and `az_za_map_coordinates` interpolation.
         spline_opts : dict
             Provide options to numpy.RectBivariateSpline. This includes spline
             order parameters `kx` and `ky`, and smoothing parameter `s`.
@@ -2083,7 +2083,7 @@ class UVBeam(UVBase):
             intrinsic data array. Checking them can be quite computationally expensive.
             Conversely, if the passed az/za are outside of the domain, they will be
             silently extrapolated and the behavior is not well-defined. Only
-            applies for `az_za_simple` interpolation.
+            applies for `az_za_simple` and `az_za_map_coordinates` interpolation.
         return_basis_vector : bool
             Whether to return the interpolated basis vectors. Prior to v3.1.1 these
             were always returned. In v3.3+ they will _not_ be returned by default

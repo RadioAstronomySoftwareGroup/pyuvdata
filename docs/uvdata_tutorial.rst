@@ -919,7 +919,7 @@ Note: there is now support for reading in only part of a uvfits, uvh5 or miriad 
 
   >>> # Amplitude waterfall for all spectral channels and 0th polarization
   >>> fig, ax = plt.subplots(1, 1)
-  >>> _ = ax.imshow(np.abs(waterfall_data), interpolation='none')
+  >>> _ = ax.imshow(np.abs(waterfall_data), interpolation='none', origin="lower")
   >>> _ = ax.set_yticks([0, waterfall_times.size - 1])
   >>> _ = ax.set_yticklabels([waterfall_times[0], waterfall_times[1]])
   >>> freq_tick_inds = np.concatenate((np.arange(0, uvd.Nfreqs, 16), [uvd.Nfreqs-1]))
