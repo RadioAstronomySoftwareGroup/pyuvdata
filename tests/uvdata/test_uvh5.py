@@ -362,6 +362,23 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     return
 
 
+def test_uvh5_addition():
+    inputfiles = [
+        os.path.join(
+            DATA_PATH, f"ata.LoA.C0{subband}.uvh5_60647_62965_9760406_3c286_0001.uvh5"
+        )
+        for subband in ["352", "544"]
+    ]
+
+    # write out and read back in
+    uv1, uv2 = UVData(), UVData()
+    uv1.read(inputfiles[0])
+    uv2.read(inputfiles[1])
+
+    uv1 + uv2
+    return
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_uvh5_compression_options(casa_uvfits, tmp_path):
     """

@@ -1397,7 +1397,9 @@ class UVData(UVBase):
             # match, so this is functionally the same source
             self._update_phase_center_id(match_id, new_id=cat_id)
             # look_in_catalog ignores the "info_source" field, so update it to match
-            self.phase_center_catalog[cat_id]["info_source"] = cat_entry["info_source"]
+            info_source = cat_entry.get("info_source")
+            if info_source is not None:
+                self.phase_center_catalog[cat_id]["info_source"] = info_source
             if ignore_name:
                 # Make the names match if names were ignored in matching
                 self.phase_center_catalog[cat_id]["cat_name"] = cat_entry["cat_name"]
