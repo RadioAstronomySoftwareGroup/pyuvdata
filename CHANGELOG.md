@@ -9,6 +9,10 @@ the data array are single precision. Default is set to write them as doubles.
 - ATA has been added to the list of known telescopes.
 
 ### Fixed
+- Bug in the `uvh5._add` method that expected keys which could be
+optional for some phase-center catalog-entry types. This was noticed as an issue when
+adding two uvh5 objects that were of type "sidereal" which did not have "info_source"
+entries in their phase-center catalogs.
 - Bug in the `look_in_catalog` utility function that expected keys which could be
 optional for some phase-center catalog-entry types. This was noticed as an issue when
 adding two uvh5 objects that were of type "sidereal" which did not have "cat_times"
