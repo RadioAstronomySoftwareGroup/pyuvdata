@@ -4307,3 +4307,77 @@ class MirParser:
             self.sp_data.set_value(
                 "corrchunk", new_chunks, where=("correlator", "eq", 1)
             )
+
+    def flag_shadowed_antennas(self):
+        """Flag records from shadowed antennas."""
+        from scipy.spatial.transform import Rotation
+
+        from ..telescopes import known_telescope_location
+        from ..utils import ECEF_from_rotECEF
+
+        sma_loc = known_telescope_location("SMA")
+        assert sma_loc.unit == "m"
+        sma_lat = sma_loc.lat.rad
+        sma_lon = sma_loc.lon.rad
+        sma_loc = np.array(sma_loc.value.tolist())
+
+        # Determined from Google Maps, picket fence around Subaru at NW, SW, SE corners
+        # NW: lat=19.825700919110243, lon=-155.47626089626624, height=4170
+        loc1 = np.array([-5464496.1903111, -2493049.20267715, 2150969.26718155])
+        # SW: lat=19.82533866312755, lon=-155.4762469705039, height=4170
+        loc2 = np.array([-5464507.96659309, -2493056.17992784, 2150931.51675793])
+        # SE: lat=19.825341424869098, lon=-155.47585942328195, height=4170
+        loc3 = np.array([-5464491.00910077, -2493093.09859875, 2150931.80455726])
+
+        bad_blhid = []
+        for ant, rel_pos in self.antpos_data:
+            # Get the ECEF position for each antenna, since we need this to compare
+            # to the Subaru positional markers listed above.
+            ant_loc = sma_loc + ECEF_from_rotECEF(rel_pos, sma_lon)
+
+            # We're going to set up a top-hat boundary
+            min_az = max_az = max_el = None
+            for loc in [loc1, loc2, loc3]:
+                # Rotate positions so that 'up' is aligned to SMA zenith
+                rot_matrix = np.matmul(
+                    Rotation.from_rotvec([0, 0, sma_lon]).as_matrix(),
+                    Rotation.from_rotvec([0, -sma_lat, 0]).as_matrix(),
+                )
+                # Get the relative vector for each marker position
+                rel_pos = np.matmul(loc - ant_loc, rot_matrix)
+
+                # Convert to local azimuth/elevation, capture value if it sets a new
+                # maximum elevation or max/min azimuth value
+                az_val = np.degrees(np.arctan2(rel_pos[1], rel_pos[2]))
+                el_val = np.degrees(
+                    np.arctan2(rel_pos[0], sum(rel_pos[1:] ** 2) ** 0.5)
+                )
+                if min_az is None or az_val < min_az:
+                    min_az = az_val
+                if max_az is None or az_val > max_az:
+                    max_az = az_val
+                if max_el is None or el_val > max_el:
+                    max_el = el_val
+
+            # Find all integrations where the az/el falls inside the defined range
+            inhid_list = self.in_data.get_header_keys(
+                where=[("az", "ge", min_az), ("az", "le", max_az), ("el", "le", max_el)]
+            )
+
+            # Find which baselines match for bad inhid on a given antenna
+            bad_blhid += self.bl_data.get_value(
+                "blhid", where=[("iant1", "eq", ant), ("inhid", "eq", inhid_list)]
+            ).tolist()
+            bad_blhid += self.bl_data.get_value(
+                "blhid", where=[("iant2", "eq", ant), ("inhid", "eq", inhid_list)]
+            ).tolist()
+
+        if len(bad_blhid) != 0:
+            bad_sphid = self.sp_data.get_header_keys(where=("blhid", "eq", bad_blhid))
+            # Bitwise OR the 15th bit (shadowed antenna bit) for bad baseline records
+            new_flags = self.sp_data.get_value("flags", header_key=bad_sphid) | 32768
+            self.sp_data.set_value("flags", new_flags, header_key=bad_sphid)
+            warnings.warn(
+                f"{len(bad_sphid)} of {len(self.sp_data)} spectral "
+                "records flagged due to Subaru shadowing."
+            )
