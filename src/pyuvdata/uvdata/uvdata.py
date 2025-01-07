@@ -4377,6 +4377,24 @@ class UVData(UVBase):
             (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
         )
 
+    def unproject_near_field(self, flipconj=False):
+        """
+        Undo near-field phasing.
+
+        TODO: How to implement this/Is it needed?
+
+        Parameters
+        ----------
+        flipconj : bool
+            Is the conjugation scheme "flipped" compared to
+            what pyuvdata expects? (Default False)
+
+        Returns
+        -------
+        None (performs operations inplace)
+        """
+        pass
+
     def unproject_phase(
         self, *, use_ant_pos=True, select_mask=None, cat_name="unprojected"
     ):
@@ -4402,7 +4420,7 @@ class UVData(UVBase):
             If the object is alread unprojected.
         """
         # Start by undoing the near-field phasing
-        self.unproject_near_field()
+        # self.unproject_near_field()
 
         # select_mask_use is length Nblts, True means should be unprojected
         # only select blts that are actually phased.
@@ -4474,8 +4492,6 @@ class UVData(UVBase):
         cat_name,
         lookup_name,
         time_array,
-        dist_units="pc",
-        near_field=False,
     ):
         """
         Supplies a dictionary with parameters for the phase method to use.
@@ -4562,8 +4578,6 @@ class UVData(UVBase):
                 cat_pm_dec = pm_dec
                 cat_dist = dist
                 cat_vrad = vrad
-                cat_dist_units = dist_units
-                cat_near_field = near_field
             else:
                 temp_dict = self.phase_center_catalog[cat_id]
                 cat_type = temp_dict["cat_type"]
@@ -4578,8 +4592,6 @@ class UVData(UVBase):
                 cat_pm_dec = temp_dict.get("cat_pm_dec")
                 cat_dist = temp_dict.get("cat_dist")
                 cat_vrad = temp_dict.get("cat_vrad")
-                cat_dist_units = temp_dict.get("cat_dist_units")
-                cat_near_field = temp_dict.get("cat_near_field")
         else:
             # The name of the source is unique!
             cat_type = "sidereal" if cat_type is None else cat_type
@@ -4592,8 +4604,6 @@ class UVData(UVBase):
             cat_pm_dec = pm_dec
             cat_dist = dist
             cat_vrad = vrad
-            cat_dist_units = dist_units
-            cat_near_field = near_field
 
         if (cat_epoch is None) and (cat_type != "unprojected"):
             cat_epoch = 1950.0 if (cat_frame in ["fk4", "fk4noeterms"]) else 2000.0
@@ -4651,8 +4661,6 @@ class UVData(UVBase):
             "cat_vrad": cat_vrad,
             "info_source": info_source,
             "cat_id": cat_id,
-            "cat_dist_units": cat_dist_units,
-            "cat_near_field": cat_near_field,
         }
 
         # Finally, make sure everything is a float or an ndarray of floats
@@ -4662,11 +4670,6 @@ class UVData(UVBase):
             elif (key == "cat_id") and (phase_dict[key] is not None):
                 # If this is the cat_id, make it an int
                 phase_dict[key] = int(phase_dict[key])
-            elif not ((phase_dict[key] is None) or isinstance(phase_dict[key], str)):
-                # cat_dist_units should be str and cat_near_field should be bool
-                if (key != "cat_dist_units") and (key != "cat_near_field"):
-                    phase_dict[key] = float(phase_dict[key])
-
         return phase_dict
 
     def _apply_near_field_corrections(self, focus, ra, dec, flipconj=False):
@@ -4724,40 +4727,10 @@ class UVData(UVBase):
 
         # Set data at each polarization (Npols = 4 usually)
         for pol in self.polarization_array:
-
-            # For some reason the data need an extra axis?
             prev = np.reshape(self.get_data(pol), (self.Nblts, self.Nfreqs, 1))
             corr = np.reshape(phase_corrections, (self.Nblts, self.Nfreqs, 1))
 
             self.set_data(corr * prev, pol)
-
-    def unproject_near_field(self, flipconj=False):
-        """
-        Undo near-field phasing.
-
-        Works by near-field projecting to a distance of infinity.
-
-        Parameters
-        ----------
-        flipconj : bool
-            Is the conjugation scheme "flipped" compared to
-            what pyuvdata expects? (Default False)
-
-        Returns
-        -------
-        None (performs operations inplace)
-        """
-        # Keep the far-field Ra and Dec
-        key = list(self.phase_center_catalog.keys())[-1]
-        ra = self.phase_center_catalog[key]["cat_lon"]
-        dec = self.phase_center_catalog[key]["cat_lat"]
-
-        self._apply_near_field_corrections(
-            focus=1e19 * units.km,  # TODO: Is there a better way to do this?
-            ra=ra,
-            dec=dec,
-            flipconj=flipconj,
-        )
 
     def phase(
         self,
@@ -4779,7 +4752,6 @@ class UVData(UVBase):
         use_ant_pos=True,
         select_mask=None,
         cleanup_old_sources=True,
-        near_field=False,
     ):
         """
         Phase data to a new direction, supports sidereal, ephemeris and driftscan types.
@@ -4820,7 +4792,9 @@ class UVData(UVBase):
         cat_type : str
             Type of phase center to be added. Must be one of:
             "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
-            "driftscan" (fixed az/el position). Default is "sidereal".
+            "driftscan" (fixed az/el position), "near_field" (applies near-field
+            corrections to the specified dist, assuming sidereal phase center).
+            Default is "sidereal".
         ephem_times : ndarray of float
             Only used when `cat_type="ephem"`. Describes the time for which the values
             of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
@@ -4830,13 +4804,14 @@ class UVData(UVBase):
         pm_dec : float
             Proper motion in Dec, in units of mas/year. Only used for sidereal phase
             centers.
-        dist : float or ndarray of float or astropy.units.Quantity object
+        dist : float or ndarray of float or astropy.units.Quantity object.
             Distance to the source. Used for sidereal and ephem phase centers,
             and for applying near-field corrections. If passed either as a float
             (for sidereal phase centers) or as an ndarray of floats of shape (Npts,)
-            (for ephem phase centers), will be interpreted in units of parsec.
-            Alternatively, an astropy.units.Quantity object may be passed instead,
-            in which case the units will be infered automatically.
+            (for ephem phase centers), will be interpreted in units of parsec for all
+            cat_types except near_field; in the latter case it will be interpreted
+            in meters. Alternatively, an astropy.units.Quantity object may be passed
+            instead, in which case the units will be infered automatically.
         vrad : float or ndarray of float
             Radial velocity of the source, in units of km/s. Only used for sidereal and
             ephem phase centers. Expected to be a float for sidereal phase
@@ -4854,10 +4829,6 @@ class UVData(UVBase):
         select_mask : ndarray of bool
             Optional mask for selecting which data to operate on along the blt-axis.
             Shape is (Nblts,). Ignored if `use_old_proj` is True.
-        near_field : bool
-            Option to apply near-field corrections to the provided
-            ra, dec, and distance. Defaults to False
-            (apply far-field corrections only).
 
         Raises
         ------
@@ -4865,9 +4836,9 @@ class UVData(UVBase):
             If the `cat_name` is None.
 
         """
-        key = list(self.phase_center_catalog.keys())[-1]
-        if self.phase_center_catalog[key]["cat_name"] != "":
-            self.unproject_near_field()
+        # key = list(self.phase_center_catalog.keys())[-1]
+        # if self.phase_center_catalog[key]["cat_name"] != "":
+        #     self.unproject_near_field()
 
         if cat_type != "unprojected":
             if lon is None:
@@ -4888,22 +4859,24 @@ class UVData(UVBase):
         # Before moving forward with the heavy calculations, we need to do some
         # basic housekeeping to make sure that we've got the coordinate data that
         # we need in order to proceed.
-        dist_units = "pc"
         if dist is not None:
             if isinstance(dist, units.Quantity):
-                dist_units = dist.unit
                 dist_qt = copy.deepcopy(dist)
-                dist = dist.value
             else:
-                dist_qt = dist * units.parsec
+                if cat_type == "near_field":
+                    dist_qt = dist * units.meters
+                else:
+                    dist_qt = dist * units.parsec
 
-                if near_field:
-                    warnings.warn(
-                        "near_field is set to True, but dist is not an "
-                        "astropy.units.Quantity object. "
-                        "Distance will be interpreted in units of parsec.",
-                        UserWarning,
-                    )
+            dist = dist_qt.to(
+                units.parsec
+            ).value  # phase_dict internally stores in parsecs
+
+        if cat_type == "near_field":
+            near_field = True
+            cat_type = "sidereal"  # apply far-field phasing BEFORE near-field
+        else:
+            near_field = False
 
         phase_dict = self._phase_dict_helper(
             lon=lon,
@@ -4919,8 +4892,6 @@ class UVData(UVBase):
             cat_name=cat_name,
             lookup_name=lookup_name,
             time_array=self.time_array,
-            dist_units=dist_units,
-            near_field=near_field,
         )
 
         if phase_dict["cat_type"] not in ["ephem", "unprojected"]:
