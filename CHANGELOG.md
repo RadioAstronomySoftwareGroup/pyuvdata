@@ -23,6 +23,7 @@ adding two uvh5 objects that were of type "sidereal" which did not have "cat_tim
 entries in their phase-center catalogs.
 - Bug in selecting baselines on a UVData object using `bls` keyword with 3-tuples and
 more than one polarization (introduced in 3.1.2).
+- Bug/typo in angle wrapping in calc_frame_pos_angle() function.
 
 ## [3.1.2] - 2024-11-21
 

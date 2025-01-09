@@ -1664,7 +1664,7 @@ def calc_frame_pos_angle(
     up_dec[up_dec > (np.pi / 2.0)] = np.pi - up_dec[up_dec > (np.pi / 2.0)]
 
     dn_ra[-dn_dec > (np.pi / 2.0)] = np.mod(
-        dn_ra[dn_dec > (np.pi / 2.0)] + np.pi, 2.0 * np.pi
+        dn_ra[-dn_dec > (np.pi / 2.0)] + np.pi, 2.0 * np.pi
     )
     dn_dec[-dn_dec > (np.pi / 2.0)] = np.pi - dn_dec[-dn_dec > (np.pi / 2.0)]
 
