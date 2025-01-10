@@ -4377,24 +4377,6 @@ class UVData(UVBase):
             (-1j * 2 * np.pi) * delta_w_lambda[:, :, None]
         )
 
-    def unproject_near_field(self, flipconj=False):
-        """
-        Undo near-field phasing.
-
-        TODO: How to implement this/Is it needed?
-
-        Parameters
-        ----------
-        flipconj : bool
-            Is the conjugation scheme "flipped" compared to
-            what pyuvdata expects? (Default False)
-
-        Returns
-        -------
-        None (performs operations inplace)
-        """
-        pass
-
     def unproject_phase(
         self, *, use_ant_pos=True, select_mask=None, cat_name="unprojected"
     ):
@@ -4419,9 +4401,6 @@ class UVData(UVBase):
         ValueError
             If the object is alread unprojected.
         """
-        # Start by undoing the near-field phasing
-        # self.unproject_near_field()
-
         # select_mask_use is length Nblts, True means should be unprojected
         # only select blts that are actually phased.
         if select_mask is not None:
@@ -4836,10 +4815,6 @@ class UVData(UVBase):
             If the `cat_name` is None.
 
         """
-        # key = list(self.phase_center_catalog.keys())[-1]
-        # if self.phase_center_catalog[key]["cat_name"] != "":
-        #     self.unproject_near_field()
-
         if cat_type != "unprojected":
             if lon is None:
                 if ra is None:
@@ -4864,7 +4839,7 @@ class UVData(UVBase):
                 dist_qt = copy.deepcopy(dist)
             else:
                 if cat_type == "near_field":
-                    dist_qt = dist * units.meters
+                    dist_qt = dist * units.m
                 else:
                     dist_qt = dist * units.parsec
 
