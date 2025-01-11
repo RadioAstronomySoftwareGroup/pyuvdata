@@ -10989,7 +10989,7 @@ def test_fix_phase(hera_uvh5, tmp_path, use_ant_pos, phase_frame, file_type):
         pytest.skip("MIRIAD not installed.")
 
     # Make some copies of the data
-    uv_in = hera_uvh5.copy()
+    uv_in = hera_uvh5
 
     # These values could be anything -- we're just picking something that we know should
     # be visible from the telescope at the time of obs (ignoring horizon limits).
