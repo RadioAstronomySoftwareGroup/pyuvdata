@@ -2005,3 +2005,20 @@ def test_uvw_track_generator_moon(selenoid):
         np.testing.assert_allclose(
             (gen_results["uvw"] ** 2.0).sum(1), 2.0, rtol=0, atol=1e-3
         )
+
+
+def test_pole_calc_pa():
+    # Check a couple of positions up
+    pos_angle = utils.phasing.calc_frame_pos_angle(
+        time_array=np.array([2456789.0, 2456789.0]),
+        app_ra=np.array([np.pi / 4, np.pi]),
+        app_dec=np.radians(np.array([-89.7, 89.8])),
+        telescope_loc=(0, 30, 0),
+        ref_frame="icrs",
+        offset_pos=(np.pi / 180) / (3600),
+    )
+
+    # Test against directly calculated values
+    np.testing.assert_allclose(
+        pos_angle, [0.2564204225333429, 0.00920308652161622], atol=utils.RADIAN_TOL
+    )

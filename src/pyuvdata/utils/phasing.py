@@ -1655,18 +1655,17 @@ def calc_frame_pos_angle(
     # 1 deg arc.
     up_dec = unique_dec + offset_pos
     dn_dec = unique_dec - offset_pos
-    up_ra = dn_ra = unique_ra
+    up_ra = np.array(unique_ra)
+    dn_ra = np.array(unique_ra)
 
     # Wrap the positions if they happen to go over the poles
-    up_ra[up_dec > (np.pi / 2.0)] = np.mod(
-        up_ra[up_dec > (np.pi / 2.0)] + np.pi, 2.0 * np.pi
-    )
-    up_dec[up_dec > (np.pi / 2.0)] = np.pi - up_dec[up_dec > (np.pi / 2.0)]
+    select_mask = up_dec > (np.pi / 2.0)
+    up_ra[select_mask] = np.mod(up_ra[select_mask] + np.pi, 2.0 * np.pi)
+    up_dec[select_mask] = np.pi - up_dec[select_mask]
 
-    dn_ra[-dn_dec > (np.pi / 2.0)] = np.mod(
-        dn_ra[dn_dec > (np.pi / 2.0)] + np.pi, 2.0 * np.pi
-    )
-    dn_dec[-dn_dec > (np.pi / 2.0)] = np.pi - dn_dec[-dn_dec > (np.pi / 2.0)]
+    select_mask = dn_dec < (-np.pi / 2.0)
+    dn_ra[select_mask] = np.mod(dn_ra[select_mask] + np.pi, 2.0 * np.pi)
+    dn_dec[select_mask] = (-np.pi) - dn_dec[select_mask]
 
     # Run the set of offset coordinates through the "reverse" transform. The two offset
     # positions are concat'd together to help reduce overheads
