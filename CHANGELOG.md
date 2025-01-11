@@ -9,6 +9,9 @@ the data array are single precision. Default is set to write them as doubles.
 - ATA has been added to the list of known telescopes.
 
 ### Fixed
+- Bug in `calc_frame_pa_angle` which gave rise to an indexing error at positions close
+to the Southern celestial pole. Additionally fixed a bug where these values were
+incorrectly calculated.
 - A sign flip of the MWA beam response to azimuthally aligned polarization. This
 was caused by the difference in coordinates used in UVBeam and the mwa_pb repo,
 the coordinates themselves were properly accounted for but the flip in
