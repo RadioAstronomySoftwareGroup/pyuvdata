@@ -1569,9 +1569,9 @@ def test_select_antennas(casa_uvfits):
             rtol=uv_object.telescope._antenna_positions.tols[0],
             atol=uv_object.telescope._antenna_positions.tols[1],
         )
-        assert uv_object.telescope.antenna_diameters[
-            idx1
-        ], uv_object4.telescope.antenna_diameters[idx2]
+        assert uv_object.telescope.antenna_diameters[idx1], (
+            uv_object4.telescope.antenna_diameters[idx2]
+        )
 
     # remove antenna_diameters from object
     uv_object.telescope.antenna_diameters = None
@@ -6157,8 +6157,7 @@ def test_redundancy_contract_expand_nblts_not_nbls_times_ntimes(
             uv0.data_array[inds, ...] += complex(i)
 
     msg = [
-        "The uvw_array does not match the expected values given the antenna "
-        "positions."
+        "The uvw_array does not match the expected values given the antenna positions."
     ]
     if method == "average":
         msg *= 2

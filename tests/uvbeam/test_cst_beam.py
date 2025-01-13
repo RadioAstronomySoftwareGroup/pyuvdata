@@ -330,8 +330,7 @@ def test_read_yaml_errors(tmp_path):
     with pytest.raises(
         ValueError,
         match=(
-            "telescope_name is a required key in CST settings files but is "
-            "not present."
+            "telescope_name is a required key in CST settings files but is not present."
         ),
     ):
         beam1.read_cst_beam(test_yaml_file, beam_type="power")

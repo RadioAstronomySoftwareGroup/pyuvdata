@@ -365,7 +365,7 @@ def _select_blt_preprocess(
         for s in select_antenna_names:
             if s not in antenna_names:
                 raise ValueError(
-                    f"Antenna name {s} is not present in the antenna_names" " array"
+                    f"Antenna name {s} is not present in the antenna_names array"
                 )
             select_antenna_nums.append(
                 antenna_numbers[np.where(np.array(antenna_names) == s)][0]
@@ -414,8 +414,7 @@ def _select_blt_preprocess(
                     bls_blt_inds = np.append(bls_blt_inds, list(wh2))
                 else:
                     raise ValueError(
-                        f"Antenna pair {bl} does not have any data "
-                        "associated with it."
+                        f"Antenna pair {bl} does not have any data associated with it."
                     )
         selections.append("antenna pairs")
 

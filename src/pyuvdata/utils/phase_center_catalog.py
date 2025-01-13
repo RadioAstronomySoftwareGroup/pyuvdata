@@ -692,8 +692,7 @@ def generate_phase_center_cat_entry(
     # Both proper motion parameters need to be set together
     if (cat_pm_ra is None) != (cat_pm_dec is None):
         raise ValueError(
-            "Must supply values for either both or neither of "
-            "cat_pm_ra and cat_pm_dec."
+            "Must supply values for either both or neither of cat_pm_ra and cat_pm_dec."
         )
 
     # If left unset, unprojected and driftscan defaulted to Az, El = (0 deg, 90 deg)

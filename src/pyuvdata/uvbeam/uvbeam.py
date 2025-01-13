@@ -874,7 +874,7 @@ class UVBeam(UVBase):
 
                 if not utils.tools._test_array_constant_spacing(ax, tols=ax_param.tols):
                     raise ValueError(
-                        f"axis{i+1}_array must be evenly spaced in az_za coordinates."
+                        f"axis{i + 1}_array must be evenly spaced in az_za coordinates."
                     )
 
         return True
@@ -2492,9 +2492,9 @@ class UVBeam(UVBase):
             Healpix map of beam powers for a single pol, shape: (Nfreqs, Npixels)
         """
         # assert map is in healpix coords
-        assert (
-            self.pixel_coordinate_system == "healpix"
-        ), "pixel_coordinate_system must be healpix"
+        assert self.pixel_coordinate_system == "healpix", (
+            "pixel_coordinate_system must be healpix"
+        )
         # assert beam_type is power
         assert self.beam_type == "power", "beam_type must be power"
         if isinstance(pol, str | np.str_):
@@ -3578,8 +3578,7 @@ class UVBeam(UVBase):
         for key in required_keys:
             if key not in settings_dict:
                 raise ValueError(
-                    f"{key} is a required key in CST settings files "
-                    "but is not present."
+                    f"{key} is a required key in CST settings files but is not present."
                 )
 
         return settings_dict

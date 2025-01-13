@@ -585,9 +585,9 @@ class UVH5(UVData):
             "which should not happen. Please file an issue in our GitHub issue "
             "log so that we can fix it."
         )
-        assert (
-            np.asarray(self.channel_width).size == self.freq_array.size
-        ), arr_shape_msg
+        assert np.asarray(self.channel_width).size == self.freq_array.size, (
+            arr_shape_msg
+        )
 
         # For now, only set the rectangularity parameters if they exist in the header of
         # the file. These could be set automatically later on, but for now we'll leave

@@ -207,7 +207,7 @@ def new_uvbeam(
             if not utils.tools._test_array_constant_spacing(
                 arr, tols=uvb._axis1_array.tols
             ):
-                raise ValueError(f"axis{ind+1}_array must be regularly spaced")
+                raise ValueError(f"axis{ind + 1}_array must be regularly spaced")
         uvb.axis1_array = axis1_array
         uvb.axis2_array = axis2_array
 

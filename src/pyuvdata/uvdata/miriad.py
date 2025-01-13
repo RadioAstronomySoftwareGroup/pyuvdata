@@ -36,8 +36,7 @@ class Miriad(UVData):
     def _pol_to_ind(self, pol):
         if self.polarization_array is None:
             raise ValueError(
-                f"Can't index polarization {pol} because "
-                "polarization_array is not set"
+                f"Can't index polarization {pol} because polarization_array is not set"
             )
         pol_ind = np.argwhere(self.polarization_array == pol)
         if len(pol_ind) != 1:
@@ -1767,8 +1766,7 @@ class Miriad(UVData):
             uv[key] = val
 
         warnings.warn(
-            "writing default values for restfreq, vsource, "
-            "veldop, jyperk, and systemp"
+            "writing default values for restfreq, vsource, veldop, jyperk, and systemp"
         )
 
         if self.telescope.antenna_diameters is not None:
