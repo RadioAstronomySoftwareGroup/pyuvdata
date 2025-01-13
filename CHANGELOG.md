@@ -3,6 +3,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [3.1.3] - 2025-01-13
+
 ### Added
 - Option to write the uvw_array as double precision in UVFITS files even when
 the data array are single precision. Default is set to write them as doubles.
