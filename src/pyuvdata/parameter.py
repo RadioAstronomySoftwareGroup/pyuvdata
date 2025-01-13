@@ -364,8 +364,7 @@ class UVParameter:
             if not isinstance(other.value, np.recarray):
                 if not silent:
                     print(
-                        f"{self.name} parameter value is a recarray, but other is "
-                        "not."
+                        f"{self.name} parameter value is a recarray, but other is not."
                     )
                 return False
             this_names = self.value.dtype.names

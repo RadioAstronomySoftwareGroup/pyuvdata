@@ -551,8 +551,7 @@ class CALFITS(UVCal):
             if telescope_frame == "mcmf":
                 if not hasmoon:
                     raise ValueError(
-                        "Need to install `lunarsky` package to work with "
-                        "MCMF frames."
+                        "Need to install `lunarsky` package to work with MCMF frames."
                     )
                 ellipsoid = hdr.pop("ELLIPSOI", "SPHERE")
 

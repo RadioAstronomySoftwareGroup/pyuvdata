@@ -87,8 +87,7 @@ class UVCal(UVBase):
         self._telescope = uvp.UVParameter(
             "telescope",
             description=(
-                ":class:`pyuvdata.Telescope` object containing the telescope "
-                "metadata."
+                ":class:`pyuvdata.Telescope` object containing the telescope metadata."
             ),
             expected_type=Telescope,
         )
@@ -2774,7 +2773,7 @@ class UVCal(UVBase):
             and len(both_ants) > 0
         ):
             raise ValueError(
-                "These objects have overlapping data and" " cannot be combined."
+                "These objects have overlapping data and cannot be combined."
             )
 
         # First, handle the internal source catalogs, since merging them is kind of a

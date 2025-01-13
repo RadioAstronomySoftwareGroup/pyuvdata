@@ -539,7 +539,6 @@ def _select_times_helper(
 
         if time_inds.size == 0:
             raise ValueError(
-                f"No elements in {attr_str} between {lst_range[0]} and "
-                f"{lst_range[1]}."
+                f"No elements in {attr_str} between {lst_range[0]} and {lst_range[1]}."
             )
     return time_inds, selections

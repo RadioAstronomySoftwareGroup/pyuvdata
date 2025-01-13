@@ -320,8 +320,7 @@ def test_check_auto_power(cst_efield_2freq_cut):
 
     with pytest.raises(
         ValueError,
-        match="Some auto polarization power beams have non-real values in "
-        "data_array.",
+        match="Some auto polarization power beams have non-real values in data_array.",
     ):
         power_beam.check(check_auto_power=True)
 
@@ -1444,8 +1443,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "pixel_coordinate_system must be 'az_za' to use this interpolation "
-            "function"
+            "pixel_coordinate_system must be 'az_za' to use this interpolation function"
         ),
     ):
         interp_data_array, _ = hpx_efield_beam.interp(
@@ -1460,8 +1458,7 @@ def test_healpix_interpolation(antenna_type, cst_efield_2freq, phased_array_beam
     with pytest.raises(
         ValueError,
         match=re.escape(
-            "pixel_coordinate_system must be 'az_za' to use this interpolation "
-            "function"
+            "pixel_coordinate_system must be 'az_za' to use this interpolation function"
         ),
     ):
         interp_data_array, _ = hpx_efield_beam.interp(

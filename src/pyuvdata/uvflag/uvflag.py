@@ -82,8 +82,7 @@ def flags2waterfall(uv, *, flag_array=None, keep_pol=False):
     """
     if not isinstance(uv, UVData | UVCal):
         raise ValueError(
-            "flags2waterfall() requires a UVData or UVCal object as "
-            "the first argument."
+            "flags2waterfall() requires a UVData or UVCal object as the first argument."
         )
     if flag_array is None:
         flag_array = uv.flag_array
@@ -212,8 +211,7 @@ class UVFlag(UVBase):
         )
 
         desc = (
-            "String used for labeling the object (e.g. 'FM'). "
-            "Default is empty string."
+            "String used for labeling the object (e.g. 'FM'). Default is empty string."
         )
         self._label = uvp.UVParameter(
             "label", description=desc, form="str", expected_type=str
@@ -477,8 +475,7 @@ class UVFlag(UVBase):
         self._telescope = uvp.UVParameter(
             "telescope",
             description=(
-                ":class:`pyuvdata.Telescope` object containing the telescope "
-                "metadata."
+                ":class:`pyuvdata.Telescope` object containing the telescope metadata."
             ),
             expected_type=Telescope,
         )
@@ -1647,8 +1644,7 @@ class UVFlag(UVBase):
             or (isinstance(uv, UVFlag) and uv.type == "antenna")
         ):
             raise ValueError(
-                "Must pass in UVCal object or UVFlag object of type "
-                '"antenna" to match.'
+                'Must pass in UVCal object or UVFlag object of type "antenna" to match.'
             )
         if self.type != "waterfall":
             raise ValueError(
@@ -2468,8 +2464,7 @@ class UVFlag(UVBase):
         if self.type == "waterfall":
             if antenna_nums is not None:
                 raise ValueError(
-                    "Cannot select on antenna_nums with waterfall type "
-                    "UVFlag objects."
+                    "Cannot select on antenna_nums with waterfall type UVFlag objects."
                 )
             if bls is not None:
                 raise ValueError(
@@ -2533,8 +2528,7 @@ class UVFlag(UVBase):
                 )
             if blt_inds is not None:
                 raise ValueError(
-                    'Only "baseline" mode UVFlag objects may select'
-                    " along the blt axis"
+                    'Only "baseline" mode UVFlag objects may select along the blt axis'
                 )
 
             ant_inds, ant_selections = utils.antenna._select_antenna_helper(

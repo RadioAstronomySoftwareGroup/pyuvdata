@@ -585,9 +585,9 @@ def test_flag_init(flag_file_init):
     freq_inds = [0, 1, 4, 6, 7, 8, 9, 12, 14, 15]
     freq_inds_complement = [ind for ind in range(16) if ind not in freq_inds]
 
-    assert np.all(
-        uv.flag_array[:, freq_inds, :]
-    ), "Not all of edge and center channels are flagged!"
+    assert np.all(uv.flag_array[:, freq_inds, :]), (
+        "Not all of edge and center channels are flagged!"
+    )
     assert not np.any(
         np.all(uv.flag_array[:, freq_inds_complement, :], axis=(0, 1, -1))
     ), "Some non-edge/center channels are entirely flagged!"
@@ -611,9 +611,9 @@ def test_flag_start_flag(flag_file_init):
 
     reshape = [uv.Ntimes, uv.Nbls, uv.Nfreqs, uv.Npols]
     time_inds = [0, 1, -1, -2]
-    assert np.all(
-        uv.flag_array.reshape(reshape)[time_inds, :, :, :]
-    ), "Not all of start and end times are flagged."
+    assert np.all(uv.flag_array.reshape(reshape)[time_inds, :, :, :]), (
+        "Not all of start and end times are flagged."
+    )
     # Check that it didn't just flag everything
     # Should have unflagged data for time inds [2, -3]
     assert not np.any(

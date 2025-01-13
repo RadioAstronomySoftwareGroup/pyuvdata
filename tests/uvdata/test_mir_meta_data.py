@@ -152,9 +152,9 @@ def check_init_int():
         # right number of records that contains all zeros (or equiv)
         assert len(new_obj) == nvals, f"zero init for {obj._filetype} failed"
         assert all(new_obj._mask), f"zero init mask for {obj._filetype} failed"
-        assert np.array_equal(
-            new_obj._data, np.zeros(nvals, dtype=obj.dtype)
-        ), f"zero init data for {obj._filetype} failed"
+        assert np.array_equal(new_obj._data, np.zeros(nvals, dtype=obj.dtype)), (
+            f"zero init data for {obj._filetype} failed"
+        )
 
     yield check_init_int_func
 

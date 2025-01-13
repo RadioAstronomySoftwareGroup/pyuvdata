@@ -439,8 +439,7 @@ class UVData(UVBase):
         self._telescope = uvp.UVParameter(
             "telescope",
             description=(
-                ":class:`pyuvdata.Telescope` object containing the telescope "
-                "metadata."
+                ":class:`pyuvdata.Telescope` object containing the telescope metadata."
             ),
             expected_type=Telescope,
         )
@@ -2283,8 +2282,7 @@ class UVData(UVBase):
             and self.time_array[1] == self.time_array[0]
         ):
             raise ValueError(
-                "time_axis_faster_than_bls is True but time_array does not "
-                "move first"
+                "time_axis_faster_than_bls is True but time_array does not move first"
             )
 
         # Check internal consistency of numbers which don't explicitly correspond

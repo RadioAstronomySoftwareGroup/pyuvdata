@@ -159,8 +159,7 @@ def read_metafits(
             # ppds file does not contain this key
             if "GOODTIME" not in meta_hdr:
                 raise ValueError(
-                    "To use start_flag='goodtime', a .metafits file must be "
-                    "submitted"
+                    "To use start_flag='goodtime', a .metafits file must be submitted"
                 )
             if meta_hdr["GOODTIME"] > start_time:
                 start_flag = meta_hdr["GOODTIME"] - start_time

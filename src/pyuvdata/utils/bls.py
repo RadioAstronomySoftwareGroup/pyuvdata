@@ -450,8 +450,7 @@ def _extract_bls_pol(
                     bl_pols.add(conj_pol(bl[2]))
                 else:
                     raise ValueError(
-                        f"Antenna pair {bl} does not have any data "
-                        "associated with it."
+                        f"Antenna pair {bl} does not have any data associated with it."
                     )
 
         polarizations = list(bl_pols)
