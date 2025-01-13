@@ -25,6 +25,15 @@ jobs:
       pip install .[dev]
     displayName: install hera_cal
 
+  # re-install pyuvdata last to ensure the checked out code is installed
+  # (because sometimes hera_cal pins to weird things and overwrites the earlier install.)
+  # keep the earlier install because it ensures the right dependencies are grabbed.
+  - bash: |
+      cd ../
+      pip install .
+      cd ../hera_cal
+    displayName: install pyuvdata
+
   - bash: |
       pip list
     displayName: Environment Info
