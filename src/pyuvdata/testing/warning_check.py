@@ -158,7 +158,7 @@ class WarningsChecker(warnings.catch_warnings):
                 msg_list = []
                 for each in self:
                     warn_file_line.append(f"{each.filename}: {each.lineno}")
-                    msg_list.append([each.message for each in self])
+                    msg_list.append(each.message)
                 if self.expected_warning is None:
                     err_msg = "No warnings expected, "
                 else:
