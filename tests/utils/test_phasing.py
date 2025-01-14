@@ -1513,7 +1513,6 @@ def test_calc_app_fk5_roundtrip(astrometry_args, telescope_frame, selenoid):
             except SpiceUNKNOWNFRAME as err:
                 pytest.skip("SpiceUNKNOWNFRAME error: " + str(err))
         else:
-
             check_ra, check_dec = phs_utils.calc_sidereal_coords(
                 time_array=astrometry_args["time_array"],
                 app_ra=app_ra,
