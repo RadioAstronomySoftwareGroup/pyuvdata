@@ -65,7 +65,7 @@ from pyuvdata.testing.warning_check import WarningsChecker, check_warnings
             AssertionError,
             re.escape(
                 "No warnings expected, 1 warnings issued. The list of emitted "
-                "warnings is: [[UserWarning('the warning message')]]. The filenames "
+                "warnings is: [UserWarning('the warning message')]. The filenames "
                 "and line numbers are"
             ),
         ],
@@ -85,10 +85,8 @@ from pyuvdata.testing.warning_check import WarningsChecker, check_warnings
             AssertionError,
             re.escape(
                 "1 warnings expected, 2 warnings issued. The list of emitted "
-                "warnings is: [[UserWarning('the warning message'), "
-                "UserWarning('a different message')], "
-                "[UserWarning('the warning message'), "
-                "UserWarning('a different message')]]. The filenames and line "
+                "warnings is: [UserWarning('the warning message'), "
+                "UserWarning('a different message')]. The filenames and line "
                 "numbers are:"
             ),
         ],
@@ -100,7 +98,7 @@ from pyuvdata.testing.warning_check import WarningsChecker, check_warnings
             AssertionError,
             re.escape(
                 "2 warnings expected, 1 warnings issued. The list of emitted "
-                "warnings is: [[UserWarning('the warning message')]]. The filenames "
+                "warnings is: [UserWarning('the warning message')]. The filenames "
                 "and line numbers are:"
             ),
         ],
