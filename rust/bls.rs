@@ -85,16 +85,25 @@ fn _antnums_to_baseline(
     assert_eq!(ant2.len(), nbls);
     assert_eq!(bls_out.len(), nbls);
 
-    ant1.iter()
-        .zip(ant2)
-        .enumerate()
-        .for_each(|(ind, (a1, a2))| {
-            if use_miriad_convention && a2 <= &255 {
-                bls_out[ind] = MaybeUninit::new(256 * a1 + a2);
-            } else {
+    if use_miriad_convention {
+        ant1.iter()
+            .zip(ant2)
+            .enumerate()
+            .for_each(|(ind, (a1, a2))| {
+                if a2 <= &255 {
+                    bls_out[ind] = MaybeUninit::new(256 * a1 + a2);
+                } else {
+                    bls_out[ind] = MaybeUninit::new(modulus * a1 + a2 + offset);
+                }
+            });
+    } else {
+        ant1.iter()
+            .zip(ant2)
+            .enumerate()
+            .for_each(|(ind, (a1, a2))| {
                 bls_out[ind] = MaybeUninit::new(modulus * a1 + a2 + offset);
-            }
-        });
+            });
+    }
 
     // We have to tell the compiler that we have initialized all elements of the array.
     unsafe { bls_out.assume_init() }
