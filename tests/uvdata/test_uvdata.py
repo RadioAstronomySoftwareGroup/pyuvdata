@@ -885,6 +885,16 @@ def test_generic_read():
             },
             False,
         ),
+        (
+            {
+                "cat_name": "near_field_test",
+                "ra": 0.4,
+                "dec": -0.3,
+                "cat_type": "near_field",
+                "dist": 10000,
+            },
+            False,
+        ),
     ],
 )
 def test_phase_unphase_hera(hera_uvh5, phase_kwargs, partial):
@@ -917,18 +927,26 @@ def test_phase_unphase_hera(hera_uvh5, phase_kwargs, partial):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_unphase_hera_one_bl(hera_uvh5):
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_phase_unphase_hera_one_bl(hera_uvh5, cat_type):
     uv_raw = hera_uvh5
     # check that phase + unphase work with one baseline
     uv_raw_small = uv_raw.select(blt_inds=[0], inplace=False)
     uv_phase_small = uv_raw_small.copy()
-    uv_phase_small.phase(lon=Angle("23h").rad, lat=Angle("15d").rad, cat_name="foo")
+    uv_phase_small.phase(
+        lon=Angle("23h").rad,
+        lat=Angle("15d").rad,
+        cat_name="foo",
+        cat_type=cat_type,
+        dist=5000,
+    )
     uv_phase_small.unproject_phase(cat_name="zenith")
     assert uv_raw_small == uv_phase_small
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_phase_unphase_hera_antpos(hera_uvh5):
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_phase_unphase_hera_antpos(hera_uvh5, cat_type):
     uv_phase = hera_uvh5.copy()
     uv_raw = hera_uvh5
     # check that they match if you phase & unphase using antenna locations
@@ -957,9 +975,19 @@ def test_phase_unphase_hera_antpos(hera_uvh5):
 
     uv_raw_new = uv_raw.copy()
     uv_raw_new.uvw_array = uvw_calc
-    uv_phase.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo", use_ant_pos=True)
+    uv_phase.phase(
+        ra=0.0,
+        dec=0.0,
+        epoch="J2000",
+        cat_name="foo",
+        use_ant_pos=True,
+        cat_type=cat_type,
+        dist=7000,
+    )
     uv_phase2 = uv_raw_new.copy()
-    uv_phase2.phase(ra=0.0, dec=0.0, epoch="J2000", cat_name="foo")
+    uv_phase2.phase(
+        ra=0.0, dec=0.0, epoch="J2000", cat_name="foo", cat_type=cat_type, dist=7000
+    )
 
     # The uvw's only agree to ~1mm. should they be better?
     np.testing.assert_allclose(
@@ -10205,7 +10233,7 @@ def test_print_object_multi(carma_miriad):
             ValueError,
             re.escape(
                 "If set, cat_type must be one of ['sidereal', 'ephem', 'unprojected', "
-                "'driftscan']"
+                "'driftscan', 'near_field']"
             ),
         ],
     ],

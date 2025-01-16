@@ -4771,9 +4771,9 @@ class UVData(UVBase):
         cat_type : str
             Type of phase center to be added. Must be one of:
             "sidereal" (fixed RA/Dec), "ephem" (RA/Dec that moves with time),
-            "driftscan" (fixed az/el position), "near_field" (applies near-field
-            corrections to the specified dist, assuming sidereal phase center).
-            Default is "sidereal".
+            "driftscan" (fixed az/el position), "near_field" (first applies far-field
+            phasing assuming sidereal phase center, then applies near-field
+            corrections to the specified dist). Default is "sidereal".
         ephem_times : ndarray of float
             Only used when `cat_type="ephem"`. Describes the time for which the values
             of `cat_lon` and `cat_lat` are caclulated, in units of JD. Shape is (Npts,).
@@ -4846,12 +4846,10 @@ class UVData(UVBase):
             dist = dist_qt.to(
                 units.parsec
             ).value  # phase_dict internally stores in parsecs
-
-        if cat_type == "near_field":
-            near_field = True
-            cat_type = "sidereal"  # apply far-field phasing BEFORE near-field
-        else:
-            near_field = False
+        elif dist is None and cat_type == "near_field":
+            raise ValueError(
+                "dist parameter must be specified for cat_type 'near_field'"
+            )
 
         phase_dict = self._phase_dict_helper(
             lon=lon,
@@ -5008,7 +5006,7 @@ class UVData(UVBase):
             self._clear_unused_phase_centers()
 
         # Lastly, apply near-field corrections if specified
-        if near_field:
+        if cat_type == "near_field":
             self._apply_near_field_corrections(
                 focus=dist_qt, ra=phase_dict["cat_lon"], dec=phase_dict["cat_lat"]
             )
