@@ -662,7 +662,8 @@ def _get_autocorrelations_mask(uvd):
         num = uvd.antpair2ind(i, ant2=i)
 
         if isinstance(num, slice):
-            inds = list(range(num.start, num.stop, num.step))
+            step = num.step if num.step is not None else 1
+            inds = list(range(num.start, num.stop, step))
             autos.append(inds)
 
         elif num is not None:

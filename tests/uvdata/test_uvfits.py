@@ -584,6 +584,38 @@ def test_readwriteread(tmp_path, casa_uvfits, telescope_frame, selenoid):
     return
 
 
+# @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+# @pytest.mark.parametrize(
+#     "cat_type",
+#     ["sidereal", "near_field"]
+# )
+# def test_readwriteread_phase(tmp_path, casa_uvfits, cat_type):
+#     """
+#     CASA tutorial uvfits loopback test including phasing corrections.
+#     """
+#     uv_in = casa_uvfits
+
+#     uv_out = UVData()
+#     write_file = str(tmp_path / "outtest_casa_phased.uvfits")
+
+#     uv_in.phase(cat_name='foo', cat_type=cat_type, ra=0.8, dec=-0.4, dist=10000)
+
+#     uv_in.write_uvfits(write_file)
+#     file_read = write_file
+#     uv_out.read(file_read)
+
+#     assert uv_in.telescope._location.frame == uv_out.telescope._location.frame
+#     assert uv_in.telescope._location.ellipsoid == uv_out.telescope._location.ellipsoid
+
+#     uv_in.filename = uv_out.filename
+#     uv_out._consolidate_phase_center_catalogs(
+#         reference_catalog=uv_in.phase_center_catalog,
+#     )
+
+#     assert uv_in == uv_out
+#     return
+
+
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("uvw_suffix", ["---SIN", "---NCP"])
 def test_uvw_coordinate_suffixes(casa_uvfits, tmp_path, uvw_suffix):

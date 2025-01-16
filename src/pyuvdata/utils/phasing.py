@@ -2086,6 +2086,8 @@ def calc_app_coords(
             "ephem" (RA/Dec that moves with time),
             "driftscan" (fixed az/el position),
             "unprojected" (alias for "driftscan" with (Az, Alt) = (0 deg, 90 deg)).
+            "near_field" (equivalent to sidereal, with the addition of
+                near-field corrections)
     time_array : float or ndarray of float or Time object
         Times for which the apparent coordinates are to be calculated, in UTC JD.
         If more than a single element, must be the same shape as lon_coord and
@@ -2176,7 +2178,7 @@ def calc_app_coords(
         else:
             unique_lst = lst_array[unique_mask]
 
-    if coord_type == "sidereal":
+    if coord_type == "sidereal" or coord_type == "near_field":
         # If the coordinates are not in the ICRS frame, go ahead and transform them now
         if coord_frame != "icrs":
             icrs_ra, icrs_dec = transform_sidereal_coords(
