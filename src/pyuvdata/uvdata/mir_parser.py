@@ -3411,7 +3411,8 @@ class MirParser:
 
             # Pull out some metadata here for parsing the individual solutions
             flags_arr = np.asarray(file["flagArr"])  # Per-sphid flags
-            sflags_arr = np.asarray(file["staticFlagArr"])  # "For all time" flags
+            saflags_arr = np.asarray(file["staticAntFlagArr"])  # "All times" ant flags
+            sbflags_arr = np.asarray(file["staticBaseFlagArr"])  # "All times" BL flags
             ant1_arr = np.asarray(file["ant1Arr"][0]).astype(int)  # 1st ant in baseline
             rx1_arr = np.asarray(file["rx1Arr"][0]).astype(
                 int
@@ -3423,28 +3424,38 @@ class MirParser:
             sb_arr = np.asarray(file["sbArr"][0]).astype(int)  # Sideband (0=LSB, 1=USB)
             chunk_arr = np.asarray(file["winArr"][0]).astype(int)  # Spectral win number
 
-            # Begin unpacking the "static" flags, which are antenna based and are
-            # persistent across the entire track. Note that the two loops here are used
-            # to match the indexing scheme of the flags (so the slowest loop iterates
-            # on the outer-most axis of the array).
-            temp_flags = {}
+            # Begin unpacking the "static" flags, which are both baseline and antenna
+            # based and persistent across the entire track. Note that the two loops here
+            # are used to match the indexing scheme of the flags (so the slowest loop
+            # iterates on the outer-most axis of the array).
+            saflags_dict = {}
             for idx, ant in enumerate(ant_arr):
                 for jdx, (rx, sb, chunk) in enumerate(
                     zip(rx1_arr, sb_arr, chunk_arr, strict=True)
                 ):
-                    temp_flags[(ant, rx, sb, chunk)] = sflags_arr[idx, jdx]
+                    saflags_dict[(ant, rx, sb, chunk)] = saflags_arr[idx, jdx]
+
+            sbflags_dict = {}
+            for idx, (ant1, ant2) in enumerate(zip(ant1_arr, ant2_arr, strict=True)):
+                for jdx, (rx1, rx2, sb, chunk) in enumerate(
+                    zip(rx1_arr, rx2_arr, sb_arr, chunk_arr, strict=True)
+                ):
+                    # Store both conventions for antenna ordering
+                    flag_slice = sbflags_arr[idx, jdx]
+                    sbflags_dict[(ant1, rx1, ant2, rx2, sb, chunk)] = flag_slice
+                    sbflags_dict[(ant2, rx2, ant1, rx1, sb, chunk)] = flag_slice
 
             # Expand out the flags to produce baseline-based masks, which will be what
             # is actually used with the visibility data.
             static_flags = {}
             idx_compare = 2 if has_cross_pol else 1
-            for key1, flags1 in temp_flags.items():
-                for key2, flags2 in temp_flags.items():
-                    if key1[idx_compare:] != key2[idx_compare:]:
+            for sa_key1, flag1 in saflags_dict.items():
+                for sa_key2, flag2 in saflags_dict.items():
+                    if sa_key1[idx_compare:] != sa_key2[idx_compare:]:
                         continue
 
-                    new_key = key1[:2] + key2
-                    static_flags[new_key] = flags1 | flags2
+                    key = sa_key1[:2] + sa_key2
+                    static_flags[key] = (flag1 | flag2) | sbflags_dict.get(key, False)
 
             # Once the wide flags dict is built, plug it back into the main dict.
             compass_soln_dict["static_flags"] = static_flags

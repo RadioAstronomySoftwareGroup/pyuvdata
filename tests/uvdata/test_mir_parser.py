@@ -66,11 +66,14 @@ def compass_soln_file(tmp_path_factory):
         # uint8 here because of the compression scheme COMPASS uses.
         file["flagArr"] = np.full((1, 1, 16, 2048), 170, dtype=np.uint8)
 
-        # Set up the static flags so that the first half of the spectrum is flagged.
-        file["staticFlagArr"] = np.tile(
-            ((np.arange(2048) < 1024) * 255).reshape(1, 1, -1).astype(np.uint8),
-            (8, 16, 1),
-        )
+        # Set up the static flags so that the first half of the spectrum is flagged,
+        # first quarter w/ ant flags and second quarter w/ base flags
+        static_arr = np.zeros(2048, dtype=np.uint8)
+        static_arr[:512] = 255
+        file["staticAntFlagArr"] = np.tile(static_arr, (8, 16, 1))
+        static_arr[:512] = 0
+        static_arr[512:1024] = 255
+        file["staticBaseFlagArr"] = np.tile(static_arr, (28, 16, 1))
 
     yield filename
 
