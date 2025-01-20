@@ -115,4 +115,10 @@ up on).
 - Support for data sets containing observations of multiple sources/phase centers.
 -Many new convenience methods for working with interferometric data, including splitting and combining data sets, averaging in time and frequency and applying calibration solutions and flags.
 
+# Acknowledgements
+This work was supported by the National Science Foundation (AST-1835421); and by the
+Submillimeter Array, a joint project between the Smithsonian Astrophysical Observatory
+and the Academia Sinica Institute of Astronomy and Astrophysics, and funded by the
+Smithsonian Institution and the Academia Sinica.
+
 # References
