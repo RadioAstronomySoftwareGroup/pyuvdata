@@ -289,16 +289,14 @@ class Mir(UVData):
             attributes to be of length 1, sets the `flex_spw_polarization_array`
             attribute to define the polarization per spectral window. Default is True.
         """
-        # Create a simple list for broadcasting values stored on a
-        # per-integration basis in MIR into the (tasty) per-blt records in UVDATA.
-        bl_in_idx = mir_data.in_data._index_query(header_key=mir_data.bl_data["inhid"])
-
         # Create a simple array/list for broadcasting values stored on a
         # per-blt basis into per-spw records, and per-time into per-blt records
         sp_bl_idx = mir_data.bl_data._index_query(header_key=mir_data.sp_data["blhid"])
 
         ant1_rxa_mask = mir_data.bl_data.get_value("ant1rx", index=sp_bl_idx) == 0
         ant2_rxa_mask = mir_data.bl_data.get_value("ant2rx", index=sp_bl_idx) == 0
+        ant1_rxb_mask = mir_data.bl_data.get_value("ant1rx", index=sp_bl_idx) != 0
+        ant2_rxb_mask = mir_data.bl_data.get_value("ant2rx", index=sp_bl_idx) != 0
 
         if len(np.unique(mir_data.bl_data["ipol"])) == 1 and (
             len(mir_data.codes_data["pol"]) == (2 * 4)
@@ -310,9 +308,9 @@ class Mir(UVData):
             pol_arr = np.zeros_like(sp_bl_idx)
 
             pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxa_mask)] = 0
-            pol_arr[np.logical_and(~ant1_rxa_mask, ~ant2_rxa_mask)] = 1
-            pol_arr[np.logical_and(ant1_rxa_mask, ~ant2_rxa_mask)] = 2
-            pol_arr[np.logical_and(~ant1_rxa_mask, ant2_rxa_mask)] = 3
+            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxb_mask)] = 1
+            pol_arr[np.logical_and(ant1_rxa_mask, ant2_rxb_mask)] = 2
+            pol_arr[np.logical_and(ant1_rxb_mask, ant2_rxa_mask)] = 3
         else:
             # If this has multiple ipol codes, then we don't need to worry about the
             # single-code ambiguity.
@@ -343,7 +341,7 @@ class Mir(UVData):
             # the two polarizations will effectively be concat'd across the freq
             # axis instead of the pol axis. First, see if we have two diff receivers
             rxa_mask = ant1_rxa_mask & ant2_rxa_mask
-            rxb_mask = ~(ant1_rxa_mask | ant2_rxa_mask)
+            rxb_mask = ant1_rxb_mask & ant2_rxb_mask
 
             if np.any(rxa_mask) and np.any(rxb_mask):
                 # If we have both VV and HH data, check to see that the frequencies of
@@ -416,9 +414,11 @@ class Mir(UVData):
         # Here we need to do a little fancy footwork in order to map spectral windows
         # to ranges along the freq-axis, and calculate some values that will eventually
         # populate arrays related to this axis (e.g., freq_array, chan_width).
+        spdx_idx_map = {key: idx for idx, key in enumerate(set(spdx_list))}
+        spdx_check = np.array([spdx_idx_map[item] for item in spdx_list])
         spdx_dict = {}
         spw_dict = {}
-        for spdx in set(spdx_list):
+        for spdx, idx in spdx_idx_map.items():
             # We need to do a some extra handling here, because a single correlator
             # can produce multiple spectral windows (e.g., LSB/USB). The scheme below
             # will negate the corr band number if LSB, will set the corr band number to
@@ -429,7 +429,8 @@ class Mir(UVData):
             spw_id *= (-1) ** (1 + spdx[1])
             spw_id += 512 if (pol_split_tuning and spdx[2] == 1) else 0
 
-            data_mask = np.array([spdx == item for item in spdx_list])
+            # Select the appropriate entries inside of sp_data
+            data_mask = spdx_check == idx
 
             # Grab values, get them into appropriate types
             spw_fsky = np.median(mir_data.sp_data["fsky"][data_mask])
@@ -579,31 +580,26 @@ class Mir(UVData):
         # pyuvdata handles this metadata on a per-baseline-time basis (and there's no
         # good reason it should vary on a per-sphid basis).
         sp_to_blt = ["igq", "ipq", "vradcat"]
+        check_mask = mir_data.sp_data["blhid"]
+        check_mask = check_mask[1:] != check_mask[:-1]
+        for key in sp_to_blt:
+            # The only places where we should detect diffs is when the blhid changes
+            check_data = mir_data.sp_data[key]
+            if not np.all(check_mask[check_data[1:] != check_data[:-1]]):
+                warnings.warn(
+                    "Per-spectral window metadata differ. Defaulting to using "
+                    "the last value in the data set."
+                )
+                break
+
+        sphid_list = mir_data.sp_data["sphid"][np.concatenate((check_mask, [True]))]
         sp_temp_dict = {}
-        suppress_warning = False
-        for sp_rec in mir_data.sp_data:
-            # Evaluate each spectral records metadata individually, and create a simple
-            # dict that contains the metadata we want to check.
-            temp_dict = {item: sp_rec[item] for item in sp_to_blt}
-            try:
-                # If we have already captured metadata about this baseline-time, check
-                # to make sure that it agrees with the previous entires.
-                if sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] != temp_dict:
-                    # If the entry does NOT agree with what was previously given,
-                    # warn the user, and update the record (we only want to warn once
-                    # to avoid flooding the user with error messages).
-                    if not suppress_warning:
-                        warnings.warn(
-                            "Per-spectral window metadata differ. Defaulting to using "
-                            "the last value in the data set."
-                        )
-                        suppress_warning = True
-                    sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
-            except KeyError:
-                # If we get a key error, it means this is the first record to be
-                # evaluated for this given baseline-time, so create a new dict
-                # entry so that subsequent sphid records can be evaluated.
-                sp_temp_dict[blhid_blt_order[sp_rec["blhid"]]] = temp_dict
+        for blhid, *values in mir_data.sp_data.get_value(
+            ["blhid"] + sp_to_blt, header_key=sphid_list
+        ):
+            sp_temp_dict[blhid_blt_order[blhid]] = dict(
+                zip(sp_to_blt, values, strict=True)
+            )
 
         # Next step: we want to check that information that's stored on a per-baseline
         # record basis (blhid) is consistent across a given baseline-time (n.b., again,
@@ -611,6 +607,28 @@ class Mir(UVData):
         # a single baseline-time). We need to do this check here since pyuvdata handles
         # this metadata on a per-baseline-time basis.
         bl_to_blt = ["u", "v", "w", "iant1", "iant2"]
+        check_mask = np.array(list(blhid_blt_order.values()))
+        check_mask = check_mask[1:] != check_mask[:-1]
+        for key in bl_to_blt:
+            check_data = mir_data.bl_data[key]
+            if not np.all(check_mask[check_data[1:] != check_data[:-1]]):
+                warnings.warn(
+                    "Per-baseline metadata differ. Defaulting to using "
+                    "the last value in the data set."
+                )
+                break
+
+        # Get mapping of unique blhids to blt position and extract those values
+        blhid_blt_map = {value: key for key, value in blhid_blt_order.items()}
+        blhid_blt_map = {value: key for key, value in blhid_blt_map.items()}
+        blt_temp_dict = {}
+        for blhid, *values in mir_data.bl_data.get_value(
+            ["blhid"] + bl_to_blt, header_key=blhid_blt_map
+        ):
+            blt_key = blhid_blt_map[blhid]
+            blt_temp_dict[blt_key] = dict(
+                zip(bl_to_blt, values, strict=True), **sp_temp_dict[blt_key]
+            )
 
         # Note that these are entries that vary per-integration record (inhid), but
         # we include them here so that we can easily expand the per-integration data
@@ -629,36 +647,15 @@ class Mir(UVData):
             "inhid",
             "obsmode",
         ]
-        blt_temp_dict = {}
-        suppress_warning = False
-        for idx, bl_rec in enumerate(mir_data.bl_data):
-            # Evaluate each spectral records metadata individually, and create a simple
-            # dict that contains the metadata we want to check.
-            temp_dict = {item: bl_rec[item] for item in bl_to_blt}
-            in_rec = mir_data.in_data._data[bl_in_idx[idx]]
+        in_temp_dict = {}
+        for inhid, *values in mir_data.in_data.get_value(["inhid"] + in_to_blt):
+            in_temp_dict[inhid] = dict(zip(in_to_blt, values, strict=True))
 
-            # Update the dict with the per-inhid data as well.
-            temp_dict.update({item: in_rec[item] for item in in_to_blt})
-
-            # Finally, fold in the originally per-sphid data that we checked above.
-            temp_dict.update(sp_temp_dict[blhid_blt_order[bl_rec["blhid"]]])
-            try:
-                # If we have already captured metadata about this baseline-time, check
-                # to make sure that it agrees with the previous entires.
-                if blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] != temp_dict:
-                    # Again, if we reach this point, only raise a warning one time
-                    if not suppress_warning:
-                        warnings.warn(
-                            "Per-baseline metadata differ. Defaulting to using "
-                            "the last value in the data set."
-                        )
-                        suppress_warning = True
-                    blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
-            except KeyError:
-                # If we get a key error, it means this is the first record to be
-                # evaluated for this given baseline-time, so create a new dict
-                # entry so that subsequent blhid records can be evaluated.
-                blt_temp_dict[blhid_blt_order[bl_rec["blhid"]]] = temp_dict
+        # Update per-blt records with per-inhid information given associated blhid
+        for blhid, inhid in mir_data.bl_data.get_value(
+            ["blhid", "inhid"], header_key=blhid_blt_map
+        ):
+            blt_temp_dict[blhid_blt_map[blhid]].update(in_temp_dict[inhid])
 
         # Initialize the metadata arrays.
         integration_time = np.zeros(Nblts, dtype=float)
