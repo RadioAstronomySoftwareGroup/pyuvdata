@@ -622,6 +622,7 @@ def test_bad_sphid(mir_data):
     mir_obj = Mir()
     with check_warnings(UserWarning, "Changing fields that tie to header keys can"):
         mir_data.sp_data["sphid"] = -1
+        mir_data.sp_data._set_header_key_index_dict()
 
     with pytest.raises(KeyError) as err:
         mir_obj._init_from_mir_parser(mir_data)
