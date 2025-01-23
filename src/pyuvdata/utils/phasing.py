@@ -2628,7 +2628,7 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     return x, y, z
 
 
-def _get_delay(uvd, focus_x, focus_y, focus_z, flipconj):
+def _get_delay(uvd, focus_x, focus_y, focus_z):
     """
     Calculate near-field phase/delay along the Nblts axis.
 
@@ -2638,8 +2638,6 @@ def _get_delay(uvd, focus_x, focus_y, focus_z, flipconj):
         UVData object
     focus_x, focus_y, focus_z : ndarray, ndarray, ndarray
         ENU-frame coordinates of focal point (Each of shape (Ntimes,))
-    flipconj : bool
-        Is the uvd conjugation scheme "flipped" compared to what pyuvdata expects?
 
     Returns
     -------
@@ -2682,10 +2680,7 @@ def _get_delay(uvd, focus_x, focus_y, focus_z, flipconj):
     old_w = uvd.uvw_array[:, -1]
 
     # Calculate near-field delay
-    if flipconj:
-        new_w = r2 - r1
-    else:
-        new_w = r1 - r2
+    new_w = r1 - r2
     phi = new_w - old_w
 
     # Remove autocorrelations

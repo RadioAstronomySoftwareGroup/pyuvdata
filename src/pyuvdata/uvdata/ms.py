@@ -107,6 +107,15 @@ class MS(UVData):
         if not casa_present:  # pragma: no cover
             raise ImportError(no_casa_message) from casa_error
 
+        if any(
+            entry.get("cat_type") == "near_field"
+            for entry in self.phase_center_catalog.values()
+        ):
+            raise NotImplementedError(
+                "Writing near-field phased data to Measurement Set format "
+                + "is not yet supported."
+            )
+
         if run_check:
             self.check(
                 check_extra=check_extra,

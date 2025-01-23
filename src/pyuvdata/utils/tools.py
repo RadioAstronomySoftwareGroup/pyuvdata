@@ -666,9 +666,6 @@ def _get_autocorrelations_mask(uvd):
             inds = list(range(num.start, num.stop, step))
             autos.append(inds)
 
-        elif num is not None:
-            autos.append(num)
-
     # Flatten it to obtain the 1D array of autocorrelation indices
     autos = np.asarray(autos).flatten()
 
