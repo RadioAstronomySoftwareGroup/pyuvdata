@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from .. import utils as uvutils
-from .uvbeam import UVBeam, _future_array_shapes_warning
+from .uvbeam import UVBeam
 
 __all__ = ["FEKOBeam"]
 
@@ -128,7 +128,9 @@ class FEKOBeam(UVBeam):
         self.model_name = model_name
         self.model_version = model_version
         self.history = history
-        if not uvutils._check_history_version(self.history, self.pyuvdata_version_str):
+        if not uvutils.history._check_history_version(
+            self.history, self.pyuvdata_version_str
+        ):
             self.history += self.pyuvdata_version_str
 
         if x_orientation is not None:
@@ -199,17 +201,15 @@ class FEKOBeam(UVBeam):
             float(i.split("Frequency")[1].split()[1]) for i in data_chunks[:-1]
         ]
         self.Nfreqs = len(frequency)
-        self.freq_array = np.zeros((1, self.Nfreqs))
-        self.freq_array[0] = frequency
-        self.bandpass_array = np.zeros((1, self.Nfreqs))
+        self.freq_array = np.zeros(self.Nfreqs)
+        self.freq_array = frequency
+        self.bandpass_array = np.zeros(self.Nfreqs)
 
-        data_each = np.zeros((len(self.freq_array[0]), np.shape(data_all[0])[0], 9))
+        data_each = np.zeros((len(self.freq_array), np.shape(data_all[0])[0], 9))
         if beam_type == "efield":
-            data_each2 = np.zeros(
-                (len(self.freq_array[0]), np.shape(data_all2[0])[0], 9)
-            )
+            data_each2 = np.zeros((len(self.freq_array), np.shape(data_all2[0])[0], 9))
 
-        for i in range(len(self.freq_array[0])):
+        for i in range(len(self.freq_array)):
             data_each[i, :, :] = np.array(
                 [list(map(float, data.split())) for data in data_all[i]]
             )
@@ -236,15 +236,15 @@ class FEKOBeam(UVBeam):
                 )
                 phi_data = phi_data.reshape((theta_axis.size, phi_axis.size), order="F")
 
-                if not uvutils._test_array_constant_spacing(
-                    theta_axis, self._axis2_array.tols
+                if not uvutils.tools._test_array_constant_spacing(
+                    theta_axis, tols=self._axis2_array.tols
                 ):
                     raise ValueError(
                         "Data does not appear to be regularly gridded in zenith angle"
                     )
 
-                if not uvutils._test_array_constant_spacing(
-                    phi_axis, self._axis1_array.tols
+                if not uvutils.tools._test_array_constant_spacing(
+                    phi_axis, tols=self._axis1_array.tols
                 ):
                     raise ValueError(
                         "Data does not appear to be regularly gridded in azimuth angle"
@@ -277,7 +277,7 @@ class FEKOBeam(UVBeam):
                 power_beam1 = 10 ** (data_each[i, :, data_col] / 10).reshape(
                     (theta_axis.size, phi_axis.size), order="F"
                 )
-                self.data_array[0, 0, 0, i, :, :] = power_beam1
+                self.data_array[0, 0, i, :, :] = power_beam1
 
             else:
                 self.basis_vector_array = np.zeros(
@@ -359,11 +359,6 @@ class FEKOBeam(UVBeam):
             warnings.warn(
                 f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
             )
-
-        if use_future_array_shapes:
-            self.use_future_array_shapes()
-        else:
-            warnings.warn(_future_array_shapes_warning, DeprecationWarning)
 
         if run_check:
             self.check(
