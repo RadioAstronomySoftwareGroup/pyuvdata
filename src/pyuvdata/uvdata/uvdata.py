@@ -4626,7 +4626,7 @@ class UVData(UVBase):
                 phase_dict[key] = int(phase_dict[key])
         return phase_dict
 
-    def _apply_near_field_corrections(self, focus, ra, dec, flipconj=False):
+    def _apply_near_field_corrections(self, focus, ra, dec):
         """
         Apply near-field corrections by focusing the array to the specified focal point.
 
@@ -4638,9 +4638,6 @@ class UVData(UVBase):
             Right ascension of the focal point ie phase center (rad; shape (Ntimes,))
         dec : ndarray
             Declination of the focal point ie phase center (rad; shape (Ntimes,))
-        flipconj : bool
-            Is the uvd conjugation scheme "flipped" compared to
-            what pyuvdata expects? (default False)
 
         Returns
         -------
@@ -4660,7 +4657,7 @@ class UVData(UVBase):
 
         # Calculate near-field correction at the specified timestep
         # for each vis along Nblts axis
-        phi, new_w = _get_delay(self, focus_x, focus_y, focus_z, flipconj)
+        phi, new_w = _get_delay(self, focus_x, focus_y, focus_z)
 
         # Update old w with new w
         self.uvw_array[:, -1] = new_w
