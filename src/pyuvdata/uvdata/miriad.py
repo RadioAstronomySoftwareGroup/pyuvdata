@@ -1643,6 +1643,14 @@ class Miriad(UVData):
                 "Only ITRS telescope locations are supported in Miriad files."
             )
 
+        if any(
+            entry.get("cat_type") == "near_field"
+            for entry in self.phase_center_catalog.values()
+        ):
+            raise NotImplementedError(
+                "Writing near-field phased data to miriad format is not yet supported."
+            )
+
         # change time_array and lst_array to mark beginning of integration,
         # per Miriad format
         miriad_time_array = self.time_array - self.integration_time / (24 * 3600.0) / 2
