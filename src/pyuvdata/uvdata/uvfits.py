@@ -826,6 +826,14 @@ class UVFITS(UVData):
         fix_autos: bool = False,
     ):
         """Write data to a uvfits file."""
+        if any(
+            entry.get("cat_type") == "near_field"
+            for entry in self.phase_center_catalog.values()
+        ):
+            raise NotImplementedError(
+                "Writing near-field phased data to uvfits format is not yet supported."
+            )
+
         if run_check:
             self.check(
                 check_extra=check_extra,
