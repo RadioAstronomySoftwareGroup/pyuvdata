@@ -5,7 +5,7 @@ import numpy as np
 from pyuvdata import UVBeam
 from pyuvdata.data import DATA_PATH
 
-filename = ["OVRO_LWA_x.ffe"]
+filename = "OVRO_LWA_x.ffe"
 feko_folder = "OVRO_LWA_FEKOBeams"
 feko_filename = os.path.join(DATA_PATH, feko_folder, filename)
 
@@ -26,12 +26,12 @@ def test_read_power():
     )
 
     assert beam_feko1.beam_type == "power"
-    assert beam_feko1.data_array.shape == (2, 1, 2, 3, 181, 360)
-    assert len(beam_feko1.freq_array[0]) == 3
+    assert len(beam_feko1.freq_array) == 2
+    assert beam_feko1.data_array.shape == (1, 1, 2, 181, 181)
 
     assert np.allclose(
-        beam_feko1.data_array[:, 0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
+        beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
         beam_feko1.data_array[
-            :, 0, :, :, 0, np.where(beam_feko1.axis1_array == np.pi / 2.0)[0]
+            0, :, :, 0, np.where(beam_feko1.axis1_array == np.pi / 2.0)[0]
         ],
     )
