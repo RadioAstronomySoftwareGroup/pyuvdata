@@ -39,8 +39,24 @@ required_properties = [
     "antenna_numbers",
     "antenna_positions",
 ]
-extra_parameters = ["_antenna_diameters", "_x_orientation", "_instrument"]
-extra_properties = ["antenna_diameters", "x_orientation", "instrument"]
+extra_parameters = [
+    "_antenna_diameters",
+    "_x_orientation",
+    "_instrument",
+    "_mount_type",
+    "_Nfeeds",
+    "_feed_array",
+    "_feed_angle",
+]
+extra_properties = [
+    "antenna_diameters",
+    "x_orientation",
+    "instrument",
+    "mount_type",
+    "Nfeeds",
+    "feed_array",
+    "feed_angle",
+]
 other_attributes = [
     "citation",
     "telescope_location_lat_lon_alt",

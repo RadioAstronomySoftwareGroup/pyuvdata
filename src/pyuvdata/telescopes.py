@@ -60,6 +60,9 @@ _KNOWN_TELESCOPES = {
             lon=Angle("-155d28m39.08279s"),
             height=4083.948144 * units.m,
         ),
+        "Nants": 8,
+        "antenna_diameters": 6.0,
+        "x_orientation": "east",
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
     "SZA": {
@@ -417,6 +420,61 @@ class Telescope(UVBase):
             tols=1e-3,  # 1 mm
         )
 
+        desc = (
+            'Antenna mount type, shape (Nants,). Options are: "alt-az", "equitorial", '
+            '"orbiting", "x-y", "alt-az+nasmyth-r", "alt-az+nasmyth-l", and "phased".'
+        )
+        self._mount_type = uvp.UVParameter(
+            "mount_type",
+            description=desc,
+            form=("Nants",),
+            required=False,
+            expected_type=str,
+            acceptable_vals=[
+                "alt-az",
+                "equatorial",
+                "orbiting",
+                "x-y",
+                "alt-az+nasmyth-r",
+                "alt-az+nasmyth-l",
+                "phased",
+            ],
+        )
+
+        self._Nfeeds = uvp.UVParameter(
+            "Nfeeds",
+            description="Number of feeds.",
+            expected_type=int,
+            acceptable_vals=[1, 2],
+            required=False,
+        )
+
+        desc = (
+            "Array of feed orientations. shape (Nfeeds). Options are: n/e or x/y or "
+            "r/l. Optional parameter, required if feed_angle is set."
+        )
+        self._feed_array = uvp.UVParameter(
+            "feed_array",
+            description=desc,
+            required=False,
+            expected_type=str,
+            form=("Nants", "Nfeeds"),
+            acceptable_vals=["x", "y", "n", "e", "r", "l"],
+        )
+
+        desc = (
+            "Position angle of a given feed, shape (Nants, Nfeeds), units of radians. "
+            "Optional parameter, required if feed_array is set."
+        )
+        self._feed_angle = uvp.UVParameter(
+            "feed_angle",
+            description=desc,
+            form=("Nants", "Nfeeds"),
+            required=False,
+            expected_type=float,
+            tols=1e-6,  # 10x (~2pix) single precision limit
+        )
+
         super().__init__()
 
     def __getattr__(self, __name):
@@ -492,6 +550,12 @@ class Telescope(UVBase):
         super().check(
             check_extra=check_extra, run_check_acceptability=run_check_acceptability
         )
+
+        # If using feed_angle, make sure feed_array is set (and visa-versa)
+        if (self.feed_array is None) != (self.feed_angle is None):
+            raise ValueError(
+                "Parameter feed_array and feed_angle must be set together."
+            )
 
         if run_check_acceptability:
             # Check antenna positions
@@ -651,6 +715,9 @@ class Telescope(UVBase):
                             self.antenna_numbers = ant_info["antenna_numbers"][
                                 telescope_ant_inds
                             ]
+
+            if "Nants" in telescope_dict and (overwrite or self.Nants is None):
+                self.Nants = telescope_dict["Nants"]
 
             if "antenna_diameters" in telescope_dict and (
                 overwrite or self.antenna_diameters is None
@@ -884,6 +951,10 @@ class Telescope(UVBase):
             "instrument": "instrument",
             "x_orientation": "x_orientation",
             "antenna_diameters": "antenna_diameters",
+            "mount_type": "mount_type",
+            "Nfeeds": "Nfeeds",
+            "feed_array": "feed_array",
+            "feed_angle": "feed_angle",
         }
         for attr, tel_attr in telescope_attrs.items():
             try:
@@ -932,6 +1003,14 @@ class Telescope(UVBase):
             header["x_orientation"] = np.bytes_(self.x_orientation)
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
+        if self.Nfeeds is not None:
+            header["Nfeeds"] = self.Nfeeds
+        if self.feed_array is not None:
+            header["feed_array"] = np.asarray(self.feed_array, dtype="bytes")
+        if self.feed_angle is not None:
+            header["feed_angle"] = self.feed_angle
+        if self.mount_type is not None:
+            header["mount_type"] = np.asarray(self.mount_type, dtype="bytes")
 
     def get_enu_antpos(self):
         """

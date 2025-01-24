@@ -321,6 +321,11 @@ def test_read_ms_read_uvfits(nrao_uv, casa_uvfits):
     # propagate scan numbers to the uvfits, ONLY for comparison
     uvfits_uv.scan_number_array = ms_uv.scan_number_array
 
+    # Set the feed information the same, ONLY for comparison
+    uvfits_uv.telescope.feed_array = ms_uv.telescope.feed_array
+    uvfits_uv.telescope.feed_angle = ms_uv.telescope.feed_angle
+    uvfits_uv.telescope.Nfeeds = ms_uv.telescope.Nfeeds
+
     assert uvfits_uv == ms_uv
 
 

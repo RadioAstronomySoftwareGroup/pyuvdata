@@ -675,6 +675,20 @@ class HDF5Meta:
         )
 
     @cached_property
+    def mount_type(self) -> list[str]:
+        """The antenna names in the file."""
+        return np.char.decode(
+            self.header["mount_type"][:].astype("|S"), encoding="utf8"
+        )
+
+    @cached_property
+    def feed_array(self) -> np.ndarray[str]:
+        """The antenna names in the file."""
+        return np.char.decode(
+            self.header["feed_array"][:].astype("|S"), encoding="utf8"
+        ).astype(np.object_)
+
+    @cached_property
     def extra_keywords(self) -> dict:
         """The extra_keywords from the file."""
         header = self.header

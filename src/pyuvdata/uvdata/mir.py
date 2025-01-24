@@ -359,8 +359,9 @@ class Mir(UVData):
                     loa_chunks.issubset(lob_chunks) or lob_chunks.issubset(loa_chunks)
                 )
 
-        # Map MIR pol code to pyuvdata/AIPS polarization number
+        # Map MIR pol code to pyuvdata/AIPS polarization number and feeds
         pol_code_dict = {}
+        feed_code_dict = {}
         icode_dict = mir_data.codes_data["pol"]
         for code in mir_data.codes_data.get_codes("pol", return_dict=False):
             # There are pol modes/codes that are support in MIR that are not in AIPS
@@ -369,6 +370,9 @@ class Mir(UVData):
             # an error further downstream).
             with contextlib.suppress(KeyError):
                 pol_code_dict[icode_dict[code]] = utils.POL_STR2NUM_DICT[code.lower()]
+                feed_code_dict[icode_dict[code]] = utils.pol.POL_TO_FEED_DICT[
+                    utils.POL_NUM2STR_DICT[utils.POL_STR2NUM_DICT[code.lower()]]
+                ]
         if pol_split_tuning and allow_flex_pol:
             # If we have a split tuning that, that means we can take advantage of
             # the flex-pol feature within UVData
@@ -531,6 +535,18 @@ class Mir(UVData):
         self.telescope.Nants = 8
         self.telescope.antenna_names = [f"Ant{idx}" for idx in range(1, 9)]
         self.telescope.antenna_numbers = np.arange(1, 9)
+        self.telescope.antenna_diameters = np.full(self.telescope.Nants, 6.0)
+        self.telescope.x_orientation = "east"
+        self.telescope.mount_type = ["alt-az+nasmyth-l"] * self.telescope.Nants
+        feed_array = np.array(
+            sorted({item for key in pol_dict for item in feed_code_dict[key]}),
+            dtype=np.object_,
+        )
+        self.telescope.Nfeeds = len(feed_array)
+        self.telescope.feed_array = np.array([feed_array] * self.telescope.Nants)
+        self.telescope.feed_angle = np.full(self.telescope.feed_array.shape, np.pi / 4)
+        # If y-pol, make the feed angle 90 deg orthogonal to x
+        self.telescope.feed_angle[self.telescope.feed_array == "y"] -= np.pi / 2
 
         # Prepare the XYZ coordinates of the antenna positions.
         antXYZ = np.zeros([self.telescope.Nants, 3])
@@ -763,7 +779,6 @@ class Mir(UVData):
             use_ant_pos=False,
         )
 
-        self.telescope.antenna_diameters = np.zeros(self.telescope.Nants) + 6.0
         self.blt_order = ("time", "baseline")
 
         # set filename attribute

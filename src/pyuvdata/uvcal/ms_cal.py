@@ -139,8 +139,8 @@ class MSCal(UVCal):
         self.telescope.antenna_names = ant_info["antenna_names"]
         self.telescope.Nants = len(self.telescope.antenna_names)
         self.telescope.antenna_numbers = ant_info["antenna_numbers"]
-        if all(ant_info["antenna_diameters"] > 0):
-            self.telescope.antenna_diameters = ant_info["antenna_diameters"]
+        self.telescope.mount_type = ant_info["antenna_mount"]
+        self.telescope.antenna_diameters = ant_info["antenna_diameters"]
         # MS-format seems to want to preserve the blank entries in the gains tables
         # This looks to be the same for MS files.
         self.ant_array = self.telescope.antenna_numbers
