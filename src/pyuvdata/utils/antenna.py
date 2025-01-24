@@ -6,6 +6,26 @@ import numpy as np
 
 from . import tools
 
+MOUNT_STR2NUM_DICT = {
+    "alt-az": 0,
+    "equatorial": 1,
+    "orbiting": 2,
+    "x-y": 3,
+    "alt-az+nasmyth-r": 4,
+    "alt-az+nasmyth-l": 5,
+    "phased": 6,
+}
+
+MOUNT_NUM2STR_DICT = {
+    0: "alt-az",
+    1: "equatorial",
+    2: "orbiting",
+    3: "x-y",
+    4: "alt-az+nasmyth-r",
+    5: "alt-az+nasmyth-l",
+    6: "phased",
+}
+
 
 def _select_antenna_helper(
     *,
