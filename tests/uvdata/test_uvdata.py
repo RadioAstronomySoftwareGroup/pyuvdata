@@ -12662,27 +12662,40 @@ def test_near_field_err():
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_write_near_field_err():
+@pytest.mark.parametrize(
+    "file_format, import_check, error_message",
+    [
+        (
+            "miriad",
+            lambda: pytest.importorskip("pyuvdata.uvdata._miriad"),
+            "Writing near-field phased data to miriad format is not yet supported.",
+        ),
+        (
+            "ms",
+            lambda: pytest.importorskip("casacore"),
+            "Writing near-field phased data to Measurement Set format "
+            + "is not yet supported.",
+        ),
+        (
+            "uvfits",
+            None,
+            "Writing near-field phased data to uvfits format is not yet supported.",
+        ),
+    ],
+)
+def test_write_near_field_err(file_format, import_check, error_message):
     uvh5_sample = os.path.join(DATA_PATH, "1061316296_nearfield.uvh5")
 
     uvd = UVData()
     uvd.read(uvh5_sample)
 
-    with pytest.raises(
-        NotImplementedError,
-        match="Writing near-field phased data to miriad format is not yet supported.",
-    ):
-        uvd.write_miriad("test_path")
+    if import_check:
+        import_check()
 
-    with pytest.raises(
-        NotImplementedError,
-        match="Writing near-field phased data to Measurement Set format "
-        + "is not yet supported.",
-    ):
-        uvd.write_ms("test_path")
-
-    with pytest.raises(
-        NotImplementedError,
-        match="Writing near-field phased data to uvfits format is not yet supported.",
-    ):
-        uvd.write_uvfits("test_path")
+    with pytest.raises(NotImplementedError, match=error_message):
+        if file_format == "miriad":
+            uvd.write_miriad("test_path")
+        elif file_format == "ms":
+            uvd.write_ms("test_path")
+        elif file_format == "uvfits":
+            uvd.write_uvfits("test_path")
