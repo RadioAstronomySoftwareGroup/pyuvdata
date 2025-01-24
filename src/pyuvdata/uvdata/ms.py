@@ -375,7 +375,7 @@ class MS(UVData):
 
         ms_utils.write_ms_antenna(filepath, uvobj=self)
         ms_utils.write_ms_data_description(filepath, uvobj=self)
-        ms_utils.write_ms_feed(filepath, pol_order=pol_order, uvobj=self)
+        ms_utils.write_ms_feed(filepath, uvobj=self)
         ms_utils.write_ms_field(filepath, uvobj=self)
         ms_utils.write_ms_history(filepath, uvobj=self)
         ms_utils.write_ms_observation(filepath, uvobj=self)
@@ -955,13 +955,24 @@ class MS(UVData):
         )
         self.Nbls = len(np.unique(self.baseline_array))
 
-        # open table with antenna location information
-        tb_ant_dict = ms_utils.read_ms_antenna(filepath)
+        # open up the observation information
         obs_dict = ms_utils.read_ms_observation(filepath)
         self.telescope.name = obs_dict["telescope_name"]
         self.telescope.instrument = obs_dict["telescope_name"]
         self.extra_keywords["observer"] = obs_dict["observer"]
+
+        # open table with antenna location information
+        tb_ant_dict = ms_utils.read_ms_antenna(filepath)
         self.telescope.antenna_numbers = tb_ant_dict["antenna_numbers"]
+        self.telescope.antenna_diameters = tb_ant_dict["antenna_diameters"]
+        self.telescope.mount_type = tb_ant_dict["antenna_mount"]
+
+        tb_feed_dict = ms_utils.read_ms_feed(
+            filepath, select_ants=self.telescope.antenna_numbers
+        )
+        self.telescope.feed_array = tb_feed_dict["feed_array"]
+        self.telescope.feed_angle = tb_feed_dict["feed_angle"]
+        self.telescope.Nfeeds = tb_feed_dict["Nfeeds"]
 
         self.telescope.location = ms_utils.get_ms_telescope_location(
             tb_ant_dict=tb_ant_dict, obs_dict=obs_dict
@@ -971,9 +982,6 @@ class MS(UVData):
         # antenna names
         ant_names = tb_ant_dict["antenna_names"]
         station_names = tb_ant_dict["station_names"]
-        antenna_diameters = tb_ant_dict["antenna_diameters"]
-        if np.any(antenna_diameters > 0):
-            self.telescope.antenna_diameters = antenna_diameters
 
         # importuvfits measurement sets store antenna names in the STATION column.
         # cotter measurement sets store antenna names in the NAME column, which is
