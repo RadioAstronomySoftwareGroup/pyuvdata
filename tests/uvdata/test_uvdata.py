@@ -650,6 +650,15 @@ def test_nants_data_telescope_larger(casa_uvfits):
     uvobj.telescope.antenna_positions = np.concatenate(
         (uvobj.telescope.antenna_positions, np.zeros((1, 3))), axis=0
     )
+    uvobj.telescope.feed_array = np.concatenate(
+        (uvobj.telescope.feed_array, [uvobj.telescope.feed_array[-1]]), axis=0
+    )
+    uvobj.telescope.feed_angle = np.concatenate(
+        (uvobj.telescope.feed_angle, [uvobj.telescope.feed_angle[-1]]), axis=0
+    )
+    uvobj.telescope.mount_type = np.concatenate(
+        (uvobj.telescope.mount_type, [uvobj.telescope.mount_type[-1]]), axis=0
+    )
     assert uvobj.check()
 
 
@@ -661,6 +670,9 @@ def test_ant1_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[1:]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[1:]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[1:, :]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[1:]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[1:, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[1:, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_1_array must be in antenna_numbers"
@@ -677,6 +689,9 @@ def test_ant2_array_not_in_antnums(casa_uvfits):
     uvobj.telescope.antenna_names = uvobj.telescope.antenna_names[:-1]
     uvobj.telescope.antenna_numbers = uvobj.telescope.antenna_numbers[:-1]
     uvobj.telescope.antenna_positions = uvobj.telescope.antenna_positions[:-1]
+    uvobj.telescope.mount_type = uvobj.telescope.mount_type[:-1]
+    uvobj.telescope.feed_angle = uvobj.telescope.feed_angle[:-1, :]
+    uvobj.telescope.feed_array = uvobj.telescope.feed_array[:-1, :]
     uvobj.telescope.Nants = uvobj.telescope.antenna_numbers.size
     with pytest.raises(
         ValueError, match="All antennas in ant_2_array must be in antenna_numbers"

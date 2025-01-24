@@ -526,8 +526,10 @@ class UVParameter:
             str_type = False
             if isinstance(self.value, str):
                 str_type = True
-            if isinstance(self.value, list | np.ndarray | tuple) and isinstance(
-                self.value[0], str
+            if isinstance(self.value, list | tuple) and isinstance(self.value[0], str):
+                str_type = True
+            if isinstance(self.value, np.ndarray) and isinstance(
+                self.value.flat[0], str
             ):
                 str_type = True
 
@@ -581,9 +583,15 @@ class UVParameter:
 
             else:
                 if isinstance(self.value, list | np.ndarray | tuple):
-                    if [s.strip() for s in self.value] != [
-                        s.strip() for s in other.value
-                    ]:
+                    this_val = self.value
+                    other_val = other.value
+
+                    # Catch the case that we have a multidim array, use the flat view
+                    if isinstance(this_val, np.ndarray):
+                        this_val = this_val.flat
+                    if isinstance(other_val, np.ndarray):
+                        other_val = other_val.flat
+                    if [s.strip() for s in this_val] != [s.strip() for s in other_val]:
                         if not silent:
                             print(
                                 f"{self.name} parameter value is a list of "
@@ -670,6 +678,9 @@ class UVParameter:
                     # strings need to be converted to lower case
                     if isinstance(self.value, str):
                         value_set = {self.value.lower()}
+                    elif isinstance(self.value, np.ndarray):
+                        # this is an ndarray of unknown dimensions, make it flat
+                        value_set = {x.lower() for x in self.value.flat}
                     else:
                         # this is a list or array of strings, make them all lower case
                         value_set = {x.lower() for x in self.value}
