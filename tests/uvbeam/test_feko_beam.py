@@ -8,10 +8,12 @@ from pyuvdata.data import DATA_PATH
 filename = "OVRO_LWA_x.ffe"
 feko_folder = "OVRO_LWA_FEKOBeams"
 feko_filename = os.path.join(DATA_PATH, feko_folder, filename)
+feko_filename2 = feko_filename.replace("x", "y")
 
 
 def test_read_power():
     beam1 = UVBeam()
+    beam2 = UVBeam()
 
     beam_feko1 = beam1.from_file(
         feko_filename,
@@ -25,9 +27,24 @@ def test_read_power():
         model_version="1.0",
     )
 
+    beam_feko2 = beam2.from_file(
+        feko_filename2,
+        beam_type="power",
+        frequency=None,
+        feed_pol="y",
+        telescope_name="LWA",
+        feed_name="LWA",
+        feed_version="1",
+        model_name="FEKO_MROsoil",
+        model_version="1.0",
+    )
+
     assert beam_feko1.beam_type == "power"
-    assert len(beam_feko1.freq_array) == 2
-    assert beam_feko1.data_array.shape == (1, 1, 2, 181, 181)
+    assert beam_feko2.beam_type == "power"
+    assert len(beam_feko1.freq_array) == 3
+    assert len(beam_feko1.freq_array) == len(beam_feko2.freq_array)
+    assert beam_feko1.data_array.shape == (1, 1, 3, 181, 181)
+    assert beam_feko2.data_array.shape == beam_feko1.data_array.shape
 
     assert np.allclose(
         beam_feko1.data_array[0, :, :, 0, np.where(beam_feko1.axis1_array == 0)[0]],
