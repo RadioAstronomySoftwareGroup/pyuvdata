@@ -703,9 +703,14 @@ class UVFITS(UVData):
                     ]
 
             if ant_hdu.header.get("HASFEED", not pyuvdata_written):
-                # Tranpose here so that the hape is (Nants, Nfeeds)
+                # Tranpose here so that the shape is (Nants, Nfeeds)
+                # NB: Older versions of the fits reader produce " " here, so we use
+                # strip so that the output across versions is a uniform ""
                 self.telescope.feed_array = np.array(
-                    [ant_hdu.data["POLTYA"].lower(), ant_hdu.data["POLTYB"].lower()]
+                    [
+                        [item.strip().lower() for item in ant_hdu.data["POLTYA"]],
+                        [item.strip().lower() for item in ant_hdu.data["POLTYB"]],
+                    ]
                 ).T
                 self.telescope.Nfeeds = 2
                 self.telescope.feed_angle = np.radians(
@@ -713,7 +718,7 @@ class UVFITS(UVData):
                 ).T
 
                 # If POLYTB is all missing, assuming this is a single-feed setup
-                if all(ant_hdu.data["POLTYB"] == ""):
+                if all(self.telescope.feed_array[:, 1] == ""):
                     self.telescope.feed_array = self.telescope.feed_array[:, :1]
                     self.telescope.feed_angle = self.telescope.feed_angle[:, :1]
                     self.telescope.Nfeeds = 1
