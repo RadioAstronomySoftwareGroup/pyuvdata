@@ -1456,7 +1456,7 @@ def write_ms_feed(
         if uvobj.telescope.feed_array is not None:
             feed_array = uvobj.telescope.feed_array
             feed_angle = uvobj.telescope.feed_angle
-            nfeeds = uvobj.telescope.Nfeeds
+            nfeeds = int(uvobj.telescope.Nfeeds)
             has_feed = True
         else:
             if uvobj.flex_spw_polarization_array is None:
@@ -1483,7 +1483,7 @@ def write_ms_feed(
         feed_table.putkeyword("pyuvdata_has_feed", has_feed)
 
         # Plug in what we need here
-        pol_type_table = np.full((nrows, nfeeds), "", dtype=np.object_)
+        pol_type_table = np.full((nrows, nfeeds), "", dtype="<U1")
         pol_type_table[antenna_numbers] = feed_array
         receptor_angle_table = np.zeros((nrows, nfeeds), dtype=np.float64)
         receptor_angle_table[antenna_numbers] = feed_angle
