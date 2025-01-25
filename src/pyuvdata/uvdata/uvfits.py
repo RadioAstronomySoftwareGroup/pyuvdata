@@ -703,16 +703,13 @@ class UVFITS(UVData):
                     ]
 
             if ant_hdu.header.get("HASFEED", not pyuvdata_written):
-                # Account for the x-orientation ambiguity
-                x_rot = 90.0 if (self.telescope.x_orientation == "north") else 0.0
-
                 # Tranpose here so that the hape is (Nants, Nfeeds)
                 self.telescope.feed_array = np.array(
                     [ant_hdu.data["POLTYA"].lower(), ant_hdu.data["POLTYB"].lower()]
                 ).T
                 self.telescope.Nfeeds = 2
                 self.telescope.feed_angle = np.radians(
-                    [ant_hdu.data["POLAA"] + x_rot, ant_hdu.data["POLAB"] + x_rot]
+                    [ant_hdu.data["POLAA"], ant_hdu.data["POLAB"]]
                 ).T
 
                 # If POLYTB is all missing, assuming this is a single-feed setup
@@ -1314,10 +1311,6 @@ class UVFITS(UVData):
                 if len(feeds) == 2:
                     poltyb[idx] = feeds[feed_b]
                     polab[idx] = np.degrees(self.telescope.feed_angle[idx, feed_b])
-
-        if self.telescope.x_orientation == "north":
-            polaa -= 90
-            polab -= 90
 
         col1 = fits.Column(
             name="ANNAME", format="8A", array=self.telescope.antenna_names
