@@ -15,7 +15,7 @@ from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 
 from . import __version__, parameter as uvp
-from .utils.tools import _get_iterable
+from .utils.tools import _convert_to_slices, _get_iterable
 
 __all__ = ["UVBase"]
 
@@ -870,3 +870,78 @@ class UVBase:
         This function has been deprecated, and will result in an error in version 3.2.
         """
         self._set_future_array_shapes(True)
+
+    def _select_along_param_axis(self, param_name, ind_arr):
+        """
+        Downselect values along a parameterized axis.
+
+        This method should not be called directly by users; instead, it is called by
+        various selection-related functions for selecting a subset of values along
+        a given axis, whose expected shape is given (at least in part) by a named
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants"). Additionally,
+        this method will recalculate the value for the named parameter given the input
+        indexing array.
+
+        Parameters
+        ----------
+        param_name : str
+            Name of the parameter, which is used to define the expected shapre of other
+            parameters within the object.
+        ind_arr : array-like of int
+            Index positions along the given axis to select. Must be 1D. Can be None,
+            in which case selection is skipped.
+        """
+        if ind_arr is None:
+            return
+
+        # This is a minor optimization -- see if the ind_arr can be expressed as slices,
+        # and if so, use them where we can!
+        Nitems = len(ind_arr)
+        [ind_arr], _ = _convert_to_slices(
+            ind_arr, max_nslice=1, return_index_on_fail=True
+        )
+        for param in self:
+            # For each attribute, if the value is None, then bail, otherwise
+            # attempt to figure out along which axis ind_arr will apply.
+
+            attr = getattr(self, param)
+            if attr.name == param_name:
+                # This is the length argument itself -- set it accordingly
+                attr.value = Nitems
+                attr.setter(self)
+            elif attr.value is not None and isinstance(attr.form, tuple):
+                # Only look at where form is a tuple, since that's the only case we
+                # can have a dynamically defined shape. Note that index doesn't work
+                # here in the case of a repeated param_name in the form.
+                sel_axis = [
+                    idx for idx, item in enumerate(attr.form) if item == param_name
+                ]
+                if len(sel_axis) == 0:
+                    continue
+
+                if isinstance(attr.value, np.ndarray):
+                    # If we're working with an ndarray, use take to slice along
+                    # the axis that we want to grab from.
+                    if isinstance(ind_arr, slice):
+                        slice_list = [slice(None)] * len(attr.form)
+                        for axis in sel_axis:
+                            slice_list[axis] = ind_arr
+
+                        attr.value = attr.value[*slice_list]
+                        attr.setter(self)
+                    else:
+                        for axis in sel_axis:
+                            attr.value = attr.value.take(ind_arr, axis=axis)
+                            attr.setter(self)
+                elif isinstance(attr.value, list):
+                    # If this is a list, it _should_ always have 1-dimension.
+                    assert sel_axis == [0], (
+                        "Something is wrong, sel_axis != 0 when selecting on a "
+                        "list, which should not be possible. Please file an "
+                        "issue in our GitHub issue log so that we can fix it."
+                    )
+                    if isinstance(ind_arr, slice):
+                        attr.value = attr.value[ind_arr]
+                    else:
+                        attr.value = [attr.value[idx] for idx in ind_arr]
+                    attr.setter(self)
