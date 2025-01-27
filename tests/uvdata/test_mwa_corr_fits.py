@@ -1283,6 +1283,7 @@ def test_read_mwax(benchmark, tmp_path):
     assert mwax_uv == uvfits_uv
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 def test_corr_fits_select_on_read(benchmark):
     mwa_uv = UVData()
@@ -1311,6 +1312,7 @@ def test_corr_fits_select_on_read(benchmark):
     assert mwa_uv == mwa_uv2
 
 
+@pytest.mark.filterwarnings("ignore:some coarse channel files were not submitted")
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 @pytest.mark.parametrize("cheby", [True, False], ids=lambda x: f"cheby={x:}")
 def test_van_vleck(benchmark, cheby):

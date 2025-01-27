@@ -1037,6 +1037,10 @@ def test_select_frequencies_multispw(multi_spw_gain, tmp_path):
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     calobj3 = calobj.select(spws=[1], inplace=False)
+
+    # We've used different selection criteria, so the history _will_ be different
+    calobj3.history = calobj2.history
+
     assert calobj3 == calobj2
     with check_warnings(UserWarning, match="Cannot select on spws if Nspws=1."):
         calobj3.select(spws=1)
@@ -4457,8 +4461,8 @@ def test_flex_jones_select_err(multi_spw_gain):
     multi_spw_gain += uvc_spoof
     multi_spw_gain.convert_to_flex_jones()
 
-    with pytest.raises(ValueError, match="this Jones selection in this flex-Jones"):
-        multi_spw_gain.select(jones=-6, spws=1)
+    with pytest.raises(ValueError, match="No data matching this Jones term"):
+        multi_spw_gain.select(jones=[-6], spws=1)
 
 
 def test_remove_flex_jones_dup_err(multi_spw_gain):
@@ -4483,8 +4487,8 @@ def test_flex_jones_shuffle(multi_spw_gain, multi_spw_delay, mode):
     uvc += uvc_spoof
     uvc.convert_to_flex_jones()
 
-    uvc1 = uvc.select(jones=-5, inplace=False)
-    uvc2 = uvc.select(jones=-6, inplace=False)
+    uvc1 = uvc.select(jones=[-5], inplace=False)
+    uvc2 = uvc.select(jones=[-6], inplace=False)
 
     assert uvc1 != uvc2
 

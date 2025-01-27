@@ -1101,7 +1101,7 @@ def test_read_write_loop_missing_telescope_info(
     if uv_mod is None:
         if param_list == ["antenna_names"]:
             assert not np.array_equal(
-                uvf2.telescope.antenna_names, uvf.telescope.antenna_numbers
+                uvf2.telescope.antenna_names, uvf.telescope.antenna_names
             )
             uvf2.telescope.antenna_names = uvf.telescope.antenna_names
         else:

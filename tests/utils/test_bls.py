@@ -41,6 +41,7 @@ def test_antnums_to_baseline_miriad_convention():
     np.testing.assert_allclose(bl, bl_gold)
 
 
+@pytest.mark.filterwarnings("ignore:antnums_to_baseline")
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 @pytest.mark.parametrize(
     "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"len={x:}"
@@ -69,6 +70,7 @@ def test_bls_to_ant(benchmark, bl_start, nbls):
     assert np.array_equal(bls, bls_out)
 
 
+@pytest.mark.filterwarnings("ignore:antnums_to_baseline")
 @pytest.mark.skipif(not hasbench, reason="benchmark utility not installed")
 @pytest.mark.parametrize(
     "nbls", [1, 10, 100, 1000, 10000, 100000, 1000000], ids=lambda x: f"len={x:}"
