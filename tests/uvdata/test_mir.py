@@ -526,7 +526,7 @@ def test_flex_pol_select(sma_mir_filt):
     sma_mir_filt2 += sma_mir_filt3
 
     with check_warnings(
-        UserWarning, match="Selected polarization values are not evenly spaced"
+        UserWarning, match="Selected polarizations are not evenly spaced"
     ):
         sma_mir_filt2.select(polarizations=["xx", "xy", "yx"])
 
@@ -541,9 +541,7 @@ def test_flex_pol_select_warning(sma_mir_filt):
     sma_mir_filt.flex_spw_polarization_array = np.array([-8, -8, -6, -5])
     sma_mir_filt.Nspws = 4
 
-    with check_warnings(
-        UserWarning, "Selected polarization values are not evenly spaced."
-    ):
+    with check_warnings(UserWarning, "Selected polarizations are not evenly spaced."):
         sma_mir_filt.select(polarizations=[-8, -6, -5])
 
 

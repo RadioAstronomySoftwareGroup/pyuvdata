@@ -351,4 +351,8 @@ def test_with_feeds_ordering_power(gaussian_uv):
     assert np.all(intf_feedx.polarization_array == [-5, -6, -7, -8])
 
     intf_feedyx = intf.with_feeds(["y", "x"], maintain_ordering=False)
-    assert np.all(intf_feedyx.polarization_array == [-6, -8, -7, -5])
+    # N.b. (Karto), this used to check against [-6, -8, -7, -5], but I _think_ this
+    # was actually a bug, in that UVBeam.select was sensitive to the ordering of
+    # pol arguments for polarization_array *only*, and not anything else with a
+    # polarization axis.
+    assert np.all(intf_feedyx.polarization_array == [-5, -6, -7, -8])

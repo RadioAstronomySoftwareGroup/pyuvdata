@@ -2120,12 +2120,12 @@ def test_select_polarizations_errors(cst_efield_1freq):
 
     # check for errors associated with polarizations not included in data
     with pytest.raises(
-        ValueError, match=f"polarization {-3} is not present in the polarization_array"
+        ValueError, match=f"Polarization {-3} is not present in the polarization_array"
     ):
         power_beam.select(polarizations=[-3, -4])
 
     # check for warnings and errors associated with unevenly spaced polarizations
-    with check_warnings(UserWarning, "Selected polarizations are not evenly spaced"):
+    with check_warnings(UserWarning, "Selected polarization values are not evenly"):
         power_beam.select(polarizations=power_beam.polarization_array[[0, 1, 3]])
     write_file_beamfits = os.path.join(DATA_PATH, "test/select_beam.fits")
     with pytest.raises(

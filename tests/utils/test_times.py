@@ -18,7 +18,7 @@ from .test_coordinates import selenoids
 
 def test_astrometry_lst(astrometry_args):
     """
-    Check for consistency beteen astrometry libraries when calculating LAST
+    Check for consistency between astrometry libraries when calculating LAST
 
     This test evaluates consistency in calculating local apparent sidereal time when
     using the different astrometry libraries available in pyuvdata, namely: astropy,
