@@ -3071,9 +3071,9 @@ def test_reorder_blts_sort_order(
 @pytest.mark.parametrize(
     "arg_dict,msg",
     [
-        [{"spord": [1]}, "Index array for spw_order must contain all indicies for"],
+        [{"spord": [1]}, "Index array for spw_order must contain all indices for"],
         [{"spord": "karto"}, "spw_order can only be one of 'number', '-number',"],
-        [{"chord": [1]}, "Index array for channel_order must contain all indicies"],
+        [{"chord": [1]}, "Index array for channel_order must contain all indices"],
         [{"chord": "karto"}, "channel_order can only be one of 'freq' or '-freq'"],
     ],
 )
