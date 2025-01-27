@@ -2097,7 +2097,7 @@ class UVCal(UVBase):
                 np.sort(order) == np.arange(self.Nants_data)
             ):
                 raise ValueError(
-                    "If order is an index array, it must contain all indicies for the"
+                    "If order is an index array, it must contain all indices for the"
                     "ant_array, without duplicates."
                 )
             index_array = order
@@ -2218,7 +2218,7 @@ class UVCal(UVBase):
                     np.sort(spw_order) == np.arange(self.Nspws)
                 ):
                     raise ValueError(
-                        "If spw_order is an array, it must contain all indicies for "
+                        "If spw_order is an array, it must contain all indices for "
                         "the spw_array, without duplicates."
                     )
                 index_array = np.asarray(
@@ -2333,7 +2333,7 @@ class UVCal(UVBase):
                 np.sort(order) == np.arange(self.Ntimes)
             ):
                 raise ValueError(
-                    "If order is an array, it must contain all indicies for "
+                    "If order is an array, it must contain all indices for "
                     "the time axis, without duplicates."
                 )
             index_array = order
@@ -2425,7 +2425,7 @@ class UVCal(UVBase):
                 np.sort(order) == np.arange(self.Njones)
             ):
                 raise ValueError(
-                    "If order is an array, it must contain all indicies for "
+                    "If order is an array, it must contain all indices for "
                     "the jones axis, without duplicates."
                 )
             index_array = order

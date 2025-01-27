@@ -6805,7 +6805,7 @@ class UVData(UVBase):
         freq_inds : list of int
             list of frequency indices to keep. Can be None (to keep everything).
         spw_inds : list of int
-            list of spw indicies to keep. Can be None (to keep everything).
+            list of spw indices to keep. Can be None (to keep everything).
         pol_inds : list of int
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
