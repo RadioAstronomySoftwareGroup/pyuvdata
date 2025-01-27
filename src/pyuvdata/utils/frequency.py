@@ -7,6 +7,7 @@ import warnings
 import numpy as np
 
 from . import tools
+from .pol import jstr2num, polstr2num
 
 
 def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
@@ -27,6 +28,10 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
         Array of spectral window numbers per frequency channel, shape (Nfreqs,).
 
     """
+    if spw_array is None and flex_spw_id_array is None:
+        # No-op catch, don't error b/c there's nothing to error on
+        return
+
     exp_spw_ids = np.unique(spw_array)
     # This is an internal consistency check to make sure that the indexes match
     # up as expected -- this shouldn't error unless someone is mucking with
@@ -50,10 +55,10 @@ def _check_freq_spacing(
     *,
     freq_array,
     freq_tols,
-    channel_width,
-    channel_width_tols,
-    spw_array,
-    flex_spw_id_array,
+    channel_width=None,
+    channel_width_tols=(0, 1e-3),
+    spw_array=None,
+    flex_spw_id_array=None,
     raise_errors=True,
 ):
     """
@@ -93,9 +98,11 @@ def _check_freq_spacing(
     # correctly (grouped together) for this check
     _check_flex_spw_contiguous(spw_array=spw_array, flex_spw_id_array=flex_spw_id_array)
 
-    for spw_id in spw_array:
-        mask = flex_spw_id_array == spw_id
-        if sum(mask) > 1:
+    # If spw_id and and spw_array are None, then assume that we just need to check
+    # the full freq_array, and handle things accordingly
+    for spw_id in [None] if spw_array is None else spw_array:
+        mask = ... if (flex_spw_id_array is None) else (spw_id == flex_spw_id_array)
+        if (mask is Ellipsis) or sum(mask):
             freq_spacing = np.diff(freq_array[mask])
             freq_dir = -1.0 if all(freq_spacing < 0) else 1.0
             if not tools._test_array_constant(freq_spacing, tols=freq_tols):
@@ -316,10 +323,18 @@ def _select_freq_helper(
     freq_chans,
     obj_freq_array,
     freq_tols,
-    obj_channel_width,
-    channel_width_tols,
-    obj_spw_id_array,
+    obj_channel_width=None,
+    channel_width_tols=None,
+    spws=None,
+    obj_spw_array=None,
+    obj_spw_id_array=None,
+    polarizations=None,
+    obj_flex_spw_pol_array=None,
+    jones=None,
+    obj_flex_jones_array=None,
+    obj_x_orientation=None,
     warn_freq_spacing=True,
+    invert=False,
 ):
     """
     Get time indices in a select.
@@ -344,6 +359,10 @@ def _select_freq_helper(
         flex_spw_id_array on object.
     warn_freq_spacing : bool
         Whether or not to warn about frequency spacing.
+    invert : bool
+        Normally indices matching given criteria are what are included in the
+        subsequent list. However, if set to True, these indices are excluded
+        instead. Default is False.
 
     Returns
     -------
@@ -353,6 +372,9 @@ def _select_freq_helper(
         list of selections done.
 
     """
+    spw_inds = freq_inds = None
+    selections = []
+
     if frequencies is not None:
         frequencies = tools._get_iterable(frequencies)
         if np.array(frequencies).ndim > 1:
@@ -372,29 +394,109 @@ def _select_freq_helper(
                         )
                     )[0],
                 )
-            else:
+            elif not invert:
                 raise ValueError(f"Frequency {freq} is not present in the freq_array.")
 
     if freq_chans is not None:
-        selections = ["frequencies"]
+        selections.append("frequencies")
+        freq_inds = np.unique(tools._get_iterable(freq_chans))
+        if obj_spw_array is not None and obj_spw_id_array is not None:
+            spw_inds = np.nonzero(
+                np.isin(obj_spw_array, obj_spw_id_array[freq_inds], invert=invert)
+            )[0]
 
-        freq_inds = tools._get_iterable(freq_chans)
-        freq_inds = np.unique(freq_inds)
+        if invert and (len(freq_inds) == len(freq_chans)):
+            raise ValueError("No data matching this frequency selection exists.")
 
+    if spws is not None:
+        selections.append("spectral windows")
+        spw_check = np.isin(spws, obj_spw_array)
+        if not np.all(spw_check) and not invert:
+            raise ValueError(
+                f"SPW number {spws[np.where(~spw_check)[0][0]]} is not "
+                "present in the spw_array"
+            )
+        if spw_inds is None:
+            spw_inds = np.nonzero(np.isin(obj_spw_array, spws, invert=invert))[0]
+        else:
+            spw_inds = np.intersect1d(
+                np.nonzero(np.isin(obj_spw_array, spws, invert=invert))[0], spw_inds
+            )
+
+    if (jones is not None and obj_flex_jones_array is not None) or (
+        polarizations is not None and obj_flex_spw_pol_array is not None
+    ):
+        has_jones = jones is not None and obj_flex_jones_array is not None
+        pol_name = "Jones term" if has_jones else "polarization"
+        plr_name = "jones polarization terms" if has_jones else "polarizations"
+        arr_name = "jones_array" if has_jones else "polarization_array"
+        obj_arr = obj_flex_jones_array if has_jones else obj_flex_spw_pol_array
+        sel_arr = jones if has_jones else polarizations
+        str_eval = jstr2num if has_jones else polstr2num
+
+        selections.append(plr_name)
+
+        flx_nums = []
+        for item in sel_arr:
+            if isinstance(item, str):
+                item_id = str_eval(item, x_orientation=obj_x_orientation)
+            else:
+                item_id = item
+            if item_id not in obj_arr and not invert:
+                raise ValueError(
+                    f"The {pol_name} {item} is not present in the {arr_name}"
+                )
+            flx_nums.append(item_id)
+        flx_inds = np.nonzero(np.isin(obj_arr, flx_nums, invert=invert))[0]
+        spw_inds = flx_inds if spw_inds is None else np.intersect1d(flx_inds, spw_inds)
+
+        # Trap a corner case here where the frequency and jones/polarization selects
+        # on a flex-pol data set end up with no actual data being selected.
+        other_sel_text = ""
+        if "spectral windows" in selections:
+            other_sel_text = "and spectral window"
+        elif "frequencies" in selections:
+            other_sel_text = "and frequency"
+
+        if len(spw_inds) == 0:
+            raise ValueError(
+                f"No data matching this {pol_name} {other_sel_text} selection exists."
+            )
+        if not tools._test_array_constant_spacing(np.unique(obj_arr[spw_inds])):
+            warnings.warn(
+                f"Selected {plr_name} are not evenly spaced. This will make it "
+                "impossible to write this data out to some file types."
+            )
+
+    sel_chan_width = sel_spw_id_array = sel_spw_array = sel_freq_array = None
+
+    if spw_inds is not None:
+        sel_spw_array = obj_spw_array[spw_inds]
+
+        if len(spw_inds) == 0:
+            raise ValueError("No data matching this spectral window selection exists.")
+        if obj_spw_id_array is not None:
+            if freq_inds is None:
+                freq_inds = np.nonzero(np.isin(obj_spw_id_array, sel_spw_array))[0]
+            else:
+                freq_inds = np.intersect1d(
+                    freq_inds, np.nonzero(np.isin(obj_spw_id_array, sel_spw_array))[0]
+                )
+
+        spw_inds = sorted(set(spw_inds.tolist()))
+
+    if freq_inds is not None:
+        if len(freq_inds) == 0:
+            raise ValueError("No data matching this frequency selection exists.")
         if obj_channel_width is not None:
             sel_chan_width = obj_channel_width[freq_inds]
-        else:
-            sel_chan_width = None
-
         if obj_spw_id_array is not None:
             sel_spw_id_array = obj_spw_id_array[freq_inds]
-            sel_spw_array = np.unique(obj_spw_id_array[freq_inds])
-        else:
-            sel_spw_id_array = np.zeros_like(freq_inds)
-            sel_spw_array = np.array([0])
+        if obj_freq_array is not None:
+            sel_freq_array = obj_freq_array[freq_inds]
 
         spacing_error, chanwidth_error = _check_freq_spacing(
-            freq_array=obj_freq_array[freq_inds],
+            freq_array=sel_freq_array,
             freq_tols=freq_tols,
             channel_width=sel_chan_width,
             channel_width_tols=channel_width_tols,
@@ -415,9 +517,6 @@ def _select_freq_helper(
                     "impossible to write this data out to some file types."
                 )
 
-        freq_inds = np.array(sorted(set(freq_inds)), dtype=np.int64)
-    else:
-        freq_inds = None
-        selections = None
+        freq_inds = sorted(set(freq_inds.tolist()))
 
-    return freq_inds, selections
+    return freq_inds, spw_inds, selections

@@ -1491,6 +1491,7 @@ class MWACorrFITS(UVData):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -1832,12 +1833,12 @@ class MWACorrFITS(UVData):
         self.Nfreqs = len(included_file_nums) * num_fine_chans
 
         # check that coarse channels are contiguous.
-        spw_inds = np.nonzero(file_mask)[0]
-        if np.any(np.diff(spw_inds) > 1):
+        orig_spw_inds = np.nonzero(file_mask)[0]
+        if np.any(np.diff(orig_spw_inds) > 1):
             warnings.warn("coarse channels are not contiguous for this observation")
         # add spectral windows
-        self.Nspws = len(spw_inds)
-        full_spw_array = meta_dict["coarse_chans"][spw_inds]
+        self.Nspws = len(orig_spw_inds)
+        full_spw_array = meta_dict["coarse_chans"][orig_spw_inds]
         self.spw_array = copy.deepcopy(full_spw_array)
         self.flex_spw_id_array = np.repeat(self.spw_array, num_fine_chans)
 
@@ -1851,10 +1852,10 @@ class MWACorrFITS(UVData):
         # Use the center frequency of the first fine channel of the center coarse
         # channel to get the frequency range for each included coarse channel.
         center_coarse_chan = int(len(meta_dict["coarse_chans"]) / 2)
-        for i in range(len(spw_inds)):
+        for i in range(len(orig_spw_inds)):
             first_coarse_freq = (
                 meta_dict["obs_freq_center"]
-                + (spw_inds[i] - center_coarse_chan)
+                + (orig_spw_inds[i] - center_coarse_chan)
                 * meta_dict["coarse_num_fine_chans"]
                 * meta_dict["channel_width"]
             )
@@ -1947,7 +1948,7 @@ class MWACorrFITS(UVData):
             )
             selections.extend(time_selections)
 
-            freq_inds, freq_selections = utils.frequency._select_freq_helper(
+            freq_inds, spw_inds, freq_selections = utils.frequency._select_freq_helper(
                 frequencies=frequencies,
                 freq_chans=freq_chans,
                 obj_freq_array=self.freq_array,
@@ -1955,6 +1956,8 @@ class MWACorrFITS(UVData):
                 obj_channel_width=self.channel_width,
                 channel_width_tols=self._channel_width.tols,
                 obj_spw_id_array=self.flex_spw_id_array,
+                obj_spw_array=self.spw_array,
+                spws=spws,
             )
             if freq_inds is not None:
                 selections.extend(freq_selections)
@@ -2011,6 +2014,7 @@ class MWACorrFITS(UVData):
                 self._select_by_index(
                     blt_inds=blt_inds,
                     freq_inds=freq_inds,
+                    spw_inds=spw_inds,
                     pol_inds=pol_inds,
                     history_update_string=history_update_string,
                     keep_all_metadata=keep_all_metadata,
@@ -2133,7 +2137,7 @@ class MWACorrFITS(UVData):
                     ant_2_inds,
                     meta_dict["avg_factor"],
                     meta_dict["dig_gains"],
-                    spw_inds,
+                    orig_spw_inds,
                     num_fine_chans,
                     meta_dict["flagged_ant_inds"],
                     cheby_approx=cheby_approx,

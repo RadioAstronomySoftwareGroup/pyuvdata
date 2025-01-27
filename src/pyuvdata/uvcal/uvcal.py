@@ -3933,6 +3933,7 @@ class UVCal(UVBase):
         jones,
         phase_center_ids,
         catalog_names,
+        invert=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -3994,6 +3995,10 @@ class UVCal(UVBase):
             The names of the phase centers (sources) to keep in the object, which should
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
+        invert : bool
+            Normally records matching given critera are what are included in the
+            subsequent option. However, if set to True, these records are excluded
+            instead. Default is False.
 
         Returns
         -------
@@ -4030,9 +4035,9 @@ class UVCal(UVBase):
             tel_ant_names=self.telescope.antenna_names,
             tel_ant_nums=self.telescope.antenna_numbers,
             obj_ant_array=self.ant_array,
+            invert=invert,
         )
-        if ant_inds is not None:
-            selections.extend(ant_selections)
+        selections.extend(ant_selections)
 
         time_inds, time_selections = utils.times._select_times_helper(
             times=times,
@@ -4045,10 +4050,9 @@ class UVCal(UVBase):
             obj_lst_range=self.lst_range,
             time_tols=self._time_array.tols,
             lst_tols=self._lst_array.tols,
+            invert=invert,
         )
-        if time_inds is not None:
-            selections.extend(time_selections)
-            time_inds = sorted(set(time_inds.tolist()))
+        selections.extend(time_selections)
 
         if catalog_names is not None:
             phase_center_ids = utils.phase_center_catalog.look_for_name(
@@ -4078,33 +4082,11 @@ class UVCal(UVBase):
                         "is not supported by the calfits format."
                     )
 
-        if spws is not None:
-            if self.Nspws == 1:
-                warnings.warn(
-                    "Cannot select on spws if Nspws=1. Ignoring the spw parameter."
-                )
-                spw_inds = None
-            else:
-                if not self.wide_band:
-                    # Translate the spws into frequencies
-                    freq_chans = utils.tools._sorted_unique_union(
-                        np.where(np.isin(self.flex_spw_id_array, spws))[0], freq_chans
-                    )
-                    spw_inds = None
-                else:
-                    selections.append("spectral windows")
-
-                    # Check and see that all requested spws are available
-                    spw_check = np.isin(spws, self.spw_array)
-                    if not np.all(spw_check):
-                        raise ValueError(
-                            f"SPW number {spws[np.where(~spw_check)[0][0]]} is not "
-                            "present in the spw_array"
-                        )
-
-                    spw_inds = np.where(np.isin(self.spw_array, spws))[0]
-        else:
-            spw_inds = None
+        if spws is not None and self.Nspws == 1:
+            warnings.warn(
+                "Cannot select on spws if Nspws=1. Ignoring the spw parameter."
+            )
+            spws = None
 
         if self.freq_array is None and (
             freq_chans is not None or frequencies is not None
@@ -4114,7 +4096,7 @@ class UVCal(UVBase):
                 "no freq_array."
             )
 
-        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+        freq_inds, spw_inds, freq_selections = utils.frequency._select_freq_helper(
             frequencies=frequencies,
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
@@ -4122,77 +4104,21 @@ class UVCal(UVBase):
             obj_channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
             obj_spw_id_array=self.flex_spw_id_array,
+            spws=spws,
+            obj_spw_array=self.spw_array,
+            jones=jones,
+            obj_flex_jones_array=self.flex_jones_array,
+            obj_x_orientation=self.telescope.x_orientation,
         )
+        selections.extend(freq_selections)
 
-        if freq_inds is not None:
-            freq_inds = sorted(freq_inds.tolist())
-            selections.extend(freq_selections)
-
-        if jones is not None:
-            jones = utils.tools._get_iterable(jones)
-            if np.array(jones).ndim > 1:
-                jones = np.array(jones).flatten()
-            selections.append("jones polarization terms")
-
-            jones_inds = np.zeros(0, dtype=np.int64)
-            jones_spws = np.zeros(0, dtype=np.int64)
-            for j in jones:
-                if isinstance(j, str):
-                    j_num = utils.jstr2num(
-                        j, x_orientation=self.telescope.x_orientation
-                    )
-                else:
-                    j_num = j
-                if j_num in self.jones_array:
-                    jones_inds = np.append(
-                        jones_inds, np.where(self.jones_array == j_num)[0]
-                    )
-                elif (
-                    self.flex_jones_array is not None and j_num in self.flex_jones_array
-                ):
-                    jones_spws = np.append(
-                        jones_spws, np.where(self.flex_jones_array == j_num)[0]
-                    )
-                else:
-                    raise ValueError(
-                        f"Jones term {j} is not present in the jones_array"
-                    )
-            if len(jones_spws) > 0:
-                # Since this is a flex-pol data set, we need to filter on the freq
-                # axis instead of the pol axis
-                jones_inds = None
-
-                if not self.wide_band:
-                    jones_chans = np.where(
-                        np.isin(self.flex_spw_id_array, self.spw_array[jones_spws])
-                    )[0]
-                    freq_inds = utils.tools._sorted_unique_intersection(
-                        jones_chans, freq_inds
-                    )
-                spw_inds = utils.tools._sorted_unique_intersection(jones_spws, spw_inds)
-
-                # Trap a corner case here where the frequency and polarization selects
-                # on a flex-pol data set end up with no actual data being selected.
-                if (len(spw_inds) == 0) or (not self.wide_band and len(freq_inds) == 0):
-                    raise ValueError(
-                        "No data matching this Jones selection in this flex-Jones "
-                        " UVCal object."
-                    )
-                spacing_check = utils.tools._test_array_constant_spacing(
-                    np.unique(self.flex_jones_array[spw_inds])
-                )
-            else:
-                jones_inds = sorted(set(jones_inds))
-                spacing_check = utils.tools._test_array_constant_spacing(
-                    self.jones_array[jones_inds]
-                )
-            if not spacing_check:
-                warnings.warn(
-                    "Selected jones polarization terms are not evenly spaced. This "
-                    "will make it impossible to write this data out to calfits files."
-                )
-        else:
-            jones_inds = None
+        jones_inds, jones_selections = utils.pol._select_jones_helper(
+            jones=jones,
+            obj_jones_array=self.jones_array,
+            obj_x_orientation=self.telescope.x_orientation,
+            flex_jones=self.flex_jones_array is not None,
+        )
+        selections.extend(jones_selections)
 
         # build up history string from selections
         history_update_string = ""
@@ -4249,69 +4175,16 @@ class UVCal(UVBase):
 
         # During each loop interval, we pop off an element of this dict, so continue
         # until the dict is empty.
-        while len(ind_dict):
-            # This is an easy way to grab the first key in the dict
-            key = next(iter(ind_dict))
-            # Grab the corresponding index array
-            ind_arr = ind_dict.pop(key)
-
-            # If nothing to select on, bail!
-            if ind_arr is None:
-                continue
-
-            for param in self:
-                # For each attribute, if the value is None, then bail, otherwise
-                # attempt to figure out along which axis ind_arr will apply.
-                attr = getattr(self, param)
-                if attr.value is not None:
-                    try:
-                        sel_axis = attr.form.index(key)
-                    except (AttributeError, ValueError):
-                        # If form is not a tuple/list (and therefore not
-                        # array-like), it'll throw an AttributeError, and if key is
-                        # not found in the tuple/list, it'll throw a ValueError.
-                        # In both cases, skip!
-                        continue
-
-                    if isinstance(attr.value, np.ndarray):
-                        # If we're working with an ndarray, use take to slice along
-                        # the axis that we want to grab from.
-                        attr.value = attr.value.take(ind_arr, axis=sel_axis)
-                    elif isinstance(attr.value, list):
-                        # If this is a list, it _should_ always have 1-dimension.
-                        assert sel_axis == 0, (
-                            "Something is wrong, sel_axis != 0 when selecting on a "
-                            "list, which should not be possible. Please file an "
-                            "issue in our GitHub issue log so that we can fix it."
-                        )
-                        attr.value = [attr.value[idx] for idx in ind_arr]
-
-            if key == "Nants_data":
-                # Count the number of unique antennas after antenna-based selection
-                self.Nants_data = len(ind_arr)
-                if self.total_quality_array is not None:
-                    warnings.warn(
-                        "Changing number of antennas, but preserving the "
-                        "total_quality_array, which may have been defined based "
-                        "in part on antennas which will be removed."
-                    )
-            elif key == "Ntimes":
-                # Process post time-specific selection actions
-                self.Ntimes = len(ind_arr)
-            elif key == "Nfreqs":
-                # Process post freq-specific selection actions
-                self.Nfreqs = len(ind_arr)
-                if self.flex_spw_id_array is not None:
-                    # If we are dropping channels, then evaluate the spw axis
-                    ind_dict["Nspws"] = np.where(
-                        np.isin(self.spw_array, self.flex_spw_id_array)
-                    )[0]
-            elif key == "Njones":
-                # Count the number of unique pols after pol-based selection
-                self.Njones = len(ind_arr)
-            elif key == "Nspws":
-                # Count the number of unique pols after spw-based selection
-                self.Nspws = len(ind_arr)
+        for key, ind_arr in ind_dict.items():
+            self._select_along_param_axis(key, ind_arr)
+            if key == "Nants_data" and not (
+                ind_arr is None or self.total_quality_array is None
+            ):
+                warnings.warn(
+                    "Changing number of antennas, but preserving the "
+                    "total_quality_array, which may have been defined based "
+                    "in part on antennas which will be removed."
+                )
 
         # Update the history string
         self.history += history_update_string
@@ -4331,6 +4204,7 @@ class UVCal(UVBase):
         jones=None,
         phase_center_ids=None,
         catalog_names=None,
+        invert=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4396,6 +4270,10 @@ class UVCal(UVBase):
             The names of the phase centers (sources) to keep in the object, which should
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
+        invert : bool
+            Normally records matching given critera are what are included in the
+            subsequent object. However, if set to True, these records are excluded
+            instead. Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -4438,6 +4316,7 @@ class UVCal(UVBase):
             jones=jones,
             phase_center_ids=phase_center_ids,
             catalog_names=catalog_names,
+            invert=invert,
         )
 
         # Call the low-level selection method.

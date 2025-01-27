@@ -206,6 +206,7 @@ class UVFITS(UVData):
         bls,
         frequencies,
         freq_chans,
+        spws,
         times,
         time_range,
         lsts,
@@ -224,21 +225,24 @@ class UVFITS(UVData):
         Separated from full read so header and metadata can be read without data.
         """
         # figure out what data to read in
-        blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            ant_str=ant_str,
-            bls=bls,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            time_range=time_range,
-            lsts=lsts,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            phase_center_ids=phase_center_ids,
-            catalog_names=catalog_names,
+        blt_inds, freq_inds, spw_inds, pol_inds, history_update_string = (
+            self._select_preprocess(
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                spws=spws,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
+            )
         )
 
         if blt_inds is not None:
@@ -275,6 +279,7 @@ class UVFITS(UVData):
             self._select_by_index(
                 blt_inds=blt_inds,
                 freq_inds=freq_inds,
+                spw_inds=spw_inds,
                 pol_inds=pol_inds,
                 history_update_string=history_update_string,
                 keep_all_metadata=keep_all_metadata,
@@ -358,6 +363,7 @@ class UVFITS(UVData):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -778,6 +784,7 @@ class UVFITS(UVData):
                     bls=bls,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
+                    spws=spws,
                     times=times,
                     time_range=time_range,
                     lsts=lsts,
