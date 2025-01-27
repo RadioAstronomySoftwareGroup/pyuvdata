@@ -94,7 +94,7 @@ def _check_freq_spacing(
     spacing_error = False
     chanwidth_error = False
 
-    # Check to make sure that the flexible spectral window has indicies set up
+    # Check to make sure that the flexible spectral window has indices set up
     # correctly (grouped together) for this check
     _check_flex_spw_contiguous(spw_array=spw_array, flex_spw_id_array=flex_spw_id_array)
 
@@ -226,7 +226,7 @@ def _sort_freq_helper(
             np.sort(channel_order) == np.arange(Nfreqs)
         ):
             raise ValueError(
-                "Index array for channel_order must contain all indicies for "
+                "Index array for channel_order must contain all indices for "
                 "the frequency axis, without duplicates."
             )
         index_array = channel_order
@@ -262,7 +262,7 @@ def _sort_freq_helper(
                     np.sort(spw_order) == np.arange(Nspws)
                 ):
                     raise ValueError(
-                        "Index array for spw_order must contain all indicies for "
+                        "Index array for spw_order must contain all indices for "
                         "the spw_array, without duplicates."
                     )
             elif spw_order not in ["number", "freq", "-number", "-freq", None]:
