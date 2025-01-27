@@ -1496,14 +1496,14 @@ def test_reorder_ants_errors(gain_data):
 
     with pytest.raises(
         ValueError,
-        match="If order is an index array, it must contain all indicies for the"
+        match="If order is an index array, it must contain all indices for the"
         "ant_array, without duplicates.",
     ):
         gain_data.reorder_antennas(gain_data.telescope.antenna_numbers.astype(float))
 
     with pytest.raises(
         ValueError,
-        match="If order is an index array, it must contain all indicies for the"
+        match="If order is an index array, it must contain all indices for the"
         "ant_array, without duplicates.",
     ):
         gain_data.reorder_antennas(gain_data.telescope.antenna_numbers[:8])
@@ -1606,7 +1606,7 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 
     with pytest.raises(
         ValueError,
-        match="If spw_order is an array, it must contain all indicies for "
+        match="If spw_order is an array, it must contain all indices for "
         "the spw_array, without duplicates.",
     ):
         multi_spw_delay.reorder_freqs(spw_order=[0, 1])
@@ -1620,7 +1620,7 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 
     with pytest.raises(
         ValueError,
-        match="Index array for channel_order must contain all indicies for "
+        match="Index array for channel_order must contain all indices for "
         "the frequency axis, without duplicates.",
     ):
         gain_data.reorder_freqs(
@@ -1629,7 +1629,7 @@ def test_reorder_freqs_errors(gain_data, multi_spw_delay):
 
     with pytest.raises(
         ValueError,
-        match="Index array for channel_order must contain all indicies for "
+        match="Index array for channel_order must contain all indices for "
         "the frequency axis, without duplicates.",
     ):
         gain_data.reorder_freqs(channel_order=np.arange(3))
@@ -1686,14 +1686,14 @@ def test_reorder_times_errors(gain_data):
 
     with pytest.raises(
         ValueError,
-        match="If order is an array, it must contain all indicies for the time axis, "
+        match="If order is an array, it must contain all indices for the time axis, "
         "without duplicates.",
     ):
         gain_data.reorder_times(np.arange(gain_data.Ntimes) * 2)
 
     with pytest.raises(
         ValueError,
-        match="If order is an array, it must contain all indicies for the time axis, "
+        match="If order is an array, it must contain all indices for the time axis, "
         "without duplicates.",
     ):
         gain_data.reorder_times(np.arange(7))
@@ -1774,14 +1774,14 @@ def test_reorder_jones_errors(gain_data):
 
     with pytest.raises(
         ValueError,
-        match="If order is an array, it must contain all indicies for "
+        match="If order is an array, it must contain all indices for "
         "the jones axis, without duplicates.",
     ):
         calobj.reorder_jones(np.arange(gain_data.Njones) * 2)
 
     with pytest.raises(
         ValueError,
-        match="If order is an array, it must contain all indicies for "
+        match="If order is an array, it must contain all indices for "
         "the jones axis, without duplicates.",
     ):
         calobj.reorder_jones(np.arange(2))

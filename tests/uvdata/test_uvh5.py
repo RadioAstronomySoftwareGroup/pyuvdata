@@ -3238,7 +3238,7 @@ def test_write_uvh5_part_fix_autos(uv_uvh5, tmp_path):
     test_uvh5 = UVData()
     testfile = os.path.join(tmp_path, "write_uvh5_part_fix_autos.uvh5")
 
-    # Select out the relevant data (where the 0 and 1 indicies of the pol array
+    # Select out the relevant data (where the 0 and 1 indices of the pol array
     # correspond to xx and yy polarization data), and corrupt it accordingly
     auto_data = uv_uvh5.data_array[uv_uvh5.ant_1_array == uv_uvh5.ant_2_array]
     auto_data[:, :, [0, 1]] *= 1j
