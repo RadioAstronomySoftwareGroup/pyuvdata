@@ -923,11 +923,11 @@ class UVBase:
                     # If we're working with an ndarray, use take to slice along
                     # the axis that we want to grab from.
                     if isinstance(ind_arr, slice):
-                        slice_list = [slice(None)] * len(attr.form)
-                        for axis in sel_axis:
-                            slice_list[axis] = ind_arr
-
-                        attr.value = attr.value[*slice_list]
+                        full_slice = tuple(
+                            ind_arr if idx in sel_axis else slice(None)
+                            for idx in range(len(attr.form))
+                        )
+                        attr.value = attr.value[full_slice]
                         attr.setter(self)
                     else:
                         for axis in sel_axis:
