@@ -15,6 +15,7 @@ def _select_antenna_helper(
     tel_ant_nums,
     obj_ant_array,
     invert=False,
+    strict=False,
 ):
     """
     Get antenna indices in a select.
@@ -39,11 +40,16 @@ def _select_antenna_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
 
     Returns
     -------
-    pol_inds : list of int
-        Indices of polarization to keep on the object.
+    ant_inds : list of int
+        Indices of antennas to keep on the object.
     selections : list of str
         list of selections done.
 
@@ -57,27 +63,30 @@ def _select_antenna_helper(
             )
 
         antenna_names = tools._get_iterable(antenna_names)
+        tel_ant_names = np.asarray(tel_ant_names).flatten()
         antenna_nums = []
         for s in antenna_names:
-            if s not in tel_ant_names and not invert:
-                raise ValueError(
-                    f"Antenna name {s} is not present in the antenna_names array"
-                )
-            ind = np.where(np.array(tel_ant_names) == s)[0][0]
-            antenna_nums.append(tel_ant_nums[ind])
+            if s in tel_ant_names:
+                ind = np.where(tel_ant_names == s)[0][0]
+                antenna_nums.append(tel_ant_nums[ind])
+            else:
+                err_msg = f"Antenna name {s} is not present in the antenna_names array"
+                tools._strict_raise(err_msg, strict=strict)
 
     if antenna_nums is not None:
-        antenna_nums = np.asarray(tools._get_iterable(antenna_nums)).flatten()
+        antenna_nums = np.asarray(antenna_nums).flatten()
         selections.append("antennas")
 
-        ant_check = np.isin(antenna_nums, obj_ant_array, invert=True)
-        if not invert and any(ant_check):
-            raise ValueError(
-                f"Antenna number {antenna_nums[ant_check]} is not present "
-                "in the ant_array"
+        check = np.isin(antenna_nums, obj_ant_array, invert=True)
+        if any(check):
+            tools._strict_raise(
+                f"Antenna number {antenna_nums[check]} is not present in the ant_array",
+                strict=strict,
             )
 
         ant_inds = np.nonzero(np.isin(obj_ant_array, antenna_nums, invert=invert))[0]
-        ant_inds = sorted(set(ant_inds.tolist()))
+        ant_inds = ant_inds.tolist()
+        if len(ant_inds) == 0:
+            raise ValueError("No data matching this antenna selection exists.")
 
     return ant_inds, selections

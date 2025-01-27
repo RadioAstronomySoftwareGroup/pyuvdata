@@ -537,6 +537,7 @@ def _select_pol_helper(
     obj_x_orientation=None,
     flex_pol=False,
     invert=False,
+    strict=False,
     is_jones=False,
 ):
     """
@@ -560,6 +561,11 @@ def _select_pol_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
     is_jones : bool
         Normally this function handles polarizations, but if set to True, Jones terms
         can be input instead. Default is False, it is recommended rather than using this
@@ -585,9 +591,7 @@ def _select_pol_helper(
     if flex_pol or (polarizations is None):
         return pol_inds, selections
 
-    polarizations = tools._get_iterable(polarizations)
-    if np.array(polarizations).ndim > 1:
-        polarizations = np.array(polarizations).flatten()
+    polarizations = np.asarray(polarizations).flatten()
     selections.append(select_name)
 
     pol_nums = []
@@ -596,13 +600,15 @@ def _select_pol_helper(
             p_num = str_eval(p_name, x_orientation=obj_x_orientation)
         else:
             p_num = p_name
-        if not invert and p_num not in obj_pol_array:
-            raise ValueError(f"{term_name} {p_name} is not present in the {arr_name}")
-        pol_nums.append(p_num)
+        if p_num not in obj_pol_array:
+            err_msg = f"{term_name} {p_name} is not present in the {arr_name}"
+            tools._strict_raise(err_msg, strict=strict)
+        else:
+            pol_nums.append(p_num)
 
     pol_inds = np.nonzero(np.isin(obj_pol_array, pol_nums, invert=invert))[0]
     if len(pol_inds) == 0:
-        raise ValueError(f"No data matching this {term_name} selection exists.")
+        raise ValueError(f"No data matching this {term_name.lower()} selection exists.")
 
     if len(pol_inds) > 2 and not tools._test_array_constant_spacing(pol_inds):
         warnings.warn(
@@ -610,11 +616,16 @@ def _select_pol_helper(
             "to write this data out to some file types."
         )
 
-    return sorted(set(pol_inds.tolist())), selections
+    return pol_inds.tolist(), selections
 
 
 def _select_jones_helper(
-    jones, obj_jones_array, obj_x_orientation=None, flex_jones=False, invert=False
+    jones,
+    obj_jones_array,
+    obj_x_orientation=None,
+    flex_jones=False,
+    invert=False,
+    strict=False,
 ):
     """
     Get Jones indices in a select.
@@ -637,6 +648,11 @@ def _select_jones_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
 
     Returns
     -------
@@ -652,5 +668,74 @@ def _select_jones_helper(
         obj_x_orientation=obj_x_orientation,
         flex_pol=flex_jones,
         invert=invert,
+        strict=strict,
         is_jones=True,
     )
+
+
+def _select_feed_helper(
+    feeds,
+    obj_feed_array,
+    obj_x_orientation=None,
+    feed_inds=None,
+    invert=False,
+    strict=False,
+):
+    """
+    Get Jones indices in a select.
+
+    Parameters
+    ----------
+    feeds : array_like of str
+        The feeds to keep in the object, each value passed here should exist in
+        obj_feed_array (unless `invert=True`).
+    obj_feed_array : array_like of str
+        The Jones terms present in the object.
+    obj_x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is labelled as the x
+        polarization ("east" or "north") to allow for converting from E/N strings.
+    invert : bool
+        Normally indices matching given criteria are what are included in the
+        subsequent list. However, if set to True, these indices are excluded
+        instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
+
+    Returns
+    -------
+    feed_inds : list of int
+        Indices of feeds to keep on the object.
+    selections : list of str
+        list of selections done.
+
+    """
+    feed_inds = None
+    selections = []
+    if feeds is None:
+        return None, []
+
+    selections.append("feeds")
+    feeds = [f.lower() for f in tools._get_iterable(feeds)]
+
+    x_orient_dict = {}
+    if obj_x_orientation is not None:
+        for key, value in x_orientation_pol_map(obj_x_orientation).items():
+            if key in obj_feed_array and value in feeds:
+                x_orient_dict[value] = key
+
+    mask = np.zeros(len(obj_feed_array), dtype=bool)
+    for item in feeds:
+        if not ((item in obj_feed_array) or (item in x_orient_dict)):
+            msg = f"Feed {item} is not present in the feed_array"
+            tools._strict_raise(msg, strict=strict)
+        mask |= np.isin(obj_feed_array, x_orient_dict.get(item, item))
+
+    feed_inds = tools._where_combine(mask, inds=feed_inds, invert=invert)
+
+    if len(feed_inds) == 0:
+        raise ValueError("No data matching this feed selection exists.")
+
+    return feed_inds.tolist(), selections

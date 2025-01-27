@@ -1404,11 +1404,21 @@ def test_select_blts(paper_uvh5):
 
     # check for errors associated with out of bounds indices
     with pytest.raises(ValueError, match="blt_inds contains indices that are negative"):
-        uv_object.select(blt_inds=np.arange(-10, -5))
+        uv_object.select(blt_inds=np.arange(-10, -5), strict=True)
+
     with pytest.raises(
         ValueError, match="blt_inds contains indices that are too large"
     ):
-        uv_object.select(blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10))
+        uv_object.select(
+            blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10), strict=True
+        )
+
+    with pytest.raises(
+        ValueError, match="No baseline-times were found that match criteria"
+    ):
+        uv_object.select(
+            blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10), strict=None
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1579,16 +1589,26 @@ def test_select_antennas(casa_uvfits):
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
     with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
-        uv_object.select(antenna_nums=np.max(unique_ants) + np.arange(1, 3))
+        uv_object.select(
+            antenna_nums=np.max(unique_ants) + np.arange(1, 3), strict=True
+        )
 
     # check the same thing with passing a list
     with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
-        uv_object.select(antenna_nums=(np.max(unique_ants) + np.arange(1, 3)).tolist())
+        uv_object.select(
+            antenna_nums=(np.max(unique_ants) + np.arange(1, 3)).tolist(), strict=True
+        )
 
     with pytest.raises(
         ValueError, match="Antenna name test1 is not present in the antenna_names"
     ):
-        uv_object.select(antenna_names="test1")
+        uv_object.select(antenna_names="test1", strict=True)
+
+    with pytest.raises(
+        ValueError, match="No baseline-times were found that match criteria"
+    ):
+        uv_object.select(antenna_names="test1", strict=None)
+
     with pytest.raises(
         ValueError, match="Only one of antenna_nums and antenna_names can be provided."
     ):
@@ -1723,7 +1743,7 @@ def test_select_bls_errors(casa_uvfits, sel_kwargs, err_msg):
     uv_object = casa_uvfits
 
     with pytest.raises(ValueError, match=err_msg):
-        uv_object.select(**sel_kwargs)
+        uv_object.select(**sel_kwargs, strict=True)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1771,7 +1791,12 @@ def test_select_times(casa_uvfits):
     with pytest.raises(
         ValueError, match=f"Time {t_use} is not present in the time_array"
     ):
-        uv_object.select(times=[t_use])
+        uv_object.select(times=[t_use], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this time selection present in object."
+    ):
+        uv_object.select(times=t_use, strict=None)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -2002,9 +2027,12 @@ def test_select_lsts_out_of_range_error(casa_uvfits):
     with pytest.raises(
         ValueError, match=f"LST {target_lst} is not present in the lst_array"
     ):
-        uv_object.select(lsts=[target_lst])
+        uv_object.select(lsts=[target_lst], strict=True)
 
-    return
+    with pytest.raises(
+        ValueError, match="No data matching this lst selection present in object."
+    ):
+        uv_object.select(lsts=[target_lst], strict=None)
 
 
 def test_select_lsts_too_big(casa_uvfits, tmp_path):
@@ -2192,23 +2220,25 @@ def test_select_time_range_no_data(casa_uvfits):
     """Check for error associated with times not included in data."""
     uv_object = casa_uvfits
     unique_times = np.unique(uv_object.time_array)
+    time_range = [
+        np.min(unique_times) - uv_object.integration_time[0] * 2,
+        np.min(unique_times) - uv_object.integration_time[0],
+    ]
     with pytest.raises(ValueError, match="No elements in time_array"):
-        uv_object.select(
-            time_range=[
-                np.min(unique_times) - uv_object.integration_time[0] * 2,
-                np.min(unique_times) - uv_object.integration_time[0],
-            ]
-        )
+        uv_object.select(time_range=time_range, strict=True)
+    with pytest.raises(ValueError, match="No data matching this time selection"):
+        uv_object.select(time_range=time_range, strict=None)
 
 
 def test_select_lst_range_no_data(casa_uvfits):
     """Check for error associated with LSTS not included in data."""
     uv_object = casa_uvfits
     unique_lsts = np.unique(uv_object.lst_array)
+    lst_range = [np.min(unique_lsts) - 0.2, np.min(unique_lsts) - 0.1]
     with pytest.raises(ValueError, match="No elements in lst_array"):
-        uv_object.select(
-            lst_range=[np.min(unique_lsts) - 0.2, np.min(unique_lsts) - 0.1]
-        )
+        uv_object.select(lst_range=lst_range, strict=True)
+    with pytest.raises(ValueError, match="No data matching this lst selection"):
+        uv_object.select(lst_range=lst_range, strict=None)
 
 
 def test_select_time_and_time_range(casa_uvfits):
@@ -2298,7 +2328,13 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
     # check for errors associated with frequencies not included in data
     with pytest.raises(ValueError, match="Frequency "):
         uv_object.select(
-            frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width]
+            frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width],
+            strict=True,
+        )
+    with pytest.raises(ValueError, match="No data matching this frequency selection"):
+        uv_object.select(
+            frequencies=[np.max(uv_object.freq_array) + uv_object.channel_width],
+            strict=None,
         )
     write_file_miriad = str(tmp_path / "select_test")
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
@@ -2457,7 +2493,12 @@ def test_select_polarizations_errors(casa_uvfits, tmp_path):
     with pytest.raises(
         ValueError, match="Polarization -3 is not present in the polarization_array"
     ):
-        uv_object2.select(polarizations=[-3, -4])
+        uv_object2.select(polarizations=[-3, -4], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this polarization selection exists."
+    ):
+        uv_object2.select(polarizations=[-3, -4], strict=None)
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with check_warnings(
@@ -5747,7 +5788,7 @@ def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
     uv = casa_uvfits
 
     with pytest.raises(ValueError, match=message):
-        uv.select(**kwargs)
+        uv.select(**kwargs, strict=True)
 
 
 @pytest.mark.parametrize("grid_alg", [True, False, None])

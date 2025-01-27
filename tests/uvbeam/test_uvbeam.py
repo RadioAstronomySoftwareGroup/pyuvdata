@@ -1860,8 +1860,14 @@ def test_select_axis(cst_power_1freq, tmp_path):
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with indices not included in data
-    with pytest.raises(ValueError, match="axis1_inds must be > 0 and < Naxes1"):
-        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1])
+    with pytest.raises(
+        ValueError, match="axis1_inds contains indices that are too large"
+    ):
+        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1], strict=True)
+    with pytest.raises(
+        ValueError, match="No data matching this first image axis selection exists."
+    ):
+        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1], strict=None)
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
@@ -1897,8 +1903,14 @@ def test_select_axis(cst_power_1freq, tmp_path):
     power_beam2.write_beamfits(write_file_beamfits, clobber=True)
 
     # check for errors associated with indices not included in data
-    with pytest.raises(ValueError, match="axis2_inds must be > 0 and < Naxes2"):
-        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1])
+    with pytest.raises(
+        ValueError, match="axis2_inds contains indices that are too large"
+    ):
+        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1], strict=True)
+    with pytest.raises(
+        ValueError, match="No data matching this second image axis selection exists."
+    ):
+        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1], strict=None)
 
     # check for warnings and errors associated with unevenly spaced image pixels
     power_beam2 = power_beam.copy()
@@ -1954,7 +1966,7 @@ def test_select_frequencies(
     with pytest.raises(
         ValueError, match=f"Frequency {freq_select} is not present in the freq_array"
     ):
-        beam.select(frequencies=[freq_select])
+        beam.select(frequencies=[freq_select], strict=True)
 
     # check for warnings and errors associated with unevenly spaced frequencies
     if antenna_type == "simple":
@@ -1989,6 +2001,9 @@ def test_select_frequencies(
     beam2 = beam.select(
         frequencies=freqs_to_keep, freq_chans=chans_to_keep, inplace=False
     )
+
+    print(len(all_chans_to_keep))
+    print(beam2.Nfreqs)
 
     assert len(all_chans_to_keep) == beam2.Nfreqs
     for chan in all_chans_to_keep:
@@ -2044,7 +2059,14 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
         ),
         check_warnings(expected_warning, match=warn_msg),
     ):
-        efield_beam.select(feeds=["p"])
+        efield_beam.select(feeds=["p"], strict=True)
+
+    with (
+        pytest.raises(ValueError, match="No data matching this feed selection exists."),
+        check_warnings(expected_warning, match=warn_msg),
+    ):
+        # Use strict=None to silence the feed select warnings here
+        efield_beam.select(feeds=["p"], strict=None)
 
     # check for error with selecting polarizations on efield beams
     with (
@@ -2122,7 +2144,12 @@ def test_select_polarizations_errors(cst_efield_1freq):
     with pytest.raises(
         ValueError, match=f"Polarization {-3} is not present in the polarization_array"
     ):
-        power_beam.select(polarizations=[-3, -4])
+        power_beam.select(polarizations=[-3, -4], strict=True)
+    # check for errors associated with polarizations not included in data
+    with pytest.raises(
+        ValueError, match="No data matching this polarization selection exists."
+    ):
+        power_beam.select(polarizations=[-3, -4], strict=None)
 
     # check for warnings and errors associated with unevenly spaced polarizations
     with check_warnings(UserWarning, "Selected polarization values are not evenly"):
@@ -2617,7 +2644,11 @@ def test_select_healpix_pixels(
     with pytest.raises(
         ValueError, match=f"Pixel {pixel_select} is not present in the pixel_array"
     ):
-        beam_healpix.select(pixels=[pixel_select])
+        beam_healpix.select(pixels=[pixel_select], strict=True)
+    with pytest.raises(
+        ValueError, match="No data matching this pixel selection exists."
+    ):
+        beam_healpix.select(pixels=[pixel_select], strict=None)
 
     # test writing beamfits with non-contiguous pixels
     pixels_to_keep = np.arange(2, 150, 4)

@@ -378,4 +378,4 @@ def test_calh5_partial_read(
         calobj2 = calobj.copy()
         param_dict["lsts"] = 2
         with pytest.raises(ValueError, match="LST 2 does not fall in any lst_range"):
-            calobj2.select(**param_dict)
+            calobj2.select(**param_dict, strict=True)

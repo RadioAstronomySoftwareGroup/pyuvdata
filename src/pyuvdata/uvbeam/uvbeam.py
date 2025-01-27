@@ -3208,6 +3208,8 @@ class UVBeam(UVBase):
         freq_chans=None,
         feeds=None,
         polarizations=None,
+        invert=False,
+        strict=False,
         inplace=True,
         run_check=True,
         check_extra=True,
@@ -3247,6 +3249,15 @@ class UVBeam(UVBase):
             canonical polarization strings (e.g. "xx", "rr") are supported and if the
             `x_orientation` attribute is set, the physical dipole strings
             (e.g. "nn", "ee") are also supported.
+        invert : bool
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
+            instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
         inplace : bool
             Option to perform the select directly on self or return
             a new UVBeam object, which is a subselection of self.
@@ -3266,6 +3277,22 @@ class UVBeam(UVBase):
             beam_object = self.copy()
 
         selections = []
+
+        if feeds is not None:
+            if beam_object.beam_type == "power":
+                raise ValueError("feeds cannot be used with power beams")
+
+            if beam_object.antenna_type == "phased_array":
+                warnings.warn(
+                    "Downselecting feeds on phased array beams will lead to loss of "
+                    "information that cannot be recovered by selecting the other feed "
+                    "because the cross-feed coupling matrix elements can only be "
+                    "represented when all feeds are present."
+                )
+
+        if polarizations is not None and beam_object.beam_type == "efield":
+            raise ValueError("polarizations cannot be used with efield beams")
+
         if axis1_inds is not None:
             if beam_object.pixel_coordinate_system == "healpix":
                 raise ValueError(
@@ -3273,11 +3300,13 @@ class UVBeam(UVBase):
                 )
 
             selections.append("parts of first image axis")
-
-            axis1_inds = sorted(set(axis1_inds))
-            if min(axis1_inds) < 0 or max(axis1_inds) > beam_object.Naxes1 - 1:
-                raise ValueError("axis1_inds must be > 0 and < Naxes1")
-
+            axis1_inds = utils.tools._eval_inds(
+                axis1_inds, self.Naxes1, name="axis1_inds", strict=strict, invert=invert
+            )
+            if len(axis1_inds) == 0:
+                raise ValueError(
+                    "No data matching this first image axis selection exists."
+                )
             if len(axis1_inds) > 1 and not utils.tools._test_array_constant_spacing(
                 beam_object.axis1_array[axis1_inds], tols=beam_object._axis1_array.tols
             ):
@@ -3290,13 +3319,15 @@ class UVBeam(UVBase):
                 raise ValueError(
                     "axis2_inds cannot be used with healpix coordinate system"
                 )
-
             selections.append("parts of second image axis")
+            axis2_inds = utils.tools._eval_inds(
+                axis2_inds, self.Naxes2, name="axis2_inds", strict=strict, invert=invert
+            )
 
-            axis2_inds = sorted(set(axis2_inds))
-            if min(axis2_inds) < 0 or max(axis2_inds) > beam_object.Naxes2 - 1:
-                raise ValueError("axis2_inds must be > 0 and < Naxes2")
-
+            if len(axis2_inds) == 0:
+                raise ValueError(
+                    "No data matching this second image axis selection exists."
+                )
             if len(axis2_inds) > 1 and not utils.tools._test_array_constant_spacing(
                 beam_object.axis2_array[axis2_inds], tols=beam_object._axis2_array.tols
             ):
@@ -3310,75 +3341,44 @@ class UVBeam(UVBase):
                 raise ValueError(
                     "pixels can only be used with healpix coordinate system"
                 )
-
             selections.append("healpix pixels")
-
-            pix_inds = np.zeros(0, dtype=np.int64)
+            mask = np.zeros(self.Npixels, dtype=bool)
             for p in pixels:
-                if p in beam_object.pixel_array:
-                    pix_inds = np.append(
-                        pix_inds, np.where(beam_object.pixel_array == p)[0]
-                    )
-                else:
-                    raise ValueError(f"Pixel {p} is not present in the pixel_array")
+                submask = np.isin(self.pixel_array, p)
+                if (not invert and not any(submask)) or (invert and all(submask)):
+                    err_msg = f"Pixel {p} is not present in the pixel_array"
+                    utils.tools._strict_raise(err_msg, strict=strict)
+                mask |= submask
+            pix_inds = utils.tools._where_combine(mask, pix_inds, invert=invert)
 
-            pix_inds = sorted(set(pix_inds))
+            if len(pix_inds) == 0:
+                raise ValueError("No data matching this pixel selection exists.")
 
         freq_inds, _, freq_selections = utils.frequency._select_freq_helper(
             frequencies=frequencies,
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
+            invert=invert,
+            strict=strict,
         )
         selections.extend(freq_selections)
 
-        feed_inds = None
-        if feeds is not None:
-            if beam_object.beam_type == "power":
-                raise ValueError("feeds cannot be used with power beams")
-
-            if beam_object.antenna_type == "phased_array":
-                warnings.warn(
-                    "Downselecting feeds on phased array beams will lead to loss of "
-                    "information that cannot be recovered by selecting the other feed "
-                    "because the cross-feed coupling matrix elements can only be "
-                    "represented when all feeds are present."
-                )
-            x_orient_dict = {}
-            if beam_object.x_orientation is not None:
-                for key, value in utils.x_orientation_pol_map(
-                    beam_object.x_orientation
-                ).items():
-                    if key in beam_object.feed_array:
-                        x_orient_dict[value] = key
-
-            feeds = utils.tools._get_iterable(feeds)
-            feeds = [f.lower() for f in feeds]
-            selections.append("feeds")
-
-            feed_inds = np.zeros(0, dtype=np.int64)
-            for f in feeds:
-                if f in beam_object.feed_array:
-                    feed_inds = np.append(
-                        feed_inds, np.where(beam_object.feed_array == f)[0]
-                    )
-                elif f in x_orient_dict:
-                    feed_inds = np.append(
-                        feed_inds,
-                        np.where(beam_object.feed_array == x_orient_dict[f])[0],
-                    )
-                else:
-                    raise ValueError(f"Feed {f} is not present in the feed_array")
-
-            feed_inds = sorted(set(feed_inds))
-
-        if polarizations is not None and beam_object.beam_type == "efield":
-            raise ValueError("polarizations cannot be used with efield beams")
+        feed_inds, feed_selections = utils.pol._select_feed_helper(
+            feeds=feeds,
+            obj_feed_array=self.feed_array,
+            obj_x_orientation=self.x_orientation,
+            invert=invert,
+            strict=strict,
+        )
+        selections.extend(feed_selections)
 
         pol_inds, pol_selections = utils.pol._select_pol_helper(
             polarizations=polarizations,
             obj_pol_array=self.polarization_array,
             obj_x_orientation=self.x_orientation,
+            invert=invert,
+            strict=strict,
         )
         selections.extend(pol_selections)
 

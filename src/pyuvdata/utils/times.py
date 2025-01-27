@@ -17,7 +17,7 @@ try:
 except ImportError:
     hasmoon = False
 
-from .tools import _is_between
+from .tools import _is_between, _strict_raise, _where_combine
 
 
 def get_lst_for_time(
@@ -332,7 +332,9 @@ def _select_times_helper(
     obj_lst_range,
     time_tols,
     lst_tols,
+    time_inds=None,
     invert=False,
+    strict=False,
 ):
     """
     Get time indices in a select.
@@ -370,10 +372,17 @@ def _select_times_helper(
         Length 2 tuple giving (rtol, atol) to use for time matching.
     lst_tols : tuple of float
         Length 2 tuple giving (rtol, atol) to use for lst matching.
+    time_inds : array_like of int, optional
+        The btime indices to keep in the object. This is not commonly used.
     invert : bool
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
 
     Returns
     -------
@@ -470,30 +479,33 @@ def _select_times_helper(
             # Get sel_range into the correct shape
             mask = _is_between(obj_array, sel_range, wrap=wrap_range)
         if not any(mask):
-            raise ValueError(
+            msg = (
                 f"No elements in {attr_name} between {sel_range[0]} and {sel_range[1]}."
             )
+            _strict_raise(msg, strict=strict)
     else:
         # This is a match-based selection, so move forward accordingly
         if obj_range is None:
             # Because of tols, everything is in effect a range -- construct the
             # effect object ranges that we need.
-            del_range = np.maximum(abs(obj_array) * rtol, atol)
+            del_range = np.maximum(abs(obj_array * rtol), abs(atol))
             obj_range = np.vstack([obj_array - del_range, obj_array + del_range]).T
 
         mask = np.zeros(len(obj_range), dtype=bool)
         for item in np.asarray(sel_array).flat:
             submask = _is_between(item, obj_range, wrap=have_lsts)
-            if not invert and not any(submask):
-                raise ValueError(f"{sel_name} {item} {err_txt} {attr_name}.")
+            if not any(submask):
+                msg = f"{sel_name} {item} {err_txt} {attr_name}."
+                _strict_raise(msg, strict=strict)
             mask |= submask
 
-    # Use the invert flag to capture the right set of inds
-    time_inds = np.nonzero(np.logical_not(mask) if invert else mask)[0]
+    time_inds = _where_combine(mask, inds=time_inds, invert=invert)
 
     if len(time_inds) == 0:
-        raise ValueError("No data matching this time selection present in object.")
+        raise ValueError(
+            f"No data matching this {sel_name.lower()} selection present in object."
+        )
 
-    time_inds = sorted(set(time_inds.tolist()))
+    time_inds = time_inds.tolist()
 
     return time_inds, selections

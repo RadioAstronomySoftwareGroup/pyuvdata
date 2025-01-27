@@ -6590,6 +6590,7 @@ class UVData(UVBase):
         phase_center_ids,
         catalog_names,
         invert=False,
+        strict=False,
     ):
         """
         Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
@@ -6669,9 +6670,14 @@ class UVData(UVBase):
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
         invert : bool
-            Normally records matching given critera are what are included in the
-            subsequent option. However, if set to True, these records are excluded
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
 
         Returns
         -------
@@ -6745,6 +6751,7 @@ class UVData(UVBase):
             lst_tols=self._lst_array.tols,
             phase_center_id_array=self.phase_center_id_array,
             invert=invert,
+            strict=strict,
         )
         selections.extend(blt_selections)
 
@@ -6762,6 +6769,7 @@ class UVData(UVBase):
             polarizations=polarizations,
             obj_x_orientation=self.telescope.x_orientation,
             invert=invert,
+            strict=strict,
         )
         selections.extend(freq_selections)
 
@@ -6771,6 +6779,7 @@ class UVData(UVBase):
             obj_x_orientation=self.telescope.x_orientation,
             flex_pol=self.flex_spw_polarization_array is not None,
             invert=invert,
+            strict=strict,
         )
         selections.extend(pol_selections)
 
@@ -6863,6 +6872,7 @@ class UVData(UVBase):
         phase_center_ids=None,
         catalog_names=None,
         invert=False,
+        strict=False,
         inplace=True,
         keep_all_metadata=True,
         run_check=True,
@@ -6957,6 +6967,11 @@ class UVData(UVBase):
             Normally records matching given criteria are what are included in the
             subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
@@ -7015,6 +7030,7 @@ class UVData(UVBase):
                 phase_center_ids=phase_center_ids,
                 catalog_names=catalog_names,
                 invert=invert,
+                strict=strict,
             )
         )
 

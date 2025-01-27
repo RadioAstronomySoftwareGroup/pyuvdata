@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Iterable, Iterable as IterableType
 
 import numpy as np
@@ -278,7 +279,9 @@ def _is_between(val, val_range, wrap=False, wrap_amount=(2 * np.pi)):
     val_range : np.array
         Array of ranges, shape (Nranges, 2).
     wrap : bool
-        Wrap ranges around 2 pi. Default is False.
+        Apply wrapping. Default is False.
+    wrap_amount : float
+        Top end of the range for the wrap (bottom is 0). Default is 2 * pi.
 
     Returns
     -------
@@ -406,3 +409,107 @@ def _sorted_unique_difference(obj1, obj2=None):
         List containing the difference in unique entries between obj1 and obj2.
     """
     return sorted(set(obj1)) if obj2 is None else sorted(set(obj1).difference(obj2))
+
+
+def _strict_raise(
+    err_msg: str, strict: (bool | None), err_type=ValueError, warn_type=UserWarning
+):
+    """
+    Determine whether to raise a warning or an error.
+
+    Parameters
+    ----------
+    err_msg : str
+        Message to pass along with the warning/error.
+    strict : bool | None
+        If True, raise an error. If False, raise a warning. If None, no message is
+        raised at all (warning is silenced).
+    err_type : Exception
+        Type of error to raise if `strict=True`. Default is ValueError.
+    warn_type : Warning
+        Type of warning to raise if `strict=False`. Default is UserWarning.
+    """
+    if strict:
+        raise err_type(err_msg)
+    elif strict is not None:
+        warnings.warn(err_msg, warn_type)
+
+
+def _eval_inds(inds, nrecs, name="inds", invert=False, strict=True):
+    """
+    Determine if indices are outside of the expected range.
+
+    Parameters
+    ----------
+    inds : array-like of int
+        Indices to check.
+    nrecs : int
+        Number of records in the underlying array.
+    name : str
+        Name of underlying array, default is "inds".
+    invert : bool
+        If False, inds are treated as the positions in the array that should be
+        preserved, but if True, those positions are discarded instead. Default is False.
+    strict : bool
+        If True, raise an error. If False, raise a warning.
+
+    Returns
+    -------
+    inds : ndarray of int
+        Array of well-conditioned, sorted index values (whose value will be within the
+        range of [0, nrecs - 1]).
+    """
+    if inds is None:
+        return None
+
+    inds = np.asarray(inds).flatten()
+    mask = np.full(nrecs, invert, dtype=bool)
+
+    if len(inds) > 0:
+        fix_inds = False
+        if max(inds) >= nrecs:
+            _strict_raise(f"{name} contains indices that are too large", strict=strict)
+            fix_inds = True
+        if min(inds) < 0:
+            _strict_raise(f"{name} contains indices that are negative", strict=strict)
+            fix_inds = True
+
+        if fix_inds:
+            inds = [i for i in inds if ((i >= 0) and (i < nrecs))]
+
+        mask[inds] = not invert
+
+    return np.nonzero(mask)[0]
+
+
+def _where_combine(mask, inds=None, invert=False, use_and=True):
+    """
+    Combine masked array with an existing index list.
+
+    Parameters
+    ----------
+    mask : array-like of bool
+        Array that marks whether or not entries meet matching criteria.
+    inds : array-like of int or None
+        Existing list of index positions that meet matching criteria. Can be None,
+        in which case only mask is evaluated.
+    invert : bool
+        If False, then indices where mask == True are returned. But if set to True,
+        indices where mask == False are returned instead. Default is False.
+    use_and : bool
+        If True, then what is returned is ihe intersection of value derived from both
+        mask and inds. If False, then the union of mask and inds is returned instead.
+        Default is True.
+
+    Returns
+    -------
+    new_inds : ndarray of int
+        Index positions which meet the selection criterion recorded in mask and inds.
+    """
+    eval_func = np.logical_and if use_and else np.logical_or
+    if inds is not None:
+        postmask = np.full(len(mask), invert, dtype=bool)
+        postmask[inds] = not invert
+        mask = eval_func(mask, postmask)
+
+    return np.nonzero(np.logical_not(mask) if invert else mask)[0]
