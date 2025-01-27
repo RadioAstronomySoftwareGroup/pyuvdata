@@ -709,6 +709,10 @@ class UVFlag(UVBase):
         self._time_array.form = ("Ntimes",)
         self._lst_array.form = ("Ntimes",)
 
+    def _calc_nants_data(self):
+        """Calculate the number of antennas from ant_1_array and ant_2_array arrays."""
+        return int(np.union1d(self.ant_1_array, self.ant_2_array).size)
+
     def check(
         self,
         *,
@@ -761,9 +765,7 @@ class UVFlag(UVBase):
         # Check internal consistency of numbers which don't explicitly correspond
         # to the shape of another array.
         if self.type == "baseline":
-            if self.Nants_data != int(
-                np.union1d(self.ant_1_array, self.ant_2_array).size
-            ):
+            if self.Nants_data != self._calc_nants_data():
                 raise ValueError(
                     "Nants_data must be equal to the number of unique "
                     "values in ant_1_array and ant_2_array"
@@ -2370,6 +2372,7 @@ class UVFlag(UVBase):
         bls,
         frequencies,
         freq_chans,
+        spws,
         times,
         time_range,
         lsts,
@@ -2377,6 +2380,7 @@ class UVFlag(UVBase):
         polarizations,
         blt_inds,
         ant_inds,
+        invert=False,
     ):
         """Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
 
@@ -2415,6 +2419,8 @@ class UVFlag(UVBase):
             exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array.
@@ -2517,6 +2523,7 @@ class UVFlag(UVBase):
                 lst_array=self.lst_array,
                 lst_tols=self._lst_array.tols,
                 phase_center_id_array=None,
+                invert=invert,
             )
             selections.extend(blt_selections)
             time_inds = None
@@ -2537,9 +2544,9 @@ class UVFlag(UVBase):
                 tel_ant_names=self.telescope.antenna_names,
                 tel_ant_nums=self.telescope.antenna_numbers,
                 obj_ant_array=self.ant_array,
+                invert=invert,
             )
-            if ant_inds is not None:
-                selections.extend(ant_selections)
+            selections.extend(ant_selections)
 
             time_inds, time_selections = utils.times._select_times_helper(
                 times=times,
@@ -2552,12 +2559,11 @@ class UVFlag(UVBase):
                 obj_lst_range=None,
                 time_tols=self._time_array.tols,
                 lst_tols=self._lst_array.tols,
+                invert=invert,
             )
-            if time_inds is not None:
-                selections.extend(time_selections)
-                time_inds = sorted(set(time_inds.tolist()))
+            selections.extend(time_selections)
 
-        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+        freq_inds, spw_inds, freq_selections = utils.frequency._select_freq_helper(
             frequencies=frequencies,
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
@@ -2565,38 +2571,20 @@ class UVFlag(UVBase):
             obj_channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
             obj_spw_id_array=self.flex_spw_id_array,
+            obj_spw_array=self.spw_array,
+            spws=spws,
             warn_freq_spacing=False,
+            invert=invert,
         )
-        if freq_inds is not None:
-            freq_inds = sorted(freq_inds.tolist())
-            selections.extend(freq_selections)
+        selections.extend(freq_selections)
 
-        if polarizations is not None:
-            polarizations = utils.tools._get_iterable(polarizations)
-            if np.array(polarizations).ndim > 1:
-                polarizations = np.array(polarizations).flatten()
-            selections.append("polarizations")
-
-            pol_inds = np.zeros(0, dtype=np.int64)
-            for p in polarizations:
-                if isinstance(p, str):
-                    p_num = utils.polstr2num(
-                        p, x_orientation=self.telescope.x_orientation
-                    )
-                else:
-                    p_num = p
-                if p_num in self.polarization_array:
-                    pol_inds = np.append(
-                        pol_inds, np.where(self.polarization_array == p_num)[0]
-                    )
-                else:
-                    raise ValueError(
-                        f"Polarization {p} is not present in the polarization_array"
-                    )
-
-            pol_inds = sorted(set(pol_inds))
-        else:
-            pol_inds = None
+        pol_inds, pol_selections = utils.pol._select_pol_helper(
+            polarizations=polarizations,
+            obj_pol_array=self.polarization_array,
+            obj_x_orientation=self.telescope.x_orientation,
+            invert=invert,
+        )
+        selections.extend(pol_selections)
 
         # build up history string from selections
         history_update_string = ""
@@ -2607,15 +2595,24 @@ class UVFlag(UVBase):
                 + " using pyuvdata."
             )
 
-        return blt_inds, time_inds, ant_inds, freq_inds, pol_inds, history_update_string
+        return (
+            blt_inds,
+            time_inds,
+            ant_inds,
+            freq_inds,
+            spw_inds,
+            pol_inds,
+            history_update_string,
+        )
 
-    def _select_metadata(
+    def _select_by_index(
         self,
         *,
         blt_inds,
         time_inds,
         ant_inds,
         freq_inds,
+        spw_inds,
         pol_inds,
         history_update_string,
     ):
@@ -2631,6 +2628,8 @@ class UVFlag(UVBase):
             objects. Can be None (to keep everything).
         freq_inds : list of int
             list of frequency indices to keep. Can be None (to keep everything).
+        spw_inds : list of int
+            list of spw indicies to keep. Can be None (to keep everything).
         pol_inds : list of int
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
@@ -2639,45 +2638,26 @@ class UVFlag(UVBase):
             Option to keep metadata for antennas that are no longer in the dataset.
 
         """
-        if self.type == "baseline":
-            if blt_inds is not None:
-                self.Nblts = len(blt_inds)
-                self.baseline_array = self.baseline_array[blt_inds]
+        # Create a dictionary that we can loop over an update if need be
+        ind_dict = {
+            "Ntimes": time_inds,
+            "Nants_data": ant_inds,
+            "Nblts": blt_inds,
+            "Nfreqs": freq_inds,
+            "Nspws": spw_inds,
+            "Npols": pol_inds,
+        }
+
+        # During each loop interval, we pop off an element of this dict, so continue
+        # until the dict is empty.
+        for key, ind_arr in ind_dict.items():
+            self._select_along_param_axis(key, ind_arr)
+            if key == "Nblts" and ind_arr is not None:
+                # Process post blt-specific selection actions, including counting
+                # unique antennas in the object.
+                self.Nants_data = self._calc_nants_data()
                 self.Nbls = len(np.unique(self.baseline_array))
-                self.ant_1_array = self.ant_1_array[blt_inds]
-                self.ant_2_array = self.ant_2_array[blt_inds]
-                self.Nants_data = int(
-                    np.union1d(self.ant_1_array, self.ant_2_array).size
-                )
-                self.time_array = self.time_array[blt_inds]
-                self.lst_array = self.lst_array[blt_inds]
                 self.Ntimes = len(np.unique(self.time_array))
-        elif time_inds is not None:
-            self.Ntimes = len(time_inds)
-            self.time_array = self.time_array[time_inds]
-            self.lst_array = self.lst_array[time_inds]
-
-        if self.type == "antenna" and ant_inds is not None:
-            self.ant_array = self.ant_array[ant_inds]
-            self.Nants_data = int(len(self.ant_array))
-
-        if freq_inds is not None:
-            self.Nfreqs = len(freq_inds)
-            self.freq_array = self.freq_array[freq_inds]
-            if self.channel_width is not None:
-                self.channel_width = self.channel_width[freq_inds]
-            if self.flex_spw_id_array is not None:
-                self.flex_spw_id_array = self.flex_spw_id_array[freq_inds]
-
-            if self.Nspws > 1:
-                self.spw_array = self.spw_array[
-                    np.where(np.isin(self.spw_array, self.flex_spw_id_array))[0]
-                ]
-                self.Nspws = self.spw_array.size
-
-        if pol_inds is not None:
-            self.Npols = len(pol_inds)
-            self.polarization_array = self.polarization_array[pol_inds]
 
         self.history = self.history + history_update_string
 
@@ -2691,6 +2671,7 @@ class UVFlag(UVBase):
         ant_str=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -2750,6 +2731,8 @@ class UVFlag(UVBase):
             exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array.
@@ -2810,92 +2793,42 @@ class UVFlag(UVBase):
         else:
             uv_object = self.copy()
 
-        (blt_inds, time_inds, ant_inds, freq_inds, pol_inds, history_update_string) = (
-            uv_object._select_preprocess(
-                antenna_nums=antenna_nums,
-                antenna_names=antenna_names,
-                ant_str=ant_str,
-                bls=bls,
-                frequencies=frequencies,
-                freq_chans=freq_chans,
-                times=times,
-                time_range=time_range,
-                lsts=lsts,
-                lst_range=lst_range,
-                polarizations=polarizations,
-                blt_inds=blt_inds,
-                ant_inds=ant_inds,
-            )
+        (
+            blt_inds,
+            time_inds,
+            ant_inds,
+            freq_inds,
+            spw_inds,
+            pol_inds,
+            history_update_string,
+        ) = uv_object._select_preprocess(
+            antenna_nums=antenna_nums,
+            antenna_names=antenna_names,
+            ant_str=ant_str,
+            bls=bls,
+            frequencies=frequencies,
+            freq_chans=freq_chans,
+            spws=spws,
+            times=times,
+            time_range=time_range,
+            lsts=lsts,
+            lst_range=lst_range,
+            polarizations=polarizations,
+            blt_inds=blt_inds,
+            ant_inds=ant_inds,
         )
 
         # do select operations on everything except data_array, flag_array
         # and nsample_array
-        uv_object._select_metadata(
+        uv_object._select_by_index(
             blt_inds=blt_inds,
             time_inds=time_inds,
             ant_inds=ant_inds,
             freq_inds=freq_inds,
+            spw_inds=spw_inds,
             pol_inds=pol_inds,
             history_update_string=history_update_string,
         )
-
-        if self.type == "baseline":
-            if blt_inds is not None:
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[blt_inds])
-        elif time_inds is not None:
-            if self.type == "waterfall":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[time_inds])
-            if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, :, time_inds, :])
-
-        if ant_inds is not None and self.type == "antenna":
-            for param_name, param in zip(
-                self._data_params, uv_object.data_like_parameters, strict=True
-            ):
-                setattr(uv_object, param_name, param[ant_inds])
-
-        if freq_inds is not None:
-            if self.type == "baseline":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, freq_inds, :])
-            if self.type == "waterfall":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, freq_inds, :])
-            if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, freq_inds, :, :])
-
-        if pol_inds is not None:
-            if self.type == "baseline":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, :, pol_inds])
-            if self.type == "waterfall":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, :, pol_inds])
-            if self.type == "antenna":
-                for param_name, param in zip(
-                    self._data_params, uv_object.data_like_parameters, strict=True
-                ):
-                    setattr(uv_object, param_name, param[:, :, :, pol_inds])
 
         # check if object is uv_object-consistent
         if run_check:

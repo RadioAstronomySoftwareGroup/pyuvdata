@@ -213,8 +213,8 @@ def _test_array_constant(array, *, tols=None):
     assert isinstance(tols, tuple), "tols must be a length-2 tuple"
     assert len(tols) == 2, "tols must be a length-2 tuple"
 
-    if array_to_test.size == 1:
-        # arrays with 1 element are constant by definition
+    if array_to_test.size < 2:
+        # arrays with 0 or 1 elements are constant by definition
         return True
 
     # if min and max are equal don't bother with tolerance checking
@@ -265,6 +265,44 @@ def _test_array_constant_spacing(array, *, tols=None):
 
     array_diff = np.diff(array_to_test)
     return _test_array_constant(array_diff, tols=tols)
+
+
+def _is_between(val, val_range, wrap=False, wrap_amount=(2 * np.pi)):
+    """
+    Detect if a value is between a specified range(s).
+
+    Parameters
+    ----------
+    val : float or ndarray
+        Value to evaluate, either float/singleton, otherwise of shape (Nranges,).
+    val_range : np.array
+        Array of ranges, shape (Nranges, 2).
+    wrap : bool
+        Wrap ranges around 2 pi. Default is False.
+
+    Returns
+    -------
+    bool
+        True if any range overlaps
+    """
+    lo_lim = val_range[..., 0]
+    hi_lim = val_range[..., 1]
+    if val_range.ndim == 1:
+        if wrap and (hi_lim < lo_lim):
+            lo_lim = lo_lim - wrap_amount
+    elif wrap:
+        hi_lim[hi_lim < lo_lim] += wrap_amount
+
+    mask = (val >= lo_lim) & (val <= hi_lim)
+    if wrap:
+        if val_range.ndim == 1:
+            lo_lim = wrap_amount + lo_lim
+            hi_lim = wrap_amount + hi_lim
+        else:
+            val += wrap_amount
+        mask |= (val >= lo_lim) & (val <= hi_lim)
+
+    return mask
 
 
 def _check_range_overlap(val_range, range_type="time"):

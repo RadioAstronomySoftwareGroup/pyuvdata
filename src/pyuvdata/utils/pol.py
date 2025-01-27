@@ -9,6 +9,8 @@ from functools import lru_cache, wraps
 
 import numpy as np
 
+from . import tools
+
 __all__ = [
     "POL_STR2NUM_DICT",
     "POL_NUM2STR_DICT",
@@ -527,3 +529,128 @@ def determine_pol_order(pols, *, order="AIPS"):
         raise ValueError('order must be either "AIPS" or "CASA".')
 
     return index_array
+
+
+def _select_pol_helper(
+    polarizations,
+    obj_pol_array,
+    obj_x_orientation=None,
+    flex_pol=False,
+    invert=False,
+    is_jones=False,
+):
+    """
+    Get polarization indices in a select.
+
+    Parameters
+    ----------
+    polarizations : array_like of str or int
+        The polarizations to keep in the object, each value passed here should exist in
+        obj_pol_array (unless `invert=True`).
+    obj_pol_array : array_like of int
+        The polarizations present in the object.
+    obj_x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is labelled as the x
+        polarization ("east" or "north") to allow for converting from E/N strings.
+    flex_pol : bool
+        Demark whether or not the object is a flex-pol object, which by construct has
+        no polarization axis to select on (it's folded onto the spw-axis instead).
+        Default is False.
+    invert : bool
+        Normally indices matching given criteria are what are included in the
+        subsequent list. However, if set to True, these indices are excluded
+        instead. Default is False.
+    is_jones : bool
+        Normally this function handles polarizations, but if set to True, Jones terms
+        can be input instead. Default is False, it is recommended rather than using this
+        setting directly one should use the function _select_jones_helper instead.
+
+    Returns
+    -------
+    pol_inds : list of int
+        Indices of polarization to keep on the object.
+    selections : list of str
+        list of selections done.
+
+    """
+    pol_inds = None
+    selections = []
+
+    str_eval = polstr2num if is_jones else jstr2num
+    select_name = "jones polarization terms" if is_jones else "polarizations"
+    term_name = "Jones term" if is_jones else "Polarization"
+    arr_name = "jones_array" if is_jones else "polarization_array"
+    plr_name = "jones polarization terms" if is_jones else "polarization values"
+
+    if flex_pol or (polarizations is None):
+        return pol_inds, selections
+
+    polarizations = tools._get_iterable(polarizations)
+    if np.array(polarizations).ndim > 1:
+        polarizations = np.array(polarizations).flatten()
+    selections.append(select_name)
+
+    pol_nums = []
+    for p_name in polarizations:
+        if isinstance(p_name, str):
+            p_num = str_eval(p_name, x_orientation=obj_x_orientation)
+        else:
+            p_num = p_name
+        if not invert and p_num not in obj_pol_array:
+            raise ValueError(f"{term_name} {p_name} is not present in the {arr_name}")
+        pol_nums.append(p_num)
+
+    pol_inds = np.nonzero(np.isin(obj_pol_array, pol_nums, invert=invert))[0]
+    if len(pol_inds) == 0:
+        raise ValueError(f"No data matching this {term_name} selection exists.")
+
+    if len(pol_inds) > 2 and not tools._test_array_constant_spacing(pol_inds):
+        warnings.warn(
+            f"Selected {plr_name} are not evenly spaced. This will make it impossible "
+            "to write this data out to some file types."
+        )
+
+    return sorted(set(pol_inds.tolist())), selections
+
+
+def _select_jones_helper(
+    jones, obj_jones_array, obj_x_orientation=None, flex_jones=False, invert=False
+):
+    """
+    Get Jones indices in a select.
+
+    Parameters
+    ----------
+    jones : array_like of str or int
+        The Jones terms to keep in the object, each value passed here should exist in
+        obj_jones_array (unless `invert=True`).
+    obj_jones_array : array_like of int
+        The Jones terms present in the object.
+    obj_x_orientation : str, optional
+        Orientation of the physical dipole corresponding to what is labelled as the x
+        polarization ("east" or "north") to allow for converting from E/N strings.
+    flex_jones : bool
+        Demark whether or not the object is a flex-Jones object, which by construct has
+        no Jones axis to select on (it's folded onto the spw-axis instead). Default is
+        False.
+    invert : bool
+        Normally indices matching given criteria are what are included in the
+        subsequent list. However, if set to True, these indices are excluded
+        instead. Default is False.
+
+    Returns
+    -------
+    jones_inds : list of int
+        Indices of Jones terms to keep on the object.
+    selections : list of str
+        list of selections done.
+
+    """
+    return _select_pol_helper(
+        polarizations=jones,
+        obj_pol_array=obj_jones_array,
+        obj_x_orientation=obj_x_orientation,
+        flex_pol=flex_jones,
+        invert=invert,
+        is_jones=True,
+    )

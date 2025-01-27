@@ -6580,6 +6580,7 @@ class UVData(UVBase):
         bls,
         frequencies,
         freq_chans,
+        spws,
         times,
         time_range,
         lsts,
@@ -6588,6 +6589,7 @@ class UVData(UVBase):
         blt_inds,
         phase_center_ids,
         catalog_names,
+        invert=False,
     ):
         """
         Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
@@ -6629,6 +6631,8 @@ class UVData(UVBase):
             exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should exist
             in the time_array. Cannot be used with `time_range`, `lsts`, or
@@ -6664,6 +6668,10 @@ class UVData(UVBase):
             The names of the phase centers (sources) to keep in the object, which should
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
+        invert : bool
+            Normally records matching given critera are what are included in the
+            subsequent option. However, if set to True, these records are excluded
+            instead. Default is False.
 
         Returns
         -------
@@ -6736,100 +6744,35 @@ class UVData(UVBase):
             lst_array=self.lst_array,
             lst_tols=self._lst_array.tols,
             phase_center_id_array=self.phase_center_id_array,
+            invert=invert,
         )
         selections.extend(blt_selections)
 
-        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+        freq_inds, spw_inds, freq_selections = utils.frequency._select_freq_helper(
             frequencies=frequencies,
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
             obj_channel_width=self.channel_width,
             channel_width_tols=self._channel_width.tols,
+            spws=spws,
+            obj_spw_array=self.spw_array,
             obj_spw_id_array=self.flex_spw_id_array,
+            obj_flex_spw_pol_array=self.flex_spw_polarization_array,
+            polarizations=polarizations,
+            obj_x_orientation=self.telescope.x_orientation,
+            invert=invert,
         )
-        if freq_inds is not None:
-            freq_inds = sorted(freq_inds.tolist())
-            selections.extend(freq_selections)
+        selections.extend(freq_selections)
 
-        if polarizations is not None:
-            polarizations = utils.tools._get_iterable(polarizations)
-            if np.array(polarizations).ndim > 1:
-                polarizations = np.array(polarizations).flatten()
-            selections.append("polarizations")
-
-            pol_inds = np.zeros(0, dtype=np.int64)
-            spw_inds = np.zeros(0, dtype=np.int64)
-            for p in polarizations:
-                if isinstance(p, str):
-                    p_num = utils.polstr2num(
-                        p, x_orientation=self.telescope.x_orientation
-                    )
-                else:
-                    p_num = p
-                if p_num in self.polarization_array:
-                    pol_inds = np.append(
-                        pol_inds, np.where(self.polarization_array == p_num)[0]
-                    )
-                elif (
-                    False
-                    if (self.flex_spw_polarization_array is None)
-                    else (p_num in self.flex_spw_polarization_array)
-                ):
-                    spw_inds = np.append(
-                        spw_inds, np.where(self.flex_spw_polarization_array == p_num)[0]
-                    )
-                else:
-                    raise ValueError(
-                        f"Polarization {p} is not present in the polarization_array"
-                    )
-
-            if len(spw_inds) > 0:
-                # Since this is a flex-pol data set, we need to filter on the freq
-                # axis instead of the pol axis
-                pol_inds = None
-
-                if freq_inds is None:
-                    freq_inds = np.where(
-                        np.isin(self.flex_spw_id_array, self.spw_array[spw_inds])
-                    )[0]
-                else:
-                    freq_inds = np.array(freq_inds)
-                    freq_inds = freq_inds[
-                        np.isin(
-                            self.flex_spw_id_array[freq_inds], self.spw_array[spw_inds]
-                        )
-                    ]
-
-                freq_inds = sorted(freq_inds)
-                # Trap a corner case here where the frequency and polarization selects
-                # on a flex-pol data set end up with no actual data being selected.
-                if len(freq_inds) == 0:
-                    raise ValueError(
-                        "No data matching this polarization and frequency selection "
-                        "in this UVData object."
-                    )
-                if not utils.tools._test_array_constant_spacing(
-                    np.unique(self.flex_spw_polarization_array[spw_inds])
-                ):
-                    warnings.warn(
-                        "Selected polarization values are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-            else:
-                pol_inds = np.unique(pol_inds)
-                if len(pol_inds) > 2 and not utils.tools._test_array_constant_spacing(
-                    pol_inds
-                ):
-                    warnings.warn(
-                        "Selected polarization values are not evenly spaced. This "
-                        "will make it impossible to write this data out to "
-                        "some file types"
-                    )
-                pol_inds = pol_inds.tolist()
-        else:
-            pol_inds = None
+        pol_inds, pol_selections = utils.pol._select_pol_helper(
+            polarizations=polarizations,
+            obj_pol_array=self.polarization_array,
+            obj_x_orientation=self.telescope.x_orientation,
+            flex_pol=self.flex_spw_polarization_array is not None,
+            invert=invert,
+        )
+        selections.extend(pol_selections)
 
         # build up history string from selections
         history_update_string = ""
@@ -6840,13 +6783,14 @@ class UVData(UVBase):
                 + " using pyuvdata."
             )
 
-        return blt_inds, freq_inds, pol_inds, history_update_string
+        return blt_inds, freq_inds, spw_inds, pol_inds, history_update_string
 
     def _select_by_index(
         self,
         *,
         blt_inds,
         freq_inds,
+        spw_inds,
         pol_inds,
         history_update_string,
         keep_all_metadata=True,
@@ -6860,6 +6804,8 @@ class UVData(UVBase):
             list of baseline-time indices to keep. Can be None (to keep everything).
         freq_inds : list of int
             list of frequency indices to keep. Can be None (to keep everything).
+        spw_inds : list of int
+            list of spw indicies to keep. Can be None (to keep everything).
         pol_inds : list of int
             list of polarization indices to keep. Can be None (to keep everything).
         history_update_string : str
@@ -6868,62 +6814,20 @@ class UVData(UVBase):
             Option to keep metadata for antennas that are no longer in the dataset.
         """
         # Create a dictionary that we can loop over an update if need be
-        ind_dict = {"Nblts": blt_inds, "Nfreqs": freq_inds, "Npols": pol_inds}
+        ind_dict = {
+            "Nblts": blt_inds,
+            "Nfreqs": freq_inds,
+            "Nspws": spw_inds,
+            "Npols": pol_inds,
+        }
 
         # During each loop interval, we pop off an element of this dict, so continue
         # until the dict is empty.
-        while len(ind_dict):
-            # This is an easy way to grab the first key in the dict
-            key = next(iter(ind_dict))
-            # Grab the corresponding index array
-            ind_arr = ind_dict.pop(key)
-
-            # If nothing to select on, bail!
-            if ind_arr is None:
-                continue
-
-            if key == "Nants_telescope":
-                # need to iterate over params in self.telescope NOT in self
-                obj_use = self.telescope
-                key_use = "Nants"
-            else:
-                obj_use = self
-                key_use = key
-
-            for param in obj_use:
-                # For each attribute, if the value is None, then bail, otherwise
-                # attempt to figure out along which axis ind_arr will apply.
-
-                attr = getattr(obj_use, param)
-                if attr.value is not None:
-                    try:
-                        sel_axis = attr.form.index(key_use)
-                    except (AttributeError, ValueError):
-                        # If form is not a tuple/list (and therefore not
-                        # array-like), it'll throw an AttributeError, and if key_use is
-                        # not found in the tuple/list, it'll throw a ValueError.
-                        # In both cases, skip!
-                        continue
-
-                    if isinstance(attr.value, np.ndarray):
-                        # If we're working with an ndarray, use take to slice along
-                        # the axis that we want to grab from.
-                        attr.value = attr.value.take(ind_arr, axis=sel_axis)
-                        attr.setter(obj_use)
-                    elif isinstance(attr.value, list):
-                        # If this is a list, it _should_ always have 1-dimension.
-                        assert sel_axis == 0, (
-                            "Something is wrong, sel_axis != 0 when selecting on a "
-                            "list, which should not be possible. Please file an "
-                            "issue in our GitHub issue log so that we can fix it."
-                        )
-                        attr.value = [attr.value[idx] for idx in ind_arr]
-                        attr.setter(obj_use)
-
-            if key == "Nblts":
+        for key, ind_arr in ind_dict.items():
+            self._select_along_param_axis(key, ind_arr)
+            if key == "Nblts" and ind_arr is not None:
                 # Process post blt-specific selection actions, including counting
                 # unique times antennas/baselines in the data.
-                self.Nblts = len(ind_arr)
                 self.Nbls = len(np.unique(self.baseline_array))
                 self.Ntimes = len(np.unique(self.time_array))
                 self.Nants_data = self._calc_nants_data()
@@ -6931,29 +6835,11 @@ class UVData(UVBase):
                 if not keep_all_metadata:
                     # If we are dropping metadata and selecting on blts, then add
                     # evaluate the antenna axis of all parameters
-                    ind_dict["Nants_telescope"] = np.where(
-                        np.isin(
-                            self.telescope.antenna_numbers,
-                            list(set(self.ant_1_array).union(self.ant_2_array)),
-                        )
-                    )[0]
-            elif key == "Nfreqs":
-                # Process post freq-specific selection actions
-                self.Nfreqs = len(ind_arr)
-                if self.flex_spw_id_array is not None:
-                    # If we are dropping channels, then evaluate the spw axis
-                    ind_dict["Nspws"] = np.where(
-                        np.isin(self.spw_array, self.flex_spw_id_array)
-                    )[0]
-            elif key == "Npols":
-                # Count the number of unique pols after pol-based selection
-                self.Npols = len(ind_arr)
-            elif key == "Nspws":
-                # Count the number of unique pols after spw-based selection
-                self.Nspws = len(ind_arr)
-            elif key == "Nants_telescope":
-                # Count the number of unique ants after ant-based selection
-                self.telescope.Nants = len(ind_arr)
+                    use_ants = list(set(self.ant_1_array).union(self.ant_2_array))
+                    self.telescope._select_along_param_axis(
+                        "Nants",
+                        np.where(np.isin(self.telescope.antenna_numbers, use_ants))[0],
+                    )
 
         # Update the history string
         self.history += history_update_string
@@ -6967,6 +6853,7 @@ class UVData(UVBase):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -6975,6 +6862,7 @@ class UVData(UVBase):
         blt_inds=None,
         phase_center_ids=None,
         catalog_names=None,
+        invert=False,
         inplace=True,
         keep_all_metadata=True,
         run_check=True,
@@ -7028,6 +6916,8 @@ class UVData(UVBase):
             exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to keep in the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to keep in the object, each value passed here should
             exist in the time_array. Cannot be used with `time_range`, `lsts`, or
@@ -7063,6 +6953,10 @@ class UVData(UVBase):
             The names of the phase centers (sources) to keep in the object, which should
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
+        invert : bool
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
+            instead. Default is False.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
@@ -7103,7 +6997,7 @@ class UVData(UVBase):
             uv_obj = self.copy()
 
         # Figure out which index positions we want to hold on to.
-        (blt_inds, freq_inds, pol_inds, history_update_string) = (
+        blt_inds, freq_inds, spw_inds, pol_inds, history_update_string = (
             uv_obj._select_preprocess(
                 antenna_nums=antenna_nums,
                 antenna_names=antenna_names,
@@ -7111,6 +7005,7 @@ class UVData(UVBase):
                 bls=bls,
                 frequencies=frequencies,
                 freq_chans=freq_chans,
+                spws=spws,
                 times=times,
                 time_range=time_range,
                 lsts=lsts,
@@ -7119,6 +7014,7 @@ class UVData(UVBase):
                 blt_inds=blt_inds,
                 phase_center_ids=phase_center_ids,
                 catalog_names=catalog_names,
+                invert=invert,
             )
         )
 
@@ -7126,6 +7022,7 @@ class UVData(UVBase):
         uv_obj._select_by_index(
             blt_inds=blt_inds,
             freq_inds=freq_inds,
+            spw_inds=spw_inds,
             pol_inds=pol_inds,
             history_update_string=history_update_string,
             keep_all_metadata=keep_all_metadata,
@@ -9319,8 +9216,9 @@ class UVData(UVBase):
             value passed here should exist in the freq_array. Ignored if
             read_data is False.
         freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
+            The frequency channel numbers to include when reading data into the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array. Cannot be used with
@@ -9512,8 +9410,9 @@ class UVData(UVBase):
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
         freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
+            The frequency channel numbers to include when reading data into the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array. Cannot be used with
@@ -9663,8 +9562,9 @@ class UVData(UVBase):
             value passed here should exist in the freq_array. Ignored if
             read_data is False.
         freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
+            The frequency channel numbers to include when reading data into the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array. Cannot be used with
@@ -9837,6 +9737,7 @@ class UVData(UVBase):
         catalog_names=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -10010,8 +9911,9 @@ class UVData(UVBase):
             The frequencies to include when reading data into the object, each
             value passed here should exist in the freq_array.
         freq_chans : array_like of int, optional
-            The frequency channel numbers to include when reading data into the
-            object. Ignored if read_data is False.
+            The frequency channel numbers to include when reading data into the object.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the object.
         times : array_like of float, optional
             The times to include when reading data into the object, each value
             passed here should exist in the time_array in the file. Cannot be used with
@@ -10511,6 +10413,7 @@ class UVData(UVBase):
                         bls=bls,
                         frequencies=frequencies,
                         freq_chans=freq_chans,
+                        spws=spws,
                         times=times,
                         time_range=time_range,
                         lsts=lsts,
@@ -10646,6 +10549,7 @@ class UVData(UVBase):
                             catalog_names=catalog_names,
                             frequencies=frequencies,
                             freq_chans=freq_chans,
+                            spws=spws,
                             times=times,
                             time_range=time_range,
                             lsts=lsts,
@@ -10789,6 +10693,7 @@ class UVData(UVBase):
                     or bls is not None
                     or frequencies is not None
                     or freq_chans is not None
+                    or spws is not None
                     or times is not None
                     or lsts is not None
                     or time_range is not None
@@ -10812,6 +10717,7 @@ class UVData(UVBase):
                     select_bls = bls
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
+                    select_spws = spws
                     select_times = times
                     select_lsts = lsts
                     select_time_range = time_range
@@ -10828,6 +10734,7 @@ class UVData(UVBase):
                     antenna_names is not None
                     or frequencies is not None
                     or freq_chans is not None
+                    or spws is not None
                     or times is not None
                     or blt_inds is not None
                     or phase_center_ids is not None
@@ -10866,6 +10773,7 @@ class UVData(UVBase):
                     select_antenna_names = antenna_names
                     select_frequencies = frequencies
                     select_freq_chans = freq_chans
+                    select_spws = spws
                     select_times = times
                     select_lsts = lsts
                     select_lst_range = lst_range
@@ -10892,6 +10800,7 @@ class UVData(UVBase):
                 # these aren't supported by partial read, so do it in select
                 select_frequencies = frequencies
                 select_freq_chans = freq_chans
+                select_spws = spws
                 select_blt_inds = blt_inds
                 select_phase_center_ids = phase_center_ids
                 select_times = times
@@ -10930,6 +10839,7 @@ class UVData(UVBase):
                 select_polarizations = None
                 select_frequencies = None
                 select_freq_chans = None
+                select_spws = None
 
                 # MWA corr fits can only handle length-two bls tuples, anything
                 # else needs to be handled via select.
@@ -10965,6 +10875,7 @@ class UVData(UVBase):
                     bls=bls,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
+                    spws=spws,
                     times=times,
                     time_range=time_range,
                     lsts=lsts,
@@ -11049,6 +10960,7 @@ class UVData(UVBase):
                     bls=bls_use,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
+                    spws=spws,
                     times=times,
                     time_range=time_range,
                     lsts=lsts,
@@ -11130,6 +11042,7 @@ class UVData(UVBase):
                     bls=bls,
                     frequencies=frequencies,
                     freq_chans=freq_chans,
+                    spws=spws,
                     times=times,
                     time_range=time_range,
                     lsts=lsts,
@@ -11167,6 +11080,7 @@ class UVData(UVBase):
                     bls=select_bls,
                     frequencies=select_frequencies,
                     freq_chans=select_freq_chans,
+                    spws=select_spws,
                     times=select_times,
                     lsts=select_lsts,
                     time_range=select_time_range,
@@ -11657,6 +11571,7 @@ class UVData(UVBase):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -11725,6 +11640,8 @@ class UVData(UVBase):
             value passed here should exist in the freq_array.
         freq_chans : array_like of int, optional
             The frequency channel numbers to include writing data into the file.
+        spws : array_like of int, optional
+            The spectral window numbers to include writing data into the file.
         times : array_like of float, optional
             The times to include when writing data into the file, each value
             passed here should exist in the time_array. Cannot be used with
@@ -11787,6 +11704,7 @@ class UVData(UVBase):
             ant_str=ant_str,
             frequencies=frequencies,
             freq_chans=freq_chans,
+            spws=spws,
             times=times,
             time_range=time_range,
             lsts=lsts,

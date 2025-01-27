@@ -698,6 +698,7 @@ class UVH5(UVData):
         bls,
         frequencies,
         freq_chans,
+        spws,
         times,
         time_range,
         lsts,
@@ -746,21 +747,25 @@ class UVH5(UVData):
             ) from hdf5plugin_error
 
         # figure out what data to read in
-        blt_inds, freq_inds, pol_inds, history_update_string = self._select_preprocess(
-            antenna_nums=antenna_nums,
-            antenna_names=antenna_names,
-            ant_str=ant_str,
-            bls=bls,
-            frequencies=frequencies,
-            freq_chans=freq_chans,
-            times=times,
-            time_range=time_range,
-            lsts=lsts,
-            lst_range=lst_range,
-            polarizations=polarizations,
-            blt_inds=blt_inds,
-            phase_center_ids=phase_center_ids,
-            catalog_names=catalog_names,
+        blt_inds, freq_inds, spw_inds, pol_inds, history_update_string = (
+            self._select_preprocess(
+                antenna_nums=antenna_nums,
+                antenna_names=antenna_names,
+                ant_str=ant_str,
+                bls=bls,
+                frequencies=frequencies,
+                freq_chans=freq_chans,
+                spws=spws,
+                times=times,
+                time_range=time_range,
+                lsts=lsts,
+                lst_range=lst_range,
+                polarizations=polarizations,
+                blt_inds=blt_inds,
+                phase_center_ids=phase_center_ids,
+                catalog_names=catalog_names,
+                invert=False,
+            )
         )
 
         # figure out which axis is the most selective
@@ -821,6 +826,7 @@ class UVH5(UVData):
             self._select_by_index(
                 blt_inds=blt_inds,
                 freq_inds=freq_inds,
+                spw_inds=spw_inds,
                 pol_inds=pol_inds,
                 history_update_string=history_update_string,
                 keep_all_metadata=keep_all_metadata,
@@ -1007,6 +1013,7 @@ class UVH5(UVData):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -1079,6 +1086,7 @@ class UVH5(UVData):
                 bls=bls,
                 frequencies=frequencies,
                 freq_chans=freq_chans,
+                spws=spws,
                 times=times,
                 time_range=time_range,
                 lsts=lsts,
@@ -1625,6 +1633,7 @@ class UVH5(UVData):
         bls=None,
         frequencies=None,
         freq_chans=None,
+        spws=None,
         times=None,
         time_range=None,
         lsts=None,
@@ -1695,6 +1704,8 @@ class UVH5(UVData):
             The frequencies to include when writing data to the file.
         freq_chans : array_like of int, optional
             The frequency channel numbers to include when writing data to the file.
+        spws : array_like of int, optional
+            The spectral window numbers to keep in the file.
         times : array_like of float, optional
             The times in Julian Day to include when writing data to the file.
         time_range : array_like of float, optional
@@ -1760,13 +1771,14 @@ class UVH5(UVData):
             )
 
         # figure out which "full file" indices to write data to
-        blt_inds, freq_inds, pol_inds, _ = self._select_preprocess(
+        blt_inds, freq_inds, _, pol_inds, _ = self._select_preprocess(
             antenna_nums=antenna_nums,
             antenna_names=antenna_names,
             ant_str=ant_str,
             bls=bls,
             frequencies=frequencies,
             freq_chans=freq_chans,
+            spws=spws,
             times=times,
             time_range=time_range,
             lsts=lsts,

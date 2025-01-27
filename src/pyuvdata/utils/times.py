@@ -17,7 +17,7 @@ try:
 except ImportError:
     hasmoon = False
 
-from .tools import _check_range_overlap, _get_iterable
+from .tools import _is_between
 
 
 def get_lst_for_time(
@@ -332,6 +332,7 @@ def _select_times_helper(
     obj_lst_range,
     time_tols,
     lst_tols,
+    invert=False,
 ):
     """
     Get time indices in a select.
@@ -369,10 +370,14 @@ def _select_times_helper(
         Length 2 tuple giving (rtol, atol) to use for time matching.
     lst_tols : tuple of float
         Length 2 tuple giving (rtol, atol) to use for lst matching.
+    invert : bool
+        Normally indices matching given criteria are what are included in the
+        subsequent list. However, if set to True, these indices are excluded
+        instead. Default is False.
 
     Returns
     -------
-    time_inds : np.ndarray of int
+    time_inds : list of int
         Indices of times to keep on the object.
     selections : list of str
         list of selections done.
@@ -393,152 +398,102 @@ def _select_times_helper(
     if n_time_params == 0:
         return None, []
 
-    if times is not None or time_range is not None:
-        selections = ["times"]
-    else:
-        selections = ["lsts"]
-
-    time_inds = np.zeros(0, dtype=np.int64)
-    if times is not None:
-        times = _get_iterable(times)
-        if np.array(times).ndim > 1:
-            times = np.array(times).flatten()
-
-        if obj_time_range is not None:
-            for jd in times:
-                this_ind = np.nonzero(
-                    np.logical_and(
-                        (obj_time_range[:, 0] <= jd), (obj_time_range[:, 1] >= jd)
-                    )
-                )[0]
-                if this_ind.size > 0:
-                    time_inds = np.append(time_inds, this_ind)
-                else:
-                    raise ValueError(f"Time {jd} does not fall in any time_range.")
-        else:
-            for jd in times:
-                if np.any(
-                    np.isclose(obj_time_array, jd, rtol=time_tols[0], atol=time_tols[1])
-                ):
-                    time_inds = np.append(
-                        time_inds,
-                        np.where(
-                            np.isclose(
-                                obj_time_array, jd, rtol=time_tols[0], atol=time_tols[1]
-                            )
-                        )[0],
-                    )
-                else:
-                    raise ValueError(f"Time {jd} is not present in the time_array.")
-
     if time_range is not None:
-        if np.size(time_range) != 2:
+        time_range = np.asarray(time_range)
+        if time_range.size != 2:
             raise ValueError("time_range must be length 2.")
 
-        if obj_time_range is not None:
-            for tind, trange in enumerate(obj_time_range):
-                if _check_range_overlap(np.stack((trange, time_range), axis=0)):
-                    time_inds = np.append(time_inds, tind)
-            attr_str = "time_range"
-        else:
-            time_inds = np.nonzero(
-                (obj_time_array <= time_range[1]) & (obj_time_array >= time_range[0])
-            )[0]
-            attr_str = "time_array"
-        if time_inds.size == 0:
-            raise ValueError(
-                f"No elements in {attr_str} between {time_range[0]} and "
-                f"{time_range[1]}."
-            )
+    if have_lsts and np.any(np.asarray(lsts) > 2 * np.pi):
+        warnings.warn(
+            "The lsts parameter contained a value greater than 2*pi. "
+            "LST values are assumed to be in radians, not hours."
+        )
 
-    if (lsts is not None or lst_range is not None) and obj_lst_range is not None:
-        # check for lsts wrapping around zero
-        lst_range_wrap = obj_lst_range[:, 0] > obj_lst_range[:, 1]
-
-    if lsts is not None:
-        if np.any(np.asarray(lsts) > 2 * np.pi):
-            warnings.warn(
-                "The lsts parameter contained a value greater than 2*pi. "
-                "LST values are assumed to be in radians, not hours."
-            )
-        lsts = _get_iterable(lsts)
-        if np.array(lsts).ndim > 1:
-            lsts = np.array(lsts).flatten()
-
-        if obj_lst_range is not None:
-            for lst in lsts:
-                lst_ind = np.nonzero(
-                    np.logical_and(
-                        (obj_lst_range[:, 0] <= lst), (obj_lst_range[:, 1] >= lst)
-                    )
-                )[0]
-                if lst_ind.size == 0 and np.any(lst_range_wrap):
-                    for lr_ind in np.nonzero(lst_range_wrap)[0]:
-                        if (obj_lst_range[lr_ind, 0] <= lst and lst <= 2 * np.pi) or (
-                            lst >= 0 and lst <= obj_lst_range[lr_ind, 1]
-                        ):
-                            lst_ind = np.array([lr_ind])
-                if lst_ind.size > 0:
-                    time_inds = np.append(time_inds, lst_ind)
-                else:
-                    raise ValueError(f"LST {lst} does not fall in any lst_range")
-        else:
-            for lst in lsts:
-                if np.any(
-                    np.isclose(obj_lst_array, lst, rtol=lst_tols[0], atol=lst_tols[1])
-                ):
-                    time_inds = np.append(
-                        time_inds,
-                        np.where(
-                            np.isclose(
-                                obj_lst_array, lst, rtol=lst_tols[0], atol=lst_tols[1]
-                            )
-                        )[0],
-                    )
-                else:
-                    raise ValueError(f"LST {lst} is not present in the lst_array")
-
-    if lst_range is not None:
-        if np.size(lst_range) != 2:
+    if have_lst_range:
+        lst_range = np.asarray(lst_range)
+        if lst_range.size != 2:
             raise ValueError("lst_range must be length 2.")
-        if np.any(np.asarray(lst_range) > 2 * np.pi):
+        if np.any(lst_range > 2 * np.pi):
             warnings.warn(
                 "The lst_range contained a value greater than 2*pi. "
                 "LST values are assumed to be in radians, not hours."
             )
-        if obj_lst_range is not None:
-            for lind, lrange in enumerate(obj_lst_range):
-                if not lst_range_wrap[lind] and lst_range[0] < lst_range[1]:
-                    if _check_range_overlap(np.stack((lrange, lst_range), axis=0)):
-                        time_inds = np.append(time_inds, lind)
-                else:
-                    if (lst_range[0] >= lrange[0] and lst_range[0] <= 2 * np.pi) or (
-                        lst_range[1] <= lrange[1] and lst_range[1] >= 0
-                    ):
-                        time_inds = np.append(time_inds, lind)
-            attr_str = "lst_range"
-        else:
-            if lst_range[1] < lst_range[0]:
-                # we're wrapping around LST = 2*pi = 0
-                lst_range_1 = [lst_range[0], 2 * np.pi]
-                lst_range_2 = [0, lst_range[1]]
-                time_inds1 = np.nonzero(
-                    (obj_lst_array <= lst_range_1[1])
-                    & (obj_lst_array >= lst_range_1[0])
-                )[0]
-                time_inds2 = np.nonzero(
-                    (obj_lst_array <= lst_range_2[1])
-                    & (obj_lst_array >= lst_range_2[0])
-                )[0]
-                time_inds = np.union1d(time_inds1, time_inds2)
-            else:
-                time_inds = np.nonzero(
-                    (obj_lst_array <= lst_range[1]) & (obj_lst_array >= lst_range[0])
-                )[0]
-            attr_str = "lst_array"
 
-        if time_inds.size == 0:
-            raise ValueError(
-                f"No elements in {attr_str} between {lst_range[0]} and {lst_range[1]}."
+    selections = ["lsts"] if (have_lsts or have_lst_range) else ["times"]
+    sel_name = "LST" if (have_lsts or have_lst_range) else "Time"
+    obj_range = obj_lst_range if (have_lsts or have_lst_range) else obj_time_range
+    obj_array = obj_lst_array if (have_lsts or have_lst_range) else obj_time_array
+    sel_range = lst_range if (have_lsts or have_lst_range) else time_range
+    sel_array = lsts if (have_lsts or have_lst_range) else times
+    rtol, atol = lst_tols if (have_lsts or have_lst_range) else time_tols
+
+    if obj_range is not None:
+        err_txt = "does not fall in any"
+        attr_name = "lst_range" if (have_lsts or have_lst_range) else "time_range"
+    else:
+        err_txt = "is not present in the"
+        attr_name = "lst_array" if (have_lsts or have_lst_range) else "time_array"
+
+    if sel_range is not None:
+        # This is a range-based selection, so act accordingly
+        if obj_range is not None:
+            wrap_range = have_lst_range and (
+                (sel_range[0] > sel_range[1]) or any(obj_range[:, 0] < obj_range[:, 1])
             )
+            if wrap_range:
+                # If we _do_ need to wrap ranges,
+                obj_range = np.mod(obj_range, 2 * np.pi)
+                lo_lim, hi_lim = np.mod(sel_range, 2 * np.pi)
+                if lo_lim > hi_lim:
+                    lo_lim -= 2 * np.pi
+
+                # If LST is wrapped in obj_range, then do the unwrap
+                obj_range[obj_range[:, 0] > obj_range[:, 1], 1] += 2 * np.pi
+
+                # Check that the select end-time is after the range start-time and the
+                # select start-time is before the range end-time.
+                mask = (obj_range[:, 0] <= hi_lim) & (obj_range[:, 1] >= lo_lim)
+
+                # Now check the wrap -- push the start/stop up one wrap, and then
+                # re-evaluate the mask one one time.
+                lo_lim += 2 * np.pi
+                hi_lim += 2 * np.pi
+                mask |= (obj_range[:, 0] <= hi_lim) & (obj_range[:, 1] >= lo_lim)
+            else:
+                # If we don't need to wrap ranges, then this is a lot easier to handle.
+                # Check that the select end-time is after the range start-time and the
+                # select start-time is before the range end-time.
+                mask = obj_range[:, 0] <= sel_range[1]
+                mask &= obj_range[:, 1] >= sel_range[0]
+        else:
+            wrap_range = have_lst_range and (sel_range[0] > sel_range[1])
+            # Get sel_range into the correct shape
+            mask = _is_between(obj_array, sel_range, wrap=wrap_range)
+        if not any(mask):
+            raise ValueError(
+                f"No elements in {attr_name} between {sel_range[0]} and {sel_range[1]}."
+            )
+    else:
+        # This is a match-based selection, so move forward accordingly
+        if obj_range is None:
+            # Because of tols, everything is in effect a range -- construct the
+            # effect object ranges that we need.
+            del_range = np.maximum(abs(obj_array) * rtol, atol)
+            obj_range = np.vstack([obj_array - del_range, obj_array + del_range]).T
+
+        mask = np.zeros(len(obj_range), dtype=bool)
+        for item in np.asarray(sel_array).flat:
+            submask = _is_between(item, obj_range, wrap=have_lsts)
+            if not invert and not any(submask):
+                raise ValueError(f"{sel_name} {item} {err_txt} {attr_name}.")
+            mask |= submask
+
+    # Use the invert flag to capture the right set of inds
+    time_inds = np.nonzero(np.logical_not(mask) if invert else mask)[0]
+
+    if len(time_inds) == 0:
+        raise ValueError("No data matching this time selection present in object.")
+
+    time_inds = sorted(set(time_inds.tolist()))
+
     return time_inds, selections

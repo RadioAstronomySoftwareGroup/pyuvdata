@@ -3136,6 +3136,68 @@ class UVBeam(UVBase):
         self.__add__(other, inplace=True)
         return self
 
+    def _select_by_index(
+        self,
+        *,
+        axis1_inds,
+        axis2_inds,
+        pix_inds,
+        freq_inds,
+        feed_inds,
+        pol_inds,
+        history_update_string,
+    ):
+        """
+        Perform select based on indexing arrays.
+
+        Parameters
+        ----------
+        ant_inds : list of int
+            list of antenna indices to keep. Can be None (to keep everything).
+        time_inds : list of int
+            list of time indices to keep. Can be None (to keep everything).
+        freq_inds : list of int
+            list of frequency indices to keep. Can be None (to keep everything).
+        jones_inds : list of int
+            list of jones indices to keep. Can be None (to keep everything).
+        history_update_string : str
+            string to append to the end of the history.
+        """
+        # Create a dictionary that we can loop over an update if need be
+        ind_dict = {
+            "Naxes1": axis1_inds,
+            "Naxes2": axis2_inds,
+            "Npixels": pix_inds,
+            "Nfreqs": freq_inds,
+            "Nfeeds": feed_inds,
+            "Npols": pol_inds,
+        }
+
+        cross_pol = [-3, -4, -7, -8]
+        had_cross = any(np.isin(cross_pol, self.polarization_array))
+
+        # During each loop interval, we pop off an element of this dict, so continue
+        # until the dict is empty.
+        for key, ind_arr in ind_dict.items():
+            self._select_along_param_axis(key, ind_arr)
+            if (
+                key == "Npols"
+                and pol_inds is not None
+                and (had_cross and not any(np.isin(cross_pol, self.polarization_array)))
+            ):
+                # selecting from object with cross-pols down to non-cross pols so
+                # data_array should become real
+                if np.any(np.iscomplex(self.data_array)):
+                    warnings.warn(
+                        "Polarization select should result in a real array but the "
+                        "imaginary part is not zero."
+                    )
+                else:
+                    self.data_array = np.abs(self.data_array)
+
+        # Update the history string
+        self.history += history_update_string
+
     def select(
         self,
         *,
@@ -3223,15 +3285,6 @@ class UVBeam(UVBase):
                     "Selected values along first image axis must be evenly spaced."
                 )
 
-            beam_object.Naxes1 = len(axis1_inds)
-            beam_object.axis1_array = beam_object.axis1_array[axis1_inds]
-
-            beam_object.data_array = beam_object.data_array[..., axis1_inds]
-            if beam_object.beam_type == "efield":
-                beam_object.basis_vector_array = beam_object.basis_vector_array[
-                    ..., axis1_inds
-                ]
-
         if axis2_inds is not None:
             if beam_object.pixel_coordinate_system == "healpix":
                 raise ValueError(
@@ -3251,15 +3304,7 @@ class UVBeam(UVBase):
                     "Selected values along second image axis must be evenly spaced."
                 )
 
-            beam_object.Naxes2 = len(axis2_inds)
-            beam_object.axis2_array = beam_object.axis2_array[axis2_inds]
-
-            beam_object.data_array = beam_object.data_array[..., axis2_inds, :]
-            if beam_object.beam_type == "efield":
-                beam_object.basis_vector_array = beam_object.basis_vector_array[
-                    ..., axis2_inds, :
-                ]
-
+        pix_inds = None
         if pixels is not None:
             if beam_object.pixel_coordinate_system != "healpix":
                 raise ValueError(
@@ -3278,65 +3323,16 @@ class UVBeam(UVBase):
                     raise ValueError(f"Pixel {p} is not present in the pixel_array")
 
             pix_inds = sorted(set(pix_inds))
-            beam_object.Npixels = len(pix_inds)
-            beam_object.pixel_array = beam_object.pixel_array[pix_inds]
 
-            beam_object.data_array = beam_object.data_array[..., pix_inds]
-            if beam_object.beam_type == "efield":
-                beam_object.basis_vector_array = beam_object.basis_vector_array[
-                    ..., pix_inds
-                ]
-
-        if freq_chans is not None:
-            freq_chans = utils.tools._get_iterable(freq_chans)
-            if frequencies is None:
-                frequencies = beam_object.freq_array[freq_chans]
-            else:
-                frequencies = utils.tools._get_iterable(frequencies)
-                frequencies = np.sort(
-                    list(set(frequencies) | set(beam_object.freq_array[freq_chans]))
-                )
-
-        freq_inds, freq_selections = utils.frequency._select_freq_helper(
+        freq_inds, _, freq_selections = utils.frequency._select_freq_helper(
             frequencies=frequencies,
             freq_chans=freq_chans,
             obj_freq_array=self.freq_array,
             freq_tols=self._freq_array.tols,
-            obj_channel_width=None,
-            channel_width_tols=None,
-            obj_spw_id_array=None,
         )
-        if freq_inds is not None:
-            freq_inds = sorted(freq_inds.tolist())
-            selections.extend(freq_selections)
+        selections.extend(freq_selections)
 
-            beam_object.Nfreqs = len(freq_inds)
-            beam_object.freq_array = beam_object.freq_array[freq_inds]
-            beam_object.bandpass_array = beam_object.bandpass_array[freq_inds]
-
-            if beam_object.receiver_temperature_array is not None:
-                rx_temp_array = beam_object.receiver_temperature_array
-                beam_object.receiver_temperature_array = rx_temp_array[freq_inds]
-
-            if beam_object.loss_array is not None:
-                beam_object.loss_array = beam_object.loss_array[freq_inds]
-
-            if beam_object.mismatch_array is not None:
-                beam_object.mismatch_array = beam_object.mismatch_array[freq_inds]
-
-            if beam_object.s_parameters is not None:
-                beam_object.s_parameters = beam_object.s_parameters[:, freq_inds]
-
-            if beam_object.pixel_coordinate_system == "healpix":
-                beam_object.data_array = beam_object.data_array[..., freq_inds, :]
-            else:
-                beam_object.data_array = beam_object.data_array[..., freq_inds, :, :]
-
-            if beam_object.antenna_type == "phased_array":
-                beam_object.coupling_matrix = beam_object.coupling_matrix[
-                    ..., freq_inds
-                ]
-
+        feed_inds = None
         if feeds is not None:
             if beam_object.beam_type == "power":
                 raise ValueError("feeds cannot be used with power beams")
@@ -3375,85 +3371,16 @@ class UVBeam(UVBase):
                     raise ValueError(f"Feed {f} is not present in the feed_array")
 
             feed_inds = sorted(set(feed_inds))
-            beam_object.Nfeeds = len(feed_inds)
-            beam_object.feed_array = beam_object.feed_array[feed_inds]
 
-            if beam_object.pixel_coordinate_system == "healpix":
-                beam_object.data_array = beam_object.data_array[..., feed_inds, :, :]
-            else:
-                beam_object.data_array = beam_object.data_array[..., feed_inds, :, :, :]
+        if polarizations is not None and beam_object.beam_type == "efield":
+            raise ValueError("polarizations cannot be used with efield beams")
 
-            if beam_object.antenna_type == "phased_array":
-                # have to select twice because two axes are feed axes
-                beam_object.coupling_matrix = beam_object.coupling_matrix[
-                    :, :, feed_inds
-                ]
-                beam_object.coupling_matrix = beam_object.coupling_matrix[
-                    :, :, :, feed_inds
-                ]
-
-        if polarizations is not None:
-            if beam_object.beam_type == "efield":
-                raise ValueError("polarizations cannot be used with efield beams")
-
-            polarizations = utils.tools._get_iterable(polarizations)
-            if np.array(polarizations).ndim > 1:
-                polarizations = np.array(polarizations).flatten()
-
-            selections.append("polarizations")
-
-            pol_inds = np.zeros(0, dtype=np.int64)
-            for p in polarizations:
-                if isinstance(p, str):
-                    p_num = utils.polstr2num(p, x_orientation=self.x_orientation)
-                else:
-                    p_num = p
-                if p_num in beam_object.polarization_array:
-                    pol_inds = np.append(
-                        pol_inds, np.where(beam_object.polarization_array == p_num)[0]
-                    )
-                else:
-                    raise ValueError(
-                        f"polarization {p} is not present in the polarization_array"
-                    )
-
-            initial_pols = beam_object.polarization_array.copy()
-            final_pols = beam_object.polarization_array[pol_inds]
-
-            pol_inds = sorted(set(pol_inds))
-            beam_object.Npols = len(pol_inds)
-            beam_object.polarization_array = final_pols
-
-            if len(pol_inds) > 2:
-                pol_separation = (
-                    beam_object.polarization_array[1:]
-                    - beam_object.polarization_array[:-1]
-                )
-                if not utils.tools._test_array_constant(pol_separation):
-                    warnings.warn(
-                        "Selected polarizations are not evenly spaced. This "
-                        "is not supported by the regularly gridded beam fits format"
-                    )
-
-            if beam_object.pixel_coordinate_system == "healpix":
-                beam_object.data_array = beam_object.data_array[..., pol_inds, :, :]
-            else:
-                beam_object.data_array = beam_object.data_array[..., pol_inds, :, :, :]
-
-            cross_pols = [-3, -4, -7, -8]
-            if (
-                np.intersect1d(initial_pols, cross_pols).size > 0
-                and np.intersect1d(final_pols, cross_pols).size == 0
-            ):
-                # selecting from object with cross-pols down to non-cross pols so
-                # data_array should become real
-                if np.any(np.iscomplex(beam_object.data_array)):
-                    warnings.warn(
-                        "Polarization select should result in a real array but the "
-                        "imaginary part is not zero."
-                    )
-                else:
-                    beam_object.data_array = np.abs(beam_object.data_array)
+        pol_inds, pol_selections = utils.pol._select_pol_helper(
+            polarizations=polarizations,
+            obj_pol_array=self.polarization_array,
+            obj_x_orientation=self.x_orientation,
+        )
+        selections.extend(pol_selections)
 
         # build up history string from selections
         history_update_string = ""
@@ -3464,7 +3391,15 @@ class UVBeam(UVBase):
                 + " using pyuvdata."
             )
 
-        beam_object.history = beam_object.history + history_update_string
+        beam_object._select_by_index(
+            axis1_inds=axis1_inds,
+            axis2_inds=axis2_inds,
+            pix_inds=pix_inds,
+            freq_inds=freq_inds,
+            feed_inds=feed_inds,
+            pol_inds=pol_inds,
+            history_update_string=history_update_string,
+        )
 
         # check if object is self-consistent
         if run_check:
