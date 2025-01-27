@@ -576,7 +576,7 @@ def _select_pol_helper(
     pol_inds = None
     selections = []
 
-    str_eval = polstr2num if is_jones else jstr2num
+    str_eval = jstr2num if is_jones else polstr2num
     select_name = "jones polarization terms" if is_jones else "polarizations"
     term_name = "Jones term" if is_jones else "Polarization"
     arr_name = "jones_array" if is_jones else "polarization_array"
