@@ -3934,6 +3934,7 @@ class UVCal(UVBase):
         phase_center_ids,
         catalog_names,
         invert=False,
+        strict=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -3996,9 +3997,14 @@ class UVCal(UVBase):
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
         invert : bool
-            Normally records matching given critera are what are included in the
-            subsequent option. However, if set to True, these records are excluded
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
 
         Returns
         -------
@@ -4036,6 +4042,7 @@ class UVCal(UVBase):
             tel_ant_nums=self.telescope.antenna_numbers,
             obj_ant_array=self.ant_array,
             invert=invert,
+            strict=strict,
         )
         selections.extend(ant_selections)
 
@@ -4051,6 +4058,7 @@ class UVCal(UVBase):
             time_tols=self._time_array.tols,
             lst_tols=self._lst_array.tols,
             invert=invert,
+            strict=strict,
         )
         selections.extend(time_selections)
 
@@ -4060,7 +4068,9 @@ class UVCal(UVBase):
             )
 
         if phase_center_ids is not None:
-            pc_check = np.isin(self.phase_center_id_array, phase_center_ids)
+            pc_check = np.isin(
+                self.phase_center_id_array, phase_center_ids, invert=invert
+            )
             time_inds = utils.tools._sorted_unique_intersection(
                 np.where(pc_check)[0], time_inds
             )
@@ -4109,6 +4119,8 @@ class UVCal(UVBase):
             jones=jones,
             obj_flex_jones_array=self.flex_jones_array,
             obj_x_orientation=self.telescope.x_orientation,
+            invert=invert,
+            strict=strict,
         )
         selections.extend(freq_selections)
 
@@ -4117,6 +4129,8 @@ class UVCal(UVBase):
             obj_jones_array=self.jones_array,
             obj_x_orientation=self.telescope.x_orientation,
             flex_jones=self.flex_jones_array is not None,
+            invert=invert,
+            strict=strict,
         )
         selections.extend(jones_selections)
 
@@ -4205,6 +4219,7 @@ class UVCal(UVBase):
         phase_center_ids=None,
         catalog_names=None,
         invert=False,
+        strict=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -4271,9 +4286,14 @@ class UVCal(UVBase):
             match exactly in spelling and capitalization. Cannot be used with
             `phase_center_ids`.
         invert : bool
-            Normally records matching given critera are what are included in the
+            Normally records matching given criteria are what are included in the
             subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object (the default is True,
@@ -4317,6 +4337,7 @@ class UVCal(UVBase):
             phase_center_ids=phase_center_ids,
             catalog_names=catalog_names,
             invert=invert,
+            strict=strict,
         )
 
         # Call the low-level selection method.

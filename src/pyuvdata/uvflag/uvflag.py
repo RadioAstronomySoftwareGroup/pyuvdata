@@ -2381,6 +2381,7 @@ class UVFlag(UVBase):
         blt_inds,
         ant_inds,
         invert=False,
+        strict=False,
     ):
         """Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
 
@@ -2451,6 +2452,15 @@ class UVFlag(UVBase):
         ant_inds : array_like of int, optional
             The antenna indices to keep in the object. This is
             not commonly used.
+        invert : bool
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
+            instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
 
         Returns
         -------
@@ -2524,6 +2534,7 @@ class UVFlag(UVBase):
                 lst_tols=self._lst_array.tols,
                 phase_center_id_array=None,
                 invert=invert,
+                strict=strict,
             )
             selections.extend(blt_selections)
             time_inds = None
@@ -2545,6 +2556,7 @@ class UVFlag(UVBase):
                 tel_ant_nums=self.telescope.antenna_numbers,
                 obj_ant_array=self.ant_array,
                 invert=invert,
+                strict=strict,
             )
             selections.extend(ant_selections)
 
@@ -2560,6 +2572,7 @@ class UVFlag(UVBase):
                 time_tols=self._time_array.tols,
                 lst_tols=self._lst_array.tols,
                 invert=invert,
+                strict=strict,
             )
             selections.extend(time_selections)
 
@@ -2575,6 +2588,7 @@ class UVFlag(UVBase):
             spws=spws,
             warn_freq_spacing=False,
             invert=invert,
+            strict=strict,
         )
         selections.extend(freq_selections)
 
@@ -2583,6 +2597,7 @@ class UVFlag(UVBase):
             obj_pol_array=self.polarization_array,
             obj_x_orientation=self.telescope.x_orientation,
             invert=invert,
+            strict=strict,
         )
         selections.extend(pol_selections)
 
@@ -2678,6 +2693,8 @@ class UVFlag(UVBase):
         lst_range=None,
         polarizations=None,
         blt_inds=None,
+        invert=False,
+        strict=False,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -2763,6 +2780,15 @@ class UVFlag(UVBase):
         ant_inds : array_like of int, optional
             The antenna indices to keep in the object. This is
             not commonly used.
+        invert : bool
+            Normally records matching given criteria are what are included in the
+            subsequent object. However, if set to True, these records are excluded
+            instead. Default is False.
+        strict : bool
+            Normally, select ignores when no records match a one element of a
+            parameter, as long as _at least one_ element matches with what is in the
+            object. However, if set to True, an error is thrown if any element
+            does not match. Default is False.
         run_check : bool
             Option to check for the existence and proper shapes of parameters
             after downselecting data on this object.
@@ -2816,6 +2842,8 @@ class UVFlag(UVBase):
             polarizations=polarizations,
             blt_inds=blt_inds,
             ant_inds=ant_inds,
+            invert=invert,
+            strict=strict,
         )
 
         # do select operations on everything except data_array, flag_array

@@ -3354,7 +3354,7 @@ def test_select_blt_inds_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
         err_msg = 'Only "baseline" mode UVFlag objects may select along the blt axis'
 
     with pytest.raises(ValueError, match=err_msg):
-        uvf.select(**select_kwargs)
+        uvf.select(strict=True, **select_kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3426,7 +3426,15 @@ def test_select_antenna_nums_error(input_uvf, uvf_mode):
     with pytest.raises(
         ValueError, match=re.escape("Antenna number [708] is not present")
     ):
-        uvf.select(antenna_nums=[708, 9, 10])
+        uvf.select(antenna_nums=[708, 9, 10], strict=True)
+
+    if uvf.type == "antenna":
+        msg = "No data matching this antenna selection exists."
+    else:
+        msg = "No baseline-times were found that match criteria"
+
+    with pytest.raises(ValueError, match=msg):
+        uvf.select(antenna_nums=708, strict=None)
 
 
 def sort_bl(p):
@@ -3605,7 +3613,12 @@ def test_select_times(input_uvf, uvf_mode):
     with pytest.raises(
         ValueError, match=f"Time {bad_time[0]} is not present in the time_array"
     ):
-        uvf.select(times=bad_time)
+        uvf.select(times=bad_time, strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this time selection present in object."
+    ):
+        uvf.select(times=bad_time, strict=None)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3670,7 +3683,12 @@ def test_select_frequencies(input_uvf, uvf_mode):
     with pytest.raises(
         ValueError, match=f"Frequency {bad_freq[0]} is not present in the freq_array"
     ):
-        uvf.select(frequencies=bad_freq)
+        uvf.select(frequencies=bad_freq, strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this frequency selection exists."
+    ):
+        uvf.select(frequencies=bad_freq, strict=None)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3783,7 +3801,12 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
     with pytest.raises(
         ValueError, match="Polarization -3 is not present in the polarization_array"
     ):
-        uvf2.select(polarizations=[-3])
+        uvf2.select(polarizations=[-3], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this polarization selection exists."
+    ):
+        uvf2.select(polarizations=-3, strict=None)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")

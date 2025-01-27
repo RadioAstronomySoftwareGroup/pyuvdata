@@ -264,6 +264,7 @@ def _select_blt_preprocess(
     lst_tols,
     phase_center_id_array,
     invert=False,
+    strict=False,
 ):
     """Build up blt_inds and selections list for _select_preprocess.
 
@@ -306,7 +307,7 @@ def _select_blt_preprocess(
         the larger value, through 0, and end at the smaller value.
     phase_center_ids : array_like of int, optional
         Phase center IDs to keep on the object (effectively a selection on
-        baseline-times). Cannot be used with `catalog_names`.
+        baseline-times).
     blt_inds : array_like of int, optional
         The baseline-time indices to keep in the object. This is
         not commonly used.
@@ -326,6 +327,11 @@ def _select_blt_preprocess(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
+    strict : bool
+        Normally, select ignores when no records match a one element of a
+        parameter, as long as _at least one_ element matches with what is in the
+        object. However, if set to True, an error is thrown if any element
+        does not match. Default is False.
 
     Returns
     -------
@@ -342,68 +348,50 @@ def _select_blt_preprocess(
     # test for blt_inds presence before adding inds from antennas & times
     if blt_inds is not None:
         selections.append("baseline-times")
-        blt_inds = np.asarray(tools._get_iterable(blt_inds)).flatten()
-        if len(blt_inds) > 0 and max(blt_inds) >= Nblts:
-            raise ValueError("blt_inds contains indices that are too large")
-        if len(blt_inds) > 0 and min(blt_inds) < 0:
-            raise ValueError("blt_inds contains indices that are negative")
-        blt_inds = np.nonzero(np.isin(np.arange(Nblts), blt_inds, invert=invert))[0]
+        blt_inds = tools._eval_inds(
+            blt_inds, Nblts, name="blt_inds", invert=invert, strict=strict
+        )
 
     if phase_center_ids is not None:
         phase_center_ids = np.array(tools._get_iterable(phase_center_ids))
-        pc_blt_inds = np.nonzero(
-            np.isin(phase_center_id_array, phase_center_ids, invert=invert)
-        )[0]
-        if blt_inds is not None:
-            # Use intersection (and) to join phase_center_ids
-            # with blt_inds
-            blt_inds = np.intersect1d(blt_inds, pc_blt_inds)
-        else:
-            blt_inds = pc_blt_inds
+        mask = np.isin(phase_center_id_array, phase_center_ids)
+        blt_inds = tools._where_combine(mask, inds=blt_inds, invert=invert)
 
     if select_antenna_names is not None:
         if select_antenna_nums is not None:
             raise ValueError(
                 "Only one of antenna_nums and antenna_names can be provided."
             )
+        select_antenna_names = np.asarray(tools._get_iterable(select_antenna_names))
+        antenna_names = np.asarray(antenna_names)
+        mask = np.zeros(len(antenna_names), dtype=bool)
+        for s in select_antenna_names.flat:
+            submask = antenna_names == s
+            if not any(submask):
+                msg = f"Antenna name {s} is not present in the antenna_names array"
+                tools._strict_raise(msg, strict=strict)
+            mask |= submask
+        select_antenna_nums = np.asarray(antenna_numbers).flat[np.nonzero(mask)[0]]
 
-        if not isinstance(select_antenna_names, list | tuple | np.ndarray):
-            select_antenna_names = (select_antenna_names,)
-        if np.array(select_antenna_names).ndim > 1:
-            select_antenna_names = np.array(select_antenna_names).flatten()
-        select_antenna_nums = []
-        for s in select_antenna_names:
-            if s not in antenna_names and not invert:
-                raise ValueError(
-                    f"Antenna name {s} is not present in the antenna_names array"
-                )
-            select_antenna_nums.append(
-                antenna_numbers[np.where(np.array(antenna_names) == s)][0]
-            )
-
-    ant_blt_inds = None
     if select_antenna_nums is not None:
         selections.append("antennas")
-        select_antenna_nums = tools._get_iterable(select_antenna_nums)
-        select_antenna_nums = np.asarray(select_antenna_nums).flat
-        if not invert:
-            # Check to make sure that we actually have these antenna nums in the data
-            ant_check = np.logical_and(
-                np.isin(select_antenna_nums, ant_1_array, invert=True),
-                np.isin(select_antenna_nums, ant_2_array, invert=True),
+        select_antenna_nums = np.asarray(select_antenna_nums).flatten()
+        # Check to make sure that we actually have these antenna nums in the data
+        ant_check = np.logical_and(
+            np.isin(select_antenna_nums, ant_1_array, invert=True),
+            np.isin(select_antenna_nums, ant_2_array, invert=True),
+        )
+        if np.any(ant_check):
+            msg = (
+                f"Antenna number {select_antenna_nums[ant_check]} is not present "
+                "in the ant_1_array or ant_2_array"
             )
-            if np.any(ant_check):
-                raise ValueError(
-                    f"Antenna number {select_antenna_nums[ant_check]} is not present "
-                    "in the ant_1_array or ant_2_array"
-                )
-        ant_blt_inds = np.where(
-            np.logical_and(
-                np.isin(ant_1_array, select_antenna_nums, invert=invert),
-                np.isin(ant_2_array, select_antenna_nums, invert=invert),
-            )
-        )[0]
-        ant_blt_inds = np.asarray(ant_blt_inds, dtype=np.int64)
+            tools._strict_raise(msg, strict=strict)
+        mask = np.logical_and(
+            np.isin(ant_1_array, select_antenna_nums),
+            np.isin(ant_2_array, select_antenna_nums),
+        )
+        blt_inds = tools._where_combine(mask, inds=blt_inds, invert=invert)
 
     if bls is not None:
         selections.append("antenna pairs")
@@ -412,27 +400,13 @@ def _select_blt_preprocess(
             submask = np.logical_and(ant_1_array == bl[0], ant_2_array == bl[1])
             if not any(submask):
                 submask = np.logical_and(ant_1_array == bl[1], ant_2_array == bl[0])
-                if not invert and not any(submask):
-                    raise ValueError(
-                        f"Antenna pair {bl} does not have any data associated with it."
+                if not any(submask):
+                    tools._strict_raise(
+                        f"Antenna pair {bl} does not have any data associated with it.",
+                        strict=strict,
                     )
             mask |= submask
-        # If invert, we want where mask == False, and if not, where mask == True
-        bls_blt_inds = np.nonzero(np.logical_not(mask) if invert else mask)[0]
-
-        if ant_blt_inds is not None:
-            # Use intersection (and) to join antenna_names/nums & ant_pairs_nums
-            ant_blt_inds = np.intersect1d(ant_blt_inds, bls_blt_inds)
-        else:
-            ant_blt_inds = bls_blt_inds
-
-    if ant_blt_inds is not None:
-        if blt_inds is not None:
-            # Use intersection (and) to join antenna_names/nums/ant_pairs_nums
-            # with blt_inds
-            blt_inds = np.intersect1d(blt_inds, ant_blt_inds)
-        else:
-            blt_inds = ant_blt_inds
+        blt_inds = tools._where_combine(mask, inds=blt_inds, invert=invert)
 
     time_blt_inds, time_selections = time_utils._select_times_helper(
         times=times,
@@ -446,6 +420,7 @@ def _select_blt_preprocess(
         time_tols=time_tols,
         lst_tols=lst_tols,
         invert=invert,
+        strict=strict,
     )
 
     if time_blt_inds is not None:

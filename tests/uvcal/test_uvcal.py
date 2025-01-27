@@ -775,12 +775,20 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
             "is not present in the ant_array"
         ),
     ):
-        calobj.select(antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3))
+        calobj.select(
+            antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3), strict=True
+        )
 
     with pytest.raises(
         ValueError, match="Antenna name test1 is not present in the antenna_names array"
     ):
-        calobj.select(antenna_names=["test1"])
+        calobj.select(antenna_names=["test1"], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this antenna selection exists."
+    ):
+        calobj.select(antenna_names=["test1"], strict=None)
+
     with pytest.raises(
         ValueError, match="Only one of antenna_nums and antenna_names can be provided."
     ):
@@ -881,7 +889,12 @@ def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
         msg = f"Time {early_time} is not present in the time_array"
 
     with pytest.raises(ValueError, match=msg):
-        calobj.select(times=[early_time])
+        calobj.select(times=[early_time], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this time selection present in object."
+    ):
+        calobj.select(times=[early_time], strict=None)
 
     with pytest.raises(
         ValueError,
@@ -963,11 +976,34 @@ def test_select_frequencies(gain_data, tmp_path):
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
     # check for errors associated with frequencies not included in data
-    pytest.raises(
-        ValueError,
-        calobj.select,
-        frequencies=[np.max(calobj.freq_array) + calobj.channel_width],
-    )
+    with pytest.raises(
+        ValueError, match="Frequency 100976562.5 is not present in the freq_array"
+    ):
+        calobj.select(
+            frequencies=[np.max(calobj.freq_array) + calobj.channel_width], strict=True
+        )
+
+    with pytest.raises(
+        ValueError, match="No data matching this frequency selection exists."
+    ):
+        calobj.select(
+            frequencies=[np.max(calobj.freq_array) + calobj.channel_width], strict=None
+        )
+
+    # check for errors associated with spws not included in data
+    calobj2 = calobj.copy()
+    calobj2.Nspws = 2
+    calobj2.spw_array = np.arange(2)
+    calobj2.flex_spw_id_array = (np.arange(calobj2.Nfreqs) > (calobj2.Nfreqs / 2)) + 0
+    with pytest.raises(
+        ValueError, match="SPW number -9999 is not present in the spw_array"
+    ):
+        calobj2.select(spws=-9999, strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this spectral window selection exists."
+    ):
+        calobj2.select(spws=-9999, strict=None)
 
     # check for warnings and errors associated with unevenly spaced frequencies
     calobj2 = calobj.copy()
@@ -1141,7 +1177,12 @@ def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path)
     with pytest.raises(
         ValueError, match="SPW number 5 is not present in the spw_array"
     ):
-        calobj.select(spws=[5])
+        calobj.select(spws=[5], strict=True)
+
+    with pytest.raises(
+        ValueError, match="No data matching this spectral window selection exists."
+    ):
+        calobj.select(spws=[5], strict=None)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
@@ -1193,14 +1234,25 @@ def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data, tmp
     )
 
     # check for errors associated with polarizations not included in data
-    pytest.raises(ValueError, calobj2.select, jones=[-3, -4])
+    with pytest.raises(
+        ValueError, match="Jones term -3 is not present in the jones_array"
+    ):
+        calobj2.select(jones=[-3, -4], strict=True)
+
+    # check for errors associated with polarizations not included in data
+    with pytest.raises(
+        ValueError, match="No data matching this jones term selection exists."
+    ):
+        calobj2.select(jones=[-3, -4], strict=None)
 
     with check_warnings(
         UserWarning, match="Selected jones polarization terms are not evenly spaced"
     ):
         calobj.select(jones=calobj.jones_array[[0, 1, 3]])
     write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
-    pytest.raises(ValueError, calobj.write_calfits, write_file_calfits)
+
+    with pytest.raises(ValueError, match="The jones values are not evenly spaced"):
+        calobj.write_calfits(write_file_calfits)
 
 
 def test_select_phase_center_err():
@@ -4462,7 +4514,10 @@ def test_flex_jones_select_err(multi_spw_gain):
     multi_spw_gain.convert_to_flex_jones()
 
     with pytest.raises(ValueError, match="No data matching this Jones term"):
-        multi_spw_gain.select(jones=[-6], spws=1)
+        multi_spw_gain.select(jones=[-6], spws=1, strict=True)
+
+    with pytest.raises(ValueError, match="The Jones term -1000"):
+        multi_spw_gain.select(jones=-1000, spws=1, strict=True)
 
 
 def test_remove_flex_jones_dup_err(multi_spw_gain):
