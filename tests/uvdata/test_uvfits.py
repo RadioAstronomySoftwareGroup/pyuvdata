@@ -1789,3 +1789,10 @@ def test_miriad_convention(tmp_path):
     uv2.baseline_array = uv2.antnums_to_baseline(uv2.ant_1_array, uv2.ant_2_array)
 
     assert uv2 == uv
+
+
+def test_feed_err(sma_mir, tmp_path):
+    outpath = os.path.join(tmp_path, "feed_err")
+    sma_mir.telescope.feed_array.flat[0] = "k"
+    with pytest.raises(ValueError, match="UVFITS only supports"):
+        sma_mir.write_uvfits(outpath, run_check=False)
