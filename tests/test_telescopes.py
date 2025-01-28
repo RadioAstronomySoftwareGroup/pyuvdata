@@ -523,3 +523,17 @@ def test_update_without_warning():
         warnings.simplefilter("error")
         t.update_params_from_known_telescopes()
     unignore_telescope_param_update_warnings_for("hera")
+
+
+@pytest.mark.parametrize("add_param", ["feed_angle", "feed_array"])
+def test_feed_errs(simplest_working_params, add_param):
+    tel = Telescope.new(**simplest_working_params)
+    tel.Nfeeds = 2
+    if add_param == "feed_angle":
+        tel.feed_angle = np.zeros((tel.Nants, tel.Nfeeds))
+    if add_param == "feed_array":
+        tel.feed_array = np.full((tel.Nants, tel.Nfeeds), "x")
+    with pytest.raises(
+        ValueError, match="Parameter feed_array and feed_angle must be set together."
+    ):
+        tel.check()
