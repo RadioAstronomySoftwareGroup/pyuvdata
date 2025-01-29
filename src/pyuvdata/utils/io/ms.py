@@ -1419,6 +1419,7 @@ def write_ms_feed(
     filepath,
     uvobj=None,
     nfeeds=None,
+    nspws=None,
     feed_array=None,
     feed_angle=None,
     antenna_numbers=None,
@@ -1480,6 +1481,7 @@ def write_ms_feed(
             has_feed = False
 
         antenna_numbers = uvobj.telescope.antenna_numbers
+        nspws = uvobj.Nspws
         time_val = (
             Time(np.median(uvobj.time_array), format="jd", scale="utc").mjd * 86400.0
         )
@@ -1498,21 +1500,30 @@ def write_ms_feed(
         pol_type_table = np.char.upper(pol_type_table)
         receptor_angle_table = np.zeros((nrows, nfeeds), dtype=np.float64)
         receptor_angle_table[antenna_numbers] = feed_angle
-        num_receptors_table = np.full(nrows, nfeeds, dtype=np.int32)
+
+        for idx in range(nrows):
+            if pol_type_table[idx].tolist() in [["Y", "X"], ["L", "R"]]:
+                pol_type_table[idx, :] = pol_type_table[idx, ::-1]
+                receptor_angle_table[idx, :] = receptor_angle_table[idx, ::-1]
+
+        pol_type_table = np.repeat(pol_type_table, nspws, axis=0)
+        receptor_angle_table = np.repeat(receptor_angle_table, nspws, axis=0)
+        antenna_id_table = np.repeat(antenna_id_table, nspws, axis=0)
+        spectral_window_id_table = np.tile(np.arange(nspws, dtype=np.int32), nrows)
+        num_receptors_table = np.full(nrows * nspws, nfeeds, dtype=np.int32)
 
         # These are all "sensible defaults" for now.
-        beam_id_table = -1 * np.ones(nrows, dtype=np.int32)
-        spectral_window_id_table = np.full(nrows, -1, dtype=np.int32)
-        beam_offset_table = np.zeros((nrows, 2, 2), dtype=np.float64)
-        feed_id_table = np.zeros(nrows, dtype=np.int32)
-        time_table = np.full(nrows, time_val, dtype=np.float64)
-        interval_table = np.full(nrows, np.finfo(float).max, dtype=np.float64)
-        position_table = np.zeros((nrows, 3), dtype=np.float64)
+        beam_id_table = -1 * np.ones(nrows * nspws, dtype=np.int32)
+        beam_offset_table = np.zeros((nrows * nspws, 2, 2), dtype=np.float64)
+        feed_id_table = np.zeros(nrows * nspws, dtype=np.int32)
+        time_table = np.full(nrows * nspws, time_val, dtype=np.float64)
+        interval_table = np.full(nrows * nspws, np.finfo(float).max, dtype=np.float64)
+        position_table = np.zeros((nrows * nspws, 3), dtype=np.float64)
 
         # TODO: Check and see if this needs additional info for polcal...
-        pol_response_table = np.dstack([np.eye(2, dtype=np.complex64)] * nrows).T
+        pol_response_table = np.zeros((nspws * nrows, 2, 2), dtype=np.complex64)
 
-        feed_table.addrows(nrows)
+        feed_table.addrows(nrows * nspws)
         feed_table.putcol("ANTENNA_ID", antenna_id_table)
         feed_table.putcol("BEAM_ID", beam_id_table)
         feed_table.putcol("BEAM_OFFSET", beam_offset_table)
