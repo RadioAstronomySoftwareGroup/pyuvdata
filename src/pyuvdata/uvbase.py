@@ -885,7 +885,7 @@ class UVBase:
         Parameters
         ----------
         param_name : str
-            Name of the parameter, which is used to define the expected shapre of other
+            Name of the parameter, which is used to define the expected shape of other
             parameters within the object.
         ind_arr : array-like of int
             Index positions along the given axis to select. Must be 1D. Can be None,

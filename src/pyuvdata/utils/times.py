@@ -373,7 +373,7 @@ def _select_times_helper(
     lst_tols : tuple of float
         Length 2 tuple giving (rtol, atol) to use for lst matching.
     time_inds : array_like of int, optional
-        The btime indices to keep in the object. This is not commonly used.
+        The time indices to keep in the object. This is not commonly used.
     invert : bool
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
