@@ -61,3 +61,31 @@ def test_deprecated_utils_import():
         "pyuvdata.utils.history. This warnings will become an error in version 3.2",
     ):
         utils._check_histories("foo", "foo")
+
+
+@pytest.mark.parametrize("strict", [True, False, None])
+def test_strict_raise(strict):
+    if strict:
+        with pytest.raises(ValueError, match="This is a test"):
+            utils.tools._strict_raise("This is a test", strict=strict)
+    else:
+        with check_warnings(None if strict is None else UserWarning, "This is a test"):
+            utils.tools._strict_raise("This is a test", strict=strict)
+
+
+@pytest.mark.parametrize(
+    "inds,nrecs,exp_output,nwarn",
+    [
+        [[0, 1, 2], 3, [0, 1, 2], 0],
+        [[0, 1, 2], 2, [0, 1], 1],
+        [[-1, 0, 1, 2], 3, [0, 1, 2], 1],
+        [[-1, 0, 1, 2, 3], 3, [0, 1, 2], 2],
+        [[1], 3, [1], 0],
+    ],
+)
+def test_eval_inds(inds, nrecs, exp_output, nwarn):
+    with check_warnings(
+        UserWarning if nwarn > 0 else None, ["inds contains indices that are"] * nwarn
+    ):
+        output = utils.tools._eval_inds(inds=inds, nrecs=nrecs, strict=False)
+    assert all(exp_output == output)

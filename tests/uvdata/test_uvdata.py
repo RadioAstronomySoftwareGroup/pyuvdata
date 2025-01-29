@@ -2443,6 +2443,34 @@ def test_select_freq_chans(casa_uvfits):
         assert f in uv_object.freq_array[all_chans_to_keep]
 
 
+def test_select_spws(sma_mir):
+    sma_copy1 = sma_mir.copy()
+    sma_copy2 = sma_mir.copy()
+    sma_copy3 = sma_mir.copy()
+
+    sma_mir.select(spws=[-4, -3, -2, -1], inplace=True)
+    sma_copy1.select(spws=[1, 2, 3, 4], invert=True, inplace=True)
+
+    assert sma_mir == sma_copy1
+
+    sma_copy2.select(freq_chans=np.arange(4 * 16384))
+
+    # Histories should be different, since one was spws, the other was freqs
+    assert sma_mir.history != sma_copy2.history
+    assert "Downselected to specific spectral windows" in sma_mir.history
+    sma_mir.__eq__(sma_copy2, allowed_failures=["history"])
+
+    # Test list handling
+    sma_copy3.spw_array = sma_copy3.spw_array.tolist()
+    sma_copy3.select(freq_chans=np.arange(4 * 16384, 8 * 16384), invert=True)
+    sma_copy3.spw_array = np.asarray(sma_copy3.spw_array)
+
+    assert sma_mir.history != sma_copy3.history
+    assert "Downselected to specific frequencies" in sma_copy3.history
+    sma_mir.__eq__(sma_copy3, allowed_failures=["history"])
+    assert sma_copy3 == sma_copy2
+
+
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
