@@ -1396,6 +1396,9 @@ def read_ms_feed(filepath, select_ants=None):
             feed_array[ant_arr] = pol_arr
             feed_angle[ant_arr] = rang_arr
 
+            # Set default case to be lower to be consistent w/ pyuvdata standards
+            feed_array.flat[:] = [item.lower() for item in feed_array.flat]
+
     if select_ants is not None and Nfeeds is not None:
         mask = np.isin(np.arange(max_ant), select_ants)
         feed_array = feed_array[mask]
@@ -1419,6 +1422,7 @@ def write_ms_feed(
     feed_array=None,
     feed_angle=None,
     antenna_numbers=None,
+    time_val=None,
 ):
     """
     Write out the feed information into a CASA table.
@@ -1427,21 +1431,24 @@ def write_ms_feed(
     ----------
     filepath : str
         path to MS (without FEED suffix)
-    pol_order : slice or list of int
-        Ordering of the polarization axis on write, only used if not writing a
-        flex-pol dataset.
     uvobj : UVBase (with matching parameters)
         Optional parameter, can be used to automatically fill the other required
         keywords for this function. Note that the UVBase object must have parameters
         that match by name to the other keywords required here.
-    polarization_array : ndarray of int
-        Required if uvobj not provided and writing a "regular" polarization MS table,
-        array containing the polarization codes (dtype int, shape (Npols,)).
-    flex_spw_polarization_array : ndarray of int
-        Required if uvobj not provided and writing a flex-pol table, polarization ID
-        for each spectral window (of dtype in and shape (nspws,)).
-    nspws : int
-        Required if uvobj not provided, number of spectral windows recorded.
+    nfeeds : int
+        Required if uvobj not provided, number of feeds in the telescope for the object.
+    feed_array : ndarray of str
+        Required if uvobj not provided, describes the polarization of each receiver,
+        should be one of "X", "Y", "L", or "R". Shape (nants, nfeeds).
+    feed_angle : ndarray of float
+        Required if uvobj not provided, orientation of the receiver with respect to the
+        great circle at fixed azimuth, shape (nants, nfeeds).
+    antenna_numbers : array-like of int
+        Required if uvobj not provided, antenna numbers for all antennas of the
+        telescope, dtype int and shape (nants,).
+    time_val : float
+        Required if uvobj is not supplied, representative JD date for the catalog to
+        be recorded into the MS file.
 
     Raises
     ------
@@ -1465,7 +1472,7 @@ def write_ms_feed(
                 pols = utils.polnum2str(uvobj.flex_spw_polarization_array)
 
             feed_pols = {
-                feed.upper() for pol in pols for feed in utils.pol.POL_TO_FEED_DICT[pol]
+                feed for pol in pols for feed in utils.pol.POL_TO_FEED_DICT[pol]
             }
             nfeeds = len(feed_pols)
             feed_array = np.tile(sorted(feed_pols), (uvobj.telescope.Nants, 1))
@@ -1473,6 +1480,9 @@ def write_ms_feed(
             has_feed = False
 
         antenna_numbers = uvobj.telescope.antenna_numbers
+        time_val = (
+            Time(np.median(uvobj.time_array), format="jd", scale="utc").mjd * 86400.0
+        )
 
     nrows = np.max(antenna_numbers) + 1
     antenna_id_table = np.arange(nrows, dtype=np.int32)
@@ -1485,6 +1495,7 @@ def write_ms_feed(
         # Plug in what we need here
         pol_type_table = np.full((nrows, nfeeds), "", dtype="<U1")
         pol_type_table[antenna_numbers] = feed_array
+        pol_type_table = np.char.upper(pol_type_table)
         receptor_angle_table = np.zeros((nrows, nfeeds), dtype=np.float64)
         receptor_angle_table[antenna_numbers] = feed_angle
         num_receptors_table = np.full(nrows, nfeeds, dtype=np.int32)
@@ -1494,7 +1505,8 @@ def write_ms_feed(
         spectral_window_id_table = np.full(nrows, -1, dtype=np.int32)
         beam_offset_table = np.zeros((nrows, 2, 2), dtype=np.float64)
         feed_id_table = np.zeros(nrows, dtype=np.int32)
-        interval_table = np.zeros(nrows, dtype=np.float64)
+        time_table = np.full(nrows, time_val, dtype=np.float64)
+        interval_table = np.full(nrows, np.finfo(float).max, dtype=np.float64)
         position_table = np.zeros((nrows, 3), dtype=np.float64)
 
         # TODO: Check and see if this needs additional info for polcal...
@@ -1505,6 +1517,7 @@ def write_ms_feed(
         feed_table.putcol("BEAM_ID", beam_id_table)
         feed_table.putcol("BEAM_OFFSET", beam_offset_table)
         feed_table.putcol("FEED_ID", feed_id_table)
+        feed_table.putcol("TIME", time_table)
         feed_table.putcol("INTERVAL", interval_table)
         feed_table.putcol("NUM_RECEPTORS", num_receptors_table)
         feed_table.putcol("POLARIZATION_TYPE", pol_type_table)
