@@ -497,7 +497,7 @@ def _where_combine(mask, inds=None, invert=False, use_and=True):
         If False, then indices where mask == True are returned. But if set to True,
         indices where mask == False are returned instead. Default is False.
     use_and : bool
-        If True, then what is returned is ihe intersection of value derived from both
+        If True, then what is returned is the intersection of value derived from both
         mask and inds. If False, then the union of mask and inds is returned instead.
         Default is True.
 

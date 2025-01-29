@@ -2002,9 +2002,6 @@ def test_select_frequencies(
         frequencies=freqs_to_keep, freq_chans=chans_to_keep, inplace=False
     )
 
-    print(len(all_chans_to_keep))
-    print(beam2.Nfreqs)
-
     assert len(all_chans_to_keep) == beam2.Nfreqs
     for chan in all_chans_to_keep:
         assert beam.freq_array[chan] in beam2.freq_array

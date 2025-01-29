@@ -11958,18 +11958,12 @@ def test_remove_flex_pol_no_op_multiple_spws(uv_phase_comp):
     uvd2.flex_spw_id_array[: uvd2.Nfreqs // 3] = 1
     uvd2.flex_spw_id_array[uvd2.Nfreqs // 3 : 2 * (uvd2.Nfreqs // 3)] = 4
     uvd2.flex_spw_id_array[2 * (uvd2.Nfreqs // 3) :] = 5
-    print(np.unique(uvd2.flex_spw_id_array))
-    print(uvd2.spw_array)
     uvd2.check()
     uvd3 = uvd2.copy()
 
     uvd2.convert_to_flex_pol()
-    print(np.unique(uvd2.flex_spw_id_array))
-    print(uvd2.spw_array)
     uvd2.select(polarizations=["xx"])
     uvd2.remove_flex_pol()
-    print(np.unique(uvd2.flex_spw_id_array))
-    print(uvd2.spw_array)
 
     uvd3.select(polarizations=["xx"])
     assert uvd2 == uvd3
