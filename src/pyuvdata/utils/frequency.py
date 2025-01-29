@@ -478,10 +478,11 @@ def _select_freq_helper(
 
     if spw_inds is not None:
         # Caputed selected SPWs, broadcast selection to freqs
-        sel_spw_array = obj_spw_array[spw_inds]
+        sel_spw_array = np.asarray(obj_spw_array)[spw_inds]
         if obj_spw_id_array is not None:
+            # Note - no invert here because that's already ben applied above
             mask = np.isin(obj_spw_id_array, sel_spw_array)
-            freq_inds = tools._where_combine(mask, inds=freq_inds, invert=invert)
+            freq_inds = tools._where_combine(mask, inds=freq_inds)
 
         spw_inds = spw_inds.tolist()
 
@@ -497,11 +498,11 @@ def _select_freq_helper(
 
     if freq_inds is not None:
         if obj_channel_width is not None:
-            sel_chan_width = obj_channel_width[freq_inds]
+            sel_chan_width = np.asarray(obj_channel_width)[freq_inds]
         if obj_spw_id_array is not None:
-            sel_spw_id_array = obj_spw_id_array[freq_inds]
+            sel_spw_id_array = np.asarray(obj_spw_id_array)[freq_inds]
         if obj_freq_array is not None:
-            sel_freq_array = obj_freq_array[freq_inds]
+            sel_freq_array = np.asarray(obj_freq_array)[freq_inds]
 
         spacing_error, chanwidth_error = _check_freq_spacing(
             freq_array=sel_freq_array,
