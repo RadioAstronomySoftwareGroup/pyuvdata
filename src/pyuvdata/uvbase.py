@@ -918,8 +918,7 @@ class UVBase:
                 ]
                 if len(sel_axis) == 0:
                     continue
-
-                if isinstance(attr.value, np.ndarray):
+                if isinstance(attr.value, np.ndarray | np.ma.MaskedArray):
                     # If we're working with an ndarray, use take to slice along
                     # the axis that we want to grab from.
                     if isinstance(ind_arr, slice):
