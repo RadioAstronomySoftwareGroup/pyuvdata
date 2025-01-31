@@ -4178,7 +4178,7 @@ class UVCal(UVBase):
         history_update_string : str
             string to append to the end of the history.
         """
-        # Create a dictionary that we can loop over an update if need be
+        # Create a dictionary to pass to _select_along_param_axis
         ind_dict = {
             "Nants_data": ant_inds,
             "Ntimes": time_inds,
@@ -4189,16 +4189,14 @@ class UVCal(UVBase):
 
         # During each loop interval, we pop off an element of this dict, so continue
         # until the dict is empty.
-        for key, ind_arr in ind_dict.items():
-            self._select_along_param_axis(key, ind_arr)
-            if key == "Nants_data" and not (
-                ind_arr is None or self.total_quality_array is None
-            ):
-                warnings.warn(
-                    "Changing number of antennas, but preserving the "
-                    "total_quality_array, which may have been defined based "
-                    "in part on antennas which will be removed."
-                )
+        self._select_along_param_axis(ind_dict)
+
+        if ant_inds is not None and self.total_quality_array is not None:
+            warnings.warn(
+                "Changing number of antennas, but preserving the "
+                "total_quality_array, which may have been defined based "
+                "in part on antennas which will be removed."
+            )
 
         # Update the history string
         self.history += history_update_string

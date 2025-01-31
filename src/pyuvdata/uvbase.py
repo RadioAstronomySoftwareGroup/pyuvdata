@@ -871,7 +871,7 @@ class UVBase:
         """
         self._set_future_array_shapes(True)
 
-    def _select_along_param_axis(self, param_name, ind_arr):
+    def _select_along_param_axis(self, param_dict):
         """
         Downselect values along a parameterized axis.
 
@@ -884,63 +884,64 @@ class UVBase:
 
         Parameters
         ----------
-        param_name : str
-            Name of the parameter, which is used to define the expected shape of other
-            parameters within the object.
-        ind_arr : array-like of int
-            Index positions along the given axis to select. Must be 1D. Can be None,
-            in which case selection is skipped.
+        param_dict : dict
+            Dictionary which maps axes to index arrays, with keys that are matched
+            against entries within UVParameter.form, and values which demark which
+            indices should be selected (must be 1D). Values can also be given as None,
+            in which case no selection is performed along that axis.
         """
-        if ind_arr is None:
-            return
-
         # This is a minor optimization -- see if the ind_arr can be expressed as slices,
         # and if so, use them where we can!
-        Nitems = len(ind_arr)
-        [ind_arr], _ = _convert_to_slices(
-            ind_arr, max_nslice=1, return_index_on_fail=True
-        )
+        slice_dict = {}
+        for key, value in param_dict.items():
+            if value is not None:
+                [ind_arr], _ = _convert_to_slices(
+                    value, max_nslice=1, return_index_on_fail=True
+                )
+                slice_dict[key] = ind_arr
+
         for param in self:
             # For each attribute, if the value is None, then bail, otherwise
             # attempt to figure out along which axis ind_arr will apply.
 
             attr = getattr(self, param)
-            if attr.name == param_name:
-                # This is the length argument itself -- set it accordingly
-                attr.value = Nitems
+            if attr.name in slice_dict:
+                # This is the length argument itself -- set it accordingly. Look at
+                # param_dict since it has the lists instead of the slices
+                attr.value = len(param_dict[attr.name])
                 attr.setter(self)
             elif attr.value is not None and isinstance(attr.form, tuple):
                 # Only look at where form is a tuple, since that's the only case we
                 # can have a dynamically defined shape. Note that index doesn't work
                 # here in the case of a repeated param_name in the form.
-                sel_axis = [
-                    idx for idx, item in enumerate(attr.form) if item == param_name
+                slice_list = [slice_dict.get(key, slice(None)) for key in attr.form]
+                list_axes = [
+                    i for i, itm in enumerate(slice_list) if not isinstance(itm, slice)
                 ]
-                if len(sel_axis) == 0:
-                    continue
+                extra_axes = {}
+                for axis in list_axes[1:]:
+                    # Allow the first list to be handled with fancy indexing. After
+                    # that, it's time to use np.take!
+                    extra_axes[axis] = slice_list[axis]
+                    slice_list[axis] = slice(None)
+
                 if isinstance(attr.value, np.ndarray | np.ma.MaskedArray):
                     # If we're working with an ndarray, use take to slice along
                     # the axis that we want to grab from.
-                    if isinstance(ind_arr, slice):
-                        full_slice = tuple(
-                            ind_arr if idx in sel_axis else slice(None)
-                            for idx in range(len(attr.form))
-                        )
-                        attr.value = attr.value[full_slice]
+                    attr.value = attr.value[tuple(slice_list)]
+                    attr.setter(self)
+                    for axis, ind_arr in extra_axes.items():
+                        attr.value = attr.value.take(ind_arr, axis=axis)
                         attr.setter(self)
-                    else:
-                        for axis in sel_axis:
-                            attr.value = attr.value.take(ind_arr, axis=axis)
-                            attr.setter(self)
                 elif isinstance(attr.value, list):
                     # If this is a list, it _should_ always have 1-dimension.
-                    assert sel_axis == [0], (
-                        "Something is wrong, sel_axis != 0 when selecting on a "
+                    assert len(slice_list) == 1, (
+                        "Something is wrong, len(attr.form) != 1 when selecting on a "
                         "list, which should not be possible. Please file an "
                         "issue in our GitHub issue log so that we can fix it."
                     )
-                    if isinstance(ind_arr, slice):
-                        attr.value = attr.value[ind_arr]
+                    if isinstance(slice_list[0], slice):
+                        attr.value = attr.value[slice_list[0]]
                     else:
-                        attr.value = [attr.value[idx] for idx in ind_arr]
+                        attr.value = [attr.value[idx] for idx in slice_list[0]]
                     attr.setter(self)

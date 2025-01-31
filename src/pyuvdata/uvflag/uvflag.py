@@ -2653,7 +2653,7 @@ class UVFlag(UVBase):
             Option to keep metadata for antennas that are no longer in the dataset.
 
         """
-        # Create a dictionary that we can loop over an update if need be
+        # Create a dictionary to pass to _select_along_param_axis
         ind_dict = {
             "Ntimes": time_inds,
             "Nants_data": ant_inds,
@@ -2663,16 +2663,14 @@ class UVFlag(UVBase):
             "Npols": pol_inds,
         }
 
-        # During each loop interval, we pop off an element of this dict, so continue
-        # until the dict is empty.
-        for key, ind_arr in ind_dict.items():
-            self._select_along_param_axis(key, ind_arr)
-            if key == "Nblts" and ind_arr is not None:
-                # Process post blt-specific selection actions, including counting
-                # unique antennas in the object.
-                self.Nants_data = self._calc_nants_data()
-                self.Nbls = len(np.unique(self.baseline_array))
-                self.Ntimes = len(np.unique(self.time_array))
+        self._select_along_param_axis(ind_dict)
+
+        if blt_inds is not None:
+            # Process post blt-specific selection actions, including counting
+            # unique antennas in the object.
+            self.Nants_data = self._calc_nants_data()
+            self.Nbls = len(np.unique(self.baseline_array))
+            self.Ntimes = len(np.unique(self.time_array))
 
         self.history = self.history + history_update_string
 
