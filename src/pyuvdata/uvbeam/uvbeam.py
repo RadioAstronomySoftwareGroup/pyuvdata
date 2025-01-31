@@ -3163,7 +3163,7 @@ class UVBeam(UVBase):
         history_update_string : str
             string to append to the end of the history.
         """
-        # Create a dictionary that we can loop over an update if need be
+        # Create a dictionary to pass to _select_along_param_axis
         ind_dict = {
             "Naxes1": axis1_inds,
             "Naxes2": axis2_inds,
@@ -3178,22 +3178,20 @@ class UVBeam(UVBase):
 
         # During each loop interval, we pop off an element of this dict, so continue
         # until the dict is empty.
-        for key, ind_arr in ind_dict.items():
-            self._select_along_param_axis(key, ind_arr)
-            if (
-                key == "Npols"
-                and pol_inds is not None
-                and (had_cross and not any(np.isin(cross_pol, self.polarization_array)))
-            ):
-                # selecting from object with cross-pols down to non-cross pols so
-                # data_array should become real
-                if np.any(np.iscomplex(self.data_array)):
-                    warnings.warn(
-                        "Polarization select should result in a real array but the "
-                        "imaginary part is not zero."
-                    )
-                else:
-                    self.data_array = np.abs(self.data_array)
+        self._select_along_param_axis(ind_dict)
+
+        if pol_inds is not None and (
+            had_cross and not any(np.isin(cross_pol, self.polarization_array))
+        ):
+            # selecting from object with cross-pols down to non-cross pols so
+            # data_array should become real
+            if np.any(np.iscomplex(self.data_array)):
+                warnings.warn(
+                    "Polarization select should result in a real array but the "
+                    "imaginary part is not zero."
+                )
+            else:
+                self.data_array = np.abs(self.data_array)
 
         # Update the history string
         self.history += history_update_string

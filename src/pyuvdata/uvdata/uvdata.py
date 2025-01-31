@@ -6822,7 +6822,7 @@ class UVData(UVBase):
         keep_all_metadata : bool
             Option to keep metadata for antennas that are no longer in the dataset.
         """
-        # Create a dictionary that we can loop over an update if need be
+        # Create a dictionary to pass to _select_along_param_axis
         ind_dict = {
             "Nblts": blt_inds,
             "Nfreqs": freq_inds,
@@ -6830,25 +6830,23 @@ class UVData(UVBase):
             "Npols": pol_inds,
         }
 
-        # During each loop interval, we pop off an element of this dict, so continue
-        # until the dict is empty.
-        for key, ind_arr in ind_dict.items():
-            self._select_along_param_axis(key, ind_arr)
-            if key == "Nblts" and ind_arr is not None:
-                # Process post blt-specific selection actions, including counting
-                # unique times antennas/baselines in the data.
-                self.Nbls = len(np.unique(self.baseline_array))
-                self.Ntimes = len(np.unique(self.time_array))
-                self.Nants_data = self._calc_nants_data()
+        self._select_along_param_axis(ind_dict)
 
-                if not keep_all_metadata:
-                    # If we are dropping metadata and selecting on blts, then add
-                    # evaluate the antenna axis of all parameters
-                    use_ants = list(set(self.ant_1_array).union(self.ant_2_array))
-                    self.telescope._select_along_param_axis(
-                        "Nants",
-                        np.where(np.isin(self.telescope.antenna_numbers, use_ants))[0],
-                    )
+        if blt_inds is not None:
+            # Process post blt-specific selection actions, including counting
+            # unique times antennas/baselines in the data.
+            self.Nbls = len(np.unique(self.baseline_array))
+            self.Ntimes = len(np.unique(self.time_array))
+            self.Nants_data = self._calc_nants_data()
+
+            if not keep_all_metadata:
+                # If we are dropping metadata and selecting on blts, then add
+                # evaluate the antenna axis of all parameters
+                use_ants = list(set(self.ant_1_array).union(self.ant_2_array))
+                ind_arr = np.nonzero(np.isin(self.telescope.antenna_numbers, use_ants))[
+                    0
+                ].tolist()
+                self.telescope._select_along_param_axis({"Nants": ind_arr})
 
         # Update the history string
         self.history += history_update_string
