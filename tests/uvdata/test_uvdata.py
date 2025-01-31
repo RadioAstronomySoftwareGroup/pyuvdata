@@ -3637,7 +3637,6 @@ def test_add(casa_uvfits, hera_uvh5_xx):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "Combined frequencies are not evenly spaced",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -3661,7 +3660,6 @@ def test_add(casa_uvfits, hera_uvh5_xx):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "Combined frequencies are separated by more than their channel width.",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -3935,18 +3933,13 @@ def test_add_unprojected(casa_uvfits):
     uv2 = uv_full.copy()
     uv1.select(freq_chans=np.arange(0, 32))
     uv2.select(freq_chans=np.arange(33, 64))
-    with check_warnings(UserWarning, "Combined frequencies are not evenly spaced"):
-        uv1.__add__(uv2)
+    uv1.__add__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
     uv1.select(freq_chans=[0])
     uv2.select(freq_chans=[3])
-    with check_warnings(
-        UserWarning,
-        ["Combined frequencies are separated by more than their channel width"],
-    ):
-        uv1.__iadd__(uv2)
+    uv1.__iadd__(uv2)
 
     uv1 = uv_full.copy()
     uv2 = uv_full.copy()
@@ -4198,8 +4191,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
             "The uvw_array does not match the expected values given the antenna "
             "positions."
         ]
-        * 4
-        + ["Combined frequencies are not evenly spaced"],
+        * 4,
     ):
         uv2.fast_concat([uv1, uv3], "freq", inplace=True)
 
@@ -4248,8 +4240,7 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
             "The uvw_array does not match the expected values given the antenna "
             "positions."
         ]
-        * 4
-        + ["Combined polarizations are not evenly spaced"],
+        * 4,
     ):
         uv2.fast_concat([uv1, uv3], "polarization", inplace=True)
 
@@ -4435,7 +4426,6 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "Combined frequencies are not evenly spaced",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -4459,7 +4449,6 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "Combined frequencies are separated by more than their channel width",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -4495,7 +4484,6 @@ def test_fast_concat(casa_uvfits, hera_uvh5_xx):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "Combined polarizations are not evenly spaced",
             (
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
@@ -11795,11 +11783,6 @@ def test_set_nsamples_wrong_shape_error(hera_uvh5):
                     "The uvw_array does not match the expected values given the antenna"
                     " positions."
                 ),
-            ]
-            + [
-                f"{extra_key} in extra_keywords is a list, array or dict, which will "
-                "raise an error when writing uvfits or miriad file types"
-                for extra_key in ["pamatten", "psys", "psysattn", "ambpsys", "bfmask"]
             ],
         ],
         [

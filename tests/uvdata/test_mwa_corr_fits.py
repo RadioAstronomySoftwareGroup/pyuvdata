@@ -295,7 +295,6 @@ def test_read_mwa_multi():
     messages = [
         "some coarse channel files were not submitted",
         "some coarse channel files were not submitted",
-        "Combined frequencies are separated by more than their channel width",
     ]
     with check_warnings(UserWarning, messages):
         mwa_uv2.read([set1, set2], file_type="mwa_corr_fits")
@@ -321,7 +320,6 @@ def test_read_mwa_multi_concat(tmp_path):
     messages = [
         "some coarse channel files were not submitted",
         "some coarse channel files were not submitted",
-        "Combined frequencies are separated by more than their channel width",
     ]
     with check_warnings(UserWarning, messages):
         mwa_uv2.read([set1, set2], axis="freq", file_type="mwa_corr_fits")

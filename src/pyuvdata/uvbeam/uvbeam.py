@@ -847,24 +847,6 @@ class UVBeam(UVBase):
         ) > (1 + 1e-15):
             raise ValueError("basis vectors must have lengths of 1 or less.")
 
-        # issue warning if extra_keywords keys are longer than 8 characters
-        for key in list(self.extra_keywords.keys()):
-            if len(key) > 8:
-                warnings.warn(
-                    f"key {key} in extra_keywords is longer than 8 "
-                    "characters. It will be truncated to 8 if written "
-                    "to a fits file format."
-                )
-
-        # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.items():
-            if isinstance(value, list | dict | np.ndarray):
-                warnings.warn(
-                    f"{key} in extra_keywords is a list, array or dict, "
-                    "which will raise an error when writing fits "
-                    "files"
-                )
-
         # Check if the interpolation points are evenly-spaced
         if self.pixel_coordinate_system == "az_za":
             for i, ax_param in enumerate((self._axis1_array, self._axis2_array)):

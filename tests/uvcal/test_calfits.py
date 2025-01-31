@@ -425,31 +425,9 @@ def test_extra_keywords_errors(gain_data, tmp_path, ex_val, error_msg):
     keyword = list(ex_val.keys())[0]
     val = ex_val[keyword]
     cal_in.extra_keywords[keyword] = val
-    with check_warnings(
-        UserWarning, match=f"{keyword} in extra_keywords is a list, array or dict"
-    ):
-        cal_in.check()
+    cal_in.check()
     with pytest.raises(TypeError, match=error_msg):
         cal_in.write_calfits(testfile, run_check=False)
-
-    return
-
-
-def test_extra_keywords_warnings(gain_data, tmp_path):
-    cal_in = gain_data
-    testfile = str(tmp_path / "outtest_extrakwd_warn.fits")
-
-    # check for warnings with extra_keywords keys that are too long
-    cal_in.extra_keywords["test_long_key"] = True
-    with check_warnings(
-        UserWarning,
-        match="key test_long_key in extra_keywords is longer than 8 characters",
-    ):
-        cal_in.check()
-    with check_warnings(
-        UserWarning, "key test_long_key in extra_keywords is longer than 8 characters"
-    ):
-        cal_in.write_calfits(testfile, run_check=False, clobber=True)
 
     return
 

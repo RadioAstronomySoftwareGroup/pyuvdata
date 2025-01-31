@@ -1707,24 +1707,6 @@ class UVCal(UVBase):
         if not all(ant in self.telescope.antenna_numbers for ant in self.ant_array):
             raise ValueError("All antennas in ant_array must be in antenna_numbers.")
 
-        # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords:
-            if len(key) > 8:
-                warnings.warn(
-                    f"key {key} in extra_keywords is longer than 8 "
-                    "characters. It will be truncated to 8 if written "
-                    "to a calfits file format."
-                )
-
-        # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.items():
-            if isinstance(value, list | dict | np.ndarray):
-                warnings.warn(
-                    f"{key} in extra_keywords is a list, array or dict, "
-                    "which will raise an error when writing calfits "
-                    "files"
-                )
-
         if not self.wide_band:
             if not np.all(np.isin(self.flex_spw_id_array, self.spw_array)):
                 raise ValueError(
@@ -3364,30 +3346,9 @@ class UVCal(UVBase):
 
         # Check specific requirements
         if this.cal_type == "gain" and this.Nfreqs > 1:
-            spacing_error, chanwidth_error = this._check_freq_spacing(
-                raise_errors=False
-            )
-
-            if spacing_error:
-                warnings.warn(
-                    "Combined frequencies are not evenly spaced or have differing "
-                    "values of channel widths. This will make it impossible to write "
-                    "this data out to calfits files."
-                )
-            elif chanwidth_error:
-                warnings.warn(
-                    "Combined frequencies are separated by more than their "
-                    "channel width. This will make it impossible to write this data "
-                    "out to calfits files."
-                )
-
-        if this.Njones > 2 and not utils.tools._test_array_constant_spacing(
-            this._jones_array
-        ):
-            warnings.warn(
-                "Combined Jones elements are not evenly spaced. This will "
-                "make it impossible to write this data out to calfits files."
-            )
+            # Check if the channels have interspersed spws, since this is affects a
+            # broad swath of file types and we should warn the user about it.
+            _ = this._check_freq_spacing(raise_errors=False)
 
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
@@ -3755,21 +3716,9 @@ class UVCal(UVBase):
                 )
                 this.flex_jones_array = this.flex_jones_array[spw_index]
 
-            spacing_error, chanwidth_error = this._check_freq_spacing(
-                raise_errors=False
-            )
-            if spacing_error:
-                warnings.warn(
-                    "Combined frequencies are not evenly spaced or have differing "
-                    "values of channel widths. This will make it impossible to write "
-                    "this data out to calfits files."
-                )
-            elif chanwidth_error:
-                warnings.warn(
-                    "Combined frequencies are separated by more than their "
-                    "channel width. This will make it impossible to write this data "
-                    "out to calfits files."
-                )
+            # Check if the channels have interspersed spws, since this is affects a
+            # broad swath of file types and we should warn the user about it.
+            _ = this._check_freq_spacing(raise_errors=False)
 
             axis_num = 1
         elif axis == "spw":
@@ -4079,18 +4028,6 @@ class UVCal(UVBase):
                 "phase center IDs" if (catalog_names is None) else "catalog names"
             )
             selections.append(pc_selection)
-
-        if time_inds is not None and self.time_range is None:
-            # don't warn if time_range is not None because calfits does not support
-            # multiple time_range values
-            time_inds_arr = np.array(time_inds)
-            if time_inds_arr.size > 1:
-                time_ind_separation = time_inds_arr[1:] - time_inds_arr[:-1]
-                if not utils.tools._test_array_constant(time_ind_separation):
-                    warnings.warn(
-                        "Selected times are not evenly spaced. This "
-                        "is not supported by the calfits format."
-                    )
 
         if spws is not None and self.Nspws == 1:
             warnings.warn(

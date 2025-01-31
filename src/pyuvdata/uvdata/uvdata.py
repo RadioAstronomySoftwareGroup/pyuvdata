@@ -2350,24 +2350,6 @@ class UVData(UVBase):
             raise ValueError("All antennas in ant_2_array must be in antenna_numbers.")
         logger.debug("... Done Antenna Uniqueness Check")
 
-        # issue warning if extra_keywords keys are longer than 8 characters
-        for key in self.extra_keywords:
-            if len(key) > 8:
-                warnings.warn(
-                    f"key {key} in extra_keywords is longer than 8 "
-                    "characters. It will be truncated to 8 if written "
-                    "to uvfits or miriad file formats."
-                )
-
-        # issue warning if extra_keywords values are lists, arrays or dicts
-        for key, value in self.extra_keywords.items():
-            if isinstance(value, list | dict | np.ndarray):
-                warnings.warn(
-                    f"{key} in extra_keywords is a list, array or dict, "
-                    "which will raise an error when writing uvfits or "
-                    "miriad file types"
-                )
-
         if run_check_acceptability:
             # Check antenna positions
             utils.coordinates.check_surface_based_positions(
@@ -5825,25 +5807,6 @@ class UVData(UVBase):
         if this.filename is not None:
             this._filename.form = (len(this.filename),)
 
-        # Check specific requirements
-        if this.Nfreqs > 1:
-            spacing_error, chanwidth_error = this._check_freq_spacing(
-                raise_errors=False
-            )
-
-            if spacing_error:
-                warnings.warn(
-                    "Combined frequencies are not evenly spaced or have differing "
-                    "values of channel widths. This will make it impossible to write "
-                    "this data out to some file types."
-                )
-            elif chanwidth_error:
-                warnings.warn(
-                    "Combined frequencies are separated by more than their "
-                    "channel width. This will make it impossible to write this data "
-                    "out to some file types."
-                )
-
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
@@ -6158,22 +6121,6 @@ class UVData(UVBase):
 
             this.Nspws = len(this.spw_array)
 
-            spacing_error, chanwidth_error = this._check_freq_spacing(
-                raise_errors=False
-            )
-            if spacing_error:
-                warnings.warn(
-                    "Combined frequencies are not evenly spaced or have differing "
-                    "values of channel widths. This will make it impossible to write "
-                    "this data out to some file types."
-                )
-            elif chanwidth_error:
-                warnings.warn(
-                    "Combined frequencies are separated by more than their "
-                    "channel width. This will make it impossible to write this data "
-                    "out to some file types."
-                )
-
             if not self.metadata_only:
                 this.data_array = np.concatenate(
                     [this.data_array] + [obj.data_array for obj in other], axis=1
@@ -6189,12 +6136,6 @@ class UVData(UVBase):
                 [this.polarization_array] + [obj.polarization_array for obj in other]
             )
             this.Npols = sum([this.Npols] + [obj.Npols for obj in other])
-
-            if not utils.tools._test_array_constant_spacing(this._polarization_array):
-                warnings.warn(
-                    "Combined polarizations are not evenly spaced. This will "
-                    "make it impossible to write this data out to some file types."
-                )
 
             if not self.metadata_only:
                 this.data_array = np.concatenate(

@@ -638,10 +638,7 @@ def test_extra_keywords_errors(tmp_path, hera_beam_casa, ex_val, error_msg):
     keyword = list(ex_val.keys())[0]
     val = ex_val[keyword]
     beam_in.extra_keywords[keyword] = val
-    with check_warnings(
-        UserWarning, f"{keyword} in extra_keywords is a list, array or dict"
-    ):
-        beam_in.check()
+    beam_in.check()
 
     with pytest.raises(TypeError, match=error_msg):
         beam_in.write_beamfits(testfile, run_check=False)
@@ -655,10 +652,6 @@ def test_extra_keywords_warnings(tmp_path, hera_beam_casa):
 
     # check for warnings with extra_keywords keys that are too long
     beam_in.extra_keywords["test_long_key"] = True
-    with check_warnings(
-        UserWarning, "key test_long_key in extra_keywords is longer than 8 characters"
-    ):
-        beam_in.check()
     with check_warnings(
         UserWarning, "key test_long_key in extra_keywords is longer than 8 characters"
     ):

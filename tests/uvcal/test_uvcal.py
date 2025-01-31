@@ -915,8 +915,8 @@ def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
     if len(warn_type) == 0:
         warn_type = None
         msg = ""
-    with check_warnings(warn_type, match=msg):
-        calobj2.select(times=orig_time_array[[0, 2, 3]])
+
+    calobj2.select(times=orig_time_array[[0, 2, 3]])
     if time_range:
         msg = (
             "The calfits file format does not support time_range when there is more "
@@ -2109,14 +2109,7 @@ def test_add_frequencies(gain_data, method):
     calobj2 = calobj_full.copy()
     calobj.select(frequencies=freqs2)
     calobj2.select(frequencies=freqs1)
-    if method == "fast_concat":
-        warn_type = UserWarning
-        msg = "Combined frequencies are not evenly spaced"
-    else:
-        warn_type = None
-        msg = ""
-    with check_warnings(warn_type, match=msg):
-        getattr(calobj, method)(calobj2, **kwargs)
+    getattr(calobj, method)(calobj2, **kwargs)
     calobj.history = calobj_full.history
     if method == "fast_concat":
         # need to sort object first
@@ -2173,8 +2166,8 @@ def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
         if split_f_ind == 5:
             calobj_sum = calobj2.fast_concat(calobj, axis="freq")
         else:
-            with pytest.raises(
-                ValueError,
+            with check_warnings(
+                UserWarning,
                 match="Channels from different spectral windows are interspersed "
                 "with one another, rather than being grouped together along the "
                 "frequency axis. Most file formats do not support such "
@@ -3026,78 +3019,6 @@ def test_fast_concat_multiple_files(
     assert calobj_final == calobj_full
 
 
-def test_jones_warning(gain_data):
-    """Test having non-contiguous Jones elements"""
-    calobj = gain_data
-    calobj2 = calobj.copy()
-
-    calobj2.jones_array[0] = -6
-    calobj += calobj2
-    calobj2.jones_array[0] = -8
-    with check_warnings(UserWarning, match="Combined Jones elements"):
-        calobj.__iadd__(calobj2)
-    assert sorted(calobj.jones_array) == [-8, -6, -5]
-
-
-@pytest.mark.parametrize("method", ["__iadd__", "fast_concat"])
-def test_frequency_warnings(gain_data, method):
-    """Test having uneven or non-contiguous frequencies"""
-    # test having unevenly spaced frequency separations
-    calobj = gain_data
-
-    calobj2 = calobj.copy()
-
-    go1 = calobj.copy()
-    go2 = calobj2.copy()
-    freqs1 = calobj.freq_array[np.arange(0, 5)]
-    freqs2 = calobj2.freq_array[np.arange(5, 10)]
-    calobj.select(frequencies=freqs1)
-    calobj2.select(frequencies=freqs2)
-
-    if method == "fast_concat":
-        kwargs = {"axis": "freq", "inplace": True}
-    else:
-        kwargs = {}
-
-    # change the last frequency bin to be smaller than the others
-    df = calobj2.freq_array[-1] - calobj2.freq_array[-2]
-    calobj2.freq_array[-1] = calobj2.freq_array[-2] + df / 2
-    with check_warnings(
-        UserWarning, match="Combined frequencies are not evenly spaced"
-    ):
-        getattr(calobj, method)(calobj2, **kwargs)
-
-    assert calobj.freq_array.size == freqs1.size + freqs2.size
-
-    # now check having "non-contiguous" frequencies
-    calobj = go1.copy()
-    calobj2 = go2.copy()
-    calobj.select(frequencies=freqs1)
-    calobj2.select(frequencies=freqs2)
-
-    # artificially space out frequencies
-    calobj.freq_array *= 10
-    calobj2.freq_array *= 10
-    with check_warnings(
-        UserWarning,
-        match="Combined frequencies are separated by more than their channel width",
-    ):
-        getattr(calobj, method)(calobj2, **kwargs)
-
-    assert calobj.freq_array.size == freqs1.size + freqs2.size
-
-    freqs1 *= 10
-    freqs2 *= 10
-    freqs = np.concatenate([freqs1, freqs2])
-    freq_arr = calobj.freq_array
-    np.testing.assert_allclose(
-        freq_arr,
-        freqs,
-        rtol=calobj._freq_array.tols[0],
-        atol=calobj._freq_array.tols[1],
-    )
-
-
 def test_parameter_warnings(gain_data):
     """Test changing a parameter that will raise a warning"""
     # change observer and select frequencies
@@ -3270,21 +3191,11 @@ def test_write_read_optional_attrs(gain_data, tmp_path, file_type):
     write_method = "write_" + file_type
     if file_type == "ms":
         write_method += "_cal"
-        warn_msg = (
-            "key CASA_Version in extra_keywords is longer than 8 characters. It "
-            "will be truncated to 8 if written to a calfits file format."
-        )
-        warn_type = UserWarning
-    else:
-        warn_msg = ""
-        warn_type = None
-    with check_warnings(None):
-        getattr(cal_in, write_method)(outfile)
+    getattr(cal_in, write_method)(outfile)
 
     # read and compare
     # also check that passing a single file in a list works properly
-    with check_warnings(warn_type, match=warn_msg):
-        cal_in2 = UVCal.from_file([outfile], file_type=file_type)
+    cal_in2 = UVCal.from_file([outfile], file_type=file_type)
 
     # some things are different for ms and it's ok. reset those
     if file_type == "ms":
