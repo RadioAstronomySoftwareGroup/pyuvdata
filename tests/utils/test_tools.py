@@ -2,9 +2,11 @@
 # Licensed under the 2-clause BSD License
 """Tests for helper utility functions."""
 
+import numpy as np
 import pytest
 
 from pyuvdata import utils
+from pyuvdata.parameter import UVParameter
 from pyuvdata.testing import check_warnings
 
 
@@ -89,3 +91,23 @@ def test_eval_inds(inds, nrecs, exp_output, nwarn):
     ):
         output = utils.tools._eval_inds(inds=inds, nrecs=nrecs, strict=False)
     assert all(exp_output == output)
+
+
+@pytest.mark.parametrize("is_param", [True, False])
+@pytest.mark.parametrize(
+    "inp_arr,tols,exp_outcome",
+    [
+        [np.array([0, 0, 0, 0]), (0, 0), True],
+        [[0, 0, 0, 0], None, True],
+        [[0, 0, 0, 1], (0, 0), False],
+        [[0, 0, 0, 1], None, False],
+        [[0, 0, 0, 1], (1, 0), True],
+    ],
+)
+def test_array_constant(inp_arr, is_param, tols, exp_outcome):
+    if is_param:
+        kwargs = {"value": inp_arr}
+        if tols is not None:
+            kwargs["tols"] = tols
+        inp_arr = UVParameter("test", **kwargs)
+    assert exp_outcome == utils.tools._test_array_constant(inp_arr, tols=tols)

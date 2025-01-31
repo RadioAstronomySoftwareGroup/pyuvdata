@@ -204,11 +204,11 @@ def _test_array_constant(array, *, tols=None):
     from pyuvdata.parameter import UVParameter
 
     if isinstance(array, UVParameter):
-        array_to_test = array.value
+        array_to_test = np.asarray(array.value)
         if tols is None:
             tols = array.tols
     else:
-        array_to_test = array
+        array_to_test = np.asarray(array)
         if tols is None:
             tols = (0, 0)
     assert isinstance(tols, tuple), "tols must be a length-2 tuple"
