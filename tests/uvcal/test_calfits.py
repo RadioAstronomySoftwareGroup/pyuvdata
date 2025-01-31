@@ -632,3 +632,18 @@ def test_calfits_partial_read(gain_data, delay_data, tmp_path, caltype, param_di
         calobj3 = UVCal.from_file(write_file, **param_dict)
 
     assert calobj2 == calobj3
+
+
+def test_extra_keywords_warnings(gain_data, tmp_path):
+    cal_in = gain_data
+    testfile = str(tmp_path / "outtest_extrakwd_warn.fits")
+
+    # check for warnings with extra_keywords keys that are too long
+    cal_in.extra_keywords["test_long_key"] = True
+    with check_warnings(None):
+        cal_in.check()
+
+    with check_warnings(
+        UserWarning, "key test_long_key in extra_keywords is longer than 8 characters"
+    ):
+        cal_in.write_calfits(testfile, run_check=False, clobber=True)
