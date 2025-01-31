@@ -662,11 +662,6 @@ def test_ms_scannumber_multiphasecenter(tmp_path, multi_frame):
                 "The uvw_array does not match the expected values given the antenna "
                 "positions."
             ),
-            "pamatten in extra_keywords is a list, array or dict",
-            "psys in extra_keywords is a list, array or dict",
-            "psysattn in extra_keywords is a list, array or dict",
-            "ambpsys in extra_keywords is a list, array or dict",
-            "bfmask in extra_keywords is a list, array or dict",
         ],
     ):
         miriad_uv.read(carma_file)

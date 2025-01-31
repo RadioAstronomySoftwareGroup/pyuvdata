@@ -1024,12 +1024,8 @@ def test_extra_keywords_errors(
     uvw_warn_str = "The uvw_array does not match the expected values"
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
-    if warnstr is None:
-        warnstr_list = [uvw_warn_str]
-    else:
-        warnstr_list = [warnstr, uvw_warn_str]
 
-    with check_warnings(UserWarning, match=warnstr_list):
+    with check_warnings(UserWarning, match=uvw_warn_str):
         uv_in.check()
 
     if errstr is not None:

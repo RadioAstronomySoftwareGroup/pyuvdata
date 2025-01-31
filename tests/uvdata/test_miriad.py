@@ -235,11 +235,6 @@ def test_read_write_read_carma(tmp_path):
                 "using known location values for SZA."
             ),
             warn_dict["uvw_mismatch"],
-            "pamatten in extra_keywords is a list, array or dict",
-            "psys in extra_keywords is a list, array or dict",
-            "psysattn in extra_keywords is a list, array or dict",
-            "ambpsys in extra_keywords is a list, array or dict",
-            "bfmask in extra_keywords is a list, array or dict",
         ],
     ):
         uv_in.read(carma_file)
@@ -306,11 +301,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
                 "using known location values for SZA."
             ),
             warn_dict["uvw_mismatch"],
-            "pamatten in extra_keywords is a list, array or dict",
-            "psys in extra_keywords is a list, array or dict",
-            "psysattn in extra_keywords is a list, array or dict",
-            "ambpsys in extra_keywords is a list, array or dict",
-            "bfmask in extra_keywords is a list, array or dict",
         ],
     ):
         uv_in.read(carma_file)
@@ -329,11 +319,6 @@ def test_read_carma_miriad_write_ms(tmp_path):
         UserWarning,
         [
             warn_dict["uvw_mismatch"],
-            "pamatten in extra_keywords is a list, array or dict",
-            "psys in extra_keywords is a list, array or dict",
-            "psysattn in extra_keywords is a list, array or dict",
-            "ambpsys in extra_keywords is a list, array or dict",
-            "bfmask in extra_keywords is a list, array or dict",
             "Writing in the MS file that the units of the data are",
         ],
     ):
@@ -1059,61 +1044,32 @@ def test_poltoind(uv_in_paper):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
-    "kwd_name,kwd_value,warnstr,errstr",
+    "kwd_name,kwd_value,errstr",
     (
-        [
-            "testdict",
-            {"testkey": 23},
-            "testdict in extra_keywords is a list, array or dict",
-            "Extra keyword testdict is of <class 'dict'>",
-        ],
-        [
-            "testlist",
-            [12, 14, 90],
-            "testlist in extra_keywords is a list, array or dict",
-            "Extra keyword testlist is of <class 'list'>",
-        ],
+        ["testdict", {"testkey": 23}, "Extra keyword testdict is of <class 'dict'>"],
+        ["testlist", [12, 14, 90], "Extra keyword testlist is of <class 'list'>"],
         [
             "testarr",
             np.array([12, 14, 90]),
-            "testarr in extra_keywords is a list, array or dict",
             "Extra keyword testarr is of <class 'numpy.ndarray'>",
         ],
-        [
-            "test_long_key",
-            True,
-            "key test_long_key in extra_keywords is longer than 8 characters",
-            None,
-        ],
+        ["test_long_key", True, None],
         [
             "complex1",
             np.complex64(5.3 + 1.2j),
-            None,
             "Extra keyword complex1 is of <class 'numpy.complex64'>",
         ],
-        [
-            "complex2",
-            6.9 + 4.6j,
-            None,
-            "Extra keyword complex2 is of <class 'complex'>",
-        ],
+        ["complex2", 6.9 + 4.6j, "Extra keyword complex2 is of <class 'complex'>"],
     ),
 )
-def test_miriad_extra_keywords_errors(
-    uv_in_paper, kwd_name, kwd_value, warnstr, errstr
-):
+def test_miriad_extra_keywords_errors(uv_in_paper, kwd_name, kwd_value, errstr):
     uv_in, _, testfile = uv_in_paper
 
     uvw_warn_str = "The uvw_array does not match the expected values"
 
     # check for warnings & errors with extra_keywords that are dicts, lists or arrays
     uv_in.extra_keywords[kwd_name] = kwd_value
-    if warnstr is None:
-        warnstr_list = [uvw_warn_str]
-    else:
-        warnstr_list = [warnstr, uvw_warn_str]
-
-    with check_warnings(UserWarning, warnstr_list):
+    with check_warnings(UserWarning, uvw_warn_str):
         uv_in.check()
 
     if errstr is not None:
