@@ -10,7 +10,7 @@ from . import tools
 from .pol import jstr2num, polstr2num
 
 
-def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
+def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, raise_errors=True):
     """
     Check if the spectral windows are contiguous for multi-spw datasets.
 
@@ -26,6 +26,9 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
         Array of spectral window numbers, shape (Nspws,).
     flex_spw_id_array : array of integers
         Array of spectral window numbers per frequency channel, shape (Nfreqs,).
+    raise_errors : bool
+        Option to raise errors if the various checks do not pass. Default is True,
+        if set to False, then a warning is raised instead.
 
     """
     if spw_array is None and flex_spw_id_array is None:
@@ -43,12 +46,20 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array):
 
     n_breaks = np.sum(flex_spw_id_array[1:] != flex_spw_id_array[:-1])
     if (n_breaks + 1) != spw_array.size:
-        raise ValueError(
-            "Channels from different spectral windows are interspersed with "
-            "one another, rather than being grouped together along the "
-            "frequency axis. Most file formats do not support such "
-            "non-grouping of data."
-        )
+        if raise_errors:
+            raise ValueError(
+                "Channels from different spectral windows are interspersed with "
+                "one another, rather than being grouped together along the "
+                "frequency axis. Most file formats do not support such "
+                "non-grouping of data."
+            )
+        else:
+            warnings.warn(
+                "Channels from different spectral windows are interspersed with "
+                "one another, rather than being grouped together along the "
+                "frequency axis. Most file formats do not support such "
+                "non-grouping of data."
+            )
 
 
 def _check_freq_spacing(
@@ -96,7 +107,11 @@ def _check_freq_spacing(
 
     # Check to make sure that the flexible spectral window has indices set up
     # correctly (grouped together) for this check
-    _check_flex_spw_contiguous(spw_array=spw_array, flex_spw_id_array=flex_spw_id_array)
+    _check_flex_spw_contiguous(
+        spw_array=spw_array,
+        flex_spw_id_array=flex_spw_id_array,
+        raise_errors=raise_errors,
+    )
 
     # If spw_id and and spw_array are None, then assume that we just need to check
     # the full freq_array, and handle things accordingly
