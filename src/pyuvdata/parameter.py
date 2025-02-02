@@ -326,6 +326,17 @@ class UVParameter:
         if not (
             isinstance(other, self.__class__) and isinstance(self, other.__class__)
         ):
+            # If the UVParameter value is of the same type, then compare that instead
+            if isinstance(other, self.value.__class__) and isinstance(
+                self, other.__class__
+            ):
+                if not silent:
+                    print(
+                        f"{self.name} and other classes do not match, but "
+                        f"{self.name}.value and other do -- comparing those instead."
+                    )
+                return self.compare_value(other)
+
             if not silent:
                 print(f"{self.name} parameter classes are different")
             return False
@@ -723,6 +734,14 @@ class UVParameter:
         # If these are numeric types, handle them via allclose
         if isinstance(value, np.ndarray | int | float | complex):
             # Check that we either have a number or an ndarray
+            # Array equal here is a) _much_ faster if identical, and b) will
+            # handle things like strings (where tols are not defined).
+            check = np.array_equal(value, self.value)
+            if check or (
+                isinstance(value, np.ndarray) and np.issubdtype(value.dtype, np.str_)
+            ):
+                return check
+
             return bool(
                 not isinstance(value, np.ndarray)
                 or value.shape == self.value.shape
