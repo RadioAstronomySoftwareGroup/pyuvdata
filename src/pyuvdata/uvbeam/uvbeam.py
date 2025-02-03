@@ -3238,11 +3238,12 @@ class UVBeam(UVBase):
             Normally records matching given criteria are what are included in the
             subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
-        strict : bool
-            Normally, select ignores when no records match a one element of a
+        strict : bool or None
+            Normally, select will warn when no records match a one element of a
             parameter, as long as _at least one_ element matches with what is in the
             object. However, if set to True, an error is thrown if any element
-            does not match. Default is False.
+            does not match. If set to None, then neither errors nor warnings are raised.
+            Default is False.
         inplace : bool
             Option to perform the select directly on self or return
             a new UVBeam object, which is a subselection of self.
