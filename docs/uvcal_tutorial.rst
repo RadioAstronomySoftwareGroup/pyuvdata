@@ -424,7 +424,7 @@ a) Select antennas to keep on UVCal object using the antenna number.
 
   >>> # print all the antenna numbers with data after deselection
   >>> print(cal.ant_array)
-  [ 0 13 23 24 25]
+  [ 1 13 23 24 25]
   >>> cal.select(antenna_nums=[1, 13, 25])
 
   >>> # print all the antennas numbers with data after the select
