@@ -265,6 +265,9 @@ UVBeam: Selecting data
 The :meth:`pyuvdata.UVBeam.select` method lets you select specific image axis indices
 (or pixels if pixel_coordinate_system is HEALPix), frequencies and feeds
 (or polarizations if beam_type is power) to keep in the object while removing others.
+By default, :meth:`pyuvdata.UVBeam.select` will select data that matches the supplied
+criteria, but by setting ``invert=False``, you can instead *deselect* this data and
+preserve only that which does not match the selection.
 
 a) Selecting a range of Zenith Angles
 *************************************
@@ -335,6 +338,12 @@ or "ee).
   >>> # make a copy and select a feed by phyiscal orientation
   >>> uvb2 = uvb.copy()
   >>> uvb2.select(feeds=["n"])
+  >>> print(uvb2.feed_array)
+  ['y']
+
+  >>> # Finally, try a deselect
+  >>> uvb2 = uvb.copy()
+  >>> uvb2.select(feeds=["x"], invert=True)
   >>> print(uvb2.feed_array)
   ['y']
 

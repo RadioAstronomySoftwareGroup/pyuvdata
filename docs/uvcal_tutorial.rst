@@ -401,7 +401,10 @@ UVCal: Selecting data
 The :meth:`pyuvdata.UVCal.select` method lets you select specific antennas
 (by number or name), frequencies (in Hz or by channel number), times (either exact
 times or times covered by a time range) or jones components (by number or string) to keep
-in the object while removing others.
+in the object while removing others. By default, :meth:`pyuvdata.UVCal.select` will
+select data that matches the supplied criteria, but by setting ``invert=False``, you
+can instead *deselect* this data and preserve only that which does not match the
+selection.
 
 a) Select antennas to keep on UVCal object using the antenna number.
 ********************************************************************
@@ -417,6 +420,11 @@ a) Select antennas to keep on UVCal object using the antenna number.
   >>> # print all the antennas numbers with data in the original file
   >>> print(cal.ant_array)
   [ 0  1 11 12 13 23 24 25]
+  >>> cal.select(antenna_nums=[0, 11, 12], invert=True)
+
+  >>> # print all the antenna numbers with data after deselection
+  >>> print(cal.ant_array)
+  [ 0 13 23 24 25]
   >>> cal.select(antenna_nums=[1, 13, 25])
 
   >>> # print all the antennas numbers with data after the select
