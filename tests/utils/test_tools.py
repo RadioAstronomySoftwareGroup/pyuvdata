@@ -111,3 +111,26 @@ def test_array_constant(inp_arr, is_param, tols, exp_outcome):
             kwargs["tols"] = tols
         inp_arr = UVParameter("test", **kwargs)
     assert exp_outcome == utils.tools._test_array_constant(inp_arr, tols=tols)
+
+
+@pytest.mark.parametrize("is_param", [True, False])
+@pytest.mark.parametrize(
+    "inp_arr,inp2_arr,tols,exp_outcome",
+    [
+        [np.array([0, 0, 0, 0]), [0, 0, 0, 0], (0, 0), True],
+        [[1, 2, 3, 4], np.array([1, 1, 1, 1]), None, True],
+        [[0, 0, 0, 1], [0, 0, 0, 0], (0, 0), False],
+        [[0, 0, 0, 1], [0, 0, 0, 0], None, False],
+        [[1, 2, 3, 4], [0, 0, 0, 0], (0, 1), True],
+    ],
+)
+def test_array_consistent(inp_arr, inp2_arr, is_param, tols, exp_outcome):
+    if is_param:
+        kwargs = {"value": inp_arr}
+        if tols is not None:
+            kwargs["tols"] = tols
+        inp_arr = UVParameter("test", **kwargs)
+        inp2_arr = UVParameter("test2", value=inp2_arr)
+    assert exp_outcome == utils.tools._test_array_consistent(
+        inp_arr, inp2_arr, tols=tols
+    )
