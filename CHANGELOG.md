@@ -3,6 +3,35 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- New `strict` keyword added to `UVData.select`, `UVBeam.select`, `UVFlag.select`, and
+`UVFlag.select`, which allows the user to specify whether to warn or error when
+supplied criteria only partially match (default being to warn).
+- New `invert` keyword added to `UVData.select`, `UVBeam.select`, `UVFlag.select`, and
+`UVFlag.select`, which allows the user to specify data to deselect rather than select.
+- New method `UVBase._select_along_param_axis`, which allows for more uniform selection
+behavior across parameters within `UVData`, `UVCal`, `UVBeam`, `UVFlag`, and `Telescope`
+classes.
+- Several new selection helper and check functions have been added to `utils`.
+- New `warn_spacing` keyword added to `select`, `__add__`, `fast_concat` methods of
+`UVData`, `UVCal`, `UVBeam`, and `UVFlag`, which allows the user to specify whether or
+not to warn based on spacing errors that would prevent writing out to e.g., FITS-based
+file formats. Default is typically `False` (with the exception of `UVBeam`, where the
+default is `True`), such that most warnings about frequency/polarization/time spacing
+will not normally be raised.
+
+### Changed
+- `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
+significantly refactored and made to behave more uniformly.
+- Allowing `UVParameter.__eq__` to use `UVParameter.compare_value` if the item being
+compared and `UVParameter.value` share the same class.
+- Warnings about `extra_keywords` have been removed from `UVData.check`, `UVCal.check`,
+and `UVBeam.check`.
+
+### Fixed
+- Bug in `UVBeam.select` where `polarization_array` could be incorrectly ordered after
+selection (if input to `polarizations` keyword was unordered).
+
 ## [3.1.3] - 2025-01-13
 
 ### Added
