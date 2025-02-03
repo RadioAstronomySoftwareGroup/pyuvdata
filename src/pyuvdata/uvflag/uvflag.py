@@ -2498,6 +2498,10 @@ class UVFlag(UVBase):
                     raise ValueError(
                         f"There is no data matching ant_str={ant_str} in this object."
                     )
+                if invert and polarizations is not None:
+                    raise ValueError(
+                        "Cannot set invert=True if using ant_str with polarizations."
+                    )
 
         if antenna_nums is not None and np.array(antenna_nums).ndim > 1:
             antenna_nums = np.array(antenna_nums).flatten()
@@ -2512,6 +2516,8 @@ class UVFlag(UVBase):
                     ant_1_array=self.ant_1_array,
                     ant_2_array=self.ant_2_array,
                     nants_telescope=self.telescope.Nants,
+                    strict=strict,
+                    invert=invert,
                 )
             blt_inds, blt_selections = utils.bltaxis._select_blt_preprocess(
                 select_antenna_nums=antenna_nums,
@@ -2586,7 +2592,6 @@ class UVFlag(UVBase):
             obj_spw_id_array=self.flex_spw_id_array,
             obj_spw_array=self.spw_array,
             spws=spws,
-            warn_freq_spacing=False,
             invert=invert,
             strict=strict,
         )

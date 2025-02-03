@@ -3288,8 +3288,9 @@ def test_select_waterfall_errors(uvf_from_waterfall):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+@pytest.mark.parametrize("invert", [True, False])
 @pytest.mark.parametrize("dimension", list(range(1, 4)))
-def test_select_blt_inds(uvf_from_data, uvf_mode, dimension):
+def test_select_blt_inds(uvf_from_data, uvf_mode, dimension, invert):
     uvf = uvf_from_data
 
     # used to set the mode depending on which input is given to uvf_mode
@@ -3298,16 +3299,22 @@ def test_select_blt_inds(uvf_from_data, uvf_mode, dimension):
     n_select = uvf.Nblts
 
     blt_inds = np.random.choice(n_select, size=n_select // 2, replace=False)
+    blt_discard = np.nonzero(np.isin(np.arange(n_select), blt_inds, invert=True))
     new_nblts = n_select // 2
 
     if dimension == 1:
         blt_inds = np.atleast_1d(blt_inds)
+        blt_discard = np.atleast_1d(blt_discard)
     elif dimension == 2:
         blt_inds = np.atleast_2d(blt_inds)
+        blt_discard = np.atleast_2d(blt_discard)
     elif dimension == 3:
         blt_inds = np.atleast_3d(blt_inds)
+        blt_discard = np.atleast_3d(blt_discard)
 
-    uvf1 = uvf.select(blt_inds=blt_inds, inplace=False)
+    uvf1 = uvf.select(
+        blt_inds=blt_discard if invert else blt_inds, inplace=False, invert=invert
+    )
 
     # test the data was extracted correctly for each case
     for param_name, new_param in zip(
@@ -3360,8 +3367,9 @@ def test_select_blt_inds_errors(input_uvf, uvf_mode, select_kwargs, err_msg):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator_no_waterfall
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+@pytest.mark.parametrize("invert", [True, False])
 @pytest.mark.parametrize("dimension", list(range(1, 4)))
-def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
+def test_select_antenna_nums(input_uvf, uvf_mode, dimension, invert):
     uvf = input_uvf
 
     # used to set the mode depending on which input is given to uvf_mode
@@ -3385,15 +3393,20 @@ def test_select_antenna_nums(input_uvf, uvf_mode, dimension):
         ants_to_keep = np.random.choice(
             unique_ants, size=unique_ants.size // 2, replace=False
         )
+    ants_to_discard = unique_ants[np.isin(unique_ants, ants_to_keep, invert=True)]
+
     if dimension == 1:
         ants_to_keep = np.atleast_1d(ants_to_keep)
+        ants_to_discard = np.atleast_1d(ants_to_discard)
     elif dimension == 2:
         ants_to_keep = np.atleast_2d(ants_to_keep)
+        ants_to_discard = np.atleast_2d(ants_to_discard)
     elif dimension == 3:
         ants_to_keep = np.atleast_3d(ants_to_keep)
+        ants_to_discard = np.atleast_3d(ants_to_discard)
 
     uvf2 = uvf.copy()
-    uvf2.select(antenna_nums=ants_to_keep)
+    uvf2.select(antenna_nums=ants_to_discard if invert else ants_to_keep, invert=invert)
     # make 1-D for the remaining iterators in tests
     ants_to_keep = ants_to_keep.squeeze()
 
@@ -3446,8 +3459,10 @@ def sort_bl(p):
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator_no_waterfall
+@pytest.mark.parametrize("invert", [True, False])
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_bls(input_uvf, uvf_mode):
+@pytest.mark.parametrize("do_pol", [True, False])
+def test_select_bls(input_uvf, uvf_mode, invert, do_pol):
     uvf = input_uvf
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
@@ -3460,6 +3475,11 @@ def test_select_bls(input_uvf, uvf_mode):
             "baseline axis",
         ):
             uvf.select(bls=[(0, 1)])
+    elif invert and do_pol:
+        with pytest.raises(
+            ValueError, match="Cannot provide length-3 tuples and also set invert=True."
+        ):
+            uvf.select(bls=[(0, 1, "xx")], invert=invert)
     else:
         old_history = copy.deepcopy(uvf.history)
         bls_select = np.random.choice(
@@ -3474,62 +3494,40 @@ def test_select_bls(input_uvf, uvf_mode):
         )
 
         new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
-        ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
+        if do_pol:
+            ant_pairs_to_keep = list(
+                zip(first_ants, second_ants, ["xx"] * len(first_ants), strict=True)
+            )
+        else:
+            ant_pairs_to_keep = list(zip(first_ants, second_ants, strict=True))
         sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
 
         blts_select = [
-            sort_bl((a1, a2)) in sorted_pairs_to_keep
+            sort_bl((a1, a2, "xx") if do_pol else (a1, a2)) in sorted_pairs_to_keep
             for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
         Nblts_selected = np.sum(blts_select)
 
-        uvf2 = uvf.copy()
-        uvf2.select(bls=ant_pairs_to_keep)
-        sorted_pairs_object2 = [
-            sort_bl(p) for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
-        ]
+        if invert:
+            bls_discard = uvf.baseline_array[
+                np.isin(uvf.baseline_array, bls_select, invert=True)
+            ]
+            first_ants, second_ants = uvf.baseline_to_antnums(bls_discard)
 
-        assert len(new_unique_ants) == uvf2.Nants_data
-        assert Nblts_selected == uvf2.Nblts
-        for ant in new_unique_ants:
-            assert ant in uvf2.ant_1_array or ant in uvf2.ant_2_array
-        for ant in np.unique(uvf2.ant_1_array.tolist() + uvf2.ant_2_array.tolist()):
-            assert ant in new_unique_ants
-        for pair in sorted_pairs_to_keep:
-            assert pair in sorted_pairs_object2
-        for pair in sorted_pairs_object2:
-            assert pair in sorted_pairs_to_keep
-
-        assert utils.history._check_histories(
-            old_history + "  Downselected to specific antenna pairs using pyuvdata.",
-            uvf2.history,
-        )
-
-        # Check with polarization too
-        first_ants, second_ants = uvf.baseline_to_antnums(bls_select)
-        # conjugate a few bls
-        first_ants[5:8], second_ants[5:8] = (
-            copy.copy(second_ants[5:8]),
-            copy.copy(first_ants[5:8]),
-        )
-
-        pols = ["xx"] * len(first_ants)
-
-        new_unique_ants = np.unique(first_ants.tolist() + second_ants.tolist())
-        ant_pairs_to_keep = list(zip(first_ants, second_ants, pols, strict=True))
-        sorted_pairs_to_keep = [sort_bl(p) for p in ant_pairs_to_keep]
-
-        blts_select = [
-            sort_bl((a1, a2, "xx")) in sorted_pairs_to_keep
-            for (a1, a2) in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
-        ]
-        Nblts_selected = np.sum(blts_select)
+            # give the conjugate bls for a few baselines
+            first_ants[5:8], second_ants[5:8] = (
+                copy.copy(second_ants[5:8]),
+                copy.copy(first_ants[5:8]),
+            )
+            ant_pairs_to_discard = list(zip(first_ants, second_ants, strict=True))
 
         uvf2 = uvf.copy()
+        uvf2.select(
+            bls=ant_pairs_to_discard if invert else ant_pairs_to_keep, invert=invert
+        )
 
-        uvf2.select(bls=ant_pairs_to_keep)
         sorted_pairs_object2 = [
-            sort_bl(p) + ("xx",)
+            sort_bl(p) + (("xx",) if do_pol else ())
             for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
         ]
 
@@ -3544,26 +3542,37 @@ def test_select_bls(input_uvf, uvf_mode):
         for pair in sorted_pairs_object2:
             assert pair in sorted_pairs_to_keep
 
-        assert utils.history._check_histories(
-            old_history + "  Downselected to "
-            "specific antenna pairs, polarizations using pyuvdata.",
-            uvf2.history,
-        )
+        if do_pol:
+            msg = (
+                "  Downselected to specific antenna pairs, "
+                "polarizations using pyuvdata."
+            )
+        else:
+            msg = "  Downselected to specific antenna pairs using pyuvdata."
 
-        # check that you can specify a single pair without errors
-        assert isinstance(ant_pairs_to_keep[0], tuple)
-        uvf2.select(bls=ant_pairs_to_keep[0])
+        assert utils.history._check_histories(old_history + msg, uvf2.history)
+
+
+@cases_decorator_no_waterfall
+@pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
+def test_select_single_bls(input_uvf, uvf_mode):
+    uvf = input_uvf
+    # check that you can specify a single pair without errors
+    if uvf.type == "baseline":
+        getattr(uvf, uvf_mode)()
+        uvf.select(bls=(9, 10, "xx"))
         sorted_pairs_object2 = [
             sort_bl(p) + ("xx",)
-            for p in zip(uvf2.ant_1_array, uvf2.ant_2_array, strict=True)
+            for p in zip(uvf.ant_1_array, uvf.ant_2_array, strict=True)
         ]
-        assert list(set(sorted_pairs_object2)) == [ant_pairs_to_keep[0]]
+        assert list(set(sorted_pairs_object2)) == [(9, 10, "xx")]
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_times(input_uvf, uvf_mode):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_times(input_uvf, uvf_mode, invert):
     uvf = input_uvf
 
     # used to set the mode depending on which input is given to uvf_mode
@@ -3574,11 +3583,12 @@ def test_select_times(input_uvf, uvf_mode):
     times_to_keep = np.random.choice(
         unique_times, size=unique_times.size // 2, replace=False
     )
+    times_to_discard = unique_times[np.isin(unique_times, times_to_keep, invert=True)]
 
     Nblts_selected = np.sum([t in times_to_keep for t in uvf.time_array])
 
     uvf2 = uvf.copy()
-    uvf2.select(times=times_to_keep)
+    uvf2.select(times=times_to_discard if invert else times_to_keep, invert=invert)
 
     assert len(times_to_keep) == uvf2.Ntimes
     if uvf2.type == "baseline":
@@ -3596,7 +3606,10 @@ def test_select_times(input_uvf, uvf_mode):
     )
     # check that it also works with higher dimension array
     uvf2 = uvf.copy()
-    uvf2.select(times=times_to_keep[np.newaxis, :])
+    uvf2.select(
+        times=times_to_discard[np.newaxis] if invert else times_to_keep[np.newaxis, :],
+        invert=invert,
+    )
 
     assert len(times_to_keep) == uvf2.Ntimes
     assert Nblts_selected == n_compare
@@ -3613,18 +3626,22 @@ def test_select_times(input_uvf, uvf_mode):
     with pytest.raises(
         ValueError, match=f"Time {bad_time[0]} is not present in the time_array"
     ):
-        uvf.select(times=bad_time, strict=True)
+        uvf.select(times=bad_time, strict=True, invert=invert)
 
+    # Test all w/ invert or no-match with regular
     with pytest.raises(
         ValueError, match="No data matching this time selection present in object."
     ):
-        uvf.select(times=bad_time, strict=None)
+        uvf.select(
+            times=unique_times if invert else bad_time, strict=None, invert=invert
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-def test_select_frequencies(input_uvf, uvf_mode):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_frequencies(input_uvf, uvf_mode, invert):
     uvf = input_uvf
 
     # used to set the mode depending on which input is given to uvf_mode
@@ -3635,9 +3652,14 @@ def test_select_frequencies(input_uvf, uvf_mode):
     freqs_to_keep = np.random.choice(
         uvf.freq_array.squeeze(), size=uvf.Nfreqs // 10, replace=False
     )
+    freqs_to_discard = uvf.freq_array.flat[
+        np.isin(uvf.freq_array.flat, freqs_to_keep, invert=True)
+    ]
 
     uvf2 = uvf.copy()
-    uvf2.select(frequencies=freqs_to_keep)
+    uvf2.select(
+        frequencies=freqs_to_discard if invert else freqs_to_keep, invert=invert
+    )
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
     for f in freqs_to_keep:
@@ -3652,7 +3674,10 @@ def test_select_frequencies(input_uvf, uvf_mode):
 
     # check that it also works with higher dimension array
     uvf2 = uvf.copy()
-    uvf2.select(frequencies=freqs_to_keep[np.newaxis, :])
+    uvf2.select(
+        frequencies=(freqs_to_discard if invert else freqs_to_keep)[np.newaxis, :],
+        invert=invert,
+    )
 
     assert len(freqs_to_keep) == uvf2.Nfreqs
     for f in freqs_to_keep:
@@ -3667,7 +3692,14 @@ def test_select_frequencies(input_uvf, uvf_mode):
 
     # check that selecting one frequency works
     uvf2 = uvf.copy()
-    uvf2.select(frequencies=freqs_to_keep[0])
+    uvf2.select(
+        frequencies=(
+            np.hstack((freqs_to_keep[1:], freqs_to_discard))
+            if invert
+            else freqs_to_keep[0]
+        ),
+        invert=invert,
+    )
     assert uvf2.Nfreqs == 1
     assert freqs_to_keep[0] in uvf2.freq_array
     for f in uvf2.freq_array:
@@ -3688,7 +3720,11 @@ def test_select_frequencies(input_uvf, uvf_mode):
     with pytest.raises(
         ValueError, match="No data matching this frequency selection exists."
     ):
-        uvf.select(frequencies=bad_freq, strict=None)
+        uvf.select(
+            frequencies=uvf.freq_array.flatten() if invert else bad_freq,
+            invert=invert,
+            strict=None,
+        )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3737,6 +3773,23 @@ def test_select_freq_chans(input_uvf, uvf_mode):
         uvf2.history,
     )
 
+    # check that it also works with invert selection
+    uvf2 = uvf.copy()
+    chans_to_discard = np.isin(np.arange(uvf2.Nfreqs), chans_to_keep, invert=True)
+    uvf2.select(freq_chans=chans_to_discard, invert=True)
+
+    assert len(chans_to_keep) == uvf2.Nfreqs
+    for chan in chans_to_keep:
+        assert uvf.freq_array[chan] in uvf2.freq_array
+
+    for f in np.unique(uvf2.freq_array):
+        assert f in uvf.freq_array[chans_to_keep]
+
+    assert utils.history._check_histories(
+        old_history + "  Downselected to specific frequencies using pyuvdata.",
+        uvf2.history,
+    )
+
     # Test selecting both channels and frequencies
     chans = np.random.choice(uvf.Nfreqs, 2)
     c1, c2 = np.sort(chans)
@@ -3760,8 +3813,11 @@ def test_select_freq_chans(input_uvf, uvf_mode):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @cases_decorator
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])
-@pytest.mark.parametrize("pols_to_keep", ([-5], ["xx"], ["nn"], [[-5]]))
-def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize(
+    "pols_to_keep,pols_to_drop", [[-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5], [-6]]]
+)
+def test_select_polarizations(uvf_mode, pols_to_keep, pols_to_drop, input_uvf, invert):
     uvf = input_uvf
     # used to set the mode depending on which input is given to uvf_mode
     getattr(uvf, uvf_mode)()
@@ -3770,10 +3826,14 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
 
     uvf.telescope.x_orientation = "north"
     uvf2 = uvf.copy()
-    uvf2.select(polarizations=pols_to_keep)
+    uvf2.select(
+        polarizations=pols_to_drop if invert else pols_to_keep,
+        invert=invert,
+        strict=None,
+    )
 
-    if isinstance(pols_to_keep[0], list):
-        pols_to_keep = pols_to_keep[0]
+    if not isinstance(pols_to_keep, list):
+        pols_to_keep = [pols_to_keep]
 
     assert len(pols_to_keep) == uvf2.Npols
     for p in pols_to_keep:
@@ -3797,16 +3857,23 @@ def test_select_polarizations(uvf_mode, pols_to_keep, input_uvf):
         uvf2.history,
     )
 
-    # check for errors associated with polarizations not included in data
-    with pytest.raises(
-        ValueError, match="Polarization -3 is not present in the polarization_array"
-    ):
-        uvf2.select(polarizations=[-3], strict=True)
 
-    with pytest.raises(
-        ValueError, match="No data matching this polarization selection exists."
-    ):
-        uvf2.select(polarizations=-3, strict=None)
+@pytest.mark.filterwarnings("ignore:Polarization")
+@cases_decorator
+@pytest.mark.parametrize(
+    "pols,invert,strict,err_msg",
+    [
+        [-3, True, True, "Polarization -3 is not present"],
+        [[-3], False, True, "Polarization -3 is not present"],
+        [-3, False, None, "No data matching this polarization selection exists."],
+        [[-5, -6], True, False, "No data matching this polarization selection exists."],
+    ],
+)
+def test_select_polarizations_errors(input_uvf, pols, invert, strict, err_msg):
+    uvf = input_uvf
+    # check for errors associated with polarizations not included in data
+    with pytest.raises(ValueError, match=err_msg):
+        uvf.select(polarizations=pols, strict=strict, invert=invert)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -3976,6 +4043,10 @@ def test_parse_ants_error(uvf_from_uvcal, uvf_mode):
             "Cannot provide ant_str with antenna_nums, bls, or polarizations.",
         ),
         ({"ant_str": "auto"}, "There is no data matching ant_str=auto in this object."),
+        (
+            {"ant_str": "9x_10x", "invert": True},
+            "Cannot set invert=True if using ant_str with polarizations.",
+        ),
     ],
 )
 @pytest.mark.parametrize("uvf_mode", ["to_flag", "to_metric"])

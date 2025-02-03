@@ -1338,10 +1338,13 @@ def test_set_uvws(hera_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_blts(paper_uvh5):
+@pytest.mark.parametrize("metadata_only", [True, False])
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("inplace", [True, False])
+@pytest.mark.parametrize("higher_dims", [True, False])
+def test_select_blts(paper_uvh5, metadata_only, invert, inplace, higher_dims):
     uv_object = paper_uvh5
 
-    old_history = uv_object.history
     # fmt: off
     blt_inds = np.array([172, 182, 132, 227, 144, 44, 16, 104, 385, 134, 326, 140, 116,
                          218, 178, 391, 111, 276, 274, 308, 38, 64, 317, 76, 239, 246,
@@ -1360,65 +1363,67 @@ def test_select_blts(paper_uvh5):
                          242, 342, 331, 282, 235, 344, 63, 115, 78, 30, 226, 157, 133,
                          71, 35, 212, 333])
     # fmt: on
-    selected_data = uv_object.data_array[np.sort(blt_inds)]
+    if not metadata_only:
+        selected_data = uv_object.data_array[np.sort(blt_inds)]
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(blt_inds=blt_inds)
-    assert len(blt_inds) == uv_object2.Nblts
+    if invert:
+        select_inds = np.nonzero(
+            np.isin(np.arange(uv_object.Nblts), blt_inds, invert=True)
+        )[0]
+    else:
+        select_inds = blt_inds
+
+    if higher_dims:
+        select_inds = select_inds[np.newaxis, :]
+
+    uv_object2 = uv_object.copy(metadata_only=metadata_only)
+    uv_object3 = uv_object2.select(blt_inds=select_inds, inplace=inplace, invert=invert)
+    if inplace:
+        assert uv_object3 is None
+        uv_object3 = uv_object2
+    else:
+        if metadata_only:
+            uv_object.data_array = None
+            uv_object.flag_array = None
+            uv_object.nsample_array = None
+            assert uv_object.metadata_only
+        assert uv_object2 == uv_object
+
+    assert len(blt_inds) == uv_object3.Nblts
 
     # verify that histories are different
-    assert not utils.history._check_histories(old_history, uv_object2.history)
+    assert not utils.history._check_histories(uv_object.history, uv_object3.history)
 
     assert utils.history._check_histories(
-        old_history + "  Downselected to specific baseline-times using pyuvdata.",
-        uv_object2.history,
+        uv_object.history + "  Downselected to specific baseline-times using pyuvdata.",
+        uv_object3.history,
     )
 
-    assert np.all(selected_data == uv_object2.data_array)
+    if not metadata_only:
+        assert np.all(selected_data == uv_object3.data_array)
 
-    # check that it also works with higher dimension array
-    uv_object2 = uv_object.copy()
-    uv_object2.select(blt_inds=blt_inds[np.newaxis, :])
 
-    assert len(blt_inds) == uv_object2.Nblts
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific baseline-times using pyuvdata.",
-        uv_object2.history,
-    )
-    assert np.all(selected_data == uv_object2.data_array)
-
-    # check that just doing the metadata works properly
-    uv_object3 = uv_object.copy()
-    uv_object3.data_array = None
-    uv_object3.flag_array = None
-    uv_object3.nsample_array = None
-    assert uv_object3.metadata_only is True
-    uv_object4 = uv_object3.select(blt_inds=blt_inds, inplace=False)
-    uv_object5 = uv_object2.copy(metadata_only=True)
-    assert uv_object4 == uv_object5
-
-    # also check with inplace=True
-    uv_object3.select(blt_inds=blt_inds)
-    assert uv_object3 == uv_object4
-
-    # check for errors associated with out of bounds indices
-    with pytest.raises(ValueError, match="blt_inds contains indices that are negative"):
-        uv_object.select(blt_inds=np.arange(-10, -5), strict=True)
-
-    with pytest.raises(
-        ValueError, match="blt_inds contains indices that are too large"
-    ):
-        uv_object.select(
-            blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10), strict=True
-        )
-
-    with pytest.raises(
-        ValueError, match="No baseline-times were found that match criteria"
-    ):
-        uv_object.select(
-            blt_inds=np.arange(uv_object.Nblts + 1, uv_object.Nblts + 10), strict=None
-        )
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [
+            {"blt_inds": [-2, -1], "strict": True},
+            "blt_inds contains indices that are negative",
+        ],
+        [
+            {"blt_inds": 10000000, "strict": True},
+            "blt_inds contains indices that are too large",
+        ],
+        [
+            {"blt_inds": 10000000, "strict": None},
+            "No baseline-times were found that match",
+        ],
+    ],
+)
+def test_select_blts_err(paper_uvh5, kwargs, err_msg):
+    with pytest.raises(ValueError, match=err_msg):
+        paper_uvh5.select(**kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -1481,138 +1486,119 @@ def test_select_phase_center_id_blts(carma_miriad):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_antennas(casa_uvfits):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("use_names", [True, False])
+@pytest.mark.parametrize("higher_dim", [True, False])
+@pytest.mark.parametrize("keep_meta", [True, False])
+def test_select_antennas(casa_uvfits, invert, use_names, higher_dim, keep_meta):
     uv_object = casa_uvfits
-
     old_history = uv_object.history
-    unique_ants = np.unique(
-        uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()
+
+    # Plug in ant diameters for this test
+    uv_object.telescope.antenna_diameters = np.arange(
+        uv_object.telescope.Nants, dtype=np.float64
     )
+    if keep_meta:
+        orig_telescope = uv_object.telescope.copy()
+
     ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
 
-    blts_select = [
-        (a1 in ants_to_keep) & (a2 in ants_to_keep)
-        for (a1, a2) in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
-    ]
-    Nblts_selected = np.sum(blts_select)
+    if invert:
+        full_ants = np.unique([uv_object.ant_1_array, uv_object.ant_2_array])
+        ants_to_discard = full_ants[np.isin(full_ants, ants_to_keep, invert=True)]
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(antenna_nums=ants_to_keep)
+    Nblts_selected = np.sum(
+        np.logical_and(
+            np.isin(uv_object.ant_1_array, ants_to_keep),
+            np.isin(uv_object.ant_2_array, ants_to_keep),
+        )
+    )
 
-    assert len(ants_to_keep) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
-    for ant in ants_to_keep:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
-    for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
-    ):
-        assert ant in ants_to_keep
+    kwargs = {"invert": invert, "keep_all_metadata": keep_meta}
+    if use_names:
+        key = "antenna_nums"
+        value = ants_to_discard if invert else ants_to_keep
+    else:
+        key = "antenna_names"
+        value = [
+            name
+            for num, name in zip(
+                uv_object.telescope.antenna_numbers,
+                uv_object.telescope.antenna_names,
+                strict=True,
+            )
+            if num in (ants_to_discard if invert else ants_to_keep)
+        ]
+    kwargs[key] = [value] if higher_dim else value
+
+    uv_object.select(**kwargs)
+
+    assert len(ants_to_keep) == uv_object.Nants_data
+    assert Nblts_selected == uv_object.Nblts
+    assert np.all(np.isin(uv_object.ant_1_array, ants_to_keep))
+    assert np.all(np.isin(uv_object.ant_2_array, ants_to_keep))
+    assert np.all(
+        np.logical_or(
+            np.isin(ants_to_keep, uv_object.ant_1_array),
+            np.isin(ants_to_keep, uv_object.ant_2_array),
+        )
+    )
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
 
-    # check that it also works with higher dimension array
-    uv_object2 = uv_object.copy()
-    uv_object2.select(antenna_nums=ants_to_keep[np.newaxis, :])
+    if keep_meta:
+        assert uv_object.telescope == orig_telescope
+    else:
+        assert uv_object.telescope.Nants == len(ants_to_keep)
+        assert all(np.isin(uv_object.telescope.antenna_numbers, ants_to_keep))
+        # Make an array to make comparison easier w/ mask
+        mask = np.isin(uv_object.telescope.antenna_numbers, ants_to_keep)
+        uv_object.telescope.antenna_names = np.array(uv_object.telescope.antenna_names)
+        uv_object.telescope.antenna_names = np.array(uv_object.telescope.antenna_names)
+        for param in ["_antenna_names", "_antenna_positions"]:
+            assert (
+                getattr(uv_object.telescope, param)
+                == (getattr(uv_object.telescope, param[1:])[mask])
+            )
+        assert np.asarray(uv_object.telescope)
 
-    assert len(ants_to_keep) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
-    for ant in ants_to_keep:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
-    for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
-    ):
-        assert ant in ants_to_keep
 
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific antennas using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # now test using antenna_names to specify antennas to keep
-    uv_object3 = uv_object.copy()
-    ants_to_keep = np.array(sorted(ants_to_keep))
-    ant_names = []
-    for a in ants_to_keep:
-        ind = np.where(uv_object3.telescope.antenna_numbers == a)[0][0]
-        ant_names.append(uv_object3.telescope.antenna_names[ind])
-
-    uv_object3.select(antenna_names=ant_names)
-
-    assert uv_object2 == uv_object3
-
-    # check that it also works with higher dimension array
-    uv_object3 = uv_object.copy()
-    ants_to_keep = np.array(sorted(ants_to_keep))
-    ant_names = []
-    for a in ants_to_keep:
-        ind = np.where(uv_object3.telescope.antenna_numbers == a)[0][0]
-        ant_names.append(uv_object3.telescope.antenna_names[ind])
-
-    uv_object3.select(antenna_names=[ant_names])
-
-    assert uv_object2 == uv_object3
-
-    # test removing metadata associated with antennas that are no longer present
-    # also add (different) antenna_diameters to test downselection
-    uv_object.telescope.antenna_diameters = 1.0 * np.ones(
-        (uv_object.telescope.Nants,), dtype=np.float64
-    )
-    for i in range(uv_object.telescope.Nants):
-        uv_object.telescope.antenna_diameters += i
-    uv_object4 = uv_object.copy()
-    uv_object4.select(antenna_nums=ants_to_keep, keep_all_metadata=False)
-    assert uv_object4.telescope.Nants == 9
-    assert set(uv_object4.telescope.antenna_numbers) == set(ants_to_keep)
-    for a in ants_to_keep:
-        idx1 = uv_object.telescope.antenna_numbers.tolist().index(a)
-        idx2 = uv_object4.telescope.antenna_numbers.tolist().index(a)
-        assert (
-            uv_object.telescope.antenna_names[idx1]
-            == uv_object4.telescope.antenna_names[idx2]
-        )
-        np.testing.assert_allclose(
-            uv_object.telescope.antenna_positions[idx1, :],
-            uv_object4.telescope.antenna_positions[idx2, :],
-            rtol=uv_object.telescope._antenna_positions.tols[0],
-            atol=uv_object.telescope._antenna_positions.tols[1],
-        )
-        assert uv_object.telescope.antenna_diameters[idx1], (
-            uv_object4.telescope.antenna_diameters[idx2]
-        )
-
-    # remove antenna_diameters from object
-    uv_object.telescope.antenna_diameters = None
-
-    # check for errors associated with antennas not included in data, bad names
-    # or providing numbers and names
-    with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
-        uv_object.select(
-            antenna_nums=np.max(unique_ants) + np.arange(1, 3), strict=True
-        )
-
-    # check the same thing with passing a list
-    with pytest.raises(ValueError, match=r"Antenna number \[29 30\] is not present"):
-        uv_object.select(
-            antenna_nums=(np.max(unique_ants) + np.arange(1, 3)).tolist(), strict=True
-        )
-
-    with pytest.raises(
-        ValueError, match="Antenna name test1 is not present in the antenna_names"
-    ):
-        uv_object.select(antenna_names="test1", strict=True)
-
-    with pytest.raises(
-        ValueError, match="No baseline-times were found that match criteria"
-    ):
-        uv_object.select(antenna_names="test1", strict=None)
-
-    with pytest.raises(
-        ValueError, match="Only one of antenna_nums and antenna_names can be provided."
-    ):
-        uv_object.select(antenna_nums=ants_to_keep, antenna_names=ant_names)
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [
+            {"antenna_nums": [29, 30], "strict": True},
+            r"Antenna number \[29 30\] is not present",
+        ],
+        [
+            {"antenna_nums": np.array([29, 30]), "strict": True},
+            r"Antenna number \[29 30\] is not present",
+        ],
+        [
+            {"antenna_names": "test1", "strict": True},
+            "Antenna name test1 is not present in the antenna_names",
+        ],
+        [
+            {"antenna_names": "test1", "strict": None},
+            "No baseline-times were found that match criteria",
+        ],
+        [
+            {"antenna_nums": np.arange(100), "strict": None, "invert": True},
+            "No baseline-times were found that match criteria",
+        ],
+        [
+            {"antenna_nums": [], "antenna_names": []},
+            "Only one of antenna_nums and antenna_names can be provided.",
+        ],
+    ],
+)
+def test_select_antnum_errs(casa_uvfits, kwargs, err_msg):
+    uv_object = casa_uvfits
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.select(**kwargs)
 
 
 def sort_bl(p):
@@ -1622,6 +1608,7 @@ def sort_bl(p):
     return (p[1], p[0]) + p[2:]
 
 
+@pytest.mark.filterwarnings("ignore:Selected bls contain a mixture of different")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
     "sel_type", ["antpair", "blnum", "antpairpol", "antpair_npint", "single"]
@@ -1679,19 +1666,18 @@ def test_select_bls(casa_uvfits, sel_type):
         ]
         Nblts_selected = np.sum(blts_select)
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(bls=bls_select)
+    uv_object.select(bls=bls_select)
     sorted_pairs_object2 = [
         sort_bl(p)
-        for p in zip(uv_object2.ant_1_array, uv_object2.ant_2_array, strict=True)
+        for p in zip(uv_object.ant_1_array, uv_object.ant_2_array, strict=True)
     ]
 
-    assert len(new_unique_ants) == uv_object2.Nants_data
-    assert Nblts_selected == uv_object2.Nblts
+    assert len(new_unique_ants) == uv_object.Nants_data
+    assert Nblts_selected == uv_object.Nblts
     for ant in new_unique_ants:
-        assert ant in uv_object2.ant_1_array or ant in uv_object2.ant_2_array
+        assert ant in uv_object.ant_1_array or ant in uv_object.ant_2_array
     for ant in np.unique(
-        uv_object2.ant_1_array.tolist() + uv_object2.ant_2_array.tolist()
+        uv_object.ant_1_array.tolist() + uv_object.ant_2_array.tolist()
     ):
         assert ant in new_unique_ants
     for pair in sorted_pairs_to_keep:
@@ -1700,11 +1686,11 @@ def test_select_bls(casa_uvfits, sel_type):
         assert pair in sorted_pairs_to_keep
 
     if sel_type == "antpairpol":
-        assert uv_object2.Npols == 2
+        assert uv_object.Npols == 2
 
     assert utils.history._check_histories(
         old_history + f"  Downselected to specific {sel_str} using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
 
 
@@ -1716,13 +1702,13 @@ def test_select_bls(casa_uvfits, sel_type):
             "bls must be a list of tuples of antenna numbers",
         ],
         [{"bls": ("foo", "bar")}, "bls must be a list of tuples of antenna numbers"],
-        [{"bls": (5, 1)}, re.escape("Antenna pair (5, 1) does not have any data")],
+        [{"bls": (5, 1)}, re.escape("Antenna pair (5, 1) does not have any")],
         [
             {"bls": (5, 1, "RR")},
-            re.escape("Antenna pair (5, 1, 'RR') does not have any data"),
+            re.escape("Antenna pair (5, 1, 'RR') does not have any"),
         ],
-        [{"bls": (1, 5)}, re.escape("Antenna pair (1, 5) does not have any data")],
-        [{"bls": (27, 27)}, re.escape("Antenna pair (27, 27) does not have any data")],
+        [{"bls": (1, 5)}, re.escape("Antenna pair (1, 5) does not have any")],
+        [{"bls": (27, 27)}, re.escape("Antenna pair (27, 27) does not have any")],
         [
             {"bls": (7, 1, "RR"), "polarizations": "RR"},
             "Cannot provide any length-3 tuples and also specify polarizations.",
@@ -1733,7 +1719,7 @@ def test_select_bls(casa_uvfits, sel_type):
         ],
         [
             {"bls": [(7, 1, "RR"), (1, 5)]},
-            "If some bls are 3-tuples, all bls must be 3-tuples.",
+            "bls tuples must be all length-2, or all length-3.",
         ],
         [{"bls": []}, "bls must be a list of tuples of antenna numbers"],
         [{"bls": [100]}, "Baseline number 100 is not present in the baseline_array"],
@@ -1746,138 +1732,147 @@ def test_select_bls_errors(casa_uvfits, sel_kwargs, err_msg):
         uv_object.select(**sel_kwargs, strict=True)
 
 
-@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_times(casa_uvfits):
+def test_select_bls_multipol_warning(casa_uvfits):
     uv_object = casa_uvfits
 
-    old_history = uv_object.history
-    unique_times = np.unique(uv_object.time_array)
-    times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
-
-    Nblts_selected = np.sum([t in times_to_keep for t in uv_object.time_array])
-
-    uv_object2 = uv_object.copy()
-    uv_object2.select(times=times_to_keep)
-
-    assert len(times_to_keep) == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for t in times_to_keep:
-        assert t in uv_object2.time_array
-    for t in np.unique(uv_object2.time_array):
-        assert t in times_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific times using pyuvdata.",
-        uv_object2.history,
-    )
-    # check that it also works with higher dimension array
-    uv_object2 = uv_object.copy()
-    uv_object2.select(times=times_to_keep[np.newaxis, :])
-
-    assert len(times_to_keep) == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for t in times_to_keep:
-        assert t in uv_object2.time_array
-    for t in np.unique(uv_object2.time_array):
-        assert t in times_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific times using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # check for errors associated with times not included in data
-    t_use = np.min(unique_times) - uv_object.integration_time[0]
-    with pytest.raises(
-        ValueError, match=f"Time {t_use} is not present in the time_array"
+    with check_warnings(
+        UserWarning,
+        match=[
+            "Selected bls contain a mixture of different baselines with different",
+            "The uvw_array does not match the expected values",
+        ],
     ):
-        uv_object.select(times=[t_use], strict=True)
+        uv_object.select(bls=[(7, 1, "RR"), (1, 2, "LL")])
 
-    with pytest.raises(
-        ValueError, match="No data matching this time selection present in object."
-    ):
-        uv_object.select(times=t_use, strict=None)
+    assert all(uv_object.ant_1_array == 1)
+    assert all(np.isin(uv_object.ant_2_array, [2, 7]))
+    assert uv_object.Npols == 2
+    assert all(np.isin(uv_object.polarization_array, [-1, -2]))
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_time_range(casa_uvfits):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("higher_dims", [True, False])
+def test_select_times(casa_uvfits, invert, higher_dims):
+    uv_object = casa_uvfits
+    old_history = uv_object.history
+
+    unique_times = np.unique(uv_object.time_array)
+    times_to_keep = unique_times[[0, 3, 5, 6, 7, 10, 14]]
+    Nblts_selected = np.sum(np.isin(uv_object.time_array, times_to_keep))
+
+    if invert:
+        times = unique_times[np.isin(unique_times, times_to_keep, invert=True)]
+    else:
+        times = times_to_keep
+
+    if higher_dims:
+        times = [times]
+
+    uv_object.select(times=times, invert=invert)
+
+    assert len(times_to_keep) == uv_object.Ntimes
+    assert Nblts_selected == uv_object.Nblts
+    assert np.all(np.isin(uv_object.time_array, times_to_keep))
+    assert np.all(np.isin(times_to_keep, uv_object.time_array))
+
+    assert utils.history._check_histories(
+        old_history + "  Downselected to specific times using pyuvdata.",
+        uv_object.history,
+    )
+
+
+@pytest.mark.parametrize(
+    "kwargs, err_msg",
+    [
+        [{"times": 0, "strict": True}, "Time 0 is not present in the time_array"],
+        [{"times": [0], "strict": True}, "Time 0 is not present in the time_array"],
+        [{"times": 0, "strict": None}, "No data matching this time selection present"],
+    ],
+)
+def test_select_times_errs(casa_uvfits, kwargs, err_msg):
+    uv_object = casa_uvfits
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.select(**kwargs)
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_time_range(casa_uvfits, invert):
     uv_object = casa_uvfits
     old_history = uv_object.history
     unique_times = np.unique(uv_object.time_array)
     mean_time = np.mean(unique_times)
     time_range = [np.min(unique_times), mean_time]
-    times_to_keep = unique_times[
-        np.nonzero((unique_times <= time_range[1]) & (unique_times >= time_range[0]))
-    ]
+    time_mask = (unique_times <= time_range[1]) & (unique_times >= time_range[0])
+    blt_mask = (uv_object.time_array <= time_range[1]) & (
+        uv_object.time_array >= time_range[0]
+    )
 
-    Nblts_selected = np.nonzero(
-        (uv_object.time_array <= time_range[1])
-        & (uv_object.time_array >= time_range[0])
-    )[0].size
+    if invert:
+        time_mask = np.logical_not(time_mask)
+        blt_mask = np.logical_not(blt_mask)
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(time_range=time_range)
+    times_selected = unique_times[time_mask]
+    Nblts_selected = sum(blt_mask)
 
-    assert times_to_keep.size == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for t in times_to_keep:
-        assert t in uv_object2.time_array
-    for t in np.unique(uv_object2.time_array):
-        assert t in times_to_keep
+    uv_object.select(time_range=time_range, invert=invert)
+
+    assert times_selected.size == uv_object.Ntimes
+    assert Nblts_selected == uv_object.Nblts
+    assert np.all(np.isin(times_selected, uv_object.time_array))
+    assert np.all(np.isin(uv_object.time_array, times_selected))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific times using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_select_lsts(casa_uvfits, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("higher_dims", [True, False])
+def test_select_lsts(casa_uvfits, invert, higher_dims):
     uv_object = casa_uvfits
-
     old_history = uv_object.history
+
+    unique_lsts = np.unique(uv_object.lst_array)
+    lsts_to_keep = unique_lsts[[0, 3, 5, 6, 7, 10, 14]]
+    lsts_to_discard = unique_lsts[np.isin(unique_lsts, lsts_to_keep, invert=True)]
+    Nblts_selected = sum(np.isin(uv_object.lst_array, lsts_to_keep))
+
+    select_lsts = lsts_to_discard if invert else lsts_to_keep
+    if higher_dims:
+        select_lsts = select_lsts[np.newaxis, :]
+
+    uv_object.select(lsts=select_lsts, invert=invert)
+
+    assert len(lsts_to_keep) == uv_object.Ntimes
+    assert Nblts_selected == uv_object.Nblts
+    assert np.all(np.isin(uv_object.lst_array, lsts_to_keep))
+    assert np.all(np.isin(lsts_to_keep, uv_object.lst_array))
+
+    assert utils.history._check_histories(
+        old_history + "  Downselected to specific lsts using pyuvdata.",
+        uv_object.history,
+    )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lsts_on_read(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
+    testfile = os.path.join(tmp_path, "outtest.uvh5")
+    uv_object.write_uvh5(testfile)
+
     unique_lsts = np.unique(uv_object.lst_array)
     lsts_to_keep = unique_lsts[[0, 3, 5, 6, 7, 10, 14]]
 
-    Nblts_selected = np.sum([lst in lsts_to_keep for lst in uv_object.lst_array])
+    uv_object.select(lsts=lsts_to_keep)
+    uv_object2 = UVData.from_file(testfile, lsts=lsts_to_keep)
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(lsts=lsts_to_keep)
-
-    assert len(lsts_to_keep) == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for lst in lsts_to_keep:
-        assert lst in uv_object2.lst_array
-    for lst in np.unique(uv_object2.lst_array):
-        assert lst in lsts_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific lsts using pyuvdata.",
-        uv_object2.history,
-    )
-    # check that it also works with higher dimension array
-    uv_object2 = uv_object.copy()
-    uv_object2.select(lsts=lsts_to_keep[np.newaxis, :])
-
-    assert len(lsts_to_keep) == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for lst in lsts_to_keep:
-        assert lst in uv_object2.lst_array
-    for lst in np.unique(uv_object2.lst_array):
-        assert lst in lsts_to_keep
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific lsts using pyuvdata.",
-        uv_object2.history,
-    )
-
-    testfile = os.path.join(tmp_path, "outtest.uvh5")
-    uv_object.write_uvh5(testfile)
-    uv2_in = UVData.from_file(testfile, lsts=lsts_to_keep)
-
-    assert uv2_in == uv_object2
+    assert uv_object2 == uv_object
 
 
 def test_consolidate_phase_centers(casa_uvfits):
@@ -2099,45 +2094,53 @@ def test_select_lsts_too_big(casa_uvfits, tmp_path):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-@pytest.mark.filterwarnings("ignore:Writing in the MS file that the units of the data")
-def test_select_lst_range(casa_uvfits, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_lst_range(casa_uvfits, invert):
     uv_object = casa_uvfits
     old_history = uv_object.history
+
     unique_lsts = np.unique(uv_object.lst_array)
     mean_lst = np.mean(unique_lsts)
     lst_range = [np.min(unique_lsts), mean_lst]
-    lsts_to_keep = unique_lsts[
-        np.nonzero((unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0]))
-    ]
 
-    Nblts_selected = np.nonzero(
-        (uv_object.lst_array <= lst_range[1]) & (uv_object.lst_array >= lst_range[0])
-    )[0].size
+    time_mask = (unique_lsts <= lst_range[1]) & (unique_lsts >= lst_range[0])
+    blt_mask = (uv_object.lst_array <= lst_range[1]) & (
+        uv_object.lst_array >= lst_range[0]
+    )
+    if invert:
+        time_mask = np.logical_not(time_mask)
+        blt_mask = np.logical_not(blt_mask)
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(lst_range=lst_range)
+    lsts_selected = unique_lsts[time_mask]
+    Nblts_selected = sum(blt_mask)
 
-    assert lsts_to_keep.size == uv_object2.Ntimes
-    assert Nblts_selected == uv_object2.Nblts
-    for lst in lsts_to_keep:
-        assert lst in uv_object2.lst_array
-    for lst in np.unique(uv_object2.lst_array):
-        assert lst in lsts_to_keep
+    uv_object.select(lst_range=lst_range, invert=invert)
+
+    assert len(lsts_selected) == uv_object.Ntimes
+    assert Nblts_selected == uv_object.Nblts
+    assert np.all(np.isin(uv_object.lst_array, lsts_selected))
+    assert np.all(np.isin(lsts_selected, uv_object.lst_array))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific lsts using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_lst_range_on_read(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
+    unique_lsts = np.unique(uv_object.lst_array)
+    mean_lst = np.mean(unique_lsts)
+    lst_range = [np.min(unique_lsts), mean_lst]
 
     testfile = os.path.join(tmp_path, "outtest.uvh5")
     uv_object.write_uvh5(testfile)
+    uv_object.select(lst_range=lst_range)
 
-    with check_warnings(
-        UserWarning, "The uvw_array does not match the expected values"
-    ):
-        uv2_in = UVData.from_file(testfile, lst_range=lst_range)
+    uv_object2 = UVData.from_file(testfile, lst_range=lst_range)
 
-    assert uv2_in == uv_object2
+    assert uv_object == uv_object2
 
 
 def test_select_lst_range_too_big(casa_uvfits):
@@ -2352,7 +2355,9 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
             ),
         ],
     ):
-        uv_object2.select(frequencies=uv_object2.freq_array[[0, 5, 6]])
+        uv_object2.select(
+            frequencies=uv_object2.freq_array[[0, 5, 6]], warn_spacing=True
+        )
 
     with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
         uv_object2.write_uvfits(write_file_uvfits)
@@ -2372,7 +2377,9 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
             ),
         ],
     ):
-        uv_object2.select(frequencies=uv_object2.freq_array[[0, 2, 4]])
+        uv_object2.select(
+            frequencies=uv_object2.freq_array[[0, 2, 4]], warn_spacing=True
+        )
 
     with pytest.raises(
         ValueError,
@@ -2394,56 +2401,59 @@ def test_select_frequencies_writeerrors(casa_uvfits, tmp_path):
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_freq_chans(casa_uvfits):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("higher_dims", [True, False])
+def test_select_freq_chans(casa_uvfits, invert, higher_dims):
     uv_object = casa_uvfits
-
     old_history = uv_object.history
+
     chans_to_keep = np.arange(12, 22)
+    chans_to_discard = np.nonzero(
+        np.isin(np.arange(uv_object.Nfreqs), chans_to_keep, invert=True)
+    )[0]
+    freqs_to_keep = uv_object.freq_array[chans_to_keep]
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(freq_chans=chans_to_keep)
+    select_chans = chans_to_discard if invert else chans_to_keep
+    if higher_dims:
+        select_chans = select_chans[np.newaxis, :]
 
-    assert len(chans_to_keep) == uv_object2.Nfreqs
-    for chan in chans_to_keep:
-        assert uv_object.freq_array[chan] in uv_object2.freq_array
-    for f in np.unique(uv_object2.freq_array):
-        assert f in uv_object.freq_array[chans_to_keep]
+    uv_object.select(freq_chans=select_chans, invert=invert)
 
-    assert utils.history._check_histories(
-        old_history + "  Downselected to specific frequencies using pyuvdata.",
-        uv_object2.history,
-    )
-
-    # check that it also works with higher dimension array
-    uv_object2 = uv_object.copy()
-    uv_object2.select(freq_chans=chans_to_keep[np.newaxis, :])
-
-    assert len(chans_to_keep) == uv_object2.Nfreqs
-    for chan in chans_to_keep:
-        assert uv_object.freq_array[chan] in uv_object2.freq_array
-    for f in np.unique(uv_object2.freq_array):
-        assert f in uv_object.freq_array[chans_to_keep]
+    assert len(chans_to_keep) == uv_object.Nfreqs
+    assert np.all(np.isin(uv_object.freq_array, freqs_to_keep))
+    assert np.all(np.isin(freqs_to_keep, uv_object.freq_array))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
 
+
+@pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_freqs_and_chans(casa_uvfits, invert):
+    uv_object = casa_uvfits
     # Test selecting both channels and frequencies
-    freqs_to_keep = uv_object.freq_array[np.arange(20, 30)]  # Overlaps with chans
-    all_chans_to_keep = np.arange(12, 30)
+    freqs = uv_object.freq_array[np.arange(20, 30)]  # Overlaps with chans
+    chans = np.arange(12, 25)
+    exp_freqs = uv_object.freq_array[12:30]
+    if invert:
+        exp_freqs = uv_object.freq_array[
+            np.isin(uv_object.freq_array, exp_freqs, invert=True)
+        ]
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
+    # Strict=None to silence any errors about freq spacing
+    uv_object.select(frequencies=freqs, freq_chans=chans, invert=invert, strict=None)
 
-    assert len(all_chans_to_keep) == uv_object2.Nfreqs
-    for chan in all_chans_to_keep:
-        assert uv_object.freq_array[chan] in uv_object2.freq_array
-    for f in np.unique(uv_object2.freq_array):
-        assert f in uv_object.freq_array[all_chans_to_keep]
+    assert len(exp_freqs) == uv_object.Nfreqs
+    assert np.all(np.isin(uv_object.freq_array, exp_freqs))
+    assert np.all(np.isin(exp_freqs, uv_object.freq_array))
 
 
 def test_select_spws(sma_mir):
+    # This tests inversion and not all in one go, along with underlying handling
+    # of freq_chans behavior.
     sma_copy1 = sma_mir.copy()
     sma_copy2 = sma_mir.copy()
     sma_copy3 = sma_mir.copy()
@@ -2474,60 +2484,69 @@ def test_select_spws(sma_mir):
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 @pytest.mark.parametrize(
-    "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
+    "pol_list", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]], -5, [-6], "xx", "ee")
 )
-def test_select_polarizations(hera_uvh5, pols_to_keep):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_polarizations(hera_uvh5, pol_list, invert):
     uv_object = hera_uvh5
-
     old_history = uv_object.history
 
-    uv_object2 = uv_object.copy()
-    uv_object2.select(polarizations=pols_to_keep)
+    if invert and np.array(pol_list).size == 2:
+        with pytest.raises(ValueError, match="No data matching this polarization"):
+            # Deselecting all pols -- catch the error and bail
+            uv_object.select(polarizations=pol_list, invert=invert, strict=None)
+        return
 
-    if isinstance(pols_to_keep[0], list):
-        pols_to_keep = pols_to_keep[0]
+    uv_object.select(polarizations=pol_list, invert=invert, strict=None)
 
-    assert len(pols_to_keep) == uv_object2.Npols
-    for p in pols_to_keep:
+    if not isinstance(pol_list, list):
+        pol_list = [pol_list]
+    elif isinstance(pol_list[0], list):
+        pol_list = pol_list[0]
+
+    assert len(pol_list) == uv_object.Npols
+    pol_int_list = [None] * len(pol_list)
+    for idx, p in enumerate(pol_list):
         if isinstance(p, int):
-            assert p in uv_object2.polarization_array
+            pol_int_list[idx] = p
         else:
-            assert (
-                utils.polstr2num(p, x_orientation=uv_object2.telescope.x_orientation)
-                in uv_object2.polarization_array
+            pol_int_list[idx] = utils.polstr2num(
+                p, x_orientation=uv_object.telescope.x_orientation
             )
-    for p in np.unique(uv_object2.polarization_array):
-        if isinstance(pols_to_keep[0], int):
-            assert p in pols_to_keep
-        else:
-            assert p in utils.polstr2num(
-                pols_to_keep, x_orientation=uv_object2.telescope.x_orientation
-            )
+
+    assert np.all(np.isin(pol_int_list, uv_object.polarization_array, invert=invert))
+    assert np.all(np.isin(uv_object.polarization_array, pol_int_list, invert=invert))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
-        uv_object2.history,
+        uv_object.history,
     )
 
 
 @pytest.mark.filterwarnings("ignore:Telescope EVLA is not")
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_polarizations_errors(casa_uvfits, tmp_path):
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [
+            {"polarizations": [-5, -6], "strict": True},
+            "Polarization -5 is not present in the polarization_array",
+        ],
+        [
+            {"polarizations": -7, "strict": None},
+            "No data matching this polarization selection exists.",
+        ],
+    ],
+)
+def test_select_polarizations_errors(casa_uvfits, kwargs, err_msg):
     uv_object = casa_uvfits
-    uv_object2 = uv_object.copy()
-    uv_object2.select(polarizations=[-1, -2])
+    with pytest.raises(ValueError, match=err_msg):
+        uv_object.select(**kwargs)
 
-    # check for errors associated with polarizations not included in data
-    with pytest.raises(
-        ValueError, match="Polarization -3 is not present in the polarization_array"
-    ):
-        uv_object2.select(polarizations=[-3, -4], strict=True)
 
-    with pytest.raises(
-        ValueError, match="No data matching this polarization selection exists."
-    ):
-        uv_object2.select(polarizations=[-3, -4], strict=None)
-
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+def test_select_polarization_uvfits_error(casa_uvfits, tmp_path):
+    uv_object = casa_uvfits
     # check for warnings and errors associated with unevenly spaced polarizations
     with check_warnings(
         UserWarning,
@@ -2539,7 +2558,9 @@ def test_select_polarizations_errors(casa_uvfits, tmp_path):
             ),
         ],
     ):
-        uv_object.select(polarizations=uv_object.polarization_array[[0, 1, 3]])
+        uv_object.select(
+            polarizations=uv_object.polarization_array[[0, 1, 3]], warn_spacing=True
+        )
     write_file_uvfits = str(tmp_path / "select_test.uvfits")
     with pytest.raises(
         ValueError, match="The polarization values are not evenly spaced"
@@ -5798,6 +5819,10 @@ def test_select_with_ant_str(casa_uvfits, hera_uvh5_xx):
             "Polarization 4 is not present in the polarization_array",
         ),
         ({"ant_str": "none"}, "Unparsable argument none"),
+        (
+            {"ant_str": "4l_8l", "invert": True},
+            "Cannot set invert=True if using ant_str with polarizations.",
+        ),
     ],
 )
 def test_select_with_ant_str_errors(casa_uvfits, kwargs, message):
@@ -9536,7 +9561,7 @@ def test_frequency_average_warnings(casa_uvfits):
         UserWarning,
         match=[
             re.escape(
-                "Frequencies spacing and/or channel widths vary, so after averaging "
+                "The frequency spacing and/or channel widths vary, so after averaging "
                 "they will also vary."
             )
         ],
@@ -9549,7 +9574,7 @@ def test_frequency_average_warnings(casa_uvfits):
     with check_warnings(
         UserWarning,
         match=re.escape(
-            "Frequencies spacing and/or channel widths vary, so after averaging "
+            "The frequency spacing and/or channel widths vary, so after averaging "
             "they will also vary."
         ),
     ):
@@ -9568,7 +9593,7 @@ def test_frequency_average_warnings(casa_uvfits):
     ):
         uvd.frequency_average(n_chan_to_avg=2)
 
-    spacing_error, chanwidth_error = uvd._check_freq_spacing(raise_errors=False)
+    spacing_error, chanwidth_error = uvd._check_freq_spacing(raise_errors=None)
     assert not spacing_error
     assert chanwidth_error
 
@@ -12410,16 +12435,23 @@ def test_select_catalog_name_errs(hera_uvh5):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_select_catalog_name(carma_miriad):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_catalog_name(carma_miriad, invert):
     # Select out the source
     for cat_id, cat_dict in carma_miriad.phase_center_catalog.items():
-        uv_name = carma_miriad.select(catalog_names=cat_dict["cat_name"], inplace=False)
-        uv_id = carma_miriad.select(phase_center_ids=cat_id, inplace=False)
+        uv_name = carma_miriad.select(
+            catalog_names=cat_dict["cat_name"], inplace=False, invert=invert
+        )
+        uv_id = carma_miriad.select(
+            phase_center_ids=cat_id, inplace=False, invert=invert
+        )
 
         assert uv_id.history != uv_name.history
         uv_id.history = uv_name.history = None
 
         assert uv_name == uv_id
+
+        assert np.any(np.isin(cat_id, uv_id.phase_center_id_array)) != invert
 
 
 def test_update_antenna_positions_no_op(sma_mir, sma_mir_main):

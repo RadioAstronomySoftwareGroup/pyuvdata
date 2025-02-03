@@ -1180,7 +1180,7 @@ class UVCal(UVBase):
             proc.start()
             return proc
 
-    def _check_flex_spw_contiguous(self):
+    def _check_flex_spw_contiguous(self, *, raise_errors=True):
         """
         Check if the spectral windows are contiguous.
 
@@ -1188,22 +1188,33 @@ class UVCal(UVBase):
         spectral window are together in one block, versus being interspersed (e.g.,
         channel #1 and #3 is in spw #1, channels #2 and #4 are in spw #2).
 
+        Parameters
+        ----------
+        raise_errors : bool or None
+            If set to True, then the function will raise an error if checks are failed.
+            If set to False, then a warning is raised instead. If set to None, then
+            no errors or warnings are raised.
+
         """
         if not self.wide_band:
             utils.frequency._check_flex_spw_contiguous(
-                spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
+                spw_array=self.spw_array,
+                flex_spw_id_array=self.flex_spw_id_array,
+                strict=raise_errors,
             )
 
     def _check_freq_spacing(self, *, raise_errors=True):
         """
-        Check if frequencies are evenly spaced and separated by their channel width.
+        Check if frequencies are evenly spaced.
 
         This is a requirement for writing calfits files.
 
         Parameters
         ----------
-        raise_errors : bool
-            Option to raise errors if the various checks do not pass.
+        raise_errors : bool or None
+            If set to True, then the function will raise an error if checks are failed.
+            If set to False, then a warning is raised instead. If set to None, then
+            no errors or warnings are raised.
 
         Returns
         -------
@@ -1216,13 +1227,51 @@ class UVCal(UVBase):
         if (self.freq_array is None) or (self.Nfreqs == 1):
             return False, False
         return utils.frequency._check_freq_spacing(
-            freq_array=self.freq_array,
-            freq_tols=self._freq_array.tols,
-            channel_width=self.channel_width,
-            channel_width_tols=self._channel_width.tols,
+            freq_array=self._freq_array,
+            channel_width=self._channel_width,
             spw_array=self.spw_array,
             flex_spw_id_array=self.flex_spw_id_array,
-            raise_errors=raise_errors,
+            strict=raise_errors,
+            ignore_chanwidth_error=True,
+        )
+
+    def _check_jones_spacing(self, *, raise_errors=True):
+        """
+        Check if Jones terms are evenly spaced.
+
+        This is a requirement for calfits files.
+
+        Parameters
+        ----------
+        raise_errors : bool
+            If set to True, then the function will raise an error if checks are failed.
+            If set to False, then a warning is raised instead. If set to None, then
+            no errors or warnings are raised.
+
+        """
+        return utils.pol._check_jones_spacing(
+            jones_array=self._jones_array, strict=raise_errors
+        )
+
+    def _check_time_spacing(self, *, raise_errors=True):
+        """
+        Check if times are evenly spaced.
+
+        This is a requirement for calfits files.
+
+        Parameters
+        ----------
+        raise_errors : bool
+            If set to True, then the function will raise an error if checks are failed.
+            If set to False, then a warning is raised instead. If set to None, then
+            no errors or warnings are raised.
+
+        """
+        return utils.times._check_time_spacing(
+            times_array=self._time_array,
+            time_range=self._time_range,
+            integration_time=self._integration_time,
+            strict=raise_errors,
         )
 
     def _add_phase_center(
@@ -1600,6 +1649,9 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         check_freq_spacing=False,
+        check_jones_spacing=False,
+        check_time_spacing=False,
+        raise_spacing_errors=True,
         lst_tol=utils.LST_RAD_TOL,
     ):
         """
@@ -1618,6 +1670,16 @@ class UVCal(UVBase):
             Option to check if frequencies are evenly spaced and the spacing is
             equal to their channel_width. This is not required for UVCal
             objects in general but is required to write to calfits files.
+        check_jones_spacing :  bool
+            Option to check if Jones terms are evenly spaced. This is not required for
+            UVCal objects in general but is required to write to calfits files.
+        check_time_spacing :  bool
+            Option to check if times are evenly spaced. This is not required for
+            UVCal objects in general but is required to write to calfits files.
+        raise_spacing_errors : bool or None
+            If set to True, then the function will raise an error if spacing checks are
+            failed. If set to False, then a warning is raised instead. If set to None,
+            then no errors or warnings are raised.
         lst_tol : float or None
             Tolerance level at which to test LSTs against their expected values. If
             provided as a float, must be in units of radians. If set to None, the
@@ -1733,7 +1795,13 @@ class UVCal(UVBase):
                 )
 
         if check_freq_spacing:
-            self._check_freq_spacing()
+            self._check_freq_spacing(raise_errors=raise_spacing_errors)
+
+        if check_jones_spacing:
+            self._check_jones_spacing(raise_errors=raise_spacing_errors)
+
+        if check_time_spacing:
+            self._check_time_spacing(raise_errors=raise_spacing_errors)
 
         if run_check_acceptability:
             # Check antenna positions
@@ -2579,6 +2647,7 @@ class UVCal(UVBase):
         run_check_acceptability=True,
         inplace=False,
         ignore_name=False,
+        warn_spacing=False,
     ):
         """
         Combine two UVCal objects along antenna, frequency, time, and/or Jones axis.
@@ -2613,6 +2682,9 @@ class UVCal(UVBase):
             name set to the name found in the first UVCal object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is False.
         """
         if inplace:
             this = self
@@ -3344,12 +3416,6 @@ class UVCal(UVBase):
             np.unique(this.ant_array.tolist() + other.ant_array.tolist())
         )
 
-        # Check specific requirements
-        if this.cal_type == "gain" and this.Nfreqs > 1:
-            # Check if the channels have interspersed spws, since this is affects a
-            # broad swath of file types and we should warn the user about it.
-            _ = this._check_freq_spacing(raise_errors=False)
-
         if n_axes > 0:
             history_update_string += " axis using pyuvdata."
 
@@ -3374,7 +3440,12 @@ class UVCal(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_freq_spacing=warn_spacing,
+                check_jones_spacing=warn_spacing,
+                check_time_spacing=warn_spacing,
+                raise_spacing_errors=False,
             )
 
         if not inplace:
@@ -3388,6 +3459,7 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         ignore_name=False,
+        warn_spacing=False,
     ):
         """
         Combine two UVCal objects in place.
@@ -3413,6 +3485,9 @@ class UVCal(UVBase):
             name set to the name found in the first UVCal object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is False.
         """
         self.__add__(
             other,
@@ -3421,6 +3496,7 @@ class UVCal(UVBase):
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
             ignore_name=ignore_name,
+            warn_spacing=warn_spacing,
         )
         return self
 
@@ -3435,6 +3511,7 @@ class UVCal(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        warn_spacing=False,
     ):
         """
         Concatenate two UVCal objects along specified axis with almost no checking.
@@ -3480,6 +3557,9 @@ class UVCal(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of parameters after
             combining objects.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is False.
 
         """
         if inplace:
@@ -3715,11 +3795,6 @@ class UVCal(UVBase):
                     [this.flex_jones_array] + [obj.flex_jones_array for obj in other]
                 )
                 this.flex_jones_array = this.flex_jones_array[spw_index]
-
-            # Check if the channels have interspersed spws, since this is affects a
-            # broad swath of file types and we should warn the user about it.
-            _ = this._check_freq_spacing(raise_errors=False)
-
             axis_num = 1
         elif axis == "spw":
             # only get here for a wide-band cal
@@ -3861,7 +3936,12 @@ class UVCal(UVBase):
         # Check final object is self-consistent
         if run_check:
             this.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_freq_spacing=warn_spacing,
+                check_jones_spacing=warn_spacing,
+                check_time_spacing=warn_spacing,
+                raise_spacing_errors=False,
             )
 
         if not inplace:
@@ -3884,6 +3964,7 @@ class UVCal(UVBase):
         catalog_names,
         invert=False,
         strict=False,
+        warn_spacing=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -3954,6 +4035,9 @@ class UVCal(UVBase):
             parameter, as long as _at least one_ element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is False.
 
         Returns
         -------
@@ -4008,6 +4092,7 @@ class UVCal(UVBase):
             lst_tols=self._lst_array.tols,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(time_selections)
 
@@ -4058,6 +4143,7 @@ class UVCal(UVBase):
             obj_x_orientation=self.telescope.x_orientation,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(freq_selections)
 
@@ -4068,6 +4154,7 @@ class UVCal(UVBase):
             flex_jones=self.flex_jones_array is not None,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(jones_selections)
 
@@ -4159,6 +4246,7 @@ class UVCal(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         inplace=True,
+        warn_spacing=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -4244,6 +4332,9 @@ class UVCal(UVBase):
             Option to perform the select directly on self or return a new UVCal
             object with just the selected data (the default is True, meaning the
             select will be done on self).
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is False.
         """
         if inplace:
             cal_object = self
@@ -4273,6 +4364,7 @@ class UVCal(UVBase):
             catalog_names=catalog_names,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
 
         # Call the low-level selection method.

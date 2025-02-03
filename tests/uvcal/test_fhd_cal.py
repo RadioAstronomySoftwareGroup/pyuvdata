@@ -394,13 +394,7 @@ def test_read_multi(tmp_path, concat_method, read_method):
             )
 
     calfits_outfile = str(tmp_path / "outtest_FHDcal_1061311664.calfits")
-    with pytest.raises(
-        ValueError,
-        match=(
-            "The calfits file format does not support time_range when there is more "
-            "than one time."
-        ),
-    ):
+    with pytest.raises(ValueError, match="Object contains multiple time ranges."):
         fhd_cal.write_calfits(calfits_outfile, clobber=True)
 
     outfile = str(tmp_path / "outtest_FHDcal_1061311664.calh5")

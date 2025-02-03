@@ -181,7 +181,7 @@ def slicify(ind: slice | None | IterableType[int]) -> slice | None | IterableTyp
         return ind
 
 
-def _test_array_constant(array, *, tols=None):
+def _test_array_constant(array, *, tols=None, mask=...):
     """
     Check if an array contains constant values to some tolerance.
 
@@ -194,6 +194,8 @@ def _test_array_constant(array, *, tols=None):
     tols : tuple of float, optional
         length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
         passing an array, otherwise defaults to using the tolerance on the UVParameter.
+    mask : array-like (of ints or booleans) or Ellipses
+        Mask which indicates which indices to evaluate. Default is all elements.
 
     Returns
     -------
@@ -204,11 +206,11 @@ def _test_array_constant(array, *, tols=None):
     from pyuvdata.parameter import UVParameter
 
     if isinstance(array, UVParameter):
-        array_to_test = np.asarray(array.value)
+        array_to_test = np.asarray(array.value)[mask]
         if tols is None:
             tols = array.tols
     else:
-        array_to_test = np.asarray(array)
+        array_to_test = np.asarray(array)[mask]
         if tols is None:
             tols = (0, 0)
     assert isinstance(tols, tuple), "tols must be a length-2 tuple"
@@ -218,16 +220,75 @@ def _test_array_constant(array, *, tols=None):
         # arrays with 0 or 1 elements are constant by definition
         return True
 
+    min_val = np.min(array_to_test)
+    max_val = np.max(array_to_test)
+
     # if min and max are equal don't bother with tolerance checking
-    if np.min(array_to_test) == np.max(array_to_test):
+    if min_val == max_val:
         return True
 
-    return np.isclose(
-        np.min(array_to_test), np.max(array_to_test), rtol=tols[0], atol=tols[1]
+    return np.isclose(min_val, max_val, rtol=tols[0], atol=tols[1])
+
+
+def _test_array_consistent(array, deltas, *, tols=None, mask=...):
+    """
+    Check if an the spacing of an array is consistent with expect intervals.
+
+    Parameters
+    ----------
+    array : np.ndarray or UVParameter
+        UVParameter or array to check for constant values.
+    deltas : np.ndarray or UVParameter
+        Expected widths of each entry in array, should be >= 0.
+    tols : tuple of float, optional
+        length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
+        passing an array, otherwise defaults to using the tolerance on the UVParameter.
+    mask : array-like (of ints or booleans) or Ellipses
+        Mask which indicates which indices to evaluate. Default is all elements.
+
+    Returns
+    -------
+    bool
+        True if the array is constant to the given tolerances, False otherwise.
+    """
+    # Import UVParameter here rather than at the top to avoid circular imports
+    from pyuvdata.parameter import UVParameter
+
+    if isinstance(array, UVParameter):
+        array_to_test = np.asarray(array.value)[mask]
+        if tols is None:
+            tols = array.tols
+    else:
+        array_to_test = np.asarray(array)[mask]
+        if tols is None:
+            tols = (0, 0)
+    if isinstance(deltas, UVParameter):
+        deltas_to_test = np.asarray(deltas.value)[mask]
+    else:
+        deltas_to_test = np.asarray(deltas)[mask]
+
+    if deltas_to_test.size == 1:
+        exp_deltas = deltas_to_test
+    else:
+        assert array_to_test.shape == deltas_to_test.shape, (
+            "array and deltas must have same shape"
+        )
+        exp_deltas = (deltas_to_test[:-1] + deltas_to_test[1:]) * 0.5
+
+    assert isinstance(tols, tuple), "tols must be a length-2 tuple"
+    assert len(tols) == 2, "tols must be a length-2 tuple"
+
+    if array is None or deltas is None or array_to_test.size < 2:
+        # arrays with 0 or 1 elements are constant by definition
+        return True
+
+    # Call the mask after isclose to handle non-ndarrays like lists
+    return np.allclose(
+        np.abs(np.diff(array_to_test)), exp_deltas, rtol=tols[0], atol=tols[1]
     )
 
 
-def _test_array_constant_spacing(array, *, tols=None):
+def _test_array_constant_spacing(array, *, tols=None, mask=..., allow_resort=False):
     """
     Check if an array is constantly spaced to some tolerance.
 
@@ -240,6 +301,12 @@ def _test_array_constant_spacing(array, *, tols=None):
     tols : tuple of float, optional
         length 2 tuple giving (rtol, atol) to pass to np.isclose, defaults to (0, 0) if
         passing an array, otherwise defaults to using the tolerance on the UVParameter.
+    mask : array-like (of ints or booleans) or Ellipses
+        Mask which indicates which indices to evaluate. Default is all elements.
+    allow_resort : bool
+        If set to False, values in array are checked in their present order. If set to
+        True, values are sorted prior to evaluating (useful for arrays that _can_ be
+        reindexed). Default is False.
 
     Returns
     -------
@@ -250,19 +317,23 @@ def _test_array_constant_spacing(array, *, tols=None):
     from pyuvdata.parameter import UVParameter
 
     if isinstance(array, UVParameter):
-        array_to_test = array.value
+        array_to_test = np.asarray(array.value)[mask]
         if tols is None:
             tols = array.tols
     else:
-        array_to_test = array
+        array_to_test = np.asarray(array)[mask]
         if tols is None:
             tols = (0, 0)
+
+    if array is None or array_to_test.size <= 2:
+        # arrays with 1 or 2 elements are constantly spaced by definition
+        return True
+
     assert isinstance(tols, tuple), "tols must be a length-2 tuple"
     assert len(tols) == 2, "tols must be a length-2 tuple"
 
-    if array_to_test.size <= 2:
-        # arrays with 1 or 2 elements are constantly spaced by definition
-        return True
+    if allow_resort:
+        array_to_test = np.sort(array_to_test)
 
     array_diff = np.diff(array_to_test)
     return _test_array_constant(array_diff, tols=tols)

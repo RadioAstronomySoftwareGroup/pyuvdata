@@ -352,7 +352,7 @@ def test_array_shape_errors(caltype, gain_data, delay_data, wideband_gain):
         calobj.write_calfits("foo")
 
     if caltype == "gain":
-        calobj2.channel_width[-1] = calobj2.channel_width[0] * 2.0
+        calobj2.freq_array[-1] *= 2.0
         calobj2.check()
         with pytest.raises(ValueError, match="The frequencies are not evenly spaced"):
             calobj2._check_freq_spacing()
@@ -730,7 +730,9 @@ def test_convert_to_gain_errors(gain_data, delay_data, multi_spw_delay):
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
+@pytest.mark.parametrize("sel_type", ["names", "numbers"])
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_antennas(caltype, gain_data, delay_data, sel_type, invert):
     if caltype == "gain":
         calobj = gain_data
         # test list handling
@@ -738,74 +740,82 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
     else:
         calobj = delay_data
 
-    calobj2 = calobj.copy()
-
     old_history = calobj.history
-    ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
-    calobj2.select(antenna_nums=ants_to_keep)
 
-    assert len(ants_to_keep) == calobj2.Nants_data
-    for ant in ants_to_keep:
-        assert ant in calobj2.ant_array
-    for ant in calobj2.ant_array:
-        assert ant in ants_to_keep
+    ants_to_keep = np.array([65, 96, 9, 97, 89, 22, 20, 72])
+    names_dict = dict(
+        zip(
+            calobj.telescope.antenna_numbers,
+            calobj.telescope.antenna_names,
+            strict=True,
+        )
+    )
+    ants_to_discard = calobj.telescope.antenna_numbers[
+        np.isin(calobj.telescope.antenna_numbers, ants_to_keep, invert=True)
+    ]
+    sel_ants = ants_to_discard if invert else ants_to_keep
+    if sel_type == "names":
+        kwargs = {"antenna_names": [names_dict[a] for a in sel_ants], "invert": invert}
+    if sel_type == "numbers":
+        kwargs = {"antenna_nums": sel_ants, "invert": invert}
+
+    calobj.select(**kwargs)
+
+    assert len(ants_to_keep) == calobj.Nants_data
+    assert np.all(np.isin(ants_to_keep, calobj.ant_array))
+    assert np.all(np.isin(calobj.ant_array, ants_to_keep))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific antennas using pyuvdata.",
-        calobj2.history,
+        calobj.history,
     )
 
-    # now test using antenna_names to specify antennas to keep
-    ants_to_keep = np.array(sorted(ants_to_keep))
-    ant_names = []
-    for a in ants_to_keep:
-        ind = np.where(calobj.telescope.antenna_numbers == a)[0][0]
-        ant_names.append(calobj.telescope.antenna_names[ind])
 
-    calobj3 = calobj.select(antenna_names=ant_names, inplace=False)
-
-    assert calobj2 == calobj3
-
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [
+            {"antenna_nums": [500, 600, 700], "strict": True},
+            "Antenna number [500 600 700] is not present in the ant_array",
+        ],
+        [
+            {"antenna_names": ["test1"], "strict": True},
+            "Antenna name test1 is not present in the antenna_names array",
+        ],
+        [
+            {"antenna_names": ["test1"], "strict": None},
+            "No data matching this antenna selection exists.",
+        ],
+        [
+            {"antenna_names": [], "antenna_nums": []},
+            "Only one of antenna_nums and antenna_names can be provided.",
+        ],
+    ],
+)
+def test_select_antenna_errors(gain_data, kwargs, err_msg):
     # check for errors associated with antennas not included in data, bad names
     # or providing numbers and names
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            f"Antenna number {np.max(calobj.ant_array) + np.arange(1, 3)} "
-            "is not present in the ant_array"
-        ),
-    ):
-        calobj.select(
-            antenna_nums=np.max(calobj.ant_array) + np.arange(1, 3), strict=True
-        )
 
-    with pytest.raises(
-        ValueError, match="Antenna name test1 is not present in the antenna_names array"
-    ):
-        calobj.select(antenna_names=["test1"], strict=True)
+    with pytest.raises(ValueError, match=re.escape(err_msg)):
+        gain_data.select(**kwargs)
 
-    with pytest.raises(
-        ValueError, match="No data matching this antenna selection exists."
-    ):
-        calobj.select(antenna_names=["test1"], strict=None)
 
-    with pytest.raises(
-        ValueError, match="Only one of antenna_nums and antenna_names can be provided."
-    ):
-        calobj.select(antenna_nums=ants_to_keep, antenna_names=ant_names)
+def test_select_antennas_write_telescope(gain_data, tmp_path):
+    calobj = gain_data
+    calobj.select(antenna_nums=[65, 96, 9, 97, 89, 22, 20, 72], inplace=True)
 
     # check that write_calfits works with Nants_data < Nants_telescope
     write_file_calfits = str(tmp_path / "select_test.calfits")
-    calobj2.write_calfits(write_file_calfits, clobber=True)
+    calobj.write_calfits(write_file_calfits, clobber=True)
 
     # check that reading it back in works too
     new_calobj = UVCal.from_file(write_file_calfits)
-    if caltype == "gain":
-        # make list type match
-        new_calobj.ant_array = new_calobj.ant_array.tolist()
 
-    assert calobj2 == new_calobj
+    assert calobj == new_calobj
 
+
+def test_select_antennas_total_quality(gain_data):
+    calobj = gain_data
     # check that total_quality_array is handled properly when present
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
@@ -817,13 +827,15 @@ def test_select_antennas(caltype, gain_data, delay_data, tmp_path):
         "removed."
     ]
     with check_warnings(warn_type, match=msg):
-        calobj.select(antenna_names=ant_names, inplace=True)
+        calobj.select(antenna_nums=[65, 96, 9, 97, 89, 22, 20, 72], inplace=True)
     assert calobj.total_quality_array is not None
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
-def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
+@pytest.mark.parametrize("use_range", [True, False])
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_times(caltype, time_range, use_range, gain_data, delay_data, invert):
     if caltype == "gain":
         calobj = gain_data
     else:
@@ -832,192 +844,181 @@ def test_select_times(caltype, time_range, gain_data, delay_data, tmp_path):
     orig_time_array = calobj.time_array
     times_to_keep = orig_time_array[2:5]
     time_range_to_keep = [np.min(times_to_keep), np.max(times_to_keep)]
+    old_history = calobj.history
+    if use_range:
+        kwargs = {"time_range": time_range_to_keep, "invert": invert}
+    else:
+        kwargs = {"times": times_to_keep, "invert": invert}
 
     if time_range:
         calobj = time_array_to_time_range(calobj)
 
-    calobj2 = calobj.copy()
+    calobj.select(**kwargs)
+    if not invert:
+        assert len(times_to_keep) == calobj.Ntimes
+    else:
+        assert (len(orig_time_array) - len(times_to_keep)) == calobj.Ntimes
 
-    old_history = calobj.history
-
-    calobj2.select(times=times_to_keep)
-
-    assert len(times_to_keep) == calobj2.Ntimes
     if time_range:
         for t in times_to_keep:
-            time_in_range = np.nonzero(
-                np.logical_and(
-                    (calobj2.time_range[:, 0] <= t), (calobj2.time_range[:, 1] >= t)
-                )
-            )[0]
-            assert time_in_range.size > 0
+            assert (
+                np.any((calobj.time_range[:, 0] <= t) & (calobj.time_range[:, 1] >= t))
+                != invert
+            )
     else:
-        for t in times_to_keep:
-            assert t in calobj2.time_array
-        for t in np.unique(calobj2.time_array):
-            assert t in times_to_keep
+        assert np.all(np.isin(calobj.time_array, times_to_keep, invert=invert))
+        assert np.all(np.isin(times_to_keep, calobj.time_array, invert=invert))
 
     assert utils.history._check_histories(
-        old_history + "  Downselected to specific times using pyuvdata.",
-        calobj2.history,
+        old_history + "  Downselected to specific times using pyuvdata.", calobj.history
     )
 
-    # check same answer with time_range parameter
-    calobj3 = calobj.copy()
-    calobj3.select(time_range=time_range_to_keep)
-    assert calobj2 == calobj3
 
-    write_file_calfits = str(tmp_path / "select_test.calfits")
-    # test writing calfits with only one time
+@pytest.mark.parametrize("time_range", [True, False])
+def test_select_times_single_to_calfits(gain_data, tmp_path, time_range):
+    calobj = gain_data
+    time_to_keep = calobj.time_array[1]
+    time_range_to_keep = [time_to_keep - 0.1, time_to_keep + 0.1]
+
+    if time_range:
+        calobj = time_array_to_time_range(calobj)
+
+    write_file_calfits = str(tmp_path / "select_test_single_time.calfits")
     calobj2 = calobj.copy()
-    times_to_keep = times_to_keep[0]
-    time_range_to_keep = [np.min(times_to_keep), np.max(times_to_keep)]
-    calobj2.select(times=times_to_keep)
+
+    calobj.select(time_range=time_range_to_keep)
+    calobj2.select(times=time_to_keep)
 
     # check same answer with time_range parameter
-    calobj3 = calobj.copy()
-    calobj3.select(time_range=time_range_to_keep)
-    assert calobj2 == calobj3
+    assert calobj == calobj2
 
+    # Make sure that writing out to calfits works
     calobj2.write_calfits(write_file_calfits, clobber=True)
 
-    # check for errors associated with times not included in data
-    early_time = np.min(orig_time_array) - np.max(calobj.integration_time)
+
+@pytest.mark.parametrize(
+    "time_range,kwargs,err_msg",
+    [
+        [True, {"times": 0, "strict": True}, "Time 0 does not fall in any time_range."],
+        [False, {"times": 0, "strict": True}, "Time 0 is not present in the time_arr"],
+        [False, {"times": [0], "strict": None}, "No data matching this time selection"],
+        [False, {"times": 0, "time_range": [0, 0]}, "Only one of [times, time_range"],
+    ],
+)
+def test_select_times_errs(gain_data, time_range, kwargs, err_msg):
+    calobj = gain_data
     if time_range:
-        msg = f"Time {early_time} does not fall in any time_range."
+        calobj = time_array_to_time_range(calobj)
+
+    with pytest.raises(ValueError, match=re.escape(err_msg)):
+        calobj.select(**kwargs)
+
+
+@pytest.mark.parametrize("time_range", [True, False])
+def test_select_times_calfits_error(gain_data, time_range, tmp_path):
+    write_file_calfits = str(tmp_path / "select_test_error.calfits")
+    # check for warnings and errors associated with unevenly spaced times
+    calobj = gain_data
+    sel_times = calobj.time_array[[0, 2, 3]]
+    if time_range:
+        calobj = time_array_to_time_range(calobj)
+        sel_msg = "Selected times include multiple time ranges."
+        msg = "Object contains multiple time ranges."
     else:
-        msg = f"Time {early_time} is not present in the time_array"
+        sel_msg = "Selected times are not evenly spaced."
+        msg = "The times are not evenly spaced."
+
+    with check_warnings(UserWarning, sel_msg):
+        calobj.select(times=sel_times, warn_spacing=True)
 
     with pytest.raises(ValueError, match=msg):
-        calobj.select(times=[early_time], strict=True)
-
-    with pytest.raises(
-        ValueError, match="No data matching this time selection present in object."
-    ):
-        calobj.select(times=[early_time], strict=None)
-
-    with pytest.raises(
-        ValueError,
-        match=re.escape(
-            "Only one of [times, time_range, lsts, lst_range] may be specified per "
-            "selection operation."
-        ),
-    ):
-        calobj.select(times=times_to_keep, time_range=time_range_to_keep)
-
-    # check for warnings and errors associated with unevenly spaced times
-    calobj2 = calobj.copy()
-    warn_type = []
-    msg = []
-    if not time_range:
-        warn_type += [UserWarning]
-        msg += ["Selected times are not evenly spaced"]
-    if len(warn_type) == 0:
-        warn_type = None
-        msg = ""
-
-    calobj2.select(times=orig_time_array[[0, 2, 3]])
-    if time_range:
-        msg = (
-            "The calfits file format does not support time_range when there is more "
-            "than one time."
-        )
-    else:
-        msg = (
-            "The times are not evenly spaced (probably because of a select operation). "
-            "The calfits format does not support unevenly spaced times."
-        )
-    with pytest.raises(ValueError, match=re.escape(msg)):
-        calobj2.write_calfits(write_file_calfits)
+        calobj.write_calfits(write_file_calfits)
 
 
-def test_select_frequencies(gain_data, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_frequencies(gain_data, invert):
     calobj = gain_data
-
-    calobj2 = calobj.copy()
-
-    old_history = calobj.history
-
-    freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
-
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
-    calobj2.total_quality_array = np.zeros(
-        calobj2._total_quality_array.expected_shape(calobj2)
+    old_history = calobj.history
+
+    freqs_to_keep = calobj.freq_array[np.arange(4, 8)]
+    freqs_to_discard = calobj.freq_array[
+        np.isin(calobj.freq_array, freqs_to_keep, invert=True)
+    ]
+
+    calobj.select(
+        frequencies=freqs_to_discard if invert else freqs_to_keep, invert=invert
     )
 
-    calobj2.select(frequencies=freqs_to_keep)
-
-    assert len(freqs_to_keep) == calobj2.Nfreqs
-    for f in freqs_to_keep:
-        assert f in calobj2.freq_array
-    for f in np.unique(calobj2.freq_array):
-        assert f in freqs_to_keep
+    assert len(freqs_to_keep) == calobj.Nfreqs
+    assert np.all(np.isin(calobj.freq_array, freqs_to_keep))
+    assert np.all(np.isin(freqs_to_keep, calobj.freq_array))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
-        calobj2.history,
+        calobj.history,
     )
 
+
+@pytest.mark.parametrize(
+    "freq_chans,warn_msg",
+    [[5, None], [[0, 2, 4, 6, 8], "Selected frequencies are not contiguous."]],
+)
+def test_select_frequency_write_calfits(gain_data, tmp_path, freq_chans, warn_msg):
+    calobj = gain_data
     write_file_calfits = str(tmp_path / "select_test.calfits")
-    # test writing calfits with only one frequency
-    calobj2 = calobj.copy()
-    freqs_to_keep = calobj.freq_array[5]
-    calobj2.select(frequencies=freqs_to_keep)
-    calobj2.write_calfits(write_file_calfits, clobber=True)
 
-    # test writing calfits with frequencies spaced by more than the channel width
-    calobj2 = calobj.copy()
-    freqs_to_keep = calobj.freq_array[[0, 2, 4, 6, 8]]
-    with check_warnings(UserWarning, match="Selected frequencies are not contiguous."):
-        calobj2.select(frequencies=freqs_to_keep)
-    calobj2.write_calfits(write_file_calfits, clobber=True)
+    freqs_to_keep = calobj.freq_array[freq_chans]
+    with check_warnings(None if warn_msg is None else UserWarning, match=warn_msg):
+        calobj.select(frequencies=freqs_to_keep, warn_spacing=True)
+    calobj.write_calfits(write_file_calfits, clobber=True)
 
+
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [
+            {"frequencies": [1000.5], "strict": True},
+            "Frequency 1000.5 is not present in the freq_array",
+        ],
+        [
+            {"frequencies": -100, "strict": None},
+            "No data matching this frequency selection exists.",
+        ],
+        [
+            {"spws": -9999, "strict": True},
+            "SPW number -9999 is not present in the spw_array",
+        ],
+        [
+            {"spws": [-999], "strict": None},
+            "No data matching this spectral window selection exists.",
+        ],
+    ],
+)
+def test_select_freq_errors(multi_spw_gain, kwargs, err_msg):
     # check for errors associated with frequencies not included in data
-    with pytest.raises(
-        ValueError, match="Frequency 100976562.5 is not present in the freq_array"
-    ):
-        calobj.select(
-            frequencies=[np.max(calobj.freq_array) + calobj.channel_width], strict=True
-        )
+    with pytest.raises(ValueError, match=err_msg):
+        multi_spw_gain.select(**kwargs)
 
-    with pytest.raises(
-        ValueError, match="No data matching this frequency selection exists."
-    ):
-        calobj.select(
-            frequencies=[np.max(calobj.freq_array) + calobj.channel_width], strict=None
-        )
 
-    # check for errors associated with spws not included in data
-    calobj2 = calobj.copy()
-    calobj2.Nspws = 2
-    calobj2.spw_array = np.arange(2)
-    calobj2.flex_spw_id_array = (np.arange(calobj2.Nfreqs) > (calobj2.Nfreqs / 2)) + 0
-    with pytest.raises(
-        ValueError, match="SPW number -9999 is not present in the spw_array"
-    ):
-        calobj2.select(spws=-9999, strict=True)
-
-    with pytest.raises(
-        ValueError, match="No data matching this spectral window selection exists."
-    ):
-        calobj2.select(spws=-9999, strict=None)
-
+def test_select_frequency_spacing_uvfits_error(gain_data, tmp_path):
+    write_file_calfits = str(tmp_path / "select_freq_err.calfits")
+    calobj = gain_data
     # check for warnings and errors associated with unevenly spaced frequencies
-    calobj2 = calobj.copy()
-    freqs_to_keep = calobj2.freq_array[[0, 5, 6]]
+    freqs_to_keep = calobj.freq_array[[0, 5, 6]]
     with check_warnings(
         UserWarning, match="Selected frequencies are not evenly spaced."
     ):
-        calobj2.select(frequencies=freqs_to_keep)
+        calobj.select(frequencies=freqs_to_keep, warn_spacing=True)
 
     with pytest.raises(
         ValueError,
-        match="Frequencies are not evenly spaced or have differing values of channel",
+        match="The frequencies are not evenly spaced or have differing values of",
     ):
-        calobj2.write_calfits(write_file_calfits, clobber=True)
+        calobj.write_calfits(write_file_calfits, clobber=True)
 
 
 @pytest.mark.filterwarnings("ignore:The freq_range attribute should not be set if")
@@ -1099,157 +1100,159 @@ def test_select_freq_chans_delay_err(delay_data):
         delay_data.select(freq_chans=[0])
 
 
-def test_select_freq_chans(gain_data):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_freq_chans(gain_data, invert):
     calobj = gain_data
     old_history = calobj.history
+    obj_freqs = calobj.freq_array
     chans_to_keep = np.arange(4, 8)
+    chans_to_discard = np.nonzero(
+        np.isin(np.arange(calobj.Nfreqs), chans_to_keep, invert=True)
+    )
 
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
 
-    calobj2 = calobj.copy()
+    calobj.select(
+        freq_chans=chans_to_discard if invert else chans_to_keep, invert=invert
+    )
 
-    calobj2.select(freq_chans=chans_to_keep)
-
-    assert len(chans_to_keep) == calobj2.Nfreqs
-    obj_freqs = calobj.freq_array
-    for chan in chans_to_keep:
-        assert obj_freqs[chan] in calobj2.freq_array
-    for f in np.unique(calobj2.freq_array):
-        assert f in obj_freqs
+    assert len(chans_to_keep) == calobj.Nfreqs
+    assert np.all(np.isin(obj_freqs[chans_to_keep], calobj.freq_array))
+    assert np.all(np.isin(calobj.freq_array, obj_freqs[chans_to_keep]))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific frequencies using pyuvdata.",
-        calobj2.history,
+        calobj.history,
     )
 
+
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_freqs_and_chans(gain_data, invert):
+    calobj = gain_data
     # Test selecting both channels and frequencies
     obj_freqs = calobj.freq_array
     freqs_to_keep = obj_freqs[np.arange(7, 10)]  # Overlaps with chans
-    all_chans_to_keep = np.arange(4, 10)
+    chans_to_keep = np.arange(4, 8)
+    all_freqs = obj_freqs[4:10]
 
-    calobj2 = calobj.copy()
-    calobj2.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep)
+    calobj.select(frequencies=freqs_to_keep, freq_chans=chans_to_keep, invert=invert)
 
-    assert len(all_chans_to_keep) == calobj2.Nfreqs
-    for chan in all_chans_to_keep:
-        assert obj_freqs[chan] in calobj2.freq_array
-    for f in np.unique(calobj2.freq_array):
-        assert f in obj_freqs[all_chans_to_keep]
+    if invert:
+        assert (len(obj_freqs) - len(all_freqs)) == calobj.Nfreqs
+    else:
+        assert len(all_freqs) == calobj.Nfreqs
+    assert np.all(np.isin(calobj.freq_array, all_freqs, invert=invert))
+    assert np.all(np.isin(all_freqs, calobj.freq_array, invert=invert))
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
-def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_spws_wideband(caltype, multi_spw_delay, wideband_gain, invert):
     if caltype == "gain":
         calobj = wideband_gain
     else:
         calobj = multi_spw_delay
 
-    calobj2 = calobj.copy()
-
-    old_history = calobj.history
-
     # add dummy total_quality_array
     calobj.total_quality_array = np.zeros(
         calobj._total_quality_array.expected_shape(calobj)
     )
-    calobj2.total_quality_array = np.zeros(
-        calobj2._total_quality_array.expected_shape(calobj2)
-    )
+    old_history = calobj.history
 
     spws_to_keep = [2, 3]
-    calobj2.select(spws=spws_to_keep)
+    spws_to_discard = calobj.spw_array[
+        np.isin(calobj.spw_array, spws_to_keep, invert=True)
+    ]
+    calobj.select(spws=spws_to_discard if invert else spws_to_keep, invert=invert)
 
-    assert len(spws_to_keep) == calobj2.Nspws
-    for spw in spws_to_keep:
-        assert spw in calobj2.spw_array
-    for spw in calobj2.spw_array:
-        assert spw in spws_to_keep
+    assert len(spws_to_keep) == calobj.Nspws
+    assert np.all(np.isin(spws_to_keep, calobj.spw_array))
+    assert np.all(np.isin(calobj.spw_array, spws_to_keep))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific spectral windows using pyuvdata.",
-        calobj2.history,
+        calobj.history,
     )
 
-    # check for errors associated with spws not included in data
-    with pytest.raises(
-        ValueError, match="SPW number 5 is not present in the spw_array"
-    ):
-        calobj.select(spws=[5], strict=True)
 
-    with pytest.raises(
-        ValueError, match="No data matching this spectral window selection exists."
-    ):
-        calobj.select(spws=[5], strict=None)
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"spws": [5], "strict": True}, "SPW number 5 is not present in the spw_array"],
+        [{"spws": [5], "strict": None}, "No data matching this spectral window"],
+    ],
+)
+def test_select_spws_wideband_errors(multi_spw_delay, kwargs, err_msg):
+    # check for errors associated with spws not included in data
+    with pytest.raises(ValueError, match=err_msg):
+        multi_spw_delay.select(**kwargs)
 
 
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize(
-    "jones_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
+    "sel_jones", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
 )
-def test_select_polarizations(caltype, jones_to_keep, gain_data, delay_data, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_polarizations(caltype, sel_jones, gain_data, delay_data, invert):
     if caltype == "gain":
         calobj = gain_data
     else:
         calobj = delay_data
 
-    calobj2 = calobj.copy()
-
     # add more jones terms to allow for better testing of selections
     extend_jones_axis(calobj)
-
-    assert calobj.check()
-    calobj2 = calobj.copy()
-
+    njones = calobj.Njones
     old_history = calobj.history
 
-    calobj2.select(jones=jones_to_keep)
+    calobj.select(jones=sel_jones, invert=invert)
 
-    if isinstance(jones_to_keep[0], list):
-        jones_to_keep = jones_to_keep[0]
-    assert len(jones_to_keep) == calobj2.Njones
-    for j in jones_to_keep:
-        if isinstance(j, int):
-            assert j in calobj2.jones_array
-        else:
-            assert (
-                utils.jstr2num(j, x_orientation=calobj2.telescope.x_orientation)
-                in calobj2.jones_array
-            )
-    for j in np.unique(calobj2.jones_array):
-        if isinstance(jones_to_keep[0], int):
-            assert j in jones_to_keep
-        else:
-            assert j in utils.jstr2num(
-                jones_to_keep, x_orientation=calobj2.telescope.x_orientation
-            )
+    if isinstance(sel_jones[0], list):
+        sel_jones = sel_jones[0]
+
+    assert calobj.Njones == (njones - len(sel_jones) if invert else len(sel_jones))
+
+    jones_arr = []
+    for j in sel_jones:
+        if not isinstance(j, int):
+            j = utils.jstr2num(j, x_orientation=calobj.telescope.x_orientation)
+        jones_arr.append(j)
+
+    assert np.all(np.isin(jones_arr, calobj.jones_array, invert=invert))
+    assert np.all(np.isin(calobj.jones_array, jones_arr, invert=invert))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific jones polarization terms "
         "using pyuvdata.",
-        calobj2.history,
+        calobj.history,
     )
 
-    # check for errors associated with polarizations not included in data
-    with pytest.raises(
-        ValueError, match="Jones term -3 is not present in the jones_array"
-    ):
-        calobj2.select(jones=[-3, -4], strict=True)
 
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"jones": 999, "strict": True}, "Jones term 999 is not present"],
+        [{"jones": 999, "strict": None}, "No data matching this jones term selection"],
+    ],
+)
+def test_select_jones_error(gain_data, kwargs, err_msg):
     # check for errors associated with polarizations not included in data
-    with pytest.raises(
-        ValueError, match="No data matching this jones term selection exists."
-    ):
-        calobj2.select(jones=[-3, -4], strict=None)
+    with pytest.raises(ValueError, match=err_msg):
+        gain_data.select(**kwargs)
+
+
+def test_select_polarization_write_error(gain_data, tmp_path):
+    calobj = gain_data
+    extend_jones_axis(calobj)
 
     with check_warnings(
         UserWarning, match="Selected jones polarization terms are not evenly spaced"
     ):
-        calobj.select(jones=calobj.jones_array[[0, 1, 3]])
-    write_file_calfits = os.path.join(tmp_path, "select_test.calfits")
+        calobj.select(jones=calobj.jones_array[[0, 1, 3]], warn_spacing=True)
+    write_file_calfits = os.path.join(tmp_path, "select_test_pol_err.calfits")
 
     with pytest.raises(ValueError, match="The jones values are not evenly spaced"):
         calobj.write_calfits(write_file_calfits)
@@ -2136,20 +2139,12 @@ def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
     calobj.select(frequencies=freqs1)
     calobj2.select(frequencies=freqs2)
 
-    warn_type = []
-    msg = []
-
-    if len(warn_type) == 0:
-        warn_type = None
-        msg = ""
-
     if method == "fast_concat":
         kwargs = {"axis": "freq"}
     else:
         kwargs = {}
 
-    with check_warnings(warn_type, match=msg):
-        calobj_sum = getattr(calobj, method)(calobj2, **kwargs)
+    calobj_sum = getattr(calobj, method)(calobj2, **kwargs)
 
     # Check history is correct, before replacing and doing a full object check
     assert utils.history._check_histories(
@@ -2168,12 +2163,15 @@ def test_add_frequencies_multispw(split_f_ind, method, multi_spw_gain):
         else:
             with check_warnings(
                 UserWarning,
-                match="Channels from different spectral windows are interspersed "
-                "with one another, rather than being grouped together along the "
-                "frequency axis. Most file formats do not support such "
-                "non-grouping of data.",
+                match=[
+                    "Channels from different spectral windows are interspersed "
+                    "with one another, rather than being grouped together along the "
+                    "frequency axis. Most file formats do not support such "
+                    "non-grouping of data.",
+                    "The frequencies are not evenly spaced or have differing values",
+                ],
             ):
-                calobj_sum = calobj2.fast_concat(calobj, axis="freq")
+                calobj_sum = calobj2.fast_concat(calobj, axis="freq", warn_spacing=True)
             return
     else:
         calobj_sum = calobj2 + calobj

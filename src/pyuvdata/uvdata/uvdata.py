@@ -1675,7 +1675,7 @@ class UVData(UVBase):
             proc.start()
             return proc
 
-    def _check_flex_spw_contiguous(self):
+    def _check_flex_spw_contiguous(self, *, raise_errors=True):
         """
         Check if the spectral windows are contiguous.
 
@@ -1684,9 +1684,18 @@ class UVData(UVBase):
         channel #1 and #3 is in spw #1, channels #2 and #4 are in spw #2). In theory,
         UVH5 and UVData objects can handle this, but MIRIAD, MIR, UVFITS, and MS file
         formats cannot, so we just consider it forbidden.
+
+        Parameters
+        ----------
+        raise_errors : bool or None
+            Option to raise errors if the various checks do not pass. If True, and
+            error is raised. If False, then a warning is raised. If None, no
+            errors or warnings are raised.
         """
         utils.frequency._check_flex_spw_contiguous(
-            spw_array=self.spw_array, flex_spw_id_array=self.flex_spw_id_array
+            spw_array=self.spw_array,
+            flex_spw_id_array=self.flex_spw_id_array,
+            strict=raise_errors,
         )
 
     def _check_freq_spacing(self, *, raise_errors=True):
@@ -1698,7 +1707,9 @@ class UVData(UVBase):
         Parameters
         ----------
         raise_errors : bool
-            Option to raise errors if the various checks do not pass.
+            Option to raise errors if the various checks do not pass. If True, and
+            error is raised. If False, then a warning is raised. If None, no
+            errors or warnings are raised.
 
         Returns
         -------
@@ -1709,13 +1720,32 @@ class UVData(UVBase):
 
         """
         return utils.frequency._check_freq_spacing(
-            freq_array=self.freq_array,
-            freq_tols=self._freq_array.tols,
-            channel_width=self.channel_width,
-            channel_width_tols=self._channel_width.tols,
+            freq_array=self._freq_array,
+            channel_width=self._channel_width,
             spw_array=self.spw_array,
             flex_spw_id_array=self.flex_spw_id_array,
-            raise_errors=raise_errors,
+            strict=raise_errors,
+        )
+
+    def _check_pol_spacing(self, *, raise_errors=True):
+        """
+        Check if polarizations are evenly spaced.
+
+        This is a requirement for writing uvfits files.
+
+        Parameters
+        ----------
+        raise_errors : bool
+            If set to True, then the function will raise an error if checks are failed.
+            If set to False, then a warning is raised instead. If set to None, then
+            no errors or warnings are raised.
+
+        """
+        # Resort allowed since UVFITS code will reorder pols if needed.
+        return utils.pol._check_pol_spacing(
+            polarization_array=self._polarization_array,
+            strict=raise_errors,
+            allow_resort=True,
         )
 
     def remove_flex_pol(self, *, combine_spws=True):
@@ -2180,6 +2210,8 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         check_freq_spacing=False,
+        check_pol_spacing=False,
+        raise_spacing_errors=True,
         strict_uvw_antpos_check=False,
         allow_flip_conj=False,
         check_autos=False,
@@ -2202,6 +2234,14 @@ class UVData(UVBase):
             Option to check if frequencies are evenly spaced and the spacing is
             equal to their channel_width. This is not required for UVData
             objects in general but is required to write to uvfits and miriad files.
+        check_pol_spacing :  bool
+            Option to check if polarizations are evenly spaced. This is not required for
+            UVData objects in general but is required to write to uvfits and miriad
+            files.
+        raise_spacing_errors : bool or None
+            If set to True, then the function will raise an error if spacing checks are
+            failed. If set to False, then a warning is raised instead. If set to None,
+            then no errors or warnings are raised.
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
@@ -2503,7 +2543,10 @@ class UVData(UVBase):
                 )
 
         if check_freq_spacing:
-            self._check_freq_spacing()
+            self._check_freq_spacing(raise_errors=raise_spacing_errors)
+
+        if check_pol_spacing:
+            self._check_pol_spacing(raise_errors=raise_spacing_errors)
 
         return True
 
@@ -5280,6 +5323,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         ignore_name=False,
+        warn_spacing=False,
     ):
         """
         Combine two UVData objects along frequency, polarization and/or baseline-time.
@@ -5317,6 +5361,9 @@ class UVData(UVBase):
             name set to the name found in the first UVData object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            uvfits or mirad file formats. Default is False.
 
         Raises
         ------
@@ -5840,6 +5887,9 @@ class UVData(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_freq_spacing=warn_spacing,
+                check_pol_spacing=warn_spacing,
+                raise_spacing_errors=False,
             )
 
         if not inplace:
@@ -5854,6 +5904,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         ignore_name=False,
+        warn_spacing=False,
     ):
         """
         In place add.
@@ -5888,6 +5939,9 @@ class UVData(UVBase):
             name set to the name found in the first UVData object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            uvfits or mirad file formats. Default is False.
 
         Raises
         ------
@@ -5905,6 +5959,7 @@ class UVData(UVBase):
             run_check_acceptability=run_check_acceptability,
             strict_uvw_antpos_check=strict_uvw_antpos_check,
             ignore_name=ignore_name,
+            warn_spacing=warn_spacing,
         )
         return self
 
@@ -5920,6 +5975,7 @@ class UVData(UVBase):
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
         ignore_name=None,
+        warn_spacing=False,
     ):
         """
         Concatenate two UVData objects along specified axis with almost no checking.
@@ -5971,6 +6027,9 @@ class UVData(UVBase):
             name set to the name found in the first UVData object in the sum. If set to
             False, phase centers that are the same up to the name will be kept as
             separate phase centers. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            uvfits or miriad formats. Default is False.
 
         Raises
         ------
@@ -6213,6 +6272,9 @@ class UVData(UVBase):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
+                check_freq_spacing=warn_spacing,
+                check_pol_spacing=warn_spacing,
+                raise_spacing_errors=False,
             )
 
         if not inplace:
@@ -6532,6 +6594,7 @@ class UVData(UVBase):
         catalog_names,
         invert=False,
         strict=False,
+        warn_spacing=False,
     ):
         """
         Build up blt_inds, freq_inds, pol_inds and history_update_string for select.
@@ -6619,6 +6682,9 @@ class UVData(UVBase):
             parameter, as long as _at least one_ element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. Default is False.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            uvfits or miriad file-format. Default is False.
 
         Returns
         -------
@@ -6650,6 +6716,10 @@ class UVData(UVBase):
                     raise ValueError(
                         f"There is no data matching ant_str={ant_str} in this object."
                     )
+                if invert and polarizations is not None:
+                    raise ValueError(
+                        "Cannot set invert=True if using ant_str with polarizations."
+                    )
 
         if (phase_center_ids is not None) and (catalog_names is not None):
             raise ValueError("Cannot set both phase_center_ids and catalog_names.")
@@ -6670,6 +6740,8 @@ class UVData(UVBase):
                 ant_1_array=self.ant_1_array,
                 ant_2_array=self.ant_2_array,
                 nants_telescope=self.telescope.Nants,
+                strict=strict,
+                invert=invert,
             )
         blt_inds, blt_selections = utils.bltaxis._select_blt_preprocess(
             select_antenna_nums=antenna_nums,
@@ -6711,6 +6783,7 @@ class UVData(UVBase):
             obj_x_orientation=self.telescope.x_orientation,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(freq_selections)
 
@@ -6721,6 +6794,7 @@ class UVData(UVBase):
             flex_pol=self.flex_spw_polarization_array is not None,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(pol_selections)
 
@@ -6818,6 +6892,7 @@ class UVData(UVBase):
         check_extra=True,
         run_check_acceptability=True,
         strict_uvw_antpos_check=False,
+        warn_spacing=False,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -6932,6 +7007,9 @@ class UVData(UVBase):
         strict_uvw_antpos_check : bool
             Option to raise an error rather than a warning if the check that
             uvws match antenna positions does not pass.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            uvfits and miriad file-format. Default is False.
 
         Returns
         -------
@@ -6970,6 +7048,7 @@ class UVData(UVBase):
                 catalog_names=catalog_names,
                 invert=invert,
                 strict=strict,
+                warn_spacing=warn_spacing,
             )
         )
 
@@ -7945,10 +8024,10 @@ class UVData(UVBase):
             self.flex_spw_id_array = np.zeros(self.Nfreqs, dtype=int)
             self.spw_array = np.array([0])
 
-        spacing_error, chanwidth_error = self._check_freq_spacing(raise_errors=False)
+        spacing_error, chanwidth_error = self._check_freq_spacing(raise_errors=None)
         if spacing_error:
             warnings.warn(
-                "Frequencies spacing and/or channel widths vary, so after averaging "
+                "The frequency spacing and/or channel widths vary, so after averaging "
                 "they will also vary."
             )
         elif chanwidth_error:

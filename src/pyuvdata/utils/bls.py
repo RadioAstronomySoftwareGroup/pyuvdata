@@ -2,7 +2,6 @@
 # Licensed under the 2-clause BSD License
 """Utilities for baseline numbers."""
 
-import copy
 import re
 import warnings
 
@@ -10,6 +9,7 @@ import numpy as np
 
 from . import _bls
 from .pol import conj_pol, polnum2str, polstr2num
+from .tools import _strict_raise
 
 __all__ = ["baseline_to_antnums", "antnums_to_baseline"]
 
@@ -162,7 +162,7 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
         converting from E/N strings. If input uv object has an `x_orientation`
         parameter and the input to this function is `None`, the value from the
         object will be used. Any input given to this function will override the
-        value on the uv object. See corresonding parameter on UVData
+        value on the uv object. See corresponding parameter on UVData
         for more details.
 
     Returns
@@ -388,18 +388,32 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
 
 
 def _extract_bls_pol(
-    *, bls, polarizations, baseline_array, ant_1_array, ant_2_array, nants_telescope
+    *,
+    bls,
+    polarizations,
+    baseline_array,
+    ant_1_array,
+    ant_2_array,
+    nants_telescope,
+    invert=False,
+    strict=True,
 ):
     if isinstance(bls, list) and all(
         isinstance(bl_ind, int | np.integer) for bl_ind in bls
     ):
+        unique_bls = np.unique(baseline_array)
+        mask = np.zeros_like(unique_bls, dtype=bool)
         for bl_ind in bls:
-            if bl_ind not in baseline_array:
-                raise ValueError(
-                    f"Baseline number {bl_ind} is not present in the baseline_array"
-                )
+            submask = bl_ind == unique_bls
+            if not any(submask):
+                msg = f"Baseline number {bl_ind} is not present in the baseline_array"
+                _strict_raise(msg, strict=strict)
+            mask |= submask
         bls = list(
-            zip(*baseline_to_antnums(bls, Nants_telescope=nants_telescope), strict=True)
+            zip(
+                *baseline_to_antnums(unique_bls[mask], Nants_telescope=nants_telescope),
+                strict=True,
+            )
         )
     elif isinstance(bls, tuple) and (len(bls) == 2 or len(bls) == 3):
         bls = [bls]
@@ -408,51 +422,57 @@ def _extract_bls_pol(
             "bls must be a list of tuples of antenna numbers "
             "(optionally with polarization) or a list of baseline numbers."
         )
-    if not all(
-        [isinstance(item[0], int | np.integer) for item in bls]
-        + [isinstance(item[1], int | np.integer) for item in bls]
-    ):
+    if not all(isinstance(jtm, int | np.integer) for itm in bls for jtm in itm[:2]):
         raise ValueError(
             "bls must be a list of tuples of antenna numbers "
             "(optionally with polarization) or a list of baseline numbers."
         )
-    if any(len(item) == 3 for item in bls):
+    if all(len(item) == 3 for item in bls):
+        if invert:
+            raise ValueError("Cannot provide length-3 tuples and also set invert=True.")
         if polarizations is not None:
             raise ValueError(
                 "Cannot provide any length-3 tuples and also specify polarizations."
             )
+        if not all(isinstance(item[2], str) for item in bls):
+            raise ValueError(
+                "The third element in a bl tuple must be a polarization string"
+            )
 
-        bls_2 = copy.deepcopy(bls)
-        bl_pols = set()
-        for bl_i, bl in enumerate(bls):
-            if len(bl) != 3:
-                raise ValueError("If some bls are 3-tuples, all bls must be 3-tuples.")
-
-            if not isinstance(bl[2], str):
-                raise ValueError(
-                    "The third element in a bl tuple must be a polarization string"
-                )
-
-            wh1 = np.where(np.logical_and(ant_1_array == bl[0], ant_2_array == bl[1]))[
-                0
-            ]
-            if len(wh1) > 0:
-                bls_2[bl_i] = (bl[0], bl[1])
-                bl_pols.add(bl[2])
-            else:
-                wh2 = np.where(
-                    np.logical_and(ant_1_array == bl[1], ant_2_array == bl[0])
-                )[0]
-
-                if len(wh2) > 0:
-                    bls_2[bl_i] = (bl[1], bl[0])
-                    # find conjugate polarization
-                    bl_pols.add(conj_pol(bl[2]))
+        bl_pol_dict = {}
+        for bl in bls:
+            try:
+                if np.any((ant_1_array == bl[0]) & (ant_2_array == bl[1])):
+                    pol = bl[2]
+                    pair = bl[:2]
+                    bl_pol_dict[pol].add(pair)
+                elif np.any((ant_1_array == bl[1]) & (ant_2_array == bl[0])):
+                    pol = conj_pol(bl[2])
+                    pair = bl[1::-1]
+                    bl_pol_dict[pol].add(pair)
                 else:
-                    raise ValueError(
-                        f"Antenna pair {bl} does not have any data associated with it."
-                    )
+                    msg = f"Antenna pair {bl} does not have any associated data."
+                    _strict_raise(msg, strict=strict)
+            except KeyError:
+                # If KeyError pops up, that means this is the first time this
+                # pol has popped up, so instantiate a new list
+                bl_pol_dict[pol] = {pair}
 
-        polarizations = list(bl_pols)
-        bls = bls_2
+            if len(bl_pol_dict) == 0:
+                return [], polarizations
+
+            bls = {item for bl_set in bl_pol_dict.values() for item in bl_set}
+            for check_bls in bl_pol_dict.values():
+                if bls != check_bls:
+                    warnings.warn(
+                        "Selected bls contain a mixture of different baselines with "
+                        "different polarizations. Performing an inclusive select "
+                        "of all matching antenna pairs and all matching polarizations."
+                    )
+                    break
+            bls = list(bls)
+            polarizations = list(bl_pol_dict)
+    elif any(len(item) != 2 for item in bls):
+        raise ValueError("bls tuples must be all length-2, or all length-3.")
+
     return bls, polarizations

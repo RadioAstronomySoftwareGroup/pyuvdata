@@ -1389,15 +1389,14 @@ def test_uvh5_partial_write_irregular_multi1(uv_partial_write, tmp_path):
             data[iblt, ifreq, :] = full_uvh5.data_array[blt_idx, freq_idx, :]
             flags[iblt, ifreq, :] = full_uvh5.flag_array[blt_idx, freq_idx, :]
             nsamples[iblt, ifreq, :] = full_uvh5.nsample_array[blt_idx, freq_idx, :]
-    with check_warnings(UserWarning, "Selected frequencies are not evenly spaced"):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            freq_chans=freq_inds,
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        freq_chans=freq_inds,
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -1460,21 +1459,14 @@ def test_uvh5_partial_write_irregular_multi2(uv_partial_write, tmp_path):
             data[:, ifreq, ipol] = full_uvh5.data_array[:, freq_idx, pol_idx]
             flags[:, ifreq, ipol] = full_uvh5.flag_array[:, freq_idx, pol_idx]
             nsamples[:, ifreq, ipol] = full_uvh5.nsample_array[:, freq_idx, pol_idx]
-    with check_warnings(
-        UserWarning,
-        [
-            "Selected frequencies are not evenly spaced",
-            "Selected polarization values are not evenly spaced",
-        ],
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            freq_chans=freq_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freq_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for ifreq, freq_idx in enumerate(freq_inds):
@@ -1537,17 +1529,14 @@ def test_uvh5_partial_write_irregular_multi3(uv_partial_write, tmp_path):
             data[iblt, :, ipol] = full_uvh5.data_array[blt_idx, :, pol_idx]
             flags[iblt, :, ipol] = full_uvh5.flag_array[blt_idx, :, pol_idx]
             nsamples[iblt, :, ipol] = full_uvh5.nsample_array[blt_idx, :, pol_idx]
-    with check_warnings(
-        UserWarning, "Selected polarization values are not evenly spaced"
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -1615,22 +1604,15 @@ def test_uvh5_partial_write_irregular_multi4(uv_partial_write, tmp_path):
                 nsamples[iblt, ifreq, ipol] = full_uvh5.nsample_array[
                     blt_idx, freq_idx, pol_idx
                 ]
-    with check_warnings(
-        UserWarning,
-        [
-            "Selected frequencies are not evenly spaced",
-            "Selected polarization values are not evenly spaced",
-        ],
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            freq_chans=freq_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        freq_chans=freq_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -2752,15 +2734,14 @@ def test_uvh5_partial_write_ints_irregular_multi1(uv_uvh5, tmp_path):
             data[iblt, ifreq, :] = full_uvh5.data_array[blt_idx, freq_idx, :]
             flags[iblt, ifreq, :] = full_uvh5.flag_array[blt_idx, freq_idx, :]
             nsamples[iblt, ifreq, :] = full_uvh5.nsample_array[blt_idx, freq_idx, :]
-    with check_warnings(UserWarning, "Selected frequencies are not evenly spaced"):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            freq_chans=freq_inds,
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        freq_chans=freq_inds,
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -2822,21 +2803,14 @@ def test_uvh5_partial_write_ints_irregular_multi2(uv_uvh5, tmp_path):
             data[:, ifreq, ipol] = full_uvh5.data_array[:, freq_idx, pol_idx]
             flags[:, ifreq, ipol] = full_uvh5.flag_array[:, freq_idx, pol_idx]
             nsamples[:, ifreq, ipol] = full_uvh5.nsample_array[:, freq_idx, pol_idx]
-    with check_warnings(
-        UserWarning,
-        [
-            "Selected frequencies are not evenly spaced",
-            "Selected polarization values are not evenly spaced",
-        ],
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            freq_chans=freq_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        freq_chans=freq_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for ifreq, freq_idx in enumerate(freq_inds):
@@ -2897,17 +2871,14 @@ def test_uvh5_partial_write_ints_irregular_multi3(uv_uvh5, tmp_path):
             data[iblt, :, ipol] = full_uvh5.data_array[blt_idx, :, pol_idx]
             flags[iblt, :, ipol] = full_uvh5.flag_array[blt_idx, :, pol_idx]
             nsamples[iblt, :, ipol] = full_uvh5.nsample_array[blt_idx, :, pol_idx]
-    with check_warnings(
-        UserWarning, "Selected polarization values are not evenly spaced"
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
@@ -2976,22 +2947,15 @@ def test_uvh5_partial_write_ints_irregular_multi4(uv_uvh5, tmp_path):
                 nsamples[iblt, ifreq, ipol] = full_uvh5.nsample_array[
                     blt_idx, freq_idx, pol_idx
                 ]
-    with check_warnings(
-        UserWarning,
-        [
-            "Selected frequencies are not evenly spaced",
-            "Selected polarization values are not evenly spaced",
-        ],
-    ):
-        partial_uvh5.write_uvh5_part(
-            partial_testfile,
-            data_array=data,
-            flag_array=flags,
-            nsample_array=nsamples,
-            blt_inds=blt_inds,
-            freq_chans=freq_inds,
-            polarizations=full_uvh5.polarization_array[pol_inds],
-        )
+    partial_uvh5.write_uvh5_part(
+        partial_testfile,
+        data_array=data,
+        flag_array=flags,
+        nsample_array=nsamples,
+        blt_inds=blt_inds,
+        freq_chans=freq_inds,
+        polarizations=full_uvh5.polarization_array[pol_inds],
+    )
 
     # also write the arrays to the partial object
     for iblt, blt_idx in enumerate(blt_inds):
