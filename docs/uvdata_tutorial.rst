@@ -983,7 +983,10 @@ UVData: Selecting data
 The :meth:`pyuvdata.UVData.select` method lets you select specific antennas (by number or name),
 antenna pairs, frequencies (in Hz or by channel number), times (or time range),
 local sidereal time (LST) (or LST range), or polarizations to keep in the object
-while removing others.
+while removing others. By default, :meth:`pyuvdata.UVData.select` will
+select data that matches the supplied criteria, but by setting ``invert=False``, you
+can instead *deselect* this data and preserve only that which does not match the
+selection.
 
 Note: The same select interface is now supported on the read for many file types
 (see :ref:`large_files`), so you need not read in the entire file before doing the select.
@@ -1124,6 +1127,16 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   [-1 -2]
   >>> print(utils.polnum2str(uvd.polarization_array))
   ['rr', 'll']
+
+
+  >>> # Now deselect polarizations
+  >>> uvd.select(polarizations=["ll"], invert=True)
+
+  >>> # print polarization numbers and strings after select
+  >>> print(uvd.polarization_array)
+  [-1]
+  >>> print(utils.polnum2str(uvd.polarization_array))
+  ['rr']
 
   >>> # read in a file with linear polarizations and an x_orientation
   >>> filename = os.path.join(DATA_PATH, 'zen.2458661.23480.HH.uvh5')
