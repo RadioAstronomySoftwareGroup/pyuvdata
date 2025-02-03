@@ -328,7 +328,7 @@ class UVParameter:
         ):
             # If the UVParameter value is of the same type, then compare that instead
             if isinstance(other, self.value.__class__) and isinstance(
-                self, other.__class__
+                self.value, other.__class__
             ):
                 if not silent:
                     print(
