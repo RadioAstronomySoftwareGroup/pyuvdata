@@ -6677,11 +6677,12 @@ class UVData(UVBase):
             Normally records matching given criteria are what are included in the
             subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
-        strict : bool
-            Normally, select ignores when no records match a one element of a
+        strict : bool or None
+            Normally, select will warn when no records match a one element of a
             parameter, as long as _at least one_ element matches with what is in the
             object. However, if set to True, an error is thrown if any element
-            does not match. Default is False.
+            does not match. If set to None, then neither errors nor warnings are raised.
+            Default is False.
         warn_spacing : bool
             Option to raise warnings about spacing that would prevent writing to
             uvfits or miriad file-format. Default is False.
@@ -6981,11 +6982,12 @@ class UVData(UVBase):
             Normally records matching given criteria are what are included in the
             subsequent object. However, if set to True, these records are excluded
             instead. Default is False.
-        strict : bool
-            Normally, select ignores when no records match a one element of a
+        strict : bool or None
+            Normally, select will warn when no records match a one element of a
             parameter, as long as _at least one_ element matches with what is in the
             object. However, if set to True, an error is thrown if any element
-            does not match. Default is False.
+            does not match. If set to None, then neither errors nor warnings are raised.
+            Default is False.
         inplace : bool
             Option to perform the select directly on self or return a new UVData
             object with just the selected data (the default is True, meaning the
