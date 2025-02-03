@@ -12562,3 +12562,29 @@ def test_pol_convention_warnings(hera_uvh5):
         ValueError, match="pol_convention is set but the data is uncalibrated"
     ):
         hera_uvh5.check()
+
+
+def test_select_no_bls_match(sma_mir):
+    # Test a particular corner-case with the bls to make sure that the resultant
+    # error is on baselines and _not_ polarizations
+    with (
+        pytest.raises(ValueError, match="No baseline-times were found that match"),
+        check_warnings(UserWarning, match=re.escape("Antenna pair (10, 20, 'xx')")),
+    ):
+        sma_mir.select(bls=(10, 20, "xx"), strict=False)
+
+
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_partial_spw_match(sma_mir, invert):
+    with check_warnings(UserWarning, match="SPW number 5 is not present"):
+        sma_mir.select(spws=[1, 2, 3, 4, 5], invert=invert)
+
+    assert np.all(np.isin(sma_mir.spw_array, [1, 2, 3, 4], invert=invert))
+
+
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_partial_pol_match(sma_mir, invert):
+    with check_warnings(UserWarning, match="Polarization xy is not present"):
+        sma_mir.select(polarizations=["xx", "xy"], invert=invert)
+
+    assert np.all(np.isin(sma_mir.polarization_array, [-5], invert=invert))
