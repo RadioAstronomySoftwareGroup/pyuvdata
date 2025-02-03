@@ -1498,8 +1498,7 @@ def test_select_antennas(casa_uvfits, invert, use_names, higher_dim, keep_meta):
     uv_object.telescope.antenna_diameters = np.arange(
         uv_object.telescope.Nants, dtype=np.float64
     )
-    if keep_meta:
-        orig_telescope = uv_object.telescope.copy()
+    orig_telescope = uv_object.telescope.copy()
 
     ants_to_keep = np.array([1, 20, 12, 25, 4, 24, 2, 21, 22])
 
@@ -1555,13 +1554,13 @@ def test_select_antennas(casa_uvfits, invert, use_names, higher_dim, keep_meta):
         assert uv_object.telescope.Nants == len(ants_to_keep)
         assert all(np.isin(uv_object.telescope.antenna_numbers, ants_to_keep))
         # Make an array to make comparison easier w/ mask
-        mask = np.isin(uv_object.telescope.antenna_numbers, ants_to_keep)
+        mask = np.isin(orig_telescope.antenna_numbers, ants_to_keep)
         uv_object.telescope.antenna_names = np.array(uv_object.telescope.antenna_names)
-        uv_object.telescope.antenna_names = np.array(uv_object.telescope.antenna_names)
+        orig_telescope.antenna_names = np.array(orig_telescope.antenna_names)
         for param in ["_antenna_names", "_antenna_positions"]:
             assert (
                 getattr(uv_object.telescope, param)
-                == (getattr(uv_object.telescope, param[1:])[mask])
+                == (getattr(orig_telescope, param[1:])[mask])
             )
         assert np.asarray(uv_object.telescope)
 
