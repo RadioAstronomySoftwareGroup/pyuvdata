@@ -17,7 +17,13 @@ try:
 except ImportError:
     hasmoon = False
 
-from .tools import _is_between, _strict_raise, _where_combine
+from .tools import (
+    _is_between,
+    _strict_raise,
+    _test_array_constant,
+    _test_array_constant_spacing,
+    _where_combine,
+)
 
 
 def get_lst_for_time(
@@ -335,6 +341,7 @@ def _select_times_helper(
     time_inds=None,
     invert=False,
     strict=False,
+    warn_spacing=False,
 ):
     """
     Get time indices in a select.
@@ -383,6 +390,9 @@ def _select_times_helper(
         parameter, as long as _at least one_ element matches with what is in the
         object. However, if set to True, an error is thrown if any element
         does not match. Default is False.
+    warn_spacing
+        Whether or not to warn about time spacing. Only used if no ranges from the
+        object are supplied. Default is False.
 
     Returns
     -------
@@ -507,5 +517,77 @@ def _select_times_helper(
         )
 
     time_inds = time_inds.tolist()
+    if warn_spacing:
+        if (len(time_inds) > 1) and (obj_time_range is not None):
+            warnings.warn(
+                "Selected times include multiple time ranges. This "
+                "is not supported by some file formats."
+            )
+        elif (
+            (obj_time_range is None)
+            and (obj_time_array is not None)
+            and (not _test_array_constant(np.diff(obj_time_array[time_inds])))
+        ):
+            warnings.warn(
+                "Selected times are not evenly spaced. This "
+                "is not supported by some file formats."
+            )
 
     return time_inds, selections
+
+
+def _check_time_spacing(
+    *,
+    times_array,
+    time_range=None,
+    time_tols=None,
+    integration_time=None,
+    int_tols=None,
+    strict=True,
+):
+    """
+    Check if times are evenly spaced.
+
+    This is a requirement for calfits files.
+
+    Parameters
+    ----------
+    times_array : array-like of float or UVParameter
+        Array of times, shape (Ntimes,).
+    time_range : array-like of float or UVParameter
+        Array of time ranges, shape (Ntime_ranges). Optional.
+    time_tols : tuple of float
+        time_array tolerances (from uvobj._time_array.tols).  Optional.
+    integration_time : array-like of float or UVParameter
+        Array of integration times, shape (Ntimes,).  Optional.
+    channel_width_tols : tuple of float
+        integration_time tolerances (from uvobj._integration_time.tols). Optional.
+    strict : bool
+        If set to True, then the function will raise an error if checks are failed.
+        If set to False, then a warning is raised instead. If set to None, then
+        no errors or warnings are raised. Default is True.
+    """
+    # Import UVParameter here rather than at the top to avoid circular imports
+    from pyuvdata.parameter import UVParameter
+
+    if isinstance(time_range, UVParameter):
+        time_range = time_range.value
+
+    if not _test_array_constant_spacing(times_array, tols=time_tols):
+        err_msg = (
+            "The times are not evenly spaced. This will make it impossible to write "
+            "this data out to calfits."
+        )
+        _strict_raise(err_msg=err_msg, strict=strict)
+    if time_range is not None and len(time_range) != 1:
+        err_msg = (
+            "Object contains multiple time ranges. This will make it impossible to "
+            "write this data out to calfits."
+        )
+        _strict_raise(err_msg=err_msg, strict=strict)
+    if not _test_array_constant(integration_time):
+        err_msg = (
+            "The integration times are variable. The calfits format "
+            "does not support variable integration times."
+        )
+        _strict_raise(err_msg=err_msg, strict=strict)

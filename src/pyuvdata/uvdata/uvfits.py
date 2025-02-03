@@ -831,6 +831,7 @@ class UVFITS(UVData):
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
                 check_freq_spacing=True,
+                check_pol_spacing=True,
                 strict_uvw_antpos_check=strict_uvw_antpos_check,
                 check_autos=check_autos,
                 fix_autos=fix_autos,
@@ -901,12 +902,6 @@ class UVFITS(UVData):
         if self.Npols > 1:
             pol_indexing = np.argsort(np.abs(self.polarization_array))
             polarization_array = self.polarization_array[pol_indexing]
-            if not utils.tools._test_array_constant_spacing(polarization_array):
-                raise ValueError(
-                    "The polarization values are not evenly spaced (probably "
-                    "because of a select operation). The uvfits format "
-                    "does not support unevenly spaced polarizations."
-                )
             pol_spacing = polarization_array[1] - polarization_array[0]
         else:
             pol_indexing = np.asarray([0])

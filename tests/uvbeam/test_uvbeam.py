@@ -1829,96 +1829,64 @@ def test_to_healpix_no_op(cst_power_2freq_cut_healpix, inplace):
     assert uvbeam == uvbeam2
 
 
-def test_select_axis(cst_power_1freq, tmp_path):
+@pytest.mark.parametrize("invert", [True, False])
+@pytest.mark.parametrize("axis", [1, 2])
+def test_select_axis(cst_power_1freq, axis, invert):
     power_beam = cst_power_1freq
-
+    axis_name = "first" if (axis == 1) else "second"
+    attr_name = "Naxes1" if (axis == 1) else "Naxes2"
+    arr_name = "axis1_array" if (axis == 1) else "axis2_array"
+    ninds = getattr(power_beam, attr_name)
     old_history = power_beam.history
 
-    # Test selecting on axis1
-    inds1_to_keep = np.arange(14, 63)
+    # Test selecting on axis
+    inds_to_keep = np.arange(5, 14)
+    inds_to_discard = np.nonzero(np.isin(np.arange(ninds), inds_to_keep, invert=True))[
+        0
+    ]
+    axis_to_keep = getattr(power_beam, arr_name)[inds_to_keep]
+    sel_inds = inds_to_discard if invert else inds_to_keep
+    kwargs = {f"axis{axis}_inds": sel_inds, "invert": invert}
 
-    power_beam2 = power_beam.select(axis1_inds=inds1_to_keep, inplace=False)
+    power_beam.select(**kwargs)
 
-    assert len(inds1_to_keep) == power_beam2.Naxes1
-    for i in inds1_to_keep:
-        assert power_beam.axis1_array[i] in power_beam2.axis1_array
-    for i in np.unique(power_beam2.axis1_array):
-        assert i in power_beam.axis1_array
+    assert len(inds_to_keep) == getattr(power_beam, attr_name)
+    axis_arr = getattr(power_beam, arr_name)
+    assert np.all(np.isin(axis_arr, axis_to_keep))
+    assert np.all(np.isin(axis_to_keep, axis_arr))
 
     assert utils.history._check_histories(
-        old_history + "  Downselected to "
-        "specific parts of first image axis "
-        "using pyuvdata.",
-        power_beam2.history,
+        old_history + "  Downselected to specific parts of "
+        f"{axis_name} image axis using pyuvdata.",
+        power_beam.history,
     )
 
-    write_file_beamfits = str(tmp_path / "select_beam.fits")
 
+@pytest.mark.parametrize("axis", [1, 2])
+def test_select_axis_single_beamfits(cst_power_1freq, axis, tmp_path):
+    power_beam = cst_power_1freq
+    write_file_beamfits = str(tmp_path / "select_beam_one_axis.fits")
     # test writing beamfits with only one element in axis1
-    inds_to_keep = [len(inds1_to_keep) + 1]
-    power_beam2 = power_beam.select(axis1_inds=inds_to_keep, inplace=False)
-    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
+    kwargs = {f"axis{axis}_inds": [1]}
+    power_beam.select(**kwargs)
+    power_beam.write_beamfits(write_file_beamfits, clobber=True)
 
-    # check for errors associated with indices not included in data
-    with pytest.raises(
-        ValueError, match="axis1_inds contains indices that are too large"
-    ):
-        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1], strict=True)
-    with pytest.raises(
-        ValueError, match="No data matching this first image axis selection exists."
-    ):
-        power_beam2.select(axis1_inds=[power_beam.Naxes1 - 1], strict=None)
 
-    # check for warnings and errors associated with unevenly spaced image pixels
-    power_beam2 = power_beam.copy()
-    with pytest.raises(
-        ValueError,
-        match="Selected values along first image axis must be evenly spaced.",
-    ):
-        power_beam2.select(axis1_inds=[0, 5, 6], inplace=False)
-
-    # Test selecting on axis2
-    inds2_to_keep = np.arange(5, 14)
-
-    power_beam2 = power_beam.select(axis2_inds=inds2_to_keep, inplace=False)
-
-    assert len(inds2_to_keep) == power_beam2.Naxes2
-    for i in inds2_to_keep:
-        assert power_beam.axis2_array[i] in power_beam2.axis2_array
-    for i in np.unique(power_beam2.axis2_array):
-        assert i in power_beam.axis2_array
-
-    assert utils.history._check_histories(
-        old_history + "  Downselected to "
-        "specific parts of second image axis "
-        "using pyuvdata.",
-        power_beam2.history,
-    )
-
-    write_file_beamfits = str(tmp_path / "select_beam.fits")
-
-    # test writing beamfits with only one element in axis2
-    inds_to_keep = [len(inds2_to_keep) + 1]
-    power_beam2 = power_beam.select(axis2_inds=inds_to_keep, inplace=False)
-    power_beam2.write_beamfits(write_file_beamfits, clobber=True)
-
-    # check for errors associated with indices not included in data
-    with pytest.raises(
-        ValueError, match="axis2_inds contains indices that are too large"
-    ):
-        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1], strict=True)
-    with pytest.raises(
-        ValueError, match="No data matching this second image axis selection exists."
-    ):
-        power_beam2.select(axis2_inds=[power_beam.Naxes2 - 1], strict=None)
-
-    # check for warnings and errors associated with unevenly spaced image pixels
-    power_beam2 = power_beam.copy()
-    with pytest.raises(
-        ValueError,
-        match="Selected values along second image axis must be evenly spaced.",
-    ):
-        power_beam2.select(axis2_inds=[0, 5, 6])
+@pytest.mark.parametrize("axis", [1, 2])
+@pytest.mark.parametrize(
+    "strict,inds,msg",
+    [
+        [True, -1, "axis{axis}_inds contains indices that are negative"],
+        [True, 9999999, "axis{axis}_inds contains indices that are too large"],
+        [None, -1, "No data matching this {axis_name} image axis selection exists."],
+        [None, [0, 5, 6], "Selected values along {axis_name} image axis must be even"],
+    ],
+)
+def test_select_axis_errors(axis, strict, inds, msg, power_beam_for_adding):
+    axis_name = "first" if (axis == 1) else "second"
+    kwargs = {f"axis{axis}_inds": inds, "strict": strict}
+    with pytest.raises(ValueError, match=msg.format(axis=axis, axis_name=axis_name)):
+        power_beam_for_adding.select(**kwargs)
 
 
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
@@ -2010,7 +1978,8 @@ def test_select_frequencies(
 
 
 @pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
-def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, invert):
     if antenna_type == "simple":
         efield_beam = cst_efield_1freq
         efield_beam.feed_array = np.array(["n", "e"])
@@ -2018,6 +1987,12 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
     else:
         efield_beam = phased_array_beam_2freq
         feeds_to_keep = ["x"]
+
+    sel_feeds = (
+        feeds_to_keep
+        if not invert
+        else [f for f in efield_beam.feed_array if f not in feeds_to_keep]
+    )
 
     old_history = efield_beam.history
 
@@ -2030,13 +2005,11 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
         expected_warning = None
         warn_msg = ""
     with check_warnings(expected_warning, match=warn_msg):
-        efield_beam2 = efield_beam.select(feeds=feeds_to_keep, inplace=False)
+        efield_beam2 = efield_beam.select(feeds=sel_feeds, invert=invert, inplace=False)
 
     assert len(feeds_to_keep) == efield_beam2.Nfeeds
-    for f in feeds_to_keep:
-        assert f in efield_beam2.feed_array
-    for f in np.unique(efield_beam2.feed_array):
-        assert f in feeds_to_keep
+    assert np.all(np.isin(efield_beam2.feed_array, feeds_to_keep))
+    assert np.all(np.isin(feeds_to_keep, efield_beam2.feed_array))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific feeds using pyuvdata.",
@@ -2045,34 +2018,31 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
 
     # check with physical orientation strings:
     with check_warnings(expected_warning, match=warn_msg):
-        efield_beam3 = efield_beam.select(feeds=["e"], inplace=False)
+        efield_beam.select(feeds=["e"])
 
-    assert efield_beam2 == efield_beam3
+    assert efield_beam2 == efield_beam
 
+
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"feeds": "p", "strict": True}, "Feed p is not present in the feed_array"],
+        [{"feeds": "p", "strict": None}, "No data matching this feed selection exists"],
+        [{"polarizations": [0]}, "polarizations cannot be used with efield beams"],
+    ],
+)
+def test_select_feed_errs(kwargs, err_msg, cst_efield_1freq):
     # check for errors associated with feeds not included in data
-    with (
-        pytest.raises(
-            ValueError, match="Feed {f} is not present in the feed_array".format(f="p")
-        ),
-        check_warnings(expected_warning, match=warn_msg),
-    ):
-        efield_beam.select(feeds=["p"], strict=True)
+    with pytest.raises(ValueError, match=err_msg):
+        cst_efield_1freq.select(**kwargs)
 
-    with (
-        pytest.raises(ValueError, match="No data matching this feed selection exists."),
-        check_warnings(expected_warning, match=warn_msg),
-    ):
-        # Use strict=None to silence the feed select warnings here
-        efield_beam.select(feeds=["p"], strict=None)
 
-    # check for error with selecting polarizations on efield beams
-    with (
-        pytest.raises(
-            ValueError, match="polarizations cannot be used with efield beams"
-        ),
-        check_warnings(expected_warning, match=warn_msg),
-    ):
-        efield_beam.select(polarizations=[-5, -6])
+@pytest.mark.parametrize("antenna_type", ["simple", "phased_array"])
+def test_basis_vector_errors(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
+    if antenna_type == "simple":
+        efield_beam = cst_efield_1freq
+    else:
+        efield_beam = phased_array_beam_2freq
 
     # Test check basis vectors
     efield_beam.basis_vector_array[0, 1, :, :] = 1.0
@@ -2093,41 +2063,34 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq):
 
 
 @pytest.mark.filterwarnings("ignore:Fixing auto polarization power beams")
-@pytest.mark.parametrize(
-    "pols_to_keep", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]])
-)
-def test_select_polarizations(pols_to_keep, cst_efield_1freq):
+@pytest.mark.parametrize("pols", ([-5, -6], ["xx", "yy"], ["nn", "ee"], [[-5, -6]]))
+@pytest.mark.parametrize("invert", [True, False])
+def test_select_polarizations(pols, cst_efield_1freq, invert):
     # generate more polarizations for testing by using efield and keeping cross-pols
     power_beam = cst_efield_1freq
     power_beam.efield_to_power()
+    npols = power_beam.Npols
 
     old_history = power_beam.history
 
-    power_beam2 = power_beam.select(polarizations=pols_to_keep, inplace=False)
+    power_beam.select(polarizations=pols, invert=invert)
 
-    if isinstance(pols_to_keep[0], list):
-        pols_to_keep = pols_to_keep[0]
+    if isinstance(pols[0], list):
+        pols = pols[0]
 
-    assert len(pols_to_keep) == power_beam2.Npols
-    for p in pols_to_keep:
-        if isinstance(p, int):
-            assert p in power_beam2.polarization_array
-        else:
-            assert (
-                utils.polstr2num(p, x_orientation=power_beam2.x_orientation)
-                in power_beam2.polarization_array
-            )
-    for p in np.unique(power_beam2.polarization_array):
-        if isinstance(pols_to_keep[0], int):
-            assert p in pols_to_keep
-        else:
-            assert p in utils.polstr2num(
-                pols_to_keep, x_orientation=power_beam2.x_orientation
-            )
+    assert len(pols) == (npols - len(pols)) if invert else power_beam.Npols
+    pol_arr = []
+    for p in pols:
+        if not isinstance(p, int):
+            p = utils.polstr2num(p, x_orientation=power_beam.x_orientation)
+        pol_arr.append(p)
+
+    assert np.all(np.isin(power_beam.polarization_array, pol_arr, invert=invert))
+    assert np.all(np.isin(pol_arr, power_beam.polarization_array, invert=invert))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific polarizations using pyuvdata.",
-        power_beam2.history,
+        power_beam.history,
     )
 
 
@@ -2605,8 +2568,9 @@ def test_add_errors(power_beam_for_adding, efield_beam_for_adding):
 
 
 @pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize("invert", [True, False])
 def test_select_healpix_pixels(
-    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix, tmp_path
+    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix, invert
 ):
     if beam_type == "power":
         beam_healpix = cst_power_1freq_cut_healpix
@@ -2615,59 +2579,69 @@ def test_select_healpix_pixels(
 
     old_history = beam_healpix.history
     pixels_to_keep = np.arange(31, 184)
+    pixels_to_discard = beam_healpix.pixel_array[
+        np.isin(beam_healpix.pixel_array, pixels_to_keep, invert=True)
+    ]
 
-    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
+    beam_healpix.select(
+        pixels=pixels_to_discard if invert else pixels_to_keep, invert=invert
+    )
 
-    assert len(pixels_to_keep) == beam_healpix2.Npixels
-    for pi in pixels_to_keep:
-        assert pi in beam_healpix2.pixel_array
-    for pi in np.unique(beam_healpix2.pixel_array):
-        assert pi in pixels_to_keep
+    assert len(pixels_to_keep) == beam_healpix.Npixels
+    assert np.all(np.isin(pixels_to_keep, beam_healpix.pixel_array))
+    assert np.all(np.isin(beam_healpix.pixel_array, pixels_to_keep))
 
     assert utils.history._check_histories(
         old_history + "  Downselected to specific healpix pixels using pyuvdata.",
-        beam_healpix2.history,
+        beam_healpix.history,
     )
 
-    write_file_beamfits = str(tmp_path / "select_beam.fits")
+
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"pixels": [10000000], "strict": True}, "Pixel 10000000 is not present in"],
+        [{"pixels": [10000000], "strict": None}, "No data matching this pixel"],
+        [{"axis1_inds": []}, "axis1_inds cannot be used with healpix coordinate"],
+        [{"axis2_inds": []}, "axis2_inds cannot be used with healpix coordinate"],
+    ],
+)
+def test_select_healpix_pixels_errors(kwargs, err_msg, cst_power_1freq_cut_healpix):
+    # check for errors associated with pixels not included in data
+    with pytest.raises(ValueError, match=re.escape(err_msg)):
+        cst_power_1freq_cut_healpix.select(**kwargs)
+
+
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+@pytest.mark.parametrize("pixels_to_keep", [[43], np.arange(2, 150, 4)])
+def test_select_healpix_write_beamfits(
+    beam_type,
+    pixels_to_keep,
+    cst_power_1freq_cut_healpix,
+    cst_efield_1freq_cut_healpix,
+    tmp_path,
+):
+    if beam_type == "power":
+        beam_healpix = cst_power_1freq_cut_healpix
+    else:
+        beam_healpix = cst_efield_1freq_cut_healpix
+    write_file_beamfits = str(tmp_path / "select_beam_healpix.fits")
 
     # test writing beamfits with only one pixel
-    pixels_to_keep = [43]
-    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
-    beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
+    beam_healpix.select(pixels=pixels_to_keep)
+    beam_healpix.write_beamfits(write_file_beamfits, clobber=True)
 
-    # check for errors associated with pixels not included in data
-    pixel_select = 12 * beam_healpix.nside**2 + 10
-    with pytest.raises(
-        ValueError, match=f"Pixel {pixel_select} is not present in the pixel_array"
-    ):
-        beam_healpix.select(pixels=[pixel_select], strict=True)
-    with pytest.raises(
-        ValueError, match="No data matching this pixel selection exists."
-    ):
-        beam_healpix.select(pixels=[pixel_select], strict=None)
 
-    # test writing beamfits with non-contiguous pixels
+@pytest.mark.parametrize("beam_type", ["efield", "power"])
+def test_select_healpix_pixels_multiselect(
+    beam_type, cst_power_1freq_cut_healpix, cst_efield_1freq_cut_healpix
+):
+    if beam_type == "power":
+        beam_healpix = cst_power_1freq_cut_healpix
+    else:
+        beam_healpix = cst_efield_1freq_cut_healpix
     pixels_to_keep = np.arange(2, 150, 4)
-
-    beam_healpix2 = beam_healpix.select(pixels=pixels_to_keep, inplace=False)
-    beam_healpix2.write_beamfits(write_file_beamfits, clobber=True)
-
-    # -----------------
-    # check for errors selecting axis1_inds on healpix beams
-    inds1_to_keep = np.arange(14, 63)
-    with pytest.raises(
-        ValueError, match="axis1_inds cannot be used with healpix coordinate system"
-    ):
-        beam_healpix.select(axis1_inds=inds1_to_keep)
-
-    # check for errors selecting axis2_inds on healpix beams
-    inds2_to_keep = np.arange(5, 14)
-    with pytest.raises(
-        ValueError, match="axis2_inds cannot be used with healpix coordinate system"
-    ):
-        beam_healpix.select(axis2_inds=inds2_to_keep)
-
+    old_history = beam_healpix.history
     # ------------------------
     # test selecting along all axes at once for healpix beams
     freqs_to_keep = [beam_healpix.freq_array[0]]

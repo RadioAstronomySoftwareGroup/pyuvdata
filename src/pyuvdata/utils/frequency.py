@@ -10,7 +10,7 @@ from . import tools
 from .pol import jstr2num, polstr2num
 
 
-def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, raise_errors=True):
+def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, strict=True):
     """
     Check if the spectral windows are contiguous for multi-spw datasets.
 
@@ -26,9 +26,10 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, raise_errors=Tru
         Array of spectral window numbers, shape (Nspws,).
     flex_spw_id_array : array of integers
         Array of spectral window numbers per frequency channel, shape (Nfreqs,).
-    raise_errors : bool
-        Option to raise errors if the various checks do not pass. Default is True,
-        if set to False, then a warning is raised instead.
+    strict : bool
+        If set to True, then the function will raise an error if checks are failed.
+        If set to False, then a warning is raised instead. If set to None, then
+        no errors or warnings are raised.
 
     """
     if spw_array is None and flex_spw_id_array is None:
@@ -39,38 +40,32 @@ def _check_flex_spw_contiguous(*, spw_array, flex_spw_id_array, raise_errors=Tru
     # This is an internal consistency check to make sure that the indexes match
     # up as expected -- this shouldn't error unless someone is mucking with
     # settings they shouldn't be.
-    assert np.all(np.unique(flex_spw_id_array) == exp_spw_ids), (
+    assert np.all(np.isin(flex_spw_id_array, exp_spw_ids)), (
         "There are some entries in flex_spw_id_array that are not in spw_array. "
         "This is a bug, please report it in an issue."
     )
 
     n_breaks = np.sum(flex_spw_id_array[1:] != flex_spw_id_array[:-1])
     if (n_breaks + 1) != spw_array.size:
-        if raise_errors:
-            raise ValueError(
-                "Channels from different spectral windows are interspersed with "
-                "one another, rather than being grouped together along the "
-                "frequency axis. Most file formats do not support such "
-                "non-grouping of data."
-            )
-        else:
-            warnings.warn(
-                "Channels from different spectral windows are interspersed with "
-                "one another, rather than being grouped together along the "
-                "frequency axis. Most file formats do not support such "
-                "non-grouping of data."
-            )
+        err_msg = (
+            "Channels from different spectral windows are interspersed with "
+            "one another, rather than being grouped together along the "
+            "frequency axis. Most file formats do not support such "
+            "non-grouping of data."
+        )
+        tools._strict_raise(err_msg=err_msg, strict=strict)
 
 
 def _check_freq_spacing(
     *,
     freq_array,
-    freq_tols,
+    freq_tols=None,
     channel_width=None,
-    channel_width_tols=(0, 1e-3),
+    channel_width_tols=None,
     spw_array=None,
     flex_spw_id_array=None,
-    raise_errors=True,
+    strict=True,
+    ignore_chanwidth_error=False,
 ):
     """
     Check if frequencies are evenly spaced and separated by their channel width.
@@ -79,11 +74,11 @@ def _check_freq_spacing(
 
     Parameters
     ----------
-    freq_array : array of float
+    freq_array : array of float or UVParameter
         Array of frequencies, shape (Nfreqs,).
     freq_tols : tuple of float
         freq_array tolerances (from uvobj._freq_array.tols).
-    channel_width : array of float
+    channel_width : array of float or UVParameter
         Channel widths, either a scalar or an array of shape (Nfreqs,).
     channel_width_tols : tuple of float
         channel_width tolerances (from uvobj._channel_width.tols).
@@ -91,8 +86,15 @@ def _check_freq_spacing(
         Array of spectral window numbers, shape (Nspws,).
     flex_spw_id_array : array of integers or None
         Array of spectral window numbers per frequency channel, shape (Nfreqs,).
-    raise_errors : bool
-        Option to raise errors if the various checks do not pass.
+    strict : bool
+        If set to True, then the function will raise an error if checks are failed.
+        If set to False, then a warning is raised instead. If set to None, then
+        no errors or warnings are raised.
+    ignore_chanwidth_error : bool
+        If set to True, when no errors or warnings are raised if the channel spacing
+        does not match the channel width. Default is False. Note: this does not affect
+        what is returned by the function (e.g., chanwidth_error is correctly returned
+        regardless of what is set here).
 
     Returns
     -------
@@ -108,46 +110,41 @@ def _check_freq_spacing(
     # Check to make sure that the flexible spectral window has indices set up
     # correctly (grouped together) for this check
     _check_flex_spw_contiguous(
-        spw_array=spw_array,
-        flex_spw_id_array=flex_spw_id_array,
-        raise_errors=raise_errors,
+        spw_array=spw_array, flex_spw_id_array=flex_spw_id_array, strict=strict
     )
 
     # If spw_id and and spw_array are None, then assume that we just need to check
     # the full freq_array, and handle things accordingly
     for spw_id in [None] if spw_array is None else spw_array:
         mask = ... if (flex_spw_id_array is None) else (spw_id == flex_spw_id_array)
-        if (mask is Ellipsis) or sum(mask):
-            freq_spacing = np.diff(freq_array[mask])
-            freq_dir = -1.0 if all(freq_spacing < 0) else 1.0
-            if not tools._test_array_constant(freq_spacing, tols=freq_tols):
+        if (mask is Ellipsis) or (sum(mask) > 1):
+            if not (
+                tools._test_array_constant_spacing(
+                    freq_array, tols=freq_tols, mask=mask
+                )
+            ) or not tools._test_array_constant(
+                channel_width, tols=channel_width_tols, mask=mask
+            ):
                 spacing_error = True
-            if channel_width is not None:
-                if not tools._test_array_constant(
-                    channel_width[mask], tols=channel_width_tols
-                ):
-                    spacing_error = True
-                elif not np.allclose(
-                    freq_spacing,
-                    np.mean(channel_width[mask]) * freq_dir,
-                    rtol=channel_width_tols[0],
-                    atol=channel_width_tols[1],
-                ):
-                    chanwidth_error = True
+            if not tools._test_array_consistent(
+                freq_array, channel_width, tols=freq_tols, mask=mask
+            ):
+                chanwidth_error = True
 
-    if raise_errors and spacing_error:
-        raise ValueError(
-            "The frequencies are not evenly spaced (probably because of a select "
-            "operation) or has differing values of channel widths. Some file formats "
-            "(e.g. uvfits, miriad) do not support unevenly spaced frequencies."
+    if spacing_error:
+        err_msg = (
+            "The frequencies are not evenly spaced or have differing values of channel "
+            "widths. Some file formats (miriad, uvfits, calfits, beamfits) do not "
+            "support unevenly spaced frequencies."
         )
-    if raise_errors and chanwidth_error:
-        raise ValueError(
-            "The frequencies are separated by more than their channel width (probably "
-            "because of a select operation). Some file formats (e.g. uvfits, miriad) "
-            "do not support frequencies that are spaced by more than their channel "
-            "width."
+        tools._strict_raise(err_msg=err_msg, strict=strict)
+    if chanwidth_error and not ignore_chanwidth_error:
+        err_msg = (
+            "The frequencies are separated by more than their channel width. Some file "
+            "formats (miriad, uvfits, calfits) do not support frequencies "
+            "that are spaced by more than their channel width."
         )
+        tools._strict_raise(err_msg=err_msg, strict=strict)
 
     return spacing_error, chanwidth_error
 
@@ -348,7 +345,7 @@ def _select_freq_helper(
     jones=None,
     obj_flex_jones_array=None,
     obj_x_orientation=None,
-    warn_freq_spacing=True,
+    warn_spacing=False,
     invert=False,
     strict=False,
 ):
@@ -373,8 +370,8 @@ def _select_freq_helper(
         separation checking. Can be None if obj_channel_width is None.
     obj_spw_id_array : array_like of int
         flex_spw_id_array on object.
-    warn_freq_spacing : bool
-        Whether or not to warn about frequency spacing.
+    warn_spacing : bool
+        Whether or not to warn about frequency/polarization spacing. Default is False.
     invert : bool
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
@@ -483,7 +480,9 @@ def _select_freq_helper(
             raise ValueError(
                 f"No data matching this {pol_name} {other_sel_text} selection exists."
             )
-        if not tools._test_array_constant_spacing(np.unique(obj_arr[spw_inds])):
+        if warn_spacing and not (
+            tools._test_array_constant_spacing(np.unique(obj_arr[spw_inds]))
+        ):
             warnings.warn(
                 f"Selected {plr_name} are not evenly spaced. This will make it "
                 "impossible to write this data out to some file types."
@@ -526,14 +525,14 @@ def _select_freq_helper(
             channel_width_tols=channel_width_tols,
             spw_array=sel_spw_array,
             flex_spw_id_array=sel_spw_id_array,
-            raise_errors=False,
+            strict=None,
         )
 
-        if warn_freq_spacing:
+        if warn_spacing:
             if spacing_error:
                 warnings.warn(
                     "Selected frequencies are not evenly spaced. This will make it "
-                    "impossible to write this data out to some file types"
+                    "impossible to write this data out to some file types."
                 )
             elif chanwidth_error:
                 warnings.warn(

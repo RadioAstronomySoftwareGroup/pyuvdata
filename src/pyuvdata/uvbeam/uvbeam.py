@@ -2584,6 +2584,7 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        warn_spacing=True,
     ):
         """
         Combine two UVBeam objects.
@@ -2614,6 +2615,9 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after combining objects.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is True.
 
         """
         if inplace:
@@ -3059,8 +3063,8 @@ class UVBeam(UVBase):
         this.Nfreqs = this.freq_array.size
 
         # Check specific requirements
-        if this.Nfreqs > 1 and not utils.tools._test_array_constant_spacing(
-            this.freq_array, tols=this._freq_array.tols
+        if warn_spacing and not utils.tools._test_array_constant_spacing(
+            this._freq_array
         ):
             warnings.warn(
                 "Combined frequencies are not evenly spaced. This will "
@@ -3069,7 +3073,7 @@ class UVBeam(UVBase):
 
         if (
             self.beam_type == "power"
-            and this.Npols > 2
+            and warn_spacing
             and not utils.tools._test_array_constant_spacing(this._polarization_array)
         ):
             warnings.warn(
@@ -3194,6 +3198,7 @@ class UVBeam(UVBase):
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
+        warn_spacing=True,
     ):
         """
         Downselect data to keep on the object along various axes.
@@ -3249,6 +3254,9 @@ class UVBeam(UVBase):
         run_check_acceptability : bool
             Option to check acceptable range of the values of
             required parameters after  downselecting data on this object.
+        warn_spacing : bool
+            Option to raise warnings about spacing that would prevent writing to
+            calfits file-format. Default is True.
 
         """
         if inplace:
@@ -3341,6 +3349,7 @@ class UVBeam(UVBase):
             freq_tols=self._freq_array.tols,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(freq_selections)
 
@@ -3359,6 +3368,7 @@ class UVBeam(UVBase):
             obj_x_orientation=self.x_orientation,
             invert=invert,
             strict=strict,
+            warn_spacing=warn_spacing,
         )
         selections.extend(pol_selections)
 

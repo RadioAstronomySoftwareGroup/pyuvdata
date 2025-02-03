@@ -539,6 +539,7 @@ def _select_pol_helper(
     invert=False,
     strict=False,
     is_jones=False,
+    warn_spacing=False,
 ):
     """
     Get polarization indices in a select.
@@ -570,6 +571,8 @@ def _select_pol_helper(
         Normally this function handles polarizations, but if set to True, Jones terms
         can be input instead. Default is False, it is recommended rather than using this
         setting directly one should use the function _select_jones_helper instead.
+    warn_spacing : bool
+        Whether or not to warn about polarization spacing. Default is False.
 
     Returns
     -------
@@ -610,10 +613,14 @@ def _select_pol_helper(
     if len(pol_inds) == 0:
         raise ValueError(f"No data matching this {term_name.lower()} selection exists.")
 
-    if len(pol_inds) > 2 and not tools._test_array_constant_spacing(pol_inds):
+    if (
+        warn_spacing
+        and (len(pol_inds) > 2)
+        and not (tools._test_array_constant_spacing(pol_inds))
+    ):
         warnings.warn(
-            f"Selected {plr_name} are not evenly spaced. This will make it impossible "
-            "to write this data out to some file types."
+            f"Selected {plr_name} are not evenly spaced. This will make it "
+            "impossible to write this data out to some file types."
         )
 
     return pol_inds.tolist(), selections
@@ -626,6 +633,7 @@ def _select_jones_helper(
     flex_jones=False,
     invert=False,
     strict=False,
+    warn_spacing=False,
 ):
     """
     Get Jones indices in a select.
@@ -653,6 +661,8 @@ def _select_jones_helper(
         parameter, as long as _at least one_ element matches with what is in the
         object. However, if set to True, an error is thrown if any element
         does not match. Default is False.
+    warn_spacing : bool
+        Whether or not to warn about Jones spacing. Default is False.
 
     Returns
     -------
@@ -670,6 +680,7 @@ def _select_jones_helper(
         invert=invert,
         strict=strict,
         is_jones=True,
+        warn_spacing=warn_spacing,
     )
 
 
@@ -739,3 +750,59 @@ def _select_feed_helper(
         raise ValueError("No data matching this feed selection exists.")
 
     return feed_inds.tolist(), selections
+
+
+def _check_pol_spacing(*, polarization_array, strict=True, allow_resort=False):
+    """
+    Check if frequencies are evenly spaced and separated by their channel width.
+
+    This is a requirement for writing uvfits and beamfits files.
+
+    Parameters
+    ----------
+    polarization_array : array-like of int or UVParameter
+        Array of polarization codes, shape (Npols,).
+    strict : bool
+        If set to True, then the function will raise an error if checks are failed.
+        If set to False, then a warning is raised instead. If set to None, then
+        no errors or warnings are raised.
+    allow_resort : bool
+        If set to False, polarizations are checked in their present order. If set to
+        True, values are sorted prior to evaluating (useful for cases where the
+        polarization index can be reindexed). Default is False.
+    """
+    if not tools._test_array_constant_spacing(
+        polarization_array, allow_resort=allow_resort
+    ):
+        err_msg = (
+            "The polarization values are not evenly spaced. This will "
+            "make it impossible to write this data out to some file types."
+        )
+        tools._strict_raise(err_msg=err_msg, strict=strict)
+
+
+def _check_jones_spacing(*, jones_array, strict=True, allow_resort=False):
+    """
+    Check if frequencies are evenly spaced and separated by their channel width.
+
+    This is a requirement for writing calfits files.
+
+    Parameters
+    ----------
+    jones_array : array-like of int or UVParameter
+        Array of Jones codes, shape (Njones,).
+    strict : bool
+        If set to True, then the function will raise an error if checks are failed.
+        If set to False, then a warning is raised instead. If set to None, then
+        no errors or warnings are raised.
+    allow_resort : bool
+        If set to False, jones terms are checked in their present order. If set to
+        True, values are sorted prior to evaluating (useful for cases where the
+        jones index can be reindexed). Default is False.
+    """
+    if not tools._test_array_constant_spacing(jones_array, allow_resort=allow_resort):
+        err_msg = (
+            "The jones values are not evenly spaced. This will "
+            "make it impossible to write this data out to calfits."
+        )
+        tools._strict_raise(err_msg=err_msg, strict=strict)

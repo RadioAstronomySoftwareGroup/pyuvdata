@@ -82,7 +82,11 @@ class CALFITS(UVCal):
 
         if run_check:
             self.check(
-                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+                check_extra=check_extra,
+                run_check_acceptability=run_check_acceptability,
+                check_freq_spacing=True,
+                check_jones_spacing=True,
+                check_time_spacing=True,
             )
 
         # calfits allows for frequency spacing to not equal channel widths as long as
@@ -91,15 +95,7 @@ class CALFITS(UVCal):
             ref_freq = self.freq_range[0, 0]
         else:
             ref_freq = self.freq_array[0]
-            spacing_error, chanwidth_error = self._check_freq_spacing(
-                raise_errors=False
-            )
-            if spacing_error:
-                raise ValueError(
-                    "Frequencies are not evenly spaced or have differing "
-                    "values of channel widths. The calfits format does not support "
-                    "unevenly spaced frequencies or varying channel widths."
-                )
+            _, chanwidth_error = self._check_freq_spacing(raise_errors=None)
 
         if self.cal_type == "gain" and self.Nfreqs > 1:
             if chanwidth_error:
@@ -122,23 +118,7 @@ class CALFITS(UVCal):
                 delta_freq_array = 1.0
 
         if self.Ntimes > 1:
-            if self.time_range is not None:
-                raise ValueError(
-                    "The calfits file format does not support time_range when there is "
-                    "more than one time."
-                )
-            if not utils.tools._test_array_constant_spacing(self._time_array):
-                raise ValueError(
-                    "The times are not evenly spaced (probably "
-                    "because of a select operation). The calfits format "
-                    "does not support unevenly spaced times."
-                )
             time_spacing = np.diff(self.time_array)
-            if not utils.tools._test_array_constant(self._integration_time):
-                raise ValueError(
-                    "The integration times are variable. The calfits format "
-                    "does not support variable integration times."
-                )
             median_int_time = np.median(self.integration_time)
             if np.isclose(time_spacing[0], median_int_time / (24.0 * 60.0**2)):
                 time_spacing = median_int_time / (24.0 * 60.0**2)
@@ -159,12 +139,6 @@ class CALFITS(UVCal):
             time_zero = self.time_array[0]
 
         if self.Njones > 1:
-            if not utils.tools._test_array_constant_spacing(self._jones_array):
-                raise ValueError(
-                    "The jones values are not evenly spaced."
-                    "The calibration fits file format does not"
-                    " support unevenly spaced polarizations."
-                )
             jones_spacing = self.jones_array[1] - self.jones_array[0]
         else:
             jones_spacing = -1

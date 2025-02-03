@@ -387,7 +387,9 @@ def _select_blt_preprocess(
                 "in the ant_1_array or ant_2_array"
             )
             tools._strict_raise(msg, strict=strict)
-        mask = np.logical_and(
+        # OR the masks if deselecting, otherwise AND the masks
+        eval_func = np.logical_or if invert else np.logical_and
+        mask = eval_func(
             np.isin(ant_1_array, select_antenna_nums),
             np.isin(ant_2_array, select_antenna_nums),
         )
