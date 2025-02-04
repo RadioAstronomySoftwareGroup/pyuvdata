@@ -2581,8 +2581,9 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     Return the x,y,z coordinates of the focal point.
 
     The focal point corresponds to the location of
-    the NEAR-FIELD object of interest in the MWA-centred
-    ENU frame at each timestep.
+    the near-field object of interest in the ENU
+    frame centered on the median position of the
+    antennas.
 
     Parameters
     ----------
@@ -2606,16 +2607,16 @@ def _get_focus_xyz(uvd, focus, ra, dec):
     # Initialize sky-based coordinates using right ascension and declination
     obj = SkyCoord(ra * units.deg, dec * units.deg)
 
-    # The centre of the ENU frame should be located at the MEDIAN position of the array
+    # The center of the ENU frame should be located at the median position of the array
     loc = uvd.telescope.location.itrs.cartesian.xyz.value
     antpos = uvd.telescope.antenna_positions + loc
     x, y, z = np.median(antpos, axis=0)
 
-    # Initialize EarthLocation object centred on MWA
-    mwa = EarthLocation(x, y, z, unit=units.m)
+    # Initialize EarthLocation object centred on the telescope
+    telescope = EarthLocation(x, y, z, unit=units.m)
 
-    # Convert sky object to an AltAz frame centred on the MWA
-    obj = obj.transform_to(AltAz(obstime=timesteps, location=mwa))
+    # Convert sky object to an AltAz frame centered on the telescope
+    obj = obj.transform_to(AltAz(obstime=timesteps, location=telescope))
 
     # Obtain altitude and azimuth
     theta, phi = obj.alt.to(units.rad), obj.az.to(units.rad)
