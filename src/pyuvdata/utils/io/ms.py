@@ -1494,8 +1494,9 @@ def write_ms_feed(
         # deriving it from a polarization table
         feed_table.putkeyword("pyuvdata_has_feed", has_feed)
 
-        # Plug in what we need here
-        pol_type_table = np.full((nrows, nfeeds), "", dtype="<U1")
+        # Plug in what we need here. Tile based on the first element to plug in valid
+        # entries for all antennas so that CASA doesn't complain.
+        pol_type_table = np.tile(feed_array[0], (nrows, 1)).astype("<U1")
         pol_type_table[antenna_numbers] = feed_array
         pol_type_table = np.char.upper(pol_type_table)
         receptor_angle_table = np.zeros((nrows, nfeeds), dtype=np.float64)
