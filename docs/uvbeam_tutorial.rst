@@ -266,7 +266,7 @@ The :meth:`pyuvdata.UVBeam.select` method lets you select specific image axis in
 (or pixels if pixel_coordinate_system is HEALPix), frequencies and feeds
 (or polarizations if beam_type is power) to keep in the object while removing others.
 By default, :meth:`pyuvdata.UVBeam.select` will select data that matches the supplied
-criteria, but by setting ``invert=False``, you can instead *deselect* this data and
+criteria, but by setting ``invert=True``, you can instead *deselect* this data and
 preserve only that which does not match the selection.
 
 a) Selecting a range of Zenith Angles
