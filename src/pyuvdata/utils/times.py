@@ -385,11 +385,13 @@ def _select_times_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
-    strict : bool
-        Normally, select ignores when no records match a one element of a
-        parameter, as long as _at least one_ element matches with what is in the
-        object. However, if set to True, an error is thrown if any element
-        does not match. Default is False.
+    strict : bool or None
+        Normally, select will warn when an element of the selection criteria does not
+        match any element for the parameter, as long as the selection criteria results
+        in _at least one_ element being selected. However, if set to True, an error is
+        thrown if any selection criteria does not match what is given for the object
+        parameters element. If set to None, then neither errors nor warnings are raised,
+        unless no records are selected. Default is False.
     warn_spacing
         Whether or not to warn about time spacing. Only used if no ranges from the
         object are supplied. Default is False.

@@ -402,7 +402,7 @@ The :meth:`pyuvdata.UVCal.select` method lets you select specific antennas
 (by number or name), frequencies (in Hz or by channel number), times (either exact
 times or times covered by a time range) or jones components (by number or string) to keep
 in the object while removing others. By default, :meth:`pyuvdata.UVCal.select` will
-select data that matches the supplied criteria, but by setting ``invert=False``, you
+select data that matches the supplied criteria, but by setting ``invert=True``, you
 can instead *deselect* this data and preserve only that which does not match the
 selection.
 

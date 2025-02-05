@@ -562,11 +562,13 @@ def _select_pol_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
-    strict : bool
-        Normally, select ignores when no records match a one element of a
-        parameter, as long as _at least one_ element matches with what is in the
-        object. However, if set to True, an error is thrown if any element
-        does not match. Default is False.
+    strict : bool or None
+        Normally, select will warn when an element of the selection criteria does not
+        match any element for the parameter, as long as the selection criteria results
+        in _at least one_ element being selected. However, if set to True, an error is
+        thrown if any selection criteria does not match what is given for the object
+        parameters element. If set to None, then neither errors nor warnings are raised,
+        unless no records are selected. Default is False.
     is_jones : bool
         Normally this function handles polarizations, but if set to True, Jones terms
         can be input instead. Default is False, it is recommended rather than using this
@@ -656,11 +658,13 @@ def _select_jones_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
-    strict : bool
-        Normally, select ignores when no records match a one element of a
-        parameter, as long as _at least one_ element matches with what is in the
-        object. However, if set to True, an error is thrown if any element
-        does not match. Default is False.
+    strict : bool or None
+        Normally, select will warn when an element of the selection criteria does not
+        match any element for the parameter, as long as the selection criteria results
+        in _at least one_ element being selected. However, if set to True, an error is
+        thrown if any selection criteria does not match what is given for the object
+        parameters element. If set to None, then neither errors nor warnings are raised,
+        unless no records are selected. Default is False.
     warn_spacing : bool
         Whether or not to warn about Jones spacing. Default is False.
 
@@ -709,11 +713,13 @@ def _select_feed_helper(
         Normally indices matching given criteria are what are included in the
         subsequent list. However, if set to True, these indices are excluded
         instead. Default is False.
-    strict : bool
-        Normally, select ignores when no records match a one element of a
-        parameter, as long as _at least one_ element matches with what is in the
-        object. However, if set to True, an error is thrown if any element
-        does not match. Default is False.
+    strict : bool or None
+        Normally, select will warn when an element of the selection criteria does not
+        match any element for the parameter, as long as the selection criteria results
+        in _at least one_ element being selected. However, if set to True, an error is
+        thrown if any selection criteria does not match what is given for the object
+        parameters element. If set to None, then neither errors nor warnings are raised,
+        unless no records are selected. Default is False.
 
     Returns
     -------
@@ -754,7 +760,7 @@ def _select_feed_helper(
 
 def _check_pol_spacing(*, polarization_array, strict=True, allow_resort=False):
     """
-    Check if frequencies are evenly spaced and separated by their channel width.
+    Check if polarizations are evenly spaced.
 
     This is a requirement for writing uvfits and beamfits files.
 
@@ -783,7 +789,7 @@ def _check_pol_spacing(*, polarization_array, strict=True, allow_resort=False):
 
 def _check_jones_spacing(*, jones_array, strict=True, allow_resort=False):
     """
-    Check if frequencies are evenly spaced and separated by their channel width.
+    Check if Jones polarization terms are equally spaced.
 
     This is a requirement for writing calfits files.
 

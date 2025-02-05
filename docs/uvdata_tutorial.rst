@@ -984,7 +984,7 @@ The :meth:`pyuvdata.UVData.select` method lets you select specific antennas (by 
 antenna pairs, frequencies (in Hz or by channel number), times (or time range),
 local sidereal time (LST) (or LST range), or polarizations to keep in the object
 while removing others. By default, :meth:`pyuvdata.UVData.select` will
-select data that matches the supplied criteria, but by setting ``invert=False``, you
+select data that matches the supplied criteria, but by setting ``invert=True``, you
 can instead *deselect* this data and preserve only that which does not match the
 selection.
 
