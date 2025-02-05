@@ -398,6 +398,52 @@ def _extract_bls_pol(
     invert=False,
     strict=True,
 ):
+    """
+    Decompose a list of ant-tuples or baseline numbers into ant-pairs and polarizations.
+
+    This is a helper function that takes the `bls` parameter from the select function
+    of several different classes (which can accept multiple different input types) and
+    generates a consistent output, namely antenna pairs and a list of polarizations to
+    select upon.
+
+    Parameters
+    ----------
+    bls : list of tuple or int
+        List containing the baselines being selected, either based on baseline number
+        (in which case, the list should contain only ints), antenna-pairs (the list
+        should contain 2-tuples), or antenna-polarization pairs (the list should contain
+        3-tules, with the third element being a string denoting the polarization).
+    polarizations : str or array-like of str
+        List of polarizations that are being selected. If provided and bls contains
+        3-tuples, an error is thrown.
+    baseline_array : array-like of int
+        Array of baseline numbers for the object.
+    ant_1_array : array-like of int
+        Array of first antenna numbers for the object.
+    ant_2_array : array-like of int
+        Array of second antenna numbers for the object.
+    nants_telescope : int
+        Number of antennas within a given telescope. Used to translate between baseline
+        number and antenna pairs.
+    invert : bool
+        Option to specify whether a select operation is trying to perform an inverse
+        selection (matching everything but what is listed). If set to True and bls
+        contains 3-tuples, an error is thrown.
+    strict : bool or None
+        Normally, select will warn when an element of the selection criteria does not
+        match any element for the parameter, as long as the selection criteria results
+        in _at least one_ element being selected. However, if set to True, an error is
+        thrown if any selection criteria does not match what is given for the object
+        parameters element. If set to None, then neither errors nor warnings are raised,
+        unless no records are selected. Default is False.
+
+    Returns
+    -------
+    bls : list of tuples
+        List containing all matching antenna-pairs (in the form of 2-tuples).
+    polarizations : list of str
+        List specifying which polarizations are being selected.
+    """
     if isinstance(bls, list) and all(
         isinstance(bl_ind, int | np.integer) for bl_ind in bls
     ):
