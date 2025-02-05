@@ -2617,7 +2617,7 @@ class UVBeam(UVBase):
             required parameters after combining objects.
         warn_spacing : bool
             Option to raise warnings about spacing that would prevent writing to
-            calfits file-format. Default is True.
+            beamfits file-format. Default is True.
 
         """
         if inplace:
@@ -3257,7 +3257,7 @@ class UVBeam(UVBase):
             required parameters after  downselecting data on this object.
         warn_spacing : bool
             Option to raise warnings about spacing that would prevent writing to
-            calfits file-format. Default is True.
+            beamfits file-format. Default is True.
 
         """
         if inplace:
