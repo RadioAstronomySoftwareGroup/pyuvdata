@@ -142,7 +142,8 @@ def make_old_shapes(filename):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, tmp_path):
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, tmp_path, cat_type):
     """
     Test a miriad file round trip.
     """
@@ -165,8 +166,16 @@ def test_read_miriad_write_uvh5_read_uvh5(paper_miriad, tmp_path):
 
     assert uv_in == uv_out
 
-    # also test round-tripping phased data
+    # also test round-tripping phased data using phase_to_time
     uv_in.phase_to_time(Time(np.mean(uv_in.time_array), format="jd"))
+    uv_in.write_uvh5(testfile, clobber=True)
+    uv_out.read_uvh5(testfile)
+
+    assert uv_in == uv_out
+
+    # finally, test round-tripping phased data
+    # with and without applying near-field corrections
+    uv_in.phase(cat_name="foo", cat_type=cat_type, ra=0.6, dec=-0.1, dist=4000)
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read_uvh5(testfile)
 
@@ -240,6 +249,45 @@ def test_read_uvfits_write_uvh5_read_uvh5(
     # also test writing double-precision data_array
     fname = f"outtest_{telescope_frame}2_uvfits.uvh5"
 
+    uv_in.data_array = uv_in.data_array.astype(np.complex128)
+    uv_in.write_uvh5(testfile, clobber=True)
+    uv_out.read(testfile)
+    assert uv_in == uv_out
+
+    # clean up
+    os.remove(testfile)
+
+    return
+
+
+@pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
+@pytest.mark.parametrize("cat_type", ["sidereal", "near_field"])
+def test_read_uvfits_phase_write_uvh5_read_uvh5(casa_uvfits, tmp_path, cat_type):
+    """
+    Test a uvfits file round trip after applying phasing.
+    """
+    uv_in = casa_uvfits
+
+    uv_out = UVData()
+    fname = "outtest_uvfits_phased.uvh5"
+    testfile = str(tmp_path / fname)
+
+    uv_in.phase(cat_name="foo", cat_type=cat_type, ra=0.7, dec=0.2, dist=5000)
+
+    uv_in.write_uvh5(testfile, clobber=True)
+    uv_out.read(testfile)
+
+    # make sure filenames are what we expect
+    assert uv_in.filename == ["day2_TDEM0003_10s_norx_1src_1spw.uvfits"]
+    assert uv_out.filename == [fname]
+    uv_in.filename = uv_out.filename
+
+    assert uv_in == uv_out
+
+    # clean up
+    os.remove(testfile)
+
+    # also test writing double-precision data_array
     uv_in.data_array = uv_in.data_array.astype(np.complex128)
     uv_in.write_uvh5(testfile, clobber=True)
     uv_out.read(testfile)

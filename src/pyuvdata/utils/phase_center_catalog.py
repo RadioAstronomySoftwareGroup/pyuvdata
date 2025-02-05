@@ -7,7 +7,7 @@ from astropy.time import Time
 
 from . import RADIAN_TOL
 
-allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan"]
+allowed_cat_types = ["sidereal", "ephem", "unprojected", "driftscan", "near_field"]
 
 
 def look_in_catalog(
@@ -610,6 +610,8 @@ def generate_phase_center_cat_entry(
             "driftscan" (fixed az/el position),
             "unprojected" (no w-projection, equivalent to the old
             `phase_type` == "drift").
+            "near-field" (equivalent to sidereal with the addition
+            of near-field corrections)
     cat_lon : float or ndarray
         Value of the longitudinal coordinate (e.g., RA, Az, l) in radians of the
         phase center. No default unless `cat_type="unprojected"`, in which case the
@@ -684,7 +686,7 @@ def generate_phase_center_cat_entry(
     if not isinstance(cat_name, str):
         raise ValueError("cat_name must be a string.")
 
-    # We currently only have 4 supported types -- make sure the user supplied
+    # We currently only have 5 supported types -- make sure the user supplied
     # one of those
     if cat_type not in allowed_cat_types:
         raise ValueError(f"cat_type must be one of {allowed_cat_types}.")

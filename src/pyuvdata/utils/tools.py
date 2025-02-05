@@ -368,3 +368,98 @@ def _sorted_unique_difference(obj1, obj2=None):
         List containing the difference in unique entries between obj1 and obj2.
     """
     return sorted(set(obj1)) if obj2 is None else sorted(set(obj1).difference(obj2))
+
+
+def _nants_to_nblts(uvd):
+    """
+    Obtain indices to convert (Nants,) to (Nblts,).
+
+    Parameters
+    ----------
+    uvd : UVData object
+
+    Returns
+    -------
+    ind1, ind2 : ndarray, ndarray
+        index pairs to compose (Nblts,) shaped arrays for each
+        baseline from an (Nants,) shaped array
+    """
+    ants = uvd.telescope.antenna_numbers
+
+    ant1 = uvd.ant_1_array
+    ant2 = uvd.ant_2_array
+
+    ind1 = []
+    ind2 = []
+
+    for i in ant1:
+        ind1.append(np.where(ants == i)[0][0])
+    for i in ant2:
+        ind2.append(np.where(ants == i)[0][0])
+
+    return np.asarray(ind1), np.asarray(ind2)
+
+
+def _ntimes_to_nblts(uvd):
+    """
+    Obtain indices to convert (Ntimes,) to (Nblts,).
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object
+
+    Returns
+    -------
+    inds : ndarray
+        Indices that, when applied to an array of shape (Ntimes,),
+        correctly convert it to shape (Nblts,)
+    """
+    unique_t = np.unique(uvd.time_array)
+    t = uvd.time_array
+
+    inds = []
+    for i in t:
+        inds.append(np.where(unique_t == i)[0][0])
+
+    return np.asarray(inds)
+
+
+def _get_autocorrelations_mask(uvd):
+    """
+    Get a (Nblts,) shaped array that masks autocorrelations.
+
+    Parameters
+    ----------
+    uvd : UVData object
+        UVData object
+
+    Returns
+    -------
+    mask : ndarray
+        array of shape (Nblts,) of 1's and 0's,
+        where 0 indicates an autocorrelation
+    """
+    # Get indices along the Nblts axis corresponding to autocorrelations
+    autos = []
+    for i in uvd.telescope.antenna_numbers:
+        num = uvd.antpair2ind(i, ant2=i)
+
+        if isinstance(num, slice):
+            step = num.step if num.step is not None else 1
+            inds = list(range(num.start, num.stop, step))
+            autos.append(inds)
+
+    # Flatten it to obtain the 1D array of autocorrelation indices
+    autos = np.asarray(autos).flatten()
+
+    # Initialize mask of ones (1 = not an autocorrelation)
+    mask = np.ones_like(uvd.baseline_array)
+
+    # Populate with zeros (0 = is an autocorrelation)
+    if (
+        len(autos) > 0
+    ):  # Protect against the case where the uvd is already free of autos
+        mask[autos] = 0
+
+    return mask
