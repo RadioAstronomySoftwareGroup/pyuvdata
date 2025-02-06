@@ -326,17 +326,6 @@ class UVParameter:
         if not (
             isinstance(other, self.__class__) and isinstance(self, other.__class__)
         ):
-            # If the UVParameter value is of the same type, then compare that instead
-            if isinstance(other, self.value.__class__) and isinstance(
-                self.value, other.__class__
-            ):
-                if not silent:
-                    print(
-                        f"{self.name} and other classes do not match, but "
-                        f"{self.name}.value and other do -- comparing those instead."
-                    )
-                return self.compare_value(other)
-
             if not silent:
                 print(f"{self.name} parameter classes are different")
             return False

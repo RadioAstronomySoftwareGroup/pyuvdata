@@ -1558,9 +1558,8 @@ def test_select_antennas(casa_uvfits, invert, use_names, higher_dim, keep_meta):
         uv_object.telescope.antenna_names = np.array(uv_object.telescope.antenna_names)
         orig_telescope.antenna_names = np.array(orig_telescope.antenna_names)
         for param in ["_antenna_names", "_antenna_positions"]:
-            assert (
-                getattr(uv_object.telescope, param)
-                == (getattr(orig_telescope, param[1:])[mask])
+            assert getattr(uv_object.telescope, param).compare_value(
+                getattr(orig_telescope, param[1:])[mask]
             )
         assert np.asarray(uv_object.telescope)
 
