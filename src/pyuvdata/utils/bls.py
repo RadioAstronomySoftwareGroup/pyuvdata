@@ -182,11 +182,8 @@ def parse_ants(uv, ant_str, *, print_toggle=False, x_orientation=None):
             f"to call 'parse_ants': {required_attrs}."
         )
 
-    if x_orientation is None and (
-        hasattr(uv.telescope, "x_orientation")
-        and uv.telescope.x_orientation is not None
-    ):
-        x_orientation = uv.telescope.x_orientation
+    if x_orientation is None:
+        x_orientation = uv.telescope.get_x_orientation_from_feeds()
 
     ant_re = r"(\(((-?\d+[lrxy]?,?)+)\)|-?\d+[lrxy]?)"
     bl_re = f"(^({ant_re}_{ant_re}|{ant_re}),?)"

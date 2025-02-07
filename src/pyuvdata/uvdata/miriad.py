@@ -239,8 +239,6 @@ class Miriad(UVData):
             self.rdate = uv["rdate"].replace("\x00", "")
         if "timesys" in uv.vartable:
             self.timesys = uv["timesys"].replace("\x00", "")
-        if "xorient" in uv.vartable:
-            self.telescope.x_orientation = uv["xorient"].replace("\x00", "")
         if "polconv" in uv.vartable:
             self.pol_convention = uv["polconv"].replace("\x00", "")
         if "bltorder" in uv.vartable:
@@ -786,6 +784,12 @@ class Miriad(UVData):
             # but that may not matter for many purposes.
             return
 
+        # Capture old x-orientation information for downstream processing
+        if "xorient" in uv.vartable:
+            x_orientation = uv["xorient"].replace("\x00", "")
+        else:
+            x_orientation = self.telescope.get_x_orientation_from_feeds()
+
         selections = []
 
         # select on ant_str if provided
@@ -923,7 +927,7 @@ class Miriad(UVData):
                 (
                     p
                     if isinstance(p, int | np.integer)
-                    else utils.polstr2num(p, x_orientation=self.telescope.x_orientation)
+                    else utils.polstr2num(p, x_orientation=x_orientation)
                 )
                 for p in polarizations
             ]
@@ -1564,6 +1568,7 @@ class Miriad(UVData):
 
         # set any extra info
         self.set_telescope_params(
+            x_orientation=x_orientation,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
@@ -1880,9 +1885,6 @@ class Miriad(UVData):
         if self.timesys is not None:
             uv.add_var("timesys", "a")
             uv["timesys"] = self.timesys
-        if self.telescope.x_orientation is not None:
-            uv.add_var("xorient", "a")
-            uv["xorient"] = self.telescope.x_orientation
         if self.telescope.mount_type is not None:
             uv.add_var("mount", "d")
             uv["mount"] = np.array(

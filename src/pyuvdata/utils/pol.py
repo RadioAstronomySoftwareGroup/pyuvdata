@@ -870,3 +870,183 @@ def _check_jones_spacing(*, jones_array, strict=True, allow_resort=False):
             "make it impossible to write this data out to calfits."
         )
         tools._strict_raise(err_msg=err_msg, strict=strict)
+
+
+def get_feeds_from_pols(polarization_array):
+    """
+    Return a list of expected feeds based on polarization values.
+
+    Translates values in polarization_array or jones_array into
+
+    Parameters
+    ----------
+    polarization_array : array_like of int
+        Array listing the polarization codes present, based on the UVFITS numbering
+        schedule. See utils.POL_NUM2STR_DICT for a mapping between codes and
+        polarization types.
+
+    Returns
+    -------
+    feed_array : list of str
+        List of expected feed types given the polarizations present in the data. Will
+        be one of "x", "y", "l", "r", and generally of length <= 2.
+    """
+    # Preserve order of feeds based on pols using dict.fromkeys
+    feed_pols = list(
+        dict.fromkeys(
+            feed
+            for pol in polarization_array
+            for feed in POL_TO_FEED_DICT[POL_NUM2STR_DICT[pol]]
+        )
+    )
+    return sorted(feed_pols)
+
+
+def get_x_orientation_from_feeds(feed_array, feed_angle, tols=None):
+    """
+    Determine x-orientation equivalent value based on feed information.
+
+    This is a helper function meant to provide a way of translating newer parameters
+    (feed_array and feed_angle) describing feed orientation with the older
+    "x-orientation" parameter.
+
+    Parameters
+    ----------
+    feed_array : array-like of str or None
+        List of feeds for a given telescope, should be one of "x", "y", "l", "r".
+        Shape (Nants, Nfeeds) or (Nfeeds,), must match that of feed_angle, dtype str.
+    feed_angle : array-like of float
+        Orientation of the feed with respect to zenith (or with respect to north if
+        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
+        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds) or
+        (Nfeeds,), must match that of feed_array, dtype float.
+    tols : tuple of float
+        Tolerances for feed_angle, used with `isclose`.
+
+    Returns
+    -------
+    x_orientation : str
+        One of "east", "north", or None, based on values present in feed_array and
+        feed_angle. None denotes that either one (or both) of feed_array and feed_angle
+        were None, or that the values were inconsistent with either "north" or "east"
+        orientation.
+    """
+    if feed_array is None or feed_angle is None:
+        # If feed info is unset, then return None
+        return None
+
+    if tols is None:
+        tols = (0, 0)
+    rtol, atol = tols
+
+    x_mask = np.isin(feed_array, ["x", "X"])
+
+    # Anything that's not 'x' should be oriented straight up (0 deg) for "east"
+    # orientation, otherwise at -90 deg for "north".
+    if np.allclose(feed_angle, np.where(x_mask, np.pi / 2, 0), rtol=rtol, atol=atol):
+        # x is horizontal
+        return "east"
+    if np.allclose(feed_angle, np.where(x_mask, 0, -np.pi / 2), rtol=rtol, atol=atol):
+        # x is vertical for observer ("east is up"!)
+        return "north"
+
+    # No match? Then time to declare defeat.
+    return None
+
+
+def get_feeds_from_x_orientation(
+    *,
+    x_orientation,
+    nants,
+    feeds=None,
+    polarization_array=None,
+    flex_polarization_array=None,
+):
+    """
+    Determine feed angles based on equivalent x-orientation.
+
+    This is a helper function meant to provide a way of translating the older
+    "x-orientation" parameter into the newer parameters describing feed orientation
+    (feed_array and feed_angle).
+
+    Parameters
+    ----------
+    x_orientation : str
+        String describing the orientation of the x-polarization. Must be one of "east"
+        or "north" (or the associated aliases "n", "e", "ns", "ew")
+    nants : int
+        Number of antennas, used to determine the shape of the output.
+    feeds : str or array-like of str
+        List of feeds expected for the telescope. Must be one of "x", "y", "l", or "r".
+        A single feed type can be provided as a string, otherwise the list should
+        contain no more than two elements. If not provided (and polarization_array is
+        also not provided), default is ["x", "y"].
+    polarization_array : array-like of int or None
+        Array listing the polarization codes present, based on the UVFITS numbering
+        scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+        polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+        feeds present if not supplied, ignored if flex_polarization_array is set
+        to anything but None.
+    flex_polarization_array : array-like of int or None
+        Array listing the polarization codes present per spectral window (used with
+        certain "flexible-polarization" objects), based on the UVFITS numbering
+        scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+        polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+        feeds present if not supplied.
+
+    Returns
+    -------
+    Nfeeds : int
+        Length of feeds (or None of x_orientation is None).
+    feed_array : array-like of str or None
+        List of feeds, given on a per-antenna basis. Each feed will be listed as one of
+        "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str (or None of x_orientation
+        is None).
+    feed_angle : array-like of float
+        Orientation of the feed with respect to zenith (or with respect to north if
+        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
+        and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds) (or None
+        of x_orientation is None).
+    """
+    if x_orientation is None:
+        # If x_orientation is None, then there isn't anything to determine
+        return None, None, None
+
+    if feeds is None:
+        if flex_polarization_array is not None:
+            feeds = get_feeds_from_pols(polarization_array=flex_polarization_array)
+        elif polarization_array is not None:
+            feeds = get_feeds_from_pols(polarization_array=polarization_array)
+        else:
+            warnings.warn(
+                "Unknown polarization basis -- assuming linearly polarized (x/y) "
+                "feeds for Telescope.feed_array."
+            )
+            feeds = ["x", "y"]
+    elif isinstance(feeds, str):
+        feeds = [feeds]
+
+    if x_orientation.lower() not in XORIENTMAP:
+        raise ValueError(
+            f"x_orientation not recognized, must be one of {list(XORIENTMAP)}."
+        )
+
+    x_orientation = XORIENTMAP[x_orientation.lower()]
+
+    # Check to make sure inputs here are valid
+    if not isinstance(feeds, list | tuple | np.ndarray) or len(feeds) not in [1, 2]:
+        raise ValueError("feeds must be a list or tuple of length 1 or 2.")
+    if not all(item in ["l", "r", "x", "y"] for item in feeds):
+        raise ValueError('feeds must contain only "x", "y", "l", and/or "r".')
+
+    Nfeeds = len(feeds)
+    feed_array = np.tile(feeds, (nants, 1))
+    feed_angle = np.zeros((nants, Nfeeds), dtype=float)
+
+    x_mask = feed_array == "x"
+    if x_orientation == "east":
+        feed_angle[x_mask] = np.pi / 2
+    if x_orientation == "north":
+        feed_angle[~x_mask] = -np.pi / 2
+
+    return Nfeeds, feed_array, feed_angle

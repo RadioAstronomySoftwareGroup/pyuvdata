@@ -223,10 +223,6 @@ class FHDCal(UVCal):
 
         self.telescope.antenna_names = np.asarray(self.telescope.antenna_names)
 
-        self.telescope.x_orientation = "east"
-
-        self.set_telescope_params()
-
         # need to make sure telescope location is defined properly before this call
         proc = self.set_lsts_from_time_array(
             background=background_lsts, astrometry_library=astrometry_library
@@ -451,6 +447,8 @@ class FHDCal(UVCal):
             self.jones_array = np.array([-5])
         else:
             self.jones_array = np.array([-5, -6])
+
+        self.set_telescope_params(x_orientation="east")
 
         # for calibration FHD creates gain array of shape (Nfreqs, Nants_telescope)
         # rather than (Nfreqs, Nants_data). This means the antenna array will

@@ -627,7 +627,8 @@ class UVCal(UVBase):
     def _set_telescope_requirements(self):
         """Set the UVParameter required fields appropriately for UVCal."""
         self.telescope._instrument.required = False
-        self.telescope._x_orientation.required = True
+        self.telescope._feed_array.required = True
+        self.telescope._feed_angle.required = True
 
     @staticmethod
     @combine_docstrings(initializers.new_uvcal, style=DocstringStyle.NUMPYDOC)
@@ -1103,8 +1104,9 @@ class UVCal(UVBase):
     def set_telescope_params(
         self,
         *,
-        warn=True,
+        x_orientation=None,
         overwrite=False,
+        warn=True,
         run_check=True,
         check_extra=True,
         run_check_acceptability=True,
@@ -1118,9 +1120,28 @@ class UVCal(UVBase):
 
         Parameters
         ----------
+        x_orientation : str or None
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the known telescope, or if set to
+            None.
         overwrite : bool
             Option to overwrite existing telescope-associated parameters with
-            the values from the known telescope.
+            the values from the known telescope. Default is False.
+        warn : bool
+            Option to issue a warning listing all modified parameters.
+            Defaults to True.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after updating. Default is True.
+        check_extra : bool
+            Option to check optional parameters as well as required ones. Default is
+            True.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            updating. Default is True
 
         Raises
         ------
@@ -1133,6 +1154,9 @@ class UVCal(UVBase):
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
+            x_orientation=x_orientation,
+            polarization_array=self.jones_array,
+            flex_polarization_array=self.flex_jones_array,
         )
 
     def _set_lsts_helper(self, *, astrometry_library=None):
@@ -1880,7 +1904,9 @@ class UVCal(UVBase):
             return False
         if jpol is not None:
             if isinstance(jpol, str | np.str_):
-                jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
+                jpol = utils.jstr2num(
+                    jpol, x_orientation=self.telescope.get_x_orientation_from_feeds()
+                )
             if jpol not in self.jones_array:
                 return False
 
@@ -1920,7 +1946,9 @@ class UVCal(UVBase):
             Antenna polarization index in data arrays
         """
         if isinstance(jpol, str | np.str_):
-            jpol = utils.jstr2num(jpol, x_orientation=self.telescope.x_orientation)
+            jpol = utils.jstr2num(
+                jpol, x_orientation=self.telescope.get_x_orientation_from_feeds()
+            )
 
         if not self._key_exists(jpol=jpol):
             raise ValueError(f"{jpol} not found in jones_array")
@@ -2491,7 +2519,8 @@ class UVCal(UVBase):
             elif "name" in order:
                 name_array = np.asarray(
                     utils.jnum2str(
-                        self.jones_array, x_orientation=self.telescope.x_orientation
+                        self.jones_array,
+                        x_orientation=self.telescope.get_x_orientation_from_feeds(),
                     )
                 )
                 index_array = np.argsort(name_array)
@@ -4141,7 +4170,7 @@ class UVCal(UVBase):
             obj_spw_array=self.spw_array,
             jones=jones,
             obj_flex_jones_array=self.flex_jones_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             invert=invert,
             strict=strict,
             warn_spacing=warn_spacing,
@@ -4151,7 +4180,7 @@ class UVCal(UVBase):
         jones_inds, jones_selections = utils.pol._select_jones_helper(
             jones=jones,
             obj_jones_array=self.jones_array,
-            obj_x_orientation=self.telescope.x_orientation,
+            obj_x_orientation=self.telescope.get_x_orientation_from_feeds(),
             flex_jones=self.flex_jones_array is not None,
             invert=invert,
             strict=strict,

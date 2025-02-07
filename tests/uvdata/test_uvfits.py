@@ -713,8 +713,12 @@ def test_uvfits_optional_params(tmp_path, casa_uvfits):
     write_file = str(tmp_path / "outtest_casa.uvfits")
 
     # check that if optional params are set, they are read back out properly
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     uv_in.telescope.pol_convention = "sum"
+    # Order feeds in AIPS convention for round-tripping
+    uv_in.telescope.reorder_feeds("AIPS")
     uv_in.write_uvfits(write_file)
     uv_out.read(write_file)
 

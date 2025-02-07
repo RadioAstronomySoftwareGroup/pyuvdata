@@ -360,14 +360,12 @@ class MS(UVData):
 
         ms.putcol("FIELD_ID", field_ids[blt_map_array] if self.Nspws > 1 else field_ids)
 
-        # Finally, record extra keywords and x_orientation, both of which the MS format
+        # Finally, record extra keywords and pol_convention, both of which the MS format
         # doesn't quite have equivalent fields to stuff data into (and instead is put
         # into the main header as a keyword).
         if len(self.extra_keywords) != 0:
             ms.putkeyword("pyuvdata_extra", self.extra_keywords)
 
-        if self.telescope.x_orientation is not None:
-            ms.putkeyword("pyuvdata_xorient", self.telescope.x_orientation)
         if self.pol_convention is not None:
             ms.putkeyword("pyuvdata_polconv", self.pol_convention)
 
@@ -461,8 +459,9 @@ class MS(UVData):
         if "pyuvdata_extra" in main_keywords:
             self.extra_keywords = main_keywords["pyuvdata_extra"]
 
+        x_orientation = None
         if "pyuvdata_xorient" in main_keywords:
-            self.telescope.x_orientation = main_keywords["pyuvdata_xorient"]
+            x_orientation = main_keywords["pyuvdata_xorient"]
 
         if "pyuvdata_polconv" in main_keywords:
             self.pol_convention = main_keywords["pyuvdata_polconv"]
@@ -516,7 +515,7 @@ class MS(UVData):
 
         if data_desc_count == 0:
             # If there are no records selected, then there isn't a whole lot to do
-            return None, None, None, None
+            return None, None, None, None, None
         elif data_desc_count == 1:
             # If we only have a single spectral window, then we can bypass a whole lot
             # of slicing and dicing on account of there being a one-to-one relationship
@@ -565,7 +564,7 @@ class MS(UVData):
             ]
 
             tb_main.close()
-            return spw_list, field_list, pol_list, None
+            return spw_list, field_list, pol_list, None, x_orientation
 
         tb_main.close()
 
@@ -829,7 +828,7 @@ class MS(UVData):
 
         field_list = np.unique(field_arr).astype(int).tolist()
 
-        return spw_list, field_list, pol_list, flex_pol
+        return spw_list, field_list, pol_list, flex_pol, x_orientation
 
     @copy_replace_short_description(UVData.read_ms, style=DocstringStyle.NUMPYDOC)
     def read_ms(
@@ -909,7 +908,7 @@ class MS(UVData):
         # convention change. So if the data in the MS came via that task and was not
         # written by pyuvdata, we do need to flip the uvws & conjugate the data
         flip_conj = ("importuvfits" in self.history) and (not pyuvdata_written)
-        spw_list, field_list, pol_list, flex_pol = self._read_ms_main(
+        spw_list, field_list, pol_list, flex_pol, x_orientation = self._read_ms_main(
             filepath,
             data_column=data_column,
             data_desc_dict=data_desc_dict,
@@ -1040,6 +1039,13 @@ class MS(UVData):
         # order polarizations
         if pol_order is not None:
             self.reorder_pols(order=pol_order, run_check=False)
+
+        self.set_telescope_params(
+            x_orientation=x_orientation,
+            check_extra=check_extra,
+            run_check=run_check,
+            run_check_acceptability=run_check_acceptability,
+        )
 
         if run_check:
             self.check(

@@ -1468,13 +1468,11 @@ def write_ms_feed(
             has_feed = True
         else:
             if uvobj.flex_spw_polarization_array is None:
-                pols = utils.polnum2str(uvobj.polarization_array)
+                pols = uvobj.polarization_array
             else:
-                pols = utils.polnum2str(uvobj.flex_spw_polarization_array)
+                pols = uvobj.flex_spw_polarization_array
 
-            feed_pols = {
-                feed for pol in pols for feed in utils.pol.POL_TO_FEED_DICT[pol]
-            }
+            feed_pols = utils.pol.get_feeds_from_pols(pols)
             nfeeds = len(feed_pols)
             feed_array = np.tile(sorted(feed_pols), (uvobj.telescope.Nants, 1))
             feed_angle = np.zeros((uvobj.telescope.Nants, nfeeds))

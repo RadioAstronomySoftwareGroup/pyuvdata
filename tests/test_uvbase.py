@@ -521,31 +521,46 @@ def test_telescope_inequality(capsys):
 def test_getattr_old_telescope():
     test_obj = UVTest()
 
+    x_warn_msg = (
+        "The Telescope.x_orientation attribute is deprecated, and has "
+        "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+        "This will become an error in version 3.4. To set the equivalent "
+        "value in the future, you can substitute accessing this parameter "
+        "with a call to Telescope.get_x_orientation_from_feeds()."
+    )
+
     for param, tel_param in old_telescope_metadata_attrs.items():
         if tel_param is not None:
-            with check_warnings(
-                DeprecationWarning,
-                match=f"The UVData.{param} attribute now just points to the "
+            warn_msg = [
+                f"The UVData.{param} attribute now just points to the "
                 f"{tel_param} attribute on the "
                 "telescope object (at UVData.telescope). Accessing it this "
                 "way is deprecated, please access it via the telescope "
-                "object. This will become an error in version 3.2.",
-            ):
+                "object. This will become an error in version 3.2."
+            ]
+            if param == "x_orientation":
+                warn_msg.append(x_warn_msg)
+
+            with check_warnings(DeprecationWarning, match=warn_msg):
                 param_val = getattr(test_obj, param)
-            tel_param_val = getattr(test_obj.telescope, tel_param)
-            tel_param_obj = getattr(test_obj.telescope, "_" + tel_param)
-            if not isinstance(param_val, np.ndarray):
-                assert param_val == tel_param_val
-            else:
-                if not isinstance(param_val.flat[0], str):
-                    np.testing.assert_allclose(
-                        param_val,
-                        tel_param_val,
-                        rtol=tel_param_obj.tols[0],
-                        atol=tel_param_obj.tols[1],
-                    )
+            if tel_param != "x_orientation":
+                tel_param_val = getattr(test_obj.telescope, tel_param)
+                tel_param_obj = getattr(test_obj.telescope, "_" + tel_param)
+                if not isinstance(param_val, np.ndarray):
+                    assert param_val == tel_param_val
                 else:
-                    assert param_val.tolist() == tel_param_val.tolist()
+                    if not isinstance(param_val.flat[0], str):
+                        np.testing.assert_allclose(
+                            param_val,
+                            tel_param_val,
+                            rtol=tel_param_obj.tols[0],
+                            atol=tel_param_obj.tols[1],
+                        )
+                    else:
+                        assert param_val.tolist() == tel_param_val.tolist()
+            else:
+                assert test_obj.telescope.get_x_orientation_from_feeds() == param_val
+
         elif param == "telescope_location":
             with check_warnings(
                 DeprecationWarning,
@@ -599,29 +614,52 @@ def test_getattr_old_telescope():
 def test_setattr_old_telescope():
     test_obj = UVTest()
 
+    x_get_warn_msg = (
+        "The Telescope.x_orientation attribute is deprecated, and has "
+        "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+        "This will become an error in version 3.4. To set the equivalent "
+        "value in the future, you can substitute accessing this parameter "
+        "with a call to Telescope.get_x_orientation_from_feeds()."
+    )
+
+    x_set_warn_msg = (
+        "The Telescope.x_orientation attribute is deprecated, and has "
+        "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+        "This will become an error in version 3.4. To get the equivalent "
+        "value in the future, you can substitute accessing this parameter "
+        "with a call to Telescope.set_feeds_from_x_orientation()."
+    )
+
     new_telescope = Telescope.from_known_telescopes("hera")
 
     for param, tel_param in old_telescope_metadata_attrs.items():
         if tel_param is not None:
-            tel_val = getattr(new_telescope, tel_param)
-            tel_param_obj = getattr(new_telescope, "_" + tel_param)
-            with check_warnings(
-                DeprecationWarning,
-                match=f"The UVData.{param} attribute now just points to the "
+            warn_msg = [
+                f"The UVData.{param} attribute now just points to the "
                 f"{tel_param} attribute on the "
                 "telescope object (at UVData.telescope). Accessing it this "
                 "way is deprecated, please access it via the telescope "
-                "object. This will become an error in version 3.2.",
-            ):
+                "object. This will become an error in version 3.2."
+            ]
+
+            if param == "x_orientation":
+                with check_warnings(DeprecationWarning, match=x_get_warn_msg):
+                    tel_val = getattr(new_telescope, tel_param)
+                    tel_param_obj = None
+            else:
+                tel_val = getattr(new_telescope, tel_param)
+                tel_param_obj = getattr(new_telescope, "_" + tel_param)
+
+            if param == "x_orientation":
+                warn_msg.append(x_set_warn_msg)
+            with check_warnings(DeprecationWarning, match=warn_msg):
                 setattr(test_obj, param, tel_val)
-            with check_warnings(
-                DeprecationWarning,
-                match=f"The UVData.{param} attribute now just points to the "
-                f"{tel_param} attribute on the "
-                "telescope object (at UVData.telescope). Accessing it this "
-                "way is deprecated, please access it via the telescope "
-                "object. This will become an error in version 3.2.",
-            ):
+
+            if param == "x_orientation":
+                _ = warn_msg.pop()
+                warn_msg.append(x_get_warn_msg)
+
+            with check_warnings(DeprecationWarning, match=warn_msg):
                 param_val = getattr(test_obj, param)
             if not isinstance(param_val, np.ndarray):
                 assert param_val == tel_val

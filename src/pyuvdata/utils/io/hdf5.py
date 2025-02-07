@@ -16,6 +16,7 @@ from astropy import units
 from astropy.coordinates import EarthLocation
 
 from ..coordinates import ENU_from_ECEF, LatLonAlt_from_XYZ
+from ..pol import get_x_orientation_from_feeds
 
 hdf5plugin_present = True
 try:
@@ -684,9 +685,37 @@ class HDF5Meta:
     @cached_property
     def feed_array(self) -> np.ndarray[str]:
         """The antenna names in the file."""
-        return np.char.decode(
-            self.header["feed_array"][:].astype("|S"), encoding="utf8"
-        ).astype(np.object_)
+        if "feed_array" in self.header:
+            return np.char.decode(
+                self.header["feed_array"][:].astype("|S"), encoding="utf8"
+            )
+
+        return None
+
+    @cached_property
+    def feed_angle(self) -> np.ndarray[float]:
+        """The antenna names in the file."""
+        if "feed_angle" in self.header:
+            return self.header["feed_angle"][()]
+
+        return None
+
+    @cached_property
+    def x_orientation(self) -> str:
+        """The x_orientation in the file."""
+        if "feed_array" in self.header and "feed_angle" in self.header:
+            # If these are present, then x-orientation can be "calculated" based
+            # on the feed orientations. Note that this will return None if what is
+            # listed doesn't match either "east" or "north" configuration
+            return get_x_orientation_from_feeds(
+                feed_array=self.feed_array, feed_angle=self.feed_angle, tols=(1e-6, 0)
+            )
+        if "x_orientation" in self.header:
+            # If the header is present, then just load that up.
+            return bytes(self.header["x_orientation"][()]).decode("utf8")
+
+        # Otherwise, no x_orientation is present, so just return None
+        return None
 
     @cached_property
     def extra_keywords(self) -> dict:
