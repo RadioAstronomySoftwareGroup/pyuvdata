@@ -7,6 +7,8 @@ This module provides a python interface with Mir datasets, including both metada
 and the visibility data itself.
 """
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
@@ -53,7 +55,9 @@ class MirPackdataError(Exception):
     is used in practice to catch such errors.
     """
 
-    def __init__(self, message="There was an error parsing a packed data file."):
+    def __init__(
+        self, message="There was an error parsing a packed data file."
+    ) -> MirPackdataError:
         super().__init__(message)
 
 
@@ -83,7 +87,7 @@ class MirParser:
         load_auto=False,
         load_cross=False,
         load_raw=False,
-    ):
+    ) -> MirParser:
         """
         Initialize a MirParser object.
 
@@ -184,7 +188,7 @@ class MirParser:
                 load_raw=load_raw,
             )
 
-    def _load_test_data(self, **kwargs):
+    def _load_test_data(self, **kwargs) -> MirParser:
         """
         Load the pyuvdata test SMA data set.
 
@@ -198,7 +202,7 @@ class MirParser:
 
         return self
 
-    def __eq__(self, other, *, verbose=True, metadata_only=False):
+    def __eq__(self, other, *, verbose=True, metadata_only=False) -> bool:
         """
         Compare MirParser attributes for equality.
 
@@ -369,7 +373,7 @@ class MirParser:
 
         return is_eq
 
-    def __ne__(self, other, *, verbose=False, metadata_only=False):
+    def __ne__(self, other, *, verbose=False, metadata_only=False) -> bool:
         """
         Compare two MirParser objects for inequality.
 
@@ -391,7 +395,7 @@ class MirParser:
         """
         return not self.__eq__(other, verbose=verbose, metadata_only=metadata_only)
 
-    def copy(self, metadata_only=False):
+    def copy(self, metadata_only=False) -> MirParser:
         """
         Make and return a copy of the MirParser object.
 
@@ -444,7 +448,7 @@ class MirParser:
     @staticmethod
     def _scan_int_headers(
         filepath=None, hdr_fmt=None, *, old_int_dict=None, return_headers=False
-    ):
+    ) -> list[int] | dict:
         """
         Read "sch_read" or "ach_read" mir file into a python dictionary (@staticmethod).
 
@@ -626,7 +630,7 @@ class MirParser:
         *,
         use_mmap=False,
         raise_err=None,
-    ):
+    ) -> dict:
         """
         Read packed data mir file into memory (@staticmethod).
 
@@ -835,7 +839,9 @@ class MirParser:
         return int_data_dict
 
     @staticmethod
-    def _make_packdata(int_dict=None, recpos_dict=None, data_dict=None, data_type=None):
+    def _make_packdata(
+        int_dict=None, recpos_dict=None, data_dict=None, data_type=None
+    ) -> dict:
         """
         Write packdata from raw_data or auto_data.
 
@@ -937,7 +943,7 @@ class MirParser:
         return int_data_dict
 
     @staticmethod
-    def _convert_raw_to_vis(raw_dict):
+    def _convert_raw_to_vis(raw_dict) -> dict:
         """
         Create a dict with visibility data via a raw data dict.
 
@@ -989,7 +995,7 @@ class MirParser:
         return vis_dict
 
     @staticmethod
-    def _convert_vis_to_raw(vis_dict):
+    def _convert_vis_to_raw(vis_dict) -> dict:
         """
         Create a dict with visibility data via a raw data dict.
 
@@ -1067,7 +1073,7 @@ class MirParser:
         use_mmap=True,
         read_only=False,
         apply_cal=None,
-    ):
+    ) -> dict:
         """
         Read "sch_read" mir file into a list of ndarrays.
 
@@ -1531,7 +1537,7 @@ class MirParser:
             if bool(flagval):
                 self.vis_data[sphid]["flags"][:] = True
 
-    def _check_data_index(self):
+    def _check_data_index(self) -> bool:
         """
         Check that data attribute indexes match metadata.
 
@@ -2456,7 +2462,7 @@ class MirParser:
         inplace=False,
         weight_data=True,
         norm_weights=True,
-    ):
+    ) -> dict:
         """
         Rechunk regular cross- and auto-correlation spectra.
 
@@ -2567,7 +2573,7 @@ class MirParser:
     @staticmethod
     def _rechunk_raw(
         raw_dict=None, chan_avg_arr=None, *, inplace=False, return_vis=False
-    ):
+    ) -> dict:
         """
         Rechunk a raw visibility spectrum.
 
@@ -2734,7 +2740,9 @@ class MirParser:
             else:
                 self._rechunk_data(self.auto_data, chan_avg_arr, inplace=True)
 
-    def __add__(self, other, *, merge=None, overwrite=None, force=False, inplace=False):
+    def __add__(
+        self, other, *, merge=None, overwrite=None, force=False, inplace=False
+    ) -> MirParser:
         """
         Add two MirParser objects.
 
@@ -3039,7 +3047,7 @@ class MirParser:
 
         return new_obj
 
-    def __iadd__(self, other, *, merge=None, overwrite=False, force=False):
+    def __iadd__(self, other, *, merge=None, overwrite=False, force=False) -> MirParser:
         """
         Add two MirMetaData objects in place.
 
@@ -3232,7 +3240,7 @@ class MirParser:
         # Now that we've screened the data that we want, update the object appropriately
         self._update_filter(update_data=update_data)
 
-    def _read_compass_solns(self, filename=None):
+    def _read_compass_solns(self, filename=None) -> dict:
         """
         Read COMPASS-formatted gains and flags.
 
@@ -3290,12 +3298,8 @@ class MirParser:
         # COMPASS solutions dict (just above).
         bandpass_gains = {}
 
-        has_cross_pol = np.all(
-            np.not_equal(
-                self.bl_data.get_value("ant1rx", index=sp_bl_map),
-                self.bl_data.get_value("ant2rx", index=sp_bl_map),
-            )
-        )
+        # Detect cross-pol by looking for any mismatch in ant1 and ant2 receivers
+        has_cross_pol = np.any(self.bl_data["ant1rx"] != self.bl_data["ant2rx"])
 
         # MATLAB v7.3 format uses HDF5 format, so h5py here ftw!
         with h5py.File(filename, "r") as file:
@@ -3664,7 +3668,7 @@ class MirParser:
     @staticmethod
     def _generate_chanshift_kernel(
         chan_shift=None, kernel_type=None, *, alpha_fac=-0.5, tol=1e-3
-    ):
+    ) -> tuple[int, int, np.ndarray]:
         """
         Calculate the kernel for shifting a spectrum a given number of channels.
 
@@ -3784,7 +3788,7 @@ class MirParser:
     @staticmethod
     def _chanshift_vis(
         vis_dict=None, shift_tuple_list=None, *, flag_adj=True, inplace=False
-    ):
+    ) -> dict:
         """
         Frequency shift (i.e., "redoppler") visibility data.
 
@@ -3938,7 +3942,7 @@ class MirParser:
         flag_adj=True,
         inplace=False,
         return_vis=False,
-    ):
+    ) -> dict:
         """
         Frequency shift (i.e., "redoppler") raw data.
 
