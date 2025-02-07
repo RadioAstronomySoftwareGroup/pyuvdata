@@ -536,7 +536,6 @@ class Mir(UVData):
         self.telescope.antenna_names = [f"Ant{idx}" for idx in range(1, 9)]
         self.telescope.antenna_numbers = np.arange(1, 9)
         self.telescope.antenna_diameters = np.full(self.telescope.Nants, 6.0)
-        self.telescope.x_orientation = "east"
         self.telescope.mount_type = ["alt-az+nasmyth-l"] * self.telescope.Nants
         feed_array = np.array(
             sorted({item for key in pol_dict for item in feed_code_dict[key]}),

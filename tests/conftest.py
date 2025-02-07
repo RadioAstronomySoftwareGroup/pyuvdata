@@ -84,13 +84,14 @@ def uvcalibrate_data_main(uvcalibrate_init_data_main):
     uvdata = uvdata_in.copy()
     uvcal = uvcal_in.copy()
 
-    warn_str = (
+    warn_str = [
         "telescope_location, Nants, antenna_names, antenna_numbers, "
         "antenna_positions, antenna_diameters are not set or are being "
         "overwritten. telescope_location, Nants, antenna_names, "
         "antenna_numbers, antenna_positions, antenna_diameters are set "
-        "using values from known telescopes for HERA."
-    )
+        "using values from known telescopes for HERA.",
+        "Nants has changed, setting feed_array and feed_angle ",
+    ]
     with check_warnings(UserWarning, warn_str):
         uvcal.set_telescope_params(overwrite=True)
 
