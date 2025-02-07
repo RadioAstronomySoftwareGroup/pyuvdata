@@ -62,7 +62,6 @@ _KNOWN_TELESCOPES = {
         ),
         "Nants": 8,
         "antenna_diameters": 6.0,
-        "x_orientation": "east",
         "citation": "Ho, P. T. P., Moran, J. M., & Lo, K. Y. 2004, ApJL, 616, L1",
     },
     "SZA": {
@@ -394,20 +393,6 @@ class Telescope(UVBase):
         )
 
         desc = (
-            "Orientation of the physical dipole corresponding to what is "
-            "labelled as the x polarization. Options are 'east' "
-            "(indicating east/west orientation) and 'north (indicating "
-            "north/south orientation)."
-        )
-        self._x_orientation = uvp.UVParameter(
-            "x_orientation",
-            description=desc,
-            required=False,
-            expected_type=str,
-            acceptable_vals=["east", "north"],
-        )
-
-        desc = (
             "Antenna diameters in meters. Used by CASA to "
             "construct a default beam if no beam is supplied."
         )
@@ -422,7 +407,8 @@ class Telescope(UVBase):
 
         desc = (
             'Antenna mount type, shape (Nants,). Options are: "alt-az", "equitorial", '
-            '"orbiting", "x-y", "alt-az+nasmyth-r", "alt-az+nasmyth-l", and "phased".'
+            '"orbiting", "x-y", "alt-az+nasmyth-r", "alt-az+nasmyth-l", "phased", '
+            '"fixed", and "other".'
         )
         self._mount_type = uvp.UVParameter(
             "mount_type",
@@ -438,6 +424,8 @@ class Telescope(UVBase):
                 "alt-az+nasmyth-r",
                 "alt-az+nasmyth-l",
                 "phased",
+                "fixed",
+                "other",
             ],
         )
 
@@ -450,8 +438,8 @@ class Telescope(UVBase):
         )
 
         desc = (
-            "Array of feed orientations. shape (Nfeeds). Options are: n/e or x/y or "
-            "r/l. Optional parameter, required if feed_angle is set."
+            "Array of feed orientations. shape (Nants, Nfeeds), type str. Options are: "
+            "x/y or r/l. Optional parameter, required if feed_angle is set."
         )
         self._feed_array = uvp.UVParameter(
             "feed_array",
@@ -459,12 +447,17 @@ class Telescope(UVBase):
             required=False,
             expected_type=str,
             form=("Nants", "Nfeeds"),
-            acceptable_vals=["x", "y", "n", "e", "r", "l"],
+            acceptable_vals=["x", "y", "r", "l"],
         )
 
         desc = (
             "Position angle of a given feed, shape (Nants, Nfeeds), units of radians. "
-            "Optional parameter, required if feed_array is set."
+            "The feed angle is defined with respect to the great circle going through "
+            "constant azimuth and zenith (for pointed telescopes) or north (for fixed "
+            "telescopes like HERA or MWA), where a feed angle of 0 would correspond to "
+            "vertical polarization for linear feeds, and pi/2 to horizontal "
+            "polarization (as seen by the observer with reference to a horizontal "
+            "coordinate system). Optional parameter, required if feed_array is set."
         )
         self._feed_angle = uvp.UVParameter(
             "feed_angle",
@@ -494,6 +487,16 @@ class Telescope(UVBase):
                 DeprecationWarning,
             )
             return self.name
+        elif __name == "x_orientation":
+            warnings.warn(
+                "The Telescope.x_orientation attribute is deprecated, and has "
+                "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+                "This will become an error in version 3.4. To set the equivalent "
+                "value in the future, you can substitute accessing this parameter "
+                "with a call to Telescope.get_x_orientation_from_feeds().",
+                DeprecationWarning,
+            )
+            return self.get_x_orientation_from_feeds()
 
         return super().__getattribute__(__name)
 
@@ -516,8 +519,83 @@ class Telescope(UVBase):
             )
             self.name = __value
             return
+        elif __name == "x_orientation":
+            warnings.warn(
+                "The Telescope.x_orientation attribute is deprecated, and has "
+                "been superseded by Telescope.feed_angle and Telescope.feed_array. "
+                "This will become an error in version 3.4. To get the equivalent "
+                "value in the future, you can substitute accessing this parameter "
+                "with a call to Telescope.set_feeds_from_x_orientation().",
+                DeprecationWarning,
+            )
+            return self.set_feeds_from_x_orientation(__value)
 
         return super().__setattr__(__name, __value)
+
+    def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
+        """
+        Get x-orientation equivalent value based on feed information.
+
+        Returns
+        -------
+        x_orientation : str
+            One of "east", "north", or None, based on values present in
+            Telescope.feed_array and Telescope.feed_angle.
+        """
+        return utils.pol.get_x_orientation_from_feeds(
+            feed_array=self.feed_array,
+            feed_angle=self.feed_angle,
+            tols=self._feed_angle.tols,
+        )
+
+    def set_feeds_from_x_orientation(
+        self,
+        x_orientation,
+        feeds=None,
+        polarization_array=None,
+        flex_polarization_array=None,
+    ):
+        """
+        Set feed information based on x-orientation value.
+
+        Populates newer parameters describing feed-orientation (`Telescope.feed_array`
+        and `Telescope.feed_angle`) based on the "older" x-orientation string. Note that
+        this method will overwrite any previously populated values.
+
+        Parameters
+        ----------
+        x_orientation : str
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north).
+        feeds : list of str or None
+            List of strings denoting feed orientations/polarizations. Must be one of
+            "x", "y", "l", "r" (the former two for linearly polarized feeds, the latter
+            for circularly polarized feeds). Default assumes a pair of linearly
+            polarized feeds (["x", "y"]).
+        polarization_array : array-like of int or None
+            Array listing the polarization codes present, based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied, ignored if flex_polarization_array is set
+            to anything but None.
+        flex_polarization_array : array-like of int or None
+            Array listing the polarization codes present per spectral window (used with
+            certain "flexible-polarization" objects), based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied.
+        """
+        self.Nfeeds, self.feed_array, self.feed_angle = (
+            utils.pol.get_feeds_from_x_orientation(
+                x_orientation=x_orientation,
+                feeds=feeds,
+                polarization_array=polarization_array,
+                flex_polarization_array=flex_polarization_array,
+                nants=self.Nants,
+            )
+        )
 
     def check(self, *, check_extra=True, run_check_acceptability=True):
         """
@@ -576,6 +654,10 @@ class Telescope(UVBase):
         check_extra: bool = True,
         run_check_acceptability: bool = True,
         known_telescope_dict: dict = _KNOWN_TELESCOPES,
+        x_orientation: str | None = None,
+        feeds: str | list[str] | None = None,
+        polarization_array: np.ndarray | None = None,
+        flex_polarization_array: np.ndarray | None = None,
     ):
         """
         Update the parameters based on telescope in known_telescopes.
@@ -605,6 +687,29 @@ class Telescope(UVBase):
         known_telescope_dict: dict
             This should only be used for testing. This allows passing in a
             different dict to use in place of the KNOWN_TELESCOPES dict.
+        x_orientation : str
+            String describing how the x-orientation is oriented. Must be either "north"/
+            "n"/"ns" (x-polarization of antenna has a position angle of 0 degrees with
+            respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
+            position angle of 90 degrees with respect to zenith/north). Ignored if
+            "x_orientation" is relevant entry for the KNOWN_TELESCOPES dict.
+        feeds : list of str or None
+            List of strings denoting feed orientations/polarizations. Must be one of
+            "x", "y", "l", "r" (the former two for linearly polarized feeds, the latter
+            for circularly polarized feeds). Default assumes a pair of linearly
+            polarized feeds (["x", "y"]).
+        polarization_array : array-like of int or None
+            Array listing the polarization codes present, based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied, ignored if flex_polarization_array is set
+            to anything but None.
+        flex_polarization_array : array-like of int or None
+            Array listing the polarization codes present per spectral window (used with
+            certain "flexible-polarization" objects), based on the UVFITS numbering
+            scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
+            polarization types. Used with `utils.pol.get_feeds_from_pols` to determine
+            feeds present if not supplied.
 
         Raises
         ------
@@ -741,10 +846,10 @@ class Telescope(UVBase):
                         )
 
             if "x_orientation" in telescope_dict and (
-                overwrite or self.x_orientation is None
+                overwrite or (self.feed_array is None and self.feed_angle is None)
             ):
                 known_telescope_list.append("x_orientation")
-                self.x_orientation = telescope_dict["x_orientation"]
+                x_orientation = telescope_dict["x_orientation"]
 
         full_list = astropy_sites_list + known_telescope_list
         if warn and _WARN_STATUS.get(self.name.lower(), True) and len(full_list) > 0:
@@ -762,6 +867,30 @@ class Telescope(UVBase):
                 )
             warn_str += " ".join(specific_str)
             warnings.warn(warn_str)
+
+        if "Nants" in known_telescope_list and x_orientation is None:
+            # If this changed, then we want to force an update, so capture this
+            # from the previous time it was set.
+            x_orientation = self.get_x_orientation_from_feeds()
+            if x_orientation is not None and warn:
+                warnings.warn(
+                    "Nants has changed, setting feed_array and feed_angle "
+                    "automatically as these values are consistent with "
+                    f'x_orientation="{x_orientation}".'
+                )
+
+        # Set this separately, since if we've specified x-orientation we want to
+        # propagate that information to the relevant parameters.
+        if x_orientation is not None and (
+            (overwrite or "Nants" in known_telescope_list)
+            or (self.feed_array is None and self.feed_angle is None)
+        ):
+            self.set_feeds_from_x_orientation(
+                x_orientation=x_orientation,
+                feeds=feeds,
+                polarization_array=polarization_array,
+                flex_polarization_array=flex_polarization_array,
+            )
 
         if run_check:
             self.check(
@@ -827,6 +956,9 @@ class Telescope(UVBase):
         instrument: str | None = None,
         x_orientation: Literal["east", "north", "e", "n", "ew", "ns"] | None = None,
         antenna_diameters: list[float] | np.ndarray | None = None,
+        feeds: Literal["x", "y", "l", "r"] | list[str] | None = None,
+        feed_array: np.ndarray | None = None,
+        feed_angle: np.ndarray | None = None,
     ):
         """
         Initialize a new Telescope object from keyword arguments.
@@ -859,9 +991,22 @@ class Telescope(UVBase):
             Instrument name.
         x_orientation : str
             Orientation of the x-axis. Options are 'east', 'north', 'e', 'n',
-            'ew', 'ns'.
+            'ew', 'ns'. Ignored if feed_array and feed_angle are provided.
         antenna_diameters :  list or np.ndarray of float, optional
             List or array of antenna diameters.
+        feeds : list of str or None:
+            List of feeds present in the Telescope, which must be one of "x", "y", "l",
+            "r". Length of the list must be either 1 or 2. Used to populate feed_array
+            and feed_angle parameters if only supplying x_orientation, default is
+            ["x", "y"].
+        feed_array : array-like of str or None
+            List of feeds for each antenna in the Telescope object, must be one of
+            "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str.
+        feed_angle : array-like of float or None
+            Orientation of the feed with respect to zenith (or with respect to north if
+            pointed at zenith). Units is in rads, vertical polarization is nominally 0,
+            and horizontal polarization is nominally pi / 2. Shape (Nants, Nfeeds),
+            dtype float.
 
         Returns
         -------
@@ -892,9 +1037,11 @@ class Telescope(UVBase):
         if instrument is not None:
             tel_obj.instrument = instrument
 
-        if x_orientation is not None:
-            x_orientation = utils.XORIENTMAP[x_orientation.lower()]
-            tel_obj.x_orientation = x_orientation
+        if feed_angle is not None and feed_array is not None:
+            tel_obj.feed_array = feed_array
+            tel_obj.feed_angle = feed_angle
+        elif x_orientation is not None:
+            tel_obj.set_feeds_from_x_orientation(x_orientation.lower(), feeds=feeds)
 
         if antenna_diameters is not None:
             tel_obj.antenna_diameters = np.asarray(antenna_diameters)
@@ -949,7 +1096,6 @@ class Telescope(UVBase):
             "antenna_numbers": "antenna_numbers",
             "antenna_positions": "antenna_positions",
             "instrument": "instrument",
-            "x_orientation": "x_orientation",
             "antenna_diameters": "antenna_diameters",
             "mount_type": "mount_type",
             "Nfeeds": "Nfeeds",
@@ -964,6 +1110,10 @@ class Telescope(UVBase):
                     raise KeyError(str(e)) from e
                 else:
                     pass
+
+        # Handle the retired x-orientation parameter
+        if (tel_obj.feed_array is None) or (tel_obj.feed_angle is None):
+            tel_obj.set_feeds_from_x_orientation(meta.x_orientation, feeds=["x", "y"])
 
         if run_check:
             tel_obj.check(
@@ -999,8 +1149,6 @@ class Telescope(UVBase):
 
         if self.instrument is not None:
             header["instrument"] = np.bytes_(self.instrument)
-        if self.x_orientation is not None:
-            header["x_orientation"] = np.bytes_(self.x_orientation)
         if self.antenna_diameters is not None:
             header["antenna_diameters"] = self.antenna_diameters
         if self.Nfeeds is not None:
@@ -1027,3 +1175,60 @@ class Telescope(UVBase):
         antpos = utils.ENU_from_ECEF(antenna_xyz, center_loc=self.location)
 
         return antpos
+
+    def reorder_feeds(
+        self,
+        order="AIPS",
+        *,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Arrange feed axis according to desired order.
+
+        Parameters
+        ----------
+        order : str
+            Either a string specifying a canonical ordering ('AIPS' or 'CASA')
+            or list of strings specifying the preferred ordering of the four
+            feed types ("x", "y", "l", and "r").
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after reordering.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            reordering.
+
+        Raises
+        ------
+        ValueError
+            If the order is not one of the allowed values.
+
+        """
+        if self.Nfeeds is None or self.Nfeeds == 1:
+            # Nothing to do but bail!
+            return
+
+        if (order == "AIPS") or (order == "CASA"):
+            order = {"x": 1, "y": 2, "r": 3, "l": 4}
+        elif isinstance(order, list) and all(f in ["x", "y", "l", "r"] for f in order):
+            order = {item: idx for idx, item in enumerate(order)}
+        else:
+            raise ValueError(
+                "order must be one of: 'AIPS', 'CASA', or a "
+                'list of length 4 containing only "x", "y", "r", or "l".'
+            )
+
+        for idx in range(self.Nants):
+            feed_a, feed_b = self.feed_array[idx]
+            if order.get(feed_a, 999999) > order.get(feed_b, 999999):
+                self.feed_array[idx] = self.feed_array[idx, ::-1]
+                self.feed_angle[idx] = self.feed_angle[idx, ::-1]
+
+        if run_check:
+            self.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )

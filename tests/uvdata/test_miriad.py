@@ -1119,10 +1119,12 @@ def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_roundtrip_optional_params(uv_in_paper, tmp_path):
+def test_roundtrip_optional_params(uv_in_paper):
     uv_in, uv_out, testfile = uv_in_paper
 
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     uv_in.pol_convention = "sum"
     uv_in.vis_units = "Jy"
     uv_in.reorder_blts()
@@ -1235,7 +1237,9 @@ def test_read_write_read_miriad(uv_in_paper):
     assert str(cm.value).startswith("File exists: skipping")
 
     # check that if x_orientation is set, it's read back out properly
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file)
     uv_out._consolidate_phase_center_catalogs(other=uv_in)

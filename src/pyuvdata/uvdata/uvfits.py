@@ -3,7 +3,6 @@
 
 """Class for reading and writing uvfits files."""
 
-import contextlib
 import copy
 import os
 import warnings
@@ -464,7 +463,7 @@ class UVFITS(UVData):
             latitude_degrees = vis_hdr.pop("LAT", None)
             longitude_degrees = vis_hdr.pop("LON", None)
             altitude = vis_hdr.pop("ALT", None)
-            self.telescope.x_orientation = vis_hdr.pop("XORIENT", None)
+            x_orientation = vis_hdr.pop("XORIENT", None)
             blt_order_str = vis_hdr.pop("BLTORDER", None)
             if blt_order_str is not None:
                 self.blt_order = tuple(blt_order_str.split(", "))
@@ -694,13 +693,15 @@ class UVFITS(UVData):
             # If written by older versions of pyuvdata, we don't neccessarily want to
             # trust the mount information, otherwise read it in.
             if ant_hdu.header.get("HASMNT", not pyuvdata_written):
-                with contextlib.suppress(KeyError):
-                    # If KeyError is thrown, there's an unknown code that we don't
-                    # know how to handle, so skip setting the mount_type parameter
-                    self.telescope.mount_type = [
-                        utils.antenna.MOUNT_NUM2STR_DICT[mount]
-                        for mount in ant_hdu.data["MNTSTA"]
-                    ]
+                ref_dict = utils.antenna.MOUNT_NUM2STR_DICT
+                if not pyuvdata_written:
+                    # Standard UVFITS only supports codes 0-6, so remove the other
+                    # codes so as to prevent mislabeling
+                    ref_dict = {k: v for k, v in ref_dict.items() if k in range(7)}
+                # Default to other if mount code isn't found
+                self.telescope.mount_type = [
+                    ref_dict.get(mount, "other") for mount in ant_hdu.data["MNTSTA"]
+                ]
 
             if ant_hdu.header.get("HASFEED", not pyuvdata_written):
                 # Tranpose here so that the shape is (Nants, Nfeeds)
@@ -726,6 +727,7 @@ class UVFITS(UVData):
             # This will not error because uvfits required keywords ensure we
             # have everything that is required for this method.
             self.set_telescope_params(
+                x_orientation=x_orientation,
                 run_check=run_check,
                 check_extra=check_extra,
                 run_check_acceptability=run_check_acceptability,
@@ -1248,9 +1250,6 @@ class UVFITS(UVData):
 
         if self.pol_convention is not None:
             hdu.header["POLCONV"] = self.pol_convention
-
-        if self.telescope.x_orientation is not None:
-            hdu.header["XORIENT"] = self.telescope.x_orientation
 
         if self.blt_order is not None:
             blt_order_str = ", ".join(self.blt_order)

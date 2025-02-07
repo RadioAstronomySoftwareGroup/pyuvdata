@@ -1707,7 +1707,6 @@ class MWACorrFITS(UVData):
         self.spw_array = np.array([0])
         self.vis_units = "uncalib"
         self.Npols = 4
-        self.telescope.x_orientation = "east"
 
         meta_dict = read_metafits(
             metafits_file,
@@ -1876,6 +1875,11 @@ class MWACorrFITS(UVData):
         # reorder polarization_array here to avoid memory spike from self.reorder_pols
         self.polarization_array = file_pol_array[pol_index_array]
 
+        # Set values for feed-array/feed-angle based on east x-orientation
+        self.telescope.set_feeds_from_x_orientation(
+            "east", polarization_array=self.polarization_array
+        )
+
         if read_data:
             if not mwax:
                 # build mapper from antenna numbers and polarizations to pfb inputs
@@ -1973,7 +1977,8 @@ class MWACorrFITS(UVData):
                 for p in polarizations:
                     if isinstance(p, str):
                         p_num = utils.polstr2num(
-                            p, x_orientation=self.telescope.x_orientation
+                            p,
+                            x_orientation=self.telescope.get_x_orientation_from_feeds(),
                         )
                     else:
                         p_num = p

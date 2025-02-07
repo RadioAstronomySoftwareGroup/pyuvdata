@@ -376,7 +376,9 @@ def test_uvh5_optional_parameters(casa_uvfits, tmp_path):
     testfile = str(tmp_path / "outtest_uvfits.uvh5")
 
     # set optional parameters
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     uv_in.pol_conventions = "avg"
     uv_in.telescope.antenna_diameters = (
         np.ones_like(uv_in.telescope.antenna_numbers) * 1.0

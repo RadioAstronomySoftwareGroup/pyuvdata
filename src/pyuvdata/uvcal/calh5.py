@@ -177,7 +177,6 @@ class CalH5(UVCal):
             "latitude",
             "longitude",
             "altitude",
-            "x_orientation",
             "Nants_telescope",
             "antenna_names",
             "antenna_numbers",
@@ -279,8 +278,13 @@ class CalH5(UVCal):
             with contextlib.suppress(AttributeError):
                 setattr(self, attr, getattr(meta, attr))
 
-        # set any extra telescope params
-        self.set_telescope_params()
+        # set any extra telescope params (and handle x-orientation)
+        self.set_telescope_params(
+            x_orientation=meta.x_orientation,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
 
         # ensure LSTs are set before checking them.
         if proc is not None:

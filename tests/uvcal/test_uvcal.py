@@ -464,6 +464,12 @@ def test_nants_data_telescope_larger(gain_data):
     gain_data.telescope.antenna_positions = np.concatenate(
         (gain_data.telescope.antenna_positions, np.zeros((1, 3), dtype=float))
     )
+    gain_data.telescope.feed_array = np.concatenate(
+        (gain_data.telescope.feed_array, np.array([["x"]], dtype=str))
+    )
+    gain_data.telescope.feed_angle = np.concatenate(
+        (gain_data.telescope.feed_angle, np.full((1, 1), np.pi / 2, dtype=float))
+    )
     if gain_data.telescope.antenna_diameters is not None:
         gain_data.telescope.antenna_diameters = np.concatenate(
             (gain_data.telescope.antenna_diameters, np.ones((1,), dtype=float))
@@ -478,6 +484,8 @@ def test_ant_array_not_in_antnums(gain_data):
     gain_data.telescope.antenna_names = gain_data.telescope.antenna_names[1:]
     gain_data.telescope.antenna_numbers = gain_data.telescope.antenna_numbers[1:]
     gain_data.telescope.antenna_positions = gain_data.telescope.antenna_positions[1:, :]
+    gain_data.telescope.feed_array = gain_data.telescope.feed_array[1:, :]
+    gain_data.telescope.feed_angle = gain_data.telescope.feed_angle[1:, :]
     if gain_data.telescope.antenna_diameters is not None:
         gain_data.telescope.antenna_diameters = gain_data.telescope.antenna_diameters[
             1:
@@ -1217,12 +1225,13 @@ def test_select_polarizations(caltype, sel_jones, gain_data, delay_data, invert)
     jones_arr = []
     for j in sel_jones:
         if not isinstance(j, int):
-            j = utils.jstr2num(j, x_orientation=calobj.telescope.x_orientation)
+            j = utils.jstr2num(
+                j, x_orientation=calobj.telescope.get_x_orientation_from_feeds()
+            )
         jones_arr.append(j)
 
     assert np.all(np.isin(jones_arr, calobj.jones_array, invert=invert))
     assert np.all(np.isin(calobj.jones_array, jones_arr, invert=invert))
-
     assert utils.history._check_histories(
         old_history + "  Downselected to "
         "specific jones polarization terms "
@@ -1800,7 +1809,8 @@ def test_reorder_jones(caltype, metadata_only, gain_data, delay_data):
     calobj2.reorder_jones()
     name_array = np.asarray(
         utils.jnum2str(
-            calobj2.jones_array, x_orientation=calobj2.telescope.x_orientation
+            calobj2.jones_array,
+            x_orientation=calobj2.telescope.get_x_orientation_from_feeds(),
         )
     )
     sorted_names = np.sort(name_array)
@@ -1808,7 +1818,7 @@ def test_reorder_jones(caltype, metadata_only, gain_data, delay_data):
 
     # test sorting with an index array. Sort back to number first so indexing works
     sorted_nums = utils.jstr2num(
-        sorted_names, x_orientation=calobj.telescope.x_orientation
+        sorted_names, x_orientation=calobj.telescope.get_x_orientation_from_feeds()
     )
     index_array = [np.nonzero(calobj.jones_array == num)[0][0] for num in sorted_nums]
     calobj.reorder_jones(index_array)

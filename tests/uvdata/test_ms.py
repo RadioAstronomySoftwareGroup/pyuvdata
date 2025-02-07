@@ -957,9 +957,13 @@ def test_antenna_diameter_handling(hera_uvh5, tmp_path):
 def test_ms_optional_parameters(nrao_uv, tmp_path):
     uv_obj = nrao_uv
 
-    uv_obj.telescope.x_orientation = "east"
+    uv_obj.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_obj.polarization_array
+    )
     uv_obj.pol_convention = "sum"
     uv_obj.vis_units = "Jy"
+    # Update the order so as to be UVFITS compliant
+    uv_obj.telescope.reorder_feeds("AIPS")
 
     test_file = os.path.join(tmp_path, "dish_diameter_out.ms")
     uv_obj.write_ms(test_file, force_phase=True)

@@ -484,7 +484,7 @@ class UVH5(UVData):
         astrometry_library: str | None = None,
     ):
         if not isinstance(filename, FastUVH5Meta):
-            obj = FastUVH5Meta(
+            meta = FastUVH5Meta(
                 filename,
                 blt_order=blt_order,
                 blts_are_rectangular=blts_are_rectangular,
@@ -493,11 +493,11 @@ class UVH5(UVData):
                 astrometry_library=astrometry_library,
             )
         else:
-            obj = filename
+            meta = filename
 
         # First, get the things relevant for setting LSTs, so that can be run in the
         # background if desired.
-        self.time_array = obj.time_array
+        self.time_array = meta.time_array
         required_telescope_keys = [
             "telescope_name",
             "latitude",
@@ -518,8 +518,8 @@ class UVH5(UVData):
         )
         self._set_telescope_requirements()
 
-        if "lst_array" in obj.header:
-            self.lst_array = obj.header["lst_array"][:]
+        if "lst_array" in meta.header:
+            self.lst_array = meta.header["lst_array"][:]
             proc = None
 
             if run_check_acceptability:
@@ -557,7 +557,7 @@ class UVH5(UVData):
 
         # Take care of the phase center attributes separately, in order to support
         # older versions of the format.
-        if obj.phase_center_catalog is not None:
+        if meta.phase_center_catalog is not None:
             req_params += [
                 "phase_center_catalog",
                 "phase_center_app_ra",
@@ -570,7 +570,7 @@ class UVH5(UVData):
         # Required parameters
         for attr in req_params:
             try:
-                setattr(self, attr, getattr(obj, attr))
+                setattr(self, attr, getattr(meta, attr))
             except AttributeError as e:
                 raise KeyError(str(e)) from e
 
@@ -592,10 +592,10 @@ class UVH5(UVData):
         # For now, only set the rectangularity parameters if they exist in the header of
         # the file. These could be set automatically later on, but for now we'll leave
         # that up to the user dealing with the UVData object.
-        if "blts_are_rectangular" in obj.header:
-            self.blts_are_rectangular = obj.blts_are_rectangular
-        if "time_axis_faster_than_bls" in obj.header:
-            self.time_axis_faster_than_bls = obj.time_axis_faster_than_bls
+        if "blts_are_rectangular" in meta.header:
+            self.blts_are_rectangular = meta.blts_are_rectangular
+        if "time_axis_faster_than_bls" in meta.header:
+            self.time_axis_faster_than_bls = meta.time_axis_faster_than_bls
 
         if not utils.history._check_history_version(
             self.history, self.pyuvdata_version_str
@@ -619,7 +619,7 @@ class UVH5(UVData):
             "pol_convention",
         ]:
             with contextlib.suppress(AttributeError):
-                setattr(self, attr, getattr(obj, attr))
+                setattr(self, attr, getattr(meta, attr))
 
         if self.blt_order is not None:
             self._blt_order.form = (len(self.blt_order),)
@@ -629,16 +629,16 @@ class UVH5(UVData):
 
         # Here is where we start handling phase center information.  If we have a
         # multi phase center dataset, we need to get different header items
-        if obj.phase_center_catalog is None:
-            phase_type = bytes(obj.header["phase_type"][()]).decode("utf8")
+        if meta.phase_center_catalog is None:
+            phase_type = bytes(meta.header["phase_type"][()]).decode("utf8")
             if phase_type == "phased":
                 cat_id = self._add_phase_center(
-                    getattr(obj, "object_name", "unknown"),
+                    getattr(meta, "object_name", "unknown"),
                     cat_type="sidereal",
-                    cat_lon=obj.phase_center_ra,
-                    cat_lat=obj.phase_center_dec,
-                    cat_frame=obj.phase_center_frame,
-                    cat_epoch=obj.phase_center_epoch,
+                    cat_lon=meta.phase_center_ra,
+                    cat_lat=meta.phase_center_dec,
+                    cat_frame=meta.phase_center_frame,
+                    cat_epoch=meta.phase_center_epoch,
                 )
             else:
                 if phase_type != "drift":
@@ -647,12 +647,13 @@ class UVH5(UVData):
                         "(unphased) by default."
                     )
                 cat_id = self._add_phase_center(
-                    getattr(obj, "object_name", "unprojected"), cat_type="unprojected"
+                    getattr(meta, "object_name", "unprojected"), cat_type="unprojected"
                 )
 
-            self.phase_center_id_array = np.full(obj.Nblts, cat_id, dtype=int)
+            self.phase_center_id_array = np.full(meta.Nblts, cat_id, dtype=int)
         # set any extra telescope params
         self.set_telescope_params(
+            x_orientation=meta.x_orientation,
             run_check=run_check,
             check_extra=check_extra,
             run_check_acceptability=run_check_acceptability,
