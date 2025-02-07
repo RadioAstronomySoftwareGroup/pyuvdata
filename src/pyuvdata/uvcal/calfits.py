@@ -186,7 +186,6 @@ class CALFITS(UVCal):
         else:
             prihdr["CHWIDTH"] = delta_freq_array
 
-        prihdr["XORIENT"] = self.telescope.x_orientation
         if self.freq_range is not None:
             freq_range_use = self.freq_range[0, :]
         else:
@@ -413,6 +412,28 @@ class CALFITS(UVCal):
         # make HDUs
         prihdu = fits.PrimaryHDU(data=pridata, header=prihdr)
 
+        polaa = np.zeros(self.telescope.Nants, dtype=float)
+        polab = np.zeros(self.telescope.Nants, dtype=float)
+        poltya = np.full(self.telescope.Nants, "", dtype="<U1")
+        poltyb = np.full(self.telescope.Nants, "", dtype="<U1")
+        mntsta = np.zeros(self.telescope.Nants, dtype=int)
+
+        # Should be no "if None" statement here b/c feed_array should be required
+        for idx, feeds in enumerate(self.telescope.feed_array):
+            # Format everything uppercase as expected by
+            feeds = [feed.upper() for feed in feeds]
+            if any(item not in ["X", "Y", "L", "R"] for item in feeds):
+                raise ValueError(
+                    "CalFITS only supports x/y or l/r polarized feed information."
+                )
+            # See if we need to flip to UVFITS convention, which wants XY/RL
+            feed_a, feed_b = (1, 0) if feeds in [["Y", "X"], ["L", "R"]] else (0, 1)
+            poltya[idx] = feeds[feed_a]
+            polaa[idx] = np.degrees(self.telescope.feed_angle[idx, feed_a])
+            if len(feeds) == 2:
+                poltyb[idx] = feeds[feed_b]
+                polab[idx] = np.degrees(self.telescope.feed_angle[idx, feed_b])
+
         # ant HDU
         col1 = fits.Column(
             name="ANTNAME", format="8A", array=self.telescope.antenna_names
@@ -433,13 +454,25 @@ class CALFITS(UVCal):
         col4 = fits.Column(
             name="ANTXYZ", format="3D", array=self.telescope.antenna_positions
         )
-        collist = [col1, col2, col3, col4]
+        col5 = fits.Column(name="POLTYA", format="1A", array=poltya)
+        col6 = fits.Column(name="POLAA", format="1E", array=polaa)
+        col7 = fits.Column(name="POLTYB", format="1A", array=poltyb)
+        col8 = fits.Column(name="POLAB", format="1E", array=polab)
+        collist = [col1, col2, col3, col4, col5, col6, col7, col8]
+
         if self.telescope.antenna_diameters is not None:
             collist.append(
                 fits.Column(
                     name="ANTDIAM", format="D", array=self.telescope.antenna_diameters
                 )
             )
+
+        if self.telescope.mount_type is not None:
+            mntsta = np.array(
+                [utils.MOUNT_STR2NUM_DICT[mount] for mount in self.telescope.mount_type]
+            )
+            collist.append(fits.Column(name="MNTSTA", format="1J", array=mntsta))
+
         cols = fits.ColDefs(collist)
         ant_hdu = fits.BinTableHDU.from_columns(cols)
         ant_hdu.header["EXTNAME"] = "ANTENNAS"
@@ -503,8 +536,40 @@ class CALFITS(UVCal):
             if "ANTDIAM" in antdata.names:
                 self.telescope.antenna_diameters = antdata["ANTDIAM"]
 
+            if "MNSTA" in antdata.names:
+                self.telescope.mount_type = [
+                    utils.antenna.MOUNT_NUM2STR_DICT[mount]
+                    for mount in antdata["MNTSTA"]
+                ]
+
+            self.Njones = hdr.pop("NAXIS2")
+            self.jones_array = fits_utils._gethduaxis(fname[0], 2)
+
             self.telescope.name = hdr.pop("TELESCOP")
-            self.telescope.x_orientation = hdr.pop("XORIENT")
+            x_orientation = hdr.pop("XORIENT", None)
+
+            if x_orientation is None:
+                # This is for the "newer" version of calfits, since XORIENT is no longer
+                # written to the header (but we can use it to set the new parameters).
+                # Tranpose here so that the shape is (Nants, Nfeeds)
+                # NB: Older versions of the fits reader produce " " here, so we use
+                # strip so that the output across versions is a uniform ""
+                self.telescope.feed_array = np.array(
+                    [
+                        [item.strip().lower() for item in antdata["POLTYA"]],
+                        [item.strip().lower() for item in antdata["POLTYB"]],
+                    ]
+                ).T
+                self.telescope.Nfeeds = 2
+                self.telescope.feed_angle = np.radians(
+                    [antdata["POLAA"], antdata["POLAB"]]
+                ).T
+
+                # If POLYTB is all missing, assuming this is a single-feed setup
+                if all(self.telescope.feed_array[:, 1] == ""):
+                    self.telescope.feed_array = self.telescope.feed_array[:, :1]
+                    self.telescope.feed_angle = self.telescope.feed_angle[:, :1]
+                    self.telescope.Nfeeds = 1
 
             x_telescope = hdr.pop("ARRAYX", None)
             y_telescope = hdr.pop("ARRAYY", None)
@@ -553,7 +618,7 @@ class CALFITS(UVCal):
                     )
 
             try:
-                self.set_telescope_params()
+                self.set_telescope_params(x_orientation=x_orientation)
             except ValueError as ve:
                 warnings.warn(str(ve))
 
@@ -603,8 +668,6 @@ class CALFITS(UVCal):
             self.git_hash_cal = hdr.pop("HASHCAL", None)
 
             # generate polarization and time array for either cal_type.
-            self.Njones = hdr.pop("NAXIS2")
-            self.jones_array = fits_utils._gethduaxis(fname[0], 2)
             self.Ntimes = hdr.pop("NAXIS3")
             main_hdr_time_array = fits_utils._gethduaxis(fname[0], 3)
             self.integration_time = np.full(self.Ntimes, hdr.pop("INTTIME"))

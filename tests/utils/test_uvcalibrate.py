@@ -133,7 +133,12 @@ def test_uvcalibrate_apply_gains_oldfiles(uvcalibrate_uvdata_oldfiles):
     uvd = uvcalibrate_uvdata_oldfiles
 
     # give it an x_orientation
-    uvd.telescope.x_orientation = "east"
+    uvd.telescope.set_feeds_from_x_orientation(
+        x_orientation="east",
+        polarization_array=uvd.polarization_array,
+        flex_polarization_array=uvd.flex_spw_polarization_array,
+    )
+
     uvc = UVCal()
     uvc.read_calfits(os.path.join(DATA_PATH, "zen.2457698.40355.xx.gain.calfits"))
     # downselect to match each other in shape (but not in actual values!)
@@ -668,7 +673,11 @@ def test_uvcalibrate_feedpol_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # downselect the feed polarization to get warnings
-    uvc.select(jones=utils.jstr2num("Jnn", x_orientation=uvc.telescope.x_orientation))
+    uvc.select(
+        jones=utils.jstr2num(
+            "Jnn", x_orientation=uvc.telescope.get_x_orientation_from_feeds()
+        )
+    )
     with pytest.raises(
         ValueError, match=("Feed polarization e exists on UVData but not on UVCal.")
     ):
@@ -679,8 +688,10 @@ def test_uvcalibrate_x_orientation_mismatch(uvcalibrate_data):
     uvd, uvc = uvcalibrate_data
 
     # next check None uvd_x
-    uvd.telescope.x_orientation = None
-    uvc.telescope.x_orientation = "east"
+    uvd.telescope.set_feeds_from_x_orientation(None)
+    uvc.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uvc.jones_array
+    )
     with pytest.warns(
         UserWarning,
         match=r"UVData object does not have `x_orientation` specified but UVCal does",
