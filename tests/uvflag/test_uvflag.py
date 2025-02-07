@@ -358,9 +358,13 @@ def test_read_extra_keywords(uvdata_obj):
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
 def test_init_uvdata_x_orientation(uvdata_obj):
     uv = uvdata_obj
-    uv.telescope.x_orientation = "east"
+    uv.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv.polarization_array
+    )
     uvf = UVFlag(uv, history="I made a UVFlag object", label="test")
-    assert uvf.telescope.x_orientation == uv.telescope.x_orientation
+    assert uvf.telescope.get_x_orientation_from_feeds() == (
+        uv.telescope.get_x_orientation_from_feeds()
+    )
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
@@ -442,7 +446,8 @@ def test_init_uvcal(uvcal_obj):
     assert uvf.type == "antenna"
     assert uvf.mode == "metric"
     assert np.all(uvf.time_array == uvc.time_array)
-    assert uvf.telescope.x_orientation == uvc.telescope.x_orientation
+    assert np.all(uvf.telescope.feed_array == uvc.telescope.feed_array)
+    assert np.all(uvf.telescope.feed_angle == uvc.telescope.feed_angle)
     assert np.all(uvf.lst_array == uvc.lst_array)
     assert np.all(uvf.freq_array == uvc.freq_array)
     assert np.all(uvf.polarization_array == uvc.jones_array)
@@ -1058,6 +1063,10 @@ def test_read_write_loop_missing_telescope_info(
                 uv.telescope.antenna_diameters = uv.telescope.antenna_diameters[
                     ant_inds_keep
                 ]
+            if uv.telescope.feed_array is not None:
+                uv.telescope.feed_array = uv.telescope.feed_array[ant_inds_keep]
+            if uv.telescope.feed_angle is not None:
+                uv.telescope.feed_angle = uv.telescope.feed_angle[ant_inds_keep]
             uv.telescope.Nants = ant_inds_keep.size
             uv.check()
         else:
@@ -1278,7 +1287,9 @@ def test_read_write_loop_missing_spw_array(uvdata_obj, test_outfile):
 def test_read_write_loop_with_optional_x_orientation(uvdata_obj, test_outfile):
     uv = uvdata_obj
     uvf = UVFlag(uv, label="test")
-    uvf.telescope.x_orientation = "east"
+    uvf.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uvf.polarization_array
+    )
     uvf.write(test_outfile, clobber=True)
     uvf2 = UVFlag(test_outfile)
     assert uvf.__eq__(uvf2, check_history=True)
@@ -1766,19 +1777,27 @@ def test_add_antenna(uvcal_obj, diameters):
     )
     if diameters == "left" or diameters == "right":
         uv2.telescope.antenna_diameters = None
+        uv2.telescope.feed_array = None
+        uv2.telescope.feed_angle = None
 
     if diameters == "both":
         warn_type = None
         warn_msg = ""
     else:
         warn_type = UserWarning
-        warn_msg = "UVParameter antenna_diameters does not match. Combining anyway."
+        warn_msg = [
+            "UVParameter antenna_diameters does not match. Combining anyway.",
+            "UVParameter feed_array does not match. Combining anyway.",
+            "UVParameter feed_angle does not match. Combining anyway.",
+        ]
 
     with check_warnings(warn_type, match=warn_msg):
         uv3 = uv1.__add__(uv2, axis="antenna")
 
     if diameters != "both":
         assert uv3.telescope.antenna_diameters is None
+        assert uv3.telescope.feed_array is None
+        assert uv3.telescope.feed_angle is None
 
     assert np.array_equal(np.concatenate((uv1.ant_array, uv2.ant_array)), uv3.ant_array)
     assert np.array_equal(
@@ -2460,7 +2479,8 @@ def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
 
     with check_warnings(
         UserWarning,
-        match=["telescope_location, Nants, antenna_names, antenna_numbers, "] * 2,
+        match=["telescope_location, Nants, antenna_names, antenna_numbers, "] * 2
+        + ["Nants has changed, setting feed_array and feed_angle automatically"],
     ):
         uvf.set_telescope_params(overwrite=True)
         uv.set_telescope_params(overwrite=True)
@@ -2485,14 +2505,18 @@ def test_to_baseline_from_antenna(uvdata_obj, uvf_from_uvcal):
 
     with check_warnings(
         UserWarning,
-        match="x_orientation is not the same on this object and on uv. Keeping "
-        "the value on this object.",
+        match=[
+            "feed_array is not the same on this object and on uv.",
+            "feed_angle is not the same on this object and on uv.",
+        ],
     ):
         uvf.to_baseline(uv, force_pol=True)
     with check_warnings(
         UserWarning,
-        match="x_orientation is not the same on this object and on uv. Keeping "
-        "the value on this object.",
+        match=[
+            "feed_array is not the same on this object and on uv.",
+            "feed_angle is not the same on this object and on uv.",
+        ],
     ):
         uvf2.to_baseline(uv2, force_pol=True)
     uvf.check()
@@ -3826,7 +3850,9 @@ def test_select_polarizations(uvf_mode, pols_to_keep, pols_to_drop, input_uvf, i
     np.random.seed(0)
     old_history = uvf.history
 
-    uvf.telescope.x_orientation = "north"
+    uvf.telescope.set_feeds_from_x_orientation(
+        "north", polarization_array=uvf.polarization_array
+    )
     uvf2 = uvf.copy()
     uvf2.select(
         polarizations=pols_to_drop if invert else pols_to_keep,
@@ -3843,7 +3869,9 @@ def test_select_polarizations(uvf_mode, pols_to_keep, pols_to_drop, input_uvf, i
             assert p in uvf2.polarization_array
         else:
             assert (
-                utils.polstr2num(p, x_orientation=uvf2.telescope.x_orientation)
+                utils.polstr2num(
+                    p, x_orientation=uvf2.telescope.get_x_orientation_from_feeds()
+                )
                 in uvf2.polarization_array
             )
     for p in np.unique(uvf2.polarization_array):
@@ -3851,7 +3879,8 @@ def test_select_polarizations(uvf_mode, pols_to_keep, pols_to_drop, input_uvf, i
             assert p in pols_to_keep
         else:
             assert p in utils.polstr2num(
-                pols_to_keep, x_orientation=uvf2.telescope.x_orientation
+                pols_to_keep,
+                x_orientation=uvf2.telescope.get_x_orientation_from_feeds(),
             )
 
     assert utils.history._check_histories(

@@ -2552,7 +2552,7 @@ def test_select_polarizations(hera_uvh5, pol_list, invert):
             pol_int_list[idx] = p
         else:
             pol_int_list[idx] = utils.polstr2num(
-                p, x_orientation=uv_object.telescope.x_orientation
+                p, x_orientation=uv_object.telescope.get_x_orientation_from_feeds()
             )
 
     assert np.all(np.isin(pol_int_list, uv_object.polarization_array, invert=invert))
@@ -5145,14 +5145,17 @@ def test_get_pols(casa_uvfits):
 def test_get_pols_x_orientation(paper_uvh5):
     uv_in = paper_uvh5
 
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
 
     pols = uv_in.get_pols()
     pols_data = ["en"]
     assert pols == pols_data
 
-    uv_in.telescope.x_orientation = "north"
-
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "north", polarization_array=uv_in.polarization_array
+    )
     pols = uv_in.get_pols()
     pols_data = ["ne"]
     assert pols == pols_data
@@ -12349,7 +12352,9 @@ def test_init_like_hera_cal(hera_uvh5, tmp_path, projected, check_before_write):
         "name",
         "location",
         "instrument",
-        "x_orientation",
+        "Nfeeds",
+        "feed_array",
+        "feed_angle",
         "Nants",
         "antenna_names",
         "antenna_numbers",

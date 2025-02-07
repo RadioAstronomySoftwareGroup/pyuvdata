@@ -440,11 +440,11 @@ def uvcalibrate(
             if len(uvcal_freqs_to_keep) < uvcal.Nfreqs:
                 downselect_cal_freq = True
 
-    # check if uvdata.telescope.x_orientation isn't set (it's required for uvcal)
-    uvd_x = uvdata.telescope.x_orientation
+    # check if x_orientation-equivalent in uvdata isn't set (it's required for uvcal)
+    uvd_x = uvdata.telescope.get_x_orientation_from_feeds()
     if uvd_x is None:
         # use the uvcal x_orientation throughout
-        uvd_x = uvcal.telescope.x_orientation
+        uvd_x = uvcal.telescope.get_x_orientation_from_feeds()
         warnings.warn(
             "UVData object does not have `x_orientation` specified but UVCal does. "
             "Matching based on `x` and `y` only "
@@ -452,14 +452,16 @@ def uvcalibrate(
 
     uvdata_pol_strs = polnum2str(uvdata.polarization_array, x_orientation=uvd_x)
     uvcal_pol_strs = jnum2str(
-        uvcal.jones_array, x_orientation=uvcal.telescope.x_orientation
+        uvcal.jones_array, x_orientation=uvcal.telescope.get_x_orientation_from_feeds()
     )
     uvdata_feed_pols = {
         feed for pol in uvdata_pol_strs for feed in POL_TO_FEED_DICT[pol]
     }
     for feed in uvdata_feed_pols:
         # get diagonal jones str
-        jones_str = parse_jpolstr(feed, x_orientation=uvcal.telescope.x_orientation)
+        jones_str = parse_jpolstr(
+            feed, x_orientation=uvcal.telescope.get_x_orientation_from_feeds()
+        )
         if jones_str not in uvcal_pol_strs:
             raise ValueError(
                 f"Feed polarization {feed} exists on UVData but not on UVCal. "

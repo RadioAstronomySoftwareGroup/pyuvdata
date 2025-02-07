@@ -41,7 +41,6 @@ required_properties = [
 ]
 extra_parameters = [
     "_antenna_diameters",
-    "_x_orientation",
     "_instrument",
     "_mount_type",
     "_Nfeeds",
@@ -50,7 +49,6 @@ extra_parameters = [
 ]
 extra_properties = [
     "antenna_diameters",
-    "x_orientation",
     "instrument",
     "mount_type",
     "Nfeeds",
@@ -195,13 +193,19 @@ def test_update_params_from_known():
             "for telescope hera.",
             "x_orientation are not set or are being overwritten. x_orientation "
             "are set using values from known telescopes for hera.",
+            "Unknown polarization basis -- assuming linearly polarized (x/y) feeds for "
+            "Telescope.feed_array.",
         ],
     ):
         hera_tel_test.update_params_from_known_telescopes(
             known_telescope_dict=known_dict
         )
     assert hera_tel_test.antenna_diameters is None
-    assert hera_tel_test.x_orientation == "east"
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        assert hera_tel_test.x_orientation == "east"
+        assert hera_tel_test.get_x_orientation_from_feeds() == "east"
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
     mwa_tel2 = Telescope()
@@ -482,11 +486,15 @@ def test_bad_antenna_inputs(kwargs, err_msg):
 
 @pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
 def test_passing_xorient(simplest_working_params, xorient):
-    tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
-    if xorient.lower().startswith("e"):
-        assert tel.x_orientation == "east"
-    else:
-        assert tel.x_orientation == "north"
+    with check_warnings(UserWarning, "Unknown polarization basis"):
+        tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
+
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        name = "east" if xorient.lower().startswith("e") else "north"
+        assert tel.x_orientation == name
+        assert tel.get_x_orientation_from_feeds() == name
 
 
 def test_passing_diameters(simplest_working_params):
