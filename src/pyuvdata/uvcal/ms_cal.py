@@ -222,7 +222,9 @@ class MSCal(UVCal):
                         "Unknown polarization basis for solutions, jones_array values "
                         "may be spurious."
                     )
-                    self.jones_array = np.zeros(self.Njones, dtype=int)
+                    self.jones_array = np.array(
+                        [-6, -7] if main_info_dict["subType"] == "D Jones" else [-5, -6]
+                    )[: self.Njones]
                 else:
                     self.jones_array = default_jones_array
         else:
@@ -371,15 +373,26 @@ class MSCal(UVCal):
                 [field_id_map[idx] for idx in self.phase_center_id_array]
             )
 
-        self.telescope.x_orientation = main_keywords.get("pyuvdata_xorient", None)
-        if self.telescope.x_orientation is None:
-            if default_x_orientation is None:
-                self.telescope.x_orientation = "east"
+        if "pyuvdata_nfeeds" in main_keywords:
+            self.telescope.Nfeeds = main_keywords["pyuvdata_nfeeds"]
+            self.telescope.feed_array = (
+                np.array([main_keywords["pyuvdata_feed_array"]])
+                .view("U1")
+                .reshape(-1, self.telescope.Nfeeds)
+            )
+            self.telescope.feed_angle = main_keywords["pyuvdata_feed_angle"]
+        else:
+            x_orientation = main_keywords.get("pyuvdata_xorient", default_x_orientation)
+            if x_orientation is None:
+                x_orientation = "east"
                 warnings.warn(
                     'Unknown x_orientation basis for solutions, assuming "east".'
                 )
-            else:
-                self.telescope.x_orientation = default_x_orientation
+            self.telescope.set_feeds_from_x_orientation(
+                x_orientation=x_orientation,
+                polarization_array=self.jones_array,
+                flex_polarization_array=self.flex_jones_array,
+            )
 
         # Use if this is a delay soln
         if self.cal_type == "gain":
@@ -483,9 +496,6 @@ class MSCal(UVCal):
                 if len(extra_copy) != 0:
                     ms.putkeyword("pyuvdata_extra", extra_copy)
 
-            if self.telescope.x_orientation is not None:
-                ms.putkeyword("pyuvdata_xorient", self.telescope.x_orientation)
-
             if self.jones_array is not None:
                 ms.putkeyword("pyuvdata_jones", self.jones_array)
 
@@ -497,6 +507,7 @@ class MSCal(UVCal):
 
             if self.gain_scale is not None:
                 ms.putkeyword("pyuvdata_gain_scale", self.gain_scale)
+
             if self.pol_convention is not None:
                 ms.putkeyword("pyuvdata_polconv", self.pol_convention)
 
@@ -505,6 +516,15 @@ class MSCal(UVCal):
 
             if self.cal_style is not None:
                 ms.putkeyword("pyuvdata_cal_style", self.cal_style)
+
+            if self.telescope.Nfeeds is not None:
+                ms.putkeyword("pyuvdata_nfeeds", self.telescope.Nfeeds)
+                # Compress the array of strings down to a single string, just to avoid
+                # any weirdness with casacore handling
+                ms.putkeyword(
+                    "pyuvdata_feed_array", "".join(self.telescope.feed_array.flat)
+                )
+                ms.putkeyword("pyuvdata_feed_angle", self.telescope.feed_angle)
 
             # Now start the heavy lifting of putting in the data.
             ############################################################################

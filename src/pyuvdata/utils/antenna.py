@@ -14,6 +14,9 @@ MOUNT_STR2NUM_DICT = {
     "alt-az+nasmyth-r": 4,
     "alt-az+nasmyth-l": 5,
     "phased": 6,
+    "fixed": 7,
+    "other": 8,
+    "bizarre": 8,  # Semi-common code in UVFITS/CASA for "unknown" types
 }
 
 MOUNT_NUM2STR_DICT = {
@@ -22,8 +25,10 @@ MOUNT_NUM2STR_DICT = {
     2: "orbiting",
     3: "x-y",
     4: "alt-az+nasmyth-r",
-    5: "alt-az+nasmyth-l",
-    6: "phased",
+    5: "alt-az+nasmyth-l",  # here and above, UVFITS-defined
+    6: "phased",  # <- pyuvdata defined, but not uncommon in UVFITS
+    7: "fixed",  # <- pyuvdata defined
+    8: "other",  # <- pyuvdata defined
 }
 
 
