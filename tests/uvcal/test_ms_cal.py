@@ -203,16 +203,16 @@ def test_ms_default_setting():
         uvc1.read_ms_cal(
             testfile,
             default_x_orientation="north",
-            default_jones_array=np.array([-5, -6]),
+            default_jones_array=np.array([-1, -2]),
         )
 
     with check_warnings(UserWarning, match=sma_warnings):
         uvc2.read(testfile)
 
-    assert uvc1.telescope.x_orientation == "north"
-    assert uvc2.telescope.x_orientation == "east"
-    assert np.array_equal(uvc1.jones_array, [-5, -6])
-    assert np.array_equal(uvc2.jones_array, [0, 0])
+    assert uvc1.telescope.get_x_orientation_from_feeds() == "north"
+    assert uvc2.telescope.get_x_orientation_from_feeds() == "east"
+    assert np.array_equal(uvc1.jones_array, [-1, -2])
+    assert np.array_equal(uvc2.jones_array, [-5, -6])
 
 
 def test_ms_muck_ants(sma_pcal, tmp_path):
