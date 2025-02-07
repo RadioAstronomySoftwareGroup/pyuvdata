@@ -7,6 +7,8 @@ This module provides a python interface for individual Mir metadata files, e.g.
 "in_read", "bl_read", "sp_read", "we_read", "eng_read", "antennas", and "codes_read".
 """
 
+from __future__ import annotations
+
 import contextlib
 import copy
 import os
@@ -538,7 +540,7 @@ class MirMetaData:
         header_key_name=None,
         binary_dtype=None,
         pseudo_header_key_names=None,
-    ):
+    ) -> MirMetaData:
         """
         Initialize a MirMetaData object.
 
@@ -600,12 +602,12 @@ class MirMetaData:
         self._set_header_key_index_dict()
 
     @property
-    def _size(self):
+    def _size(self) -> int:
         """Return length of full data array."""
         return 0 if self._data is None else self._data.size
 
     @property
-    def _identifier(self):
+    def _identifier(self) -> str:
         """Return unique identifier field name(s)."""
         return self._pseudo_header_key if self._header_key is None else self._header_key
 
@@ -622,7 +624,7 @@ class MirMetaData:
         for idx in np.where(self._mask)[0]:
             yield self._data[idx]
 
-    def __len__(self):
+    def __len__(self) -> int:
         """
         Calculate the number of unmasked entries in the data table.
 
@@ -642,7 +644,7 @@ class MirMetaData:
         ignore_params=None,
         use_mask=False,
         comp_mask=True,
-    ):
+    ) -> bool:
         """
         Compare MirMetaData objects for equality.
 
@@ -732,13 +734,13 @@ class MirMetaData:
 
     def __ne__(
         self,
-        other=None,
+        other: MirMetaData = None,
         *,
         verbose=False,
         ignore_params=None,
         use_mask=False,
         comp_mask=True,
-    ):
+    ) -> bool:
         """
         Compare MirMetaData objects for inequality.
 
@@ -775,7 +777,7 @@ class MirMetaData:
 
     def __add__(
         self, other, *, inplace=False, merge=None, overwrite=None, discard_flagged=False
-    ):
+    ) -> MirMetaData:
         """
         Combine two MirMetaData objects.
 
@@ -853,7 +855,9 @@ class MirMetaData:
 
         return new_obj
 
-    def __iadd__(self, other, *, merge=None, overwrite=None, discard_flagged=False):
+    def __iadd__(
+        self, other, *, merge=None, overwrite=None, discard_flagged=False
+    ) -> MirMetaData:
         """
         In-place addition of two MirMetaData objects.
 
@@ -893,7 +897,7 @@ class MirMetaData:
             discard_flagged=discard_flagged,
         )
 
-    def copy(self, skip_data=False):
+    def copy(self, skip_data=False) -> MirMetaData:
         """
         Make and return a copy of the MirMetaData object.
 
@@ -937,7 +941,7 @@ class MirMetaData:
         *,
         mask=None,
         return_header_keys=False,
-    ):
+    ) -> np.ndarray:
         """
         Find where metadata match a given set of selection criteria.
 
@@ -1200,7 +1204,7 @@ class MirMetaData:
         header_key=None,
         index=None,
         return_tuples=None,
-    ):
+    ) -> np.ndarray | tuple[np.ndarray]:
         """
         Get values from a particular field or set of fields of the metadata.
 
@@ -1286,7 +1290,7 @@ class MirMetaData:
         else:
             return metadata
 
-    def __getitem__(self, field_name):
+    def __getitem__(self, field_name) -> np.ndarray:
         """
         Get values for a particular field using get_value.
 
@@ -1422,7 +1426,7 @@ class MirMetaData:
         header_key=None,
         index=None,
         inverse=False,
-    ):
+    ) -> np.ndarray[bool]:
         """
         Generate a boolean mask based on selection criteria.
 
@@ -1479,7 +1483,9 @@ class MirMetaData:
         new_mask[idx_arr] = not inverse
         return new_mask
 
-    def get_mask(self, *, where=None, and_where_args=True, header_key=None, index=None):
+    def get_mask(
+        self, *, where=None, and_where_args=True, header_key=None, index=None
+    ) -> np.ndarray[bool]:
         """
         Get value of the mask at a set of locations..
 
@@ -1616,7 +1622,7 @@ class MirMetaData:
         and_where_args=True,
         index=None,
         force_list=False,
-    ):
+    ) -> np.ndarray[int]:
         """
         Get the header keys based on selection criteria.
 
@@ -1688,7 +1694,7 @@ class MirMetaData:
             self._identifier, use_mask=False, return_index=True, assume_unique=True
         )
 
-    def _generate_new_header_keys(self, other):
+    def _generate_new_header_keys(self, other) -> dict:
         """
         Create an updated set of header keys for a MirMetaData object.
 
@@ -1769,7 +1775,7 @@ class MirMetaData:
         header_key=None,
         return_index=None,
         assume_unique=False,
-    ):
+    ) -> dict:
         """
         Create groups of index positions based on particular field(s) in the metadata.
 
@@ -2029,7 +2035,7 @@ class MirMetaData:
 
     def _add_check(
         self, other=None, *, merge=None, overwrite=None, discard_flagged=False
-    ):
+    ) -> tuple[list[int], list[int], np.ndarray[bool], np.ndarray[bool]]:
         """
         Check if two MirMetaData objects contain conflicting header key values.
 
@@ -2221,7 +2227,7 @@ class MirMetaData:
 
         return this_idx, other_idx, this_mask[this_idx], other_mask[other_idx]
 
-    def _gen_filepath(self, filepath=None, *, check=True, invert_check=False):
+    def _gen_filepath(self, filepath=None, *, check=True, invert_check=False) -> str:
         """
         Supply the path to the file for read/write operations.
 
@@ -2397,7 +2403,9 @@ class MirMetaData:
 
         self._writefile(writepath, append_data=append_data, datamask=datamask)
 
-    def _get_record_size_info(self, *, val_size=None, pad_size=0, use_mask=True):
+    def _get_record_size_info(
+        self, *, val_size=None, pad_size=0, use_mask=True
+    ) -> np.ndarray[int]:
         """
         Calculate the size of each spectral record in number of entries.
 
@@ -2503,7 +2511,7 @@ class MirMetaData:
         hdr_fmt=None,
         use_mask=True,
         reindex=False,
-    ):
+    ) -> tuple[dict, dict]:
         """
         Generate a set of dicts for indexing of data.
 
@@ -2632,7 +2640,7 @@ class MirMetaData:
         check_field=None,
         set_mask=True,
         use_cipher=True,
-    ):
+    ) -> np.ndarray[bool]:
         """
         Generate a key mask by field-matching between MirMetaData objects.
 
@@ -2743,7 +2751,7 @@ class MirInData(MirMetaData):
     "in_read", which is where the online system records this information.
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirInData:
         """
         Initialize a MirInData object.
 
@@ -2772,7 +2780,7 @@ class MirBlData(MirMetaData):
     "per-baseline" here means per-integration, per-sideband, per-receiver/polarization.
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirBlData:
         """
         Initialize a MirBlData object.
 
@@ -2802,7 +2810,7 @@ class MirSpData(MirMetaData):
     band number.
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirSpData:
         """
         Initialize a MirSpData object.
 
@@ -2830,7 +2838,7 @@ class MirWeData(MirMetaData):
     "we_read", which is where the online system records this information.
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirWeData:
         """
         Initialize a MirWeData object.
 
@@ -2861,7 +2869,7 @@ class MirEngData(MirMetaData):
     each entry.
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirEngData:
         """
         Initialize a MirEngData object.
 
@@ -2893,7 +2901,7 @@ class MirAntposData(MirMetaData):
     "iant1", "iant2").
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirAntposData:
         """
         Initialize a MirAntposData object.
 
@@ -2983,7 +2991,7 @@ class MirCodesData(MirMetaData):
     process these string "codes".
     """
 
-    def __init__(self, obj=None):
+    def __init__(self, obj=None) -> MirCodesData:
         """
         Initialize a MirCodesData object.
 
@@ -3054,7 +3062,7 @@ class MirCodesData(MirMetaData):
             pseudo_header_key_names=("icode", "v_name"),
         )
 
-    def __getitem__(self, field_name):
+    def __getitem__(self, field_name) -> dict | np.ndarray[str | int]:
         """
         Get values for a particular field using get_value.
 
@@ -3081,7 +3089,7 @@ class MirCodesData(MirMetaData):
         else:
             return self.get_codes(field_name)
 
-    def get_code_names(self):
+    def get_code_names(self) -> list[str]:
         """
         Produce a list of code types (v_names) found in the metadata.
 
@@ -3101,7 +3109,7 @@ class MirCodesData(MirMetaData):
         *,
         mask=None,
         return_header_keys=None,
-    ):
+    ) -> np.ndarray:
         """
         Find where metadata match a given set of selection criteria.
 
@@ -3211,7 +3219,7 @@ class MirCodesData(MirMetaData):
         else:
             return data_mask
 
-    def get_codes(self, code_name=None, return_dict=None):
+    def get_codes(self, code_name=None, return_dict=None) -> dict | np.ndarray:
         """
         Get code strings for a given variable name in the metadata.
 
@@ -3419,7 +3427,7 @@ class MirAcData(MirMetaData):
     considerably in future releases.
     """
 
-    def __init__(self, obj=None, nchunks=None):
+    def __init__(self, obj=None, nchunks=None) -> MirAcData:
         """
         Initialize a MirAcData object.
 
