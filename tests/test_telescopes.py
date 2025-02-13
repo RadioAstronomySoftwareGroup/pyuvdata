@@ -545,3 +545,43 @@ def test_feed_errs(simplest_working_params, add_param):
         ValueError, match="Parameter feed_array and feed_angle must be set together."
     ):
         tel.check()
+
+
+def test_feed_order_error(simplest_working_params):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel = Telescope.new(
+        feed_array=feed_array, feed_angle=feed_angle, **simplest_working_params
+    )
+
+    with pytest.raises(ValueError, match="order must be one of: 'AIPS', 'CASA', or"):
+        tel.reorder_feeds("XYZ")
+
+
+def test_feed_order_noop(simplest_working_params):
+    # Make sure that no feeds just returns
+    tel = Telescope.new(**simplest_working_params)
+    tel2 = tel.copy()
+
+    with check_warnings(None, match=""):
+        tel.reorder_feeds("AIPS")
+
+    assert tel == tel2
+
+
+@pytest.mark.parametrize(
+    "order,flipped", [["AIPS", True], ["CASA", True], [["l", "r", "x"], False]]
+)
+def test_feed_order(simplest_working_params, order, flipped):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel = Telescope.new(
+        feed_array=feed_array, feed_angle=feed_angle, **simplest_working_params
+    )
+    feed_array = feed_array.copy()
+    feed_angle = feed_angle.copy()
+
+    tel.reorder_feeds(order=order)
+    assert np.array_equal(tel.feed_array, feed_array[:, :: (-1 if flipped else 1)])
+    assert np.array_equal(tel.feed_angle, feed_angle[:, :: (-1 if flipped else 1)])
+    assert tel.Nfeeds == 2
