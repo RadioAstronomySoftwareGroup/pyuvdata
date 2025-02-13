@@ -422,10 +422,7 @@ class CALFITS(UVCal):
         for idx, feeds in enumerate(self.telescope.feed_array):
             # Format everything uppercase as expected by
             feeds = [feed.upper() for feed in feeds]
-            if any(item not in ["X", "Y", "L", "R"] for item in feeds):
-                raise ValueError(
-                    "CalFITS only supports x/y or l/r polarized feed information."
-                )
+
             # See if we need to flip to UVFITS convention, which wants XY/RL
             feed_a, feed_b = (1, 0) if feeds in [["Y", "X"], ["L", "R"]] else (0, 1)
             poltya[idx] = feeds[feed_a]
@@ -469,7 +466,10 @@ class CALFITS(UVCal):
 
         if self.telescope.mount_type is not None:
             mntsta = np.array(
-                [utils.MOUNT_STR2NUM_DICT[mount] for mount in self.telescope.mount_type]
+                [
+                    utils.antenna.MOUNT_STR2NUM_DICT[mount]
+                    for mount in self.telescope.mount_type
+                ]
             )
             collist.append(fits.Column(name="MNTSTA", format="1J", array=mntsta))
 
@@ -536,7 +536,7 @@ class CALFITS(UVCal):
             if "ANTDIAM" in antdata.names:
                 self.telescope.antenna_diameters = antdata["ANTDIAM"]
 
-            if "MNSTA" in antdata.names:
+            if "MNTSTA" in antdata.names:
                 self.telescope.mount_type = [
                     utils.antenna.MOUNT_NUM2STR_DICT[mount]
                     for mount in antdata["MNTSTA"]

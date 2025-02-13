@@ -456,15 +456,9 @@ class MS(UVData):
         tb_main = tables.table(filepath, ack=False)
 
         main_keywords = tb_main.getkeywords()
-        if "pyuvdata_extra" in main_keywords:
-            self.extra_keywords = main_keywords["pyuvdata_extra"]
-
-        x_orientation = None
-        if "pyuvdata_xorient" in main_keywords:
-            x_orientation = main_keywords["pyuvdata_xorient"]
-
-        if "pyuvdata_polconv" in main_keywords:
-            self.pol_convention = main_keywords["pyuvdata_polconv"]
+        self.extra_keywords = main_keywords.get("pyuvdata_extra", {})
+        self.pol_convention = main_keywords.get("pyuvdata_polconv", None)
+        x_orientation = main_keywords.get("pyuvdata_xorient", None)
 
         default_vis_units = {
             "DATA": "uncalib",

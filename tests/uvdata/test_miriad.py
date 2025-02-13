@@ -2043,3 +2043,20 @@ def test_file_with_bad_extra_words():
     # The antenna positions is (0, 0, 0) vector
     with check_warnings(warn_category, warn_message):
         uv.read_miriad(fname, run_check=False)
+
+
+def test_miriad_read_xorient():
+    """
+    Read miriad w/ x_orientation keyword present, verify things make sense.
+    """
+    # This is a bespoke older dataset w/ the xorient keyword set, make sure that it
+    # gets the keyword correctly and interprets in correctly. In this case, it's
+    # been manually set to 'east' inside of the dataset.
+    uv = UVData.from_file(os.path.join(DATA_PATH, "xorient_miriad"))
+    nants = uv.telescope.Nants
+
+    assert uv.telescope.get_x_orientation_from_feeds() == "east"
+
+    assert uv.telescope.Nfeeds == 1
+    assert np.array_equal(uv.telescope.feed_array, [["x"]] * nants)
+    assert np.array_equal(uv.telescope.feed_angle, [[np.pi / 2]] * nants)

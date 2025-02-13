@@ -313,3 +313,71 @@ def test_convert_feeds_to_pols_errors():
         ValueError, match="feed_array contains 0 feeds. Only 1 or 2 feeds is supported."
     ):
         utils.pol.convert_feeds_to_pols([])
+
+
+@pytest.mark.parametrize(
+    "kwargs,err_msg",
+    [
+        [{"feeds": ["l", "r"], "x_orientation": "xyz"}, "x_orientation not recognized"],
+        [
+            {"feeds": ["l", "r", "x"], "x_orientation": "n"},
+            "feeds must be a list or tuple of length 1 or 2.",
+        ],
+        [
+            {"feeds": ["u", "v"], "x_orientation": "n"},
+            'feeds must contain only "x", "y", "l", and/or "r".',
+        ],
+    ],
+)
+def test_get_feeds_from_x_orientation_errors(kwargs, err_msg):
+    with pytest.raises(ValueError, match=err_msg):
+        utils.pol.get_feeds_from_x_orientation(nants=1, **kwargs)
+
+
+@pytest.mark.parametrize(
+    "kwargs,exp_feed_array,exp_feed_angle,has_warn",
+    [
+        [{"x_orientation": "e", "nants": 1}, [["x", "y"]], [[np.pi / 2, 0]], True],
+        [{"x_orientation": None, "nants": 2}, None, None, False],
+        [{"x_orientation": "n", "nants": 1, "feeds": "x"}, [["x"]], [[0]], False],
+        [
+            {
+                "x_orientation": "east",
+                "nants": 2,
+                "polarization_array": [-5, -6, -7, -8],
+            },
+            [["x", "y"], ["x", "y"]],
+            [[np.pi / 2, 0], [np.pi / 2, 0]],
+            False,
+        ],
+        [
+            {
+                "x_orientation": "east",
+                "nants": 2,
+                "flex_polarization_array": [-1, -2, -3, -4],
+                "polarization_array": [0],
+            },
+            [["l", "r"], ["l", "r"]],
+            [[0, 0], [0, 0]],
+            False,
+        ],
+    ],
+)
+def test_get_feeds_from_x_orientation(kwargs, exp_feed_array, exp_feed_angle, has_warn):
+    with check_warnings(
+        UserWarning if has_warn else None,
+        match=("Unknown polarization basis" if has_warn else None),
+    ):
+        Nfeeds, feed_array, feed_angle = utils.pol.get_feeds_from_x_orientation(
+            **kwargs
+        )
+
+    if exp_feed_angle is None:
+        assert Nfeeds is None
+        assert feed_array is None
+        assert feed_angle is None
+    else:
+        assert np.array_equal(feed_array, exp_feed_array)
+        assert np.array_equal(feed_angle, exp_feed_angle)
+        assert Nfeeds == feed_array.shape[1]
+        assert Nfeeds == feed_angle.shape[1]
