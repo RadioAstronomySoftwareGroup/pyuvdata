@@ -1143,3 +1143,23 @@ def test_read_ms_write_ms_alt_data_colums(sma_mir, tmp_path, data_column):
     assert sma_mir.history in uvd.history
     uvd.history = sma_mir.history
     assert uvd == sma_mir
+
+
+def test_write_ms_feed_sort(sma_mir, tmp_path):
+    # Fix the app coords since CASA reader calculates them on the fly
+    sma_mir._set_app_coords_helper()
+
+    uvd = UVData()
+    testfile = os.path.join(tmp_path, "feed_order.ms")
+    sma_mir.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    sma_mir.write_ms(testfile, clobber=True)
+    uvd.read(testfile)
+
+    # Just set this up front
+    uvd.history = sma_mir.history
+    uvd.telescope.instrument = sma_mir.telescope.instrument
+    uvd.extra_keywords = sma_mir.extra_keywords
+
+    assert uvd != sma_mir
+    uvd.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    assert uvd == sma_mir
