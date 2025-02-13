@@ -1040,6 +1040,7 @@ class Telescope(UVBase):
         if feed_angle is not None and feed_array is not None:
             tel_obj.feed_array = feed_array
             tel_obj.feed_angle = feed_angle
+            tel_obj.Nfeeds = feed_angle.shape[1]
         elif x_orientation is not None:
             tel_obj.set_feeds_from_x_orientation(x_orientation.lower(), feeds=feeds)
 
