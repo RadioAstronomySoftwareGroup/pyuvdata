@@ -275,3 +275,50 @@ def test_ms_total_quality(sma_pcal, tmp_path):
         rtol=uvc._quality_array.tols[0],
         atol=uvc._quality_array.tols[1],
     )
+
+
+def test_ms_to_calfits(sma_bcal, tmp_path):
+    uvc = UVCal()
+
+    # Select one spw to allow for
+    sma_bcal.select(spws=0)
+
+    # Set mount information for testing
+    sma_bcal.telescope.mount_type = ["alt-az+nasmyth-l"] * 8
+    testfile = os.path.join(tmp_path, "ms_calfits_roundtrip.calfits")
+
+    with check_warnings(
+        UserWarning,
+        match=[
+            "The calfits format does not support",
+            "key CASA_Version in extra_keyword",
+        ],
+    ):
+        sma_bcal.write_calfits(testfile)
+
+    uvc.read_calfits(testfile)
+
+    assert uvc.__eq__(
+        sma_bcal,
+        allowed_failures=(
+            "filename",
+            "extra_keywords",
+            "phase_center_catalog",
+            "phase_center_id_array",
+            "Nphase",
+            "scan_number_array",
+        ),
+    )
+
+
+def test_ms_feed_order(sma_pcal, tmp_path):
+    uvc = UVCal()
+    testfile = os.path.join(tmp_path, "reorder_feeds.ms")
+    sma_pcal.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    sma_pcal.write_ms_cal(testfile, clobber=True)
+    uvc.read(testfile)
+
+    # Just set this up front
+    uvc.history = sma_pcal.history
+
+    assert uvc == sma_pcal

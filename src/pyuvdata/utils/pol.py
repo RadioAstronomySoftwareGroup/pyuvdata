@@ -935,9 +935,7 @@ def get_x_orientation_from_feeds(feed_array, feed_angle, tols=None):
         # If feed info is unset, then return None
         return None
 
-    if tols is None:
-        tols = (0, 0)
-    rtol, atol = tols
+    rtol, atol = (0, 0) if tols is None else tols
 
     x_mask = np.isin(feed_array, ["x", "X"])
 
