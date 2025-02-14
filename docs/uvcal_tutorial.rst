@@ -493,8 +493,11 @@ d) Select Jones components
 **************************
 Selecting on Jones component can be done either using the component numbers or
 the component strings (e.g. "Jxx" or "Jyy" for linear polarizations or "Jrr" or
-"Jll" for circular polarizations). If ``telescope.x_orientation`` is set, strings
-represting the physical orientation of the dipole can also be used (e.g. "Jnn" or "ee).
+"Jll" for circular polarizations).  Under special circumstances, where x-polarization
+feeds (as recorded in ``telescope.feed_array``) are aligned to 0 or 90 degrees relative
+to a line perpendicular to the horizon (as record in ``telescope.feed_angle``) and/or
+y-polarization are aligned to -90 or 0 degrees, strings representing the cardinal
+orientation of the dipole can also be used (e.g. "Jnn" or "ee").
 
 .. code-block:: python
 
@@ -535,7 +538,7 @@ represting the physical orientation of the dipole can also be used (e.g. "Jnn" o
   ['Jxx']
 
   >>> # print x_orientation
-  >>> print(cal.telescope.x_orientation)
+  >>> print(cal.telescope.get_x_orientation_from_feeds())
   east
 
   >>> # make a copy of the object and select Jones components using the physical orientation strings
