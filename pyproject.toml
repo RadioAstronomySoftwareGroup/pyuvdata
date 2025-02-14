@@ -125,6 +125,8 @@ ignore = [
 "setup.py" = ["D"] # Don't require docstrings for setup.py
 "src/pyuvdata/utils/coordinates.py" = ["N802"] # non-lowercase function names
 "tests/utils/test_coordinates.py" = ["N802"] # non-lowercase function names
+"src/pyuvdata/utils/io/__init__.py" = ["A005"] # shadowing a standard-lib module
+"tests/utils/io/__init__.py" = ["A005"] # shadowing a standard-lib module
 
 [tool.ruff.format]
 skip-magic-trailing-comma = true
