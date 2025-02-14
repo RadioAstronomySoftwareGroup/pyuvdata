@@ -346,7 +346,7 @@ class Telescope(UVBase):
             "name", description="name of telescope (string)", form="str"
         )
         desc = (
-            "telescope location: Either an astropy.EarthLocation oject or a "
+            "telescope location: Either an astropy.EarthLocation object or a "
             "lunarsky MoonLocation object."
         )
         self._location = uvp.LocationParameter("location", description=desc, tols=1e-3)
