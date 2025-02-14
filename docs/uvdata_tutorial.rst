@@ -587,8 +587,11 @@ e) Select polarizations
 ***********************
 Selecting on polarizations can be done either using the polarization numbers or the
 polarization strings (e.g. "xx" or "yy" for linear polarizations or "rr" or "ll" for
-circular polarizations). If ``telescope.x_orientation`` is set, strings representing
-the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
+circular polarizations). Under special circumstances, where x-polarization feeds
+(as recorded in ``telescope.feed_array``) are aligned to 0 or 90 degrees relative to a
+line perpendicular to the horizon (as record in ``telescope.feed_angle``) and/or
+y-polarization are aligned to -90 or 0 degrees, strings representing the cardinal
+orientation of the dipole can also be used (e.g. "nn" or "ee").
 
 .. code-block:: python
 
@@ -647,8 +650,8 @@ the physical orientation of the dipole can also be used (e.g. "nn" or "ee).
   ['xx', 'yy']
 
   >>> # print x_orientation
-  >>> print(uvd.telescope.x_orientation)
-  NORTH
+  >>> print(uvd.telescope.get_x_orientation_from_feeds())
+  north
 
   >>> # select polarizations using the physical orientation strings
   >>> uvd.select(polarizations=["ee"])
