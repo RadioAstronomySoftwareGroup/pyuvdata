@@ -140,54 +140,28 @@ def test_array_consistent(inp_arr, inp2_arr, is_param, tols, exp_outcome):
     "kwargs,exp_output",
     [
         [
-            {
-                "indices": [1],
-                "max_nslice_frac": 1,
-                "max_nslice": 1,
-                "return_index_on_fail": True,
-            },
+            {"indices": [1], "max_nslice": 1, "return_index_on_fail": True},
             [slice(1, 2, 1)],
         ],
         [
-            {
-                "indices": [0, 1],
-                "max_nslice_frac": 1,
-                "max_nslice": 1,
-                "return_index_on_fail": True,
-            },
+            {"indices": [0, 1], "max_nslice": 1, "return_index_on_fail": True},
             [slice(0, 2, 1)],
         ],
         [
-            {
-                "indices": [1, 0],
-                "max_nslice_frac": 1,
-                "max_nslice": 1,
-                "return_index_on_fail": True,
-            },
+            {"indices": [1, 0], "max_nslice": 1, "return_index_on_fail": True},
             [slice(1, None, -1)],
         ],
         [
-            {
-                "indices": [3, 2, 1, 0],
-                "max_nslice_frac": 1,
-                "max_nslice": 1,
-                "return_index_on_fail": True,
-            },
+            {"indices": [3, 2, 1, 0], "max_nslice": 1, "return_index_on_fail": True},
             [slice(3, None, -1)],
         ],
         [
-            {
-                "indices": [2, 3, 1, 0],
-                "max_nslice_frac": 1,
-                "max_nslice": 1,
-                "return_index_on_fail": True,
-            },
+            {"indices": [2, 3, 1, 0], "max_nslice": 1, "return_index_on_fail": True},
             [[2, 3, 1, 0]],
         ],
         [
             {
                 "indices": np.array([True, False, True, False]),
-                "max_nslice_frac": 1,
                 "max_nslice": 1,
                 "return_index_on_fail": True,
             },
@@ -196,11 +170,22 @@ def test_array_consistent(inp_arr, inp2_arr, is_param, tols, exp_outcome):
         [
             {
                 "indices": np.array([True, False, True, True]),
-                "max_nslice_frac": 1,
                 "max_nslice": 1,
                 "return_index_on_fail": True,
             },
             [[True, False, True, True]],
+        ],
+        [
+            {"indices": [0, 2, 4, 5], "max_nslice": 2},
+            [slice(0, 6, 2), slice(5, 6, None)],
+        ],
+        [
+            {"indices": [4, 2, 0, 5], "max_nslice": 2},
+            [slice(4, None, -2), slice(5, 6, None)],
+        ],
+        [
+            {"indices": [4, 2, 0, 1, 3, 5], "max_nslice": 2},
+            [slice(4, None, -2), slice(1, 7, 2)],
         ],
     ],
 )
