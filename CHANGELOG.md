@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new page to the docs labeled "Convention" has been added.
+- The `Telescope.x_orientation` parameter has been deprecated, superseded by two new
+parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
+polarization and orientation of the detectors for a given antenna.
+- The `Telescope.mount_type` parameter has been added, which describes the mount and
+optics of a given antenna (e.g., HERA/MWA are "fixed", VLA/ALMA are "alt-az").
+- The `Telescope.get_x_orientation_from_feeds` method has been added, which returns
+a string (either "east" or "north") based on values present in `Telescope.feed_array`
+and `Telescope.feed_angle` (mimicking the behavior of getting the now-defunct
+`Telescope.x_orientation` parameter).
+- The `Telescope.set_feeds_from_x_orientation` method has been added, which sets
+values in `Telescope.feed_array` and `Telescope.feed_angle` based on a string describing
+the x-orientation (mimicking the behavior of setting the now-defunct
+`Telescope.x_orientation` parameter).
 - New `near_field` option added to the `phase` method's `cat_type` keyword attribute.
 Passing `near_field` first performs sidereal far-field corrections using fixed RA/Dec,
 then applies geometric near-field corrections using the `distance` keyword, which can
@@ -37,6 +51,8 @@ compared and `UVParameter.value` share the same class.
 and `UVBeam.check`.
 
 ### Fixed
+- Bug in `utils.tools._convert_to_slices` where reverse-ordered slices (i.e., where
+the step was negative) where not correctly handled.
 - Bug in MWA beams that caused beams pointed away from zenith to be wrong because
 the delays were not assigned to the right dipoles.
 - Bug in `UVData.sum_vis` where it errored if there were different filenames on
