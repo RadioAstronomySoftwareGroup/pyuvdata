@@ -111,15 +111,18 @@ def _convert_to_slices(
     if len(eval_ind) == 0:
         return [slice(0, 0, 0)], False
     if len(eval_ind) <= 2:
-        return [
-            slice(eval_ind[0], eval_ind[-1] + 1, max(eval_ind[-1] - eval_ind[0], 1))
-        ], True
+        step = 1 if (len(eval_ind) < 2) else eval_ind[-1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
+        return [slice(start, None if (stop < 0) else stop, step)], True
 
     # Catch the simplest case of "give me a single slice or exit"
     if (max_nslice == 1) and return_index_on_fail:
         step = eval_ind[1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
         if all(np.diff(eval_ind) == step):
-            return [slice(eval_ind[0], eval_ind[-1] + 1, step)], True
+            return [slice(start, None if (stop < 0) else stop, step)], True
         return [indices], False
 
     # setup empty slices list
