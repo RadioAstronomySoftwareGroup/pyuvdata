@@ -55,6 +55,7 @@ def write_index_rst(readme_file=None, write_file=None):
         "   fast_calh5_meta\n"
         "   utility_functions\n"
         "   developer_docs\n"
+        "   conventions\n"
     )
 
     out.replace("\u2018", "'").replace("\u2019", "'").replace("\xa0", " ")
