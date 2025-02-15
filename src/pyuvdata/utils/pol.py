@@ -876,7 +876,8 @@ def get_feeds_from_pols(polarization_array):
     """
     Return a list of expected feeds based on polarization values.
 
-    Translates values in polarization_array or jones_array into
+    Translates values in polarization_array or jones_array into a list of feeds
+    expected to be present in the underlying telescope.
 
     Parameters
     ----------
