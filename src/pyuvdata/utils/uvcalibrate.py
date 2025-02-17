@@ -442,7 +442,7 @@ def uvcalibrate(
 
     # check if x_orientation-equivalent in uvdata isn't set (it's required for uvcal)
     uvd_x = uvdata.telescope.get_x_orientation_from_feeds()
-    if uvd_x is None:
+    if uvd_x is None and uvdata.telescope.feed_array is None:
         # use the uvcal x_orientation throughout
         uvd_x = uvcal.telescope.get_x_orientation_from_feeds()
         warnings.warn(
