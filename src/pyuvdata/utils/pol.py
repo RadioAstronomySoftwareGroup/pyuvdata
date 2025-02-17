@@ -565,7 +565,7 @@ def _select_pol_helper(
     strict : bool or None
         Normally, select will warn when an element of the selection criteria does not
         match any element for the parameter, as long as the selection criteria results
-        in _at least one_ element being selected. However, if set to True, an error is
+        in *at least one* element being selected. However, if set to True, an error is
         thrown if any selection criteria does not match what is given for the object
         parameters element. If set to None, then neither errors nor warnings are raised,
         unless no records are selected. Default is False.
@@ -661,7 +661,7 @@ def _select_jones_helper(
     strict : bool or None
         Normally, select will warn when an element of the selection criteria does not
         match any element for the parameter, as long as the selection criteria results
-        in _at least one_ element being selected. However, if set to True, an error is
+        in *at least one* element being selected. However, if set to True, an error is
         thrown if any selection criteria does not match what is given for the object
         parameters element. If set to None, then neither errors nor warnings are raised,
         unless no records are selected. Default is False.
@@ -716,7 +716,7 @@ def _select_feed_helper(
     strict : bool or None
         Normally, select will warn when an element of the selection criteria does not
         match any element for the parameter, as long as the selection criteria results
-        in _at least one_ element being selected. However, if set to True, an error is
+        in *at least one* element being selected. However, if set to True, an error is
         thrown if any selection criteria does not match what is given for the object
         parameters element. If set to None, then neither errors nor warnings are raised,
         unless no records are selected. Default is False.
