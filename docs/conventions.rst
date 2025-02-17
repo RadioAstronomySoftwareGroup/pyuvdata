@@ -8,8 +8,8 @@ Baseline conjugation and *uvw*-direction
 ----------------------------------------
 Because of the Hermitian nature of the *uv*-plane (arising from the fact that images of
 the sky should contain no imaginary components), a single visibility at a given
-(*u*,*v*,*w*) coordinate is simply the complex conjugate of the visibility at
-(-*u*,-*v*,-*w*). Because the two values are highly redundant, most file formats and
+(*u*, *v*, *w*) coordinate is simply the complex conjugate of the visibility at
+(-*u*, -*v*, -*w*). Because the two values are highly redundant, most file formats and
 software packages expect that only one of these values to be recorded, saving a factor
 of two in memory usage and disk space in the processes. But which member of the pair
 is stored depends on the file-format and/or software package.
@@ -70,9 +70,10 @@ different parameters (see the discussion about ``Telescope.mount_type`` below), 
 to provide a few examples:
 
 - For a Cassegrain antenna on an Alt-Az mount (like VLA), a 0 degree feed angle is in
-the direction of zenith.
+  the direction of zenith.
+
 - For a "fixed" antenna that points at zenith (like HERA), a 0 degree feed angle points
-in the direction of north.
+  in the direction of north.
 
 In the absence of any information about the antenna mount, within pyuvdata a 0 degree
 feed angle is one where the polarization response is aligned with the direction of
