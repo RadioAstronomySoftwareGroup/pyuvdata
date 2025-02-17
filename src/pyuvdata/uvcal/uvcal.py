@@ -4713,7 +4713,7 @@ class UVCal(UVBase):
                 warning will be suppressed.
             default_jones_array : ndarray of int
                 By default, if not found on read, the jones_array parameter will be
-                set to [0, 0] (unknown pol type) and a warning will be raised. However,
+                set to [-5, -6] (linear pols) and a warning will be raised. However,
                 if a value for default_jones_array is provided, it will be used instead
                 and the warning will be suppressed.
             check_extra : bool
@@ -4774,6 +4774,9 @@ class UVCal(UVBase):
         settings_file=None,
         raw=True,
         extra_history=None,
+        # MSCal
+        default_x_orientation=None,
+        default_jones_array=None,
     ):
         """
         Read a generic file into a UVCal object.
@@ -4896,6 +4899,19 @@ class UVCal(UVBase):
             Option to use the raw (per antenna, per frequency) solution or
             to use the fitted (polynomial over phase/amplitude) solution.
             Default is True (meaning use the raw solutions).
+
+        MSCal
+        -----
+        default_x_orientation : str
+            By default, if not found on read, the x_orientation parameter will be
+            set to "east" and a warning will be raised. However, if a value for
+            default_x_orientation is provided, it will be used instead and the
+            warning will be suppressed.
+        default_jones_array : ndarray of int
+            By default, if not found on read, the jones_array parameter will be
+            set to [-5, -6] (linear pols) and a warning will be raised. However,
+            if a value for default_jones_array is provided, it will be used instead
+            and the warning will be suppressed.
 
         """
         # Check for the defunct keyword up front
@@ -5022,6 +5038,9 @@ class UVCal(UVBase):
                 settings_file=settings_file_use,
                 raw=raw,
                 extra_history=extra_history,
+                # MSCal
+                default_x_orientation=default_x_orientation,
+                default_jones_array=default_jones_array,
             )
             uv_list = []
             for ind, file in enumerate(filename[1:]):
@@ -5064,6 +5083,9 @@ class UVCal(UVBase):
                     settings_file=settings_file_use,
                     raw=raw,
                     extra_history=extra_history,
+                    # MSCal
+                    default_x_orientation=default_x_orientation,
+                    default_jones_array=default_jones_array,
                 )
                 uv_list.append(uvcal2)
             # Concatenate once at end
@@ -5188,6 +5210,8 @@ class UVCal(UVBase):
             elif file_type == "ms":
                 self.read_ms_cal(
                     filename,
+                    default_x_orientation=default_x_orientation,
+                    default_jones_array=default_jones_array,
                     run_check=run_check,
                     check_extra=check_extra,
                     run_check_acceptability=run_check_acceptability,

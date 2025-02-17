@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- A new page to the docs labeled "Convention" has been added.
+- Handling for MeasurementSet calibration subtypes "T Jones" (non-pol-specific antenna
+gains) and "D Jones" (polarization leakages) has been added to `MSCal`.
+- A new page to the docs labeled "Conventions" has been added.
 - The `Telescope.x_orientation` parameter has been deprecated, superseded by two new
 parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
 polarization and orientation of the detectors for a given antenna.
@@ -42,6 +44,7 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Flex-jones `UVCal` objects now recorded to MeasurementSet format as "T Jones" subtype.
 - Only import lunarsky if needed.
 - `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
 significantly refactored and made to behave more uniformly.
