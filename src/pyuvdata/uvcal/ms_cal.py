@@ -89,16 +89,18 @@ class MSCal(UVCal):
                 "not a calibration table."
             )
 
-        if main_info_dict["subType"] == "G Jones":
+        casa_subtype = main_info_dict["subType"]
+
+        if casa_subtype in ["G Jones", "D Jones", "T Jones"]:
             # This is a so-called "wideband" gains calibration table, i.e. not bandpass
             self._set_wide_band(True)
             self._set_gain()
-        elif main_info_dict["subType"] == "B Jones":
+        elif casa_subtype == "B Jones":
             # This is a bandpass solution
             self._set_wide_band(False)
             self._set_gain()
-        elif main_info_dict["subType"] == "K Jones":
-            # This is a delay solution? Need to understand the units...
+        elif casa_subtype == "K Jones":
+            # This is a delay solution
             self._set_wide_band(True)
             self._set_delay()
         else:
@@ -214,24 +216,33 @@ class MSCal(UVCal):
         # MAIN LOOP
         self.Njones = tb_main.getcell(cal_column, 0).shape[1]
         if main_keywords["PolBasis"].lower() == "unknown":
-            self.jones_array = main_keywords.get("pyuvdata_jones", None)
+            self.jones_array = main_keywords.get("pyuvdata_jones", default_jones_array)
             self.flex_jones_array = main_keywords.get("pyuvdata_flex_jones", None)
             if self.jones_array is None:
-                if default_jones_array is None:
-                    warnings.warn(
-                        "Unknown polarization basis for solutions, jones_array values "
-                        "may be spurious."
-                    )
-                    self.jones_array = np.array(
-                        [-6, -7] if main_info_dict["subType"] == "D Jones" else [-5, -6]
-                    )[: self.Njones]
-                else:
-                    self.jones_array = default_jones_array
+                warnings.warn(
+                    "Unknown polarization basis for solutions, jones_array values "
+                    "may be spurious."
+                )
+                self.jones_array = np.array(
+                    [-7, -8] if (casa_subtype == "D Jones") else [-5, -6]
+                )
         else:
             raise NotImplementedError(  # pragma: no cover
                 "Polarization basis {} is not recognized/supported by UVCal. Please "
                 "file an issue in our GitHub issue log so that we can add support for "
                 "it.".format(main_keywords["PolBasis"])
+            )
+
+        if casa_subtype == "D Jones":
+            if any(item not in [-3, -4, -7, -8, 0] for item in self.jones_array):
+                warnings.warn(
+                    "Cross-handed Jones terms expected but jones_array contains "
+                    f"same-handed terms ({casa_subtype} subtype), use caution."
+                )
+        elif any(item in [-3, -4, -7, -8] for item in self.jones_array):
+            warnings.warn(
+                "Same-handed Jones terms expected but jones_array contains "
+                f"cross-handed terms ({casa_subtype} subtype), use caution."
             )
 
         self.sky_catalog = main_keywords.get("pyuvdata_sky_catalog", None)
@@ -401,20 +412,29 @@ class MSCal(UVCal):
             # Delays are stored in nanoseconds -- convert to seconds (std for UVCal)
             self.delay_array = ms_cal_soln * 1e-9
 
-        if (
-            (self.Njones == 2)
-            and (len(self.jones_array) == 1)
-            and np.all(self.flag_array[..., 1])
-        ):
-            # Capture a "corner" case where, because CASA always wants 2-elements
-            # across the Jones-axis, there's extra padding along that axis when
-            # Njones == 1.
-            self.Njones = 1
+        if casa_subtype == "T Jones":
+            self.Njones = 2
             for name, param in zip(
                 self._data_params, self.data_like_parameters, strict=True
             ):
                 if param is not None:
-                    setattr(self, name, param[..., :1])
+                    setattr(self, name, np.repeat(param, 2, axis=-1))
+
+        elif (
+            (self.Njones == 2)
+            and (len(self.jones_array) == 1)
+            and (np.all(self.flag_array[..., 0]) or np.all(self.flag_array[..., 1]))
+        ):
+            # Capture a "corner" case where, because CASA always wants 2-elements
+            # across the Jones-axis for G Jones subtype, there's extra padding along
+            # that axis when Njones == 1.
+            self.Njones = 1
+            good_idx = int(np.all(self.flag_array[..., 0]))
+            for name, param in zip(
+                self._data_params, self.data_like_parameters, strict=True
+            ):
+                if param is not None:
+                    setattr(self, name, param[..., good_idx : good_idx + 1])
 
         self.set_lsts_from_time_array(astrometry_library=astrometry_library)
 
@@ -448,6 +468,22 @@ class MSCal(UVCal):
         if self.cal_type not in ["gain", "delay"]:
             raise ValueError('cal_type must either be "gain" or "delay".')
 
+        has_cross_jones = any(item in [-3, -4, -7, -8] for item in self.jones_array)
+        has_flex_jones = self.flex_jones_array is not None
+        if has_cross_jones:
+            if any(item in [-1, -2, -5, -6] for item in self.jones_array):
+                raise ValueError(
+                    "CASA MSCal tables cannot store cross-hand and same-hand Jones "
+                    "terms together, use select to separate them."
+                )
+            if self.cal_type == "gain" and np.any(abs(self.gain_array) > 1):
+                warnings.warn(
+                    "CASA MSCal tables store cross-handed Jones terms as leakages "
+                    "(i.e., d-terms), which are recorded as a fractional complex "
+                    "quantities that are separated from the typical (non-polarimetric) "
+                    "gain phases and amplitudes."
+                )
+
         # Initialize our calibration file, and get things set up with the appropriate
         # columns for us to write to in the main table. This is a little different
         # Depending on whether the table is a gains or delays file (complex vs floats).
@@ -465,13 +501,17 @@ class MSCal(UVCal):
         # T == Ant-based pol-independent (tropospheric) gain; a pol-indep version of G
         #       --> This basically means Njones is forced to 1
         # D == Ant-based instrumental polarization leakage
-        #       --> TODO: Support for this to once I (Karto) understand UVCal pol cal
         # M == Baseline-based complex gains; baseline-based version of G (blech)
         # MF == Baseline-based complex bandpass: baseline-based version of B (2x blech)
         # K == Ant-based delays (above suggests bsl-based, but CASA 6.x says ant-based)
 
         if self.cal_type == "gain":
-            casa_subtype = "G Jones" if self.wide_band else "B Jones"
+            if has_cross_jones:
+                casa_subtype = "D Jones"
+            elif self.wide_band:
+                casa_subtype = "T Jones" if has_flex_jones else "G Jones"
+            else:
+                casa_subtype = "B Jones"
             cal_column = "CPARAM"
             cal_array = self.gain_array
         elif self.cal_type == "delay":
@@ -496,10 +536,8 @@ class MSCal(UVCal):
                 if len(extra_copy) != 0:
                     ms.putkeyword("pyuvdata_extra", extra_copy)
 
-            if self.jones_array is not None:
-                ms.putkeyword("pyuvdata_jones", self.jones_array)
-
-            if self.flex_jones_array is not None:
+            ms.putkeyword("pyuvdata_jones", self.jones_array)
+            if has_flex_jones:
                 ms.putkeyword("pyuvdata_flex_jones", self.flex_jones_array)
 
             if self.sky_catalog is not None:
@@ -690,17 +728,18 @@ class MSCal(UVCal):
                     new_subarr = np.reshape(
                         new_subarr, (self.Ntimes * Nants_casa, spw_nchan, self.Njones)
                     )
-                    if self.Njones == 1:
+                    if self.Njones == 1 and not has_flex_jones:
                         # Handle a "corner"-case where CASA _really_ wants there to be 2
                         # Jones elements. It can totally ignore one, but it will crash
                         # if the data layout doesn't have 2-elements in the jones axis
                         new_subarr = np.repeat(new_subarr, 2, axis=2)
-                        new_subarr[..., 1] = item == "FLAG"
+                        bad_idx = int(self.jones_array[0] in [-1, -3, -5, -7])
+                        new_subarr[..., bad_idx] = item == "FLAG"
 
                     # Plug this pack in to our data dict
                     data_dict[item] = new_subarr
 
-                # Finally, time to plug the valuse into the MS table
+                # Finally, time to plug the values into the MS table
                 for key in data_dict:
                     ms.putcol(
                         key,
