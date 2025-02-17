@@ -2202,15 +2202,18 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
 
     # check to see if a TELESCOPE_LOCATION column is present in the observation
     # table. This is non-standard, but inserted by pyuvdata
-    if (
-        "telescope_location" not in obs_dict
-        and obs_dict["telescope_name"] in known_telescopes()
+    if "telescope_location" not in obs_dict and (
+        obs_dict["telescope_name"] in known_telescopes()
+        or obs_dict["telescope_name"].upper() in known_telescopes()
     ):
         # get it from known telescopes
-        telescope_loc = known_telescope_location(obs_dict["telescope_name"])
+        telname = obs_dict["telescope_name"]
+        if telname not in known_telescopes():
+            telname = telname.upper()
+
+        telescope_loc = known_telescope_location(telname)
         warnings.warn(
-            "Setting telescope_location to value in known_telescopes for "
-            f"{obs_dict['telescope_name']}."
+            f"Setting telescope_location to value in known_telescopes for {telname}."
         )
         return telescope_loc
     else:
