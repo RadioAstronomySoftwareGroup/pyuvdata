@@ -2208,7 +2208,7 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
     ):
         # get it from known telescopes
         telname = obs_dict["telescope_name"]
-        if telname not in known_telescopes():
+        if telname.upper() in known_telescopes():
             telname = telname.upper()
 
         telescope_loc = known_telescope_location(telname)
