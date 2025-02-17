@@ -327,7 +327,10 @@ def test_ms_feed_order(sma_pcal, tmp_path):
 def test_ms_tcal_read_write(tmp_path):
     datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
     testfile = os.path.join(tmp_path, "tcal_read_write.ms")
-    uvc = UVCal.from_file(datafile, default_jones_array=np.array([-5, -6]))
+
+    with check_warnings(UserWarning, match=sma_warnings):
+        uvc = UVCal.from_file(datafile)
+
     uvc.write_ms_cal(testfile)
     uvc2 = UVCal.from_file(testfile)
     uvc2.history = uvc.history
@@ -338,7 +341,10 @@ def test_ms_tcal_read_write(tmp_path):
 def test_ms_polcal_read_write(tmp_path):
     datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
     testfile = os.path.join(tmp_path, "polcal_read_write.ms")
-    uvc = UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
+
+    with check_warnings(UserWarning, match=sma_warnings[1:]):
+        uvc = UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
+
     uvc.write_ms_cal(testfile)
     uvc2 = UVCal.from_file(testfile)
     uvc2.history = uvc.history
@@ -348,22 +354,18 @@ def test_ms_polcal_read_write(tmp_path):
 
 def test_ms_polcal_jones_warning():
     datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
-    with check_warnings(UserWarning, match="Cross-handed Jones terms expected"):
-        UVCal.from_file(
-            datafile,
-            default_jones_array=np.array([-1, -2]),
-            default_x_orientation="east",
-        )
+    with check_warnings(
+        UserWarning, match=["Cross-handed Jones terms expected"] + sma_warnings[1:]
+    ):
+        UVCal.from_file(datafile, default_jones_array=np.array([-1, -2]))
 
 
 def test_ms_nonpolcal_jones_warning():
     datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
-    with check_warnings(UserWarning, match="Same-handed Jones terms expected"):
-        UVCal.from_file(
-            datafile,
-            default_jones_array=np.array([-3, -4]),
-            default_x_orientation="east",
-        )
+    with check_warnings(
+        UserWarning, match=["Same-handed Jones terms expected"] + sma_warnings[1:]
+    ):
+        UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
 
 
 @pytest.mark.parametrize("jones", ["xx", "yy", ["xx", "yy"]])
