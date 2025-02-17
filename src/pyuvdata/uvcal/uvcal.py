@@ -4061,7 +4061,7 @@ class UVCal(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
@@ -4344,7 +4344,7 @@ class UVCal(UVBase):
             instead. Default is False.
         strict : bool or None
             Normally, select will warn when no records match a one element of a
-            parameter, as long as _at least one_ element matches with what is in the
+            parameter, as long as *at least one* element matches with what is in the
             object. However, if set to True, an error is thrown if any element
             does not match. If set to None, then neither errors nor warnings are raised.
             Default is False.
