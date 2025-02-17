@@ -137,15 +137,14 @@ include:
   - ``"phased"``: Denotes an instrument where the an individual antenna input is
     a phased array of detectors that are "beamformed" into a single voltage stream
     (otherwise sometimes referred to as "electronically steered"). For this mount, a
-    0-degree feed angle is aligned to the great circle that connects local north,
-    local south, and the azimuth and elevation position of the phased antenna beam. Note
+    0-degree feed angle is aligned/parallel to the direction of local north. Note
     while supported in UVFITS, it is a later addition to the format, and may be grouped
     into "other" in some software packages.
   - ``"fixed"``: Similar to "phased", expect where there is neither mechanical or
     electical steering of the antenna, and thus the beam remains fixed in the
-    azimuth-elevation frame. In this frame, a feed angle of 0 degrees is aligned to
-    local north. Note that this is a pyuvdata-defined mount type, and does not necessarily
-    have a corresponding entry in, for example, UVFITS.
+    azimuth-elevation frame. In this frame, a feed angle of 0 degrees is aligned/
+    parallel to the direction of local north. Note that this is a pyuvdata-defined mount
+    type, and does not necessarily have a corresponding entry in, for example, UVFITS.
   - ``"other"``  While nominally a pyuvdata-defined mount type, UVFITS and CASA both
     allow for the designation of "bizarre" mount-types, which for all intents and purposes
     denotes the same lack of knowledge of underlying optics behavior.
