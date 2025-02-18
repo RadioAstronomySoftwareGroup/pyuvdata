@@ -339,6 +339,16 @@ def read_ms_antenna(filepath, check_frame=True):
         antenna_names = np.asarray(tb_ant.getcol("NAME"))[good_mask].tolist()
         station_names = np.asarray(tb_ant.getcol("STATION"))[good_mask].tolist()
         ant_diameters = np.asarray(tb_ant.getcol("DISH_DIAMETER"))[good_mask]
+        antenna_mount = np.asarray(np.char.lower(tb_ant.getcol("MOUNT")))[
+            good_mask
+        ].tolist()
+
+        if all(mount == "" for mount in antenna_mount):
+            # If no mounts recorded, discard the information.
+            antenna_mount = None
+
+        if not np.any(ant_diameters > 0):
+            ant_diameters = None
 
     # Build a dict with all the relevant entries we need.
     ant_dict = {
@@ -348,6 +358,7 @@ def read_ms_antenna(filepath, check_frame=True):
         "telescope_ellipsoid": telescope_ellipsoid,
         "antenna_names": antenna_names,
         "station_names": station_names,
+        "antenna_mount": antenna_mount,
         "antenna_diameters": ant_diameters,
     }
 
@@ -363,6 +374,7 @@ def write_ms_antenna(
     antenna_names=None,
     antenna_positions=None,
     antenna_diameters=None,
+    antenna_mount=None,
     telescope_location=None,
     telescope_frame=None,
     telescope_ellipsoid=None,
@@ -416,6 +428,7 @@ def write_ms_antenna(
         antenna_names = uvobj.telescope.antenna_names
         antenna_positions = uvobj.telescope.antenna_positions
         antenna_diameters = uvobj.telescope.antenna_diameters
+        antenna_mount = uvobj.telescope.mount_type
         telescope_location = uvobj.telescope._location.xyz()
         telescope_frame = uvobj.telescope._location.frame
         telescope_ellipsoid = uvobj.telescope._location.ellipsoid
@@ -434,8 +447,10 @@ def write_ms_antenna(
         antenna_table.addrows(nants_table)
 
         ant_names_table = [""] * nants_table
+        ant_mount_table = [""] * nants_table
         for ai, num in enumerate(antenna_numbers):
             ant_names_table[num] = antenna_names[ai]
+            ant_mount_table[num] = "" if antenna_mount is None else antenna_mount[ai]
 
         # There seem to be some variation on whether the antenna names are stored
         # in the NAME or STATION column (importuvfits puts them in the STATION column
@@ -447,6 +462,7 @@ def write_ms_antenna(
         # the antenna name/number, and nominally fixed in position.
         antenna_table.putcol("NAME", ant_names_table)
         antenna_table.putcol("STATION", ant_names_table)
+        antenna_table.putcol("MOUNT", ant_mount_table)
 
         # Antenna positions in measurement sets appear to be in absolute ECEF
         ant_pos_absolute = antenna_positions + telescope_location.reshape(1, 3)
@@ -1335,7 +1351,7 @@ def write_ms_spectral_window(
             sw_table.putcell("REF_FREQUENCY", idx, freq_array[0])
 
 
-def read_ms_feed(filepath):
+def read_ms_feed(filepath, select_ants=None):
     """
     Read Measurement Set FEED table.
 
@@ -1358,17 +1374,63 @@ def read_ms_feed(filepath):
         If no MS file is found with the provided name.
     """
     _ms_utils_call_checks(filepath + "/FEED")
+    filepath += "::FEED"
 
-    raise NotImplementedError("Reading of MS FEED tables not available yet.")
+    with tables.table(filepath, ack=False) as feed_table:
+        if "pyuvdata_has_feed" in feed_table.getkeywords() and not (
+            feed_table.getkeyword("pyuvdata_has_feed")
+        ):
+            feed_array = feed_angle = Nfeeds = antenna_numbers = None
+        else:
+            Nfeeds = feed_table.getcol("NUM_RECEPTORS")
+            if not all(max(Nfeeds) == Nfeeds):
+                # This seems like a rare possibility, but screen for it here.
+                raise ValueError(  # pragma: no cover
+                    "Support for differing numbers of feeds is not supported. Please "
+                    "file an issue in our GitHub issue log so that we can add support "
+                    "for it."
+                )
+            Nfeeds = int(Nfeeds[0])
+            ant_arr = feed_table.getcol("ANTENNA_ID")
+            pol_arr = np.char.lower(feed_table.getcol("POLARIZATION_TYPE")["array"])
+            pol_arr = pol_arr.reshape(feed_table.getcol("POLARIZATION_TYPE")["shape"])
+            rang_arr = feed_table.getcol("RECEPTOR_ANGLE")
+            max_ant = max(ant_arr) + 1
+            feed_array = np.full((max_ant, Nfeeds), "", dtype=np.object_)
+            feed_angle = np.zeros((max_ant, Nfeeds), dtype=float)
+            antenna_numbers = np.arange(max_ant)
+
+            feed_array[ant_arr] = pol_arr
+            feed_angle[ant_arr] = rang_arr
+
+            # Set default case to be lower to be consistent w/ pyuvdata standards
+            feed_array.flat[:] = [item.lower() for item in feed_array.flat]
+
+    if select_ants is not None and Nfeeds is not None:
+        mask = np.isin(np.arange(max_ant), select_ants)
+        feed_array = feed_array[mask]
+        feed_angle = feed_angle[mask]
+        antenna_numbers = select_ants
+
+    tb_feed_dict = {
+        "feed_array": feed_array,
+        "feed_angle": feed_angle,
+        "Nfeeds": Nfeeds,
+        "antenna_numbers": antenna_numbers,
+    }
+
+    return tb_feed_dict
 
 
 def write_ms_feed(
     filepath,
-    pol_order=...,
     uvobj=None,
-    polarization_array=None,
-    flex_spw_polarization_array=None,
+    nfeeds=None,
     nspws=None,
+    feed_array=None,
+    feed_angle=None,
+    antenna_numbers=None,
+    time_val=None,
 ):
     """
     Write out the feed information into a CASA table.
@@ -1377,21 +1439,24 @@ def write_ms_feed(
     ----------
     filepath : str
         path to MS (without FEED suffix)
-    pol_order : slice or list of int
-        Ordering of the polarization axis on write, only used if not writing a
-        flex-pol dataset.
     uvobj : UVBase (with matching parameters)
         Optional parameter, can be used to automatically fill the other required
         keywords for this function. Note that the UVBase object must have parameters
         that match by name to the other keywords required here.
-    polarization_array : ndarray of int
-        Required if uvobj not provided and writing a "regular" polarization MS table,
-        array containing the polarization codes (dtype int, shape (Npols,)).
-    flex_spw_polarization_array : ndarray of int
-        Required if uvobj not provided and writing a flex-pol table, polarization ID
-        for each spectral window (of dtype in and shape (nspws,)).
-    nspws : int
-        Required if uvobj not provided, number of spectral windows recorded.
+    nfeeds : int
+        Required if uvobj not provided, number of feeds in the telescope for the object.
+    feed_array : ndarray of str
+        Required if uvobj not provided, describes the polarization of each receiver,
+        should be one of "X", "Y", "L", or "R". Shape (nants, nfeeds).
+    feed_angle : ndarray of float
+        Required if uvobj not provided, orientation of the receiver with respect to the
+        great circle at fixed azimuth, shape (nants, nfeeds).
+    antenna_numbers : array-like of int
+        Required if uvobj not provided, antenna numbers for all antennas of the
+        telescope, dtype int and shape (nants,).
+    time_val : float
+        Required if uvobj is not supplied, representative JD date for the catalog to
+        be recorded into the MS file.
 
     Raises
     ------
@@ -1401,50 +1466,75 @@ def write_ms_feed(
     _ms_utils_call_checks(filepath)
     filepath += "::FEED"
 
+    has_feed = feed_array is None
     if uvobj is not None:
+        if uvobj.telescope.feed_array is not None:
+            feed_array = uvobj.telescope.feed_array
+            feed_angle = uvobj.telescope.feed_angle
+            nfeeds = int(uvobj.telescope.Nfeeds)
+            has_feed = True
+        else:
+            if uvobj.flex_spw_polarization_array is None:
+                pols = uvobj.polarization_array
+            else:
+                pols = uvobj.flex_spw_polarization_array
+
+            feed_pols = utils.pol.get_feeds_from_pols(pols)
+            nfeeds = len(feed_pols)
+            feed_array = np.tile(sorted(feed_pols), (uvobj.telescope.Nants, 1))
+            feed_angle = np.zeros((uvobj.telescope.Nants, nfeeds))
+            has_feed = False
+
         antenna_numbers = uvobj.telescope.antenna_numbers
-        polarization_array = uvobj.polarization_array
-        flex_spw_polarization_array = uvobj.flex_spw_polarization_array
         nspws = uvobj.Nspws
+        time_val = (
+            Time(np.median(uvobj.time_array), format="jd", scale="utc").mjd * 86400.0
+        )
 
-    nfeeds_table = np.max(antenna_numbers) + 1
-    antenna_id_table = np.arange(nfeeds_table, dtype=np.int32)
-    if flex_spw_polarization_array is None:
-        spectral_window_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
-
-        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-        pol_str = utils.polnum2str(polarization_array[pol_order])
-    else:
-        spectral_window_id_table = np.repeat(np.arange(nspws), nfeeds_table)
-        nfeeds_table *= nspws
-        antenna_id_table = np.tile(antenna_id_table, nspws)
-        # we want "x" or "y", *not* "e" or "n", so as not to confuse CASA
-        pol_str = utils.polnum2str(flex_spw_polarization_array)
+    nrows = np.max(antenna_numbers) + 1
+    antenna_id_table = np.arange(nrows, dtype=np.int32)
 
     with tables.table(filepath, ack=False, readonly=False) as feed_table:
-        feed_pols = {
-            feed for pol in pol_str for feed in utils.pol.POL_TO_FEED_DICT[pol]
-        }
-        nfeed_pols = len(feed_pols)
-        pol_types = [pol.upper() for pol in sorted(feed_pols)]
-        pol_type_table = np.tile(pol_types, (nfeeds_table, 1))
+        # Record whether or not we actually have the feed information specified, versus
+        # deriving it from a polarization table
+        feed_table.putkeyword("pyuvdata_has_feed", has_feed)
 
-        num_receptors_table = np.tile(np.int32(nfeed_pols), nfeeds_table)
-        beam_id_table = -1 * np.ones(nfeeds_table, dtype=np.int32)
-        beam_offset_table = np.zeros((nfeeds_table, 2, 2), dtype=np.float64)
-        feed_id_table = np.zeros(nfeeds_table, dtype=np.int32)
-        interval_table = np.zeros(nfeeds_table, dtype=np.float64)
-        pol_response_table = np.dstack(
-            [np.eye(2, dtype=np.complex64) for n in range(nfeeds_table)]
-        ).transpose()
-        position_table = np.zeros((nfeeds_table, 3), dtype=np.float64)
-        receptor_angle_table = np.zeros((nfeeds_table, nfeed_pols), dtype=np.float64)
+        # Plug in what we need here. Tile based on the first element to plug in valid
+        # entries for all antennas so that CASA doesn't complain.
+        pol_type_table = np.tile(feed_array[0], (nrows, 1)).astype("<U1")
+        pol_type_table[antenna_numbers] = feed_array
+        pol_type_table = np.char.upper(pol_type_table)
+        receptor_angle_table = np.zeros((nrows, nfeeds), dtype=np.float64)
+        receptor_angle_table[antenna_numbers] = feed_angle
 
-        feed_table.addrows(nfeeds_table)
+        for idx in range(nrows):
+            if pol_type_table[idx].tolist() in [["Y", "X"], ["L", "R"]]:
+                pol_type_table[idx, :] = pol_type_table[idx, ::-1]
+                receptor_angle_table[idx, :] = receptor_angle_table[idx, ::-1]
+
+        pol_type_table = np.repeat(pol_type_table, nspws, axis=0)
+        receptor_angle_table = np.repeat(receptor_angle_table, nspws, axis=0)
+        antenna_id_table = np.repeat(antenna_id_table, nspws, axis=0)
+        spectral_window_id_table = np.tile(np.arange(nspws, dtype=np.int32), nrows)
+        num_receptors_table = np.full(nrows * nspws, nfeeds, dtype=np.int32)
+
+        # These are all "sensible defaults" for now.
+        beam_id_table = -1 * np.ones(nrows * nspws, dtype=np.int32)
+        beam_offset_table = np.zeros((nrows * nspws, 2, 2), dtype=np.float64)
+        feed_id_table = np.zeros(nrows * nspws, dtype=np.int32)
+        time_table = np.full(nrows * nspws, time_val, dtype=np.float64)
+        interval_table = np.full(nrows * nspws, np.finfo(float).max, dtype=np.float64)
+        position_table = np.zeros((nrows * nspws, 3), dtype=np.float64)
+
+        # TODO: Check and see if this needs additional info for polcal...
+        pol_response_table = np.zeros((nspws * nrows, 2, 2), dtype=np.complex64)
+
+        feed_table.addrows(nrows * nspws)
         feed_table.putcol("ANTENNA_ID", antenna_id_table)
         feed_table.putcol("BEAM_ID", beam_id_table)
         feed_table.putcol("BEAM_OFFSET", beam_offset_table)
         feed_table.putcol("FEED_ID", feed_id_table)
+        feed_table.putcol("TIME", time_table)
         feed_table.putcol("INTERVAL", interval_table)
         feed_table.putcol("NUM_RECEPTORS", num_receptors_table)
         feed_table.putcol("POLARIZATION_TYPE", pol_type_table)
@@ -2119,15 +2209,18 @@ def get_ms_telescope_location(*, tb_ant_dict, obs_dict):
 
     # check to see if a TELESCOPE_LOCATION column is present in the observation
     # table. This is non-standard, but inserted by pyuvdata
-    if (
-        "telescope_location" not in obs_dict
-        and obs_dict["telescope_name"] in known_telescopes()
+    if "telescope_location" not in obs_dict and (
+        obs_dict["telescope_name"] in known_telescopes()
+        or obs_dict["telescope_name"].upper() in known_telescopes()
     ):
         # get it from known telescopes
-        telescope_loc = known_telescope_location(obs_dict["telescope_name"])
+        telname = obs_dict["telescope_name"]
+        if telname.upper() in known_telescopes():
+            telname = telname.upper()
+
+        telescope_loc = known_telescope_location(telname)
         warnings.warn(
-            "Setting telescope_location to value in known_telescopes for "
-            f"{obs_dict['telescope_name']}."
+            f"Setting telescope_location to value in known_telescopes for {telname}."
         )
         return telescope_loc
     else:

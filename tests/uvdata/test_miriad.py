@@ -1119,10 +1119,12 @@ def test_miriad_extra_keywords(uv_in_paper, tmp_path, kwd_names, kwd_values):
 
 
 @pytest.mark.filterwarnings("ignore:The uvw_array does not match the expected values")
-def test_roundtrip_optional_params(uv_in_paper, tmp_path):
+def test_roundtrip_optional_params(uv_in_paper):
     uv_in, uv_out, testfile = uv_in_paper
 
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     uv_in.pol_convention = "sum"
     uv_in.vis_units = "Jy"
     uv_in.reorder_blts()
@@ -1235,7 +1237,9 @@ def test_read_write_read_miriad(uv_in_paper):
     assert str(cm.value).startswith("File exists: skipping")
 
     # check that if x_orientation is set, it's read back out properly
-    uv_in.telescope.x_orientation = "east"
+    uv_in.telescope.set_feeds_from_x_orientation(
+        "east", polarization_array=uv_in.polarization_array
+    )
     _write_miriad(uv_in, write_file, clobber=True)
     uv_out.read(write_file)
     uv_out._consolidate_phase_center_catalogs(other=uv_in)
@@ -2039,3 +2043,20 @@ def test_file_with_bad_extra_words():
     # The antenna positions is (0, 0, 0) vector
     with check_warnings(warn_category, warn_message):
         uv.read_miriad(fname, run_check=False)
+
+
+def test_miriad_read_xorient():
+    """
+    Read miriad w/ x_orientation keyword present, verify things make sense.
+    """
+    # This is a bespoke older dataset w/ the xorient keyword set, make sure that it
+    # gets the keyword correctly and interprets in correctly. In this case, it's
+    # been manually set to 'east' inside of the dataset.
+    uv = UVData.from_file(os.path.join(DATA_PATH, "xorient_miriad"))
+    nants = uv.telescope.Nants
+
+    assert uv.telescope.get_x_orientation_from_feeds() == "east"
+
+    assert uv.telescope.Nfeeds == 1
+    assert np.array_equal(uv.telescope.feed_array, [["x"]] * nants)
+    assert np.array_equal(uv.telescope.feed_angle, [[np.pi / 2]] * nants)
