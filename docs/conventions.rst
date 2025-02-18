@@ -23,7 +23,7 @@ the position of the first (after which various rotations are applied). The secon
 *ant1-ant2*, where :math:`\mathcal{V}_{12}=\langle V_{1} V_{2}^{*} \rangle`, and the
 *uvw*-coordinate is calculated by taking the position of the first antenna minus
 the second. The pyuvdata software package uses the *ant2-ant1* convention (as does
-MIRIAD; with UVFITS, MeasurementSet, FHD, and Mir formats using the opposite convention).
+MIRIAD; with UVFITS, MeasurementSet, FHD, and Mir formats use the opposite convention).
 
 Phase Center Types
 ------------------
@@ -60,7 +60,7 @@ single-polarization baseline is expressed as a Stokes I equivalent (e.g., an "xx
 baseline will show 1 Jy of flux for a 1 Jy unpolarized point source).
 
 As mixing the two conventions can result in data having a factor of two error in
-amplitude,, both ``UVCal`` and ``UVData`` objects have the parameter ``pol_convention``,
+amplitude, both ``UVCal`` and ``UVData`` objects have the parameter ``pol_convention``,
 which denotes the normalization behavior. The two supported options are ``"sum"``, where
 Stokes I is the sum of fluxes measured on the XX and YY baselines for a linear
 polarization system (i.e., I = XX + YY), or RR and LL baselines for a circular system;
