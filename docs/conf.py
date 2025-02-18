@@ -68,6 +68,7 @@ napoleon_custom_sections = [
     ("MWA FITS", "params_style"),
     ("MIR", "params_style"),
     ("CalH5", "params_style"),
+    ("MSCal", "params_style"),
 ]
 
 # Add any paths that contain templates here, relative to this directory.
