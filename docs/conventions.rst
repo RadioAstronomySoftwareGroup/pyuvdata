@@ -50,6 +50,23 @@ discussed further below:
     this context, geometric delays are *not* compensated for, but *uvw*-coordinates
     are calculated with respect to zenith for a given telescope.
 
+Polarization Normalization
+--------------------------
+For an unpolarized source, a single-polarization receiver will typically detect half of
+the Stokes I emission (e.g., an "xx"-polarization feed will physically detect 0.5 Jy of
+a 1 Jy unpolarized point source). However, several software packages (including CASA and
+MIRIAD) normalize to account for thus and double this quantity, such that a
+single-polarization baseline is expressed as a Stokes I equivalent (e.g., an "xx"
+baseline will show 1 Jy of flux for a 1 Jy unpolarized point source).
+
+As mixing the two conventions can result in data having a factor of two error in
+amplitude,, both ``UVCal`` and ``UVData`` objects have the parameter ``pol_convention``,
+which denotes the normalization behavior. The two supported options are ``"sum"``, where
+Stokes I is the sum of fluxes measured on the XX and YY baselines for a linear
+polarization system (i.e., I = XX + YY), or RR and LL baselines for a circular system;
+and ``"mean"``, where Stokes I is the mean of the XX/YY or RR/LL baselines
+(i.e, I = (XX + YY) / 2).
+
 Feed angles and x-orientation
 -----------------------------
 As part of the ``Telescope`` object, one can specify ``Telescope.feed_type`` to specify
