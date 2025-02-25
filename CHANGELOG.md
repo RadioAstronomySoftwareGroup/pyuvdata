@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- A new utility function `utils.convert_feeds_to_pols` to get a polarization array
+- A new utility function `utils.pol.convert_feeds_to_pols` to get a polarization array
 given a feed array (previously existed as a private function in uvbeam.py).
 - New `strict` keyword added to `UVData.select`, `UVBeam.select`, `UVFlag.select`, and
 `UVFlag.select`, which allows the user to specify whether to warn or error when
