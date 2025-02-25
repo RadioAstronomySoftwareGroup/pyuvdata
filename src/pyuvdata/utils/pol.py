@@ -8,6 +8,7 @@ from copy import deepcopy
 from functools import lru_cache, wraps
 
 import numpy as np
+import numpy.typing as npt
 
 from . import tools
 
@@ -27,6 +28,7 @@ __all__ = [
     "x_orientation_pol_map",
     "parse_polstr",
     "parse_jpolstr",
+    "convert_feeds_to_pols",
 ]
 
 # fmt: off
@@ -529,6 +531,57 @@ def determine_pol_order(pols, *, order="AIPS"):
         raise ValueError('order must be either "AIPS" or "CASA".')
 
     return index_array
+
+
+def convert_feeds_to_pols(
+    feed_array: npt.NDArray[str],
+    include_cross_pols: bool = True,
+    x_orientation: str | None = None,
+    return_feed_pol_order: bool = False,
+):
+    """
+    Get the polarizations given a feed array.
+
+    Parameters
+    ----------
+    feed_array : ndarray of str
+        Array of feed orientations. Options are: n/e or x/y or r/l.
+    include_cross_pols : bool
+        Option to include the cross polarizations (e.g. xy and yx or en and ne).
+        Defaults to True if more than one feed, set to False for only one feed.
+    x_orientation : str, optional
+        Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
+    return_feed_pol_order : bool
+        Option to return a list of tuples giving the ordering of the feeds for
+        each pol. Default False.
+
+    """
+    n_feeds = np.asarray(feed_array).size
+
+    if n_feeds < 1 or n_feeds > 2:
+        raise ValueError(
+            "feed_array contains {n_feeds}. Only 1 or 2 feeds is supported."
+        )
+
+    feed_pol_order = [(0, 0)]
+    if n_feeds > 1:
+        feed_pol_order.append((1, 1))
+    else:
+        include_cross_pols = False
+
+    if include_cross_pols:
+        feed_pol_order.extend([(0, 1), (1, 0)])
+
+    pol_strings = []
+    for pair in feed_pol_order:
+        pol_strings.append(feed_array[pair[0]] + feed_array[pair[1]])
+    polarization_array = np.array(
+        [polstr2num(ps.upper(), x_orientation=x_orientation) for ps in pol_strings]
+    )
+    if return_feed_pol_order:
+        return polarization_array, feed_pol_order
+    else:
+        return polarization_array
 
 
 def _select_pol_helper(

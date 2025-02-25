@@ -22,29 +22,6 @@ from . import _uvbeam, initializers
 __all__ = ["UVBeam"]
 
 
-def _convert_feeds_to_pols(feed_array, calc_cross_pols, x_orientation=None):
-    n_feeds = np.asarray(feed_array).size
-
-    feed_pol_order = [(0, 0)]
-    if n_feeds > 1:
-        feed_pol_order.append((1, 1))
-
-    if calc_cross_pols:
-        # to get here we have Nfeeds > 1
-        feed_pol_order.extend([(0, 1), (1, 0)])
-
-    pol_strings = []
-    for pair in feed_pol_order:
-        pol_strings.append(feed_array[pair[0]] + feed_array[pair[1]])
-    polarization_array = np.array(
-        [
-            utils.polstr2num(ps.upper(), x_orientation=x_orientation)
-            for ps in pol_strings
-        ]
-    )
-    return polarization_array, feed_pol_order
-
-
 class UVBeam(UVBase):
     """
     A class for defining a radio telescope antenna beam.
@@ -927,10 +904,11 @@ class UVBeam(UVBase):
             # There are no cross pols with one feed. Set this so the power beam is real
             calc_cross_pols = False
 
-        beam_object.polarization_array, feed_pol_order = _convert_feeds_to_pols(
+        beam_object.polarization_array, feed_pol_order = utils.convert_feeds_to_pols(
             beam_object.feed_array,
-            calc_cross_pols,
+            include_cross_pols=calc_cross_pols,
             x_orientation=beam_object.x_orientation,
+            return_feed_pol_order=True,
         )
         beam_object.Npols = beam_object.polarization_array.size
 
