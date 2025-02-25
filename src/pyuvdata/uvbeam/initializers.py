@@ -23,7 +23,7 @@ def new_uvbeam(
     feed_version: str = "0.0",
     model_name: str = "default",
     model_version: str = "0.0",
-    feed_array: npt.NDArray[np.str] | None = None,
+    feed_array: npt.NDArray[str] | None = None,
     polarization_array: (
         npt.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
     ) = None,
