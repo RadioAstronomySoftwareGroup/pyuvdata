@@ -28,7 +28,6 @@ __all__ = [
     "x_orientation_pol_map",
     "parse_polstr",
     "parse_jpolstr",
-    "convert_feeds_to_pols",
 ]
 
 # fmt: off
@@ -555,12 +554,18 @@ def convert_feeds_to_pols(
         Option to return a list of tuples giving the ordering of the feeds for
         each pol. Default False.
 
+    Returns
+    -------
+    polarization_array : ndarray of int
+        Polarization integer array.
+    feed_pol_order : list of tuples of int, optional
+        List of feed index tuples for each pol.
     """
     n_feeds = np.asarray(feed_array).size
 
     if n_feeds < 1 or n_feeds > 2:
         raise ValueError(
-            "feed_array contains {n_feeds}. Only 1 or 2 feeds is supported."
+            f"feed_array contains {n_feeds} feeds. Only 1 or 2 feeds is supported."
         )
 
     feed_pol_order = [(0, 0)]

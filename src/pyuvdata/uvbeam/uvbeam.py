@@ -904,11 +904,13 @@ class UVBeam(UVBase):
             # There are no cross pols with one feed. Set this so the power beam is real
             calc_cross_pols = False
 
-        beam_object.polarization_array, feed_pol_order = utils.convert_feeds_to_pols(
-            beam_object.feed_array,
-            include_cross_pols=calc_cross_pols,
-            x_orientation=beam_object.x_orientation,
-            return_feed_pol_order=True,
+        beam_object.polarization_array, feed_pol_order = (
+            utils.pol.convert_feeds_to_pols(
+                beam_object.feed_array,
+                include_cross_pols=calc_cross_pols,
+                x_orientation=beam_object.x_orientation,
+                return_feed_pol_order=True,
+            )
         )
         beam_object.Npols = beam_object.polarization_array.size
 

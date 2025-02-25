@@ -243,3 +243,57 @@ def test_x_orientation_pol_map():
         assert utils._x_orientation_rep_dict("east") == {"x": "e", "y": "n"}
 
     assert utils.x_orientation_pol_map("north") == {"x": "n", "y": "e"}
+
+
+@pytest.mark.parametrize(
+    ("input_kwargs", "output"),
+    [
+        ({"feed_array": ["x"]}, [-5]),
+        ({"feed_array": ["x", "y"]}, [-5, -6, -7, -8]),
+        ({"feed_array": ["r", "l"]}, [-1, -2, -3, -4]),
+        ({"feed_array": ["x", "y"], "include_cross_pols": False}, [-5, -6]),
+        (
+            {
+                "feed_array": ["e", "n"],
+                "x_orientation": "east",
+                "return_feed_pol_order": True,
+            },
+            ([-5, -6, -7, -8], [(0, 0), (1, 1), (0, 1), (1, 0)]),
+        ),
+        (
+            {
+                "feed_array": ["n", "e"],
+                "x_orientation": "north",
+                "return_feed_pol_order": True,
+            },
+            ([-5, -6, -7, -8], [(0, 0), (1, 1), (0, 1), (1, 0)]),
+        ),
+        (
+            {
+                "feed_array": ["e", "n"],
+                "x_orientation": "north",
+                "return_feed_pol_order": True,
+            },
+            ([-6, -5, -8, -7], [(0, 0), (1, 1), (0, 1), (1, 0)]),
+        ),
+    ],
+)
+def test_convert_feeds_to_pols(input_kwargs, output):
+    ret_val = utils.pol.convert_feeds_to_pols(**input_kwargs)
+    if not isinstance(output, tuple):
+        assert ret_val.tolist() == output
+    else:
+        assert ret_val[0].tolist() == output[0]
+        assert ret_val[1] == output[1]
+
+
+def test_convert_feeds_to_pols_errors():
+    with pytest.raises(
+        ValueError, match="feed_array contains 3 feeds. Only 1 or 2 feeds is supported."
+    ):
+        utils.pol.convert_feeds_to_pols(["x", "y", "z"])
+
+    with pytest.raises(
+        ValueError, match="feed_array contains 0 feeds. Only 1 or 2 feeds is supported."
+    ):
+        utils.pol.convert_feeds_to_pols([])
