@@ -39,8 +39,22 @@ required_properties = [
     "antenna_numbers",
     "antenna_positions",
 ]
-extra_parameters = ["_antenna_diameters", "_x_orientation", "_instrument"]
-extra_properties = ["antenna_diameters", "x_orientation", "instrument"]
+extra_parameters = [
+    "_antenna_diameters",
+    "_instrument",
+    "_mount_type",
+    "_Nfeeds",
+    "_feed_array",
+    "_feed_angle",
+]
+extra_properties = [
+    "antenna_diameters",
+    "instrument",
+    "mount_type",
+    "Nfeeds",
+    "feed_array",
+    "feed_angle",
+]
 other_attributes = [
     "citation",
     "telescope_location_lat_lon_alt",
@@ -179,13 +193,19 @@ def test_update_params_from_known():
             "for telescope hera.",
             "x_orientation are not set or are being overwritten. x_orientation "
             "are set using values from known telescopes for hera.",
+            "Unknown polarization basis -- assuming linearly polarized (x/y) feeds for "
+            "Telescope.feed_array.",
         ],
     ):
         hera_tel_test.update_params_from_known_telescopes(
             known_telescope_dict=known_dict
         )
     assert hera_tel_test.antenna_diameters is None
-    assert hera_tel_test.x_orientation == "east"
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        assert hera_tel_test.x_orientation == "east"
+        assert hera_tel_test.get_x_orientation_from_feeds() == "east"
 
     mwa_tel = Telescope.from_known_telescopes("mwa")
     mwa_tel2 = Telescope()
@@ -466,11 +486,15 @@ def test_bad_antenna_inputs(kwargs, err_msg):
 
 @pytest.mark.parametrize("xorient", ["e", "n", "east", "NORTH"])
 def test_passing_xorient(simplest_working_params, xorient):
-    tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
-    if xorient.lower().startswith("e"):
-        assert tel.x_orientation == "east"
-    else:
-        assert tel.x_orientation == "north"
+    with check_warnings(UserWarning, "Unknown polarization basis"):
+        tel = Telescope.new(x_orientation=xorient, **simplest_working_params)
+
+    with check_warnings(
+        DeprecationWarning, "The Telescope.x_orientation attribute is deprecated"
+    ):
+        name = "east" if xorient.lower().startswith("e") else "north"
+        assert tel.x_orientation == name
+        assert tel.get_x_orientation_from_feeds() == name
 
 
 def test_passing_diameters(simplest_working_params):
@@ -507,3 +531,57 @@ def test_update_without_warning():
         warnings.simplefilter("error")
         t.update_params_from_known_telescopes()
     unignore_telescope_param_update_warnings_for("hera")
+
+
+@pytest.mark.parametrize("add_param", ["feed_angle", "feed_array"])
+def test_feed_errs(simplest_working_params, add_param):
+    tel = Telescope.new(**simplest_working_params)
+    tel.Nfeeds = 2
+    if add_param == "feed_angle":
+        tel.feed_angle = np.zeros((tel.Nants, tel.Nfeeds))
+    if add_param == "feed_array":
+        tel.feed_array = np.full((tel.Nants, tel.Nfeeds), "x")
+    with pytest.raises(
+        ValueError, match="Parameter feed_array and feed_angle must be set together."
+    ):
+        tel.check()
+
+
+def test_feed_order_error(simplest_working_params):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel = Telescope.new(
+        feed_array=feed_array, feed_angle=feed_angle, **simplest_working_params
+    )
+
+    with pytest.raises(ValueError, match="order must be one of: 'AIPS', 'CASA', or"):
+        tel.reorder_feeds("XYZ")
+
+
+def test_feed_order_noop(simplest_working_params):
+    # Make sure that no feeds just returns
+    tel = Telescope.new(**simplest_working_params)
+    tel2 = tel.copy()
+
+    with check_warnings(None, match=""):
+        tel.reorder_feeds("AIPS")
+
+    assert tel == tel2
+
+
+@pytest.mark.parametrize(
+    "order,flipped", [["AIPS", True], ["CASA", True], [["l", "r", "x"], False]]
+)
+def test_feed_order(simplest_working_params, order, flipped):
+    feed_array = np.tile(["l", "r"], (3, 1))
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel = Telescope.new(
+        feed_array=feed_array, feed_angle=feed_angle, **simplest_working_params
+    )
+    feed_array = feed_array.copy()
+    feed_angle = feed_angle.copy()
+
+    tel.reorder_feeds(order=order)
+    assert np.array_equal(tel.feed_array, feed_array[:, :: (-1 if flipped else 1)])
+    assert np.array_equal(tel.feed_angle, feed_angle[:, :: (-1 if flipped else 1)])
+    assert tel.Nfeeds == 2

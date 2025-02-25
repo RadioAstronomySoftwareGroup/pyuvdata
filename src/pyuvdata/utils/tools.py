@@ -76,7 +76,7 @@ def _convert_to_slices(
         `indices` can be easily represented with a list of slices. If set, then
         the argument supplied to `max_nslice_frac` is ignored.
     return_index_on_fail : bool
-        If set to True and the list of input indexes cannot easily be respresented by
+        If set to True and the list of input indexes cannot easily be represented by
         a list of slices (as defined by `max_nslice` or `max_nslice_frac`), then return
         the input list of index values instead of a list of suboptimal slices.
 
@@ -84,7 +84,7 @@ def _convert_to_slices(
     -------
     slice_list : list
         Nominally the list of slice objects used to represent indices. However, if
-        `return_index_on_fail=True` and input indexes cannot easily be respresented,
+        `return_index_on_fail=True` and input indexes cannot easily be represented,
         return a 1-element list containing the input for `indices`.
     check : bool
         If True, indices is easily represented by slices
@@ -111,54 +111,51 @@ def _convert_to_slices(
     if len(eval_ind) == 0:
         return [slice(0, 0, 0)], False
     if len(eval_ind) <= 2:
-        return [
-            slice(eval_ind[0], eval_ind[-1] + 1, max(eval_ind[-1] - eval_ind[0], 1))
-        ], True
+        step = 1 if (len(eval_ind) < 2) else eval_ind[-1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
+        return [slice(start, None if (stop < 0) else stop, step)], True
 
     # Catch the simplest case of "give me a single slice or exit"
     if (max_nslice == 1) and return_index_on_fail:
         step = eval_ind[1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
         if all(np.diff(eval_ind) == step):
-            return [slice(eval_ind[0], eval_ind[-1] + 1, step)], True
+            return [slice(start, None if (stop < 0) else stop, step)], True
         return [indices], False
 
     # setup empty slices list
-    Ninds = len(eval_ind)
     slices = []
 
     # iterate over indices
-    start = last_step = None
-    for ind in eval_ind:
-        if last_step is None:
-            # Check if this is the first slice, in which case start is None
-            if start is None:
-                start = ind
-                continue
-            last_step = ind - start
-            last_ind = ind
+    start = eval_ind[0]
+    step = None
+    for ind in eval_ind[1:]:
+        if step is None:
+            step = ind - start
+            stop = ind + step
             continue
 
-        # calculate step from previous index
-        step = ind - last_ind
-
-        # if step != last_step, this ends the slice
-        if step != last_step:
+        # if the next index doesn't line up w/ the stop, this ends the slice
+        if ind != stop:
             # append to list
-            slices.append(slice(start, last_ind + 1, last_step))
+            slices.append(slice(start, None if (stop < 0) else stop, step))
 
             # setup next step
             start = ind
-            last_step = None
-
-        last_ind = ind
+            stop = ind + 1  # Set this in case loop ends here
+            step = None
+        else:
+            stop += step
 
     # Append the last slice
-    slices.append(slice(start, ind + 1, last_step))
+    slices.append(slice(start, None if (stop < 0) else stop, step))
 
     # determine whether slices are a reasonable representation, and determine max_nslice
     # if only max_nslice_frac was supplied.
-    if max_nslice is None:
-        max_nslice = max_nslice_frac * Ninds
+    if max_nslice is None and max_nslice_frac is not None:
+        max_nslice = max_nslice_frac * len(eval_ind)
     check = len(slices) <= max_nslice
 
     if return_index_on_fail and not check:
