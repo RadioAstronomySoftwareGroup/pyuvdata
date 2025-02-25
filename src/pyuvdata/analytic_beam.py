@@ -19,7 +19,7 @@ from scipy.special import j1
 
 from . import utils
 from .docstrings import combine_docstrings
-from .uvbeam.uvbeam import UVBeam, _convert_feeds_to_pols
+from .uvbeam.uvbeam import UVBeam
 
 __all__ = ["AnalyticBeam", "AiryBeam", "GaussianBeam", "ShortDipoleBeam", "UniformBeam"]
 
@@ -164,7 +164,7 @@ class AnalyticBeam:
         if len(self.feed_array) == 1:
             include_cross_pols = False
 
-        self.polarization_array, _ = _convert_feeds_to_pols(
+        self.polarization_array = utils.convert_feeds_to_pols(
             self.feed_array, include_cross_pols, x_orientation=self.x_orientation
         )
 
