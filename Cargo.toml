@@ -7,12 +7,12 @@
 [dependencies]
  itertools   = "0.12.1"
  lazy_static = "1.4.0"
- ndarray     = { version = "0.15.6" }
- numpy       = "0.20.0"
- pyo3        = { version = "0.20", features = [ "extension-module" ] }
+ ndarray     = { version = "~0.16" }
+ numpy       = "~0.23"
+ pyo3        = { version = "~0.23", features = [ "extension-module" ] }
 
 [dev-dependencies]
- ndarray = { version = "0.15.6", features = [ "approx-0_5" ] }
+ ndarray = { version = "~0.16", features = [ "approx" ] }
  approx  = "0.5.1"
 
 [lib]
