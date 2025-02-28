@@ -3,7 +3,7 @@ use std::mem::MaybeUninit;
 use super::_warn;
 use ndarray::{s, Array, Ix1, Ix2};
 use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1};
-use pyo3::{pymodule, types::PyModule, PyResult, Python};
+use pyo3::{pymodule, types::PyModule, Bound, PyResult, Python};
 
 const BLS_2_147_483_648: u64 = 2_u64.pow(16) + 2_u64.pow(22);
 const BLS_2048: u64 = 2_u64.pow(16);
@@ -110,12 +110,13 @@ fn _antnums_to_baseline(
 }
 
 #[pymodule]
-pub(crate) fn _bls<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
+pub(crate) fn _bls(m: &Bound<'_, PyModule>) -> PyResult<()> {
     #[pyfn(m)]
     fn baseline_to_antnums<'py>(
         py: Python<'py>,
         bls: PyReadonlyArray1<'py, u64>,
-    ) -> &'py PyArray2<u64> {
+    ) -> Bound<'py, PyArray2<u64>> {
+        use numpy::IntoPyArray;
         // unwrap is safe here because he require nbls >= 1 in python section
         _baseline_to_antnums(bls.as_slice().unwrap()).into_pyarray(py)
     }
@@ -128,7 +129,7 @@ pub(crate) fn _bls<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
         attempt256: bool,
         nants_less2048: bool,
         use_miriad_convention: bool,
-    ) -> &'py PyArray1<u64> {
+    ) -> Bound<'py, PyArray1<u64>> {
         // unwrap is safe here because he require nants >= 1 in python section
         _antnums_to_baseline(
             ant1.as_slice().unwrap(),
