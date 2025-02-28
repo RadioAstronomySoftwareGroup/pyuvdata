@@ -4,8 +4,8 @@ use numpy::{IntoPyArray, Ix2, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::{
     pyclass, pymodule,
     sync::GILOnceCell,
-    types::{PyDict, PyModule},
-    PyResult, Python,
+    types::{PyAnyMethods, PyDict, PyDictMethods, PyModule, PyModuleMethods},
+    Bound, PyResult, Python,
 };
 use std::{collections::HashMap, mem::MaybeUninit};
 
@@ -41,9 +41,11 @@ fn get_selenoid<'a>(py: Python<'_>, selenoid: &'a str) -> &'a Ellipsoid {
     LIST_CELL
         .get_or_try_init(py, || {
             let lunar_module = PyModule::import(py, "lunarsky")?;
-            let lunar_moon = lunar_module.getattr("moon")?.downcast::<PyModule>()?;
+            let full_moon = lunar_module.getattr("moon")?;
+            let lunar_moon = full_moon.downcast::<PyModule>()?;
 
-            let selenoids: &PyDict = lunar_moon.getattr("SELENOIDS")?.downcast::<PyDict>()?;
+            let all_sels = lunar_moon.getattr("SELENOIDS")?;
+            let selenoids = all_sels.downcast::<PyDict>()?;
 
             Ok::<_, pyo3::PyErr>(
                 selenoids
@@ -77,8 +79,8 @@ lazy_static! {
     static ref EARTH: Ellipsoid = Ellipsoid::new(6378137_f64, 6356752.31424518_f64);
 }
 
-#[pyclass]
-#[derive(Debug, Clone, Copy)]
+#[pyclass(eq, eq_int)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
 /// Celestial Ellipsoids used for Geodetic to Geocentric conversions.
 enum Body {
@@ -223,7 +225,7 @@ fn ecef_from_enu(
 }
 
 #[pymodule]
-pub(crate) fn _coordinates<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<()> {
+pub(crate) fn _coordinates(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<Body>()?;
     #[pyfn(m)]
     fn _xyz_from_latlonalt<'py>(
@@ -232,7 +234,7 @@ pub(crate) fn _coordinates<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<
         lon: PyReadonlyArray1<'py, f64>,
         alt: PyReadonlyArray1<'py, f64>,
         body: Body,
-    ) -> &'py PyArray2<f64> {
+    ) -> Bound<'py, PyArray2<f64>> {
         // we're assuming lat, lon, and alt are all the same length
         // and have n_points > 1. This should be checked on the python side.
         xyz_from_lla(
@@ -249,7 +251,7 @@ pub(crate) fn _coordinates<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<
         py: Python<'py>,
         xyz: PyReadonlyArray2<'py, f64>,
         body: Body,
-    ) -> &'py PyArray2<f64> {
+    ) -> Bound<'py, PyArray2<f64>> {
         lla_from_xyz(xyz.as_array(), body).into_pyarray(py)
     }
 
@@ -262,7 +264,7 @@ pub(crate) fn _coordinates<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<
         lon: f64,
         alt: f64,
         body: Body,
-    ) -> &'py PyArray2<f64> {
+    ) -> Bound<'py, PyArray2<f64>> {
         enu_from_ecef(xyz.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
 
@@ -275,7 +277,7 @@ pub(crate) fn _coordinates<'py>(_py: Python<'py>, m: &'py PyModule) -> PyResult<
         lon: f64,
         alt: f64,
         body: Body,
-    ) -> &'py PyArray2<f64> {
+    ) -> Bound<'py, PyArray2<f64>> {
         ecef_from_enu(enu.as_array(), lat, lon, alt, body).into_pyarray(py)
     }
 
