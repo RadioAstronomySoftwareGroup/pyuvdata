@@ -3,13 +3,16 @@
  version = "0.1.0"
  edition = "2021"
 
+[features]
+ default          = [ "extension-module" ]
+ extension-module = [ "pyo3/extension-module" ]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
  itertools   = "0.12.1"
  lazy_static = "1.4.0"
  ndarray     = { version = "~0.16" }
- numpy       = "~0.23"
- pyo3        = { version = "~0.23", features = [ "extension-module" ] }
+ numpy       = "0.23"
+ pyo3        = { version = "0.23.5" }
 
 [dev-dependencies]
  ndarray = { version = "~0.16", features = [ "approx" ] }
@@ -17,7 +20,7 @@
 
 [lib]
  name       = "_utils_rs"
- crate-type = [ "cdylib" ]
+ crate-type = [ "cdylib", "lib" ]
  path       = "rust/lib.rs"
 
 
