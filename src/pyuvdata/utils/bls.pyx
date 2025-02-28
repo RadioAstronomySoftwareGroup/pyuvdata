@@ -29,7 +29,7 @@ cdef inline int_or_float max(int_or_float a, int_or_float b):
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef int_or_float arraymin(int_or_float[::1] array) nogil:
+cdef int_or_float arraymin(int_or_float[::1] array) noexcept nogil:
     cdef int_or_float minval = array[0]
     cdef Py_ssize_t i
     for i in range(array.shape[0]):
@@ -39,7 +39,7 @@ cdef int_or_float arraymin(int_or_float[::1] array) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef int_or_float arraymax(int_or_float[::1] array) nogil:
+cdef int_or_float arraymax(int_or_float[::1] array) noexcept nogil:
     cdef int_or_float maxval = array[0]
     cdef Py_ssize_t i
     for i in range(array.shape[0]):
@@ -49,49 +49,27 @@ cdef int_or_float arraymax(int_or_float[::1] array) nogil:
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef inline void _bl_to_ant_256(
+@cython.cdivision(True)
+cdef inline void apply_offset_mod(
     numpy.uint64_t[::1] _bl,
     numpy.uint64_t[:, ::1] _ants,
     long nbls,
+    numpy.uint64_t offset,
+    numpy.uint64_t modulus,
 ):
   cdef Py_ssize_t i
+  cdef numpy.uint64_t bl_tmp
 
   for i in range(nbls):
-    _ants[1, i] = (_bl[i]) % 256
-    _ants[0, i] = (_bl[i] - (_ants[1, i])) // 256
-  return
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-cdef inline void _bl_to_ant_2048(
-    numpy.uint64_t[::1] _bl,
-    numpy.uint64_t[:, ::1] _ants,
-    int nbls
-):
-  cdef Py_ssize_t i
-  for i in range(nbls):
-    _ants[1, i] = (_bl[i] - 2 ** 16) % 2048
-    _ants[0, i] = (_bl[i] - 2 ** 16 - (_ants[1, i])) // 2048
+    bl_tmp = _bl[i] - offset
+    _ants[1, i] = bl_tmp % modulus
+    _ants[0, i] = (bl_tmp - (_ants[1, i])) // modulus
   return
 
 # defining these constants helps cython not cast the large
 # numbers as python ints
 cdef numpy.uint64_t bl_large = 2 ** 16 + 2 ** 22
 cdef numpy.uint64_t large_mod = 2147483648
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
-cdef inline void _bl_to_ant_2147483648(
-    numpy.uint64_t[::1] _bl,
-    numpy.uint64_t[:, ::1] _ants,
-    int nbls
-):
-  cdef Py_ssize_t i
-  for i in range(nbls):
-    _ants[1, i] = (_bl[i] - bl_large) % large_mod
-    _ants[0, i] = (_bl[i] - bl_large - (_ants[1, i])) // large_mod
-  return
 
 
 @cython.boundscheck(False)
@@ -107,11 +85,11 @@ cpdef numpy.ndarray[dtype=numpy.uint64_t, ndim=2] baseline_to_antnums(
   cdef numpy.uint64_t[:, ::1] _ants = ants
 
   if  _min >= (2 ** 16 + 2 ** 22):
-    _bl_to_ant_2147483648(_bl, _ants, nbls)
+    apply_offset_mod(_bl, _ants, nbls, bl_large,large_mod)
   elif _min >= 2 ** 16:
-    _bl_to_ant_2048(_bl, _ants, nbls)
+    apply_offset_mod(_bl, _ants, nbls, 2** 16, 2048)
   else:
-    _bl_to_ant_256(_bl, _ants,  nbls)
+    apply_offset_mod(_bl, _ants,  nbls, 0, 256)
   return ants
 
 @cython.boundscheck(False)
