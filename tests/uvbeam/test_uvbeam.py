@@ -68,6 +68,8 @@ def uvbeam_data():
         "ordering",
         "pixel_array",
         "feed_array",
+        "feed_angle",
+        "mount_type",
         "polarization_array",
         "basis_vector_array",
         "extra_keywords",
@@ -75,7 +77,6 @@ def uvbeam_data():
         "element_coordinate_system",
         "element_location_array",
         "delay_array",
-        "x_orientation",
         "gain_array",
         "coupling_matrix",
         "reference_impedance",
@@ -446,8 +447,14 @@ def test_efield_to_power(
 
     if physical_orientation:
         efield_beam.feed_array = np.array(["e", "n"])
+        with check_warnings(
+            DeprecationWarning, match="Support for physically oriented feeds"
+        ):
+            efield_beam.check()
         power_beam.polarization_array = np.array(
-            utils.polstr2num(["ee", "nn"], x_orientation=power_beam.x_orientation)
+            utils.polstr2num(
+                ["ee", "nn"], x_orientation=power_beam.get_x_orientation_from_feeds()
+            )
         )
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=False, inplace=False)
@@ -473,8 +480,12 @@ def test_efield_to_power_1feed(cst_efield_2freq_cut, cst_power_2freq_cut):
 
     power_beam = cst_power_2freq_cut
     power_beam.select(polarizations=["xx"])
+    power_beam.feed_array = power_beam.feed_angle = power_beam.Nfeeds = None
 
     new_power_beam = efield_beam.efield_to_power(calc_cross_pols=True, inplace=False)
+    new_power_beam.feed_array = None
+    new_power_beam.feed_angle = None
+    new_power_beam.Nfeeds = None
 
     # The values in the beam file only have 4 sig figs, so they don't match precisely
     diff = np.abs(new_power_beam.data_array - power_beam.data_array)
@@ -2037,10 +2048,15 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
             "Downselecting feeds on phased array beams will lead to loss of information"
         )
     else:
-        expected_warning = None
-        warn_msg = ""
+        expected_warning = DeprecationWarning
+        warn_msg = "Support for physically oriented feeds"
     with check_warnings(expected_warning, match=warn_msg):
         efield_beam2 = efield_beam.select(feeds=sel_feeds, invert=invert, inplace=False)
+
+    if antenna_type == "simple":
+        expected_warning = None
+        feeds_to_keep = ["x"]
+        warn_msg = None
 
     assert len(feeds_to_keep) == efield_beam2.Nfeeds
     assert np.all(np.isin(efield_beam2.feed_array, feeds_to_keep))
@@ -2117,7 +2133,9 @@ def test_select_polarizations(pols, cst_efield_1freq, invert):
     pol_arr = []
     for p in pols:
         if not isinstance(p, int):
-            p = utils.polstr2num(p, x_orientation=power_beam.x_orientation)
+            p = utils.polstr2num(
+                p, x_orientation=power_beam.get_x_orientation_from_feeds()
+            )
         pol_arr.append(p)
 
     assert np.all(np.isin(power_beam.polarization_array, pol_arr, invert=invert))

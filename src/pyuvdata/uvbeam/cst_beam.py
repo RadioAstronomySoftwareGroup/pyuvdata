@@ -157,8 +157,6 @@ class CSTBeam(UVBeam):
         ):
             self.history += self.pyuvdata_version_str
 
-        if x_orientation is not None:
-            self.x_orientation = x_orientation
         if reference_impedance is not None:
             self.reference_impedance = float(reference_impedance)
         if extra_keywords is not None:
@@ -189,13 +187,17 @@ class CSTBeam(UVBeam):
             if rotate_pol:
                 if feed_pol == "x":
                     self.feed_array = np.array(["x", "y"])
+                    self.feed_angle = np.array([np.pi / 2, 0.0])
                 else:
                     self.feed_array = np.array(["y", "x"])
+                    self.feed_angle = np.array([0.0, np.pi / 2])
             else:
                 if feed_pol == "x":
                     self.feed_array = np.array(["x"])
+                    self.feed_angle = np.array([np.pi / 2])
                 else:
                     self.feed_array = np.array(["y"])
+                    self.feed_angle = np.array([0.0])
             self.Nfeeds = self.feed_array.size
             self._set_efield()
 
@@ -368,6 +370,9 @@ class CSTBeam(UVBeam):
             warnings.warn(
                 f"No frequency provided. Detected frequency is: {self.freq_array} Hz"
             )
+
+        if x_orientation is not None:
+            self.set_feeds_from_x_orientation(x_orientation)
 
         if run_check:
             self.check(

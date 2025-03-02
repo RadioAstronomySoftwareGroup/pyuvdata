@@ -210,8 +210,8 @@ def test_short_dipole_beam(az_za_deg_grid):
     np.testing.assert_allclose(power_vals, expected_data, atol=1e-15, rtol=0)
 
     assert (
-        beam.__repr__() == "ShortDipoleBeam(feed_array=array(['e', 'n'], dtype='<U1'), "
-        "x_orientation='east')"
+        beam.__repr__() == "ShortDipoleBeam(feed_array=array(['x', 'y'], dtype='<U1'), "
+        "feed_angle=array([1.57079633, 0.        ]), mount_type=None)"
     )
 
 
@@ -230,7 +230,15 @@ def test_shortdipole_feed_error():
     [(None, "east"), (["y", "x"], "north"), (["e", "n"], "east"), (["r", "l"], None)],
 )
 def test_uniform_beam(az_za_deg_grid, feed_array, x_orientation):
-    beam = UniformBeam(feed_array=feed_array, x_orientation=x_orientation)
+    if feed_array is not None and "e" in feed_array:
+        exp_warn = DeprecationWarning
+        msg = "Support for physically oriented feeds"
+    else:
+        exp_warn = None
+        msg = ""
+
+    with check_warnings(exp_warn, match=msg):
+        beam = UniformBeam(feed_array=feed_array, x_orientation=x_orientation)
 
     az_vals, za_vals, freqs = az_za_deg_grid
 
@@ -394,8 +402,7 @@ def test_missing_req_methods():
 
 def test_missing_x_orientation():
     with pytest.raises(
-        ValueError,
-        match="x_orientation must be specified for linear polarization feeds",
+        ValueError, match="feed_angle or x_orientation must be specified"
     ):
         UniformBeam(x_orientation=None)
 

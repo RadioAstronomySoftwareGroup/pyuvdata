@@ -617,12 +617,11 @@ class MWABeam(UVBeam):
         ):
             self.history += self.pyuvdata_version_str
 
-        self.x_orientation = "east"
-
         self._set_efield()
         self.Naxes_vec = 2
         self.Ncomponents_vec = 2
         self.feed_array = np.array([str(pol.lower()) for pol in pol_names])
+        self.feed_angle = np.where(self.feed_array == "x", np.pi / 2, 0.0)
         self.Nfeeds = self.feed_array.size
 
         self.data_normalization = "physical"
