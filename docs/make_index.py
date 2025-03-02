@@ -44,6 +44,7 @@ def write_index_rst(readme_file=None, write_file=None):
         ".. toctree::\n"
         "   :maxdepth: 1\n\n"
         "   tutorial\n"
+        "   conventions\n"
         "   uvdata\n"
         "   uvcal\n"
         "   uvbeam\n"

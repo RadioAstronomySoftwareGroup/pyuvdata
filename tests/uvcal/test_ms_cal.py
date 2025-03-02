@@ -203,16 +203,16 @@ def test_ms_default_setting():
         uvc1.read_ms_cal(
             testfile,
             default_x_orientation="north",
-            default_jones_array=np.array([-5, -6]),
+            default_jones_array=np.array([-1, -2]),
         )
 
     with check_warnings(UserWarning, match=sma_warnings):
         uvc2.read(testfile)
 
-    assert uvc1.telescope.x_orientation == "north"
-    assert uvc2.telescope.x_orientation == "east"
-    assert np.array_equal(uvc1.jones_array, [-5, -6])
-    assert np.array_equal(uvc2.jones_array, [0, 0])
+    assert uvc1.telescope.get_x_orientation_from_feeds() == "north"
+    assert uvc2.telescope.get_x_orientation_from_feeds() == "east"
+    assert np.array_equal(uvc1.jones_array, [-1, -2])
+    assert np.array_equal(uvc2.jones_array, [-5, -6])
 
 
 def test_ms_muck_ants(sma_pcal, tmp_path):
@@ -275,3 +275,126 @@ def test_ms_total_quality(sma_pcal, tmp_path):
         rtol=uvc._quality_array.tols[0],
         atol=uvc._quality_array.tols[1],
     )
+
+
+def test_ms_to_calfits(sma_bcal, tmp_path):
+    uvc = UVCal()
+
+    # Select one spw to allow for
+    sma_bcal.select(spws=0)
+
+    # Set mount information for testing
+    sma_bcal.telescope.mount_type = ["alt-az+nasmyth-l"] * 8
+    testfile = os.path.join(tmp_path, "ms_calfits_roundtrip.calfits")
+
+    with check_warnings(
+        UserWarning,
+        match=[
+            "The calfits format does not support",
+            "key CASA_Version in extra_keyword",
+        ],
+    ):
+        sma_bcal.write_calfits(testfile)
+
+    uvc.read_calfits(testfile)
+
+    assert uvc.__eq__(
+        sma_bcal,
+        allowed_failures=(
+            "filename",
+            "extra_keywords",
+            "phase_center_catalog",
+            "phase_center_id_array",
+            "Nphase",
+            "scan_number_array",
+        ),
+    )
+
+
+def test_ms_feed_order(sma_pcal, tmp_path):
+    uvc = UVCal()
+    testfile = os.path.join(tmp_path, "reorder_feeds.ms")
+    sma_pcal.telescope.reorder_feeds(order=["y", "x", "l", "r"])
+    sma_pcal.write_ms_cal(testfile, clobber=True)
+    uvc.read(testfile)
+
+    # Just set this up front
+    uvc.history = sma_pcal.history
+
+    assert uvc == sma_pcal
+
+
+def test_ms_tcal_read_write(tmp_path):
+    datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
+    testfile = os.path.join(tmp_path, "tcal_read_write.ms")
+
+    with check_warnings(UserWarning, match=sma_warnings):
+        uvc = UVCal.from_file(datafile)
+
+    uvc.write_ms_cal(testfile)
+    uvc2 = UVCal.from_file(testfile)
+    uvc2.history = uvc.history
+
+    assert uvc == uvc2
+
+
+def test_ms_polcal_read_write(tmp_path):
+    datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
+    testfile = os.path.join(tmp_path, "polcal_read_write.ms")
+
+    with check_warnings(UserWarning, match=sma_warnings[1:]):
+        uvc = UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
+
+    uvc.write_ms_cal(testfile)
+    uvc2 = UVCal.from_file(testfile)
+    uvc2.history = uvc.history
+
+    assert uvc == uvc2
+
+
+def test_ms_polcal_jones_warning():
+    datafile = os.path.join(DATA_PATH, "sma.ms.dterms.pcal")
+    with check_warnings(
+        UserWarning, match=["Cross-handed Jones terms expected"] + sma_warnings[1:]
+    ):
+        UVCal.from_file(datafile, default_jones_array=np.array([-1, -2]))
+
+
+def test_ms_nonpolcal_jones_warning():
+    datafile = os.path.join(DATA_PATH, "sma.ms.tcal")
+    with check_warnings(
+        UserWarning, match=["Same-handed Jones terms expected"] + sma_warnings[1:]
+    ):
+        UVCal.from_file(datafile, default_jones_array=np.array([-3, -4]))
+
+
+@pytest.mark.parametrize("jones", ["xx", "yy", ["xx", "yy"]])
+def test_ms_select_loopback(sma_pcal, jones, tmp_path):
+    sma_pcal.select(jones=jones)
+    testfile = os.path.join(tmp_path, "pol_select_ms_loopback.ms")
+    sma_pcal.write_ms_cal(testfile, clobber=True)
+
+    uvc = UVCal.from_file(testfile)
+    uvc.history = sma_pcal.history
+    assert uvc == sma_pcal
+
+
+def test_ms_mixed_jones_error(sma_pcal, tmp_path):
+    testfile = os.path.join(tmp_path, "mixed_jones_error.ms")
+    sma_pcal.jones_array = [-1, -3]
+    with pytest.raises(
+        ValueError,
+        match="CASA MSCal tables cannot store cross-hand and same-hand Jones",
+    ):
+        sma_pcal.write_ms_cal(testfile)
+
+
+def test_ms_dterm_warning(sma_pcal, tmp_path):
+    testfile = os.path.join(tmp_path, "dterm_warning.ms")
+    sma_pcal.jones_array = [-7, -8]
+    sma_pcal.gain_array *= 2
+    with check_warnings(
+        UserWarning,
+        match="CASA MSCal tables store cross-handed Jones terms as leakages ",
+    ):
+        sma_pcal.write_ms_cal(testfile, clobber=True)

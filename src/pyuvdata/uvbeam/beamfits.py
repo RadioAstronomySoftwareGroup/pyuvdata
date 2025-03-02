@@ -300,16 +300,6 @@ class BeamFITS(UVBeam):
                         "beam_type is efield and data dimensionality is too low"
                     )
                 self.data_array = data[0] + 1j * data[1]
-                if (
-                    primary_header.pop("CTYPE" + str(ax_nums["feed_pol"]))
-                    .lower()
-                    .strip()
-                    == "feedind"
-                ):
-                    self.Nfeeds = primary_header.pop("NAXIS" + str(ax_nums["feed_pol"]))
-                feedlist = primary_header.pop("FEEDLIST", None)
-                if feedlist is not None:
-                    self.feed_array = np.array(feedlist[1:-1].split(", "))
             else:
                 raise ValueError(
                     f"Unknown beam_type: {self.beam_type}, beam_type should be "
@@ -324,7 +314,21 @@ class BeamFITS(UVBeam):
             self.feed_version = primary_header.pop("FEEDVER", None)
             self.model_name = primary_header.pop("MODEL", None)
             self.model_version = primary_header.pop("MODELVER", None)
-            self.x_orientation = primary_header.pop("XORIENT", None)
+            self.mount_type = primary_header.pop("MNTSTA", None)
+            x_orientation = primary_header.pop("XORIENT", None)
+            feedlist = primary_header.pop("FEEDLIST", None)
+            if feedlist is not None:
+                self.feed_array = np.array(feedlist[1:-1].split(", "))
+                self.Nfeeds = len(self.feed_array)
+            feedang = primary_header.pop("FEEDANG", None)
+            if feedang is not None:
+                self.feed_angle = np.array(
+                    [float(item) for item in feedang[1:-1].split(", ")]
+                )
+            elif self.beam_type == "efield" and x_orientation is None:
+                # If no feedang or x_orientation is set, default to east to
+                # set the angles to proper defaults.
+                x_orientation = "east"
 
             self.history = str(primary_header.get("HISTORY", ""))
             if not utils.history._check_history_version(
@@ -491,6 +495,10 @@ class BeamFITS(UVBeam):
                 # no bandpass information, set it to an array of ones
                 self.bandpass_array = np.ones(self.Nfreqs)
 
+        # Handle x-orientation keyword here
+        if x_orientation is not None:
+            self.set_feeds_from_x_orientation(x_orientation)
+
         if run_check:
             self.check(
                 check_extra=check_extra,
@@ -573,11 +581,14 @@ class BeamFITS(UVBeam):
         primary_header["MODEL"] = self.model_name
         primary_header["MODELVER"] = self.model_version
 
-        if self.x_orientation is not None:
-            primary_header["XORIENT"] = self.x_orientation
-
-        if self.beam_type == "efield":
+        if self.feed_array is not None:
             primary_header["FEEDLIST"] = "[" + ", ".join(self.feed_array) + "]"
+        if self.feed_angle is not None:
+            primary_header["FEEDANG"] = (
+                "[" + ", ".join(str(item) for item in self.feed_angle) + "]"
+            )
+        if self.mount_type is not None:
+            primary_header["MNTSTA"] = self.mount_type
 
         if self.pixel_coordinate_system == "healpix":
             primary_header["NSIDE"] = self.nside

@@ -6,6 +6,31 @@ import numpy as np
 
 from . import tools
 
+MOUNT_STR2NUM_DICT = {
+    "alt-az": 0,
+    "equatorial": 1,
+    "orbiting": 2,
+    "x-y": 3,
+    "alt-az+nasmyth-r": 4,
+    "alt-az+nasmyth-l": 5,
+    "phased": 6,
+    "fixed": 7,
+    "other": 8,
+    "bizarre": 8,  # Semi-common code in UVFITS/CASA for "unknown" types
+}
+
+MOUNT_NUM2STR_DICT = {
+    0: "alt-az",
+    1: "equatorial",
+    2: "orbiting",
+    3: "x-y",
+    4: "alt-az+nasmyth-r",
+    5: "alt-az+nasmyth-l",  # here and above, UVFITS-defined
+    6: "phased",  # <- pyuvdata defined, but not uncommon in UVFITS
+    7: "fixed",  # <- pyuvdata defined
+    8: "other",  # <- pyuvdata defined
+}
+
 
 def _select_antenna_helper(
     *,
@@ -43,7 +68,7 @@ def _select_antenna_helper(
     strict : bool or None
         Normally, select will warn when an element of the selection criteria does not
         match any element for the parameter, as long as the selection criteria results
-        in _at least one_ element being selected. However, if set to True, an error is
+        in *at least one* element being selected. However, if set to True, an error is
         thrown if any selection criteria does not match what is given for the object
         parameters element. If set to None, then neither errors nor warnings are raised,
         unless no records are selected. Default is False.

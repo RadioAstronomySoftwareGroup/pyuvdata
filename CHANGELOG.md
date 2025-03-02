@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- Handling for MeasurementSet calibration subtypes "T Jones" (non-pol-specific antenna
+gains) and "D Jones" (polarization leakages) has been added to `MSCal`.
+- A new page to the docs labeled "Conventions" has been added.
+- The `Telescope.x_orientation` parameter has been deprecated, superseded by two new
+parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
+polarization and orientation of the detectors for a given antenna.
+- The `Telescope.mount_type` parameter has been added, which describes the mount and
+optics of a given antenna (e.g., HERA/MWA are "fixed", VLA/ALMA are "alt-az").
+- The `Telescope.get_x_orientation_from_feeds` method has been added, which returns
+a string (either "east" or "north") based on values present in `Telescope.feed_array`
+and `Telescope.feed_angle` (mimicking the behavior of getting the now-defunct
+`Telescope.x_orientation` parameter).
+- The `Telescope.set_feeds_from_x_orientation` method has been added, which sets
+values in `Telescope.feed_array` and `Telescope.feed_angle` based on a string describing
+the x-orientation (mimicking the behavior of setting the now-defunct
+`Telescope.x_orientation` parameter).
 - New `strict` keyword added to `UVData.select`, `UVBeam.select`, `UVFlag.select`, and
 `UVFlag.select`, which allows the user to specify whether to warn or error when
 supplied criteria only partially match (default being to warn).
@@ -21,6 +37,7 @@ default is `True`), such that most warnings about frequency/polarization/time sp
 will not normally be raised.
 
 ### Changed
+- Flex-jones `UVCal` objects now recorded to MeasurementSet format as "T Jones" subtype.
 - `UVData.select`, `UVBeam.select`, `UVFlag.select`, `UVFlag.select` have been
 significantly refactored and made to behave more uniformly.
 - Allowing `UVParameter.__eq__` to use `UVParameter.compare_value` if the item being
@@ -29,6 +46,8 @@ compared and `UVParameter.value` share the same class.
 and `UVBeam.check`.
 
 ### Fixed
+- Bug in `utils.tools._convert_to_slices` where reverse-ordered slices (i.e., where
+the step was negative) where not correctly handled.
 - Bug in `UVBeam.select` where `polarization_array` could be incorrectly ordered after
 selection (if input to `polarizations` keyword was unordered).
 
