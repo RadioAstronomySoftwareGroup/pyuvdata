@@ -40,7 +40,7 @@ def uvb_healpix_kw():
 
 @pytest.fixture()
 def uvb_efield_kw():
-    return {"feed_array": ["x", "y"]}
+    return {"feed_array": ["x", "y"], "feed_angle": [np.pi / 2, 0]}
 
 
 @pytest.fixture()
@@ -117,7 +117,7 @@ def test_x_orientation(uvb_azza_efield_kw):
     uvb_azza_efield_kw["x_orientation"] = "e"
     uvb = UVBeam.new(**uvb_azza_efield_kw)
 
-    assert uvb.x_orientation == "east"
+    assert uvb.get_x_orientation_from_feeds() == "east"
 
 
 @pytest.mark.parametrize("pcs", ["az_za", "healpix"])

@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import warnings
 from typing import Literal
 
 import numpy as np
@@ -24,6 +25,7 @@ def new_uvbeam(
     model_name: str = "default",
     model_version: str = "0.0",
     feed_array: npt.NDArray[str] | None = None,
+    feed_angle: npt.NDArray[float] | None = None,
     polarization_array: (
         npt.NDArray[np.str | np.int] | list[str | int] | tuple[str | int] | None
     ) = None,
@@ -78,11 +80,16 @@ def new_uvbeam(
     feed_array : ndarray of str
         Array of feed orientations. Options are: n/e or x/y or r/l. Must be
         provided for an E-field beam.
+    feed_angle : ndarray of float
+        Orientation of the feed with respect to zenith (or with respect to north if
+        pointed at zenith). Units is in rads, vertical polarization is nominally 0,
+        and horizontal polarization is nominally pi / 2.
     polarization_array : ndarray of str or int
         Array of polarization integers or strings (eg. 'xx' or 'ee'). Must be
         provided for a power beam.
     x_orientation : str, optional
         Orientation of the x-axis. Options are 'east', 'north', 'e', 'n', 'ew', 'ns'.
+        Ignored in feed_angle is set.
     pixel_coordinate_system : str
         Pixel coordinate system, options are "az_za", "orthoslant_zenith" and "healpix".
         Forced to be "healpix" if ``nside`` is given and by *default* set to
@@ -161,11 +168,8 @@ def new_uvbeam(
     ):
         raise ValueError("Provide *either* feed_array *or* polarization_array")
 
-    if feed_array is not None:
+    if polarization_array is None:
         uvb.beam_type = "efield"
-        uvb.feed_array = np.asarray(feed_array)
-
-        uvb.Nfeeds = uvb.feed_array.size
         uvb._set_efield()
     else:
         uvb.beam_type = "power"
@@ -176,6 +180,23 @@ def new_uvbeam(
 
         uvb.Npols = uvb.polarization_array.size
         uvb._set_power()
+
+    if feed_array is not None:
+        uvb.feed_array = np.asarray(feed_array)
+        if feed_angle is not None:
+            uvb.feed_angle = np.asarray(feed_angle)
+            x_orientation = None
+        elif x_orientation is None:
+            warnings.warn(
+                "No feed orientation information passed, assuming values based on "
+                "x-polarization feeds being aligned to east (and all others to north)."
+            )
+            x_orientation = "east"
+
+        uvb.Nfeeds = uvb.feed_array.size
+
+    if x_orientation is not None:
+        uvb.set_feeds_from_x_orientation(x_orientation)
 
     if (nside is not None) and (axis1_array is not None or axis2_array is not None):
         raise ValueError(
@@ -248,9 +269,6 @@ def new_uvbeam(
         raise ValueError("freq_array must be one dimensional.")
     uvb.freq_array = freq_array
     uvb.Nfreqs = freq_array.size
-
-    if x_orientation is not None:
-        uvb.x_orientation = utils.XORIENTMAP[x_orientation.lower()]
 
     for k, v in kwargs.items():
         if hasattr(uvb, k):
