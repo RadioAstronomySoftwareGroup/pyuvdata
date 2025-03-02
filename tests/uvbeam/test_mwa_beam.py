@@ -54,7 +54,7 @@ def test_read_write_mwa(mwa_beam_1ppd, tmp_path):
 
     assert "x" in beam1.feed_array
     assert "y" in beam1.feed_array
-    assert beam1.x_orientation == "east"
+    assert beam1.get_x_orientation_from_feeds() == "east"
 
     outfile_name = str(tmp_path / "mwa_beam_out.fits")
     beam1.write_beamfits(outfile_name, clobber=True)
@@ -75,11 +75,15 @@ def test_mwa_orientation(mwa_beam_1ppd):
 
     east_ind = np.nonzero(
         power_beam.polarization_array
-        == utils.polstr2num("ee", x_orientation=power_beam.x_orientation)
+        == utils.polstr2num(
+            "ee", x_orientation=power_beam.get_x_orientation_from_feeds()
+        )
     )
     north_ind = np.nonzero(
         power_beam.polarization_array
-        == utils.polstr2num("nn", x_orientation=power_beam.x_orientation)
+        == utils.polstr2num(
+            "nn", x_orientation=power_beam.get_x_orientation_from_feeds()
+        )
     )
 
     # check that the e/w dipole is more sensitive n/s

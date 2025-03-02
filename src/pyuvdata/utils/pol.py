@@ -1039,10 +1039,10 @@ def get_feeds_from_x_orientation(
         raise ValueError('feeds must contain only "x", "y", "l", and/or "r".')
 
     Nfeeds = len(feeds)
-    feed_array = np.tile(feeds, (nants, 1))
-    feed_angle = np.zeros((nants, Nfeeds), dtype=float)
+    feed_array = np.asarray(feeds) if (nants == 0) else np.tile(feeds, (nants, 1))
+    feed_angle = np.zeros(feed_array.shape, dtype=float)
 
-    x_mask = feed_array == "x"
+    x_mask = np.equal(feed_array, "x")
     if x_orientation == "east":
         feed_angle[x_mask] = np.pi / 2
     if x_orientation == "north":
