@@ -28,9 +28,12 @@ def branch_scheme(version):  # pragma: nocover
             return version.format_choice("+{node}.{branch}", "+{node}.{branch}.dirty")
 
 
-try:  # pragma: nocover
+try:
     # get accurate version for developer installs
-    version_str = get_version(Path(__file__).parent.parent, local_scheme=branch_scheme)
+    # must point to folder that contains the .git file!
+    version_str = get_version(
+        Path(__file__).parent.parent.parent, local_scheme=branch_scheme
+    )
 
     __version__ = version_str
 
