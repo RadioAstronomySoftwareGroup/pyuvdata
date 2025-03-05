@@ -773,6 +773,150 @@ class UVParameter:
         if self._setter is not None:
             self._setter(inst)
 
+    def get_from_form(self, form_dict):
+        """
+        Get values along a set of parameterized axes.
+
+        This method should not be called directly by users; instead, it is called by
+        various selection-related functions for selecting a subset of values along
+        a given axis, whose expected shape is given (at least in part) by a named
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants"). Additionally,
+        this method will recalculate the value for the named parameter given the input
+        indexing array.
+
+        Parameters
+        ----------
+        form_dict : dict
+            Dictionary which maps axes to index arrays, with keys that are matched
+            against entries within UVParameter.form, and values which demark which
+            indices should be selected (must be 1D). Values can also be given as None,
+            in which case no selection is performed along that axis.
+
+        Returns
+        -------
+        values : list or ndarray or obj
+            Values based on the positions selected, as specified in form_dict. Note that
+            for singleton values or if no entries in form_dict match the form parameter,
+            the whole of UVParameter.value is returned.
+        """
+        # Check the no-op case first
+        if self.value is None or not (
+            isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
+        ):
+            return self.value
+
+        # Validate that we actually have something to grab from
+        if self.value is None:
+            raise ValueError("Cannot call get_from_form if UVParameter.value is None.")
+
+        val_slice = [form_dict.get(key, slice(None)) for key in self.form]
+        # Which axes are index lists versus slices?
+        ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
+        extra_axes = {}
+        for axis in ind_axes[1:]:
+            # Allow the first list to be handled with fancy indexing. After
+            # that, it's time to use np.take!
+            extra_axes[axis] = val_slice[axis]
+            val_slice[axis] = slice(None)
+
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+            # If we're working with an ndarray, use take to slice along
+            # the axis that we want to grab from.
+            value = self.value[tuple(val_slice)]
+            for axis, ind_arr in extra_axes.items():
+                value = value.take(ind_arr, axis=axis)
+        elif isinstance(self.value, list):
+            # If this is a list, it _should_ always have 1-dimension.
+            assert len(val_slice) == 1, (
+                "Something is wrong, len(UVParameter.form) != 1 when selecting on a "
+                "list, which should not be possible. Please file an "
+                "issue in our GitHub issue log so that we can fix it."
+            )
+            if isinstance(val_slice[0], slice):
+                value = self.value[val_slice[0]]
+            else:
+                value = [self.value[idx] for idx in val_slice[0]]
+        return value
+
+    def set_from_form(self, form_dict: dict, values: list | np.ndarray):
+        """
+        Get values along a set of parameterized axes.
+
+        This method should not be called directly by users; instead, it is called by
+        various selection-related functions for selecting a subset of values along
+        a given axis, whose expected shape is given (at least in part) by a named
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants"). Additionally,
+        this method will recalculate the value for the named parameter given the input
+        indexing array.
+
+        Parameters
+        ----------
+        form_dict : dict
+            Dictionary which maps axes to index arrays, with keys that are matched
+            against entries within UVParameter.form, and values which demark which
+            indices should be selected (must be 1D). Values can also be given as None,
+            in which case no selection is performed along that axis.
+        values : list or ndarray
+            Values based on the positions selected, as specified in form_dict. Note that
+            for singleton values or if no entries in form_dict match the form parameter,
+            the whole of UVParameter.value is set.
+        """
+        # Check the no-op case first
+        if not (
+            isinstance(self.form, tuple) and any(key in form_dict for key in self.form)
+        ):
+            self.value = values
+            return
+
+        # Validate that we actually have something to plug into
+        if self.value is None:
+            raise ValueError("Cannot call set_from_form if UVParameter.value is None.")
+
+        val_slice = [form_dict.get(key, slice(None)) for key in self.form]
+        # Which axes are index lists versus slices?
+        ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
+        extra_axes = {}
+        if len(ind_axes) > 1:
+            for axis in ind_axes[1:]:
+                # Allow the first list to be handled with fancy indexing. After
+                # that, it's time to use np.take!
+                extra_axes[axis] = val_slice[axis]
+                val_slice[axis] = slice(None)
+
+        if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
+            val_slice = tuple(val_slice)
+            # If we're working with an ndarray, use take to slice along
+            # the axis that we want to grab from.
+            if len(extra_axes) == 0:
+                # If regular indexing solves this, then that's how we'll roll
+                self.value[val_slice] = values
+            else:
+                # Otherwise, we need to solve this w/ a mask, and check the ordering
+                # of the input index arrays.
+                mask = np.zeros_like(values, dtype=bool)
+                for axis in extra_axes:
+                    axis_ind = extra_axes[axis]
+                    if any(axis_ind[1:] < axis_ind[:-1]):
+                        # We need the values to be ordered correctly for this
+                        # approach to work.
+                        sort_ind = np.argsort(axis_ind)
+                        values = values.take(sort_ind, axis=axis)
+                        extra_axes[axis] = np.take(axis_ind, sort_ind).tolist()
+                    mask.put(axis_ind, True, axis=axis)
+                np.putmask(self.value[val_slice], mask=~mask, values=values)
+        elif isinstance(self.value, list):
+            # If this is a list, it _should_ always have 1-dimension.
+            assert len(val_slice) == 1, (
+                "Something is wrong, len(UVParameter.form) != 1 when setting a "
+                "list, which should not be possible. Please file an "
+                "issue in our GitHub issue log so that we can fix it."
+            )
+            if isinstance(val_slice[0], slice):
+                self.value[val_slice[0]] = values
+            else:
+                for idx, ind_val in zip(val_slice[0], values, strict=True):
+                    self.value[idx] = ind_val
+
 
 class AngleParameter(UVParameter):
     """
