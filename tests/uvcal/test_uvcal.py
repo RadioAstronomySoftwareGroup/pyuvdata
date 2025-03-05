@@ -2893,7 +2893,7 @@ def test_add_errors(caltype, time_range, method, gain_data, delay_data, wideband
 
     # test compatibility param mismatch
     calobj2.telescope.name = "PAPER"
-    with pytest.raises(ValueError, match="Parameter telescope does not match"):
+    with pytest.raises(ValueError, match="Parameter Telescope.name does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
 
     # test wide_band mismatch
