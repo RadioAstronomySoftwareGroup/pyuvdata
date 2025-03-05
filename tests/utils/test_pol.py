@@ -2,11 +2,14 @@
 # Licensed under the 2-clause BSD License
 """Tests for polarization utility functions."""
 
+import copy
+
 import numpy as np
 import pytest
 
 from pyuvdata import utils
 from pyuvdata.testing import check_warnings
+from pyuvdata.uvbeam.uvbeam import _convert_feeds_to_pols
 
 
 def test_pol_funcs():
@@ -285,6 +288,19 @@ def test_convert_feeds_to_pols(input_kwargs, output):
     else:
         assert ret_val[0].tolist() == output[0]
         assert ret_val[1] == output[1]
+
+        dep_kwargs = copy.deepcopy(input_kwargs)
+        dep_kwargs["calc_cross_pols"] = dep_kwargs.pop("include_cross_pols", True)
+        del dep_kwargs["return_feed_pol_order"]
+        with check_warnings(
+            DeprecationWarning,
+            match="This method (uvbeam._convert_feeds_to_pols) is deprecated in "
+            "favor of utils.pol.convert_feeds_to_pols. This will become an error "
+            "in version 3.3",
+        ):
+            dep_ret_val = _convert_feeds_to_pols(**dep_kwargs)
+        assert dep_ret_val[0].tolist() == output[0]
+        assert dep_ret_val[1] == output[1]
 
 
 def test_convert_feeds_to_pols_errors():
