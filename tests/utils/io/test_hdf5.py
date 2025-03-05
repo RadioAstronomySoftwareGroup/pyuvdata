@@ -14,7 +14,7 @@ def test_read_slicing():
     """Test HDF5 slicing helper functions"""
     # check trivial slice representations
     slices, _ = utils.tools._convert_to_slices([])
-    assert slices == [slice(0, 0, 0)]
+    assert slices == [slice(0, 0, None)]
     slices, _ = utils.tools._convert_to_slices(10)
     assert slices == [slice(10, 11, 1)]
 

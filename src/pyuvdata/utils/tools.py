@@ -109,7 +109,7 @@ def _convert_to_slices(
         eval_ind = indices
     # assert indices is longer than 2, or return trivial solutions
     if len(eval_ind) == 0:
-        return [slice(0, 0, 0)], False
+        return [slice(0, 0)], False
     if len(eval_ind) <= 2:
         step = 1 if (len(eval_ind) < 2) else eval_ind[-1] - eval_ind[0]
         start = eval_ind[0]
@@ -164,15 +164,40 @@ def _convert_to_slices(
         return slices, check
 
 
-def slicify(ind: slice | None | IterableType[int]) -> slice | None | IterableType[int]:
-    """Convert an iterable of integers into a slice object if possible."""
+def slicify(
+    ind: slice | None | IterableType[int], allow_empty: bool = False
+) -> slice | None | IterableType[int]:
+    """
+    Convert an iterable of integers into a slice object if possible.
+
+    Parameters
+    ----------
+    ind : list
+        A 1D list of integers for array indexing.
+    allow_empty : bool
+        If set to False (default) and ind is a zero-length list, None is returned. If
+        set to True, then a "zero-length slice" (e.g., `slice(0,0)`) is returned
+        instead.
+
+    Returns
+    -------
+    index_obj : slice or list
+        If the list of indices can be represented by a slice, a slice is returned,
+        otherwise the list of indices is returned.
+    """
     if ind is None or isinstance(ind, slice):
         return ind
-    if len(ind) == 0:
-        return None
+    if len(ind) <= 2:
+        if len(ind) == 0:
+            return slice(0, 0, 1) if allow_empty else None
+        else:
+            return slice(ind[0], ind[-1] + 1, 1 if (len(ind) == 1) else ind[1] - ind[0])
 
-    if len(set(np.ediff1d(ind))) <= 1:
-        return slice(ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1)
+    step = ind[1] - ind[0]
+    if all(np.ediff1d(ind) == step):
+        start = ind[0]
+        stop = ind[-1] + step
+        return slice(start, None if (stop < 0) else stop, step)
     else:
         # can't slicify
         return ind
