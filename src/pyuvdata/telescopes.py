@@ -19,6 +19,7 @@ from astropy.coordinates import Angle, EarthLocation
 from . import parameter as uvp, utils
 from .data import DATA_PATH
 from .utils.io import antpos, hdf5 as hdf5_utils
+from .utils.tools import slicify
 from .uvbase import UVBase
 
 __all__ = ["Telescope", "known_telescopes", "known_telescope_location", "get_telescope"]
@@ -473,7 +474,7 @@ class Telescope(UVBase):
             form=("Nants", "Nfeeds"),
             required=False,
             expected_type=float,
-            tols=1e-6,  # 10x (~2pix) single precision limit
+            tols=1e-6,  # 10x (~2 pi) single precision limit
         )
 
         super().__init__()
@@ -1241,3 +1242,299 @@ class Telescope(UVBase):
             self.check(
                 check_extra=check_extra, run_check_acceptability=run_check_acceptability
             )
+
+    def __add__(
+        self,
+        other: Telescope,
+        *,
+        inplace=False,
+        run_check=True,
+        check_extra=True,
+        run_check_acceptability=True,
+    ):
+        """
+        Combine two Telescope objects along antennas or feeds.
+
+        Parameters
+        ----------
+        other : Telescope object
+            Another Telescope object which will be added to self.
+        inplace : bool
+            If True, overwrite self as we go, otherwise create a third object
+            as the sum of the two.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+
+        Raises
+        ------
+        ValueError
+            If other is not a Telescope object, self and other are not compatible.
+
+        """
+        if inplace:
+            this = self
+        else:
+            this = self.copy()
+
+        # Check that both objects are Telescope and valid
+        this.check(check_extra=check_extra, run_check_acceptability=False)
+        if not issubclass(other.__class__, this.__class__) and not issubclass(
+            this.__class__, other.__class__
+        ):
+            raise ValueError(
+                "Only Telescope (or subclass) objects can be added "
+                "to a Telescope (or subclass) object"
+            )
+        other.check(check_extra=check_extra, run_check_acceptability=False)
+
+        warning_params = []
+        for param in this:
+            if not (getattr(this, param).required or getattr(other, param).required):
+                warning_params.append(param)
+
+        # Begin doing some addition magic
+        axis_list = [("Nants", "_antenna_numbers"), ("Nfeeds", "_feed_array")]
+        this_overlap = {}
+        other_overlap = {}
+
+        tget_map = {}
+        tput_map = {}
+        oget_map = {}
+        oput_map = {}
+        aget_map = {}
+        aput_map = {}
+
+        nind_dict = {}
+        part_overlap = []
+        excepted_list = []
+        for axis_name, axis_attr in axis_list:
+            this_param = getattr(this, axis_attr)
+            other_param = getattr(other, axis_attr)
+            this_val = this_param.value
+            other_val = other_param.value
+            if (
+                this_val is not None
+                and other_val is not None
+                and (this_param != other_param)
+            ):
+                excepted_list.append(axis_name)
+                if axis_attr == "_feed_array":
+                    # Invoke some special handling here for feed_array, since it's
+                    # Nants by Nfeeds, and we're only trying to evaluate the latter
+                    if any(np.isin(this.antenna_numbers, other.antenna_numbers)):
+                        # We have some overlap, so establish keys based on matching
+                        # values where we have them (and otherwise ignore). Note
+                        # This will create an array of strings of length Nfeeds.
+                        t_ants = this.antenna_numbers
+                        o_ants = other.antenna_numbers
+
+                        ind = np.argsort(t_ants)
+                        this_val = this_val[ind[np.isin(t_ants, o_ants)[ind]], :]
+                        this_val = np.array(["".join(item) for item in this_val.T])
+
+                        ind = np.argsort(o_ants)
+                        other_val = other_val[ind[np.isin(o_ants, t_ants)[ind]], :]
+                        other_val = np.array(["".join(item) for item in other_val.T])
+
+                        if np.array_equal(this_val, other_val):
+                            # If everything matches after antenna down-selection, then
+                            # there's no extra checking to do on this axis.
+                            continue
+                    else:
+                        # Otherwise if no antenna overlap is present but the feeds
+                        # don't match,
+                        this_val = np.unique(this_val, axis=0)
+                        other_val = np.unique(other_val, axis=0)
+                        if (len(this_val) == 1) and (len(other_val) == 1):
+                            # If every entry is the same, then we can index effectively
+                            # using the first entry.
+                            this_val = this_val[0]
+                            other_val = other_val[0]
+                        else:
+                            # At this point, throw out hands up -- just map current
+                            # index positions to the new positions.
+                            this_val = np.arange(this.Nfeeds)
+                            other_val = np.arange(other.Nfeeds)
+
+                # Figure out first which indices contain overlap, and make sure they
+                # are ordered correctly so that we can compare apples-to-apples.
+                # Note if there is no overlap, this will spit out trivial slices
+                # that will produce arrays of zero-length along this relevant axis.
+                this_ind = np.argsort(this_val)
+                this_ind = this_ind[np.isin(this_val, other_val)[this_ind]]
+                this_overlap[axis_name] = slicify(this_ind, allow_empty=True)
+                other_ind = np.argsort(other_val)
+                other_ind = other_ind[np.isin(other_val, this_val)[other_ind]]
+                other_overlap[axis_name] = slicify(other_ind, allow_empty=True)
+                has_overlap = len(this_ind) or len(other_ind)
+
+                # Next, figure out how these things plug in to the "big" array, using
+                # unique (which automatically sorts the output).
+                ind_order = {
+                    key: ind for ind, key in enumerate(np.unique([this_val, other_val]))
+                }
+                # Record the length of the new axis.
+                nind_dict[axis_name] = len(ind_order)
+
+                # Figure out how indices map from old array positions to new array
+                # positions
+                this_put = np.asarray([ind_order[key] for key in this_val])
+                other_put = np.asarray([ind_order[key] for key in other_val])
+
+                # Create some slices, ordering the arrays accordingly. Note that we
+                # use argsort on the "get" arrays so that the ordering of the data is
+                # right in case we need to use putmask (inside put_from_form).
+                tget_map[axis_name] = slicify(np.argsort(this_put), allow_empty=True)
+                tput_map[axis_name] = slicify(np.sort(this_put), allow_empty=True)
+                oget_map[axis_name] = slicify(np.argsort(other_put), allow_empty=True)
+                oput_map[axis_name] = slicify(np.sort(other_put), allow_empty=True)
+                aget_map[axis_name] = oget_map[axis_name]
+                aput_map[axis_name] = oput_map[axis_name]
+
+                if has_overlap:
+                    # If there is overlap, we can speed up processing if we don't need
+                    # to copy the overlapping bits (provided they match). Use that to
+                    # construct an alternate version of the indexing.
+                    mask = np.isin(other_put, this_put, invert=True)
+                    alt_put = other_put[mask]
+                    alt_get = np.nonzero(mask)[0]
+                    aget_map[axis_name] = slicify(
+                        alt_get[np.argsort(alt_put)], allow_empty=True
+                    )
+                    aput_map[axis_name] = slicify(np.sort(alt_put), allow_empty=True)
+                    if not all(mask):
+                        part_overlap.append(axis_name)
+
+        # Now go through and verify that parameters match where we need them
+        for param in this:
+            if param in excepted_list:
+                continue
+            this_param = getattr(this, param)
+            other_param = getattr(other, param)
+            if isinstance(this_param.form, tuple):
+                # If we have a tuple, that means we have a multi-dim array/list
+                # that we need to handle appropriately.
+                this_value = this_param.get_from_form(this_overlap)
+                other_value = other_param.get_from_form(other_overlap)
+                atol, rtol = this_param.tols
+
+                # Use lazy comparison to do direct comparison first, then fall back
+                # to isclose if not comparing strings to see if that passes.
+                if np.array_equal(this_value, other_value) or (
+                    this_param.expected_type != "str"
+                    and np.allclose(this_value, other_value, rtol=rtol, atol=atol)
+                ):
+                    continue
+            elif this_param == other_param:
+                # If not a tuple, just let UVParamter.__eq__ handle it
+                continue
+
+            # If we got here, then no match was achieved. Time to successfully fail!
+            strict = param not in warning_params
+            err_msg = f"Parameter Telescope.{this_param.name} does not match." + (
+                " Continuing anyways." if not strict else ""
+            )
+            utils.tools._strict_raise(err_msg=err_msg, strict=strict)
+
+        # We've checked everything, time to start the merge
+        for param in this:
+            # Grab the params to make life easier
+            this_param = getattr(this, param)
+            other_param = getattr(other, param)
+            if param in nind_dict:
+                # If one of the index lengths, grab that here and now.
+                this_param.value = nind_dict[param]
+                this_param.setter(this)
+            elif this_param.value is None:
+                # If this is None other is not, carry over the value from other
+                # Note we're only working w/ optional values at this point.
+                this_param.value = other_param.value
+                this_param.setter(this)
+            elif isinstance(this_param.form, tuple) and any(
+                key in nind_dict for key in this_param.form
+            ):
+                # Only need to do the combine if there are multiple elements to worry
+                # about, otherwise we've checked/forced compatibility
+                use_alt = sum([item in this_param.form for item in part_overlap]) < 2
+                if isinstance(this_param.value, list):
+                    # Stub out a blank list
+                    temp_val = this_param.get_from_form(tget_map)
+                    if len(temp_val) == nind_dict[this_param.form[0]]:
+                        this_param.value = temp_val
+                    else:
+                        this_param.value = [None] * nind_dict[this_param.form[0]]
+                        this_param.put_from_form(temp_val, tput_map)
+                else:
+                    # Figure out the shape of the new array
+                    new_shape = (
+                        nind_dict.get(item, getattr(this, item))
+                        for item in this_param.form
+                    )
+                    # Grab the values from "this"
+                    temp_val = this_param.get_from_form(tget_map)
+                    if new_shape == temp_val.shape:
+                        # If the shape of this_val is the same, we don't need to plug
+                        # in to a larger array and can use the (potentially reordered)
+                        # values from the get-go.
+                        this_param.value = temp_val
+                    else:
+                        # Otherwise if the shapes don't match, make a larger array
+                        # that we can plug values into
+                        this_param.value = np.zeros_like(temp_val, shape=new_shape)
+                        this_param.put_from_form(temp_val, tput_map)
+
+                # Now update based on other vals
+                temp_val = other_param.get_from_form(aget_map if use_alt else oget_map)
+                this_param.put_from_form(temp_val, aput_map if use_alt else oput_map)
+                this_param.setter(this)
+
+            # Finally, set the parameter back on this
+
+        # Final check
+        if run_check:
+            this.check(
+                check_extra=check_extra, run_check_acceptability=run_check_acceptability
+            )
+
+        if not inplace:
+            return this
+
+    def __iadd__(
+        self, other, *, run_check=True, check_extra=True, run_check_acceptability=True
+    ):
+        """
+        In place add.
+
+        Parameters
+        ----------
+        other : Telescope object
+            Another Telescope object which will be added to self.
+        run_check : bool
+            Option to check for the existence and proper shapes of parameters
+            after combining objects.
+        check_extra : bool
+            Option to check optional parameters as well as required ones.
+        run_check_acceptability : bool
+            Option to check acceptable range of the values of parameters after
+            combining objects.
+
+        Raises
+        ------
+        ValueError
+            If other is not a Telescope object, self and other are not compatible.
+
+        """
+        self.__add__(
+            other,
+            inplace=True,
+            run_check=run_check,
+            check_extra=check_extra,
+            run_check_acceptability=run_check_acceptability,
+        )
+        return self
