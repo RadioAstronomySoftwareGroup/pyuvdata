@@ -301,7 +301,7 @@ class AnalyticBeam:
         self.polarization_array = utils.pol.convert_feeds_to_pols(
             self.feed_array,
             include_cross_pols,
-            x_orientation=self.get_x_orientation_from_feeds()
+            x_orientation=self.get_x_orientation_from_feeds(),
         )
 
     def __eq__(self, other):
