@@ -599,8 +599,8 @@ class MSCal(UVCal):
                 else:
                     spw_selection = np.equal(self.flex_spw_id_array, spw_id)
                 spw_nchan = sum(spw_selection)
-                [spw_selection], _ = utils.tools._convert_to_slices(
-                    spw_selection, max_nslice=1, return_index_on_fail=True
+                spw_selection = utils.tools.slicify(
+                    np.nonzero(spw_selection)[0], allow_empty=True
                 )
                 spw_sel_dict[spw_id] = (spw_selection, spw_nchan)
 
@@ -678,9 +678,7 @@ class MSCal(UVCal):
             # Determine polarization order for writing out in CASA standard order, check
             # if this order can be represented by a single slice.
             pol_order = utils.pol.determine_pol_order(self.jones_array, order="CASA")
-            [pol_order], _ = utils.tools._convert_to_slices(
-                pol_order, max_nslice=1, return_index_on_fail=True
-            )
+            pol_order = utils.tools.slicify(pol_order, allow_empty=True)
 
             # Alright, all the easy stuff is over, time to move on to the the heavy
             # lifting, which we'll do spectral window by spectral window.
