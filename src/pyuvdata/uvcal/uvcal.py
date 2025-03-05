@@ -2771,7 +2771,6 @@ class UVCal(UVBase):
         # Check objects are compatible
         compatibility_params = [
             "_cal_type",
-            "_telescope",
             "_gain_convention",
             "_cal_style",
             "_ref_antenna_name",
@@ -2796,6 +2795,12 @@ class UVCal(UVBase):
             if getattr(this, a) != getattr(other, a):
                 msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                 warnings.warn(msg)
+
+        # Handle the telescope object in a special fashion, since there can be partially
+        # overlapping information that we want to preserve here.
+        tel_obj = this.telescope
+        if this.telescope != other.telescope:
+            tel_obj = tel_obj + other.telescope
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -2892,6 +2897,10 @@ class UVCal(UVBase):
                 "Cannot combine objects due to overlapping times with "
                 "different reference antennas."
             )
+
+        # We've done all the checking, so we can now set the telescope parameter if
+        # we changed it (otherwise we're just seting it back to itself).
+        this.telescope = tel_obj
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3653,7 +3662,6 @@ class UVCal(UVBase):
         # Check objects are compatible
         compatibility_params = [
             "_cal_type",
-            "_telescope",
             "_gain_convention",
             "_cal_style",
             "_ref_antenna_name",
@@ -3744,7 +3752,12 @@ class UVCal(UVBase):
                             + extra_history
                         )
         # Actually check compatibility parameters
+        # Handle the telescope object in a special fashion, since there can be partially
+        # overlapping information that we want to preserve here.
+        tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
+            if tel_obj != obj.telescope:
+                tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
@@ -3760,6 +3773,8 @@ class UVCal(UVBase):
                 if not params_match:
                     msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                     warnings.warn(msg)
+
+        this.telescope = tel_obj
 
         # update the phase_center_catalog to make them consistent across objects
         # Doing this as a binary tree merge

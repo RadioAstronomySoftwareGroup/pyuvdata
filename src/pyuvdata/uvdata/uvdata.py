@@ -5495,7 +5495,7 @@ class UVData(UVBase):
         )
 
         # Define parameters that must be the same to add objects
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         # Build up history string
         history_update_string = " Combined data along "
@@ -5729,6 +5729,9 @@ class UVData(UVBase):
                 raise ValueError(msg)
 
         # Begin manipulating the objects.
+        # Last check - see if we can merge the telescopes (if they are different)
+        if this.telescope != other.telescope:
+            this.telescope += other.telescope
 
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -6184,7 +6187,7 @@ class UVData(UVBase):
         # Because self was at the beginning of the list,
         # all the phase centers are merged into it at the end of this loop
 
-        compatibility_params = ["_vis_units", "_telescope"]
+        compatibility_params = ["_vis_units"]
 
         history_update_string = " Combined data along "
 
@@ -6244,7 +6247,10 @@ class UVData(UVBase):
                         )
 
         # Actually check compatibility parameters
+        tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
+            if tel_obj != obj.telescope:
+                tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
@@ -6254,6 +6260,8 @@ class UVData(UVBase):
                         + " does not match. Cannot combine objects."
                     )
                     raise ValueError(msg)
+
+        this.telescope = tel_obj
 
         if axis == "freq":
             this.Nfreqs = sum([this.Nfreqs] + [obj.Nfreqs for obj in other])
