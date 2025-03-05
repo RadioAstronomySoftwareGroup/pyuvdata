@@ -22,6 +22,20 @@ from . import _uvbeam, initializers
 __all__ = ["UVBeam"]
 
 
+def _convert_feeds_to_pols(feed_array, calc_cross_pols, x_orientation=None):
+    warnings.warn(
+        "This method (uvbeam._convert_feeds_to_pols) is deprecated in favor of "
+        "utils.pol.convert_feeds_to_pols. This will become an error in version 3.3",
+        DeprecationWarning,
+    )
+    return utils.pol.convert_feeds_to_pols(
+        feed_array,
+        include_cross_pols=calc_cross_pols,
+        x_orientation=x_orientation,
+        return_feed_pol_order=True,
+    )
+
+
 class UVBeam(UVBase):
     """
     A class for defining a radio telescope antenna beam.
