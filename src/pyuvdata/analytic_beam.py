@@ -235,7 +235,8 @@ class AnalyticBeam:
                 "with a call to AnalyticBeam.set_feeds_from_x_orientation().",
                 DeprecationWarning,
             )
-            return self.set_feeds_from_x_orientation(__value)
+            if __value is not None:
+                return self.set_feeds_from_x_orientation(__value)
 
         return super().__setattr__(__name, __value)
 
