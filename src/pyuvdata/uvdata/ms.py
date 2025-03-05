@@ -134,9 +134,7 @@ class MS(UVData):
         # Determine polarization order for writing out in CASA standard order, check
         # if this order can be represented by a single slice.
         pol_order = utils.pol.determine_pol_order(self.polarization_array, order="CASA")
-        [pol_order], _ = utils.tools._convert_to_slices(
-            pol_order, max_nslice=1, return_index_on_fail=True
-        )
+        pol_order = utils.tools.slicify(pol_order, allow_empty=True)
 
         # CASA does not have a way to handle "unprojected" data in the way that UVData
         # objects can, so we need to check here whether or not any such data exists
@@ -254,9 +252,7 @@ class MS(UVData):
 
                 # See if we can represent scan_screen with a single slice, which
                 # reduces overhead of copying a new array.
-                [scan_slice], _ = utils.tools._convert_to_slices(
-                    scan_screen, max_nslice=1, return_index_on_fail=True
-                )
+                scan_slice = utils.tools.slicify(scan_screen, allow_empty=True)
 
                 # Get the number of records inside the scan, where 1 record = 1 spw in
                 # 1 baseline at 1 time

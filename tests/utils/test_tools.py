@@ -37,7 +37,7 @@ def test_slicify():
     assert utils.tools.slicify([]) is None
     assert utils.tools.slicify([1, 2, 3]) == slice(1, 4, 1)
     assert utils.tools.slicify([1]) == slice(1, 2, 1)
-    assert utils.tools.slicify([0, 2, 4]) == slice(0, 5, 2)
+    assert utils.tools.slicify([0, 2, 4]) == slice(0, 6, 2)
     assert utils.tools.slicify([0, 1, 2, 7]) == [0, 1, 2, 7]
 
 
