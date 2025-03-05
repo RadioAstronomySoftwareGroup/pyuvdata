@@ -15,7 +15,7 @@ from astropy.coordinates import SkyCoord
 from astropy.units import Quantity
 
 from . import __version__, parameter as uvp
-from .utils.tools import _convert_to_slices, _get_iterable
+from .utils.tools import _get_iterable, slicify
 
 __all__ = ["UVBase"]
 
@@ -874,7 +874,7 @@ class UVBase:
         """
         self._set_future_array_shapes(True)
 
-    def _select_along_param_axis(self, param_dict):
+    def _select_along_param_axis(self, param_dict: dict):
         """
         Downselect values along a parameterized axis.
 
@@ -898,10 +898,7 @@ class UVBase:
         slice_dict = {}
         for key, value in param_dict.items():
             if value is not None:
-                [ind_arr], _ = _convert_to_slices(
-                    value, max_nslice=1, return_index_on_fail=True
-                )
-                slice_dict[key] = ind_arr
+                slice_dict[key] = slicify(value, allow_empty=True)
 
         for param in self:
             # For each attribute, if the value is None, then bail, otherwise
@@ -913,38 +910,13 @@ class UVBase:
                 # param_dict since it has the lists instead of the slices
                 attr.value = len(param_dict[attr.name])
                 attr.setter(self)
-            elif attr.value is not None and isinstance(attr.form, tuple):
+            elif (
+                attr.value is not None
+                and isinstance(attr.form, tuple)
+                and any(key in slice_dict for key in attr.form)
+            ):
                 # Only look at where form is a tuple, since that's the only case we
                 # can have a dynamically defined shape. Note that index doesn't work
                 # here in the case of a repeated param_name in the form.
-                slice_list = [slice_dict.get(key, slice(None)) for key in attr.form]
-                list_axes = [
-                    i for i, itm in enumerate(slice_list) if not isinstance(itm, slice)
-                ]
-                extra_axes = {}
-                for axis in list_axes[1:]:
-                    # Allow the first list to be handled with fancy indexing. After
-                    # that, it's time to use np.take!
-                    extra_axes[axis] = slice_list[axis]
-                    slice_list[axis] = slice(None)
-
-                if isinstance(attr.value, np.ndarray | np.ma.MaskedArray):
-                    # If we're working with an ndarray, use take to slice along
-                    # the axis that we want to grab from.
-                    attr.value = attr.value[tuple(slice_list)]
-                    attr.setter(self)
-                    for axis, ind_arr in extra_axes.items():
-                        attr.value = attr.value.take(ind_arr, axis=axis)
-                        attr.setter(self)
-                elif isinstance(attr.value, list):
-                    # If this is a list, it _should_ always have 1-dimension.
-                    assert len(slice_list) == 1, (
-                        "Something is wrong, len(attr.form) != 1 when selecting on a "
-                        "list, which should not be possible. Please file an "
-                        "issue in our GitHub issue log so that we can fix it."
-                    )
-                    if isinstance(slice_list[0], slice):
-                        attr.value = attr.value[slice_list[0]]
-                    else:
-                        attr.value = [attr.value[idx] for idx in slice_list[0]]
-                    attr.setter(self)
+                attr.value = attr.get_from_form(slice_dict)
+                attr.setter(self)
