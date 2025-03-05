@@ -519,7 +519,6 @@ class Telescope(UVBase):
                 DeprecationWarning,
             )
             self._location.set_xyz(__value)
-            return
         elif __name == "telescope_name":
             warnings.warn(
                 "The Telescope.telescope_name attribute is deprecated, use "
@@ -527,7 +526,6 @@ class Telescope(UVBase):
                 DeprecationWarning,
             )
             self.name = __value
-            return
         elif __name == "x_orientation":
             warnings.warn(
                 "The Telescope.x_orientation attribute is deprecated, and has "
@@ -537,9 +535,10 @@ class Telescope(UVBase):
                 "with a call to Telescope.set_feeds_from_x_orientation().",
                 DeprecationWarning,
             )
-            return self.set_feeds_from_x_orientation(__value)
-
-        return super().__setattr__(__name, __value)
+            if __value is not None:
+                self.set_feeds_from_x_orientation(__value)
+        else:
+            return super().__setattr__(__name, __value)
 
     def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
         """
