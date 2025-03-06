@@ -1414,7 +1414,7 @@ class Telescope(UVBase):
             other_param = getattr(other, param)
             if this_param.name in excepted_list:
                 continue
-            if isinstance(this_param.form, tuple):
+            if isinstance(this_param.form, tuple) and this_param.form != ():
                 # If we have a tuple, that means we have a multi-dim array/list
                 # that we need to handle appropriately.
                 this_value = this_param.get_from_form(this_overlap)
