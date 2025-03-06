@@ -1303,11 +1303,11 @@ class Telescope(UVBase):
         other_overlap = {}
 
         tget_map = {}
-        tput_map = {}
+        tset_map = {}
         oget_map = {}
-        oput_map = {}
+        oset_map = {}
         aget_map = {}
-        aput_map = {}
+        aset_map = {}
 
         nind_dict = {}
         part_overlap = []
@@ -1388,13 +1388,13 @@ class Telescope(UVBase):
 
                 # Create some slices, ordering the arrays accordingly. Note that we
                 # use argsort on the "get" arrays so that the ordering of the data is
-                # right in case we need to use putmask (inside put_from_form).
+                # right in case we need to use putmask (inside set_from_form).
                 tget_map[axis_name] = slicify(np.argsort(this_put), allow_empty=True)
-                tput_map[axis_name] = slicify(np.sort(this_put), allow_empty=True)
+                tset_map[axis_name] = slicify(np.sort(this_put), allow_empty=True)
                 oget_map[axis_name] = slicify(np.argsort(other_put), allow_empty=True)
-                oput_map[axis_name] = slicify(np.sort(other_put), allow_empty=True)
+                oset_map[axis_name] = slicify(np.sort(other_put), allow_empty=True)
                 aget_map[axis_name] = oget_map[axis_name]
-                aput_map[axis_name] = oput_map[axis_name]
+                aset_map[axis_name] = oset_map[axis_name]
 
                 if has_overlap:
                     # If there is overlap, we can speed up processing if we don't need
@@ -1406,7 +1406,7 @@ class Telescope(UVBase):
                     aget_map[axis_name] = slicify(
                         alt_get[np.argsort(alt_put)], allow_empty=True
                     )
-                    aput_map[axis_name] = slicify(np.sort(alt_put), allow_empty=True)
+                    aset_map[axis_name] = slicify(np.sort(alt_put), allow_empty=True)
                     if not all(mask):
                         part_overlap.append(axis_name)
 
@@ -1446,9 +1446,9 @@ class Telescope(UVBase):
             # Grab the params to make life easier
             this_param = getattr(this, param)
             other_param = getattr(other, param)
-            if param in nind_dict:
+            if this_param.name in nind_dict:
                 # If one of the index lengths, grab that here and now.
-                this_param.value = nind_dict[param]
+                this_param.value = nind_dict[this_param.name]
                 this_param.setter(this)
             elif this_param.value is None:
                 # If this is None other is not, carry over the value from other
@@ -1468,10 +1468,10 @@ class Telescope(UVBase):
                         this_param.value = temp_val
                     else:
                         this_param.value = [None] * nind_dict[this_param.form[0]]
-                        this_param.put_from_form(temp_val, tput_map)
+                        this_param.set_from_form(tset_map, temp_val)
                 else:
                     # Figure out the shape of the new array
-                    new_shape = (
+                    new_shape = tuple(
                         nind_dict.get(item, getattr(this, item))
                         for item in this_param.form
                     )
@@ -1486,14 +1486,12 @@ class Telescope(UVBase):
                         # Otherwise if the shapes don't match, make a larger array
                         # that we can plug values into
                         this_param.value = np.zeros_like(temp_val, shape=new_shape)
-                        this_param.put_from_form(temp_val, tput_map)
+                        this_param.set_from_form(tset_map, temp_val)
 
                 # Now update based on other vals
                 temp_val = other_param.get_from_form(aget_map if use_alt else oget_map)
-                this_param.put_from_form(temp_val, aput_map if use_alt else oput_map)
+                this_param.set_from_form(aset_map if use_alt else oset_map, temp_val)
                 this_param.setter(this)
-
-            # Finally, set the parameter back on this
 
         # Final check
         if run_check:
