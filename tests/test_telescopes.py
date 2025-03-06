@@ -585,3 +585,74 @@ def test_feed_order(simplest_working_params, order, flipped):
     assert np.array_equal(tel.feed_array, feed_array[:, :: (-1 if flipped else 1)])
     assert np.array_equal(tel.feed_angle, feed_angle[:, :: (-1 if flipped else 1)])
     assert tel.Nfeeds == 2
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+@pytest.mark.parametrize("axis", ["Nfeeds", "Nants"])
+@pytest.mark.parametrize("scenario", ["overlap", "inv_overlap", "interleave", "concat"])
+def test_telescope_add(add_method, axis, scenario):
+    tel1 = Telescope.from_known_telescopes("hera")
+    # Set the feed information so that we can check it
+    tel1.feed_array = np.array([["x", "y"]] * tel1.Nants)
+    tel1.feed_angle = np.array([[np.pi / 2, 0.0]] * tel1.Nants)
+    tel1.Nfeeds = 2
+
+    tel2 = tel1.copy()
+    check_tel = tel1.copy()
+
+    nitem = getattr(tel1, axis)
+    if scenario == "overlap":
+        tel1_dict = {}
+        tel2_dict = {axis: np.arange(nitem // 2, nitem)}
+    elif scenario == "inv_overlap":
+        tel1_dict = {axis: np.arange(nitem // 2, nitem)}
+        tel2_dict = {}
+    elif scenario == "interleave":
+        tel1_dict = {axis: np.arange(0, nitem, 2)}
+        tel2_dict = {axis: np.arange(1, nitem, 2)}
+    elif scenario == "concat":
+        tel1_dict = {axis: np.arange(0, nitem - 1)}
+        tel2_dict = {axis: np.arange(nitem - 1, nitem)}
+
+    tel1._select_along_param_axis(tel1_dict)
+    tel2._select_along_param_axis(tel2_dict)
+    tel3 = getattr(tel1, add_method)(tel2)
+
+    assert tel3 == check_tel
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+def test_telescope_add_noop(simplest_working_params, add_method):
+    tel1 = Telescope.new(**simplest_working_params)
+    tel2 = tel1.copy()
+    tel3 = getattr(tel1, add_method)(tel2)
+    assert tel2 == tel3
+
+
+def test_telescope_add_diff_feeds(simplest_working_params):
+    feed_array = np.array([["l", "r"], ["r", "l"], ["x", "y"]])
+    feed_angle = np.arange(6, dtype=float).reshape((3, 2))
+    tel1 = Telescope.new(
+        feed_array=feed_array, feed_angle=feed_angle, **simplest_working_params
+    )
+    tel2 = tel1.copy()
+    check_tel = tel1.copy()
+
+    tel1._select_along_param_axis({"Nants": [0, 1]})
+    tel2._select_along_param_axis({"Nants": [2]})
+    tel3 = tel1 + tel2
+    assert check_tel == tel3
+
+
+@pytest.mark.parametrize("add_method", ["__add__", "__iadd__"])
+def test_telescope_add_errs(simplest_working_params, add_method):
+    tel = Telescope.new(**simplest_working_params)
+    with pytest.raises(
+        ValueError, match=r"Only Telescope \(or subclass\) objects can be added"
+    ):
+        getattr(tel, add_method)(None)
+
+    tel2 = tel.copy()
+    tel2.name = "other test"
+    with pytest.raises(ValueError, match="Parameter Telescope.name does not match."):
+        getattr(tel, add_method)(tel2)
