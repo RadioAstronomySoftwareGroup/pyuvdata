@@ -2796,12 +2796,6 @@ class UVCal(UVBase):
                 msg = "UVParameter " + a[1:] + " does not match. Combining anyway."
                 warnings.warn(msg)
 
-        # Handle the telescope object in a special fashion, since there can be partially
-        # overlapping information that we want to preserve here.
-        tel_obj = this.telescope
-        if this.telescope != other.telescope:
-            tel_obj = tel_obj + other.telescope
-
         # Build up history string
         history_update_string = " Combined data along "
         n_axes = 0
@@ -2898,9 +2892,10 @@ class UVCal(UVBase):
                 "different reference antennas."
             )
 
-        # We've done all the checking, so we can now set the telescope parameter if
-        # we changed it (otherwise we're just seting it back to itself).
-        this.telescope = tel_obj
+        # Handle the telescope object in a special fashion, since there can be partially
+        # overlapping information that we want to preserve here. Note that this will
+        # also do equality checking under the hood.
+        this.telescope += other.telescope
 
         # Next, we want to make sure that the ordering of the _overlapping_ data is
         # the same, so that things can get plugged together in a sensible way.
@@ -3756,8 +3751,7 @@ class UVCal(UVBase):
         # overlapping information that we want to preserve here.
         tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
-            if tel_obj != obj.telescope:
-                tel_obj += obj.telescope
+            tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
