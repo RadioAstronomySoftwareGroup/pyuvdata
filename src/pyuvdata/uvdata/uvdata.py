@@ -5729,9 +5729,9 @@ class UVData(UVBase):
                 raise ValueError(msg)
 
         # Begin manipulating the objects.
-        # Last check - see if we can merge the telescopes (if they are different)
-        if this.telescope != other.telescope:
-            this.telescope += other.telescope
+        # Note that this will check to see if we can merge the telescopes (if they are
+        # different, otherwise the underlying checking is the same).
+        this.telescope += other.telescope
 
         # First, handle the internal source catalogs, since merging them is kind of a
         # weird, one-off process (i.e., nothing is cat'd across a particular axis)
@@ -6249,8 +6249,7 @@ class UVData(UVBase):
         # Actually check compatibility parameters
         tel_obj = this.telescope.copy() if inplace else this.telescope
         for obj in other:
-            if tel_obj != obj.telescope:
-                tel_obj += obj.telescope
+            tel_obj += obj.telescope
             for a in compatibility_params:
                 params_match = getattr(this, a) == getattr(obj, a)
                 if not params_match:
