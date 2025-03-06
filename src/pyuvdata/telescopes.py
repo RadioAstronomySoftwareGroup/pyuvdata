@@ -1374,7 +1374,7 @@ class Telescope(UVBase):
 
                 # Next, figure out how these things plug in to the "big" array, using
                 # unique (which automatically sorts the output).
-                unique_val = np.unique(np.concat((this_val, other_val)))
+                unique_val = np.unique(np.concatenate((this_val, other_val)))
                 ind_order = {key: idx for idx, key in enumerate(unique_val)}
 
                 # Record the length of the new axis.
