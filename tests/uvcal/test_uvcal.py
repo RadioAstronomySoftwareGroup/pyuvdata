@@ -2850,7 +2850,7 @@ def test_add_multiple_axes(gain_data, ant, freq, time, jones, in_order):
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("time_range", [True, False])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
-def test_add_errors(caltype, time_range, method, gain_data, delay_data, wideband_gain):
+def test_add_errors(caltype, time_range, method, gain_data, delay_data):
     """Test behavior that will raise errors"""
     if caltype == "gain":
         calobj = gain_data.copy()
@@ -2891,18 +2891,6 @@ def test_add_errors(caltype, time_range, method, gain_data, delay_data, wideband
     with pytest.raises(ValueError, match="Only UVCal "):
         getattr(calobj, method)("foo", **kwargs)
 
-    # test compatibility param mismatch
-    calobj2.telescope.name = "PAPER"
-    with pytest.raises(ValueError, match="Parameter Telescope.name does not match"):
-        getattr(calobj, method)(calobj2, **kwargs)
-
-    # test wide_band mismatch
-    with pytest.raises(
-        ValueError,
-        match="To combine these data, wide_band must be set to the same value",
-    ):
-        getattr(gain_data, method)(wideband_gain, **kwargs)
-
     # test time_range, time_array mismatch
     calobj2 = calobj.copy()
     if time_range:
@@ -2924,6 +2912,46 @@ def test_add_errors(caltype, time_range, method, gain_data, delay_data, wideband
         match="Some objects have a time_array while others do not. All objects must "
         "either have or not have a time_array.",
     ):
+        getattr(calobj, method)(calobj2, **kwargs)
+
+
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add_errors_wideband_mismatch(gain_data, wideband_gain, method):
+    if method == "fast_concat":
+        kwargs = {"axis": "time", "inplace": True}
+    else:
+        kwargs = {}
+
+    # test wide_band mismatch
+    with pytest.raises(
+        ValueError,
+        match="To combine these data, wide_band must be set to the same value",
+    ):
+        getattr(gain_data, method)(wideband_gain, **kwargs)
+
+
+@pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
+@pytest.mark.parametrize("caltype", ["gain", "delay"])
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add_errors_telescope(caltype, method, gain_data, delay_data):
+    if caltype == "gain":
+        calobj = gain_data
+    else:
+        calobj = delay_data
+
+    calobj2 = calobj.copy()
+
+    # Do this to offset the solns so as to be able to add them
+    calobj2.time_array += 1 / 1440
+
+    if method == "fast_concat":
+        kwargs = {"axis": "antenna", "inplace": True}
+    else:
+        kwargs = {}
+
+        # test compatibility param mismatch
+    calobj2.telescope.name = "PAPER"
+    with pytest.raises(ValueError, match="Parameter Telescope.name does not match"):
         getattr(calobj, method)(calobj2, **kwargs)
 
 
