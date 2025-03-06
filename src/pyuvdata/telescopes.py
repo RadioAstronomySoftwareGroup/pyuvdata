@@ -1310,8 +1310,8 @@ class Telescope(UVBase):
         aset_map = {}
 
         nind_dict = {}
-        part_overlap = []
         excepted_list = []
+        diff_axis = []
         for axis_name, axis_attr in axis_list:
             this_param = getattr(this, axis_attr)
             other_param = getattr(other, axis_attr)
@@ -1347,7 +1347,7 @@ class Telescope(UVBase):
                             continue
                     else:
                         # Otherwise if no antenna overlap is present but the feeds
-                        # don't match,
+                        # don't match, see if every entry is identical
                         this_val = np.unique(this_val, axis=0)
                         other_val = np.unique(other_val, axis=0)
                         if (len(this_val) == 1) and (len(other_val) == 1):
@@ -1365,19 +1365,18 @@ class Telescope(UVBase):
                 # are ordered correctly so that we can compare apples-to-apples.
                 # Note if there is no overlap, this will spit out trivial slices
                 # that will produce arrays of zero-length along this relevant axis.
-                this_ind = np.argsort(this_val)
-                this_ind = this_ind[np.isin(this_val, other_val)[this_ind]]
+                _, this_ind, other_ind = np.intersect1d(
+                    this_val, other_val, return_indices=True
+                )
                 this_overlap[axis_name] = slicify(this_ind, allow_empty=True)
-                other_ind = np.argsort(other_val)
-                other_ind = other_ind[np.isin(other_val, this_val)[other_ind]]
                 other_overlap[axis_name] = slicify(other_ind, allow_empty=True)
                 has_overlap = len(this_ind) or len(other_ind)
 
                 # Next, figure out how these things plug in to the "big" array, using
                 # unique (which automatically sorts the output).
-                ind_order = {
-                    key: ind for ind, key in enumerate(np.unique([this_val, other_val]))
-                }
+                unique_val = np.unique(np.concat((this_val, other_val)))
+                ind_order = {key: idx for idx, key in enumerate(unique_val)}
+
                 # Record the length of the new axis.
                 nind_dict[axis_name] = len(ind_order)
 
@@ -1393,8 +1392,9 @@ class Telescope(UVBase):
                 tset_map[axis_name] = slicify(np.sort(this_put), allow_empty=True)
                 oget_map[axis_name] = slicify(np.argsort(other_put), allow_empty=True)
                 oset_map[axis_name] = slicify(np.sort(other_put), allow_empty=True)
-                aget_map[axis_name] = oget_map[axis_name]
-                aset_map[axis_name] = oset_map[axis_name]
+
+                if tset_map[axis_name] != oset_map[axis_name]:
+                    diff_axis.append(axis_name)
 
                 if has_overlap:
                     # If there is overlap, we can speed up processing if we don't need
@@ -1407,15 +1407,13 @@ class Telescope(UVBase):
                         alt_get[np.argsort(alt_put)], allow_empty=True
                     )
                     aset_map[axis_name] = slicify(np.sort(alt_put), allow_empty=True)
-                    if not all(mask):
-                        part_overlap.append(axis_name)
 
         # Now go through and verify that parameters match where we need them
         for param in this:
-            if param in excepted_list:
-                continue
             this_param = getattr(this, param)
             other_param = getattr(other, param)
+            if this_param.name in excepted_list:
+                continue
             if isinstance(this_param.form, tuple):
                 # If we have a tuple, that means we have a multi-dim array/list
                 # that we need to handle appropriately.
@@ -1460,38 +1458,46 @@ class Telescope(UVBase):
             ):
                 # Only need to do the combine if there are multiple elements to worry
                 # about, otherwise we've checked/forced compatibility
-                use_alt = sum([item in this_param.form for item in part_overlap]) < 2
-                if isinstance(this_param.value, list):
-                    # Stub out a blank list
-                    temp_val = this_param.get_from_form(tget_map)
-                    if len(temp_val) == nind_dict[this_param.form[0]]:
-                        this_param.value = temp_val
-                    else:
-                        this_param.value = [None] * nind_dict[this_param.form[0]]
-                        this_param.set_from_form(tset_map, temp_val)
-                else:
-                    # Figure out the shape of the new array
-                    new_shape = tuple(
-                        nind_dict.get(item, getattr(this, item))
-                        for item in this_param.form
-                    )
-                    # Grab the values from "this"
-                    temp_val = this_param.get_from_form(tget_map)
-                    if new_shape == temp_val.shape:
-                        # If the shape of this_val is the same, we don't need to plug
-                        # in to a larger array and can use the (potentially reordered)
-                        # values from the get-go.
-                        this_param.value = temp_val
-                    else:
-                        # Otherwise if the shapes don't match, make a larger array
-                        # that we can plug values into
-                        this_param.value = np.zeros_like(temp_val, shape=new_shape)
-                        this_param.set_from_form(tset_map, temp_val)
+                temp_val = this_param.get_from_form(tget_map)
+                old_shape = (
+                    (len(temp_val),) if isinstance(temp_val, list) else temp_val.shape
+                )
+                new_shape = tuple(
+                    nind_dict.get(key, old_shape[idx])
+                    for idx, key in enumerate(this_param.form)
+                )
+                if old_shape == new_shape:
+                    # temp_val contains all we need, nothing further to do here, just
+                    # assign the value and continue
+                    this_param.value = temp_val
+                    this_param.setter(this)
+                    continue
+
+                # Otherwise if the shapes don't match, make a larger array
+                # that we can plug values into
+                this_param.value = (
+                    [None] * new_shape[0]
+                    if isinstance(temp_val, list)
+                    else np.zeros_like(temp_val, shape=new_shape)
+                )
+                this_param.set_from_form(tset_map, temp_val)
 
                 # Now update based on other vals
-                temp_val = other_param.get_from_form(aget_map if use_alt else oget_map)
-                this_param.set_from_form(aset_map if use_alt else oset_map, temp_val)
-                this_param.setter(this)
+                alt_map = [item for item in diff_axis if item in this_param.form]
+                if (len(alt_map) == 1) and alt_map[0] in aget_map:
+                    # We only need to do this if there is _exactly_ one overlapping
+                    # axis, but otherwise the axes agree. Do the copies to avoid
+                    # updating the original dict
+                    temp_get_map = oget_map.copy()
+                    temp_set_map = oset_map.copy()
+                    temp_get_map[alt_map[0]] = aget_map[alt_map[0]]
+                    temp_set_map[alt_map[0]] = aset_map[alt_map[0]]
+                else:
+                    temp_get_map = oget_map
+                    temp_set_map = oset_map
+
+                temp_val = other_param.get_from_form(temp_get_map)
+                this_param.set_from_form(temp_set_map, temp_val)
 
         # Final check
         if run_check:
