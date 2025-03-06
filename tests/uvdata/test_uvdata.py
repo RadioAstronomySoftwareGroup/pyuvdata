@@ -3289,6 +3289,7 @@ def test_sum_vis(casa_uvfits):
     uv_half.data_array = uv_full.data_array / 2
     uv_half_mod = uv_half.copy()
     uv_half_mod.history += " testing the history. "
+    uv_half_mod.filename = ["foo.uvfits"]
     uv_summed = uv_half.sum_vis(uv_half_mod)
 
     assert np.array_equal(uv_summed.data_array, uv_full.data_array)

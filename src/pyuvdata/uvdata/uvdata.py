@@ -6297,7 +6297,7 @@ class UVData(UVBase):
         Sum visibilities between two UVData objects.
 
         By default requires that all UVParameters are the same on the two objects
-        except for `history`, `data_array`, and `extra_keywords`.
+        except for `history`, `data_array`, `extra_keywords` and `filename`.
         If keys in `extra_keywords` have different values the values from the first
         object are taken.
 
@@ -6372,7 +6372,7 @@ class UVData(UVBase):
         )
 
         compatibility_params = list(this.__iter__())
-        remove_params = ["_history", "_data_array", "_extra_keywords"]
+        remove_params = ["_history", "_data_array", "_extra_keywords", "_filename"]
 
         # Add underscores to override_params to match list from __iter__()
         # Add to parameters to be removed
@@ -6445,6 +6445,7 @@ class UVData(UVBase):
 
         # merge file names
         this.filename = utils.tools._combine_filenames(this.filename, other.filename)
+        this._filename.form = (len(this.filename),)
 
         # Check final object is self-consistent
         if run_check:
