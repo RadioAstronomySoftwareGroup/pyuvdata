@@ -657,14 +657,15 @@ class UVBeam(UVBase):
                 DeprecationWarning,
             )
             feed_map = {"e": "x", "n": "y"}
-            self.feed_angle = np.where(np.isin(self.feed_array, "e"), np.pi / 2, 0.0)
             self.feed_array = [feed_map.get(item, item) for item in self.feed_array]
         if self.beam_type == "efield" and self.feed_angle is None:
             warnings.warn(
                 "The feed_angle parameter must be set for efield beams, setting values "
                 "based on x-polarization feeds being aligned to east (and all others "
-                "to north). This will become an error in version 3.4."
+                "to north). This will become an error in version 3.4.",
+                DeprecationWarning,
             )
+            self.set_feeds_from_x_orientation("east")
 
     def get_x_orientation_from_feeds(self) -> Literal["east", "north", None]:
         """
@@ -699,9 +700,6 @@ class UVBeam(UVBase):
             respect to zenith/north) or "east"/"e"/"ew" (x-polarization of antenna has a
             position angle of 90 degrees with respect to zenith/north).
         """
-        # Do a quick compatibility check w/ the old feed types.
-        self._fix_feeds()
-
         self.Nfeeds, self.feed_array, self.feed_angle = (
             utils.pol.get_feeds_from_x_orientation(
                 x_orientation=x_orientation,
@@ -710,6 +708,9 @@ class UVBeam(UVBase):
                 nants=0,
             )
         )
+
+        # Do a quick compatibility check w/ the old feed types.
+        self._fix_feeds()
 
     @staticmethod
     @combine_docstrings(initializers.new_uvbeam, style=DocstringStyle.NUMPYDOC)
