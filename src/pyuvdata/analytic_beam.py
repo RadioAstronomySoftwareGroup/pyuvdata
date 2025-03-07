@@ -208,7 +208,7 @@ class AnalyticBeam:
             nants=0,
         )
 
-    def __getattr__(self, __name):
+    def __getattribute__(self, __name):
         """Handle getting old attributes."""
         if __name == "x_orientation":
             warnings.warn(
@@ -327,14 +327,16 @@ class AnalyticBeam:
 
     def clone(self, **kw):
         """Create a new instance of the object with updated parameters."""
-        return replace(self, **kw)
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", "The AnalyticBeam.x_orientation attribute is deprecated"
+            )
+            return replace(self, **kw)
 
     @property
     def east_ind(self):
         """The index of the east feed in the feed array."""
-        if "e" in self.feed_array:
-            east_name = "e"
-        elif self.get_x_orientation_from_feeds() == "east" and "x" in self.feed_array:
+        if self.get_x_orientation_from_feeds() == "east" and "x" in self.feed_array:
             east_name = "x"
         elif self.get_x_orientation_from_feeds() == "north" and "y" in self.feed_array:
             east_name = "y"
@@ -346,9 +348,7 @@ class AnalyticBeam:
     @property
     def north_ind(self):
         """The index of the north feed in the feed array."""
-        if "n" in self.feed_array:
-            north_name = "n"
-        elif self.get_x_orientation_from_feeds() == "north" and "x" in self.feed_array:
+        if self.get_x_orientation_from_feeds() == "north" and "x" in self.feed_array:
             north_name = "x"
         elif self.get_x_orientation_from_feeds() == "east" and "y" in self.feed_array:
             north_name = "y"
@@ -382,12 +382,10 @@ class AnalyticBeam:
                 (self.Naxes_vec, self.Nfeeds, *grid_shape), dtype=np.complex128
             )
         else:
-            if self.Npols > self.Nfeeds:
-                # crosspols are included
-                dtype_use = np.complex128
-            else:
-                dtype_use = np.float64
-            return np.zeros((1, self.Npols, *grid_shape), dtype=dtype_use)
+            return np.zeros(
+                (1, self.Npols, *grid_shape),
+                dtype=np.complex128 if self.Npols > self.Nfeeds else np.float64,
+            )
 
     def efield_eval(
         self,
@@ -480,16 +478,10 @@ class AnalyticBeam:
         za_grid, _ = np.meshgrid(za_array, freq_array)
         az_grid, f_grid = np.meshgrid(az_array, freq_array)
 
-        if self.Npols > self.Nfeeds:
-            # cross pols are included
-            expected_type = complex
-        else:
-            expected_type = float
-
         if hasattr(self, "_power_eval"):
             return self._power_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
-            ).astype(expected_type)
+            ).astype(complex if self.Npols > self.Nfeeds else float)
         else:
             efield_vals = self._efield_eval(
                 az_grid=az_grid, za_grid=za_grid, f_grid=f_grid
