@@ -497,6 +497,18 @@ def test_passing_xorient(simplest_working_params, xorient):
         assert tel.get_x_orientation_from_feeds() == name
 
 
+def test_xorient_dep_warning(simplest_working_params):
+    tel = Telescope.new(
+        feeds=["x", "y"], x_orientation="east", **simplest_working_params
+    )
+    with check_warnings(
+        DeprecationWarning, ["The Telescope.x_orientation attribute is deprecated"] * 3
+    ):
+        assert tel.x_orientation == "east"
+        tel.x_orientation = "north"
+        assert tel.x_orientation == "north"
+
+
 def test_passing_diameters(simplest_working_params):
     tel = Telescope.new(
         antenna_diameters=np.array([14.0, 15.0, 16.0]), **simplest_working_params
