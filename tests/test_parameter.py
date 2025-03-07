@@ -1040,3 +1040,108 @@ def test_compare_value(value, param_value, value_type, status):
         expected_type=value_type,
     )
     assert param.compare_value(value) == status
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_arr",
+    [
+        [{"a": slice(None), "b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(0, 3, 2), "b": slice(0, 3, 2)}, [[0, 2], [6, 8]]],
+        [{"a": slice(0, 3, 2), "b": [0, 2]}, [[0, 2], [6, 8]]],
+        [{"a": [0, 2], "b": [0, 2]}, [[0, 2], [6, 8]]],
+        [{"a": [0, 2], "b": [2, 0]}, [[2, 0], [8, 6]]],
+        [{"a": [2, 0], "b": [0, 2]}, [[6, 8], [0, 2]]],
+    ],
+)
+def test_get_from_form(form_dict, exp_arr):
+    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.arange(9).reshape(3, 3))
+    np.testing.assert_array_equal(param.get_from_form(form_dict), exp_arr)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_arr",
+    [
+        [{"c": []}, np.arange(9).reshape(3, 3)],
+        [{"a": slice(None), "b": slice(None)}, np.arange(9).reshape(3, 3)],
+        [{"a": [1], "b": [1]}, np.arange(1).reshape(1, 1)],
+        [{"a": [0, 2], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(2), "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [0, 2], "b": slice(2)}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(2), "b": slice(2)}, np.arange(4).reshape(2, 2)],
+        [{"a": slice(0), "b": slice(0)}, np.arange(0).reshape(0, 0)],  # no-op
+        [{"a": [0, 2], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [2, 0], "b": [0, 2]}, np.arange(4).reshape(2, 2)],
+        [{"a": [0, 2], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
+        [{"a": [2, 0], "b": [2, 0]}, np.arange(4).reshape(2, 2)],
+    ],
+)
+def test_set_from_form(form_dict, exp_arr):
+    param = uvp.UVParameter("_test1", form=("a", "b"), value=np.full((3, 3), -1))
+    param.set_from_form(form_dict, exp_arr)
+
+    # Test that the values are set as expected
+    val = param.value[form_dict.get("a", slice(None))]
+    val = val[:, form_dict.get("b", slice(None))]
+    np.testing.assert_array_equal(val, exp_arr)
+
+    # Check that all the other values were untouched
+    a_mask = np.ones(3, dtype=bool)
+    a_mask[form_dict.get("a", ())] = False
+    b_mask = np.ones(3, dtype=bool)
+    b_mask[form_dict.get("b", ())] = False
+    assert np.all(param.value[a_mask, :] == -1)
+    assert np.all(param.value[:, b_mask] == -1)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_list",
+    [
+        [{"a": slice(None)}, [1, 2, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"b": slice(10)}, [1, 2, 3]],
+        [{"a": [0, 2]}, [1, 3]],
+    ],
+)
+def test_get_from_form_list(form_dict, exp_list):
+    param = uvp.UVParameter("_test1", form=("a",), value=[1, 2, 3])
+    assert exp_list == param.get_from_form(form_dict)
+
+
+@pytest.mark.parametrize(
+    "form_dict,exp_list",
+    [
+        [{"a": slice(None)}, [1, 2, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"a": slice(0, 3, 2)}, [1, 3]],
+        [{"b": slice(10)}, [1, 2, 3]],
+        [{"a": [0, 2]}, [1, 3]],
+        [{"a": [2, 0]}, [1, 3]],
+    ],
+)
+def test_set_from_form_list(form_dict, exp_list):
+    param = uvp.UVParameter("_test1", form=("a",), value=[-1, -1, -1])
+    param.set_from_form(form_dict, exp_list)
+    if isinstance(form_dict.get("a"), list):
+        assert exp_list == [param.value[idx] for idx in form_dict["a"]]
+    else:
+        assert exp_list == param.value[form_dict.get("a", slice(None))]
+
+
+def test_set_from_form_err():
+    param = uvp.UVParameter("_test1", form=("a",))
+    with pytest.raises(
+        ValueError, match="Cannot call set_from_form if UVParameter.value is None."
+    ):
+        param.set_from_form({"a": slice(None)}, [1])
+
+
+def test_set_get_singleton():
+    param = uvp.UVParameter("_test1")
+    assert param.form == ()
+    assert param.value is None
+    param.set_from_form({"a": []}, 123.456)
+    assert param.value == 123.456
+    assert param.value == param.get_from_form({"a": 1})
