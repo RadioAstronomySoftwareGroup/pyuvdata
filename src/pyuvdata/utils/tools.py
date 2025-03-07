@@ -203,6 +203,30 @@ def slicify(
         return ind
 
 
+def _multidim_ind2sub(dims_dict, dims):
+    """
+    Build a flag index array based on a multi-dimensional index array.
+
+    Parameters
+    ----------
+    dims_dict : dict
+        Dict whose keys are the axes being selected on, and the values are list of
+        index positions along that axis.
+    dims : tuple
+        Shape of the array being accessed.
+    """
+    Ndims = len(dims)
+    indices = [None] * Ndims
+    for axis in range(Ndims):
+        arr = np.asarray(dims_dict.get(axis, np.arange(dims[axis])))
+        indices[axis] = arr.reshape([-1 if axis == idx else 1 for idx in range(Ndims)])
+
+    ravel_arr = np.ravel_multi_index(indices, dims=dims).flatten()
+    new_dims = tuple(indices[idx].shape[idx] for idx in range(Ndims))
+
+    return ravel_arr, new_dims
+
+
 def _test_array_constant(array, *, tols=None, mask=...):
     """
     Check if an array contains constant values to some tolerance.
