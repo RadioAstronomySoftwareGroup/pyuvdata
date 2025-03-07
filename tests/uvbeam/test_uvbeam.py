@@ -3067,6 +3067,7 @@ def test_generic_read_cst():
     assert uvb.check()
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_generic_read(filename):
     """Test generic read can infer the file types correctly."""
@@ -3182,6 +3183,7 @@ def test_generic_read_all_bad_files(tmp_path):
         uvb3.read(filenames, skip_bad_files=True)
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize("filename", [cst_yaml_file, mwa_beam_file, casa_beamfits])
 def test_from_file(filename):
     """Test from file produces same the results as reading explicitly."""
@@ -3210,6 +3212,7 @@ def test_from_file(filename):
     assert uvb == uvb2
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize(
     ["filename", "path_var", "file_list"],
     [
