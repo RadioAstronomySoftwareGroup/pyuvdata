@@ -277,6 +277,7 @@ def test_properties(airy: AiryBeam):
     assert airy.Nfeeds == intf.Nfeeds
     assert np.all(airy.polarization_array == intf.polarization_array)
     assert np.all(airy.feed_array == intf.feed_array)
+    assert np.all(airy.feed_angle == intf.feed_angle)
 
 
 def test_clone(airy):

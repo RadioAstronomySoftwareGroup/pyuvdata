@@ -581,3 +581,27 @@ def test_clone():
     beam = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
     new_beam = beam.clone(feed_array=["x"])
     assert new_beam.feed_array == ["x"]
+
+
+def test_get_x_orientation_deprecation():
+    beam = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+
+    with check_warnings(
+        DeprecationWarning,
+        match="The AnalyticBeam.x_orientation attribute is deprecated",
+    ):
+        assert beam.x_orientation == beam.get_x_orientation_from_feeds()
+
+
+def test_set_x_orientation_deprecation():
+    beam1 = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+    beam2 = GaussianBeam(diameter=14.0, feed_array=["x", "y"])
+    with check_warnings(
+        DeprecationWarning,
+        match="The AnalyticBeam.x_orientation attribute is deprecated",
+    ):
+        beam1.x_orientation = "east"
+
+    beam2.set_feeds_from_x_orientation("east")
+
+    assert beam1.get_x_orientation_from_feeds() == beam2.get_x_orientation_from_feeds()
