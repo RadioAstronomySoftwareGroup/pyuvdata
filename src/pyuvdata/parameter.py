@@ -20,6 +20,19 @@ import numpy as np
 from astropy import units
 from astropy.coordinates import EarthLocation, SkyCoord
 
+from .utils.tools import _multidim_ind2sub
+
+allowed_location_types = [EarthLocation]
+try:
+    from lunarsky import MoonLocation
+
+    allowed_location_types.append(MoonLocation)
+
+    hasmoon = True
+except ImportError:
+    hasmoon = False
+
+
 __all__ = ["UVParameter", "AngleParameter", "LocationParameter", "SkyCoordParameter"]
 
 
@@ -805,26 +818,24 @@ class UVParameter:
         ):
             return self.value
 
-        # Validate that we actually have something to grab from
-        if self.value is None:
-            raise ValueError("Cannot call get_from_form if UVParameter.value is None.")
-
         val_slice = [form_dict.get(key, slice(None)) for key in self.form]
         # Which axes are index lists versus slices?
         ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
         extra_axes = {}
-        for axis in ind_axes[1:]:
-            # Allow the first list to be handled with fancy indexing. After
-            # that, it's time to use np.take!
-            extra_axes[axis] = val_slice[axis]
-            val_slice[axis] = slice(None)
+        if len(ind_axes) > 1:
+            for axis in ind_axes:
+                # Allow the first list to be handled with fancy indexing. After
+                # that, it's time to use np.take!
+                extra_axes[axis] = val_slice[axis]
+                val_slice[axis] = slice(None)
 
         if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
             # If we're working with an ndarray, use take to slice along
             # the axis that we want to grab from.
             value = self.value[tuple(val_slice)]
-            for axis, ind_arr in extra_axes.items():
-                value = value.take(ind_arr, axis=axis)
+            if extra_axes:
+                ind_arr, new_shape = _multidim_ind2sub(extra_axes, value.shape)
+                value = value.flat[ind_arr].reshape(new_shape)
         elif isinstance(self.value, list):
             # If this is a list, it _should_ always have 1-dimension.
             assert len(val_slice) == 1, (
@@ -877,33 +888,36 @@ class UVParameter:
         ind_axes = [i for i, itm in enumerate(val_slice) if not isinstance(itm, slice)]
         extra_axes = {}
         if len(ind_axes) > 1:
-            for axis in ind_axes[1:]:
+            for axis in ind_axes:
                 # Allow the first list to be handled with fancy indexing. After
                 # that, it's time to use np.take!
                 extra_axes[axis] = val_slice[axis]
                 val_slice[axis] = slice(None)
 
         if isinstance(self.value, np.ndarray | np.ma.MaskedArray):
-            val_slice = tuple(val_slice)
-            # If we're working with an ndarray, use take to slice along
-            # the axis that we want to grab from.
-            if len(extra_axes) == 0:
-                # If regular indexing solves this, then that's how we'll roll
-                self.value[val_slice] = values
+            if extra_axes:
+                # If we have multiple list-based selections, then we slice first and
+                # then use multi_index_ravel to generate indices that we can plug in.
+                # That way we only need to create one extra array whose size is
+                # the same as values (for the indices).
+                temp_arr = self.value[tuple(val_slice)]
+
+                # Make sure this is a view that is connected in memory
+                assert temp_arr.base is (
+                    self.value if self.value.base is None else self.value.base
+                ), (
+                    "Something is wrong, slicing self.value does not return a view "
+                    "on the original array. Please file an issue in our GitHub "
+                    "issue log so that we can fix it."
+                )
+                ind_arr, _ = _multidim_ind2sub(extra_axes, temp_arr.shape)
+
+                # N.b., later if needed we can add mask handling here (e.g., for data
+                # parameters).
+                temp_arr.flat[ind_arr] = values.flat
             else:
-                # Otherwise, we need to solve this w/ a mask, and check the ordering
-                # of the input index arrays.
-                mask = np.zeros_like(values, dtype=bool)
-                for axis in extra_axes:
-                    axis_ind = extra_axes[axis]
-                    if any(axis_ind[1:] < axis_ind[:-1]):
-                        # We need the values to be ordered correctly for this
-                        # approach to work.
-                        sort_ind = np.argsort(axis_ind)
-                        values = values.take(sort_ind, axis=axis)
-                        extra_axes[axis] = np.take(axis_ind, sort_ind).tolist()
-                    mask.put(axis_ind, True, axis=axis)
-                np.putmask(self.value[val_slice], mask=~mask, values=values)
+                # If regular indexing solves this, then that's how we'll roll
+                self.value[tuple(val_slice)] = values
         elif isinstance(self.value, list):
             # If this is a list, it _should_ always have 1-dimension.
             assert len(val_slice) == 1, (
