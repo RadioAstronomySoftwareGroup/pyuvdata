@@ -786,16 +786,14 @@ class UVParameter:
         if self._setter is not None:
             self._setter(inst)
 
-    def get_from_form(self, form_dict):
+    def get_from_form(self, form_dict: dict):
         """
         Get values along a set of parameterized axes.
 
         This method should not be called directly by users; instead, it is called by
         various selection-related functions for selecting a subset of values along
         a given axis, whose expected shape is given (at least in part) by a named
-        parameter within the object (e.g., "Nblts", "Ntimes", "Nants"). Additionally,
-        this method will recalculate the value for the named parameter given the input
-        indexing array.
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants").
 
         Parameters
         ----------
@@ -851,14 +849,12 @@ class UVParameter:
 
     def set_from_form(self, form_dict: dict, values: list | np.ndarray):
         """
-        Get values along a set of parameterized axes.
+        Set values along a set of parameterized axes.
 
         This method should not be called directly by users; instead, it is called by
-        various selection-related functions for selecting a subset of values along
+        various selection-related functions for setting a subset of values along
         a given axis, whose expected shape is given (at least in part) by a named
-        parameter within the object (e.g., "Nblts", "Ntimes", "Nants"). Additionally,
-        this method will recalculate the value for the named parameter given the input
-        indexing array.
+        parameter within the object (e.g., "Nblts", "Ntimes", "Nants").
 
         Parameters
         ----------
