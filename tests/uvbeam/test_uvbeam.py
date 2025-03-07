@@ -2029,6 +2029,7 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
     if antenna_type == "simple":
         efield_beam = cst_efield_1freq
         efield_beam.feed_array = np.array(["n", "e"])
+        efield_beam.feed_angle = None
         feeds_to_keep = ["e"]
     else:
         efield_beam = phased_array_beam_2freq
@@ -2049,7 +2050,10 @@ def test_select_feeds(antenna_type, cst_efield_1freq, phased_array_beam_2freq, i
         )
     else:
         expected_warning = DeprecationWarning
-        warn_msg = "Support for physically oriented feeds"
+        warn_msg = [
+            "Support for physically oriented feeds",
+            "The feed_angle parameter must be set for efield beams",
+        ]
     with check_warnings(expected_warning, match=warn_msg):
         efield_beam2 = efield_beam.select(feeds=sel_feeds, invert=invert, inplace=False)
 
@@ -3329,3 +3333,12 @@ def test_return_basis_vector_notset(cst_efield_2freq_cut: UVBeam):
         )
 
     assert basis_vector is not None
+
+
+def test_xorient_dep_warning(cst_efield_2freq_cut):
+    with check_warnings(
+        DeprecationWarning, ["The UVBeam.x_orientation attribute is deprecated"] * 3
+    ):
+        assert cst_efield_2freq_cut.x_orientation == "east"
+        cst_efield_2freq_cut.x_orientation = "north"
+        assert cst_efield_2freq_cut.x_orientation == "north"
