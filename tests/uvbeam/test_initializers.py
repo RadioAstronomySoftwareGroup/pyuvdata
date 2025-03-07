@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from pyuvdata import UVBeam
+from pyuvdata.testing import check_warnings
 
 ph_params = [
     "element_location_array",
@@ -294,6 +295,11 @@ def test_data_array_errors(uvb_azza_efield_kw):
         ),
     ):
         UVBeam.new(**uvb_azza_efield_kw)
+
+
+def test_feed_angle_warning(uvb_common_kw, uvb_azza_kw):
+    with check_warnings(UserWarning, match="No feed orientation information passed"):
+        UVBeam.new(feed_array=["x", "y"], **uvb_common_kw, **uvb_azza_kw)
 
 
 @pytest.mark.parametrize(
