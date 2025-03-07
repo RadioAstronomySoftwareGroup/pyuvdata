@@ -50,6 +50,7 @@ def hera_beam_casa():
     beam_in.feed_version = "v0"
     beam_in.model_name = "casa_airy"
     beam_in.model_version = "v0"
+    beam_in.mount_type = "fixed"
 
     # this file is actually in an orthoslant projection RA/DEC at zenith at a
     # particular time.
