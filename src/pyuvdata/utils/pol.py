@@ -958,6 +958,7 @@ def get_feeds_from_x_orientation(
     x_orientation,
     nants,
     feeds=None,
+    feed_array=None,
     polarization_array=None,
     flex_polarization_array=None,
 ):
@@ -979,7 +980,11 @@ def get_feeds_from_x_orientation(
         List of feeds expected for the telescope. Must be one of "x", "y", "l", or "r".
         A single feed type can be provided as a string, otherwise the list should
         contain no more than two elements. If not provided (and polarization_array is
-        also not provided), default is ["x", "y"].
+        also not provided), default is ["x", "y"]. Ignored if feed_array is set.
+    feed_array : array-like of str or None
+        List of feeds, given on a per-antenna basis. Each feed will be listed as one of
+        "x", "y", "l", "r". Shape (Nants, Nfeeds), dtype str (or None of x_orientation
+        is None).
     polarization_array : array-like of int or None
         Array listing the polarization codes present, based on the UVFITS numbering
         scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
@@ -1011,35 +1016,52 @@ def get_feeds_from_x_orientation(
         # If x_orientation is None, then there isn't anything to determine
         return None, None, None
 
-    if feeds is None:
-        if flex_polarization_array is not None:
-            feeds = get_feeds_from_pols(polarization_array=flex_polarization_array)
-        elif polarization_array is not None:
-            feeds = get_feeds_from_pols(polarization_array=polarization_array)
-        else:
-            warnings.warn(
-                "Unknown polarization basis -- assuming linearly polarized (x/y) "
-                "feeds for Telescope.feed_array."
-            )
-            feeds = ["x", "y"]
-    elif isinstance(feeds, str):
-        feeds = [feeds]
-
     if x_orientation.lower() not in XORIENTMAP:
         raise ValueError(
             f"x_orientation not recognized, must be one of {list(XORIENTMAP)}."
         )
 
     x_orientation = XORIENTMAP[x_orientation.lower()]
+    if (
+        feeds is None
+        and feed_array is None
+        and not (flex_polarization_array is None and polarization_array is None)
+    ):
+        feed_map = {v: k for k, v in x_orientation_pol_map(x_orientation).items()}
+        if flex_polarization_array is not None:
+            feeds = get_feeds_from_pols(polarization_array=flex_polarization_array)
+        elif polarization_array is not None:
+            feeds = get_feeds_from_pols(polarization_array=polarization_array)
 
-    # Check to make sure inputs here are valid
-    if not isinstance(feeds, list | tuple | np.ndarray) or len(feeds) not in [1, 2]:
-        raise ValueError("feeds must be a list or tuple of length 1 or 2.")
-    if not all(item in ["l", "r", "x", "y"] for item in feeds):
-        raise ValueError('feeds must contain only "x", "y", "l", and/or "r".')
+        # Handle pseudo-stokes feeds and directional baselines
+        feeds = [
+            feed_map.get(f, f) for f in feeds if f in ["l", "r", "x", "y", "e", "n"]
+        ]
+        if len(feeds) == 0:
+            feeds = None
+    elif isinstance(feeds, str):
+        feeds = [feeds]
 
-    Nfeeds = len(feeds)
-    feed_array = np.asarray(feeds) if (nants == 0) else np.tile(feeds, (nants, 1))
+    if feeds is None and feed_array is None:
+        warnings.warn(
+            "Unknown polarization basis -- assuming linearly polarized (x/y) "
+            "feeds for Telescope.feed_array."
+        )
+        feeds = ["x", "y"]
+
+    if feed_array is None:
+        # Check to make sure inputs here are valid
+        if not isinstance(feeds, list | tuple | np.ndarray) or len(feeds) not in [1, 2]:
+            raise ValueError("feeds must be a list or tuple of length 1 or 2.")
+        if not all(item in ["l", "r", "x", "y"] for item in feeds):
+            raise ValueError('feeds must contain only "x", "y", "l", and/or "r".')
+
+        Nfeeds = len(feeds)
+        feed_array = np.asarray(feeds) if (nants == 0) else np.tile(feeds, (nants, 1))
+    else:
+        feed_array = np.asarray(feed_array)
+        Nfeeds = feed_array.shape[1]
+
     feed_angle = np.zeros(feed_array.shape, dtype=float)
 
     x_mask = feed_array == "x"

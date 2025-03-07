@@ -581,6 +581,7 @@ def test_healpix_basisvec_hdu_errors(
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_casa_beam(tmp_path, hera_beam_casa):
     # test reading in CASA power beam. Some header items are missing...
     beam_in = hera_beam_casa
@@ -610,6 +611,7 @@ def test_casa_beam(tmp_path, hera_beam_casa):
     assert beam_in == beam_out
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 @pytest.mark.parametrize(
     "ex_val,error_msg",
     [
@@ -646,6 +648,7 @@ def test_extra_keywords_errors(tmp_path, hera_beam_casa, ex_val, error_msg):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_extra_keywords_warnings(tmp_path, hera_beam_casa):
     beam_in = hera_beam_casa
     testfile = str(tmp_path / "outtest_beam.fits")
@@ -660,6 +663,7 @@ def test_extra_keywords_warnings(tmp_path, hera_beam_casa):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_extra_keywords_boolean(tmp_path, hera_beam_casa):
     beam_in = hera_beam_casa
     beam_out = UVBeam()
@@ -676,6 +680,7 @@ def test_extra_keywords_boolean(tmp_path, hera_beam_casa):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_extra_keywords_int(tmp_path, hera_beam_casa):
     beam_in = hera_beam_casa
     beam_out = UVBeam()
@@ -692,6 +697,7 @@ def test_extra_keywords_int(tmp_path, hera_beam_casa):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_extra_keywords_float(tmp_path, hera_beam_casa):
     beam_in = hera_beam_casa
     beam_out = UVBeam()
@@ -708,6 +714,7 @@ def test_extra_keywords_float(tmp_path, hera_beam_casa):
     return
 
 
+@pytest.mark.filterwarnings("ignore:Unknown polarization basis")
 def test_extra_keywords_complex(tmp_path, hera_beam_casa):
     beam_in = hera_beam_casa
     beam_out = UVBeam()

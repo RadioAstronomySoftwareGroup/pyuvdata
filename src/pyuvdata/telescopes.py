@@ -568,7 +568,8 @@ class Telescope(UVBase):
 
         Populates newer parameters describing feed-orientation (`Telescope.feed_array`
         and `Telescope.feed_angle`) based on the "older" x-orientation string. Note that
-        this method will overwrite any previously populated values.
+        this method will overwrite any previously populated values, and if x-orientation
+        is set to None, feed information will be removed from the object.
 
         Parameters
         ----------
@@ -580,8 +581,9 @@ class Telescope(UVBase):
         feeds : list of str or None
             List of strings denoting feed orientations/polarizations. Must be one of
             "x", "y", "l", "r" (the former two for linearly polarized feeds, the latter
-            for circularly polarized feeds). Default assumes a pair of linearly
-            polarized feeds (["x", "y"]).
+            for circularly polarized feeds). Default uses what is already present in
+            feed_array if set, otherwise assumes a pair of linearly polarized feeds
+            (["x", "y"]).
         polarization_array : array-like of int or None
             Array listing the polarization codes present, based on the UVFITS numbering
             scheme. See utils.POL_NUM2STR_DICT for a mapping between codes and
@@ -599,6 +601,7 @@ class Telescope(UVBase):
             utils.pol.get_feeds_from_x_orientation(
                 x_orientation=x_orientation,
                 feeds=feeds,
+                feed_array=self.feed_array if feeds is None else None,
                 polarization_array=polarization_array,
                 flex_polarization_array=flex_polarization_array,
                 nants=self.Nants,
@@ -880,6 +883,7 @@ class Telescope(UVBase):
             # If this changed, then we want to force an update, so capture this
             # from the previous time it was set.
             x_orientation = self.get_x_orientation_from_feeds()
+            self.feed_angle = self.feed_array = self.Nfeeds = None
             if x_orientation is not None and warn:
                 warnings.warn(
                     "Nants has changed, setting feed_array and feed_angle "
