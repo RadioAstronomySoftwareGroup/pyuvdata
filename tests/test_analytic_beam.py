@@ -413,6 +413,11 @@ def test_missing_x_orientation():
         (UniformBeam(), UniformBeam(feed_array=["r", "l"]), True),
         (ShortDipoleBeam(), ShortDipoleBeam(x_orientation="north"), False),
         (UniformBeam(), ShortDipoleBeam(), False),
+        (
+            ShortDipoleBeam(mount_type="fixed"),
+            ShortDipoleBeam(mount_type="alt-az"),
+            False,
+        ),
     ],
 )
 def test_beam_equality(beam1, beam2, equal):

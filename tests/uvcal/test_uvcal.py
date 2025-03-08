@@ -2930,6 +2930,15 @@ def test_add_errors_wideband_mismatch(gain_data, wideband_gain, method):
         getattr(gain_data, method)(wideband_gain, **kwargs)
 
 
+@pytest.mark.parametrize("method", ["__add__", "fast_concat"])
+def test_add_error_wideband(wideband_gain, delay_data, method):
+    kwargs = {"axis": "antenna"} if method == "fast_concat" else {}
+    with pytest.raises(
+        ValueError, match="UVParameter cal_type does not match. Cannot combine objects."
+    ):
+        _ = getattr(wideband_gain, method)(delay_data, **kwargs)
+
+
 @pytest.mark.filterwarnings("ignore:The lst_array is not self-consistent")
 @pytest.mark.parametrize("caltype", ["gain", "delay"])
 @pytest.mark.parametrize("method", ["__add__", "fast_concat"])
