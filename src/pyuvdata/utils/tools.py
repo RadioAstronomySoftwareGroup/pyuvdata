@@ -76,7 +76,7 @@ def _convert_to_slices(
         `indices` can be easily represented with a list of slices. If set, then
         the argument supplied to `max_nslice_frac` is ignored.
     return_index_on_fail : bool
-        If set to True and the list of input indexes cannot easily be respresented by
+        If set to True and the list of input indexes cannot easily be represented by
         a list of slices (as defined by `max_nslice` or `max_nslice_frac`), then return
         the input list of index values instead of a list of suboptimal slices.
 
@@ -84,7 +84,7 @@ def _convert_to_slices(
     -------
     slice_list : list
         Nominally the list of slice objects used to represent indices. However, if
-        `return_index_on_fail=True` and input indexes cannot easily be respresented,
+        `return_index_on_fail=True` and input indexes cannot easily be represented,
         return a 1-element list containing the input for `indices`.
     check : bool
         If True, indices is easily represented by slices
@@ -109,56 +109,53 @@ def _convert_to_slices(
         eval_ind = indices
     # assert indices is longer than 2, or return trivial solutions
     if len(eval_ind) == 0:
-        return [slice(0, 0, 0)], False
+        return [slice(0, 0)], False
     if len(eval_ind) <= 2:
-        return [
-            slice(eval_ind[0], eval_ind[-1] + 1, max(eval_ind[-1] - eval_ind[0], 1))
-        ], True
+        step = 1 if (len(eval_ind) < 2) else eval_ind[-1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
+        return [slice(start, None if (stop < 0) else stop, step)], True
 
     # Catch the simplest case of "give me a single slice or exit"
     if (max_nslice == 1) and return_index_on_fail:
         step = eval_ind[1] - eval_ind[0]
+        start = eval_ind[0]
+        stop = eval_ind[-1] + step
         if all(np.diff(eval_ind) == step):
-            return [slice(eval_ind[0], eval_ind[-1] + 1, step)], True
+            return [slice(start, None if (stop < 0) else stop, step)], True
         return [indices], False
 
     # setup empty slices list
-    Ninds = len(eval_ind)
     slices = []
 
     # iterate over indices
-    start = last_step = None
-    for ind in eval_ind:
-        if last_step is None:
-            # Check if this is the first slice, in which case start is None
-            if start is None:
-                start = ind
-                continue
-            last_step = ind - start
-            last_ind = ind
+    start = eval_ind[0]
+    step = None
+    for ind in eval_ind[1:]:
+        if step is None:
+            step = ind - start
+            stop = ind + step
             continue
 
-        # calculate step from previous index
-        step = ind - last_ind
-
-        # if step != last_step, this ends the slice
-        if step != last_step:
+        # if the next index doesn't line up w/ the stop, this ends the slice
+        if ind != stop:
             # append to list
-            slices.append(slice(start, last_ind + 1, last_step))
+            slices.append(slice(start, None if (stop < 0) else stop, step))
 
             # setup next step
             start = ind
-            last_step = None
-
-        last_ind = ind
+            stop = ind + 1  # Set this in case loop ends here
+            step = None
+        else:
+            stop += step
 
     # Append the last slice
-    slices.append(slice(start, ind + 1, last_step))
+    slices.append(slice(start, None if (stop < 0) else stop, step))
 
     # determine whether slices are a reasonable representation, and determine max_nslice
     # if only max_nslice_frac was supplied.
-    if max_nslice is None:
-        max_nslice = max_nslice_frac * Ninds
+    if max_nslice is None and max_nslice_frac is not None:
+        max_nslice = max_nslice_frac * len(eval_ind)
     check = len(slices) <= max_nslice
 
     if return_index_on_fail and not check:
@@ -167,18 +164,67 @@ def _convert_to_slices(
         return slices, check
 
 
-def slicify(ind: slice | None | IterableType[int]) -> slice | None | IterableType[int]:
-    """Convert an iterable of integers into a slice object if possible."""
+def slicify(
+    ind: slice | None | IterableType[int], allow_empty: bool = False
+) -> slice | None | IterableType[int]:
+    """
+    Convert an iterable of integers into a slice object if possible.
+
+    Parameters
+    ----------
+    ind : list
+        A 1D list of integers for array indexing.
+    allow_empty : bool
+        If set to False (default) and ind is a zero-length list, None is returned. If
+        set to True, then a "zero-length slice" (e.g., `slice(0,0)`) is returned
+        instead.
+
+    Returns
+    -------
+    index_obj : slice or list
+        If the list of indices can be represented by a slice, a slice is returned,
+        otherwise the list of indices is returned.
+    """
     if ind is None or isinstance(ind, slice):
         return ind
-    if len(ind) == 0:
-        return None
+    if len(ind) <= 2:
+        if len(ind) == 0:
+            return slice(0, 0, 1) if allow_empty else None
+        else:
+            return slice(ind[0], ind[-1] + 1, 1 if (len(ind) == 1) else ind[1] - ind[0])
 
-    if len(set(np.ediff1d(ind))) <= 1:
-        return slice(ind[0], ind[-1] + 1, ind[1] - ind[0] if len(ind) > 1 else 1)
+    step = ind[1] - ind[0]
+    if all(np.ediff1d(ind) == step):
+        start = ind[0]
+        stop = ind[-1] + step
+        return slice(start, None if (stop < 0) else stop, step)
     else:
         # can't slicify
         return ind
+
+
+def _multidim_ind2sub(dims_dict, dims):
+    """
+    Build a flag index array based on a multi-dimensional index array.
+
+    Parameters
+    ----------
+    dims_dict : dict
+        Dict whose keys are the axes being selected on, and the values are list of
+        index positions along that axis.
+    dims : tuple
+        Shape of the array being accessed.
+    """
+    Ndims = len(dims)
+    indices = [None] * Ndims
+    for axis in range(Ndims):
+        arr = np.asarray(dims_dict.get(axis, np.arange(dims[axis])))
+        indices[axis] = arr.reshape([-1 if axis == idx else 1 for idx in range(Ndims)])
+
+    ravel_arr = np.ravel_multi_index(indices, dims=dims).flatten()
+    new_dims = tuple(indices[idx].shape[idx] for idx in range(Ndims))
+
+    return ravel_arr, new_dims
 
 
 def _test_array_constant(array, *, tols=None, mask=...):
