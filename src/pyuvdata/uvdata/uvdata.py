@@ -11459,7 +11459,9 @@ class UVData(UVBase):
         be aware that the `importuvifts` task does not currently support reading in
         data sets where the number of antennas is > 255. If writing out such a data set
         for use in CASA, we suggest using the measurement set writer (`UVData.write_ms`)
-        instead.
+        instead, as the `importuvfits` has some hard-coded behaviors that are telescope
+        dependent and not consistent with documented standards for UVFITS (specifically
+        AIPS Memo 117).
 
         Parameters
         ----------
