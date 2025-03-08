@@ -4,22 +4,32 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- A new page to the docs labeled "Conventions" has been added.
+- The methods `Telescope.__add__` and `Telescope.__iadd__` have been added to allow
+`Telescope` objects with different antennas or feeds to be combined.
+- The methods `UVParameter.get_from_form` and `UVParameter.set_from_form`, which allows
+one to perform selection/setting operations based on the `UVParameter.form` attribute.
 - Handling for MeasurementSet calibration subtypes "T Jones" (non-pol-specific antenna
 gains) and "D Jones" (polarization leakages) has been added to `MSCal`.
-- A new page to the docs labeled "Conventions" has been added.
+- The `UVBeam.x_orientation` parameter has been deprecated, superseded by two new
+parameters: `UVBeam.feed_array` and `UVBeam.feed_angle`, which describe the
+polarization and orientation of the beam.
 - The `Telescope.x_orientation` parameter has been deprecated, superseded by two new
 parameters: `Telescope.feed_array` and `Telescope.feed_angle`, which describe the
 polarization and orientation of the detectors for a given antenna.
-- The `Telescope.mount_type` parameter has been added, which describes the mount and
-optics of a given antenna (e.g., HERA/MWA are "fixed", VLA/ALMA are "alt-az").
+- The `Telescope.mount_type` and `UVBeam.mount_type` parameters have been added, which
+describe the mount and optics of a given antenna (e.g., HERA/MWA are "fixed", VLA/ALMA
+are "alt-az").
 - The `Telescope.get_x_orientation_from_feeds` method has been added, which returns
 a string (either "east" or "north") based on values present in `Telescope.feed_array`
 and `Telescope.feed_angle` (mimicking the behavior of getting the now-defunct
-`Telescope.x_orientation` parameter).
+`Telescope.x_orientation` parameter). A method of the same name and functionality has
+also been added to `UVBeam`.
 - The `Telescope.set_feeds_from_x_orientation` method has been added, which sets
 values in `Telescope.feed_array` and `Telescope.feed_angle` based on a string describing
 the x-orientation (mimicking the behavior of setting the now-defunct
-`Telescope.x_orientation` parameter).
+`Telescope.x_orientation` parameter). A method of the same name and functionality has
+also been added to `UVBeam`.
 - New `near_field` option added to the `phase` method's `cat_type` keyword attribute.
 Passing `near_field` first performs sidereal far-field corrections using fixed RA/Dec,
 then applies geometric near-field corrections using the `distance` keyword, which can
@@ -62,6 +72,10 @@ the delays were not assigned to the right dipoles.
 the input objects. Now the filename lists are combined on the output object.
 - Bug in `UVBeam.select` where `polarization_array` could be incorrectly ordered after
 selection (if input to `polarizations` keyword was unordered).
+
+### Deprecated
+- The `x_orientation` attribute on `Telescope` and `UVBeam`.
+- The options `"e"` and `"n"` for elements of `feed_array` in `Telescope` and `UVBeam`.
 
 ## [3.1.3] - 2025-01-13
 
