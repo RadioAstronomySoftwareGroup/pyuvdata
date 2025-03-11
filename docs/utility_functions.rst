@@ -136,6 +136,8 @@ Functions for working with the baseline-time axis
   :private-members:
   :undoc-members:
 
+.. _coordinate_conversions:
+
 Functions for working with telescope coordinates
 ************************************************
 
