@@ -89,7 +89,7 @@ file types pass in the folder name.
 
 b) Instantiate an object from an FHD dataset
 ********************************************
-When reading FHD format, we need to pass in several auxilliary files.
+When reading FHD datasets, we need to pass in several auxilliary files.
 
 .. code-block:: python
 
@@ -146,12 +146,12 @@ an option to instead use a slower integral implementation.
 c) Options for SMA MIR data sets
 ********************************
 
-The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
-users prefer to convert to the CASA-based Measurement Set (MS) format for further
-processing. The :meth:`pyuvdata.UVData.from_file` method (and by extension,
-:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
-specific to the MIR format. These keywords fall broadly into two groups: selection, and
-visibility handling.
+The SMA has its own bespoke file format known as MIR (no relation to MIRIAD),
+which most users prefer to convert to the CASA-based Measurement Sets (MS) for
+further processing. The :meth:`pyuvdata.UVData.from_file` method (and by extension,
+:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that
+are specific to the MIR file format. These keywords fall broadly into two groups:
+selection, and visibility handling.
 
 In addition to the selection keywords supported with UVData objects, there are a few
 extra keywords supported for MIR data sets:
@@ -201,10 +201,6 @@ Some example use cases for the selection keywords:
   >>> print((uvd.Npols, uvd.Nfreqs))
   (1, 32768)
 
-  >>> # Write out a measurement set file
-  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
-  >>> uvd.write_ms(write_file)
-
 As for visibility handling keywords:
 
 - ``rechunk``: Number of channels to spectrally average the data over on read. This is
@@ -216,9 +212,8 @@ As for visibility handling keywords:
 
 - ``apply_flags``: Apply on-line flags (default is ``True``).
 
-For example, the native resolution of the test MIR dataset is 140 kHz -- to average this
-down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
-via the following:
+For example, the native resolution of the test MIR dataset is 140 kHz -- to
+average this down by a factor of 64 (8.96 MHz resolution) do the following:
 
 .. code-block:: python
 
@@ -230,10 +225,6 @@ via the following:
   >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
   >>> # Set things up to average over 64-channel blocks.
   >>> uvd = UVData().from_file(data_path, rechunk=64)
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
-  >>> uvd.write_ms(write_file)
 
 .. warning::
     Reading and writing of MIR data will on occasion generate a warning message about
@@ -1257,7 +1248,7 @@ The :meth:`pyuvdata.UVData.fast_concat` method is significantly faster than
 Preliminary benchmarking shows that reading in
 time-ordered visibilities from disk using the ``axis`` keyword argument can
 improve throughput by nearly an order of magnitude for 100 HERA data files
-stored in the uvh5 format.
+stored as uvh5 files.
 
 .. code-block:: python
 
