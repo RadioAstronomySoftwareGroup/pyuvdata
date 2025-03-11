@@ -187,11 +187,10 @@ def slicify(
     """
     if ind is None or isinstance(ind, slice):
         return ind
-    if len(ind) <= 2:
-        if len(ind) == 0:
-            return slice(0, 0, 1) if allow_empty else None
-        else:
-            return slice(ind[0], ind[-1] + 1, 1 if (len(ind) == 1) else ind[1] - ind[0])
+    if len(ind) == 0:
+        return slice(0, 0, 1) if allow_empty else None
+    if len(ind) == 1:
+        return slice(ind[0], ind[0] + 1, 1)
 
     step = ind[1] - ind[0]
     if all(np.ediff1d(ind) == step):
