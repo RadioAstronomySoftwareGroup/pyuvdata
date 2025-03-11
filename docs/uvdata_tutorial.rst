@@ -56,13 +56,218 @@ the baseline-time axis on the ``data_array``).
 
 
 UVData: Instantiating a UVData object from a file (i.e. reading data)
------------------------
-TODO: Add example code.
+---------------------------------------------------------------------
+
+Use the :meth:`pyuvdata.UVData.from_file` to instantiate a UVData object from
+data in a file (alternatively you can create an object with no inputs and then
+call the :meth:`pyuvdata.UVData.read` method). Most file types require a single
+file or folder to instantiate an object, FHD and raw MWA correlator data sets
+require the user to specify multiple files for each dataset.
+
+``pyuvdata`` can also be used to create a UVData object from arrays in memory,
+for details see :ref:`new`.
+
+Note: reading or writing CASA Measurement sets requires python-casacore to be
+installed (see the readme for details). Reading or writing Miriad files is not
+supported on Windows.
+
+a) Instantiate an object from a single file or folder
+*****************************************************
+UVFITS and uvh5 and datasets are stored in a single file. Miriad,
+CASA Measurement Sets and MIR datasets are stored in structured folders, for these
+file types pass in the folder name.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> import shutil
+  >>> filename = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
+
+  >>> uvd = UVData.from_file(filename)
+
+b) Instantiate an object from an FHD dataset
+********************************************
+When reading FHD format, we need to pass in several auxilliary files.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> uvd = UVData()
+
+  >>> # Set up the files we need
+  >>> fhd_prefix = '1061316296_'
+  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
+  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
+  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
+  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
+  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
+
+  >>> uvd = UVData.from_file(
+  ...    fhd_vis_files,
+  ...    flags_file=flags_file,
+  ...    layout_file=layout_file,
+  ...    params_file=params_file,
+  ...    settings_file=settings_file,
+  ... )
+
+c) Instantiate an object from a raw MWA correlator dataset
+**********************************************************
+
+The MWA correlator writes FITS files containing the correlator dumps (but
+lacking metadata and not conforming to the uvfits format). pyuvdata can read
+these files from both the Legacy and MWAX correlator versions, along with MWA
+metafits files (containing the required metadata), into a UVData object. There
+are also options for applying cable length corrections, dividing out digital
+gains, dividing out the coarse band shape, common flagging patterns, using
+AOFlagger flag files, and phasing the data to the pointing center. It is also
+optional to apply a Van Vleck correction for Legacy correlator data. The default
+for this correction is to use a Chebyshev polynomial approximation, and there is
+an option to instead use a slower integral implementation.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+
+  >>> # Construct the list of files. Separate files for each coarse band, the
+  >>> # associated metafits file is also required.
+  >>> data_path = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
+  >>> filelist = [data_path + i for i in ['1131733552.metafits',
+  ... '1131733552_20151116182537_mini_gpubox01_00.fits']]
+
+  >>> # Apply cable corrections and routine time/frequency flagging, phase data to pointing center
+  >>> uvd = UVData().from_file(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=True)
+
+c) Options for SMA MIR data sets
+********************************
+
+The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
+users prefer to convert to the CASA-based Measurement Set (MS) format for further
+processing. The :meth:`pyuvdata.UVData.from_file` method (and by extension,
+:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
+specific to the MIR format. These keywords fall broadly into two groups: selection, and
+visibility handling.
+
+In addition to the selection keywords supported with UVData objects, there are a few
+extra keywords supported for MIR data sets:
+-   ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
+
+-   ``receiver``: Specifies a receiver type (generally some combination of '230', '240',
+    '345', and/or '400') to load, with different receivers typically used to target
+    different bands and/or polarizations.
+
+-   ``sideband``: Specifies which sideband to load, with the two options being 'l' for
+    lower and 'u' for upper.
+
+-   ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
+    constructed as the average of all channels across a single spectral window (set to
+    ``False`` by default).
+
+-   ``select_where`` : An keyword which allows for more advanced selection criterion.
+    See the documentation in :meth:`pyuvdata.mir_parser.MirParser` for more details.
+
+Some example use cases for the selection keywords:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+
+  >>> # Create a path to the SMA MIR test data set in pyuvdata
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> # Let's first try loading just the '230' receivers.
+  >>> uvd = UVData().from_file(data_path, receivers='230')
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (1, 131072)
+
+  >>> # Now try one sideband, say the lower ('l')
+  >>> uvd.read(data_path, sidebands='l')
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (2, 65536)
+
+  >>> # Now try one just one chunk (2)
+  >>> uvd.read(data_path, corrchunk=2)
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (2, 32768)
+
+  >>> # Now all together -- '230' receiver, 'l' sideband, chunks 1 and 3
+  >>> uvd.read(data_path, receivers='230', sidebands='l', corrchunk=[1, 3])
+  >>> print((uvd.Npols, uvd.Nfreqs))
+  (1, 32768)
+
+  >>> # Write out a measurement set file
+  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
+  >>> uvd.write_ms(write_file)
+
+As for visibility handling keywords:
+
+- ``rechunk``: Number of channels to spectrally average the data over on read. This is
+  generally the most commonly used keyword, as it reduces the memory/disk space needed
+  to complete read/write operations.
+
+- ``apply_tsys``: Normalize the data using system temperature measurements to produces
+  values in (uncalibrated) Jy (default is ``True``).
+
+- ``apply_flags``: Apply on-line flags (default is ``True``).
+
+For example, the native resolution of the test MIR dataset is 140 kHz -- to average this
+down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
+via the following:
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+
+  >>> # Build a path to the test SMA data set
+  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
+  >>> # Set things up to average over 64-channel blocks.
+  >>> uvd = UVData().from_file(data_path, rechunk=64)
+
+  >>> # Write out uvfits file
+  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
+  >>> uvd.write_ms(write_file)
+
+.. warning::
+    Reading and writing of MIR data will on occasion generate a warning message about
+    the LSTs not being correct. This warning is spurious, and a byproduct how LST values
+    are calculated at time of write (polled average versus calculated based on the
+    timestamp/integration midpoint), and can safely be ignored.
 
 
 UVData: Writing UVData objects to disk
------------------------
-TODO: Add example code.
+--------------------------------------
+
+pyuvdata can write UVData objects to UVFITS, Miriad, CASA Measurement Set and
+uvh5 files. Each of these has an associated write method:
+:meth:`pyuvdata.UVData.write_uvfits`, :meth:`pyuvdata.UVData.write_miriad`,
+:meth:`pyuvdata.UVData.write_ms`, :meth:`pyuvdata.UVData.write_uvh5`, which
+only require a filename (or folder name for Miriad and CASA Measurement Sets) to
+write the data to.
+
+pyuvdata can be used to simply convert data from one file type to another by
+reading in one file type and writing out another.
+
+.. code-block:: python
+
+  >>> import os
+  >>> from pyuvdata import UVData
+  >>> from pyuvdata.data import DATA_PATH
+  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
+
+  >>> # Instantiate an object from a measurement set
+  >>> uvd = UVData.from_file(ms_file)
+
+  >>> # Write the data out to a uvfits file
+  >>> write_file = os.path.join('.', 'tutorial.uvfits')
+  >>> uvd.write_uvfits(write_file)
 
 
 .. _quick_access:
@@ -1232,7 +1437,7 @@ Measurement set (ms) files do not support reading only the metadata
 b) Reading only parts of files
 ******************************
 The same options that are available for the :meth:`pyuvdata.UVData.select` method can
-also be passed to the :meth:`pyuvdata.UVData.read`` method to do the select on the read,
+also be passed to the :meth:`pyuvdata.UVData.read` method to do the select on the read,
 saving memory and time if only a portion of the data are needed.
 
 Note that these keywords can be used for any file type, but for FHD and
@@ -1586,335 +1791,15 @@ object.
   (200, 4, 2)
 
 
-UVData: File conversion
------------------------
-TODO: A lot of this will probably be redundant once the reading and
-writing code snippits are added.  Simplify / update?
-Converting between tested data formats.
-Note that it is possible to create a new :class:`pyuvdata.UVData` object
-with the class method :meth:`pyuvdata.UVData.from_file` as well.
-
-a) miriad -> uvfits
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-
-  >>> # This miriad file is known to be a drift scan.
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file)
-  >>> uvd = UVData.from_file(miriad_file, file_type='miriad')
-
-  >>> # Write out the uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file, force_phase=True)
-  The data are not all phased to a sidereal source. Phasing to zenith of the first timestamp.
-
-b) uvfits -> miriad
-*******************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd.read(uvfits_file)
-  >>> uvd.read(uvfits_file, file_type='uvfits')
-  >>> # Here we use the ``from_file`` class method without needing to initialize a new object.
-  >>> uvd = UVData.from_file(uvfits_file)
-
-  >>> # Write out the miriad file
-  >>> write_file = os.path.join('.', 'tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-c) FHD -> uvfits
-****************
-When reading FHD format, we need to point to several files for each observation.
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Construct the list of files
-  >>> fhd_prefix = '1061316296_'
-  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
-  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
-  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
-  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
-  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
-
-  # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(
-  ...    fhd_vis_files,
-  ...    flags_file=flags_file,
-  ...    layout_file=layout_file,
-  ...    params_file=params_file,
-  ...    settings_file=settings_file,
-  ... )
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-d) FHD -> miriad
-****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> import os
-
-  >>> # Construct the list of files
-  >>> fhd_prefix = '1061316296_'
-  >>> fhd_vis_files = [os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + f) for f in ['vis_XX.sav', 'vis_YY.sav']]
-  >>> flags_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'vis_data', fhd_prefix + 'flags.sav')
-  >>> layout_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'layout.sav')
-  >>> params_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'params.sav')
-  >>> settings_file = os.path.join(DATA_PATH, 'fhd_vis_data', 'metadata', fhd_prefix + 'settings.txt')
-
-
-  # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(
-  ...    fhd_vis_files,
-  ...    flags_file=flags_file,
-  ...    layout_file=layout_file,
-  ...    params_file=params_file,
-  ...    settings_file=settings_file,
-  ... )
-  >>> write_file = os.path.join('.','tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-e) CASA -> uvfits
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-
-  >>> # Use the `read` method, optionally specify the file type. Can also use the
-  >>> # file type specific `read_ms` method, but only if reading a single file.
-  >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file)
-  >>> uvd = UVData.from_file(ms_file, file_type='ms')
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-f) CASA -> miriad
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import shutil
-  >>> import os
-  >>> ms_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.ms')
-
-  >>> # note that reading CASA measurement sets requires casacore to be installed
-  >>> uvd = UVData.from_file(ms_file)
-
-  >>> # Write out Miriad file
-  >>> write_file = os.path.join('.', 'tutorial.uv')
-  >>> if os.path.exists(write_file):
-  ...    shutil.rmtree(write_file)
-  >>> uvd.write_miriad(write_file)
-
-g) miriad -> uvh5
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-
-  >>> # This miriad file is known to be a drift scan.
-  >>> miriad_file = os.path.join(DATA_PATH, 'new.uvA')
-  >>> uvd = UVData.from_file(miriad_file)
-
-  >>> # Write out the uvh5 file
-  >>> uvd.write_uvh5(os.path.join('.', 'tutorial.uvh5'))
-
-h) uvfits -> uvh5
-*****************
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> import os
-  >>> uvfits_file = os.path.join(DATA_PATH, 'day2_TDEM0003_10s_norx_1src_1spw.uvfits')
-  >>> uvd = UVData.from_file(uvfits_file)
-
-  >>> # Write out the uvh5 file
-  >>> write_file = os.path.join('.', 'tutorial.uvh5')
-  >>> if os.path.exists(write_file):
-  ...    os.remove(write_file)
-  >>> uvd.write_uvh5(write_file)
-
-  >>> # Read the uvh5 file back in.
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> uvd = UVData.from_file(write_file)
-  >>> uvd = UVData.from_file(write_file, file_type='uvh5')
-
-i) MWA correlator -> uvfits
-***************************
-The MWA correlator writes FITS files containing the correlator dumps (but
-lacking metadata and not conforming to the uvfits format). pyuvdata can read
-these files from both the Legacy and MWAX correlator versions, along with MWA
-metafits files (containing the required metadata), into a UVData object which can then
-be written out to uvfits or any other supported file type. There are also options for
-applying cable length corrections, dividing out digital gains, dividing out the coarse
-band shape, common flagging patterns, using AOFlagger flag files, and phasing the data
-to the pointing center. It is also optional to apply a Van Vleck correction for Legacy
-correlator data. The default for this correction is to use a Chebyshev polynomial
-approximation, and there is an option to instead use a slower integral implementation.
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Construct the list of files
-  >>> data_path = os.path.join(DATA_PATH, 'mwa_corr_fits_testfiles/')
-  >>> filelist = [data_path + i for i in ['1131733552.metafits',
-  ... '1131733552_20151116182537_mini_gpubox01_00.fits']]
-
-  >>> # Use the `read` or `from_file` method, optionally specify the file type.
-  >>> # Apply cable corrections and phase data before writing to uvfits
-  >>> # Skip routine time/frequency flagging - see flag_init and associated keywords in documentation
-  >>> uvd.read(filelist, correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
-  >>> uvd = UVData.from_file(filelist, file_type='mwa_corr_fits', correct_cable_len=True, phase_to_pointing_center=True, flag_init=False)
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'tutorial.uvfits')
-  >>> uvd.write_uvfits(write_file)
-
-j) SMA MIR -> ms
-****************
-The SMA has its own bespoke format known as MIR (no relation to MIRIAD), which most
-users prefer to convert to the CASA-based Measurement Set (MS) format for further
-processing. The :meth:`pyuvdata.UVData.read_mir` method (and by extension,
-:meth:`pyuvdata.UVData.read` as well) has support for a few extra keywords that are
-specific to the MIR format. These keywords fall broadly into two groups: selection, and
-visibility handling.
-
-In addition to the selection keywords supported with UVData objects, there are a few
-extra keywords supported for MIR data sets:
--   ``corrchunk``: Specifies (typically DSB) correlator window(s) to load.
-
--   ``receiver``: Specifies a receiver type (generally some combination of '230', '240',
-    '345', and/or '400') to load, with different receivers typically used to target
-    different bands and/or polarizations.
-
--   ``sideband``: Specifies which sideband to load, with the two options being 'l' for
-    lower and 'u' for upper.
-
--   ``pseudo_cont`` : Specifies whether to load the "pseudo-continuum" data, which is
-    constructed as the average of all channels across a single spectral window (set to
-    ``False`` by default).
-
--   ``select_where`` : An keyword which allows for more advanced selection criterion.
-    See the documentation in :meth:`pyuvdata.mir_parser.MirParser` for more details.
-
-Some example use cases for the selection keywords:
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Create a path to the SMA MIR test data set in pyuvdata
-  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
-  >>> # Let's first try loading just the '230' receivers.
-  >>> uvd.read(data_path, receivers='230')
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 131072)
-
-  >>> # Now try one sideband, say the lower ('l')
-  >>> uvd.read(data_path, sidebands='l')
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 65536)
-
-  >>> # Now try one just one chunk (2)
-  >>> uvd.read(data_path, corrchunk=2)
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (2, 32768)
-
-  >>> # Now all together -- '230' receiver, 'l' sideband, chunks 1 and 3
-  >>> uvd.read(data_path, receivers='230', sidebands='l', corrchunk=[1, 3])
-  >>> print((uvd.Npols, uvd.Nfreqs))
-  (1, 32768)
-
-  >>> # Write out a measurement set file
-  >>> write_file = os.path.join('.', 'sma_mir_select.ms')
-  >>> uvd.write_ms(write_file)
-
-As for visibility handling keywords:
-
-- ``rechunk``: Number of channels to spectrally average the data over on read. This is
-  generally the most commonly used keyword, as it reduces the memory/disk space needed
-  to complete read/write operations.
-
-- ``apply_tsys``: Normalize the data using system temperature measurements to produces
-  values in (uncalibrated) Jy (default is ``True``).
-
-- ``apply_flags``: Apply on-line flags (default is ``True``).
-
-For example, the native resolution of the test MIR dataset is 140 kHz -- to average this
-down by a factor of 64 (8.96 MHz resolution) and write it out in MS format can be done
-via the following:
-
-.. code-block:: python
-
-  >>> import os
-  >>> from pyuvdata import UVData
-  >>> from pyuvdata.data import DATA_PATH
-  >>> uvd = UVData()
-
-  >>> # Build a path to the test SMA data set
-  >>> data_path = os.path.join(DATA_PATH, 'sma_test.mir')
-  >>> # Set things up to average over 64-channel blocks.
-  >>> uvd.read(data_path, rechunk=64)
-
-  >>> # Write out uvfits file
-  >>> write_file = os.path.join('.', 'sma_mir_rechunk.ms')
-  >>> uvd.write_ms(write_file)
-
-.. warning::
-    Reading and writing of MIR data will on occasion generate a warning message about
-    the LSTs not being correct. This warning is spurious, and a byproduct how LST values
-    are calculated at time of write (polled average versus calculated based on the
-    timestamp/integration midpoint), and can safely be ignored.
-
+.. _new:
 
 UVData: Instantiating from arrays in memory
 -------------------------------------------
 ``pyuvdata`` can also be used to create a UVData object from arrays in memory. This
 is useful for mocking up data for testing or for creating a UVData object from
 simulated data. Instead of instantiating a blank object and setting each required
-parameter, you can use the ``.new()`` static method, which deals with the task
-of creating a consistent object from a minimal set of inputs
+parameter, you can use the  :meth:`pyuvdata.Telescope.new` static method, which
+deals with the task of creating a consistent object from a minimal set of inputs
 
 .. code-block:: python
 
